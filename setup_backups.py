@@ -8,21 +8,27 @@ password = 'W15n8zf781%nV25BGZ+2'
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
     sys.stdout.flush()
-    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
-    return out, err
+    try:
+        stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
+        out = stdout.read().decode('utf-8', errors='replace').strip()
+        err = stderr.read().decode('utf-8', errors='replace').strip()
+        if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
+        if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
+        sys.stdout.flush()
+        return out, err
+    except Exception as e:
+        sys.stdout.buffer.write(f"Exception: {str(e)}\n".encode('utf-8'))
+        sys.stdout.flush()
+        return "", str(e)
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+if __name__ == '__main__':
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=host, username=user, password=password, timeout=10)
+    sys.stdout.buffer.write(b"Connected.\n")
 
-# Create backup script
-backup_script = """#!/bin/bash
+    # Create backup script
+    backup_script = """#!/bin/bash
 BACKUP_DIR="/opt/backups/clinic"
 DB_FILE="/opt/clinic_admin/clinic.db"
 DATE=$(date +%Y-%m-%d_%H-%M)
@@ -35,10 +41,10 @@ if [ -f "$DB_FILE" ]; then
 fi
 """
 
-ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
-ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
-ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
-ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
+    ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
+    ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
+    ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
+    ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
 
-client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+    client.close()
+    sys.stdout.buffer.write(b"\nDone.\n")

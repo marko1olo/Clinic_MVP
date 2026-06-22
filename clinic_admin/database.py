@@ -1,9 +1,19 @@
 import sqlite3
 from datetime import datetime
+import os
 
-DB_FILE = "clinic.db"
+DB_FILE = os.environ.get("DB_FILE", "clinic.db")
+
+# Initialize global connection for :memory: testing
+_memory_conn = None
 
 def get_connection():
+    global _memory_conn
+    if DB_FILE == ':memory:':
+        if _memory_conn is None:
+            _memory_conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+            _memory_conn.row_factory = sqlite3.Row
+        return _memory_conn
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
@@ -36,7 +46,8 @@ def init_db():
     ''')
     
     conn.commit()
-    conn.close()
+    if DB_FILE != ':memory:':
+        conn.close()
 
 if __name__ == "__main__":
     init_db()

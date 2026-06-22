@@ -344,6 +344,7 @@ app_state = {
     "auto_analyze": config.get("auto_analyze", DEFAULT_CONFIG["auto_analyze"]),
     "auto_enhance": config.get("auto_enhance", DEFAULT_CONFIG["auto_enhance"]),
     "theme": config.get("theme", DEFAULT_CONFIG["theme"]),
+    "enable_ai_vision": config.get("enable_ai_vision", False),
     "watch_dir": WATCH_DIR,
     "tts_voice": config.get("tts_voice", DEFAULT_CONFIG["tts_voice"]),
     "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 4)),
@@ -466,6 +467,10 @@ def update_settings(settings: dict):
     if "theme" in settings:
         app_state["theme"] = settings["theme"]
         config["theme"] = settings["theme"]
+        updated = True
+    if "enable_ai_vision" in settings:
+        app_state["enable_ai_vision"] = settings["enable_ai_vision"]
+        config["enable_ai_vision"] = settings["enable_ai_vision"]
         updated = True
     if "tts_voice" in settings:
         app_state["tts_voice"] = settings["tts_voice"]
@@ -745,24 +750,51 @@ def prepare_image(file_path):
         return None
 
 def analyze_image_with_vision(file_path: str, orig_name: str) -> str:
-    """Runs YOLOv8 segmentation model, saves annotated image, returns relative path."""
+    """Runs YOLOv8 segmentation model, plus algorithmic contouring, saves annotated image."""
     try:
         from ultralytics import YOLO
+        import cv2
+        import numpy as np
+
         model_path = os.path.join(EXE_DIR, "8024.pt")
         if not os.path.exists(model_path):
             model_path = os.path.join(os.path.dirname(EXE_DIR), "8024.pt")
-            if not os.path.exists(model_path):
-                return "" # Silently fail if model is not installed
-
-        model = YOLO(model_path)
-        results = model(file_path, verbose=False)
-        
+            
         base_name, ext = os.path.splitext(orig_name)
         ai_filename = f"{base_name}_ai{ext}"
         ai_path = os.path.join(STATIC_DIR, "uploads", ai_filename)
         
-        # Save plotted image with detections
-        results[0].save(filename=ai_path)
+        has_yolo = False
+        if os.path.exists(model_path):
+            model = YOLO(model_path)
+            results = model(file_path, verbose=False)
+            results[0].save(filename=ai_path)
+            has_yolo = True
+        
+        # Load the image to add contouring
+        img = cv2.imread(ai_path if has_yolo else file_path)
+        if img is not None:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(gray)
+            blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
+            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                           cv2.THRESH_BINARY, 51, -10)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+            closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            overlay = img.copy()
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if 1500 < area < 40000:
+                    cv2.drawContours(img, [cnt], -1, (255, 100, 0), 2)
+                    cv2.drawContours(overlay, [cnt], -1, (255, 100, 0), -1)
+            
+            cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
+            cv2.imwrite(ai_path, img)
+
         return f"/static/uploads/{ai_filename}"
     except Exception as e:
         print(f"[AI Vision Error] {e}")
@@ -1273,7 +1305,9 @@ def process_analysis_only(filename):
     threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
 
     # Run AI Vision
-    ai_image_url = analyze_image_with_vision(file_path, orig_name)
+    ai_image_url = ""
+    if app_state.get("enable_ai_vision", False):
+        ai_image_url = analyze_image_with_vision(file_path, orig_name)
 
     # Automatically save scan into SQLite database
     ext = os.path.splitext(orig_name)[1]

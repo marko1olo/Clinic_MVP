@@ -1,32 +1,35 @@
 import paramiko
 import sys
+import os
 
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+host = "62.84.100.97"
+user = "root"
+password = os.getenv("SSH_PASSWORD")
+if not password:
+    sys.exit("Error: SSH_PASSWORD environment variable is required")
 
 try:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"Connecting to {user}@{host}...")
     client.connect(hostname=host, username=user, password=password, timeout=10)
-    
+
     commands = [
         "lsb_release -a",
         "uptime",
         "free -m",
         "df -h /",
-        "top -b -n 1 | head -n 12"
+        "top -b -n 1 | head -n 12",
     ]
-    
+
     for cmd in commands:
         print(f"\n[Run] {cmd}")
         stdin, stdout, stderr = client.exec_command(cmd)
-        print(stdout.read().decode('utf-8', errors='replace').strip())
-        err = stderr.read().decode('utf-8', errors='replace').strip()
+        print(stdout.read().decode("utf-8", errors="replace").strip())
+        err = stderr.read().decode("utf-8", errors="replace").strip()
         if err:
             print(f"Stderr: {err}")
-            
+
     client.close()
     print("\nConnection closed.")
 except Exception as e:

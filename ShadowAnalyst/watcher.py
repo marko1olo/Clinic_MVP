@@ -11,10 +11,10 @@ from openai import OpenAI
 # Config
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
-MQTT_HOST = "10.77.0.1"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.environ.get("MQTT_HOST", "10.77.0.1")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "clinic")
+MQTT_PASS = os.environ.get("MQTT_PASS")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # Groq API
@@ -48,8 +48,8 @@ def prepare_image(file_path):
         print(f"Ошибка подготовки картинки: {e}")
         return None
 
-from PIL import Image, ImageDraw, ImageFont
 
+from PIL import Image, ImageDraw, ImageFont
 def analyze_image(file_path):
     """Шлет картинку в Groq Vision API с ротацией ключей при лимитах (429)."""
     image_b64 = prepare_image(file_path)

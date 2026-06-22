@@ -1,11 +1,12 @@
-BOT_TOKEN = "8890811661:AAFIexG4L5Sy-Ck3h7H9d17tiOaFzbBpkfk"
+import os
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 BOT_USERNAME = "dentaliya2_bot"
 
 # MQTT - сервак по WireGuard (локально пока 127.0.0.1 для разработки)
-MQTT_HOST = "62.84.100.97"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.environ.get("MQTT_HOST", "62.84.100.97")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "clinic")
+MQTT_PASS = os.environ.get("MQTT_PASS")
 
 # Telegram chat IDs (заполним после /start)
 # ADMIN_CHAT_ID   = главврач / владелец

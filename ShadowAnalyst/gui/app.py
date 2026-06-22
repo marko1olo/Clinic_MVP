@@ -37,7 +37,7 @@ DEFAULT_CONFIG = {
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
     "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
+
     "mqtt_topic_xray": "clinic/xray/result"
 }
 
@@ -56,7 +56,7 @@ GROQ_VISION_MODEL = config.get("groq_vision_model", DEFAULT_CONFIG["groq_vision_
 MQTT_HOST = config.get("mqtt_host", DEFAULT_CONFIG["mqtt_host"])
 MQTT_PORT = config.get("mqtt_port", DEFAULT_CONFIG["mqtt_port"])
 MQTT_USER = config.get("mqtt_user", DEFAULT_CONFIG["mqtt_user"])
-MQTT_PASS = config.get("mqtt_pass", DEFAULT_CONFIG["mqtt_pass"])
+MQTT_PASS = os.environ.get("MQTT_PASS")
 TOPIC_XRAY_RESULT = config.get("mqtt_topic_xray", DEFAULT_CONFIG["mqtt_topic_xray"])
 
 # API for CRM (assuming clinic_admin is on the same VPS as MQTT)

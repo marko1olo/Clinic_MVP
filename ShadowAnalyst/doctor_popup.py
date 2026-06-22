@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import threading
@@ -5,10 +6,10 @@ import tkinter as tk
 from tkinter import ttk
 import paho.mqtt.client as mqtt
 
-MQTT_HOST = "10.77.0.1" # VPS WireGuard IP
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.environ.get("MQTT_HOST", "10.77.0.1") # VPS WireGuard IP
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "clinic")
+MQTT_PASS = os.environ.get("MQTT_PASS")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 class DoctorPopupApp:

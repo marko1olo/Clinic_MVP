@@ -998,8 +998,6 @@ def run_ai_analysis(file_path, patient_info=None):
 
 def send_to_mqtt(image_path, report_text, filename, patient_name=None):
     import paho.mqtt.client as mqtt
-    import base64
-    import json
     try:
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode('utf-8')

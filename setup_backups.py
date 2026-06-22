@@ -1,20 +1,11 @@
 import paramiko
 import sys
+from utils import ssh
 
 host = '62.84.100.97'
 user = 'root'
 password = 'W15n8zf781%nV25BGZ+2'
 
-def ssh(client, cmd, desc="", timeout=60):
-    sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
-    sys.stdout.flush()
-    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
-    return out, err
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

@@ -1,5 +1,4 @@
 import paramiko
-import sys
 
 host = '62.84.100.97'
 user = 'root'
@@ -7,20 +6,20 @@ password = 'W15n8zf781%nV25BGZ+2'
 
 def ssh(client, cmd, desc="", timeout=90):
     label = desc or cmd[:60]
-    sys.stdout.buffer.write(f"\n>>> {label}\n".encode())
-    sys.stdout.flush()
+    print(f"\n>>> {label}", flush=True)
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
     out = stdout.read().decode('utf-8', errors='replace').strip()
     err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out + "\n").encode('utf-8', errors='replace'))
-    if err: sys.stdout.buffer.write(("STDERR: " + err + "\n").encode('utf-8', errors='replace'))
-    sys.stdout.flush()
+    if out:
+        print(out, flush=True)
+    if err:
+        print(f"STDERR: {err}", flush=True)
     return out, err
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+print("Connected.", flush=True)
 
 # ── 1. Save iptables rules without installing iptables-persistent interactively ──
 # Just save to file and add cron to restore on boot - simpler and no apt needed
@@ -96,4 +95,4 @@ ssh(client, "free -m | head -2", "RAM")
 ssh(client, "curl -s http://127.0.0.1/index.html | grep -o '<h1>.*</h1>'", "Site reachable check")
 
 client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+print("\nDone.", flush=True)

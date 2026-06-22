@@ -1,9 +1,12 @@
 import paramiko
 import sys
+import os
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('SERVER_PASSWORD')
+if not password:
+    sys.exit("Error: SERVER_PASSWORD environment variable not set.")
 
 def ssh(client, cmd, desc="", timeout=90):
     label = desc or cmd[:60]

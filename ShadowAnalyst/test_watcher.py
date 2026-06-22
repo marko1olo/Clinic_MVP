@@ -151,7 +151,7 @@ def test_analyze_image_rate_limit_exhausted(mock_openai_class, mock_prepare_imag
 
     # Assert
     assert marked_path is None
-    assert report == "Сбой: Все ключи Groq исчерпали лимиты (429)."
+    assert report == "Сбой ИИ-анализа: все ключи исчерпаны. Ошибка: HTTP 429 Too Many Requests"
 
     # Ensure client was created as many times as there are API keys
     assert mock_openai_class.call_count == len(watcher.GROQ_API_KEYS)

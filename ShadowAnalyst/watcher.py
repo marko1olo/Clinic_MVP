@@ -8,6 +8,8 @@ from PIL import Image
 import paho.mqtt.client as mqtt
 from openai import OpenAI
 
+_clients_cache = {}
+
 # Config
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
@@ -69,12 +71,14 @@ def analyze_image(file_path):
     random.shuffle(keys)
 
     for api_key in keys:
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1",
-            timeout=30.0,
-            max_retries=0
-        )
+        if api_key not in _clients_cache:
+            _clients_cache[api_key] = OpenAI(
+                api_key=api_key,
+                base_url="https://api.groq.com/openai/v1",
+                timeout=30.0,
+                max_retries=0
+            )
+        client = _clients_cache[api_key]
         try:
             response = client.chat.completions.create(
                 model=GROQ_VISION_MODEL,

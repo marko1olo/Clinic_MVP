@@ -7,8 +7,13 @@ from datetime import datetime
 
 from database import init_db, get_connection
 
+import os
+
 app = FastAPI(title="Dentaliya-2 Admin")
-templates = Jinja2Templates(directory="templates")
+
+# Use absolute path for templates
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Initialize DB on startup
 @app.on_event("startup")

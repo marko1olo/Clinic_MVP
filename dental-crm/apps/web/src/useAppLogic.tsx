@@ -3630,20 +3630,38 @@ const {
     }
 
     setIsPendingVisitSyncing(true);
-    let remaining = pending;
+    let remaining = [...pending];
     try {
-      for (const item of pending) {
+      const promises = pending.map(async (item) => {
         const result = await submitAcceptedVisitDraft(item.visitId, item.draft, item.doctorSummary, {
           clientMutationId: item.clientMutationId,
           baseRevision: item.baseRevision,
           clientSavedAt: item.queuedAt
         });
-        remaining = remaining.filter((candidate) => candidate.id !== item.id);
-        await savePendingVisitSaves(remaining, activeOrganizationId);
-        if (dashboard?.activeVisit.id === result.visit.id) {
-          applyAcceptedVisitResponse(result);
+        return { item, result };
+      });
+
+      const outcomes = await Promise.allSettled(promises);
+      const errors: unknown[] = [];
+
+      for (const outcome of outcomes) {
+        if (outcome.status === "fulfilled") {
+          const { item, result } = outcome.value;
+          remaining = remaining.filter((candidate) => candidate.id !== item.id);
+          if (dashboard?.activeVisit.id === result.visit.id) {
+            applyAcceptedVisitResponse(result);
+          }
+        } else {
+          errors.push(outcome.reason);
         }
       }
+
+      await savePendingVisitSaves(remaining, activeOrganizationId);
+
+      if (errors.length > 0) {
+        throw errors[0];
+      }
+
       await refreshPendingVisitSaveState();
     } catch (syncError) {
       await savePendingVisitSaves(remaining, activeOrganizationId);

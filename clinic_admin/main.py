@@ -80,7 +80,7 @@ async def read_root(request: Request, username: str = Depends(get_current_userna
     appointments = c.fetchall()
     
     # Get all patients for the dropdown
-    c.execute('SELECT * FROM patients ORDER BY name ASC')
+    c.execute('SELECT * FROM patients ORDER BY name ASC LIMIT 100')
     patients = c.fetchall()
     
     conn.close()

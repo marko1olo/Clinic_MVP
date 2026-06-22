@@ -28,17 +28,14 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
-    "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
-    "groq_api_keys": [
-        "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",
-        "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"
-    ],
-    "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
-    "mqtt_host": "62.84.100.97",
-    "mqtt_port": 1883,
-    "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
-    "mqtt_topic_xray": "clinic/xray/result"
+    "watch_dir": os.environ.get("WATCH_DIR", r"C:\Clinic_MVP\Dropzone_XRay"),
+    "groq_api_keys": os.environ.get("GROQ_API_KEYS", "").split(",") if os.environ.get("GROQ_API_KEYS") else [],
+    "groq_vision_model": os.environ.get("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
+    "mqtt_host": os.environ.get("MQTT_HOST", "62.84.100.97"),
+    "mqtt_port": int(os.environ.get("MQTT_PORT", 1883)),
+    "mqtt_user": os.environ.get("MQTT_USER", ""),
+    "mqtt_pass": os.environ.get("MQTT_PASS", ""),
+    "mqtt_topic_xray": os.environ.get("MQTT_TOPIC_XRAY", "clinic/xray/result")
 }
 
 if not os.path.exists(CONFIG_FILE):

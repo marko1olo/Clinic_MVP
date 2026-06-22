@@ -9,20 +9,17 @@ import paho.mqtt.client as mqtt
 from openai import OpenAI
 
 # Config
-WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
-PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
-MQTT_HOST = "10.77.0.1"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
-TOPIC_XRAY_RESULT = "clinic/xray/result"
+WATCH_DIR = os.environ.get("WATCH_DIR", r"C:\Clinic_MVP\Dropzone_XRay")
+PROCESSED_DIR = os.environ.get("PROCESSED_DIR", r"C:\Clinic_MVP\Processed")
+MQTT_HOST = os.environ.get("MQTT_HOST", "10.77.0.1")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "")
+MQTT_PASS = os.environ.get("MQTT_PASS", "")
+TOPIC_XRAY_RESULT = os.environ.get("MQTT_TOPIC_XRAY", "clinic/xray/result")
 
 # Groq API
-GROQ_API_KEYS = [
-    "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",
-    "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"
-]
-GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_API_KEYS = os.environ.get("GROQ_API_KEYS", "").split(",") if os.environ.get("GROQ_API_KEYS") else []
+GROQ_VISION_MODEL = os.environ.get("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 def setup_dirs():
     os.makedirs(WATCH_DIR, exist_ok=True)

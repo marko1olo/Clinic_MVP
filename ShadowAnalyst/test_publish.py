@@ -1,10 +1,11 @@
+import os
 import json
 import paho.mqtt.client as mqtt
 
-MQTT_HOST = "10.77.0.1"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.environ.get("MQTT_HOST", "10.77.0.1")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "")
+MQTT_PASS = os.environ.get("MQTT_PASS", "")
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.username_pw_set(MQTT_USER, MQTT_PASS)

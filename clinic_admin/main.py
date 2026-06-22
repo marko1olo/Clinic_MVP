@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Request, Form
+import os
+import secrets
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -15,8 +18,31 @@ templates = Jinja2Templates(directory="templates")
 def startup_event():
     init_db()
 
+
+security = HTTPBasic()
+
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    expected_username = os.environ.get("ADMIN_USERNAME")
+    expected_password = os.environ.get("ADMIN_PASSWORD")
+
+    if not expected_username or not expected_password:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin credentials are not configured on the server",
+        )
+
+    correct_username = secrets.compare_digest(credentials.username, expected_username)
+    correct_password = secrets.compare_digest(credentials.password, expected_password)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, username: str = Depends(get_current_username)):
     conn = get_connection()
     c = conn.cursor()
     
@@ -43,7 +69,7 @@ async def read_root(request: Request):
     })
 
 @app.post("/patients/add")
-async def add_patient(name: str = Form(...), phone: str = Form(None)):
+async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(get_current_username)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
@@ -53,7 +79,7 @@ async def add_patient(name: str = Form(...), phone: str = Form(None)):
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/appointments/add")
-async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...)):
+async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(get_current_username)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()

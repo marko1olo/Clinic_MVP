@@ -44,9 +44,7 @@ for local, remote in [
 # 3. Create __init__.py for config package
 ssh(client, "touch /opt/clinic_bot/config/__init__.py", "Create config __init__.py")
 
-# 4. Update MQTT host in settings for production (10.77.0.1 = VPS WireGuard IP)
-ssh(client, "sed -i 's/MQTT_HOST = \"62.84.100.97\"/MQTT_HOST = \"10.77.0.1\"/' /opt/clinic_bot/config/settings.py", "Set MQTT host to WireGuard IP")
-ssh(client, "grep MQTT_HOST /opt/clinic_bot/config/settings.py", "Verify MQTT host")
+# 4. (Removed) Settings now uses environment variables
 
 # 5. Add bot service to docker-compose
 ssh(client, "cat /opt/clinic_infra/docker-compose.yml", "Current docker-compose")
@@ -59,6 +57,8 @@ bot_service = """
     network_mode: host
     volumes:
       - /opt/clinic_bot:/app
+    env_file:
+      - /opt/clinic_bot/config/.env
     environment:
       - PYTHONUNBUFFERED=1
 """

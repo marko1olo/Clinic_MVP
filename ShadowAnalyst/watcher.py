@@ -24,6 +24,16 @@ GROQ_API_KEYS = [
 ]
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
+GROQ_CLIENTS = {
+    api_key: OpenAI(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1",
+        timeout=30.0,
+        max_retries=0
+    )
+    for api_key in GROQ_API_KEYS
+}
+
 def setup_dirs():
     os.makedirs(WATCH_DIR, exist_ok=True)
     os.makedirs(PROCESSED_DIR, exist_ok=True)
@@ -69,12 +79,7 @@ def analyze_image(file_path):
     random.shuffle(keys)
 
     for api_key in keys:
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1",
-            timeout=30.0,
-            max_retries=0
-        )
+        client = GROQ_CLIENTS[api_key]
         try:
             response = client.chat.completions.create(
                 model=GROQ_VISION_MODEL,

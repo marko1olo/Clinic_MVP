@@ -53,6 +53,16 @@ WATCH_DIR = config.get("watch_dir", DEFAULT_CONFIG["watch_dir"])
 GROQ_API_KEYS = config.get("groq_api_keys", DEFAULT_CONFIG["groq_api_keys"])
 GROQ_VISION_MODEL = config.get("groq_vision_model", DEFAULT_CONFIG["groq_vision_model"])
 
+GROQ_CLIENTS = {
+    api_key: OpenAI(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1",
+        timeout=40.0,
+        max_retries=0
+    )
+    for api_key in GROQ_API_KEYS
+}
+
 MQTT_HOST = config.get("mqtt_host", DEFAULT_CONFIG["mqtt_host"])
 MQTT_PORT = config.get("mqtt_port", DEFAULT_CONFIG["mqtt_port"])
 MQTT_USER = config.get("mqtt_user", DEFAULT_CONFIG["mqtt_user"])
@@ -139,12 +149,7 @@ def run_ai_analysis(file_path, patient_info=None):
     random.shuffle(keys)
 
     for api_key in keys:
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1",
-            timeout=40.0,
-            max_retries=0
-        )
+        client = GROQ_CLIENTS[api_key]
         try:
             response = client.chat.completions.create(
                 model=GROQ_VISION_MODEL,

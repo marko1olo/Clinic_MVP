@@ -25,6 +25,15 @@ API_KEYS = [
 ]
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
+
+GROQ_CLIENTS = {
+    api_key: OpenAI(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1",
+        max_retries=0
+    )
+    for api_key in API_KEYS
+}
 IMG_PATH = r"C:\Users\danat\Downloads\оро.webp"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -75,7 +84,7 @@ def call_groq(prompt, b64):
     while True:
         random.shuffle(keys)
         for key in keys:
-            client = OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1", max_retries=0)
+            client = GROQ_CLIENTS[key]
             try:
                 resp = client.chat.completions.create(
                     model=MODEL,

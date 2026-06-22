@@ -1,7 +1,6 @@
-﻿import os
+import os
 import sys
 import paramiko
-import sys
 import functools
 from utils import ssh as base_ssh
 

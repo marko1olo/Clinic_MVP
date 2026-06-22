@@ -172,7 +172,8 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
     """Запускает MQTT клиент в отдельном потоке."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'loop': loop})
-    client.username_pw_set(MQTT_USER, MQTT_PASS)
+    if MQTT_USER:
+        client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.on_message = on_mqtt_message
 
     client.on_connect = lambda c, ud, f, rc, p: (

@@ -11,17 +11,15 @@ from openai import OpenAI
 # Config
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
-MQTT_HOST = "10.77.0.1"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.getenv("MQTT_HOST", "10.77.0.1")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER = os.getenv("MQTT_USER", "clinic")
+MQTT_PASS = os.getenv("MQTT_PASS", "clinic2024")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # Groq API
-GROQ_API_KEYS = [
-    "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",
-    "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"
-]
+env_keys = os.getenv("GROQ_API_KEYS")
+GROQ_API_KEYS = [k.strip() for k in env_keys.split(",")] if env_keys else []
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 def setup_dirs():

@@ -4,9 +4,11 @@ import json
 import base64
 import random
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import paho.mqtt.client as mqtt
 from openai import OpenAI
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 # Config
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
@@ -47,8 +49,6 @@ def prepare_image(file_path):
     except Exception as e:
         print(f"Ошибка подготовки картинки: {e}")
         return None
-
-from PIL import Image, ImageDraw, ImageFont
 
 def analyze_image(file_path):
     """Шлет картинку в Groq Vision API с ротацией ключей при лимитах (429)."""
@@ -118,52 +118,84 @@ def publish_result(filename, findings):
     except Exception as e:
         print(f"Ошибка отправки MQTT: {e}")
 
+
+def process_single_file(file_path):
+    try:
+        filename = os.path.basename(file_path)
+
+        # Проверка что файл полностью записался
+        size1 = os.path.getsize(file_path)
+        time.sleep(1)
+        size2 = os.path.getsize(file_path)
+
+        if size1 == size2 and size1 > 0:
+            print(f"\n[+] Найден новый снимок: {filename}")
+            print("    Отправка в ИИ...")
+
+            # Анализ ИИ и отрисовка рамок
+            marked_path, findings = analyze_image(file_path)
+            print(f"    Анализ завершен. Результат:\n{findings}")
+
+            # Отправка результатов
+            # Если размеченный файл создан, отправляем его имя
+            final_file_for_popup = marked_path if marked_path else file_path
+            publish_result(os.path.basename(final_file_for_popup), findings)
+
+            # Перемещение обработанного оригинала
+            processed_path = os.path.join(PROCESSED_DIR, filename)
+            os.replace(file_path, processed_path)
+
+            # Если есть размеченный, тоже переносим
+            if marked_path and os.path.exists(marked_path):
+                marked_filename = os.path.basename(marked_path)
+                os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+
+            print(f"    Файлы перемещены в {PROCESSED_DIR}")
+    except FileNotFoundError:
+        pass # File was already processed or moved
+    except Exception as e:
+        print(f"Ошибка при обработке {file_path}: {e}")
+
+class XRayHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            process_single_file(event.src_path)
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            process_single_file(event.src_path)
+
 def watch_loop():
     setup_dirs()
     print(f"[*] Shadow Analyst запущен. Жду снимки в: {WATCH_DIR}")
     
-    while True:
-        try:
-            for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    file_path = os.path.join(WATCH_DIR, filename)
-                    
-                    # Проверка что файл полностью записался
-                    size1 = os.path.getsize(file_path)
-                    time.sleep(1)
-                    size2 = os.path.getsize(file_path)
-                    
-                    if size1 == size2 and size1 > 0:
-                        print(f"\n[+] Найден новый снимок: {filename}")
-                        print("    Отправка в ИИ...")
-                        
-                        # Анализ ИИ и отрисовка рамок
-                        marked_path, findings = analyze_image(file_path)
-                        print(f"    Анализ завершен. Результат:\n{findings}")
-                        
-                        # Отправка результатов
-                        # Если размеченный файл создан, отправляем его имя
-                        final_file_for_popup = marked_path if marked_path else file_path
-                        publish_result(os.path.basename(final_file_for_popup), findings)
-                        
-                        # Перемещение обработанного оригинала
-                        processed_path = os.path.join(PROCESSED_DIR, filename)
-                        os.replace(file_path, processed_path)
-                        
-                        # Если есть размеченный, тоже переносим
-                        if marked_path and os.path.exists(marked_path):
-                            marked_filename = os.path.basename(marked_path)
-                            os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-                        
-                        print(f"    Файлы перемещены в {PROCESSED_DIR}")
-                        
-            time.sleep(2)
-        except KeyboardInterrupt:
-            print("Остановка.")
-            break
-        except Exception as e:
-            print(f"Глобальная ошибка: {e}")
-            time.sleep(5)
+    # Process existing files first
+    try:
+        for filename in os.listdir(WATCH_DIR):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                file_path = os.path.join(WATCH_DIR, filename)
+                process_single_file(file_path)
+    except Exception as e:
+        print(f"Ошибка при проверке существующих файлов: {e}")
 
+    event_handler = XRayHandler()
+    observer = Observer()
+    observer.schedule(event_handler, WATCH_DIR, recursive=False)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Остановка.")
+        observer.stop()
+    except Exception as e:
+        print(f"Глобальная ошибка: {e}")
+        observer.stop()
+    observer.join()
 if __name__ == "__main__":
     watch_loop()

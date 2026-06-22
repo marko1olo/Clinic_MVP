@@ -19,10 +19,7 @@ def draw_text_with_bg(draw, text, x, y, text_color, bg_color=(0, 0, 0, 180)):
     draw.text((x, y), text, fill=text_color, font=font)
 
 
-API_KEYS = [
-    "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",
-    "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"
-]
+API_KEYS = os.environ.get("GROQ_API_KEYS", "").split(",") if os.environ.get("GROQ_API_KEYS") else []
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 IMG_PATH = r"C:\Users\danat\Downloads\оро.webp"

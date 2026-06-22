@@ -1,9 +1,15 @@
 import paramiko
 import sys
 
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+import os
+
+host = os.environ.get('SERVER_HOST', '62.84.100.97')
+user = os.environ.get('SERVER_USER', 'root')
+password = os.environ.get('SERVER_PASSWORD')
+
+if not password:
+    print("Error: SERVER_PASSWORD environment variable is not set.", file=sys.stderr)
+    sys.exit(1)
 
 try:
     client = paramiko.SSHClient()

@@ -387,9 +387,6 @@ try {
 
   const cdp = connectCdp(pageTarget.webSocketDebuggerUrl);
   await cdp.opened;
-  await evaluate(cdp, `(() => { localStorage.setItem("denteState", JSON.stringify({ version: 1, selectedWorkspaceRole: "administrator" })); })()`, "inject localStorage");
-  await cdp.send("Page.reload");
-  await new Promise((resolve) => setTimeout(resolve, 2000));
   await cdp.send("Runtime.enable");
   await cdp.send("Page.enable");
   await cdp.send("DOM.enable");
@@ -486,30 +483,30 @@ try {
     "created patient intake document"
   );
 
-//   await navigateTo(cdp, "visit", "#visit.visit-panel");
-//   const toothResult = await evaluate(
-//     cdp,
-//     `(() => {
-//       const watchTool = document.querySelector(".tooth-map-selected button");
-//       const tooth24 = Array.from(document.querySelectorAll(".tooth-row button")).find((button) => button.textContent.trim() === "24");
-//       if (!watchTool || !tooth24) return { ok: false, hasWatchTool: Boolean(watchTool), hasTooth24: Boolean(tooth24) };
-//       watchTool.click();
-//       tooth24.click();
-//       return { ok: true, tooth24Class: tooth24.className };
-//     })()`,
-//     "mark tooth 24"
-//   );
-//   if (!toothResult.ok) throw new Error(`Tooth map action failed: ${JSON.stringify(toothResult)}`);
-//   await waitFor(
-//     cdp,
-//     `(() => {
-//       const tooth24 = Array.from(document.querySelectorAll(".tooth-row button")).find((button) => button.textContent.trim() === "24");
-//       return tooth24 && tooth24.className.includes("tooth-watch") && tooth24.className.includes("selected")
-//         ? { tooth24Class: tooth24.className }
-//         : null;
-//     })()`,
-//     "tooth 24 watch marker"
-//   );
+  await navigateTo(cdp, "visit", "#visit.visit-panel");
+  const toothResult = await evaluate(
+    cdp,
+    `(() => {
+      const watchTool = document.querySelector(".tooth-map-selected button");
+      const tooth24 = Array.from(document.querySelectorAll(".tooth-row button")).find((button) => button.textContent.trim() === "24");
+      if (!watchTool || !tooth24) return { ok: false, hasWatchTool: Boolean(watchTool), hasTooth24: Boolean(tooth24) };
+      watchTool.click();
+      tooth24.click();
+      return { ok: true, tooth24Class: tooth24.className };
+    })()`,
+    "mark tooth 24"
+  );
+  if (!toothResult.ok) throw new Error(`Tooth map action failed: ${JSON.stringify(toothResult)}`);
+  await waitFor(
+    cdp,
+    `(() => {
+      const tooth24 = Array.from(document.querySelectorAll(".tooth-row button")).find((button) => button.textContent.trim() === "24");
+      return tooth24 && tooth24.className.includes("tooth-watch") && tooth24.className.includes("selected")
+        ? { tooth24Class: tooth24.className }
+        : null;
+    })()`,
+    "tooth 24 watch marker"
+  );
 
   const appointmentReason = `Smoke appointment ${Date.now()}`;
   const appointmentWindow = nextBusinessMorningWindow(initialDashboard.clinicSettings.profile.scheduleDefaults);

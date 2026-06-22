@@ -79,8 +79,7 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
     origin: process.env.WEB_ORIGIN ?? "http://127.0.0.1:5173"
   });
 
-  app.setErrorHandler((error, request, reply) => {
-    request.log.error(error);
+  app.setErrorHandler((error, _request, reply) => {
     if (isZodValidationError(error)) {
       reply.status(400).send({
         error: "ValidationError",

@@ -218,6 +218,22 @@ def process_new_xray(file_path):
     
     processing_files.add(filename)
     try:
+        # Fetch patient from CRM in parallel
+        patient_info_container = [None]
+        def fetch_patient_info():
+            try:
+                resp = requests.get(CRM_API_URL, timeout=3)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if "error" not in data:
+                        patient_info_container[0] = data
+                        print(f"CRM Link: Found patient {data['patient_name']}")
+            except Exception as e:
+                print(f"CRM API error: {e}")
+
+        crm_thread = threading.Thread(target=fetch_patient_info)
+        crm_thread.start()
+
         print(f"Waiting for file to be ready: {file_path}")
         if not wait_for_file_ready(file_path):
             print(f"Timeout waiting for file {file_path}")
@@ -249,17 +265,9 @@ def process_new_xray(file_path):
             static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
             shutil.copy2(file_path, static_img_path)
 
-        # Fetch patient from CRM
-        patient_info = None
-        try:
-            resp = requests.get(CRM_API_URL, timeout=3)
-            if resp.status_code == 200:
-                data = resp.json()
-                if "error" not in data:
-                    patient_info = data
-                    print(f"CRM Link: Found patient {patient_info['patient_name']}")
-        except Exception as e:
-            print(f"CRM API error: {e}")
+        # Wait for CRM fetch to complete
+        crm_thread.join()
+        patient_info = patient_info_container[0]
 
         # Analyze
         report = run_ai_analysis(file_path, patient_info)

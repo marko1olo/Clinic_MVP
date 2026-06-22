@@ -29,7 +29,7 @@ try {
     Write-Host "Creating SMB Share..." -ForegroundColor Cyan
     $existing = Get-SmbShare -Name "Dropzone_XRay" -ErrorAction SilentlyContinue
     if (-not $existing) {
-        New-SmbShare -Name "Dropzone_XRay" -Path $SharePath -FullAccess "*S-1-1-0" | Out-Null
+        New-SmbShare -Name "Dropzone_XRay" -Path $SharePath -FullAccess "*S-1-5-11" | Out-Null
         Write-Host "Share created successfully!" -ForegroundColor Green
     } else {
         Write-Host "Share already exists." -ForegroundColor Yellow
@@ -37,7 +37,7 @@ try {
 
     Write-Host "Setting NTFS permissions..." -ForegroundColor Cyan
     $Acl = Get-Acl $SharePath
-    $sid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
+    $sid = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-11")
     $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $Acl.SetAccessRule($rule)
     Set-Acl $SharePath $Acl

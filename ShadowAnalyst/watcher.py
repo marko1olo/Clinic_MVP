@@ -18,10 +18,16 @@ MQTT_PASS = "clinic2024"
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # Groq API
-GROQ_API_KEYS = [
-    "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",
-    "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"
-]
+def _get_groq_api_keys():
+    keys_str = os.getenv("GROQ_API_KEYS")
+    if keys_str:
+        return [k.strip() for k in keys_str.split(",") if k.strip()]
+    key = os.getenv("GROQ_API_KEY")
+    if key:
+        return [key.strip()]
+    return []
+
+GROQ_API_KEYS = _get_groq_api_keys()
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 def setup_dirs():

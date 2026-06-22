@@ -2,9 +2,12 @@ import paramiko
 import sys
 import os
 
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+host = os.getenv('SSH_HOST', '62.84.100.97')
+user = os.getenv('SSH_USER', 'root')
+password = os.getenv('SSH_PASSWORD')
+
+if not password:
+    sys.exit("Error: SSH_PASSWORD environment variable is not set.")
 
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())

@@ -5,7 +5,6 @@ import base64
 import random
 from io import BytesIO
 from PIL import Image
-import paho.mqtt.client as mqtt
 from openai import OpenAI
 
 # Config
@@ -48,7 +47,6 @@ def prepare_image(file_path):
         print(f"Ошибка подготовки картинки: {e}")
         return None
 
-from PIL import Image, ImageDraw, ImageFont
 
 def analyze_image(file_path):
     """Шлет картинку в Groq Vision API с ротацией ключей при лимитах (429)."""
@@ -104,6 +102,8 @@ def analyze_image(file_path):
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
+    import paho.mqtt.client as mqtt
+
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(MQTT_USER, MQTT_PASS)
     try:

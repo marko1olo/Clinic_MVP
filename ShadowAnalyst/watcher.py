@@ -4,29 +4,25 @@ import json
 import base64
 import random
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import paho.mqtt.client as mqtt
 from openai import OpenAI
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 # Config Defaults
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
 MQTT_HOST = "62.84.100.97" # Default public IP
 MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_USER = os.getenv("MQTT_USER", "")
+MQTT_PASS = os.getenv("MQTT_PASS", "")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # API Defaults
-GROQ_API_KEYS = [
-    "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",
-    "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",
-    "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",
-    "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",
-    "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"
-]
+GROQ_API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-GOOGLE_API_KEYS = []
+GOOGLE_API_KEYS = [key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()]
 
 # Load config dynamically if exists
 CONFIG_FILE = r"C:\Clinic_MVP\config.json"
@@ -80,11 +76,9 @@ except Exception as e:
     print(f"Не удалось загрузить dentalimage.md: {e}")
     SYSTEM_PROMPT = "Опиши снимок зубов как стоматолог."
 
-from PIL import Image, ImageDraw, ImageFont
-
 def make_groq_client(api_key: str) -> OpenAI:
     return OpenAI(
-        api_key=api_key,
+        api_key=api_key if api_key else "dummy_key",
         base_url="https://api.groq.com/openai/v1",
         timeout=30.0,
         max_retries=0
@@ -92,7 +86,7 @@ def make_groq_client(api_key: str) -> OpenAI:
 
 def make_gemini_client(api_key: str) -> OpenAI:
     return OpenAI(
-        api_key=api_key,
+        api_key=api_key if api_key else "dummy_key",
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         timeout=30.0,
         max_retries=0
@@ -164,7 +158,8 @@ def analyze_image(file_path):
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(MQTT_USER, MQTT_PASS)
+    if MQTT_USER:
+        client.username_pw_set(MQTT_USER, MQTT_PASS)
     try:
         client.connect(MQTT_HOST, MQTT_PORT, 5)
         payload = {
@@ -177,61 +172,94 @@ def publish_result(filename, findings):
     except Exception as e:
         print(f"Ошибка отправки MQTT: {e}")
 
+def process_single_file(file_path):
+    try:
+        filename = os.path.basename(file_path)
+
+        # Проверка что файл полностью записался
+        size1 = os.path.getsize(file_path)
+        time.sleep(1)
+        size2 = os.path.getsize(file_path)
+
+        if size1 == size2 and size1 > 0:
+            print(f"\n[+] Найден новый снимок: {filename}")
+            print("    Отправка в ИИ...")
+
+            start_time = time.time()
+            # Анализ ИИ и отрисовка рамок
+            marked_path, findings = analyze_image(file_path)
+            elapsed = time.time() - start_time
+            print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
+
+            # Отправка результатов
+            # Если размеченный файл создан, отправляем его имя
+            final_file_for_popup = marked_path if marked_path else file_path
+            publish_result(os.path.basename(final_file_for_popup), findings)
+
+            # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
+            processed_path = os.path.join(PROCESSED_DIR, filename)
+            try:
+                os.replace(file_path, processed_path)
+            except PermissionError:
+                print("    [!] Файл занят, повторная попытка через 2 сек...")
+                time.sleep(2)
+                os.replace(file_path, processed_path)
+
+            # Если есть размеченный, тоже переносим
+            if marked_path and os.path.exists(marked_path):
+                marked_filename = os.path.basename(marked_path)
+                try:
+                    os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+                except Exception as e:
+                    print(f"    [!] Ошибка перемещения размеченного файла: {e}")
+
+            print(f"    Файлы перемещены в {PROCESSED_DIR}")
+    except FileNotFoundError:
+        pass # File was already processed or moved
+    except Exception as e:
+        print(f"Ошибка при обработке {file_path}: {e}")
+
+class XRayHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            process_single_file(event.src_path)
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            process_single_file(event.src_path)
+
 def watch_loop():
     setup_dirs()
     print(f"[*] Shadow Analyst запущен. Жду снимки в: {WATCH_DIR}")
     
-    while True:
-        try:
-            for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    file_path = os.path.join(WATCH_DIR, filename)
-                    
-                    # Проверка что файл полностью записался
-                    size1 = os.path.getsize(file_path)
-                    time.sleep(1)
-                    size2 = os.path.getsize(file_path)
-                    
-                    if size1 == size2 and size1 > 0:
-                        print(f"\n[+] Найден новый снимок: {filename}")
-                        print("    Отправка в ИИ...")
-                        
-                        start_time = time.time()
-                        # Анализ ИИ и отрисовка рамок
-                        marked_path, findings = analyze_image(file_path)
-                        elapsed = time.time() - start_time
-                        print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
-                        
-                        # Отправка результатов
-                        final_file_for_popup = marked_path if marked_path else file_path
-                        publish_result(os.path.basename(final_file_for_popup), findings)
-                        
-                        # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
-                        processed_path = os.path.join(PROCESSED_DIR, filename)
-                        try:
-                            os.replace(file_path, processed_path)
-                        except PermissionError:
-                            print("    [!] Файл занят, повторная попытка через 2 сек...")
-                            time.sleep(2)
-                            os.replace(file_path, processed_path)
-                        
-                        # Если есть размеченный, тоже переносим
-                        if marked_path and os.path.exists(marked_path):
-                            marked_filename = os.path.basename(marked_path)
-                            try:
-                                os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-                            except Exception as e:
-                                print(f"    [!] Ошибка перемещения размеченного файла: {e}")
-                        
-                        print(f"    Файлы перемещены в {PROCESSED_DIR}")
-                        
-            time.sleep(2)
-        except KeyboardInterrupt:
-            print("Остановка.")
-            break
-        except Exception as e:
-            print(f"Глобальная ошибка: {e}")
-            time.sleep(5)
+    # Process existing files first
+    try:
+        for filename in os.listdir(WATCH_DIR):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                file_path = os.path.join(WATCH_DIR, filename)
+                process_single_file(file_path)
+    except Exception as e:
+        print(f"Ошибка при проверке существующих файлов: {e}")
+
+    event_handler = XRayHandler()
+    observer = Observer()
+    observer.schedule(event_handler, WATCH_DIR, recursive=False)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Остановка.")
+        observer.stop()
+    except Exception as e:
+        print(f"Глобальная ошибка: {e}")
+        observer.stop()
+    observer.join()
 
 if __name__ == "__main__":
     watch_loop()

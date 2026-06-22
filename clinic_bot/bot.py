@@ -10,10 +10,13 @@ import json
 import sys
 from datetime import datetime
 
+from typing import TYPE_CHECKING
 import paho.mqtt.client as mqtt
-from aiogram import Bot, Dispatcher, Router, F
-from aiogram.types import Message
+from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command, CommandStart
+
+if TYPE_CHECKING:
+    from aiogram.types import Message
 
 sys.path.insert(0, '.')
 from config.settings import (
@@ -38,7 +41,7 @@ dp.include_router(router)
 # ── Telegram handlers ────────────────────────────────────────────────────────
 
 @router.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: 'Message'):
     chat_id = message.chat.id
     role = db.get_user_role(chat_id)
     if not role:
@@ -56,7 +59,7 @@ async def cmd_start(message: Message):
     )
 
 @router.message(Command("status"))
-async def cmd_status(message: Message):
+async def cmd_status(message: 'Message'):
     doctors = len(db.get_users_by_role('doctor'))
     admins = len(db.get_users_by_role('admin'))
     await message.answer(
@@ -68,7 +71,7 @@ async def cmd_status(message: Message):
     )
 
 @router.message(Command("test"))
-async def cmd_test(message: Message):
+async def cmd_test(message: 'Message'):
     await message.answer(
         "🦷 *Тест уведомления*\n\n"
         "Снимок: `test_xray.png`\n"

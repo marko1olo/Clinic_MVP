@@ -3834,7 +3834,8 @@ function configuredClinicTelegramBotFromJson(): { botConfigId: string | null; bo
       ? Object.entries(parsed).map(([key, value]) => (telegramEnvRecord(value) ? { organizationId: key, ...value } : null))
       : [];
 
-  const match = records.filter(telegramEnvRecord).find((record) => {
+  const match = records.find((record): record is Record<string, unknown> => {
+    if (!telegramEnvRecord(record)) return false;
     const organizationId = telegramEnvString(record.organizationId) ?? telegramEnvString(record.orgId);
     const clinicId = telegramEnvString(record.clinicId);
     return organizationId === denteTelegramBotSettings.organizationId || clinicId === denteTelegramBotSettings.organizationId;

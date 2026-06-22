@@ -1,6 +1,8 @@
-from fastapi import FastAPI, Request, Form
+import os
+import secrets
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 import uvicorn
 from datetime import datetime
@@ -10,13 +12,31 @@ from database import init_db, get_connection
 app = FastAPI(title="Dentaliya-2 Admin")
 templates = Jinja2Templates(directory="templates")
 
+
+security = HTTPBasic()
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    expected_username = os.environ.get("ADMIN_USER", "admin")
+    expected_password = os.environ.get("ADMIN_PASSWORD", "admin")
+
+    is_user_ok = secrets.compare_digest(credentials.username, expected_username)
+    is_pass_ok = secrets.compare_digest(credentials.password, expected_password)
+
+    if not (is_user_ok and is_pass_ok):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
 # Initialize DB on startup
 @app.on_event("startup")
 def startup_event():
     init_db()
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     
@@ -43,7 +63,7 @@ async def read_root(request: Request):
     })
 
 @app.post("/patients/add")
-async def add_patient(name: str = Form(...), phone: str = Form(None)):
+async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
@@ -53,7 +73,7 @@ async def add_patient(name: str = Form(...), phone: str = Form(None)):
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/appointments/add")
-async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...)):
+async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()

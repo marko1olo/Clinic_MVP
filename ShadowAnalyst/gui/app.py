@@ -250,8 +250,8 @@ DEFAULT_CONFIG = {
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
-    "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
+    "mqtt_user": os.getenv("MQTT_USER", ""),
+    "mqtt_pass": os.getenv("MQTT_PASS", ""),
     "mqtt_topic_xray": "clinic/xray/result",
     "auto_analyze": True,
     "auto_enhance": False,
@@ -1012,7 +1012,8 @@ def send_to_mqtt(image_path, report_text, filename, patient_name=None):
         }
         
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        client.username_pw_set(MQTT_USER, MQTT_PASS)
+        if MQTT_USER:
+            client.username_pw_set(MQTT_USER, MQTT_PASS)
         client.connect(MQTT_HOST, MQTT_PORT, 60)
         client.publish(TOPIC_XRAY_RESULT, json.dumps(payload), qos=1)
         client.disconnect()

@@ -1,9 +1,13 @@
+import os
 import paramiko
 import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('SSH_PASSWORD')
+if not password:
+    print("Error: SSH_PASSWORD environment variable not set")
+    sys.exit(1)
 
 try:
     client = paramiko.SSHClient()

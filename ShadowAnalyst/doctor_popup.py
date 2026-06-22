@@ -5,11 +5,27 @@ import tkinter as tk
 from tkinter import ttk
 import paho.mqtt.client as mqtt
 
-MQTT_HOST = "10.77.0.1" # VPS WireGuard IP
+import os
+
+MQTT_HOST = "62.84.100.97" # Default public IP
 MQTT_PORT = 1883
 MQTT_USER = "clinic"
 MQTT_PASS = "clinic2024"
 TOPIC_XRAY_RESULT = "clinic/xray/result"
+
+# Load config dynamically if exists
+CONFIG_FILE = r"C:\Clinic_MVP\config.json"
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            MQTT_HOST = config.get("mqtt_host", MQTT_HOST)
+            MQTT_PORT = config.get("mqtt_port", MQTT_PORT)
+            MQTT_USER = config.get("mqtt_user", MQTT_USER)
+            MQTT_PASS = config.get("mqtt_pass", MQTT_PASS)
+            TOPIC_XRAY_RESULT = config.get("mqtt_topic_xray", TOPIC_XRAY_RESULT)
+    except Exception as e:
+        print(f"Error loading config.json: {e}")
 
 class DoctorPopupApp:
     def __init__(self):
@@ -24,12 +40,17 @@ class DoctorPopupApp:
         # Styling
         self.style = ttk.Style()
         self.style.theme_use('clam')
-        self.style.configure('Popup.TFrame', background='#2b2d42')
-        self.style.configure('Title.TLabel', background='#2b2d42', foreground='#edf2f4', font=('Segoe UI', 12, 'bold'))
-        self.style.configure('Body.TLabel', background='#2b2d42', foreground='#8d99ae', font=('Segoe UI', 10))
-        self.style.configure('Alert.TLabel', background='#2b2d42', foreground='#ef233c', font=('Segoe UI', 10, 'bold'))
+        self.style.configure('Outer.TFrame', background='#38bdf8') # Accent border
+        self.style.configure('Popup.TFrame', background='#0a0e17') # Main bg
+        self.style.configure('Title.TLabel', background='#0a0e17', foreground='#38bdf8', font=('Segoe UI', 11, 'bold'))
+        self.style.configure('Body.TLabel', background='#0a0e17', foreground='#e2e8f0', font=('Segoe UI', 9))
+        self.style.configure('Alert.TLabel', background='#0a0e17', foreground='#ef4444', font=('Segoe UI', 9, 'bold'))
         
-        self.frame = ttk.Frame(self.root, style='Popup.TFrame', padding=15)
+        # Outer frame to act as 1px border
+        self.outer_frame = ttk.Frame(self.root, style='Outer.TFrame', padding=1)
+        self.outer_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.frame = ttk.Frame(self.outer_frame, style='Popup.TFrame', padding=15)
         self.frame.pack(fill=tk.BOTH, expand=True)
         
         self.lbl_title = ttk.Label(self.frame, text="🦷 Анализ снимка", style='Title.TLabel')

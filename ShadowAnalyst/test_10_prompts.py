@@ -21,7 +21,10 @@ def draw_text_with_bg(draw, text, x, y, text_color, bg_color=(0, 0, 0, 180)):
 
 API_KEYS = [
     "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",
-    "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"
+    "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",
+    "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",
+    "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",
+    "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"
 ]
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"

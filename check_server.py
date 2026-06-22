@@ -1,5 +1,4 @@
-﻿import os
-import sys
+import os
 import paramiko
 
 host = '62.84.100.97'

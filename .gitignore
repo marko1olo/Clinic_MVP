@@ -36,3 +36,7 @@ tmp/
 **/blob-report/
 **/.turbo/
 **/.vite/
+
+# Runtime config files with secrets (use *.example.json as template)
+ShadowAnalyst/gui/config.json
+config.json

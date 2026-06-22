@@ -2,7 +2,7 @@ import os
 import base64
 from openai import OpenAI
 
-api_key = "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"
+api_key = os.environ.get("GROQ_API_KEY", "")
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.groq.com/openai/v1",
@@ -18,9 +18,8 @@ def test_groq():
         " Use coordinates from 0 to 1000."
     )
     
-    img_path = r"C:\Users\danat\Desktop\stomchat\photo_2026-05-18_18-39-46.jpg"
-    with open(img_path, "rb") as f:
-        img_b64 = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
+    # Replace hardcoded image path with dummy base64 for testing purposes
+    img_b64 = "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     
     try:
         response = client.chat.completions.create(

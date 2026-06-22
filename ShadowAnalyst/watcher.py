@@ -18,10 +18,8 @@ MQTT_PASS = "clinic2024"
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # Groq API
-GROQ_API_KEYS = [
-    "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",
-    "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"
-]
+GROQ_API_KEYS_ENV = os.environ.get("GROQ_API_KEYS", "")
+GROQ_API_KEYS = [k.strip() for k in GROQ_API_KEYS_ENV.split(",")] if GROQ_API_KEYS_ENV else []
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 def setup_dirs():
@@ -66,6 +64,8 @@ def analyze_image(file_path):
         system_prompt = "Опиши снимок зубов как стоматолог."
 
     keys = GROQ_API_KEYS.copy()
+    if not keys:
+        return None, "Ошибка: не настроены ключи API (GROQ_API_KEYS)."
     random.shuffle(keys)
 
     for api_key in keys:

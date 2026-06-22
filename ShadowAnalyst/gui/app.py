@@ -29,10 +29,7 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
     "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
-    "groq_api_keys": [
-        "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",
-        "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"
-    ],
+    "groq_api_keys": [],
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
@@ -136,6 +133,8 @@ def run_ai_analysis(file_path, patient_info=None):
         system_prompt += f"\n\nВАЖНО: Это снимок пациента по имени {patient_info['patient_name']}. Упомяни его имя в отчете."
 
     keys = GROQ_API_KEYS.copy()
+    if not keys:
+        return "Ошибка: не настроены ключи API (groq_api_keys в config.json)."
     random.shuffle(keys)
 
     for api_key in keys:

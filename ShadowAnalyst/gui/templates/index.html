@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShadowAnalyst - X-Ray AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="/static/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Left Panel: Image Viewer -->
+        <div class="viewer-panel">
+            <div class="header">
+                <h2>X-Ray Viewer</h2>
+                <div class="status-badge" id="ai-status">Waiting for image...</div>
+            </div>
+            
+            <div class="canvas-container" id="canvas-container">
+                <div class="empty-state" id="empty-state">
+                    <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <p>No X-Ray active</p>
+                </div>
+                <img id="xray-image" src="" alt="X-Ray" style="display: none;">
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label for="brightness">Яркость (Brightness)</label>
+                    <input type="range" id="brightness" min="0" max="200" value="100">
+                </div>
+                <div class="control-group">
+                    <label for="contrast">Контраст (Contrast)</label>
+                    <input type="range" id="contrast" min="0" max="200" value="100">
+                </div>
+                <div class="control-group buttons">
+                    <button id="btn-invert" class="action-btn">Инверсия (Invert)</button>
+                    <button id="btn-reset" class="action-btn secondary">Сброс (Reset)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: AI Report -->
+        <div class="report-panel">
+            <div class="header">
+                <h2>AI Expert Report</h2>
+            </div>
+            <div class="report-content" id="report-content">
+                <div class="empty-state">
+                    <p>Результаты анализа появятся здесь.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Spinner Overlay -->
+    <div class="loader-overlay" id="loader-overlay">
+        <div class="spinner"></div>
+        <div class="loader-text">Анализируем снимок...</div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

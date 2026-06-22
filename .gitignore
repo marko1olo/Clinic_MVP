@@ -1,0 +1,38 @@
+# Dependency directories
+**/node_modules/
+**/venv/
+**/.venv/
+**/__pycache__/
+.idea/
+.vscode/
+
+# Local/Secret files
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/.env.*
+!**/.env.example
+**/local-secrets/*.env
+**/local-secrets/*.local
+!**/local-secrets/*.example
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Logs and temp files
+*.log
+vps_bot_logs*.txt
+.tmp/
+.tmp*/
+tmp/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/.turbo/
+**/.vite/

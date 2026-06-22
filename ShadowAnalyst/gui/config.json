@@ -1,0 +1,13 @@
+{
+    "watch_dir": "C:\\Clinic_MVP\\Dropzone_XRay",
+    "groq_api_keys": [
+        "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",
+        "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"
+    ],
+    "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "mqtt_host": "62.84.100.97",
+    "mqtt_port": 1883,
+    "mqtt_user": "clinic",
+    "mqtt_pass": "clinic2024",
+    "mqtt_topic_xray": "clinic/xray/result"
+}

@@ -1,25 +1,22 @@
 import paramiko
-import sys
 
 host = '62.84.100.97'
 user = 'root'
 password = 'W15n8zf781%nV25BGZ+2'
 
 def ssh(client, cmd, desc="", timeout=60):
-    sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
-    sys.stdout.flush()
+    print(f"\n>>> {desc or cmd[:60]}", flush=True)
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
     out = stdout.read().decode('utf-8', errors='replace').strip()
     err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
+    if out: print(out)
+    if err: print("STDERR: " + err)
     return out, err
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+print("Connected.")
 
 # Create backup script
 backup_script = """#!/bin/bash
@@ -41,4 +38,4 @@ ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
 ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
 
 client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+print("\nDone.")

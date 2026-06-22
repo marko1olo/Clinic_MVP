@@ -37,7 +37,7 @@ DEFAULT_CONFIG = {
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
     "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
+    "mqtt_pass": "",
     "mqtt_topic_xray": "clinic/xray/result"
 }
 
@@ -56,7 +56,7 @@ GROQ_VISION_MODEL = config.get("groq_vision_model", DEFAULT_CONFIG["groq_vision_
 MQTT_HOST = config.get("mqtt_host", DEFAULT_CONFIG["mqtt_host"])
 MQTT_PORT = config.get("mqtt_port", DEFAULT_CONFIG["mqtt_port"])
 MQTT_USER = config.get("mqtt_user", DEFAULT_CONFIG["mqtt_user"])
-MQTT_PASS = config.get("mqtt_pass", DEFAULT_CONFIG["mqtt_pass"])
+MQTT_PASS = os.getenv("MQTT_PASS", config.get("mqtt_pass", DEFAULT_CONFIG["mqtt_pass"]))
 TOPIC_XRAY_RESULT = config.get("mqtt_topic_xray", DEFAULT_CONFIG["mqtt_topic_xray"])
 
 # API for CRM (assuming clinic_admin is on the same VPS as MQTT)
@@ -182,7 +182,8 @@ def send_to_mqtt(image_path, report_text, filename, patient_name=None):
         }
         
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        client.username_pw_set(MQTT_USER, MQTT_PASS)
+        if MQTT_USER:
+            client.username_pw_set(MQTT_USER, MQTT_PASS)
         client.connect(MQTT_HOST, MQTT_PORT, 60)
         client.publish(TOPIC_XRAY_RESULT, json.dumps(payload), qos=1)
         client.disconnect()

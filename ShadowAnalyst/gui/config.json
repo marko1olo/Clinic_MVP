@@ -8,6 +8,6 @@
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
     "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
+    "mqtt_pass": "",
     "mqtt_topic_xray": "clinic/xray/result"
 }

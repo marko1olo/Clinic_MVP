@@ -3,12 +3,13 @@ import json
 import threading
 import tkinter as tk
 from tkinter import ttk
+import os
 import paho.mqtt.client as mqtt
 
-MQTT_HOST = "10.77.0.1" # VPS WireGuard IP
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.getenv("MQTT_HOST", "10.77.0.1") # VPS WireGuard IP
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER = os.getenv("MQTT_USER")
+MQTT_PASS = os.getenv("MQTT_PASS")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 class DoctorPopupApp:
@@ -106,7 +107,8 @@ def on_message(client, userdata, msg):
 def run_mqtt(app):
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'app': app})
-    client.username_pw_set(MQTT_USER, MQTT_PASS)
+    if MQTT_USER:
+        client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.on_connect = on_connect
     client.on_message = on_message
     

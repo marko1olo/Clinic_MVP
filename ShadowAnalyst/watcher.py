@@ -11,10 +11,10 @@ from openai import OpenAI
 # Config
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
-MQTT_HOST = "10.77.0.1"
-MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_HOST = os.getenv("MQTT_HOST", "10.77.0.1")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER = os.getenv("MQTT_USER")
+MQTT_PASS = os.getenv("MQTT_PASS")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # Groq API
@@ -105,7 +105,8 @@ def analyze_image(file_path):
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(MQTT_USER, MQTT_PASS)
+    if MQTT_USER:
+        client.username_pw_set(MQTT_USER, MQTT_PASS)
     try:
         client.connect(MQTT_HOST, MQTT_PORT, 5)
         payload = {

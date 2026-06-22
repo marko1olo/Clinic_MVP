@@ -3339,10 +3339,11 @@ const {
   useEffect(() => {
     if (!dashboard) return;
     setAppointmentScheduleDrafts((current: any) => {
-      return dashboard.appointments.reduce((next: Record<string, AppointmentScheduleDraft>, appointment) => {
+      const next: Record<string, AppointmentScheduleDraft> = {};
+      dashboard.appointments.forEach((appointment) => {
         next[appointment.id] = current[appointment.id] ?? appointmentScheduleDraftFromAppointment(appointment);
-        return next;
-      }, {});
+      });
+      return next;
     });
   }, [dashboard]);
 

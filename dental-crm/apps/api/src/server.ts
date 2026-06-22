@@ -76,7 +76,7 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   });
 
   await app.register(cors, {
-    origin: process.env.WEB_ORIGIN ? process.env.WEB_ORIGIN.split(",") : false
+    origin: process.env.WEB_ORIGIN ?? "http://127.0.0.1:5173"
   });
 
   app.setErrorHandler((error, _request, reply) => {

@@ -1,7 +1,6 @@
-﻿import os
+import os
 import sys
 import paramiko
-import sys
 from utils import ssh
 
 host = '62.84.100.97'

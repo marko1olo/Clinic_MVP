@@ -9165,11 +9165,12 @@ const {
   }
 
   function plannedServiceLinesForFinancialPayload() {
+    const serviceCatalogMap = new Map(dashboard?.serviceCatalog?.map(item => [item.id, item]));
     return activeTreatmentPlanItems
       .filter((item) => item.status !== "cancelled")
       .filter((item) => !dashboard?.activeVisit.id || item.visitId === dashboard.activeVisit.id)
       .map((item) => {
-        const service = dashboard?.serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+        const service = serviceCatalogMap.get(item.serviceId);
         const totalRub = Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
         return {
           serviceName: service?.title ?? item.serviceId,

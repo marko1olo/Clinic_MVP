@@ -42,8 +42,8 @@ async def cmd_start(message: Message):
     chat_id = message.chat.id
     role = db.get_user_role(chat_id)
     if not role:
-        db.add_user(chat_id, 'doctor', message.from_user.full_name) # По умолчанию врач для простоты
-        role = 'doctor'
+        db.add_user(chat_id, 'guest', message.from_user.full_name) # По умолчанию гость для безопасности
+        role = 'guest'
     log.info(f"New chat registered: {chat_id} as {role}")
     await message.answer(
         f"*Денталия-2* — система мониторинга\n\n"

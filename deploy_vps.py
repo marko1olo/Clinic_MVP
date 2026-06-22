@@ -2,6 +2,10 @@
 import sys
 import paramiko
 import sys
+import functools
+from utils import ssh as base_ssh
+
+ssh = functools.partial(base_ssh, timeout=90)
 
 host = '62.84.100.97'
 user = 'root'
@@ -9,17 +13,6 @@ password = os.environ.get('VPS_PASSWORD')
 if not password:
     sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
 
-def ssh(client, cmd, desc="", timeout=90):
-    label = desc or cmd[:60]
-    sys.stdout.buffer.write(f"\n>>> {label}\n".encode())
-    sys.stdout.flush()
-    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out + "\n").encode('utf-8', errors='replace'))
-    if err: sys.stdout.buffer.write(("STDERR: " + err + "\n").encode('utf-8', errors='replace'))
-    sys.stdout.flush()
-    return out, err
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

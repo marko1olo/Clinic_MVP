@@ -1,6 +1,7 @@
 import os
 import paramiko
 import sys
+from utils import ssh, scp_file
 
 host = os.environ.get('VPS_HOST', '62.84.100.97')
 user = os.environ.get('VPS_USER', 'root')
@@ -8,23 +9,7 @@ password = os.environ.get('VPS_PASSWORD')
 if not password:
     sys.exit("ERROR: VPS_PASSWORD environment variable is not set.")
 
-def ssh(client, cmd, desc="", timeout=60):
-    sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
-    sys.stdout.flush()
-    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
-    return out, err
 
-def scp_file(client, local_path, remote_path):
-    sftp = client.open_sftp()
-    sftp.put(local_path, remote_path)
-    sftp.close()
-    sys.stdout.buffer.write(f"SCP: {local_path} -> {remote_path}\n".encode())
-    sys.stdout.flush()
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

@@ -87,11 +87,14 @@ async def broadcast(text: str, role: str = 'admin'):
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
-    for chat_id in users:
+
+    async def send_to_user(chat_id):
         try:
             await bot.send_message(chat_id, text, parse_mode="Markdown")
         except Exception as e:
             log.error(f"Failed to send to {chat_id}: {e}")
+
+    await asyncio.gather(*(send_to_user(chat_id) for chat_id in users))
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
@@ -100,7 +103,7 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
         log.warning(f"No registered {role}s to send photo to.")
         return
     
-    for chat_id in users:
+    async def send_photo_to_user(chat_id):
         try:
             input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
             await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
@@ -112,6 +115,8 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
                 await bot.send_message(chat_id, text=chunk)
         except Exception as e:
             log.error(f"Failed to send photo to {chat_id}: {e}")
+
+    await asyncio.gather(*(send_photo_to_user(chat_id) for chat_id in users))
 
 def on_mqtt_message(client, userdata, msg):
     """Колбэк от MQTT — запускаем корутину broadcast в event loop бота."""

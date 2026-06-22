@@ -3,6 +3,8 @@ import time
 import json
 import base64
 import random
+import concurrent.futures
+import threading
 from io import BytesIO
 from PIL import Image
 import paho.mqtt.client as mqtt
@@ -122,48 +124,72 @@ def watch_loop():
     setup_dirs()
     print(f"[*] Shadow Analyst запущен. Жду снимки в: {WATCH_DIR}")
     
-    while True:
+    processing_files = set()
+    processing_lock = threading.Lock()
+
+    def process_file(file_path, filename):
         try:
-            for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    file_path = os.path.join(WATCH_DIR, filename)
-                    
-                    # Проверка что файл полностью записался
-                    size1 = os.path.getsize(file_path)
-                    time.sleep(1)
-                    size2 = os.path.getsize(file_path)
-                    
-                    if size1 == size2 and size1 > 0:
-                        print(f"\n[+] Найден новый снимок: {filename}")
-                        print("    Отправка в ИИ...")
-                        
-                        # Анализ ИИ и отрисовка рамок
-                        marked_path, findings = analyze_image(file_path)
-                        print(f"    Анализ завершен. Результат:\n{findings}")
-                        
-                        # Отправка результатов
-                        # Если размеченный файл создан, отправляем его имя
-                        final_file_for_popup = marked_path if marked_path else file_path
-                        publish_result(os.path.basename(final_file_for_popup), findings)
-                        
-                        # Перемещение обработанного оригинала
-                        processed_path = os.path.join(PROCESSED_DIR, filename)
-                        os.replace(file_path, processed_path)
-                        
-                        # Если есть размеченный, тоже переносим
-                        if marked_path and os.path.exists(marked_path):
-                            marked_filename = os.path.basename(marked_path)
-                            os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-                        
-                        print(f"    Файлы перемещены в {PROCESSED_DIR}")
-                        
-            time.sleep(2)
-        except KeyboardInterrupt:
-            print("Остановка.")
-            break
+            if not os.path.exists(file_path):
+                return
+
+            # Проверка что файл полностью записался
+            size1 = os.path.getsize(file_path)
+            time.sleep(1)
+
+            if not os.path.exists(file_path):
+                return
+            size2 = os.path.getsize(file_path)
+
+            if size1 == size2 and size1 > 0:
+                print(f"\n[+] Найден новый снимок: {filename}")
+                print("    Отправка в ИИ...")
+
+                # Анализ ИИ и отрисовка рамок
+                marked_path, findings = analyze_image(file_path)
+                print(f"    Анализ завершен. Результат:\n{findings}")
+
+                # Отправка результатов
+                # Если размеченный файл создан, отправляем его имя
+                final_file_for_popup = marked_path if marked_path else file_path
+                publish_result(os.path.basename(final_file_for_popup), findings)
+
+                # Перемещение обработанного оригинала
+                processed_path = os.path.join(PROCESSED_DIR, filename)
+                os.replace(file_path, processed_path)
+
+                # Если есть размеченный, тоже переносим
+                if marked_path and os.path.exists(marked_path):
+                    marked_filename = os.path.basename(marked_path)
+                    os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+
+                print(f"    Файлы перемещены в {PROCESSED_DIR}")
         except Exception as e:
-            print(f"Глобальная ошибка: {e}")
-            time.sleep(5)
+            print(f"Ошибка при обработке {filename}: {e}")
+        finally:
+            with processing_lock:
+                processing_files.discard(file_path)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        while True:
+            try:
+                for filename in os.listdir(WATCH_DIR):
+                    if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                        file_path = os.path.join(WATCH_DIR, filename)
+                        
+                        with processing_lock:
+                            if file_path in processing_files:
+                                continue
+                            processing_files.add(file_path)
+                        
+                        executor.submit(process_file, file_path, filename)
+
+                time.sleep(2)
+            except KeyboardInterrupt:
+                print("Остановка.")
+                break
+            except Exception as e:
+                print(f"Глобальная ошибка: {e}")
+                time.sleep(5)
 
 if __name__ == "__main__":
     watch_loop()

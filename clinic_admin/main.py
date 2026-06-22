@@ -1,4 +1,9 @@
 from fastapi import FastAPI, Request, Form
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
+import os
+
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -8,7 +13,24 @@ from datetime import datetime
 from database import init_db, get_connection
 
 app = FastAPI(title="Dentaliya-2 Admin")
-templates = Jinja2Templates(directory="templates")
+import os
+base_dir = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
+
+
+
+security = HTTPBasic()
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, os.getenv("ADMIN_USERNAME", "admin"))
+    correct_password = secrets.compare_digest(credentials.password, os.getenv("ADMIN_PASSWORD", "secret"))
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 # Initialize DB on startup
 @app.on_event("startup")
@@ -16,7 +38,7 @@ def startup_event():
     init_db()
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     
@@ -43,7 +65,7 @@ async def read_root(request: Request):
     })
 
 @app.post("/patients/add")
-async def add_patient(name: str = Form(...), phone: str = Form(None)):
+async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
@@ -53,7 +75,7 @@ async def add_patient(name: str = Form(...), phone: str = Form(None)):
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/appointments/add")
-async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...)):
+async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
@@ -66,7 +88,7 @@ async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), 
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/api/current_appointment")
-async def get_current_appointment():
+async def get_current_appointment(username: str = Depends(verify_credentials)):
     conn = get_connection()
     c = conn.cursor()
     # Получаем ближайший прошедший или текущий аппойнтмент (сегодняшний день)

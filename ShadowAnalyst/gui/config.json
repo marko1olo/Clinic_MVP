@@ -7,7 +7,7 @@
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
-    "mqtt_user": "clinic",
-    "mqtt_pass": "clinic2024",
+    "mqtt_user": "YOUR_MQTT_USER_HERE",
+    "mqtt_pass": "YOUR_MQTT_PASSWORD_HERE",
     "mqtt_topic_xray": "clinic/xray/result"
 }

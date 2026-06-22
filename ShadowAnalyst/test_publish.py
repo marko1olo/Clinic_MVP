@@ -1,13 +1,15 @@
 import json
+import os
 import paho.mqtt.client as mqtt
 
 MQTT_HOST = "10.77.0.1"
 MQTT_PORT = 1883
-MQTT_USER = "clinic"
-MQTT_PASS = "clinic2024"
+MQTT_USER = os.getenv("MQTT_USER", "")
+MQTT_PASS = os.getenv("MQTT_PASS", "")
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-client.username_pw_set(MQTT_USER, MQTT_PASS)
+if MQTT_USER:
+    client.username_pw_set(MQTT_USER, MQTT_PASS)
 client.connect(MQTT_HOST, MQTT_PORT, 60)
 
 payload = {

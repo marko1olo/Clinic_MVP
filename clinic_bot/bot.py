@@ -122,11 +122,15 @@ def on_mqtt_message(client, userdata, msg):
     """Колбэк от MQTT — запускаем корутину broadcast в event loop бота."""
     topic = msg.topic
     try:
-        payload = json.loads(msg.payload.decode('utf-8'))
-    except Exception:
-        payload = {"text": msg.payload.decode('utf-8', errors='replace')}
+        try:
+            payload = json.loads(msg.payload.decode('utf-8'))
+        except Exception:
+            payload = {"text": msg.payload.decode('utf-8', errors='replace')}
 
-    log.info(f"MQTT [{topic}] received.")
+        log.info(f"MQTT [{topic}] received.")
+    except Exception as e:
+        log.error(f"Error processing MQTT message: {e}")
+        return
 
     loop = userdata.get('loop')
     if not loop:

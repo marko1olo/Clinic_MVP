@@ -81,17 +81,34 @@ async def cmd_test(message: Message):
 
 # ── MQTT -> Telegram bridge ──────────────────────────────────────────────────
 
+async def _send_message_to_user(chat_id: int, text: str):
+    try:
+        await bot.send_message(chat_id, text, parse_mode="Markdown")
+    except Exception as e:
+        log.error(f"Failed to send to {chat_id}: {e}")
+
 async def broadcast(text: str, role: str = 'admin'):
     """Отправить текст всем получателям с заданной ролью."""
     users = db.get_users_by_role(role)
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
-    for chat_id in users:
-        try:
-            await bot.send_message(chat_id, text, parse_mode="Markdown")
-        except Exception as e:
-            log.error(f"Failed to send to {chat_id}: {e}")
+    tasks = [_send_message_to_user(chat_id, text) for chat_id in users]
+    if tasks:
+        await asyncio.gather(*tasks)
+
+async def _send_photo_to_user(chat_id: int, photo_bytes: bytes, caption: str, report_text: str):
+    try:
+        input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
+        await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
+
+        # Send the rest as text
+        max_len = 4000
+        for i in range(0, len(report_text), max_len):
+            chunk = report_text[i:i+max_len]
+            await bot.send_message(chat_id, text=chunk)
+    except Exception as e:
+        log.error(f"Failed to send photo to {chat_id}: {e}")
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
@@ -100,18 +117,9 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
         log.warning(f"No registered {role}s to send photo to.")
         return
     
-    for chat_id in users:
-        try:
-            input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
-            await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
-            
-            # Send the rest as text
-            max_len = 4000
-            for i in range(0, len(report_text), max_len):
-                chunk = report_text[i:i+max_len]
-                await bot.send_message(chat_id, text=chunk)
-        except Exception as e:
-            log.error(f"Failed to send photo to {chat_id}: {e}")
+    tasks = [_send_photo_to_user(chat_id, photo_bytes, caption, report_text) for chat_id in users]
+    if tasks:
+        await asyncio.gather(*tasks)
 
 def on_mqtt_message(client, userdata, msg):
     """Колбэк от MQTT — запускаем корутину broadcast в event loop бота."""

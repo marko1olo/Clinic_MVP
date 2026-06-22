@@ -29,10 +29,7 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
     "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
-    "groq_api_keys": [
-        "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",
-        "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"
-    ],
+    "groq_api_keys": [],
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
     "mqtt_host": "62.84.100.97",
     "mqtt_port": 1883,
@@ -51,6 +48,8 @@ else:
 
 WATCH_DIR = config.get("watch_dir", DEFAULT_CONFIG["watch_dir"])
 GROQ_API_KEYS = config.get("groq_api_keys", DEFAULT_CONFIG["groq_api_keys"])
+if not GROQ_API_KEYS:
+    GROQ_API_KEYS = [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k.strip()]
 GROQ_VISION_MODEL = config.get("groq_vision_model", DEFAULT_CONFIG["groq_vision_model"])
 
 MQTT_HOST = config.get("mqtt_host", DEFAULT_CONFIG["mqtt_host"])

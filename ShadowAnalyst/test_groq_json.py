@@ -2,7 +2,11 @@ import os
 import base64
 from openai import OpenAI
 
-api_key = "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"
+api_key = os.environ.get("GROQ_API_KEY")
+if not api_key:
+    keys = os.environ.get("GROQ_API_KEYS", "").split(",")
+    api_key = keys[0].strip() if keys and keys[0] else None
+
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.groq.com/openai/v1",

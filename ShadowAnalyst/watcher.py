@@ -3,9 +3,9 @@ import time
 import json
 import base64
 import random
+import threading
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-import paho.mqtt.client as mqtt
+from PIL import Image
 from openai import OpenAI
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -76,21 +76,24 @@ except Exception as e:
     print(f"Не удалось загрузить dentalimage.md: {e}")
     SYSTEM_PROMPT = "Опиши снимок зубов как стоматолог."
 
+_clients_cache = {}
+
+def get_openai_client(api_key, base_url, timeout=30.0):
+    cache_key = (api_key, base_url)
+    if cache_key not in _clients_cache:
+        _clients_cache[cache_key] = OpenAI(
+            api_key=api_key if api_key else "dummy_key",
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=0
+        )
+    return _clients_cache[cache_key]
+
 def make_groq_client(api_key: str) -> OpenAI:
-    return OpenAI(
-        api_key=api_key if api_key else "dummy_key",
-        base_url="https://api.groq.com/openai/v1",
-        timeout=30.0,
-        max_retries=0
-    )
+    return get_openai_client(api_key, "https://api.groq.com/openai/v1")
 
 def make_gemini_client(api_key: str) -> OpenAI:
-    return OpenAI(
-        api_key=api_key if api_key else "dummy_key",
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        timeout=30.0,
-        max_retries=0
-    )
+    return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
 
 def analyze_image(file_path):
     """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
@@ -157,6 +160,7 @@ def analyze_image(file_path):
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
+    import paho.mqtt.client as mqtt
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASS)
@@ -172,13 +176,23 @@ def publish_result(filename, findings):
     except Exception as e:
         print(f"Ошибка отправки MQTT: {e}")
 
+processing_files = set()
+processing_lock = threading.Lock()
+
 def process_single_file(file_path):
+    with processing_lock:
+        if file_path in processing_files:
+            return
+        processing_files.add(file_path)
+
     try:
         filename = os.path.basename(file_path)
 
         # Проверка что файл полностью записался
         size1 = os.path.getsize(file_path)
         time.sleep(1)
+        if not os.path.exists(file_path):
+            return
         size2 = os.path.getsize(file_path)
 
         if size1 == size2 and size1 > 0:
@@ -218,19 +232,21 @@ def process_single_file(file_path):
         pass # File was already processed or moved
     except Exception as e:
         print(f"Ошибка при обработке {file_path}: {e}")
+    finally:
+        threading.Timer(10.0, lambda: processing_files.discard(file_path)).start()
 
 class XRayHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
         if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            process_single_file(event.src_path)
+            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
 
     def on_modified(self, event):
         if event.is_directory:
             return
         if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            process_single_file(event.src_path)
+            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
 
 def watch_loop():
     setup_dirs()
@@ -241,7 +257,7 @@ def watch_loop():
         for filename in os.listdir(WATCH_DIR):
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
                 file_path = os.path.join(WATCH_DIR, filename)
-                process_single_file(file_path)
+                threading.Thread(target=process_single_file, args=(file_path,), daemon=True).start()
     except Exception as e:
         print(f"Ошибка при проверке существующих файлов: {e}")
 

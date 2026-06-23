@@ -39,6 +39,9 @@ class LogInterceptor:
     def flush(self):
         self.original_stdout.flush()
 
+    def isatty(self):
+        return False
+
 sys.stdout = LogInterceptor(sys.stdout)
 sys.stderr = LogInterceptor(sys.stderr)
 
@@ -229,22 +232,8 @@ CONFIG_FILE = os.path.join(EXE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
     "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
-    "groq_api_keys": [
-        "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",
-        "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",
-        "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",
-        "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",
-        "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"
-    ],
-    "google_api_keys": [
-        "AIzaSyCShLH6cX2m8GUokLam-zNB1g5HjuRvdqw",
-        "AIzaSyCEA-jW5hdFEPM96mPENUqDoDrQSuWIyz8",
-        "AIzaSyB33hvxi8Cc4DFuLCkFX6QwZPOhKLbAq_Y",
-        "AIzaSyBp2WxItgQ4shiyVynK2SnDqC-KcPbnBSM",
-        "AQ.Ab8RN6JQY4nApaNceg6KgUSuAT3It9X7_frONqRK2-KRq2srPA",
-        "AQ.Ab8RN6Lp2KipXC5N8noEQIbw6ydzWmi_9ddLM8poh1t_krMjXg",
-        "AQ.Ab8RN6Kpph7dzsIqMBY2-gRma5E6yfshbGM7QFlJJwWGOKZSOA"
-    ],
+    "groq_api_keys": [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()],
+    "google_api_keys": [key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()],
     "use_gemini": True,
     "gemini_vision_model": "gemini-3.5-flash",
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -344,7 +333,6 @@ app_state = {
     "auto_analyze": config.get("auto_analyze", DEFAULT_CONFIG["auto_analyze"]),
     "auto_enhance": config.get("auto_enhance", DEFAULT_CONFIG["auto_enhance"]),
     "theme": config.get("theme", DEFAULT_CONFIG["theme"]),
-    "enable_ai_vision": config.get("enable_ai_vision", False),
     "watch_dir": WATCH_DIR,
     "tts_voice": config.get("tts_voice", DEFAULT_CONFIG["tts_voice"]),
     "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 4)),
@@ -749,56 +737,7 @@ def prepare_image(file_path):
         print(f"Image error: {e}")
         return None
 
-def analyze_image_with_vision(file_path: str, orig_name: str) -> str:
-    """Runs YOLOv8 segmentation model, plus algorithmic contouring, saves annotated image."""
-    try:
-        from ultralytics import YOLO
-        import cv2
-        import numpy as np
 
-        model_path = os.path.join(EXE_DIR, "8024.pt")
-        if not os.path.exists(model_path):
-            model_path = os.path.join(os.path.dirname(EXE_DIR), "8024.pt")
-            
-        base_name, ext = os.path.splitext(orig_name)
-        ai_filename = f"{base_name}_ai{ext}"
-        ai_path = os.path.join(STATIC_DIR, "uploads", ai_filename)
-        
-        has_yolo = False
-        if os.path.exists(model_path):
-            model = YOLO(model_path)
-            results = model(file_path, verbose=False)
-            results[0].save(filename=ai_path)
-            has_yolo = True
-        
-        # Load the image to add contouring
-        img = cv2.imread(ai_path if has_yolo else file_path)
-        if img is not None:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-            enhanced = clahe.apply(gray)
-            blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
-            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                           cv2.THRESH_BINARY, 51, -10)
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-            opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
-            closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
-            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            overlay = img.copy()
-            for cnt in contours:
-                area = cv2.contourArea(cnt)
-                if 1500 < area < 40000:
-                    cv2.drawContours(img, [cnt], -1, (255, 100, 0), 2)
-                    cv2.drawContours(overlay, [cnt], -1, (255, 100, 0), -1)
-            
-            cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
-            cv2.imwrite(ai_path, img)
-
-        return f"/static/uploads/{ai_filename}"
-    except Exception as e:
-        print(f"[AI Vision Error] {e}")
-        return ""
 
 def run_ai_analysis(file_path, patient_info=None):
     image_b64 = prepare_image(file_path)
@@ -1303,11 +1242,6 @@ def process_analysis_only(filename):
     pat_name = patient_info["patient_name"] if (patient_info and patient_info.get("patient_name")) else "Неизвестен"
     threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
 
-    # Run AI Vision
-    ai_image_url = ""
-    if app_state.get("enable_ai_vision", False):
-        ai_image_url = analyze_image_with_vision(file_path, orig_name)
-
     # Automatically save scan into SQLite database
     ext = os.path.splitext(orig_name)[1]
     db_payload = {
@@ -1316,7 +1250,7 @@ def process_analysis_only(filename):
         "patient_gender": patient_info.get("patient_gender", "Не указан") if patient_info else "Не указан",
         "original_image": f"/static/uploads/{orig_name}",
         "enhanced_image": f"/static/uploads/{orig_name.replace(ext, '_enhanced' + ext)}",
-        "ai_image": ai_image_url,
+        "ai_image": "",
         "brightness": 100,
         "contrast": 100,
         "inverted": False,
@@ -1342,7 +1276,7 @@ def process_analysis_only(filename):
 
     app_state["latest_report"] = report
     app_state["latest_summary"] = summary
-    app_state["latest_ai_image"] = ai_image_url
+    app_state["latest_ai_image"] = ""
     app_state["is_processing"] = False
     
     # Update the item in recent_scans if it exists
@@ -1457,6 +1391,14 @@ class XRayHandler(FileSystemEventHandler):
             return
         if not event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.webp', '.dcm')):
             return
+            
+        # Bring window to front
+        try:
+            if 'global_window' in globals() and global_window:
+                global_window.restore()
+                global_window.show()
+        except Exception:
+            pass
         
         # Add to queue instead of spinning up parallel threads
         file_queue.put(event.src_path)
@@ -1534,18 +1476,47 @@ def start_watchdog():
     observer.start()
     return observer
 
+import socket
+import requests
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
+
+def wait_for_server(url, timeout=10):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            r = requests.get(url, timeout=1)
+            if r.status_code == 200:
+                return True
+        except:
+            pass
+        time.sleep(0.5)
+    return False
+
 # Main
 def start_server():
-    uvicorn.run(api, host="127.0.0.1", port=8085, log_level="error")
+    try:
+        uvicorn.run(api, host="127.0.0.1", port=8085, log_level="error")
+    except Exception as e:
+        print(f"Uvicorn error: {e}")
 
 if __name__ == '__main__':
     database.init_db()
-    # Start web server
-    t = threading.Thread(target=start_server, daemon=True)
-    t.start()
     
-    # Wait for server
-    time.sleep(1)
+    server_url = "http://127.0.0.1:8085"
+    
+    if is_port_in_use(8085):
+        print("Server is already running on port 8085. Skipping uvicorn startup.")
+    else:
+        # Start web server
+        t = threading.Thread(target=start_server, daemon=True)
+        t.start()
+        
+    # Wait for server to become responsive
+    if not wait_for_server(f"{server_url}/api/status"):
+        print("Warning: API server did not become responsive in time. UI might fail to load data.")
 
     # Start watcher
     observer_ref = start_watchdog()
@@ -1554,12 +1525,13 @@ if __name__ == '__main__':
     print("Starting Desktop App...")
     global_window = webview.create_window(
         'ShadowAnalyst', 
-        'http://127.0.0.1:8085',
+        server_url,
         width=1200, 
         height=800,
         min_size=(800, 600),
         frameless=False,
-        background_color='#0a0e17'
+        background_color='#0a0e17',
+        text_select=True
     )
     
     import pystray
@@ -1594,10 +1566,19 @@ if __name__ == '__main__':
         global_window.hide()
         return False
 
+    def on_loaded():
+        try:
+            import pyi_splash
+            if pyi_splash.is_alive():
+                pyi_splash.close()
+        except ImportError:
+            pass
+
     global_window.events.closing += on_closing
+    global_window.events.loaded += on_loaded
     threading.Thread(target=setup_tray, args=(global_window,), daemon=True).start()
 
-    webview.start(debug=True)
+    webview.start(debug=False, icon='icon.ico')
     
     # Cleanup
     if observer_ref:

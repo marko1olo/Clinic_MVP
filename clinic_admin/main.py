@@ -32,8 +32,9 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-app = FastAPI(title="Dentaliya-2 Admin", dependencies=[Depends(verify_credentials)])
-templates = Jinja2Templates(directory="templates")
+app = FastAPI(title="Dentaliya-2 Admin")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Initialize DB on startup
 @app.on_event("startup")
@@ -58,7 +59,7 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username

@@ -83,11 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleAutoSpeak = document.getElementById('toggle-auto-speak');
     const toggleAutoEnhance = document.getElementById('toggle-auto-enhance');
     
-    const toggleAiVision = document.getElementById('toggle-ai-vision');
-    const aiVisionContainer = document.getElementById('ai-vision-toggle-container');
-    
-    let currentAiImage = "";
-    
     const btnSettings = document.getElementById('btn-settings');
     const btnAnalyze = document.getElementById('btn-analyze');
     const btnSpeak = document.getElementById('btn-speak');
@@ -355,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Apply theme immediately
                 document.body.className = theme;
                 closeModal();
-                if (currentImage) {
-                    window.loadData(currentImage, currentReport, currentSummary, currentAiImage);
+                if (res.ok) {
+                    window.loadData(currentImage, currentReport, currentSummary);
                 }
             }
         } catch (e) {
@@ -589,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.url) {
                     // Update current image path in state (cached urls will load)
                     currentImage = data.url;
-                    window.loadData(currentImage, currentReport, currentSummary, currentAiImage);
+                    window.loadData(currentImage, currentReport, currentSummary);
                 }
             } catch (e) {
                 console.error("Enhancement toggle failed", e);
@@ -613,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- SHOW DATA & RENDERING ---
-    window.loadData = function(imageUrl, markdownText, summaryTextContent, aiImageUrl) {
+    window.loadData = (imageUrl, reportText, summaryContent) => {
         loaderOverlay.classList.remove('active');
 
         emptyState.style.display = 'none';
@@ -638,17 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnToggleTools) btnToggleTools.style.display = 'flex';
         if (floatingToolsPanel) floatingToolsPanel.style.display = 'none';
 
-        currentAiImage = aiImageUrl || "";
-        
-        if (currentAiImage && currentAiImage.trim() !== "") {
-            aiVisionContainer.style.display = 'flex';
-        } else {
-            aiVisionContainer.style.display = 'none';
-            toggleAiVision.checked = false;
-        }
-
-        // Only show slider if not in AI Vision mode, and if autoEnhance is checked
-        const showSlider = !toggleAiVision.checked && toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
+        // Only show slider if autoEnhance is checked
+        const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
 
         if (showSlider) {
             imgElement.style.display = 'none';
@@ -684,29 +670,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Render Summary
-        if (summaryTextContent && summaryTextContent.trim() !== "") {
-            summaryText.textContent = summaryTextContent;
+        if (summaryContent && summaryContent.trim() !== "") {
+            summaryText.textContent = summaryContent;
             summaryCard.style.display = 'block';
         } else {
             summaryCard.style.display = 'none';
         }
 
         // Render Main Report
-        if (markdownText && markdownText.trim() !== "") {
+        if (reportText && reportText.trim() !== "") {
             statusBadge.textContent = "Analysis Complete";
             statusBadge.classList.add('active');
             
-            fullReportText.innerHTML = marked.parse(markdownText);
+            fullReportText.innerHTML = marked.parse(reportText);
             
             btnSpeak.style.display = 'flex';
             btnAnalyze.style.display = 'none';
             if (btnPrint) btnPrint.style.display = 'block';
             
             // Speak if text changed and auto speak is on
-            if (markdownText !== lastReportText) {
-                lastReportText = markdownText;
+            if (reportText !== lastReportText) {
+                lastReportText = reportText;
                 if (toggleAutoSpeak.checked) {
-                    speakText(summaryTextContent, markdownText);
+                    speakText(summaryContent, reportText);
                 }
             }
         } else {
@@ -1020,14 +1006,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Fallback if recent_scans is missing
-                if (data.latest_image && (emptyState.style.display !== 'none' || data.latest_image === currentImage)) {
-                    if (data.latest_image !== currentImage || data.latest_report !== currentReport || data.latest_summary !== currentSummary || data.latest_ai_image !== currentAiImage) {
+                if (data.latest_image && emptyState.style.display === 'none') {
+                    if (data.latest_image !== currentImage || data.latest_report !== currentReport || data.latest_summary !== currentSummary) {
                         currentImage = data.latest_image;
                         currentReport = data.latest_report;
                         currentSummary = data.latest_summary;
-                        currentAiImage = data.latest_ai_image;
                         currentScanId = data.current_scan_id || null;
-                        window.loadData(data.latest_image, data.latest_report, data.latest_summary, data.latest_ai_image);
+                        window.loadData(data.latest_image, data.latest_report, data.latest_summary);
                     }
                 }
             }

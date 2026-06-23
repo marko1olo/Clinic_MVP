@@ -1,22 +1,8 @@
 {
     "watch_dir": "C:\\Clinic_MVP\\Dropzone_XRay",
-    "groq_api_keys": [
-        "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",
-        "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",
-        "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",
-        "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",
-        "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"
-    ],
+    "groq_api_keys": [],
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
-    "google_api_keys": [
-        "AIzaSyCShLH6cX2m8GUokLam-zNB1g5HjuRvdqw",
-        "AIzaSyCEA-jW5hdFEPM96mPENUqDoDrQSuWIyz8",
-        "AIzaSyB33hvxi8Cc4DFuLCkFX6QwZPOhKLbAq_Y",
-        "AIzaSyBp2WxItgQ4shiyVynK2SnDqC-KcPbnBSM",
-        "AQ.Ab8RN6JQY4nApaNceg6KgUSuAT3It9X7_frONqRK2-KRq2srPA",
-        "AQ.Ab8RN6Lp2KipXC5N8noEQIbw6ydzWmi_9ddLM8poh1t_krMjXg",
-        "AQ.Ab8RN6Kpph7dzsIqMBY2-gRma5E6yfshbGM7QFlJJwWGOKZSOA"
-    ],
+    "google_api_keys": [],
     "use_gemini": true,
     "gemini_vision_model": "gemini-3.5-flash",
     "mqtt_host": "62.84.100.97",
@@ -31,11 +17,7 @@
     "model_tier": 4,
     "comparison_slider": true,
     "tts_provider": "elevenlabs",
-    "elevenlabs_api_key": "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-    "elevenlabs_api_keys": [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ],
+    "elevenlabs_api_key": "",
+    "elevenlabs_api_keys": [],
     "elevenlabs_voice_id": "pNInz6obpgq54HWK483c"
 }

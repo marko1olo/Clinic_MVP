@@ -1,0 +1,50 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+a = Analysis(
+    ['app.py'],
+    pathex=[],
+    binaries=[],
+    datas=[('static', 'static'), ('templates', 'templates'), ('config.json', '.'), ('database.py', '.'), ('..\\dentalimage.md', '.'), ('..\\dentalimage_critic.md', '.')],
+    hiddenimports=['uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan', 'uvicorn.lifespan.on', 'pydicom.encoders.gdcm', 'pydicom.encoders.pylibjpeg', 'edge_tts', 'sqlite3', 'watchdog'],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=['torch', 'torchvision', 'torchaudio', 'ultralytics', 'ultralytics_thop', 'cv2', 'scipy', 'matplotlib', 'PIL.ImageQt', 'tkinter', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6', 'wx', 'IPython', 'notebook', 'jupyter'],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+splash = Splash(
+    'splash.png',
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    text_size=12,
+    minify_script=True,
+    always_on_top=True
+)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    splash,
+    splash.binaries,
+    [],
+    name='ShadowAnalyst',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='icon.ico',
+)

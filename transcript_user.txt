@@ -1,0 +1,690 @@
+<USER_REQUEST>
+ДУМАЙ
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T21:39:20+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.1 Pro (High) to Gemini 3.5 Flash (Medium). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---
+<USER_REQUEST>
+"стомплан" устаревший. есть dental-crm . также есть второй мощный ноут подключеный
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:19:16+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+152 фз это параш нейпонки которая ей только мешала.
+эгнивей, сука, не концентрируйся на этой црм. это пока разрабатывается. вернемся к файлу окторый ты должен был весь прочитать
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:23:47+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ЧТо за изобретательство велосипедов? пидор, нахуй мне твои мокапы? мы моежм делать брейншторм и реально пиздватые идеи для клиники где цифровизация еще не силньо дошла  делать?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:28:20+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ЧТо за изобретательство велосипедов? пидор, нахуй мне твои мокапы? мы моежм делать брейншторм и реально пиздватые идеи для клиники где цифровизация еще не силньо дошла  делать?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:28:20+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+схуяли ты решил что ошино будет в клинике? в клинике будет подклчюенный новый ноут и их компы.
+почему блять у тебя слейвы это чисто микрофоны? сука, ты реально думаешь будет в кайф им сидеть ликтовать? даун. разве что через тг но наврядли нахуй. лично я не видел чтобы они сами их заполянли, у нас же не госка. у нас медсестра видимо их дрочит.
+
+про маркетолога неплохо. остальное надо думать , ты хуйню написал. фантазеришка ты ебаный. тут без ди-докоов в чате со мной общайсяю.
+стоять. я перепишу твои парвила.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:31:34+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+где твои правила? которые ты читаешь. дай ссылки на файлы.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:31:50+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+так ты не по хектону, блядь, разве не очевидно? там же настреон роутинг.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:32:38+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+какой в пизду денте? дебил. смотри диалог нахуй
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:34:14+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.5 Flash (Medium) to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---
+<USER_REQUEST>
+у нас нет вацапп, русня же. телега мб. аи маркетолог норм тема. экспандер пока отложим мб. теневой анализ прикольная тема. реалистично. что еще придумаеш? делаем пока что думаем над системой чтобы на паре-трйоке компов был впн с гемини антигравити и локальные сервера и система работала по роутеру и не тсрадала если какой-то комп выключен. или мб на серваке в облаке что-то крутилось и все автоподсоединялось там. чтобы компы друг меж другом инфой обменивались четко или мб друг другом могли управлть (в них же агенты сидят). думаем.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:49:36+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Сбор отзывов норм и все такое. антифрод хуйня. лист ожидания не очень. про рой агентво ты чет фантазируешь, ну епт попытайся хотяб  в пределах компа как-то заставить одного из агентов работать. они же нленивые. ну сам смотори как ты устроен
+
+ну и давай реалистично оценивать без фантазий про рой агентов. мне хотя бы показат ьим что могут агенты, агентов поставить\расшарить доступ к их паре ноутов, отоптимизирвоать и тп. внендрить теневое распознавание снимков (сегодня позже потестим).
+как впн - у меня есть вайргард ключи, мб их туда.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:59:30+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Сбор отзывов норм и все такое. антифрод хуйня. лист ожидания не очень. про рой агентво ты чет фантазируешь, ну епт попытайся хотяб  в пределах компа как-то заставить одного из агентов работать. они же нленивые. ну сам смотори как ты устроен
+
+ну и давай реалистично оценивать без фантазий про рой агентов. мне хотя бы показат ьим что могут агенты, агентов поставить\расшарить доступ к их паре ноутов, отоптимизирвоать и тп. внендрить теневое распознавание снимков (сегодня позже потестим).
+как впн - у меня есть вайргард ключи, мб их туда.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T22:59:30+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+у нас есть вайргард и есть сервак.   |  
+EN
+a207997barsukdana@gmail.com
+Balance:
+9.4218 $
+Bonus balance:
+0.00 $
+Shutdown forecast:
+31.10.2026 
+ v604003.hosted-by-vdsina.com
+
+62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
+Amsterdam 3, Netherlands
+Virtual console
+Connection to the server directly in the browser.
+
+Server access
+Username:
+root
+Password:
+W15n8zf781%nV25BGZ+2
+This shows the initial password after creating or reinstalling the server.
+When changing the root password in Unix/Linux, save it in a safe place, the password will not be saved in the control panel!
+When the password is changed, an automatic reboot will be performed.
+Changing Windows password via Control Panel is not supported! .  |  
+EN
+a207997barsukdana@gmail.com
+Balance:
+9.4218 $
+Bonus balance:
+0.00 $
+Shutdown forecast:
+31.10.2026 
+ v604003.hosted-by-vdsina.com
+
+62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
+Amsterdam 3, Netherlands
+After the server is deleted, its IP addresses will remain with the client. The address reservation cost will be 0.08 $ / day / 1 pcs. Payment will begin to be deducted only after the server is deleted.
+IPv4
+Available for ordering IPv4-addresses: 2 pcs.
+IPv4 cost: 0.08 $ / day
+62.84.100.97
+v604003.hosted-by-vdsina.com
+62.84.100.1
+255.255.255.0
+IPv6
+Available for ordering IPv6-addresses: 2 pcs.
+IPv6 cost: 0.0004 $ / day
+
+There's nothing here
+
+
+
+пробей как онживет
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:04:53+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+и иди ты нахуй со своими "фейками" и  "заглушками". и со своими охуенными самоодоьренными планами. будем рабоатть плотно. но сначала сиди все остальное обсуждаем
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:05:58+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+[6/19/2026 23:12] SaluteSpeech Bot: Смотри, мне уже нравится, что начинает вырисовываться пиздатая идея с теневым анализом изображений. Опять же, не надо мне твою хуйню. Я сам знаю, чем мы будем пользоваться. Чуть позже. Я тебе дам примерное тз, и мы будем с этим работать. Что по серверу этот сервер типа является Ну, моим тоннелем через него сайт стоял, так сказать, надо сайт, кстати, поднять. Его, блять, нужно будет использовать. Это будет проще, чем покупные випиэны с их ключами юзать для клиники. У меня уже есть 15 конфигов, из них есть, ну, 5 свободных, как нехуй и лимит. Я уверен, они особо жрать не будут по интернет соединению, по трафику. Сам сервак не будет особо сжираться. Вот давай, блять, думать по в этом направлении, как конкретно вот этот микросервер с десятью гигабайт памяти, 1 ядром и 1 гигом оперативки мы можем встроить в нашу систему, чтобы он облегчил жизнь. Прямо сейчас, нахуй, чтобы это автоматически все поднималось при старте, чтобы помогало серфить в интернете, чтобы помогало компы связывать компы, чтобы они были связаны и локально через вай Фай роутер, и хорошо были локально связаны, и онлайн поллингу аниие этого сервака было Что мы можем впихнуть вот в эту хуйню? Что остаётся? Давай вот над этим подумаем. Идея пиздатая. Естественно на нём ничего тяжёлого вообще нахуй не должно быть распознавание кстати вот тех же картинок это будет полностью на стороннем провайдере по api осуществляться и все в таком духе вот думаем агент охуенная тема, нужно блять дальше их применять везде.
+[6/19/2026 23:14] SaluteSpeech Bot: А то ты, пидорас, бросился впереди паровоза, блять, мне только нахуй мешаешь.
+[6/19/2026 23:15] SaluteSpeech Bot: Поэтому сейчас сидим и думаем, блядь, вживись нахуй в роль, ну, как бы несколько ролей у себя в голове. Представляй, что программист, это понятно, блять, тебя так учили. Представь, что ты, блять, врач, обычный стоматолог нахуй, блять, и пожилой, блять, даже, возможно, или молодой, и тебе в клинику какую-то хуйню новую непонятную поставили, но она прикольная и полезная. Как её сделать самой пиздатой и удобной. Чтобы люди кайфовали и реально пользовались, а не хуй забили.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:15:25+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ЧТо ты можешь прямо сейчас поставить туда на сервак? аккуратно, следи за ресурсами.Свзяывай все воедино.
+С триггерами интересная система. надо прям охуенно сделать чтобы не доебаться
+
+ты понял что компы и локально и онлайн долнжы быт ьсоединены? и чтобы мы могли слать запрсоы и если комп или телефон отключился от вайргарда? и чтобы можно было дорасширить до телефонов систему и тг ботов и тп?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:21:09+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+work
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:22:49+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.1 Pro (High) to Claude Sonnet 4.6 (Thinking). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---
+<USER_REQUEST>
+ты же это на впс делаешь?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:26:32+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+работай, да. не уебывайся с анальным шифрованием, делай и думай и говори что делаешь.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:38:41+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+окей, работай, вообще там другой агент с нвоым компом разбирается ,потом ему вопрос зщадашь.
+
+рабоатй дальше но я не понимаю шо с этим добром делать. шо мы хотели и обсуждали
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:46:33+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Сколько будет жрать бот? у нас рам не бесконечный
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:51:13+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ну епт, создам. какую назву дадим? кклиника денталия 2 в самаре, погугли
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:52:27+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+создать под это добро папку на пк чтобы ты тут игрался а потом уже зальем на сервак?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:55:08+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+питон все же? го не осилишь? объективно что лучше. кстати чем го от других языков отличается
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-19T23:56:09+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+dentaliya2_bot
+
+8890811661:AAFIexG4L5Sy-Ck3h7H9d17tiOaFzbBpkfk
+
+дрочим дальше.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:01:19+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+KEep fucking working. Read gemini md in your .gemini folder. Act accordingly.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:09:37+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+8721416291
+7716348189
+айди моих аков
+
+нахуя нам бот? что он будет кооридинроват ьи делать?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:12:13+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+нахуя все мне? так, ьблядь, сноси парашу, надо фундамент нормальный делать .сначала думай - кто будет юзать бота. мы медленно думаем и анализируем
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:20:16+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+стой. нужно еще думать и задававть вопрсоы и мне и самому себе. 50 вопросов. и от этого уже фундамнент вытанцем
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:28:24+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+буду по пунктам, сам соотноси
+
+1 - звонок обычно, лично редко
+
+2. хз, думаю да нужна
+3  не часто но бывает
+4 да вроде есть ноя не на работе и хз
+5., 6, хз
+7 вроед админ может но видимо нет я не особо слышал что он звонит напоминает
+
+8 в клинике врачей дохуя но многие 1-2 смены в неделю. 3 кресла. косятк основной врачей это4 врача, еще 3-4 чела есть которые редко и эпизодами.
+9 есть ноут админа, есть ноут чела который тпиа на подхвате яхз он и скнаиурет иногда и типа по технике и с компом сидит
+10 по не знаю!
+11 визиограф есть ,в папку. но с агентмо будет быстро узнать
+12 кт нет но приностя ктшки
+13 врачи через по смотрят просто рентген
+14 как обычный прием епта, клинике не лакшери а дефолт
+15 админ один
+16 расписание бумага и походу дубликат в компе хз где
+17 в день макс шт 8 на кресло, ну тип у врачей смены с 9 до 2 и с 2 до 6-7, полностью забиты не часто
+18 я хз
+19 касса црм я хз
+20 я хз но офк лучше без чеков чтобы не платить налоги
+21 хз не замечал учет расхода
+22 пациееты сарафан немного реклама
+23 есть сайт и он норм можешь сам нагуглить. другое я хз
+24 маркетинг делает кто то наемный я хз кто это. онлпйн делае
+25 я хз
+26 да пиздатый рейтинг я говорю изучи данные все пр омю клинику
+
+27 винда везде. 10\11
+28 ну есть вайфай а так не соединены и по себе
+29 есть
+30 я хз но этот чел в основном
+31 да смогут
+32 личные
+33 да скорее да но русне телегу блочат так что траблы бывают иногда
+34 - ой да похуй мыне в обалку а между компами
+35 я хз я ебу
+36 смотря к каким, в целом да но больше на пркиладыне штуки типа сканеров
+37 ла бля похуй я ему покажу просто
+38 да есть провалы
+39 пока нет
+40 условно бесплатно ну я есче выпрошу , а так и беспалатно можно пзидатейше делать как я и делаю
+41 я хз го и так и так
+42 - офк всплывашка как ты представляешь в тг - типа он блядь снял и ему на телефон приходит прям когда пац в кресле
+43 и звнить и пистаь больше каналов
+44 - ну станларт 2 раза я хз
+45 да нужна
+46 - да похуй то же подсказка
+мы ее еще опткестим
+47 - я хз
+48 - ну еба убду показывать
+49 - системности особо нет
+50 -да переживут еба
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:37:45+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Claude Sonnet 4.6 (Thinking) to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---
+<USER_REQUEST>
+буду по пунктам, сам соотноси
+
+1 - звонок обычно, лично редко
+
+2. хз, думаю да нужна
+3  не часто но бывает
+4 да вроде есть ноя не на работе и хз
+5., 6, хз
+7 вроед админ может но видимо нет я не особо слышал что он звонит напоминает
+
+8 в клинике врачей дохуя но многие 1-2 смены в неделю. 3 кресла. косятк основной врачей это4 врача, еще 3-4 чела есть которые редко и эпизодами.
+9 есть ноут админа, есть ноут чела который тпиа на подхвате яхз он и скнаиурет иногда и типа по технике и с компом сидит
+10 по не знаю!
+11 визиограф есть ,в папку. но с агентмо будет быстро узнать
+12 кт нет но приностя ктшки
+13 врачи через по смотрят просто рентген
+14 как обычный прием епта, клинике не лакшери а дефолт
+15 админ один
+16 расписание бумага и походу дубликат в компе хз где
+17 в день макс шт 8 на кресло, ну тип у врачей смены с 9 до 2 и с 2 до 6-7, полностью забиты не часто
+18 я хз
+19 касса црм я хз
+20 я хз но офк лучше без чеков чтобы не платить налоги
+21 хз не замечал учет расхода
+22 пациееты сарафан немного реклама
+23 есть сайт и он норм можешь сам нагуглить. другое я хз
+24 маркетинг делает кто то наемный я хз кто это. онлпйн делае
+25 я хз
+26 да пиздатый рейтинг я говорю изучи данные все пр омю клинику
+
+27 винда везде. 10\11
+28 ну есть вайфай а так не соединены и по себе
+29 есть
+30 я хз но этот чел в основном
+31 да смогут
+32 личные
+33 да скорее да но русне телегу блочат так что траблы бывают иногда
+34 - ой да похуй мыне в обалку а между компами
+35 я хз я ебу
+36 смотря к каким, в целом да но больше на пркиладыне штуки типа сканеров
+37 ла бля похуй я ему покажу просто
+38 да есть провалы
+39 пока нет
+40 условно бесплатно ну я есче выпрошу , а так и беспалатно можно пзидатейше делать как я и делаю
+41 я хз го и так и так
+42 - офк всплывашка как ты представляешь в тг - типа он блядь снял и ему на телефон приходит прям когда пац в кресле
+43 и звнить и пистаь больше каналов
+44 - ну станларт 2 раза я хз
+45 да нужна
+46 - да похуй то же подсказка
+мы ее еще опткестим
+47 - я хз
+48 - ну еба убду показывать
+49 - системности особо нет
+50 -да переживут еба
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:37:45+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Claude Sonnet 4.6 (Thinking) to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---
+<USER_REQUEST>
+иди наъхуй  план в чат пиши а не в файлики! тут осбужадем!!!!!!!!!!!
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:40:22+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+блять надо чтобы и по роутеру они свзяаны были и фолбек либо альтернатива оп впн впс нашему сука
+
+иди нахуй не рабоатет твоя всплывашека ты видимо в контйенере блядь сидишь думай как вылзети
+
+бд? я не ебу дваый думать
+и ты скудно овтетил на 50 овтетов наъхуй
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:43:40+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Да похуй, можно и в облако. их ноуты могут влкючаться и выключаться. какой  в пизду обыск? ебаный шизик.
+
+ты ебаный даун. теханрб мастер блять. у нас 3 ноута, 1 того чела. 1 админа. 1 в комнате, 1 комп с сканером и снимками. и будет мой ноут. мсука даун
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:51:24+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Да похуй, можно и в облако. их ноуты могут влкючаться и выключаться. какой  в пизду обыск? ебаный шизик.
+
+ты ебаный даун. теханрб мастер блять. у нас 3 ноута, 1 того чела. 1 админа. 1 в комнате, 1 комп с сканером и снимками. и будет мой ноут. мсука даун
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:51:24+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ты блядь ебаный даун
+
+Схуяли ты решил что мы что-то лкоально запускаем
+нищую лламу 4 маверки заюзаем для расопзнавания картинки
+ну почему ты такойдаун
+нуи имхо тогда и бекапы нужны раз в сутки с бд
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T00:56:09+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+смотри dvachbot\stomchat как там визуальное распохгнавнеи реализовано и думай как приварить сюда
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:02:39+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+keep fucking working!
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:04:12+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+стйо ебанько и что мы  с этим делаем? ты в курсе про то как ротация ключей релаизована и вся хуйня? также думай как будм размечать и будем ли и что будем размечать итп
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:07:33+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Говно ебаноею пидор ты по вершкам проходишься
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:10:12+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+сука блять првошелся по врехам даже ебаную ротацию не дселал пока я тебе не тыкнул
+иди нахуй со своим файнтюнингом
+схуяли ты такой самоуверенный что ллама не даст жсон
+даун ебаный
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:11:13+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+единственная мразь тут жто ты. пиздуй думать над 10 разными рпомтпами по сути и по факту для лламы. оценим какой лучше в итоге обрисует что на пикче.
+
+пидор блять
+"C:\Users\danat\Downloads\оро.webp"
+вот пикча
+
+делай вместо ебаных нищих красных квадратов что-то красивое блять и нормальное. чтобы рисунко красивый был. чтобы жсон ловил и рисуй бля
+
+10 вариантв кажой хуйни делай!!!!!!!!!!! я буду сравнивать где параша и обсер а где нет
+вперед блядь
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:15:14+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+нет нихуя подписей и не понятн очто это
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:38:59+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+эм, окей, а нахуй мне разные стили если блять разметка в пизде находится? неон кариес ток норм
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T01:45:12+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+О, ну давай ,прогони ебать ту пикчу что мы дрочим
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:02:23+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+смотри сам пкичу. пиздит ли он или нет?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:03:49+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Prompt issues. Давай думай и прописывай ей охуенно большой промпт, аш dentalimage.md который пойдет вместе с фото, чтобы ей блять дать возможность корректно себя вести
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:05:27+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Уже неплохо. Еще можно промпт улучшить? чтобы он с корокнами, пломбами, имплантами, разнообразной хуйней и тп смог разобраться. прям эксперта  сделай
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:08:51+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+Скачай с инета штук 10 прицельных снимков .
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:13:29+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+я скачал их в загрузках. сам их перед всем делом посмотри, есть ли там edge cases, которые не покрыты, промпт мождифицируй улучшь если надо. также думай
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:36:47+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ну не перехваливай.  Я ЕЩЕ СКАЧАЛ НОВЫХ ФОТОК!!я скачал их в загрузках. сам их перед всем делом посмотри, есть ли там edge cases, которые не покрыты, промпт мождифицируй улучшь если надо. также думай
+
+САМ СНАЧАЛА ОТСМОТРИ ВСЕ НЮАНСЫ ВЫИСКИВАЙ ДУМАЙ. ПОТОМ ПРОМПТ УЛУЧШИШЬ И СДЕЛАЕМ АНАЛИЗ
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:42:02+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ЕЩЕ РАЗ ВСЕ СКАЧАННЫЕ МНОЮ СНИМКИ ПРОЙДИ ИЗУЧИ СВОИМИ ГЛАЗАМИ СРАВНИ С НАШИМ ПРОМПТОМ ВСЕ ЛИ ПРОПИСАНО ИЛИ ЧТО-ТО ЗАБЫЛИ? ДУМАЙ, ДЕТСКИЕ ЗУБЫ РЕДКО БЫВАЮТ НО ВСЕ РАВНО МБ
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:45:01+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+еще что-то? повтори итерацию исследований пкич и сам тоеж подумай что можно увидеть
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:48:18+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+переломы и трещины нельзя путать с налождением края кости на зуб.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T02:56:39+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+еще раз все фотки аккуратно прогони, результат мне сюда. сно вым промптом что распощнало
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:03:50+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+     батчи оборванны в конце. почему?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:22:44+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+что ты будешь туда внедрять ?вообще наша хуйня будет больше как плагин подцелпяемый к компу где рентген делают, и она должна ловить появившийся рентген его отправлять и рядом окошко делать с остильным изображением,крутикламми, и описанием
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:25:02+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+что ты будешь туда внедрять ?вообще наша хуйня будет больше как плагин подцелпяемый к компу где рентген делают, и она должна ловить появившийся рентген его отправлять и рядом окошко делать с остильным изображением,крутикламми, и описанием
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:25:02+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+отвечаю на вопросмы
+
+ну и вообще надо как то ловить файлы когда их делают снимки да думать
+
+в целом да ты прав
+ну разворачиваться он должен прям норм
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:27:25+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+не, не всплыло нихуя. выберись уже из своей ебаной песочницы, настрйо там настрйоки
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:30:49+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+эм нет и теперь у меня на рабочем тсоел вот...
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:35:49+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+ну окей. ты уверен что он будет перехватывать рентген?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:42:49+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+rfrbv hj,hfpjv hf,jnftn fdnjgjl[dfn gbrxb& f bp lheub[ ghju& kfylj/ rfr ,eltv 'nj byntuhbhjdfnm c ,jnjv bkb ctnm.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:50:59+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+cerf ns pf,sk xnj e yfc pf ghtjrn& xbnfq dtcm kju xfnf
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:52:02+04:00.
+</ADDITIONAL_METADATA>
+---
+<USER_REQUEST>
+cerf ns pf,sk xnj e yfc pf ghtjrn& xbnfq dtcm kju xfnf
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-20T03:54:25+04:00.
+</ADDITIONAL_METADATA>
+---

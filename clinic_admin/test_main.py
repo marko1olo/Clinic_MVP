@@ -1,52 +1,60 @@
 import os
-import pytest
+import sys
+import unittest
 from fastapi.testclient import TestClient
-from main import app, init_db
 
-# Ensure we use a test database or initialize correctly
-@pytest.fixture(autouse=True)
-def setup_db():
-    init_db()
-    yield
+# Add clinic_admin directory to sys.path to resolve database import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-client = TestClient(app)
+from clinic_admin.main import app
+from clinic_admin.database import init_db
 
-def test_read_root_unconfigured_credentials():
-    # temporarily delete credentials if they exist
-    u = os.environ.pop("ADMIN_USERNAME", None)
-    p = os.environ.pop("ADMIN_PASSWORD", None)
+class TestMain(unittest.TestCase):
+    def setUp(self):
+        init_db()
+        self.client = TestClient(app)
 
-    response = client.get("/", auth=("admin", "admin"))
-    assert response.status_code == 500
-    assert response.json() == {"detail": "Admin credentials are not configured on the server"}
+    def test_read_root_unconfigured_credentials(self):
+        # temporarily delete credentials if they exist
+        u = os.environ.pop("ADMIN_USERNAME", None)
+        p = os.environ.pop("ADMIN_PASSWORD", None)
 
-    if u is not None:
-        os.environ["ADMIN_USERNAME"] = u
-    if p is not None:
-        os.environ["ADMIN_PASSWORD"] = p
+        response = self.client.get("/", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"detail": "Admin credentials are not configured on the server"})
 
-def test_read_root_unauthenticated():
-    os.environ["ADMIN_USERNAME"] = "admin"
-    os.environ["ADMIN_PASSWORD"] = "admin"
-    response = client.get("/")
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Not authenticated"}
+        if u is not None:
+            os.environ["ADMIN_USERNAME"] = u
+        if p is not None:
+            os.environ["ADMIN_PASSWORD"] = p
 
-def test_read_root_authenticated_correct():
-    os.environ["ADMIN_USERNAME"] = "admin"
-    os.environ["ADMIN_PASSWORD"] = "admin"
-    response = client.get("/", auth=("admin", "admin"))
-    assert response.status_code == 200
+    def test_read_root_unauthenticated(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
-def test_read_root_authenticated_incorrect():
-    os.environ["ADMIN_USERNAME"] = "admin"
-    os.environ["ADMIN_PASSWORD"] = "admin"
-    response = client.get("/", auth=("admin", "wrong"))
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Incorrect email or password"}
+    def test_read_root_authenticated_correct(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 200)
 
-def test_api_current_appointment_unauthenticated():
-    # Verify that the unauthenticated API endpoint remains accessible
-    response = client.get("/api/current_appointment")
-    assert response.status_code == 200
-    assert "error" in response.json() or "appointment_id" in response.json()
+    def test_read_root_authenticated_incorrect(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/", auth=("admin", "wrong"))
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Incorrect username or password"})
+
+    def test_api_current_appointment_unauthenticated(self):
+        # Verify that the unauthenticated API endpoint remains accessible
+        response = self.client.get("/api/current_appointment")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue("error" in data or "appointment_id" in data)
+
+if __name__ == '__main__':
+    unittest.main()
+

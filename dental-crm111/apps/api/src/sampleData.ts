@@ -1,4 +1,4 @@
-﻿import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -7008,7 +7008,7 @@ function telegramScheduleReplyMarkupForPatientAppointment(
 }
 
 export function prepareDenteTelegramOutboxDelivery(
-  outboxItemId: string,
+  outboxItemIdOrItem: string | DenteTelegramOutboxItem,
   runtimeScope?: DenteTelegramOutboxRuntimeScope
 ):
   | {
@@ -7027,7 +7027,7 @@ export function prepareDenteTelegramOutboxDelivery(
       blockedReason: string;
       warnings: string[];
     } {
-  const item = findDenteTelegramOutboxItem(outboxItemId, runtimeScope);
+  const item = typeof outboxItemIdOrItem === "string" ? findDenteTelegramOutboxItem(outboxItemIdOrItem, runtimeScope) : outboxItemIdOrItem;
   if (!item) {
     return {
       ok: false,

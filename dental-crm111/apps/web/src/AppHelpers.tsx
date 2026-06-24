@@ -184,7 +184,12 @@ import {
   type VisitNoteDraft,
   type XrayCbctReferralPregnancyStatus,
   type XrayCbctReferralPriority,
-  type XrayCbctReferralStudyType
+  type XrayCbctReferralStudyType,
+  type LocalImagingFolderDraft,
+  type BrowserPickedImagingFolderPreview,
+  type BrowserPickedImagingScanStats,
+  type BrowserImagingScanPhase,
+  type BrowserImagingScanProgress
 } from "@dental/shared";
 import { AppLoadingState, AppUnlockState } from "./AppBootState";
 import {
@@ -472,16 +477,7 @@ export type MprWorkbenchIndexedDbDraft = MprWorkbenchLocalDraft & {
   organizationId: string | null;
 };
 
-export type LocalImagingFolderDraft = {
-  version: 1;
-  folderPath: string;
-  safeDisplayName: string;
-  sourceLabel: string;
-  sourceKind: string;
-  folderFingerprint: string | null;
-  origin: "manual" | "discovery" | "organizer" | "workbench";
-  savedAt: string;
-};
+
 
 export type DicomFirstFramePreviewMetadata = Partial<Omit<LocalImagingFolderDraft, "version" | "folderPath" | "savedAt">>;
 
@@ -520,51 +516,7 @@ export type DentalDesktopRuntimeWindow = BrowserDirectoryPickerWindow & {
   electronAPI?: unknown;
 };
 
-export type BrowserPickedImagingFolderPreview = {
-  version: 1;
-  safeDisplayName: string;
-  sourceLabel: string;
-  sourceKind: "browser_directory_picker" | "browser_file_input";
-  folderFingerprint: string;
-  rootName: string;
-  scannedFiles: number;
-  scannedFolders: number;
-  dicomLikeFiles: number;
-  archiveFiles: number;
-  modelFiles: number;
-  imageFiles: number;
-  totalBytes: number;
-  createdAt: string;
-  nextAction: string;
-  warnings: string[];
-};
 
-export type BrowserPickedImagingScanStats = {
-  rootName: string;
-  sourceKind: BrowserPickedImagingFolderPreview["sourceKind"];
-  scannedFiles: number;
-  scannedFolders: number;
-  dicomLikeFiles: number;
-  archiveFiles: number;
-  modelFiles: number;
-  imageFiles: number;
-  totalBytes: number;
-  warnings: string[];
-};
-
-export type BrowserImagingScanPhase = "scanning" | "done" | "cancelled";
-
-export type BrowserImagingScanProgress = BrowserPickedImagingScanStats & {
-  phase: BrowserImagingScanPhase;
-  currentItem: string | null;
-  startedAt: string;
-  updatedAt: string;
-  elapsedMs: number;
-  processedUnits: number;
-  fileLimit: number;
-  folderLimit: number;
-  magicReadLimit: number;
-};
 
 export type BrowserImagingScanOptions = {
   signal?: AbortSignal;

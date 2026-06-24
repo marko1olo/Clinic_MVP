@@ -532,11 +532,12 @@ function isDenteTelegramOutboxItemDue(item: DenteTelegramOutboxItem, nowMs: numb
 }
 
 async function executeTelegramOutboxSend(
-  outboxItemId: string,
+  outboxItemIdOrItem: string | DenteTelegramOutboxItem,
   input: DenteTelegramOutboxSendRequest,
   runtime?: TelegramResolvedOutboxRuntime
 ): Promise<TelegramOutboxSendExecutionResult> {
   const clientMutationId = input.clientMutationId?.trim() || null;
+  const outboxItemId = typeof outboxItemIdOrItem === "string" ? outboxItemIdOrItem : outboxItemIdOrItem.id;
   const replay = findDenteTelegramOutboxDeliveryReceipt(outboxItemId, clientMutationId);
   if (replay && !(replay.status === "failed" && clientMutationId?.startsWith("due-"))) {
     const body = denteTelegramOutboxSendResponseSchema.parse({
@@ -559,7 +560,7 @@ async function executeTelegramOutboxSend(
   }
 
   const token = runtimeResult.runtime.context.botToken;
-  const prepared = prepareDenteTelegramOutboxDelivery(outboxItemId, runtimeResult.runtime.runtimeScope);
+  const prepared = prepareDenteTelegramOutboxDelivery(outboxItemIdOrItem, runtimeResult.runtime.runtimeScope);
 
   if (!prepared.ok) {
     return {
@@ -795,7 +796,7 @@ export async function executeDenteTelegramOutboxDueBatch(
   const results: any[] = [];
   for (const item of dueItems) {
     const sendResult = await executeTelegramOutboxSend(
-      item.id,
+      item,
       {
         dryRun: input.dryRun,
         clientMutationId: input.dryRun ? null : dueOutboxClientMutationId(item.id, item.scheduledAt)

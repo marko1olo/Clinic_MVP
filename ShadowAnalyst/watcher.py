@@ -144,7 +144,8 @@ def analyze_image(file_path):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        first_report = val.strip()
+                        import re
+                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
                         success = True
                         break
             except Exception as e:

@@ -49,8 +49,16 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.json(), {"detail": "Incorrect username or password"})
 
     def test_api_current_appointment_unauthenticated(self):
-        # Verify that the unauthenticated API endpoint remains accessible
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/api/current_appointment")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Not authenticated"})
+
+    def test_api_current_appointment_authenticated(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)

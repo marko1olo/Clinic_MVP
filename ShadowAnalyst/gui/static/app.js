@@ -364,13 +364,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!label) return;
         const val = parseInt(value);
         if (val === 4) {
-            label.textContent = "Максимальный (Gemini 3.5 Flash)";
+            label.textContent = "Интеллектуальная (Gemini 3.5 Flash)";
         } else if (val === 3) {
-            label.textContent = "Продвинутый (Gemini 3 Flash)";
+            label.textContent = "Умеренная (Gemini 3.0 Flash)";
         } else if (val === 2) {
-            label.textContent = "Базовый (Gemini 3.1 Flash Lite)";
+            label.textContent = "Базовая (Qwen 3.6 / Groq)";
         } else {
-            label.textContent = "Минимальный (Llama 4 Scout / Groq)";
+            label.textContent = "Тупая модель (Llama 4 Scout)";
         }
     };
 

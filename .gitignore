@@ -40,3 +40,11 @@ tmp/
 # Runtime config files with secrets (use *.example.json as template)
 ShadowAnalyst/gui/config.json
 config.json
+
+# Build artifacts (too large for GitHub)
+*.exe
+*.pkg
+**/dist/
+**/build/
+ShadowAnalyst/gui/dist/
+ShadowAnalyst/gui/build/

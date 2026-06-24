@@ -124,7 +124,7 @@ def on_mqtt_message(client, userdata, msg):
     try:
         try:
             payload = json.loads(msg.payload.decode('utf-8'))
-        except Exception:
+        except json.JSONDecodeError:
             payload = {"text": msg.payload.decode('utf-8', errors='replace')}
 
         log.info(f"MQTT [{topic}] received.")

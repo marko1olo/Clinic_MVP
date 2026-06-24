@@ -22,6 +22,7 @@ from openai import OpenAI
 import json
 import edge_tts
 import database
+import aiofiles
 
 # --- LOGGING INTERCEPTOR ---
 import collections
@@ -700,8 +701,9 @@ def trigger_analysis():
 @api.post("/api/upload")
 async def upload_image(file: UploadFile = File(...)):
     save_path = os.path.join(WATCH_DIR, file.filename)
-    with open(save_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    async with aiofiles.open(save_path, "wb") as f:
+        while chunk := await file.read(1024 * 1024): # Read in 1MB chunks
+            await f.write(chunk)
     return {"status": "ok", "filename": file.filename}
 
 # AI Logic

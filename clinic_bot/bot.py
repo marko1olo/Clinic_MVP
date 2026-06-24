@@ -11,9 +11,9 @@ import sys
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
-from aiogram import Bot, Dispatcher, Router, F
+from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
-from aiogram.filters import Command, CommandStart
+from aiogram.filters.command import Command, CommandStart
 
 sys.path.insert(0, '.')
 from config.settings import (

@@ -825,7 +825,8 @@ def run_ai_analysis(file_path, patient_info=None):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        first_report = val.strip()
+                        import re
+                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
                         success = True
                         break
                     else:
@@ -897,7 +898,8 @@ def run_ai_analysis(file_path, patient_info=None):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        final_output = val.strip()
+                        import re
+                        final_output = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
                         success = True
                         break
                     else:

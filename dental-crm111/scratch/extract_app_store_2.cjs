@@ -57,7 +57,7 @@ ${states.map(s => `  ${s.name}: ${s.type ? s.type : 'any'};
 }
 
 export const useAppStore = create<AppStore>((set) => ({
-${states.map(s => `  ${s.name}: ${s.initialValue.replace('loadPendingSpeechChunksFromLocalStorage(activeOrganizationId)', 'loadPendingSpeechChunksFromLocalStorage("todo-active-org-id")')},
+${states.map(s => `  ${s.name}: ${s.initialValue},
   ${s.setter}: (val) => set({ ${s.name}: val }),`).join('\n')}
 }));
 `;

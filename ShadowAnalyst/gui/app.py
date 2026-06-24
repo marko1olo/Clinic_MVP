@@ -516,6 +516,7 @@ async def get_tts(text: str, provider: str = None):
     import hashlib
     from fastapi.responses import Response
     from fastapi import HTTPException
+    import httpx
     
     if not provider:
         provider = app_state.get("tts_provider", "edge")
@@ -560,14 +561,10 @@ async def get_tts(text: str, provider: str = None):
                     }
                 }
                 
-                proxies = None
-                if _tunnel_active:
-                    proxies = {
-                        "http://": SOCKS_PROXY,
-                        "https://": SOCKS_PROXY
-                    }
-                
-                r = requests.post(url, json=data, headers=headers, proxies=proxies, timeout=20)
+                proxy = SOCKS_PROXY if _tunnel_active else None
+                async with httpx.AsyncClient(proxy=proxy) as client:
+                    r = await client.post(url, json=data, headers=headers, timeout=20.0)
+
                 if r.status_code == 200:
                     audio_bytes = r.content
                     break
@@ -595,7 +592,8 @@ async def get_tts(text: str, provider: str = None):
         url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=ru&client=tw-ob&q={urllib.parse.quote(text)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         try:
-            r = requests.get(url, headers=headers, timeout=10)
+            async with httpx.AsyncClient() as client:
+                r = await client.get(url, headers=headers, timeout=10.0)
             if r.status_code == 200:
                 audio_bytes = r.content
         except Exception as e:

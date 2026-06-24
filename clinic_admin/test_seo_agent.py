@@ -1,8 +1,19 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from clinic_admin.seo_agent import generate_seo_response
+from clinic_admin.seo_agent import generate_seo_response, get_groq_api_key
 
 class TestSEOAgent(unittest.TestCase):
+    @patch('builtins.open')
+    def test_get_groq_api_key_error_path(self, mock_open):
+        # Configure the mock to raise an IOError when open() is called
+        mock_open.side_effect = IOError("Simulated IOError for testing")
+
+        # Call the function
+        result = get_groq_api_key()
+
+        # Verify the exception was caught and handled correctly
+        self.assertIsNone(result)
+
     @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_missing_api_key(self, mock_get_api_key):
         # Setup: Return None to simulate missing API key

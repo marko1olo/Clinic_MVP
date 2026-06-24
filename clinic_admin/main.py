@@ -115,7 +115,7 @@ async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), 
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/api/current_appointment")
-async def get_current_appointment():
+async def get_current_appointment(username: str = Depends(get_current_username)):
     conn = get_connection()
     c = conn.cursor()
     # Получаем ближайший прошедший или текущий аппойнтмент (сегодняшний день)

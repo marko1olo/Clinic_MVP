@@ -16,20 +16,37 @@ def inject_dummy_data():
         ("Петров Дмитрий", "+79001112233")
     ]
     
+    # Pre-check all existing names to avoid N queries
+    names = [p[0] for p in old_patients]
+    if names:
+        placeholders = ','.join(['?'] * len(names))
+        c.execute(f"SELECT name FROM patients WHERE name IN ({placeholders})", names)
+        existing_names = set(row[0] for row in c.fetchall())
+    else:
+        existing_names = set()
+
+    new_patients_data = []
     for name, phone in old_patients:
-        # Check if exists
-        c.execute("SELECT id FROM patients WHERE name = ?", (name,))
-        res = c.fetchone()
-        if not res:
-            c.execute("INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)", (name, phone, now.isoformat()))
-            patient_id = c.lastrowid
+        if name not in existing_names:
+            new_patients_data.append((name, phone, now.isoformat()))
             
-            # Add an appointment 7 months ago
-            old_date = (now - timedelta(days=210)).isoformat()
-            c.execute('''
-                INSERT INTO appointments (patient_id, doctor, appointment_date, status, created_at)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (patient_id, "Др. Хаус", old_date, "completed", now.isoformat()))
+    if new_patients_data:
+        c.executemany("INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)", new_patients_data)
+
+        # Get the IDs of the newly inserted patients
+        inserted_names = [p[0] for p in new_patients_data]
+        placeholders_new = ','.join(['?'] * len(inserted_names))
+        c.execute(f"SELECT id FROM patients WHERE name IN ({placeholders_new})", inserted_names)
+        inserted_ids = [row[0] for row in c.fetchall()]
+
+        # Add an appointment 7 months ago for each new patient
+        old_date = (now - timedelta(days=210)).isoformat()
+        appointments_data = [(pid, "Др. Хаус", old_date, "completed", now.isoformat()) for pid in inserted_ids]
+
+        c.executemany('''
+            INSERT INTO appointments (patient_id, doctor, appointment_date, status, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', appointments_data)
     
     conn.commit()
     conn.close()

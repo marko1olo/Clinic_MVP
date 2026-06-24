@@ -85,10 +85,10 @@ async def read_root(request: Request, username: str = Depends(get_current_userna
     patients = c.fetchall()
     
     conn.close()
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request, 
-        "appointments": appointments,
-        "patients": patients
+        "appointments": [dict(ix) for ix in appointments],
+        "patients": [dict(ix) for ix in patients]
     })
 
 @app.post("/patients/add")

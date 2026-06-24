@@ -230,7 +230,7 @@ function sendImagingScanCancelled(reply: FastifyReply) {
   });
 }
 
-async function runAbortableImagingScan<T>(
+export async function runAbortableImagingScan<T>(
   request: FastifyRequest,
   reply: FastifyReply,
   operation: (options: ApiDicomScanOptions) => Promise<T>

@@ -259,7 +259,10 @@ DEFAULT_CONFIG = {
     "elevenlabs_voice_id": "pNInz6obpgq54HWK483c"
 }
 
-import winreg
+try:
+    import winreg
+except ImportError:
+    winreg = None
 
 def set_autorun(enable: bool):
     try:
@@ -1490,7 +1493,7 @@ def wait_for_server(url, timeout=10):
             r = requests.get(url, timeout=1)
             if r.status_code == 200:
                 return True
-        except:
+        except requests.RequestException:
             pass
         time.sleep(0.5)
     return False

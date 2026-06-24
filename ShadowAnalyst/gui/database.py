@@ -45,7 +45,7 @@ def init_db():
     # Migration for older databases
     try:
         cursor.execute("ALTER TABLE scans ADD COLUMN ai_image TEXT")
-    except Exception:
+    except sqlite3.OperationalError:
         pass
         
     conn.commit()

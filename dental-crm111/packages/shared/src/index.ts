@@ -8026,9 +8026,62 @@ export const migrationAutopilotResponseSchema = z.object({
 });
 export type MigrationAutopilotResponse = z.infer<typeof migrationAutopilotResponseSchema>;
 
-export type LocalImagingFolderDraft = any;
-export type BrowserPickedImagingFolderPreview = any;
-export type BrowserImagingScanProgress = any;
+export type LocalImagingFolderDraft = {
+  version: 1;
+  folderPath: string;
+  safeDisplayName: string;
+  sourceLabel: string;
+  sourceKind: string;
+  folderFingerprint: string | null;
+  origin: "manual" | "discovery" | "organizer" | "workbench";
+  savedAt: string;
+};
+
+export type BrowserPickedImagingFolderPreview = {
+  version: 1;
+  safeDisplayName: string;
+  sourceLabel: string;
+  sourceKind: "browser_directory_picker" | "browser_file_input";
+  folderFingerprint: string;
+  rootName: string;
+  scannedFiles: number;
+  scannedFolders: number;
+  dicomLikeFiles: number;
+  archiveFiles: number;
+  modelFiles: number;
+  imageFiles: number;
+  totalBytes: number;
+  createdAt: string;
+  nextAction: string;
+  warnings: string[];
+};
+
+export type BrowserPickedImagingScanStats = {
+  rootName: string;
+  sourceKind: BrowserPickedImagingFolderPreview["sourceKind"];
+  scannedFiles: number;
+  scannedFolders: number;
+  dicomLikeFiles: number;
+  archiveFiles: number;
+  modelFiles: number;
+  imageFiles: number;
+  totalBytes: number;
+  warnings: string[];
+};
+
+export type BrowserImagingScanPhase = "scanning" | "done" | "cancelled";
+
+export type BrowserImagingScanProgress = BrowserPickedImagingScanStats & {
+  phase: BrowserImagingScanPhase;
+  currentItem: string | null;
+  startedAt: string;
+  updatedAt: string;
+  elapsedMs: number;
+  processedUnits: number;
+  fileLimit: number;
+  folderLimit: number;
+  magicReadLimit: number;
+};
 export type ImagingViewerState = any;
 export type ImagingViewerSaveState = any;
 export type MprProjection = any;

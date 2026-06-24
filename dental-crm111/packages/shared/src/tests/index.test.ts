@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { documentRequiresPaidRecord, documentKindSchema } from '../index.js';
+import { documentRequiresPaidRecord, documentKindSchema, legacyTaxDeductionCertificateMinYear, legacyTaxDeductionCertificateMaxYear, taxDeductionCertificateMinYear } from '../index.js';
 
 describe('documentRequiresPaidRecord', () => {
   test('returns expected boolean for different document kinds', () => {
@@ -28,3 +28,26 @@ describe('documentRequiresPaidRecord', () => {
     }
   });
 });
+
+describe('Tax Deduction Certificate Years', () => {
+  test('legacyTaxDeductionCertificateMinYear is defined and has correct value', () => {
+    assert.strictEqual(legacyTaxDeductionCertificateMinYear, 2021);
+  });
+
+  test('legacyTaxDeductionCertificateMaxYear is defined and has correct value', () => {
+    assert.strictEqual(legacyTaxDeductionCertificateMaxYear, 2023);
+  });
+
+  test('taxDeductionCertificateMinYear is defined and has correct value', () => {
+    assert.strictEqual(taxDeductionCertificateMinYear, 2024);
+  });
+
+  test('legacy min year is less than or equal to legacy max year', () => {
+    assert.ok(legacyTaxDeductionCertificateMinYear <= legacyTaxDeductionCertificateMaxYear);
+  });
+
+  test('new min year is greater than legacy max year', () => {
+    assert.ok(taxDeductionCertificateMinYear > legacyTaxDeductionCertificateMaxYear);
+  });
+});
+

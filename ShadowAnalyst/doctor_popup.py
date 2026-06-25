@@ -27,6 +27,26 @@ if os.path.exists(CONFIG_FILE):
     except Exception as e:
         print(f"Error loading config.json: {e}")
 
+def parse_findings(findings):
+    """
+    Parses the findings string and separates it into normal findings (body_lines)
+    and alert findings (alert_lines).
+    """
+    body_lines = []
+    alert_lines = []
+
+    if not findings or findings == "Норма":
+        body_lines.append("Патологий не обнаружено. Норма.")
+    else:
+        for line in findings.split('\n'):
+            if 'кариес' in line.lower() or 'воспаление' in line.lower():
+                alert_lines.append(line)
+            else:
+                body_lines.append(line)
+
+    return body_lines, alert_lines
+
+
 class DoctorPopupApp:
     def __init__(self):
         self.root = tk.Tk()
@@ -72,17 +92,7 @@ class DoctorPopupApp:
         # Update text
         self.lbl_title.config(text=f"🦷 Снимок: {filename}")
         
-        body_lines = []
-        alert_lines = []
-        
-        if not findings or findings == "Норма":
-            body_lines.append("Патологий не обнаружено. Норма.")
-        else:
-            for line in findings.split('\n'):
-                if 'кариес' in line.lower() or 'воспаление' in line.lower():
-                    alert_lines.append(line)
-                else:
-                    body_lines.append(line)
+        body_lines, alert_lines = parse_findings(findings)
         
         self.lbl_body.config(text="\n".join(body_lines))
         self.lbl_alert.config(text="\n".join(alert_lines))

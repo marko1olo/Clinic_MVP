@@ -742,59 +742,47 @@ def prepare_image(file_path):
 
 
 
-def run_ai_analysis(file_path, patient_info=None):
-    image_b64 = prepare_image(file_path)
-    if not image_b64:
-        return "Ошибка обработки картинки.", "Снимок не обработан."
-
-    if not check_internet_connection(timeout=1.5):
-        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
-
-    system_prompt = "Опиши снимок зубов."
+def _load_prompt_file(filename, default_text=""):
     prompt_paths = [
-        os.path.join(EXE_DIR, "dentalimage.md"),
-        os.path.join(os.path.dirname(EXE_DIR), "dentalimage.md"),
-        os.path.join(BASE_DIR, "dentalimage.md"),
-        os.path.join(os.path.dirname(BASE_DIR), "dentalimage.md"),
+        os.path.join(EXE_DIR, filename),
+        os.path.join(os.path.dirname(EXE_DIR), filename),
+        os.path.join(BASE_DIR, filename),
+        os.path.join(os.path.dirname(BASE_DIR), filename),
     ]
     for prompt_path in prompt_paths:
         if os.path.exists(prompt_path):
             try:
                 with open(prompt_path, "r", encoding="utf-8") as f:
-                    system_prompt = f.read()
-                break
+                    return f.read()
             except Exception:
                 pass
+    return default_text
 
-    if patient_info:
-        system_prompt += f"\n\nВАЖНО: Это снимок пациента по имени {patient_info['patient_name']}. Упомяни его имя в отчете."
-
-    # Map intelligence tier to fallback cascade list
-    model_tier = config.get("model_tier", 4)
+def _get_models_with_providers(model_tier):
     if model_tier == 4:
-        models_with_providers = [
+        return [
             ("gemini-3.5-flash", "gemini"),
             ("gemini-3.1-flash-lite", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
     elif model_tier == 3:
-        models_with_providers = [
+        return [
             ("gemini-3.1-flash-lite", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
     elif model_tier == 2:
-        models_with_providers = [
+        return [
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
     else:  # model_tier == 1
-        models_with_providers = [
+        return [
             (GROQ_VISION_MODEL, "groq")
         ]
 
-    first_report = ""
+def _execute_ai_with_fallback(models_with_providers, messages_content, pass_name=""):
     last_err = "No keys available"
     for model_name, provider in models_with_providers:
         if provider == "gemini":
@@ -804,7 +792,6 @@ def run_ai_analysis(file_path, patient_info=None):
             keys = GROQ_API_KEYS.copy()
             chat_func = groq_chat
 
-        # Shuffle keys for each model pass to distribute load
         random.shuffle(keys)
         success = False
         for api_key in keys:
@@ -815,10 +802,7 @@ def run_ai_analysis(file_path, patient_info=None):
                     messages=[
                         {
                             "role": "user",
-                            "content": [
-                                {"type": "text", "text": system_prompt},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
+                            "content": messages_content
                         }
                     ]
                 )
@@ -826,90 +810,57 @@ def run_ai_analysis(file_path, patient_info=None):
                     val = response.choices[0].message.content
                     if val:
                         import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
+                        output = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        return output, None
                     else:
-                        print(f"Key {api_key[:10]}... returned empty content for model {model_name}.")
+                        print(f"Key {api_key[:10]}... returned empty content for model {model_name} in {pass_name}.")
             except Exception as e:
-                print(f"Error using key {api_key[:10]}... with model {model_name} ({provider}): {e}")
+                print(f"Error using key {api_key[:10]}... with model {model_name} in {pass_name} ({provider}): {e}")
                 last_err = e
                 continue
-        if success:
-            break
-            
+    return "", last_err
+
+def run_ai_analysis(file_path, patient_info=None):
+    image_b64 = prepare_image(file_path)
+    if not image_b64:
+        return "Ошибка обработки картинки.", "Снимок не обработан."
+
+    if not check_internet_connection(timeout=1.5):
+        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
+
+    system_prompt = _load_prompt_file("dentalimage.md", default_text="Опиши снимок зубов.")
+
+    if patient_info:
+        system_prompt += f"\n\nВАЖНО: Это снимок пациента по имени {patient_info['patient_name']}. Упомяни его имя в отчете."
+
+    model_tier = config.get("model_tier", 4)
+    models_with_providers = _get_models_with_providers(model_tier)
+
+    # First Pass: Initial Report
+    messages_content_1 = [
+        {"type": "text", "text": system_prompt},
+        {"type": "image_url", "image_url": {"url": image_b64}}
+    ]
+    first_report, last_err = _execute_ai_with_fallback(models_with_providers, messages_content_1, "initial report")
+
     if not first_report or "Сбой" in first_report:
         return first_report or f"Сбой: все ключи и модели исчерпаны. Последняя ошибка: {last_err}", "Сбой анализа."
 
-    # Load critic prompt from file (same lookup as main prompt)
-    critic_prompt = ""
-    critic_paths = [
-        os.path.join(EXE_DIR, "dentalimage_critic.md"),
-        os.path.join(os.path.dirname(EXE_DIR), "dentalimage_critic.md"),
-        os.path.join(BASE_DIR, "dentalimage_critic.md"),
-        os.path.join(os.path.dirname(BASE_DIR), "dentalimage_critic.md"),
+    # Second Pass: Critic & Improvement
+    default_critic = (
+        "Ты — главный рентгенолог-редактор. Проверь черновой отчёт по снимку, исправь ошибки, "
+        "удали иероглифы, улучши стиль. Ответ строго в тегах:\n"
+        "<summary>[3+ предложения: тип снимка, ключевые находки, главный вывод и рекомендация]</summary>\n"
+        "<report>[Полный отчёт Markdown]</report>"
+    )
+    critic_prompt = _load_prompt_file("dentalimage_critic.md", default_text=default_critic)
+
+    messages_content_2 = [
+        {"type": "text", "text": critic_prompt},
+        {"type": "text", "text": f"Вот первоначальный отчет, который тебе нужно проверить и улучшить:\n\n{first_report}"},
+        {"type": "image_url", "image_url": {"url": image_b64}}
     ]
-    for cpath in critic_paths:
-        if os.path.exists(cpath):
-            try:
-                with open(cpath, "r", encoding="utf-8") as f:
-                    critic_prompt = f.read()
-                break
-            except Exception:
-                pass
-
-    if not critic_prompt:
-        # Minimal inline fallback
-        critic_prompt = (
-            "Ты — главный рентгенолог-редактор. Проверь черновой отчёт по снимку, исправь ошибки, "
-            "удали иероглифы, улучши стиль. Ответ строго в тегах:\n"
-            "<summary>[3+ предложения: тип снимка, ключевые находки, главный вывод и рекомендация]</summary>\n"
-            "<report>[Полный отчёт Markdown]</report>"
-        )
-
-    final_output = ""
-    last_err_critic = "No keys available"
-    for model_name, provider in models_with_providers:
-        if provider == "gemini":
-            keys = GOOGLE_API_KEYS.copy()
-            chat_func = gemini_chat
-        else:
-            keys = GROQ_API_KEYS.copy()
-            chat_func = groq_chat
-
-        random.shuffle(keys)
-        success = False
-        for api_key in keys:
-            try:
-                response = chat_func(
-                    api_key=api_key,
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": critic_prompt},
-                                {"type": "text", "text": f"Вот первоначальный отчет, который тебе нужно проверить и улучшить:\n\n{first_report}"},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
-                        }
-                    ]
-                )
-                if response.choices and len(response.choices) > 0:
-                    val = response.choices[0].message.content
-                    if val:
-                        import re
-                        final_output = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
-                    else:
-                        print(f"Key {api_key[:10]}... returned empty content for model {model_name} in critic.")
-            except Exception as e:
-                print(f"Error using key {api_key[:10]}... with model {model_name} in critic ({provider}): {e}")
-                last_err_critic = e
-                continue
-        if success:
-            break
+    final_output, _ = _execute_ai_with_fallback(models_with_providers, messages_content_2, "critic")
 
     if not final_output:
         return first_report, "Анализ снимка выполнен. Резюме недоступно."

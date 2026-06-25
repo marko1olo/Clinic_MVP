@@ -1292,6 +1292,44 @@ def process_analysis_only(filename):
             
     print("Analysis complete.")
 
+def _copy_or_convert_image(file_path, filename):
+    if file_path.lower().endswith('.dcm'):
+        img_b64 = prepare_image(file_path)
+        if img_b64:
+            header, encoded = img_b64.split(",", 1)
+            data = base64.b64decode(encoded)
+            filename = filename + ".jpg"
+            static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
+            with open(static_img_path, "wb") as f:
+                f.write(data)
+        else:
+            static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
+            shutil.copy2(file_path, static_img_path)
+    else:
+        static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
+        shutil.copy2(file_path, static_img_path)
+    return filename, static_img_path
+
+def _update_app_state_for_new_scan(filename):
+    app_state["latest_image"] = f"/static/uploads/{filename}"
+    app_state["latest_ai_image"] = ""
+    app_state["latest_report"] = ""
+    app_state["latest_summary"] = ""
+    app_state["current_scan_id"] = None
+
+    # Add to recent scans queue
+    app_state["recent_scans"].append({
+        "id": int(time.time() * 1000),
+        "image": f"/static/uploads/{filename}",
+        "original_filename": filename,
+        "timestamp": time.time(),
+        "summary": "",
+        "report": ""
+    })
+    # Keep only the last 10
+    if len(app_state["recent_scans"]) > 10:
+        app_state["recent_scans"].pop(0)
+
 def process_new_xray(file_path):
     filename = os.path.basename(file_path)
     if filename in processing_files:
@@ -1308,21 +1346,7 @@ def process_new_xray(file_path):
             global_window.restore()
             global_window.show()
 
-        if file_path.lower().endswith('.dcm'):
-            img_b64 = prepare_image(file_path)
-            if img_b64:
-                header, encoded = img_b64.split(",", 1)
-                data = base64.b64decode(encoded)
-                filename = filename + ".jpg"
-                static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
-                with open(static_img_path, "wb") as f:
-                    f.write(data)
-            else:
-                static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
-                shutil.copy2(file_path, static_img_path)
-        else:
-            static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
-            shutil.copy2(file_path, static_img_path)
+        filename, static_img_path = _copy_or_convert_image(file_path, filename)
 
         # Always pre-generate CLAHE enhanced version so it's ready for instant comparison slider
         base, ext = os.path.splitext(filename)
@@ -1333,24 +1357,7 @@ def process_new_xray(file_path):
             app_state["is_processing"] = False
             return
 
-        app_state["latest_image"] = f"/static/uploads/{filename}"
-        app_state["latest_ai_image"] = ""
-        app_state["latest_report"] = ""
-        app_state["latest_summary"] = ""
-        app_state["current_scan_id"] = None
-        
-        # Add to recent scans queue
-        app_state["recent_scans"].append({
-            "id": int(time.time() * 1000),
-            "image": f"/static/uploads/{filename}",
-            "original_filename": filename,
-            "timestamp": time.time(),
-            "summary": "",
-            "report": ""
-        })
-        # Keep only the last 10
-        if len(app_state["recent_scans"]) > 10:
-            app_state["recent_scans"].pop(0)
+        _update_app_state_for_new_scan(filename)
 
         if app_state["auto_analyze"]:
             print("Auto-triggering AI analysis...")

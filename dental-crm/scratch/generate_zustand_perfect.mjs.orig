@@ -34,7 +34,7 @@ for (const v of stateVars) {
   }
 
   // Fix TS issues with arrays
-  if (inferredType === 'any') {
+  if (inferredType === 'any[]') {
     if (v.name.includes('Sources') || v.name.includes('Rules') || v.name.includes('Plans')) {
       inferredType = 'any[]';
     }

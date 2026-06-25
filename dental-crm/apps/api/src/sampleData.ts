@@ -1,4 +1,4 @@
-﻿import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -6817,8 +6817,9 @@ function buildDenteTelegramReviewRequestItems(runtimeScope?: DenteTelegramOutbox
     .filter((payment) => payment.organizationId === organizationScope && payment.status === "paid")
     .sort((left, right) => (right.paidAt ?? right.createdAt).localeCompare(left.paidAt ?? left.createdAt));
 
+  const activePatientsMap = new Map(patients.filter((p) => p.status === "active").map((p) => [p.id, p]));
   for (const payment of paidMilestones) {
-    const patient = patients.find((candidate) => candidate.id === payment.patientId && candidate.status === "active") ?? null;
+    const patient = activePatientsMap.get(payment.patientId) ?? null;
     if (!patient || !reviewRequestVisitIsClosed(payment)) continue;
     const visit = payment.visitId ? findVisitById(payment.visitId) : null;
     pushReviewRequest({

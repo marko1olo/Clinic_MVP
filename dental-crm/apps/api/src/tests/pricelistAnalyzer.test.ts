@@ -162,6 +162,7 @@ describe('Pricelist Analyzer - Deterministic Parsing', () => {
       sourceName: "ai-doc",
       sourceKind: "text",
       rawText: "Коронка циркониевая",
+      imageMimeType: "image/jpeg",
       preferredSpecialty: "universal",
       useServerAi: true
     };
@@ -191,6 +192,7 @@ describe('Pricelist Analyzer - Deterministic Parsing', () => {
       sourceName: "ai-fail-doc",
       sourceKind: "text",
       rawText: "Коронка циркониевая MultiLayer 35 000 руб",
+      imageMimeType: "image/jpeg",
       preferredSpecialty: "universal",
       useServerAi: true
     };

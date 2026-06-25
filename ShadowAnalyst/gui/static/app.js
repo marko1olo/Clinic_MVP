@@ -1040,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (e) {
-            console.log("Waiting for backend...");
+            // waiting for backend
         }
     }, 1000);
 

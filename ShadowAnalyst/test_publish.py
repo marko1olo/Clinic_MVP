@@ -10,13 +10,14 @@ MQTT_PASS = os.getenv("MQTT_PASS", "")
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 if MQTT_USER:
     client.username_pw_set(MQTT_USER, MQTT_PASS)
-client.connect(MQTT_HOST, MQTT_PORT, 60)
+if __name__ == "__main__":
+    client.connect(MQTT_HOST, MQTT_PORT, 60)
 
-payload = {
-    "file": "Ivanov_XRAY_46.jpg",
-    "findings": "Подозрение на глубокий кариес (зуб 4.6) - 92%\nРекомендуется детальный осмотр и, возможно, ЭОД."
-}
+    payload = {
+        "file": "Ivanov_XRAY_46.jpg",
+        "findings": "Подозрение на глубокий кариес (зуб 4.6) - 92%\nРекомендуется детальный осмотр и, возможно, ЭОД."
+    }
 
-client.publish("clinic/xray/result", json.dumps(payload))
-print("Test payload sent to clinic/xray/result")
-client.disconnect()
+    client.publish("clinic/xray/result", json.dumps(payload))
+    print("Test payload sent to clinic/xray/result")
+    client.disconnect()

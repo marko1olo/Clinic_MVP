@@ -18,10 +18,20 @@ let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', '
 
 // Fix 'day' any types
 appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
+appCode = appCode.replace(/\.map\(\(day\) =>/g, '.map((day: any) =>');
+
 // Fix 'item' any types
 appCode = appCode.replace(/onChange=\{\(item\) =>/g, 'onChange={(item: any) =>');
+appCode = appCode.replace(/\.map\(\(item\) =>/g, '.map((item: any) =>');
 
 // Fix 'current' any types in setters that might not have been caught
+appCode = appCode.replace(/setScheduleSelectedCalendarItems\(\(current\) =>/g, 'setScheduleSelectedCalendarItems((current: any) =>');
+appCode = appCode.replace(/setShiftSelectedCalendarItems\(\(current\) =>/g, 'setShiftSelectedCalendarItems((current: any) =>');
+appCode = appCode.replace(/setScheduleVisibleDate\(\(current\) =>/g, 'setScheduleVisibleDate((current: any) =>');
+appCode = appCode.replace(/setScheduleJumpDate\(\(current\) =>/g, 'setScheduleJumpDate((current: any) =>');
+appCode = appCode.replace(/setScheduleResourceDate\(\(current\) =>/g, 'setScheduleResourceDate((current: any) =>');
+appCode = appCode.replace(/setShiftResourceDate\(\(current\) =>/g, 'setShiftResourceDate((current: any) =>');
+
 appCode = appCode.replace(/setStaffScheduleSaveStates\(\(current\) =>/g, 'setStaffScheduleSaveStates((current: any) =>');
 appCode = appCode.replace(/setAppointmentScheduleSaveStates\(\(current\) =>/g, 'setAppointmentScheduleSaveStates((current: any) =>');
 appCode = appCode.replace(/setStaffScheduleDrafts\(\(current\) =>/g, 'setStaffScheduleDrafts((current: any) =>');

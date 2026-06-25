@@ -177,8 +177,8 @@ def on_mqtt_message(client, userdata, msg):
         text = f"📨 `{topic}`\n\n{str(payload)}"
         asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
 
-def start_mqtt(loop: asyncio.AbstractEventLoop):
-    """Запускает MQTT клиент в отдельном потоке."""
+async def start_mqtt(loop: asyncio.AbstractEventLoop):
+    """Запускает MQTT клиент в фоновом task-е, используя встроенный loop_start для Paho MQTT."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'loop': loop})
     client.username_pw_set(MQTT_USER, MQTT_PASS)
@@ -197,21 +197,28 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
 
     while True:
         try:
-            client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
-            client.loop_forever()
+            await loop.run_in_executor(None, client.connect, MQTT_HOST, MQTT_PORT, 60)
+            client.loop_start()
+            while True:
+                await asyncio.sleep(3600)
         except Exception as e:
             log.error(f"MQTT error: {e}, retrying in 5s...")
-            import time; time.sleep(5)
+            await asyncio.sleep(5)
 
 # ── Main ─────────────────────────────────────────────────────────────────────
+
+# Храним ссылки на фоновые задачи, чтобы их не собрал сборщик мусора
+background_tasks = set()
 
 async def main():
     loop = asyncio.get_event_loop()
 
-    # Запускаем MQTT в фоновом потоке
-    mqtt_thread = threading.Thread(target=start_mqtt, args=(loop,), daemon=True)
-    mqtt_thread.start()
-    log.info("MQTT bridge thread started")
+    # Запускаем MQTT как задачу в event loop
+    mqtt_task = loop.create_task(start_mqtt(loop))
+    background_tasks.add(mqtt_task)
+    mqtt_task.add_done_callback(background_tasks.discard)
+
+    log.info("MQTT bridge task started")
 
     log.info("Starting Telegram bot polling...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

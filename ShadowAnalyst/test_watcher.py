@@ -21,13 +21,13 @@ class TestWatcher(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_prepare_image_normal(self):
-        # Create a small RGB image
+        # Create a small RGB image in memory
         img = Image.new('RGB', (100, 100), color = 'red')
-        img_path = os.path.join(self.tmp_dir, "normal.jpg")
-        img.save(img_path)
 
-        # Call prepare_image
-        result = watcher.prepare_image(img_path)
+        with patch('PIL.Image.open') as mock_open:
+            mock_open.return_value.__enter__.return_value = img
+            # Call prepare_image
+            result = watcher.prepare_image("dummy_path.jpg")
 
         # Assert return value starts with the right prefix
         self.assertIsNotNone(result)
@@ -40,13 +40,13 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.size, (100, 100))
 
     def test_prepare_image_resize(self):
-        # Create a large image that needs resizing
+        # Create a large image that needs resizing in memory
         img = Image.new('RGB', (2000, 1500), color = 'blue')
-        img_path = os.path.join(self.tmp_dir, "large.jpg")
-        img.save(img_path)
 
-        # Call prepare_image
-        result = watcher.prepare_image(img_path)
+        with patch('PIL.Image.open') as mock_open:
+            mock_open.return_value.__enter__.return_value = img
+            # Call prepare_image
+            result = watcher.prepare_image("dummy_path.jpg")
 
         # Assert
         self.assertIsNotNone(result)
@@ -59,13 +59,13 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.size, (1000, 750))
 
     def test_prepare_image_non_rgb(self):
-        # Create an RGBA image
+        # Create an RGBA image in memory
         img = Image.new('RGBA', (200, 200), color = (255, 0, 0, 128))
-        img_path = os.path.join(self.tmp_dir, "rgba.png")
-        img.save(img_path)
 
-        # Call prepare_image
-        result = watcher.prepare_image(img_path)
+        with patch('PIL.Image.open') as mock_open:
+            mock_open.return_value.__enter__.return_value = img
+            # Call prepare_image
+            result = watcher.prepare_image("dummy_path.jpg")
 
         # Assert
         self.assertIsNotNone(result)
@@ -78,11 +78,12 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.mode, 'RGB')
 
     def test_prepare_image_error(self):
-        # Pass a non-existent file
-        img_path = os.path.join(self.tmp_dir, "does_not_exist.jpg")
+        with patch('PIL.Image.open') as mock_open:
+            # Make the open raise an error
+            mock_open.side_effect = Exception("Mocked error")
 
-        # Call prepare_image
-        result = watcher.prepare_image(img_path)
+            # Call prepare_image
+            result = watcher.prepare_image("does_not_exist.jpg")
 
         # Assert
         self.assertIsNone(result)

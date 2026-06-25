@@ -48,3 +48,8 @@ config.json
 **/build/
 ShadowAnalyst/gui/dist/
 ShadowAnalyst/gui/build/
+ShadowAnalyst/gui/static/uploads/
+benchmark.py
+benchmark2.py
+benchmark3.py
+benchmark4.py

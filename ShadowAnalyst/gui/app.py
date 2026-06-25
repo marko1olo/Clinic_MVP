@@ -10,7 +10,7 @@ import re
 from io import BytesIO
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import webview
@@ -518,7 +518,7 @@ def update_settings(settings: dict):
 async def get_tts(text: str, provider: str = None):
     import urllib.parse
     import hashlib
-    from fastapi.responses import Response
+    from fastapi.responses import Response, FileResponse
     from fastapi import HTTPException
     import httpx
     
@@ -532,8 +532,7 @@ async def get_tts(text: str, provider: str = None):
     
     if os.path.exists(cache_path):
         try:
-            with open(cache_path, "rb") as f:
-                return Response(content=f.read(), media_type="audio/mpeg")
+            return FileResponse(cache_path, media_type="audio/mpeg")
         except Exception as e:
             print(f"Error reading audio cache: {e}")
 

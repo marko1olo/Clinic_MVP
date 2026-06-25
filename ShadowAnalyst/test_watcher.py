@@ -87,6 +87,19 @@ class TestWatcher(unittest.TestCase):
         # Assert
         self.assertIsNone(result)
 
+    @patch('ShadowAnalyst.watcher.Image.open')
+    def test_prepare_image_exception(self, mock_image_open):
+        # Set the side effect to raise an exception
+        mock_image_open.side_effect = Exception("Mocked error")
+
+        # Call prepare_image
+        img_path = os.path.join(self.tmp_dir, "mock_error.jpg")
+        result = watcher.prepare_image(img_path)
+
+        # Assert
+        self.assertIsNone(result)
+        mock_image_open.assert_called_once_with(img_path)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_success(self, mock_openai_class, mock_prepare_image):

@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import patch, mock_open
-import os
 
 from gui.app import wait_for_file_ready
 
@@ -91,9 +90,6 @@ class TestWaitForFileReady(unittest.TestCase):
         self.assertEqual(mock_getsize.call_count, 7)
         self.assertEqual(mock_open_func.call_count, 2)
         self.assertEqual(mock_sleep.call_count, 6)
-
-if __name__ == '__main__':
-    unittest.main()
 
 if __name__ == '__main__':
     unittest.main()

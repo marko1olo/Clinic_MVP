@@ -1903,19 +1903,44 @@ const {
 
   function reconcileDashboardScopedUiSelections() {
     if (!dashboard) return;
-    const activePatientIds = new Set(dashboard.patients.filter((patient) => patient.status === "active").map((patient) => patient.id));
-    const firstActivePatientId = dashboard.patients.find((patient) => patient.status === "active")?.id ?? null;
-    const doctorIds = new Set(
-      dashboard.clinicSettings.staff
-        .filter((member) => member.active && (member.role === "doctor" || member.role === "owner"))
-        .map((member) => member.id)
-    );
-    const assistantIds = new Set(
-      dashboard.clinicSettings.staff.filter((member) => member.active && member.role === "assistant").map((member) => member.id)
-    );
-    const staffIds = new Set(dashboard.clinicSettings.staff.filter((member) => member.active).map((member) => member.id));
-    const chairIds = new Set(dashboard.clinicSettings.chairs.filter((chair) => chair.active).map((chair) => chair.id));
-    const protocolIds = new Set(dashboard.protocolTemplates.map((template) => template.id));
+
+    const activePatientIds = new Set<string>();
+    let firstActivePatientId: string | null = null;
+    for (const patient of dashboard.patients) {
+      if (patient.status === "active") {
+        activePatientIds.add(patient.id);
+        if (firstActivePatientId === null) {
+          firstActivePatientId = patient.id;
+        }
+      }
+    }
+
+    const doctorIds = new Set<string>();
+    const assistantIds = new Set<string>();
+    const staffIds = new Set<string>();
+
+    for (const member of dashboard.clinicSettings.staff) {
+      if (member.active) {
+        staffIds.add(member.id);
+        if (member.role === "doctor" || member.role === "owner") {
+          doctorIds.add(member.id);
+        } else if (member.role === "assistant") {
+          assistantIds.add(member.id);
+        }
+      }
+    }
+
+    const chairIds = new Set<string>();
+    for (const chair of dashboard.clinicSettings.chairs) {
+      if (chair.active) {
+        chairIds.add(chair.id);
+      }
+    }
+
+    const protocolIds = new Set<string>();
+    for (const template of dashboard.protocolTemplates) {
+      protocolIds.add(template.id);
+    }
 
     if (selectedPatientId && !activePatientIds.has(selectedPatientId)) setSelectedPatientId(firstActivePatientId);
     if (selectedProtocolId && !protocolIds.has(selectedProtocolId)) setSelectedProtocolId(null);

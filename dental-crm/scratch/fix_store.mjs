@@ -15,7 +15,21 @@ const initialUiPreferences = loadUiPreferences();
 
 code = code.replace(/import { GeneratedDocument } from "@dental\/shared";/, 'import { GeneratedDocument } from "@dental/shared";' + extraImports);
 
+code = code.replace(
+    'newDocumentDraft: emptyDocumentDraft,',
+    'newDocumentDraft: emptyDocumentDraft(),'
+);
+
+code = code.replace(
+    'newDocumentSeriesDraft: emptyDocumentSeriesDraft,',
+    'newDocumentSeriesDraft: emptyDocumentSeriesDraft(),'
+);
+
 // Fix TS issues with arrays where type was incorrectly inferred
+code = code.replace(/documentViewActiveDocumentSources: any\[\],/g, 'documentViewActiveDocumentSources: [] as any[],');
+code = code.replace(/documentViewActiveRecordSources: any\[\],/g, 'documentViewActiveRecordSources: [] as any[],');
+code = code.replace(/documentViewActivePaymentSources: any\[\],/g, 'documentViewActivePaymentSources: [] as any[],');
+
 // e.g.   personalDataPurposes: any; -> personalDataPurposes: string[];
 code = code.replace(/personalDataPurposes: any;/g, 'personalDataPurposes: string[];');
 code = code.replace(/personalDataCategories: any;/g, 'personalDataCategories: string[];');

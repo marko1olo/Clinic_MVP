@@ -118,6 +118,56 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
 
     await asyncio.gather(*(_send_to_user(chat_id) for chat_id in users))
 
+def handle_xray_result(topic, payload, loop):
+    image_b64 = payload.get('image_b64')
+    report = payload.get('report', 'No report')
+    patient_name = payload.get('patient_name')
+
+    patient_str = f"Пациент: {patient_name}" if patient_name and patient_name != "Неизвестен" else "Пациент: неизвестен (нет записи)"
+
+    if image_b64:
+        photo_bytes = base64.b64decode(image_b64)
+        caption = f"🦷 *Новый рентген проанализирован!*\n👤 _{patient_str}_\nПолный отчет следующим сообщением."
+        asyncio.run_coroutine_threadsafe(broadcast_photo(photo_bytes, caption, report, role='doctor'), loop)
+        # Notify admins as well but just a short text
+        admin_text = f"🔄 *Система*: Снимок {payload.get('file', '')} ({patient_str}) отправлен врачам."
+        asyncio.run_coroutine_threadsafe(broadcast(admin_text, role='admin'), loop)
+    else:
+        text = f"🦷 *Анализ снимка готов*\n👤 _{patient_str}_\n\nНаходки:\n{report}\n"
+        asyncio.run_coroutine_threadsafe(broadcast(text, role='doctor'), loop)
+
+def handle_alert_admin(topic, payload, loop):
+    text = f"🚨 *АЛЕРТ*\n\n{payload.get('text', str(payload))}"
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_review_neg(topic, payload, loop):
+    text = (
+        f"⚠️ *Негативный отзыв*\n\n"
+        f"Пациент: {payload.get('patient', 'неизвестен')}\n"
+        f"Сообщение: _{payload.get('text', '')}_\n\n"
+        f"Требует обратной связи!"
+    )
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_marketing_send(topic, payload, loop):
+    text = (
+        f"📣 *Маркетинг — задание*\n\n"
+        f"Пациент: {payload.get('patient', '?')}\n"
+        f"Черновик: _{payload.get('draft', '')}_"
+    )
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_default(topic, payload, loop):
+    text = f"📨 `{topic}`\n\n{str(payload)}"
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+TOPIC_HANDLERS = {
+    TOPIC_XRAY_RESULT: handle_xray_result,
+    TOPIC_ALERT_ADMIN: handle_alert_admin,
+    TOPIC_REVIEW_NEG: handle_review_neg,
+    TOPIC_MARKETING_SEND: handle_marketing_send,
+}
+
 def on_mqtt_message(client, userdata, msg):
     """Колбэк от MQTT — запускаем корутину broadcast в event loop бота."""
     topic = msg.topic
@@ -136,46 +186,8 @@ def on_mqtt_message(client, userdata, msg):
     if not loop:
         return
 
-    # Формируем текст в зависимости от топика
-    if topic == TOPIC_XRAY_RESULT:
-        # X-Ray Results go to DOCTORS
-        image_b64 = payload.get('image_b64')
-        report = payload.get('report', 'No report')
-        patient_name = payload.get('patient_name')
-        
-        patient_str = f"Пациент: {patient_name}" if patient_name and patient_name != "Неизвестен" else "Пациент: неизвестен (нет записи)"
-
-        if image_b64:
-            photo_bytes = base64.b64decode(image_b64)
-            caption = f"🦷 *Новый рентген проанализирован!*\n👤 _{patient_str}_\nПолный отчет следующим сообщением."
-            asyncio.run_coroutine_threadsafe(broadcast_photo(photo_bytes, caption, report, role='doctor'), loop)
-            # Notify admins as well but just a short text
-            admin_text = f"🔄 *Система*: Снимок {payload.get('file', '')} ({patient_str}) отправлен врачам."
-            asyncio.run_coroutine_threadsafe(broadcast(admin_text, role='admin'), loop)
-        else:
-            text = f"🦷 *Анализ снимка готов*\n👤 _{patient_str}_\n\nНаходки:\n{report}\n"
-            asyncio.run_coroutine_threadsafe(broadcast(text, role='doctor'), loop)
-    elif topic == TOPIC_ALERT_ADMIN:
-        text = f"🚨 *АЛЕРТ*\n\n{payload.get('text', str(payload))}"
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    elif topic == TOPIC_REVIEW_NEG:
-        text = (
-            f"⚠️ *Негативный отзыв*\n\n"
-            f"Пациент: {payload.get('patient', 'неизвестен')}\n"
-            f"Сообщение: _{payload.get('text', '')}_\n\n"
-            f"Требует обратной связи!"
-        )
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    elif topic == TOPIC_MARKETING_SEND:
-        text = (
-            f"📣 *Маркетинг — задание*\n\n"
-            f"Пациент: {payload.get('patient', '?')}\n"
-            f"Черновик: _{payload.get('draft', '')}_"
-        )
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    else:
-        text = f"📨 `{topic}`\n\n{str(payload)}"
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+    handler = TOPIC_HANDLERS.get(topic, handle_default)
+    handler(topic, payload, loop)
 
 def start_mqtt(loop: asyncio.AbstractEventLoop):
     """Запускает MQTT клиент в отдельном потоке."""

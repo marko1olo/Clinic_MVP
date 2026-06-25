@@ -44,11 +44,27 @@ def get_user_role(chat_id: int):
     conn.close()
     return row['role'] if row else None
 
+import os
+
 # Инициализация при импорте
 init_db()
 
-# Дефолтные админы (из старого кода)
-add_user(8721416291, 'admin', 'Danat')
-add_user(7716348189, 'admin', 'Danat 2')
-add_user(8721416291, 'doctor', 'Danat Doctor') # Добавляем для теста
-add_user(7716348189, 'doctor', 'Danat Doctor 2') # Добавляем для теста
+# Инициализация из переменных окружения
+# Формат: chat_id:name,chat_id2:name2
+initial_admins = os.environ.get("INITIAL_ADMINS", "")
+if initial_admins:
+    for admin in initial_admins.split(","):
+        parts = admin.split(":")
+        if len(parts) >= 1 and parts[0].strip().isdigit():
+            chat_id = int(parts[0].strip())
+            name = parts[1].strip() if len(parts) > 1 else ""
+            add_user(chat_id, 'admin', name)
+
+initial_doctors = os.environ.get("INITIAL_DOCTORS", "")
+if initial_doctors:
+    for doctor in initial_doctors.split(","):
+        parts = doctor.split(":")
+        if len(parts) >= 1 and parts[0].strip().isdigit():
+            chat_id = int(parts[0].strip())
+            name = parts[1].strip() if len(parts) > 1 else ""
+            add_user(chat_id, 'doctor', name)

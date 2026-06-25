@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 
@@ -47,8 +48,15 @@ def get_user_role(chat_id: int):
 # Инициализация при импорте
 init_db()
 
-# Дефолтные админы (из старого кода)
-add_user(8721416291, 'admin', 'Danat')
-add_user(7716348189, 'admin', 'Danat 2')
-add_user(8721416291, 'doctor', 'Danat Doctor') # Добавляем для теста
-add_user(7716348189, 'doctor', 'Danat Doctor 2') # Добавляем для теста
+# Дефолтные админы и врачи из переменных окружения
+initial_admins = os.environ.get("INITIAL_ADMINS", "")
+if initial_admins:
+    for admin_id in initial_admins.split(','):
+        if admin_id.strip().isdigit():
+            add_user(int(admin_id.strip()), 'admin', f'Admin {admin_id.strip()}')
+
+initial_doctors = os.environ.get("INITIAL_DOCTORS", "")
+if initial_doctors:
+    for doctor_id in initial_doctors.split(','):
+        if doctor_id.strip().isdigit():
+            add_user(int(doctor_id.strip()), 'doctor', f'Doctor {doctor_id.strip()}')

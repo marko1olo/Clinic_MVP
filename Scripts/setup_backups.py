@@ -17,7 +17,8 @@ def ssh(client, cmd, desc="", timeout=60):
     return out, err
 
 client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.load_system_host_keys()
+client.set_missing_host_key_policy(paramiko.RejectPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
 

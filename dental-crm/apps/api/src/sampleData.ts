@@ -1065,6 +1065,16 @@ function treatmentLineTotal(item: TreatmentPlanItem): number {
   return Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
 }
 
+const serviceCatalogMapCache = new Map<string, ServiceCatalogItem>();
+function getServiceCatalogMap() {
+  if (serviceCatalogMapCache.size === 0) {
+    for (const service of serviceCatalog) {
+      serviceCatalogMapCache.set(service.id, service);
+    }
+  }
+  return serviceCatalogMapCache;
+}
+
 export function buildBillingSummary(): BillingSummary {
   const activePlanItems = treatmentPlanItems.filter((item) => item.status !== "cancelled");
   const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
@@ -1072,8 +1082,9 @@ export function buildBillingSummary(): BillingSummary {
   const totalPaidRub = payments
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
+  const serviceCatalogMap = getServiceCatalogMap();
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents

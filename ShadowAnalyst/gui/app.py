@@ -1194,29 +1194,20 @@ def parse_patient_from_file(file_path: str) -> dict:
         
     return info
 
-def process_analysis_only(filename):
-    app_state["is_processing"] = True
-    app_state["latest_report"] = ""
-    app_state["latest_summary"] = ""
-    
-    orig_name = filename
+def _resolve_file_path(filename: str) -> str:
     if filename.endswith('.jpg'):
         dcm_name = filename[:-4]
         dcm_path = os.path.join(WATCH_DIR, dcm_name)
         if os.path.exists(dcm_path):
-            file_path = dcm_path
-        else:
-            file_path = os.path.join(STATIC_DIR, "uploads", filename)
-    else:
-        file_path = os.path.join(WATCH_DIR, filename)
-        if not os.path.exists(file_path):
-            file_path = os.path.join(STATIC_DIR, "uploads", filename)
+            return dcm_path
+        return os.path.join(STATIC_DIR, "uploads", filename)
 
+    file_path = os.path.join(WATCH_DIR, filename)
     if not os.path.exists(file_path):
-        app_state["latest_report"] = "Снимок не найден на диске для анализа."
-        app_state["is_processing"] = False
-        return
+        return os.path.join(STATIC_DIR, "uploads", filename)
+    return file_path
 
+def _get_patient_info(file_path: str) -> dict:
     patient_info = None
     try:
         resp = requests.get(CRM_API_URL, timeout=3)
@@ -1230,24 +1221,12 @@ def process_analysis_only(filename):
 
     if not patient_info or not patient_info.get("patient_name"):
         patient_info = parse_patient_from_file(file_path)
+    return patient_info
 
-    base_name, ext = os.path.splitext(orig_name)
-    enhanced_file_path = os.path.join(STATIC_DIR, "uploads", f"{base_name}_enhanced{ext}")
-    if os.path.exists(enhanced_file_path):
-        analysis_path = enhanced_file_path
-    else:
-        analysis_path = file_path
-
-    report, summary = run_ai_analysis(analysis_path, patient_info)
-
-    if summary == "Сбой анализа." or "Сбой:" in report:
-        app_state["error_message"] = report
-
+def _save_scan_to_db(orig_name: str, patient_info: dict, summary: str, report: str) -> int:
     pat_name = patient_info["patient_name"] if (patient_info and patient_info.get("patient_name")) else "Неизвестен"
-    threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
-
-    # Automatically save scan into SQLite database
     ext = os.path.splitext(orig_name)[1]
+
     db_payload = {
         "patient_name": pat_name,
         "patient_age": patient_info.get("patient_age") if patient_info else None,
@@ -1273,10 +1252,42 @@ def process_analysis_only(filename):
 
     try:
         scan_id = database.save_scan(db_payload)
-        app_state["current_scan_id"] = scan_id
         print(f"[DB] Automatically saved scan {orig_name} with ID {scan_id}")
+        return scan_id
     except Exception as dbe:
         print(f"[DB] Error auto-saving scan: {dbe}")
+        return None
+
+def process_analysis_only(filename):
+    app_state["is_processing"] = True
+    app_state["latest_report"] = ""
+    app_state["latest_summary"] = ""
+
+    orig_name = filename
+    file_path = _resolve_file_path(filename)
+
+    if not os.path.exists(file_path):
+        app_state["latest_report"] = "Снимок не найден на диске для анализа."
+        app_state["is_processing"] = False
+        return
+
+    patient_info = _get_patient_info(file_path)
+
+    base_name, ext = os.path.splitext(orig_name)
+    enhanced_file_path = os.path.join(STATIC_DIR, "uploads", f"{base_name}_enhanced{ext}")
+    analysis_path = enhanced_file_path if os.path.exists(enhanced_file_path) else file_path
+
+    report, summary = run_ai_analysis(analysis_path, patient_info)
+
+    if summary == "Сбой анализа." or "Сбой:" in report:
+        app_state["error_message"] = report
+
+    pat_name = patient_info["patient_name"] if (patient_info and patient_info.get("patient_name")) else "Неизвестен"
+    threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
+
+    scan_id = _save_scan_to_db(orig_name, patient_info, summary, report)
+    if scan_id is not None:
+        app_state["current_scan_id"] = scan_id
 
     app_state["latest_report"] = report
     app_state["latest_summary"] = summary

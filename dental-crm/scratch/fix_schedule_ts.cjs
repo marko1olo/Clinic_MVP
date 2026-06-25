@@ -2,7 +2,7 @@ const fs = require('fs');
 
 let storeCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/scheduleStore.ts', 'utf8');
 
-// Fix imports
+// Update imports
 storeCode = storeCode.replace(
     'import { Appointment, StaffScheduleDraft, StaffScheduleSaveState, AppointmentScheduleDraft, AppointmentScheduleSaveState } from "@dental/shared";',
     'import { Appointment } from "@dental/shared";'
@@ -16,12 +16,12 @@ fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/scheduleStore.ts',
 
 let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', 'utf8');
 
-// Fix 'day' any types
+// Update 'day' any types
 appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
-// Fix 'item' any types
+// Update 'item' any types
 appCode = appCode.replace(/onChange=\{\(item\) =>/g, 'onChange={(item: any) =>');
 
-// Fix 'current' any types in setters that might not have been caught
+// Update 'current' any types in setters that might not have been caught
 appCode = appCode.replace(/setStaffScheduleSaveStates\(\(current\) =>/g, 'setStaffScheduleSaveStates((current: any) =>');
 appCode = appCode.replace(/setAppointmentScheduleSaveStates\(\(current\) =>/g, 'setAppointmentScheduleSaveStates((current: any) =>');
 appCode = appCode.replace(/setStaffScheduleDrafts\(\(current\) =>/g, 'setStaffScheduleDrafts((current: any) =>');

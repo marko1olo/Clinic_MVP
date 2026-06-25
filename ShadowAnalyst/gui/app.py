@@ -774,13 +774,13 @@ def run_ai_analysis(file_path, patient_info=None):
     if model_tier == 4:
         models_with_providers = [
             ("gemini-3.5-flash", "gemini"),
-            ("gemini-3.0-flash", "gemini"),
+            ("gemini-3.1-flash-lite", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
     elif model_tier == 3:
         models_with_providers = [
-            ("gemini-3.0-flash", "gemini"),
+            ("gemini-3.1-flash-lite", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]

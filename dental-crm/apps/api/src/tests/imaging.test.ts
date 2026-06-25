@@ -2,7 +2,7 @@ import { test, describe, mock } from 'node:test';
 import assert from 'node:assert';
 import { runAbortableImagingScan } from '../routes/imaging.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { ApiDicomScanOptions } from '@dental/shared';
+import type { ApiDicomScanOptions } from '../routes/imaging.js';
 
 describe('runAbortableImagingScan', () => {
   test('returns successful result of the operation', async () => {
@@ -47,8 +47,9 @@ describe('runAbortableImagingScan', () => {
   test('handles abort errors and sends ImagingScanCancelled', async () => {
     const mockRequest = { raw: { once: mock.fn() } } as unknown as FastifyRequest;
     const sendMock = mock.fn();
+    const codeMock = mock.fn(() => ({ send: sendMock }));
     const mockReply = {
-      code: mock.fn(() => ({ send: sendMock })),
+      code: codeMock,
       send: sendMock
     } as unknown as FastifyReply;
 
@@ -62,11 +63,11 @@ describe('runAbortableImagingScan', () => {
     await runAbortableImagingScan(mockRequest, mockReply, operation);
 
     assert.strictEqual(operation.mock.callCount(), 1);
-    assert.strictEqual(mockReply.code.mock.callCount(), 1);
-    assert.strictEqual(mockReply.code.mock.calls[0].arguments[0], 499);
+    assert.strictEqual(codeMock.mock.callCount(), 1);
+    assert.strictEqual((codeMock.mock.calls[0] as any).arguments[0], 499);
 
     assert.strictEqual(sendMock.mock.callCount(), 1);
-    const sendArg = sendMock.mock.calls[0].arguments[0];
+    const sendArg = (sendMock.mock.calls[0] as any).arguments[0];
     assert.strictEqual(sendArg.error, 'ImagingScanCancelled');
     assert.ok(sendArg.message.includes('Сканирование локальных снимков остановлено'));
   });

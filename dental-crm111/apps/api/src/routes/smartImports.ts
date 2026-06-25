@@ -4263,9 +4263,12 @@ function buildMigrationOperatorPacket(input: {
   const workstationSources = sources.filter((source) => /^workstation-(?:profile|signal):[a-f0-9]{8,12}$/i.test(source.candidate.sourceRef));
   const browserManifestSources = sources.filter((source) => /^browser-local:[a-f0-9]{8,12}$/i.test(source.candidate.sourceRef));
   const smartPreviewSources = sources.filter((source) => /^smart-preview:[a-f0-9]{8,12}$/i.test(source.candidate.sourceRef));
-  const smartPreviewDatabaseSources = smartPreviewSources.filter((source) => databaseSources.includes(source));
-  const smartPreviewTableSources = smartPreviewSources.filter((source) => tableSources.includes(source));
-  const smartPreviewMediaSources = smartPreviewSources.filter((source) => mediaSources.includes(source));
+  const databaseSourcesSet = new Set(databaseSources);
+  const tableSourcesSet = new Set(tableSources);
+  const mediaSourcesSet = new Set(mediaSources);
+  const smartPreviewDatabaseSources = smartPreviewSources.filter((source) => databaseSourcesSet.has(source));
+  const smartPreviewTableSources = smartPreviewSources.filter((source) => tableSourcesSet.has(source));
+  const smartPreviewMediaSources = smartPreviewSources.filter((source) => mediaSourcesSet.has(source));
   const smartPreviewStructuredSources = smartPreviewDatabaseSources.length + smartPreviewTableSources.length;
   const parserTargets = new Set(sources.flatMap((source) => source.bridgeKit.parserTargets));
   const totals = {

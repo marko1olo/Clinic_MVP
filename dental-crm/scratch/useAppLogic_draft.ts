@@ -1903,19 +1903,46 @@ const {
 
   function reconcileDashboardScopedUiSelections() {
     if (!dashboard) return;
-    const activePatientIds = new Set(dashboard.patients.filter((patient) => patient.status === "active").map((patient) => patient.id));
-    const firstActivePatientId = dashboard.patients.find((patient) => patient.status === "active")?.id ?? null;
-    const doctorIds = new Set(
-      dashboard.clinicSettings.staff
-        .filter((member) => member.active && (member.role === "doctor" || member.role === "owner"))
-        .map((member) => member.id)
-    );
-    const assistantIds = new Set(
-      dashboard.clinicSettings.staff.filter((member) => member.active && member.role === "assistant").map((member) => member.id)
-    );
-    const staffIds = new Set(dashboard.clinicSettings.staff.filter((member) => member.active).map((member) => member.id));
-    const chairIds = new Set(dashboard.clinicSettings.chairs.filter((chair) => chair.active).map((chair) => chair.id));
-    const protocolIds = new Set(dashboard.protocolTemplates.map((template) => template.id));
+
+    const activePatientIds = new Set();
+    let firstActivePatientId = null;
+    for (let i = 0; i < dashboard.patients.length; i++) {
+      const patient = dashboard.patients[i];
+      if (patient.status === "active") {
+        activePatientIds.add(patient.id);
+        if (firstActivePatientId === null) {
+          firstActivePatientId = patient.id;
+        }
+      }
+    }
+
+    const doctorIds = new Set();
+    const assistantIds = new Set();
+    const staffIds = new Set();
+    for (let i = 0; i < dashboard.clinicSettings.staff.length; i++) {
+      const member = dashboard.clinicSettings.staff[i];
+      if (member.active) {
+        staffIds.add(member.id);
+        if (member.role === "doctor" || member.role === "owner") {
+          doctorIds.add(member.id);
+        } else if (member.role === "assistant") {
+          assistantIds.add(member.id);
+        }
+      }
+    }
+
+    const chairIds = new Set();
+    for (let i = 0; i < dashboard.clinicSettings.chairs.length; i++) {
+      const chair = dashboard.clinicSettings.chairs[i];
+      if (chair.active) {
+        chairIds.add(chair.id);
+      }
+    }
+
+    const protocolIds = new Set();
+    for (let i = 0; i < dashboard.protocolTemplates.length; i++) {
+      protocolIds.add(dashboard.protocolTemplates[i].id);
+    }
 
     if (selectedPatientId && !activePatientIds.has(selectedPatientId)) setSelectedPatientId(firstActivePatientId);
     if (selectedProtocolId && !protocolIds.has(selectedProtocolId)) setSelectedProtocolId(null);

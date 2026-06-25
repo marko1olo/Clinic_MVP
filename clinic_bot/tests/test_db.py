@@ -35,5 +35,23 @@ class TestDB(unittest.TestCase):
         role = db.get_user_role(99999)
         self.assertIsNone(role)
 
+    def test_get_users_by_role_existing(self):
+        # Add a few users
+        db.add_user(111, 'doctor', 'Doctor 1')
+        db.add_user(222, 'doctor', 'Doctor 2')
+        db.add_user(333, 'admin', 'Admin 1')
+
+        # Test retrieving users by role
+        users = db.get_users_by_role('doctor')
+        self.assertEqual(sorted(users), [111, 222])
+
+        admin_users = db.get_users_by_role('admin')
+        self.assertEqual(sorted(admin_users), [333])
+
+    def test_get_users_by_role_not_found(self):
+        # Test retrieving users for a role that doesn't exist
+        users = db.get_users_by_role('patient')
+        self.assertEqual(users, [])
+
 if __name__ == '__main__':
     unittest.main()

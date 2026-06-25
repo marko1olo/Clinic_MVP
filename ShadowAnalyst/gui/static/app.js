@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (val === 4) {
             label.textContent = "Интеллектуальная (Gemini 3.5 Flash)";
         } else if (val === 3) {
-            label.textContent = "Умеренная (Gemini 3.0 Flash)";
+            label.textContent = "Умеренная (Gemini 3.1 Flash Lite)";
         } else if (val === 2) {
             label.textContent = "Базовая (Qwen 3.6 / Groq)";
         } else {

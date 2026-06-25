@@ -1,4 +1,7 @@
 import os
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 import time
 import json
 import base64
@@ -104,7 +107,7 @@ def analyze_image(file_path):
     # Default cascade sequence
     models_with_providers = [
         ("gemini-3.5-flash", "gemini"),
-        ("gemini-3.0-flash", "gemini"),
+        ("gemini-3.1-flash-lite", "gemini"),
         ("qwen/qwen3.6-27b", "groq"),
         (GROQ_VISION_MODEL, "groq")
     ]

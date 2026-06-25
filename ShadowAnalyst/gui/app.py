@@ -1065,7 +1065,7 @@ def parse_patient_from_filename(filename: str) -> dict:
     if len(name_parts) >= 2:
         p1, p2 = name_parts[0], name_parts[1]
         p1_lower = p1.lower()
-        if any(p1_lower.endswith(s) for s in ['ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская']):
+        if p1_lower.endswith(('ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская')):
             patient_name = f"{p2} {p1}"
         else:
             patient_name = f"{p1} {p2}"

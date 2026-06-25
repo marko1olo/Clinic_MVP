@@ -42,8 +42,6 @@ def startup_event():
     init_db()
 
 
-security = HTTPBasic()
-
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     expected_username = os.environ.get("ADMIN_USERNAME")
     expected_password = os.environ.get("ADMIN_PASSWORD")

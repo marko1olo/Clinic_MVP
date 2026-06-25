@@ -514,6 +514,26 @@ def update_settings(settings: dict):
         save_config(config)
     return {"status": "ok"}
 
+import asyncio
+import collections
+
+# LRU cache to avoid memory leaks with locks
+class LRULocks:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.cache = collections.OrderedDict()
+
+    def get_lock(self, key):
+        if key not in self.cache:
+            if len(self.cache) >= self.capacity:
+                self.cache.popitem(last=False)
+            self.cache[key] = asyncio.Lock()
+        else:
+            self.cache.move_to_end(key)
+        return self.cache[key]
+
+tts_locks = LRULocks(200)
+
 @api.get("/api/tts")
 async def get_tts(text: str, provider: str = None):
     import urllib.parse
@@ -530,88 +550,91 @@ async def get_tts(text: str, provider: str = None):
     cache_filename = f"audio_{text_hash}.mp3"
     cache_path = os.path.join(STATIC_DIR, "uploads", cache_filename)
     
-    if os.path.exists(cache_path):
-        try:
-            with open(cache_path, "rb") as f:
-                return Response(content=f.read(), media_type="audio/mpeg")
-        except Exception as e:
-            print(f"Error reading audio cache: {e}")
-
-    audio_bytes = None
+    lock = tts_locks.get_lock(text_hash)
         
-    if provider == "elevenlabs":
-        keys = config.get("elevenlabs_api_keys", [])
-        if not keys:
-            single_key = config.get("elevenlabs_api_key") or app_state.get("elevenlabs_api_key")
-            keys = [single_key] if single_key else []
-            
-        voice_id = config.get("elevenlabs_voice_id") or app_state.get("elevenlabs_voice_id") or "pNInz6obpgq54HWK483c"
-        
-        for api_key in keys:
-            if not api_key:
-                continue
+    async with lock:
+        if os.path.exists(cache_path):
             try:
-                url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-                headers = {
-                    "xi-api-key": api_key,
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "text": text,
-                    "model_id": "eleven_multilingual_v2",
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.75
-                    }
-                }
-                
-                proxy = SOCKS_PROXY if _tunnel_active else None
-                async with httpx.AsyncClient(proxy=proxy) as client:
-                    r = await client.post(url, json=data, headers=headers, timeout=20.0)
+                with open(cache_path, "rb") as f:
+                    return Response(content=f.read(), media_type="audio/mpeg")
+            except Exception as e:
+                print(f"Error reading audio cache: {e}")
 
+        audio_bytes = None
+
+        if provider == "elevenlabs":
+            keys = config.get("elevenlabs_api_keys", [])
+            if not keys:
+                single_key = config.get("elevenlabs_api_key") or app_state.get("elevenlabs_api_key")
+                keys = [single_key] if single_key else []
+                
+            voice_id = config.get("elevenlabs_voice_id") or app_state.get("elevenlabs_voice_id") or "pNInz6obpgq54HWK483c"
+
+            for api_key in keys:
+                if not api_key:
+                    continue
+                try:
+                    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+                    headers = {
+                        "xi-api-key": api_key,
+                        "Content-Type": "application/json"
+                    }
+                    data = {
+                        "text": text,
+                        "model_id": "eleven_multilingual_v2",
+                        "voice_settings": {
+                            "stability": 0.5,
+                            "similarity_boost": 0.75
+                        }
+                    }
+
+                    proxy = SOCKS_PROXY if _tunnel_active else None
+                    async with httpx.AsyncClient(proxy=proxy) as client:
+                        r = await client.post(url, json=data, headers=headers, timeout=20.0)
+
+                    if r.status_code == 200:
+                        audio_bytes = r.content
+                        break
+                    else:
+                        print(f"ElevenLabs API failed with key {api_key[:8]}... (status={r.status_code}): {r.text}")
+                except Exception as e:
+                    print(f"ElevenLabs TTS synthesis failed with key {api_key[:8]}...: {e}")
+
+        if not audio_bytes:
+            # Fallback to Edge-TTS
+            voice = app_state.get("tts_voice", "ru-RU-DmitryNeural")
+            try:
+                import edge_tts
+                communicate = edge_tts.Communicate(text, voice)
+                audio_data = b""
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_data += chunk["data"]
+                if audio_data:
+                    audio_bytes = audio_data
+            except Exception as e:
+                print(f"Edge-TTS failed, falling back to Google: {e}")
+
+        if not audio_bytes:
+            url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=ru&client=tw-ob&q={urllib.parse.quote(text)}"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            try:
+                async with httpx.AsyncClient() as client:
+                    r = await client.get(url, headers=headers, timeout=10.0)
                 if r.status_code == 200:
                     audio_bytes = r.content
-                    break
-                else:
-                    print(f"ElevenLabs API failed with key {api_key[:8]}... (status={r.status_code}): {r.text}")
             except Exception as e:
-                print(f"ElevenLabs TTS synthesis failed with key {api_key[:8]}...: {e}")
+                print(f"Backend TTS error: {e}")
                 
-    if not audio_bytes:
-        # Fallback to Edge-TTS
-        voice = app_state.get("tts_voice", "ru-RU-DmitryNeural")
-        try:
-            import edge_tts
-            communicate = edge_tts.Communicate(text, voice)
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
-            if audio_data:
-                audio_bytes = audio_data
-        except Exception as e:
-            print(f"Edge-TTS failed, falling back to Google: {e}")
-            
-    if not audio_bytes:
-        url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=ru&client=tw-ob&q={urllib.parse.quote(text)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-        try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(url, headers=headers, timeout=10.0)
-            if r.status_code == 200:
-                audio_bytes = r.content
-        except Exception as e:
-            print(f"Backend TTS error: {e}")
-            
-    if audio_bytes:
-        try:
-            with open(cache_path, "wb") as f:
-                f.write(audio_bytes)
-        except Exception as e:
-            print(f"Failed to write audio cache: {e}")
-        return Response(content=audio_bytes, media_type="audio/mpeg")
+        if audio_bytes:
+            try:
+                with open(cache_path, "wb") as f:
+                    f.write(audio_bytes)
+            except Exception as e:
+                print(f"Failed to write audio cache: {e}")
+            return Response(content=audio_bytes, media_type="audio/mpeg")
 
-    raise HTTPException(status_code=400, detail="TTS failed")
+        raise HTTPException(status_code=400, detail="TTS failed")
 
 
 @api.post("/api/history")

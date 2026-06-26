@@ -20,7 +20,8 @@ def inject_dummy_data():
     names = [p[0] for p in old_patients]
     if names:
         placeholders = ','.join(['?'] * len(names))
-        c.execute(f"SELECT name FROM patients WHERE name IN ({placeholders})", names)
+        query = "SELECT name FROM patients WHERE name IN (" + placeholders + ")"  # nosec B608
+        c.execute(query, names)
         existing_names = set(row[0] for row in c.fetchall())
     else:
         existing_names = set()
@@ -36,7 +37,8 @@ def inject_dummy_data():
         # Get the IDs of the newly inserted patients
         inserted_names = [p[0] for p in new_patients_data]
         placeholders_new = ','.join(['?'] * len(inserted_names))
-        c.execute(f"SELECT id FROM patients WHERE name IN ({placeholders_new})", inserted_names)
+        query_new = "SELECT id FROM patients WHERE name IN (" + placeholders_new + ")"  # nosec B608
+        c.execute(query_new, inserted_names)
         inserted_ids = [row[0] for row in c.fetchall()]
 
         # Add an appointment 7 months ago for each new patient

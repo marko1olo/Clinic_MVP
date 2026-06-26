@@ -1,11 +1,12 @@
 const fs = require('fs');
 const { execSync } = require('child_process');
+const path = require('path');
 
 const prefixes = [
   "payment", "documentIssue", "documentVoid", "personalData", "refusal", "document"
 ];
 
-let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', 'utf8');
+let appCode = fs.readFileSync(path.join(__dirname, '../apps/web/src/App.tsx'), 'utf8');
 
 const states = [];
 
@@ -18,7 +19,7 @@ while ((match = regex.exec(appCode)) !== null) {
   // Skip if it's not a document state or if it's a settings state that we didn't want
   // wait, payment might be for FinanceView. Are payment states for FinanceView or DocumentsView?
   // Let's check if DocumentsView uses payment states.
-  // We'll extract ALL of these for now and fix them.
+  // We'll extract ALL of these for now and process them.
   const isTarget = prefixes.some(p => stateVar.startsWith(p));
   
   if (isTarget) {

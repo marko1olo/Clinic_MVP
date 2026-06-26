@@ -1065,6 +1065,8 @@ function treatmentLineTotal(item: TreatmentPlanItem): number {
   return Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
 }
 
+const serviceMap = new Map(serviceCatalog.map((item) => [item.id, item]));
+
 export function buildBillingSummary(): BillingSummary {
   const activePlanItems = treatmentPlanItems.filter((item) => item.status !== "cancelled");
   const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
@@ -1073,7 +1075,7 @@ export function buildBillingSummary(): BillingSummary {
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceMap.get(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents

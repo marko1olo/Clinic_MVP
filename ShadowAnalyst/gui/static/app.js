@@ -181,16 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Toggle ElevenLabs configuration fields visibility
     const updateTtsProviderFields = () => {
-        const provider = selectTtsProvider ? selectTtsProvider.value : 'edge';
-        if (provider === 'elevenlabs') {
-            if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'flex';
-            if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'flex';
-            if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'none';
-        } else {
-            if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'none';
-            if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'none';
-            if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'flex';
-        }
+        // Показываем все поля настроек озвучки всегда, чтобы ключи ElevenLabs и настройки Edge всегда были доступны!
+        if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'flex';
+        if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'flex';
+        if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'flex';
     };
     if (selectTtsProvider) {
         selectTtsProvider.addEventListener('change', updateTtsProviderFields);
@@ -368,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (val === 3) {
             label.textContent = "Умеренная (Gemini 3.1 Flash Lite)";
         } else if (val === 2) {
-            label.textContent = "Базовая (Qwen 3.6 / Groq)";
+            label.textContent = "Рекомендованная (Qwen 3.6 + Llama)";
         } else {
             label.textContent = "Тупая модель (Llama 4 Scout)";
         }
@@ -1048,6 +1042,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('file-input');
     const appContainer = document.querySelector('.app-container');
 
+    // Prevent browser from opening dragged files as new tabs at document level
+    document.addEventListener('dragover', (e) => { e.preventDefault(); });
+    document.addEventListener('drop', (e) => { e.preventDefault(); });
+
     if (emptyState) {
         emptyState.addEventListener('click', () => {
             fileInput.click();
@@ -1064,16 +1062,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     appContainer.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '0.7';
     });
 
     appContainer.addEventListener('dragleave', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '1';
     });
 
     appContainer.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '1';
         if (e.dataTransfer.files.length > 0) {
             uploadFile(e.dataTransfer.files[0]);

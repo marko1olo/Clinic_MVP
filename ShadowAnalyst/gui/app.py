@@ -229,7 +229,62 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 # Config loading
-CONFIG_FILE = os.path.join(EXE_DIR, "config.json")
+# Manual .env Loader to avoid third-party library issues and load from root paths
+def load_dotenv_manually():
+    possible_env_paths = [
+        os.path.abspath(os.path.join(BASE_DIR, "..", "..", ".env")), # C:\Clinic_MVP\.env
+        os.path.abspath(os.path.join(BASE_DIR, "..", ".env")),      # C:\Clinic_MVP\ShadowAnalyst\.env
+        os.path.join(BASE_DIR, ".env"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\.env
+        os.path.join(EXE_DIR, ".env"),
+        os.path.join(os.getcwd(), ".env")
+    ]
+    loaded = False
+    for path in possible_env_paths:
+        if os.path.exists(path):
+            print(f"[CONFIG] Found .env file at {path}. Loading environment variables.")
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = line.split("=", 1)
+                        if len(parts) == 2:
+                            k = parts[0].strip()
+                            v = parts[1].strip()
+                            if v.startswith(('"', "'")) and v.endswith(('"', "'")):
+                                v = v[1:-1]
+                            os.environ[k] = v
+                loaded = True
+            except Exception as e:
+                print(f"[CONFIG] Error reading .env at {path}: {e}")
+    if not loaded:
+        print("[CONFIG] No .env file loaded on startup.")
+
+load_dotenv_manually()
+
+# Config loading - search in multiple locations to support dev/prod mode configs
+possible_config_paths = [
+    os.path.abspath(os.path.join(BASE_DIR, "..", "..", "config.json")), # C:\Clinic_MVP\config.json
+    os.path.abspath(os.path.join(BASE_DIR, "..", "config.json")),      # C:\Clinic_MVP\ShadowAnalyst\config.json
+    os.path.join(EXE_DIR, "config.json"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\config.json
+    os.path.join(os.getcwd(), "config.json")
+]
+
+# Определяем корневую директорию проекта для мастер-конфига по умолчанию
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = os.path.dirname(sys.executable)
+else:
+    PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+    if not os.path.exists(PROJECT_ROOT):
+        PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+
+CONFIG_FILE = os.path.join(PROJECT_ROOT, "config.json")
+for path in possible_config_paths:
+    if os.path.exists(path):
+        CONFIG_FILE = path
+        print(f"[CONFIG] Found config.json at {path}")
+        break
 
 DEFAULT_CONFIG = {
     "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
@@ -247,7 +302,7 @@ DEFAULT_CONFIG = {
     "auto_enhance": False,
     "theme": "theme-noir",
     "tts_voice": "ru-RU-DmitryNeural",
-    "model_tier": 4,
+    "model_tier": 2, # Default tier is 2 (Qwen 3.6 + Llama 4) as recommended by user
     "comparison_slider": True,
     "tts_provider": "elevenlabs",
     "autorun": False,
@@ -301,8 +356,22 @@ else:
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-# Apply autorun on startup
-set_autorun(config.get("autorun", False))
+# Merge environment keys if present in env but not in config
+def merge_unique_keys(config_keys, env_keys):
+    res = list(config_keys)
+    for k in env_keys:
+        if k not in res:
+            res.append(k)
+    return res
+
+env_groq = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
+config["groq_api_keys"] = merge_unique_keys(config.get("groq_api_keys", []), env_groq)
+
+env_google = [key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()]
+config["google_api_keys"] = merge_unique_keys(config.get("google_api_keys", []), env_google)
+
+# Save merged config back to CONFIG_FILE (ignored in git)
+save_config(config)
 
 WATCH_DIR = config.get("watch_dir", DEFAULT_CONFIG["watch_dir"])
 GROQ_API_KEYS = config.get("groq_api_keys", DEFAULT_CONFIG["groq_api_keys"])
@@ -339,7 +408,7 @@ app_state = {
     "theme": config.get("theme", DEFAULT_CONFIG["theme"]),
     "watch_dir": WATCH_DIR,
     "tts_voice": config.get("tts_voice", DEFAULT_CONFIG["tts_voice"]),
-    "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 4)),
+    "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 2)),
     "comparison_slider": config.get("comparison_slider", DEFAULT_CONFIG.get("comparison_slider", True)),
     "tts_provider": config.get("tts_provider", DEFAULT_CONFIG.get("tts_provider", "edge")),
     "elevenlabs_api_key": config.get("elevenlabs_api_key", DEFAULT_CONFIG.get("elevenlabs_api_key", "")),
@@ -795,8 +864,9 @@ def run_ai_analysis(file_path, patient_info=None):
         ]
 
     first_report = ""
+    first_model_idx = 0
     last_err = "No keys available"
-    for model_name, provider in models_with_providers:
+    for idx, (model_name, provider) in enumerate(models_with_providers):
         if provider == "gemini":
             keys = GOOGLE_API_KEYS.copy()
             chat_func = gemini_chat
@@ -826,9 +896,16 @@ def run_ai_analysis(file_path, patient_info=None):
                     val = response.choices[0].message.content
                     if val:
                         import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
+                        val_cleaned = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        # If response is too short (cut off or failed), treat as failure and try next model
+                        if len(val_cleaned) >= 250:
+                            first_report = val_cleaned
+                            first_model_idx = idx
+                            success = True
+                            print(f"[AI Pass 1] Success with model {model_name} ({len(val_cleaned)} chars)")
+                            break
+                        else:
+                            print(f"[AI Pass 1] Model {model_name} returned cut-off or too short response ({len(val_cleaned)} chars). Trying next model.")
                     else:
                         print(f"Key {api_key[:10]}... returned empty content for model {model_name}.")
             except Exception as e:
@@ -867,9 +944,13 @@ def run_ai_analysis(file_path, patient_info=None):
             "<report>[Полный отчёт Markdown]</report>"
         )
 
+    # Build critic cascade: prioritize the model AFTER the one that did Pass 1 (e.g. Qwen -> Llama)
+    critic_models = models_with_providers[first_model_idx + 1:] + models_with_providers[:first_model_idx + 1]
+    print(f"[AI Pass 2] Critic cascade: {[m[0] for m in critic_models]}")
+
     final_output = ""
     last_err_critic = "No keys available"
-    for model_name, provider in models_with_providers:
+    for model_name, provider in critic_models:
         if provider == "gemini":
             keys = GOOGLE_API_KEYS.copy()
             chat_func = gemini_chat
@@ -899,9 +980,15 @@ def run_ai_analysis(file_path, patient_info=None):
                     val = response.choices[0].message.content
                     if val:
                         import re
-                        final_output = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
+                        val_cleaned = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        # Verify critic response length, if too short fallback to next
+                        if len(val_cleaned) >= 300:
+                            final_output = val_cleaned
+                            success = True
+                            print(f"[AI Pass 2] Success with critic model {model_name} ({len(val_cleaned)} chars)")
+                            break
+                        else:
+                            print(f"[AI Pass 2] Critic model {model_name} returned too short response ({len(val_cleaned)} chars). Trying next model.")
                     else:
                         print(f"Key {api_key[:10]}... returned empty content for model {model_name} in critic.")
             except Exception as e:

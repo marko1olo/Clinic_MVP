@@ -233,7 +233,7 @@
                             <option value="ru-RU-SvetlanaNeural">Светлана (Женский)</option>
                         </select>
                     </div>
-                    <div class="form-group" id="elevenlabs-api-key-group" style="display: none;">
+                    <div class="form-group" id="elevenlabs-api-key-group">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label for="input-elevenlabs-keys">API-ключи ElevenLabs (по одному на строку):</label>
                             <button class="help-toggle-btn" id="btn-eleven-help" type="button">Инструкция</button>
@@ -250,7 +250,7 @@
                             </ol>
                         </div>
                     </div>
-                    <div class="form-group" id="elevenlabs-voice-id-group" style="display: none;">
+                    <div class="form-group" id="elevenlabs-voice-id-group">
                         <label for="select-elevenlabs-voice">Голос ElevenLabs:</label>
                         <select id="select-elevenlabs-voice">
                             <option value="pNInz6obpgq54HWK483c">Adam (Глубокий мужской, Рекомендуемый)</option>
@@ -267,10 +267,10 @@
                 <div class="settings-section" style="border-top: 1px solid var(--border-glass); margin-top: 16px; padding-top: 16px;">
                     <h4 class="section-title" style="font-size: 0.95rem; font-weight: 600; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Интеллект и Ключи AI-моделей</h4>
                     <div class="form-group">
-                        <label for="range-model-tier">Класс AI-модели: <span id="model-tier-label" style="font-weight: 600; color: var(--accent-color);">Интеллектуальная (Gemini 3.5 Flash)</span></label>
+                        <label for="range-model-tier">Класс AI-модели: <span id="model-tier-label" style="font-weight: 600; color: var(--accent-color);">Рекомендованная (Qwen 3.6 + Llama)</span></label>
                         <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                             <span style="font-size: 11px; opacity: 0.6;">Тупая модель (Llama 4)</span>
-                            <input type="range" id="range-model-tier" min="1" max="4" value="4" step="1" style="flex: 1; accent-color: var(--accent-color); cursor: pointer;">
+                            <input type="range" id="range-model-tier" min="1" max="4" value="2" step="1" style="flex: 1; accent-color: var(--accent-color); cursor: pointer;">
                             <span style="font-size: 11px; opacity: 0.6;">Интеллектуальная модель (3.5 Flash)</span>
                         </div>
                     </div>

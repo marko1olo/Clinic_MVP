@@ -141,8 +141,7 @@ def analyze_image(file_path):
                                 {"type": "image_url", "image_url": {"url": image_b64}}
                             ]
                         }
-                    ],
-                    max_tokens=1500
+                    ]
                 )
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content

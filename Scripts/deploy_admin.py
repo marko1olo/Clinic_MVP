@@ -1,6 +1,5 @@
 import paramiko
 import sys
-import os
 
 host = '62.84.100.97'
 user = 'root'

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from clinic_admin.main import app
-from clinic_admin.database import init_db
+from clinic_admin.database import init_db, get_connection
 
 class TestMain(unittest.TestCase):
     def setUp(self):
@@ -62,6 +62,37 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)
+
+
+    def test_add_patient_unauthenticated(self):
+        response = self.client.post(
+            "/patients/add",
+            data={"name": "Test Patient", "phone": "1234567890"},
+            follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_add_patient_authenticated(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        response = self.client.post(
+            "/patients/add",
+            auth=("admin", "admin"),
+            data={"name": "Test Patient", "phone": "1234567890"},
+            follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = 'Test Patient' ORDER BY id DESC LIMIT 1")
+        patient = c.fetchone()
+        conn.close()
+
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["phone"], "1234567890")
 
 if __name__ == '__main__':
     unittest.main()

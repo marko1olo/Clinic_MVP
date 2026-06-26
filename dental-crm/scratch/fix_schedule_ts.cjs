@@ -17,9 +17,9 @@ fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/scheduleStore.ts',
 let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', 'utf8');
 
 // Fix 'day' any types
-appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
+appCode = appCode.replace(/\.map\(\(day\) =>/g, '.map((day: any) =>');
 // Fix 'item' any types
-appCode = appCode.replace(/onChange=\{\(item\) =>/g, 'onChange={(item: any) =>');
+appCode = appCode.replace(/\.map\(\(item\) =>/g, '.map((item: any) =>');
 
 // Fix 'current' any types in setters that might not have been caught
 appCode = appCode.replace(/setStaffScheduleSaveStates\(\(current\) =>/g, 'setStaffScheduleSaveStates((current: any) =>');

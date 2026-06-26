@@ -16,13 +16,14 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.flush()
     return out, err
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+if __name__ == "__main__":
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=host, username=user, password=password, timeout=10)
+    sys.stdout.buffer.write(b"Connected.\n")
 
-# Create backup script
-backup_script = """#!/bin/bash
+    # Create backup script
+    backup_script = """#!/bin/bash
 BACKUP_DIR="/opt/backups/clinic"
 DB_FILE="/opt/clinic_admin/clinic.db"
 DATE=$(date +%Y-%m-%d_%H-%M)
@@ -35,10 +36,10 @@ if [ -f "$DB_FILE" ]; then
 fi
 """
 
-ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
-ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
-ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
-ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
+    ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
+    ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
+    ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
+    ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
 
-client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+    client.close()
+    sys.stdout.buffer.write(b"\nDone.\n")

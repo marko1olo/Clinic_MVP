@@ -2,14 +2,43 @@ import os
 import sys
 import sqlite3
 
-if getattr(sys, 'frozen', False):
-    EXE_DIR = os.path.dirname(sys.executable)
-else:
-    # database.py lives in ShadowAnalyst/gui
-    EXE_DIR = os.path.dirname(os.path.abspath(__file__))
+def find_project_root():
+    start_dirs = []
+    if getattr(sys, 'frozen', False):
+        start_dirs.append(os.path.dirname(sys.executable))
+    else:
+        start_dirs.append(os.path.dirname(os.path.abspath(__file__)))
+    start_dirs.append(os.getcwd())
+    
+    for start_dir in start_dirs:
+        current = os.path.abspath(start_dir)
+        while True:
+            if os.path.exists(os.path.join(current, "config.json")):
+                return current
+            parent = os.path.dirname(current)
+            if parent == current:
+                break
+            current = parent
+            
+    # Fallback
+    main_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    current = os.path.abspath(main_dir)
+    for _ in range(5):
+        if os.path.basename(current).lower() in ["dist", "gui", "shadowanalyst"]:
+            current = os.path.dirname(current)
+        else:
+            break
+    return current
 
-# If running script, save DB in ShadowAnalyst/ folder
-DB_PATH = os.path.join(os.path.dirname(EXE_DIR) if not getattr(sys, 'frozen', False) else EXE_DIR, "shadow_analyst.db")
+PROJECT_ROOT = find_project_root()
+
+# DB should live in C:\Clinic_MVP\ShadowAnalyst\shadow_analyst.db if the directory exists
+# Otherwise in C:\Clinic_MVP\shadow_analyst.db
+shadow_analyst_dir = os.path.join(PROJECT_ROOT, "ShadowAnalyst")
+if os.path.exists(shadow_analyst_dir) and os.path.isdir(shadow_analyst_dir):
+    DB_PATH = os.path.join(shadow_analyst_dir, "shadow_analyst.db")
+else:
+    DB_PATH = os.path.join(PROJECT_ROOT, "shadow_analyst.db")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)

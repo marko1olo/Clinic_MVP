@@ -2147,7 +2147,7 @@ export function SettingsView(props: SettingsViewProps) {
                 </label>
                 <div className="weekday-toggle-row form-span-2" role="group" aria-label="Рабочие дни клиники">
                   <span>Рабочие дни</span>
-                  {typedWeekdayOptions.map((day) => (
+                  {typedWeekdayOptions.map((day: any) => (
                       <button
                         className={clinicProfileDraft.workingDays.includes(day.value) ? "active" : ""}
                         key={day.value}
@@ -2347,7 +2347,7 @@ export function SettingsView(props: SettingsViewProps) {
                             />
                           </label>
                           <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни: ${member.fullName}`}>
-                            {typedWeekdayOptions.map((day) => (
+                            {typedWeekdayOptions.map((day: any) => (
                               <button
                                 className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                 key={day.value}
@@ -2362,7 +2362,7 @@ export function SettingsView(props: SettingsViewProps) {
                           <div className="staff-day-hours" aria-label={`Часы по дням: ${member.fullName}`}>
                             {typedWeekdayOptions
                               .filter((day) => scheduleDraft.workingDays.includes(day.value))
-                              .map((day) => {
+                              .map((day: any) => {
                                 const dayHours = scheduleDraft.perDay[day.value];
                                 return (
                                   <div key={`hours-${member.id}-${day.value}`}>
@@ -2498,7 +2498,7 @@ export function SettingsView(props: SettingsViewProps) {
                             />
                           </label>
                           <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни кресла: ${chair.name}`}>
-                            {typedWeekdayOptions.map((day) => (
+                            {typedWeekdayOptions.map((day: any) => (
                               <button
                                 className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                 key={day.value}
@@ -2513,7 +2513,7 @@ export function SettingsView(props: SettingsViewProps) {
                           <div className="staff-day-hours" aria-label={`Часы по дням кресла: ${chair.name}`}>
                             {typedWeekdayOptions
                               .filter((day) => scheduleDraft.workingDays.includes(day.value))
-                              .map((day) => {
+                              .map((day: any) => {
                                 const dayHours = scheduleDraft.perDay[day.value];
                                 return (
                                   <div key={`chair-hours-${chair.id}-${day.value}`}>

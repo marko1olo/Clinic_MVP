@@ -1189,6 +1189,7 @@ def parse_patient_from_file(file_path: str) -> dict:
                         check_dict(data)
                     except Exception:
                         pass
+                break
     except Exception as se:
         print(f"Error checking sidecars: {se}")
         

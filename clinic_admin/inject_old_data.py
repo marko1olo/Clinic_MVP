@@ -16,14 +16,13 @@ def inject_dummy_data():
         ("Петров Дмитрий", "+79001112233")
     ]
     
-    # Pre-check all existing names to avoid N queries
-    names = [p[0] for p in old_patients]
-    if names:
-        placeholders = ','.join(['?'] * len(names))
-        c.execute(f"SELECT name FROM patients WHERE name IN ({placeholders})", names)
-        existing_names = set(row[0] for row in c.fetchall())
-    else:
-        existing_names = set()
+    # Check existing names one by one to avoid dynamic IN clause
+    existing_names = set()
+    for name, _ in old_patients:
+        c.execute("SELECT name FROM patients WHERE name = ?", (name,))
+        row = c.fetchone()
+        if row:
+            existing_names.add(row[0])
 
     new_patients_data = []
     for name, phone in old_patients:
@@ -31,13 +30,10 @@ def inject_dummy_data():
             new_patients_data.append((name, phone, now.isoformat()))
             
     if new_patients_data:
-        c.executemany("INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)", new_patients_data)
-
-        # Get the IDs of the newly inserted patients
-        inserted_names = [p[0] for p in new_patients_data]
-        placeholders_new = ','.join(['?'] * len(inserted_names))
-        c.execute(f"SELECT id FROM patients WHERE name IN ({placeholders_new})", inserted_names)
-        inserted_ids = [row[0] for row in c.fetchall()]
+        inserted_ids = []
+        for p_data in new_patients_data:
+            c.execute("INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)", p_data)
+            inserted_ids.append(c.lastrowid)
 
         # Add an appointment 7 months ago for each new patient
         old_date = (now - timedelta(days=210)).isoformat()

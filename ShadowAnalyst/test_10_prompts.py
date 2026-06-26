@@ -19,13 +19,7 @@ def draw_text_with_bg(draw, text, x, y, text_color, bg_color=(0, 0, 0, 180)):
     draw.text((x, y), text, fill=text_color, font=font)
 
 
-API_KEYS = [
-    "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",
-    "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",
-    "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",
-    "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",
-    "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"
-]
+API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 IMG_PATH = r"C:\Users\danat\Downloads\оро.webp"
@@ -75,6 +69,9 @@ def get_base64(path):
 
 def call_groq(prompt, b64):
     keys = API_KEYS.copy()
+    if not keys:
+        print("Ошибка: Ключи GROQ_API_KEYS не заданы.")
+        return "{}"
     while True:
         random.shuffle(keys)
         for key in keys:

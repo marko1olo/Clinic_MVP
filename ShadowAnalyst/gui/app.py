@@ -229,9 +229,13 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 # Config loading
+import database
+PROJECT_ROOT = database.PROJECT_ROOT
+
 # Manual .env Loader to avoid third-party library issues and load from root paths
 def load_dotenv_manually():
     possible_env_paths = [
+        os.path.join(PROJECT_ROOT, ".env"),
         os.path.abspath(os.path.join(BASE_DIR, "..", "..", ".env")), # C:\Clinic_MVP\.env
         os.path.abspath(os.path.join(BASE_DIR, "..", ".env")),      # C:\Clinic_MVP\ShadowAnalyst\.env
         os.path.join(BASE_DIR, ".env"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\.env
@@ -264,22 +268,15 @@ def load_dotenv_manually():
 load_dotenv_manually()
 
 # Config loading - search in multiple locations to support dev/prod mode configs
+CONFIG_FILE = os.path.join(PROJECT_ROOT, "config.json")
 possible_config_paths = [
+    CONFIG_FILE,
     os.path.abspath(os.path.join(BASE_DIR, "..", "..", "config.json")), # C:\Clinic_MVP\config.json
     os.path.abspath(os.path.join(BASE_DIR, "..", "config.json")),      # C:\Clinic_MVP\ShadowAnalyst\config.json
     os.path.join(EXE_DIR, "config.json"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\config.json
     os.path.join(os.getcwd(), "config.json")
 ]
 
-# Определяем корневую директорию проекта для мастер-конфига по умолчанию
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = os.path.dirname(sys.executable)
-else:
-    PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-    if not os.path.exists(PROJECT_ROOT):
-        PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
-
-CONFIG_FILE = os.path.join(PROJECT_ROOT, "config.json")
 for path in possible_config_paths:
     if os.path.exists(path):
         CONFIG_FILE = path

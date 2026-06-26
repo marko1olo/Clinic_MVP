@@ -22,6 +22,44 @@ class TestDB(unittest.TestCase):
         os.close(self.fd)
         os.unlink(self.temp_db)
 
+    def test_add_user_new(self):
+        # Add a new user
+        db.add_user(11111, 'patient', 'New Patient')
+
+        # Verify the user is added by getting connection and checking directly
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT * FROM users WHERE chat_id = ?', (11111,))
+        row = c.fetchone()
+        conn.close()
+
+        self.assertIsNotNone(row)
+        self.assertEqual(row['role'], 'patient')
+        self.assertEqual(row['name'], 'New Patient')
+
+    def test_add_user_replace(self):
+        # Add initial user
+        db.add_user(22222, 'patient', 'Old Patient')
+
+        # Replace the same user with a new role and name
+        db.add_user(22222, 'admin', 'Super Admin')
+
+        # Verify the user was replaced properly
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT * FROM users WHERE chat_id = ?', (22222,))
+        row = c.fetchone()
+
+        # Make sure only one row exists
+        c.execute('SELECT COUNT(*) as count FROM users WHERE chat_id = ?', (22222,))
+        count = c.fetchone()['count']
+        conn.close()
+
+        self.assertEqual(count, 1)
+        self.assertIsNotNone(row)
+        self.assertEqual(row['role'], 'admin')
+        self.assertEqual(row['name'], 'Super Admin')
+
     def test_get_user_role_existing(self):
         # Add a user to the temporary database
         db.add_user(12345, 'doctor', 'Test Doctor')

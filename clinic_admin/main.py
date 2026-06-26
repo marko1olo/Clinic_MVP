@@ -45,23 +45,7 @@ def startup_event():
 security = HTTPBasic()
 
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
-    expected_username = os.environ.get("ADMIN_USERNAME")
-    expected_password = os.environ.get("ADMIN_PASSWORD")
-
-    if not expected_username or not expected_password:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Admin credentials are not configured on the server",
-        )
-
-    correct_username = secrets.compare_digest(credentials.username, expected_username)
-    correct_password = secrets.compare_digest(credentials.password, expected_password)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+    verify_credentials(credentials)
     return credentials.username
 
 @app.get("/", response_class=HTMLResponse)

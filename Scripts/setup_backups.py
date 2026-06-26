@@ -1,9 +1,13 @@
+import os
 import paramiko
 import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
+if not password:
+    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
+
 
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
@@ -11,10 +15,14 @@ def ssh(client, cmd, desc="", timeout=60):
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
     out = stdout.read().decode('utf-8', errors='replace').strip()
     err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
+    if out:
+        sys.stdout.buffer.write((out+"\n").encode('utf-8', 'replace'))
+    if err:
+        sys.stdout.buffer.write(
+            ("STDERR: "+err+"\n").encode('utf-8', 'replace'))
     sys.stdout.flush()
     return out, err
+
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -35,7 +43,8 @@ if [ -f "$DB_FILE" ]; then
 fi
 """
 
-ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
+ssh(client,
+    f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
 ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
 ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
 ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")

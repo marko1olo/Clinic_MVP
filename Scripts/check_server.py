@@ -1,16 +1,19 @@
+import os
 import paramiko
 import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
+if not password:
+    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
 
 try:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"Connecting to {user}@{host}...")
     client.connect(hostname=host, username=user, password=password, timeout=10)
-    
+
     commands = [
         "lsb_release -a",
         "uptime",
@@ -18,7 +21,7 @@ try:
         "df -h /",
         "top -b -n 1 | head -n 12"
     ]
-    
+
     for cmd in commands:
         print(f"\n[Run] {cmd}")
         stdin, stdout, stderr = client.exec_command(cmd)
@@ -26,7 +29,7 @@ try:
         err = stderr.read().decode('utf-8', errors='replace').strip()
         if err:
             print(f"Stderr: {err}")
-            
+
     client.close()
     print("\nConnection closed.")
 except Exception as e:

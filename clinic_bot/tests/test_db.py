@@ -18,6 +18,8 @@ class TestDB(unittest.TestCase):
     def tearDown(self):
         # Stop patching
         self.patcher.stop()
+        # Close any cached connections to the test db
+        db.close_connections()
         # Clean up the temporary database file
         os.close(self.fd)
         os.unlink(self.temp_db)

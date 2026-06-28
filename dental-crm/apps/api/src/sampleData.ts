@@ -1830,19 +1830,48 @@ function staffDailyCapacityMinutes(staff: StaffMember): number {
 }
 
 function buildAppointmentReadiness(patientInsights = buildPatientInsights()): AppointmentReadiness[] {
+  const patientsById = new Map(patients.map((p) => [p.id, p]));
+  const activeStaffById = new Map(staffMembers.filter((m) => m.active).map((m) => [m.id, m]));
+  const activeChairsById = new Map(chairs.filter((c) => c.active).map((c) => [c.id, c]));
+  const patientInsightsByPatientId = new Map(patientInsights.map((i) => [i.patientId, i]));
+
+  const documentsByPatientId = new Map<string, typeof documents>();
+  for (const doc of documents) {
+    if (doc.status !== "voided") {
+      if (!documentsByPatientId.has(doc.patientId)) documentsByPatientId.set(doc.patientId, []);
+      documentsByPatientId.get(doc.patientId)!.push(doc);
+    }
+  }
+
+  const imagesByPatientId = new Map<string, typeof imagingStudies>();
+  for (const study of imagingStudies) {
+    if (!imagesByPatientId.has(study.patientId)) imagesByPatientId.set(study.patientId, []);
+    imagesByPatientId.get(study.patientId)!.push(study);
+  }
+
+  const tasksByAppointmentId = new Map<string, typeof communicationTasks>();
+  for (const task of communicationTasks) {
+    if (isOpenCommunicationTask(task)) {
+      if (!tasksByAppointmentId.has(task.appointmentId)) tasksByAppointmentId.set(task.appointmentId, []);
+      tasksByAppointmentId.get(task.appointmentId)!.push(task);
+    }
+  }
+
   return appointments.map((appointment) => {
-    const patient = patients.find((item) => item.id === appointment.patientId);
-    const doctor = staffMembers.find((member) => member.id === appointment.doctorUserId && member.active);
+    const patient = patientsById.get(appointment.patientId);
+    const doctor = activeStaffById.get(appointment.doctorUserId);
     const assistant = appointment.assistantUserId
-      ? staffMembers.find((member) => member.id === appointment.assistantUserId && member.role === "assistant" && member.active)
+      ? activeStaffById.get(appointment.assistantUserId) ?? null
       : null;
-    const chair = chairs.find((item) => item.id === appointment.chairId && item.active);
-    const patientDocuments = documents.filter((document) => document.patientId === appointment.patientId && document.status !== "voided");
-    const patientImages = imagingStudies.filter((study) => study.patientId === appointment.patientId);
-    const insight = patientInsights.find((item) => item.patientId === appointment.patientId);
-    const appointmentTasks = communicationTasks.filter(
-      (task) => task.appointmentId === appointment.id && isOpenCommunicationTask(task)
-    );
+
+    // Check if the assistant role matches, since the old code did `&& member.role === "assistant"`
+    const finalAssistant = (assistant && assistant.role === "assistant") ? assistant : null;
+
+    const chair = activeChairsById.get(appointment.chairId);
+    const patientDocuments = documentsByPatientId.get(appointment.patientId) ?? [];
+    const patientImages = imagesByPatientId.get(appointment.patientId) ?? [];
+    const insight = patientInsightsByPatientId.get(appointment.patientId);
+    const appointmentTasks = tasksByAppointmentId.get(appointment.id) ?? [];
     const hasContract = patientDocuments.some((document) => document.kind === "paid_medical_services_contract");
     const hasConsent = patientDocuments.some((document) => document.kind === "informed_consent");
     const hasImageForTreatment = patientImages.some((study) => study.status !== "failed");
@@ -1853,7 +1882,7 @@ function buildAppointmentReadiness(patientInsights = buildPatientInsights()): Ap
     const doctorScheduleCheck = appointmentWithinStaffSchedule(appointment, doctor, "врача");
     const assistantRequired = clinicProfile.mode !== "solo_doctor";
     const assistantScheduleCheck = assistantRequired
-      ? appointmentWithinStaffSchedule(appointment, assistant, "ассистента")
+      ? appointmentWithinStaffSchedule(appointment, finalAssistant, "ассистента")
       : { ready: true, detail: "ассистент не требуется для режима клиники" };
     const chairScheduleCheck = appointmentWithinChairSchedule(appointment, chair);
     const patientPreferenceWarnings = patientScheduleCheck.ready ? [] : [`Вне удобного окна пациента: ${patientScheduleCheck.detail}`];

@@ -1,13 +1,6 @@
-# ⚡ Replace `os.listdir` polling with `watchdog`
+🧹 [code health] Remove unused `get_scan_by_id` function
 
-## 💡 What
-Refactored the `watch_loop` function in `ShadowAnalyst/watcher.py` to use the `watchdog` library instead of an infinite `while True` loop that continuously polls the directory with `os.listdir()`. A new `XRayHandler` listens to file creation and modification events directly from the OS file system.
-
-## 🎯 Why
-The previous implementation performed a full directory scan (`os.listdir`) and sleep cycle every 2 seconds. In directories with many files, this leads to unnecessary continuous disk I/O and CPU wakeups. By moving to an event-driven model using `watchdog` (which uses OS native mechanisms like `inotify` on Linux and `ReadDirectoryChangesW` on Windows), the script remains completely idle until a file change actually occurs.
-
-## 📊 Measured Improvement
-A benchmark was established measuring CPU time over a 5-second interval:
-- **Baseline (Polling 50k files):** Used ~0.05 - 0.15s of CPU time.
-- **Improved (Watchdog with 50k files):** Used ~0.05s CPU time for initialization and 0.0s for idle listening.
-- **Improvement:** Reduced background idle CPU footprint by nearly 100% since no continuous polling is done. The CPU usage is now completely dependent on actual events, rather than scaling with the volume of files in the directory.
+🎯 What: Removed the `get_scan_by_id` function from `ShadowAnalyst/gui/database.py`.
+💡 Why: The function was identified as unused dead code and its removal improves maintainability and readability of the codebase by eliminating unneeded code paths.
+✅ Verification: Confirmed via search that the function is not referenced anywhere else in the codebase and executed python test script to ensure that the module can still be imported successfully.
+✨ Result: Reduced dead code, improving overall code health without affecting functionality.

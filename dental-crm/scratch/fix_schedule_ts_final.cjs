@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const storePath = path.join(__dirname, '../apps/web/src/store/scheduleStore.ts');
-const appPath = path.join(__dirname, '../apps/web/src/App.tsx');
+const appPath = path.join(__dirname, '../apps/web/src/SettingsView.tsx');
 
 let storeCode = fs.readFileSync(storePath, 'utf8');
 
@@ -21,4 +21,4 @@ appCode = appCode.replace(/\.map\(\(day\) =>/g, '.map((day: any) =>');
 
 fs.writeFileSync(appPath, appCode);
 
-console.log('Fixed TS errors in scheduleStore and App.tsx');
+console.log('Fixed TS errors in scheduleStore and SettingsView.tsx');

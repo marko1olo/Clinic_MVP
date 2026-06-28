@@ -2332,7 +2332,7 @@ export function App() {
                               <div>
                                 <strong>{member.fullName}</strong>
                                 <p>
-                                  {staffRoleLabels[member.role]} · {member.specialties.map((item) => specialtyLabels[item]).join(", ")}
+                                  {staffRoleLabels[member.role]} · {member.specialties.map((item: any) => specialtyLabels[item]).join(", ")}
                                 </p>
                               </div>
                               <div className="staff-schedule-editor onboarding-compact-schedule-editor">

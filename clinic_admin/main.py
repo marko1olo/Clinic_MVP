@@ -1,6 +1,7 @@
 import os
 import secrets
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -64,8 +65,7 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, username: str = Depends(get_current_username)):
+def get_dashboard_data():
     conn = get_connection()
     c = conn.cursor()
     
@@ -84,25 +84,37 @@ async def read_root(request: Request, username: str = Depends(get_current_userna
     c.execute('SELECT * FROM patients ORDER BY name ASC LIMIT 100')
     patients = c.fetchall()
     
+    # Convert rows to dicts inside the threadpool to avoid keeping cursor alive
+    res_appointments = [dict(ix) for ix in appointments]
+    res_patients = [dict(ix) for ix in patients]
+
     conn.close()
+    return res_appointments, res_patients
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request, username: str = Depends(get_current_username)):
+    appointments, patients = await run_in_threadpool(get_dashboard_data)
+
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request, 
-        "appointments": [dict(ix) for ix in appointments],
-        "patients": [dict(ix) for ix in patients]
+        "appointments": appointments,
+        "patients": patients
     })
 
-@app.post("/patients/add")
-async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(get_current_username)):
+def insert_patient(name, phone):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
     c.execute('INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)', (name, phone, created_at))
     conn.commit()
     conn.close()
+
+@app.post("/patients/add")
+async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(get_current_username)):
+    await run_in_threadpool(insert_patient, name, phone)
     return RedirectResponse(url="/", status_code=303)
 
-@app.post("/appointments/add")
-async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(get_current_username)):
+def insert_appointment(patient_id, doctor, date):
     conn = get_connection()
     c = conn.cursor()
     created_at = datetime.now().isoformat()
@@ -112,10 +124,13 @@ async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), 
     ''', (patient_id, doctor, date, created_at))
     conn.commit()
     conn.close()
+
+@app.post("/appointments/add")
+async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(get_current_username)):
+    await run_in_threadpool(insert_appointment, patient_id, doctor, date)
     return RedirectResponse(url="/", status_code=303)
 
-@app.get("/api/current_appointment")
-async def get_current_appointment(username: str = Depends(get_current_username)):
+def fetch_current_appointment():
     conn = get_connection()
     c = conn.cursor()
     # Получаем ближайший прошедший или текущий аппойнтмент (сегодняшний день)
@@ -128,15 +143,25 @@ async def get_current_appointment(username: str = Depends(get_current_username))
         LIMIT 1
     ''')
     row = c.fetchone()
-    conn.close()
     
     if row:
-        return {
+        res = {
             "appointment_id": row["id"],
             "patient_name": row["patient_name"],
             "doctor": row["doctor"],
             "time": row["appointment_date"]
         }
+    else:
+        res = None
+
+    conn.close()
+    return res
+
+@app.get("/api/current_appointment")
+async def get_current_appointment(username: str = Depends(get_current_username)):
+    appointment = await run_in_threadpool(fetch_current_appointment)
+    if appointment:
+        return appointment
     return {"error": "No appointments today"}
 
 if __name__ == "__main__":

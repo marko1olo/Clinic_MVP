@@ -1,4 +1,5 @@
 import os
+import asyncio
 import sys
 import time
 import shutil
@@ -670,8 +671,11 @@ async def get_tts(text: str, provider: str = None):
     
     if os.path.exists(cache_path):
         try:
-            with open(cache_path, "rb") as f:
-                return Response(content=f.read(), media_type="audio/mpeg")
+            def _read_cache():
+                with open(cache_path, "rb") as f:
+                    return f.read()
+            content = await asyncio.to_thread(_read_cache)
+            return Response(content=content, media_type="audio/mpeg")
         except Exception as e:
             print(f"Error reading audio cache: {e}")
 

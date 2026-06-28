@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+﻿import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -451,6 +451,7 @@ export const documents: GeneratedDocument[] = [
   }
 ];
 
+export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
 export const serviceCatalog: ServiceCatalogItem[] = [
   {
     id: "svc-consult-primary",
@@ -702,6 +703,8 @@ export const treatmentPlanScenarios: TreatmentPlanScenario[] = [
     active: false
   }
 ];
+
+serviceCatalog.forEach(s => serviceCatalogMap.set(s.id, s));
 
 export const clinicalRules: ClinicalRule[] = [
   {
@@ -1073,7 +1076,7 @@ export function buildBillingSummary(): BillingSummary {
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents
@@ -6345,7 +6348,7 @@ function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntime
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
     if (service?.category !== "hygiene") return [];
 
     const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");
@@ -6817,9 +6820,8 @@ function buildDenteTelegramReviewRequestItems(runtimeScope?: DenteTelegramOutbox
     .filter((payment) => payment.organizationId === organizationScope && payment.status === "paid")
     .sort((left, right) => (right.paidAt ?? right.createdAt).localeCompare(left.paidAt ?? left.createdAt));
 
-  const activePatientsMap = new Map(patients.filter((p) => p.status === "active").map((p) => [p.id, p]));
   for (const payment of paidMilestones) {
-    const patient = activePatientsMap.get(payment.patientId) ?? null;
+    const patient = patients.find((candidate) => candidate.id === payment.patientId && candidate.status === "active") ?? null;
     if (!patient || !reviewRequestVisitIsClosed(payment)) continue;
     const visit = payment.visitId ? findVisitById(payment.visitId) : null;
     pushReviewRequest({

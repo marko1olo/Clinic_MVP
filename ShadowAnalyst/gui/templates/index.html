@@ -116,6 +116,7 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                     </button>
                     <button id="btn-analyze" class="action-btn primary" style="display: none; padding: 6px 14px; font-size: 0.85rem; width: auto; flex: none; border-radius: 20px;">Анализировать</button>
+                    <button id="btn-reanalyze" class="action-btn secondary" style="display: none; padding: 6px 14px; font-size: 0.85rem; width: auto; flex: none; border-radius: 20px;">Переанализировать</button>
                     <button id="btn-speak" class="speak-btn" title="Озвучить отчет" style="display: none;">
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="speaker-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                     </button>
@@ -275,7 +276,7 @@
                         <label for="range-model-tier">Класс AI-модели: <span id="model-tier-label" style="font-weight: 600; color: var(--accent-color);">Рекомендованная (Qwen 3.6 + Llama)</span></label>
                         <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                             <span style="font-size: 11px; opacity: 0.6;">Тупая модель (Llama 4)</span>
-                            <input type="range" id="range-model-tier" min="1" max="4" value="2" step="1" style="flex: 1; accent-color: var(--accent-color); cursor: pointer;">
+                            <input type="range" id="range-model-tier" min="1" max="5" value="2" step="1" style="flex: 1; accent-color: var(--accent-color); cursor: pointer;">
                             <span style="font-size: 11px; opacity: 0.6;">Интеллектуальная модель (3.5 Flash)</span>
                         </div>
                     </div>

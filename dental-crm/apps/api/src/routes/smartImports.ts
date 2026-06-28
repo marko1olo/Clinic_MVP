@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
-import { open, readdir } from "node:fs/promises";
+import { open, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -1714,9 +1714,11 @@ function normalizeMigrationSignalValues(value: string | undefined) {
 
 async function readWindowsMigrationWorkstationSignalValues(warnings: Set<string>) {
   if (os.platform() !== "win32") return [] as Array<{ channel: "process" | "service" | "installed_app" | "shortcut"; value: string }>;
+  const rxPattern = "sidexis|sirona|romexis|planmeca|vatech|ezdent|carestream|kodak|morita|idixel|i-dixel|veraview|newtom|new tom|nnt|myray|cefla|owandy|quickvision|quick vision|dexis|kavo|ka vo|gendex|acteon|sopro|sopix|pspix|x-mind|x mind|ondemand|invivo|cliniview|dbswin|vistasoft|digora|soredex|trophy|visiodent|mediadent|vixwin|sopro|schick|dtx|3shape|medit|exocad|firebird|interbase|sqlite|mssql|sql|dbf|dbase|foxpro|clipper|paradox|1cv8|1c|cliniccards|dental|stomatology|opendental|open dental|dentrix|eaglesoft|patterson|infoclinica|infodent|dentasoft|clinic365|sycret|secret dent|adenta|dentcrm24|clientix|klientix|medods|dentaltap|istom|qstoma|macdent|stombox|medangel|medialog|arnica|ident|stomx|dicom|pacs|rvg|xray|cbct|opg";
   const script = [
     "$ErrorActionPreference='SilentlyContinue'",
-    "$rx='sidexis|sirona|romexis|planmeca|vatech|ezdent|carestream|kodak|morita|idixel|i-dixel|veraview|newtom|new tom|nnt|myray|cefla|owandy|quickvision|quick vision|dexis|kavo|ka vo|gendex|acteon|sopro|sopix|pspix|x-mind|x mind|ondemand|invivo|cliniview|dbswin|vistasoft|digora|soredex|trophy|visiodent|mediadent|vixwin|sopro|schick|dtx|3shape|medit|exocad|firebird|interbase|sqlite|mssql|sql|dbf|dbase|foxpro|clipper|paradox|1cv8|1c|cliniccards|dental|stomatology|opendental|open dental|dentrix|eaglesoft|patterson|infoclinica|infodent|dentasoft|clinic365|sycret|secret dent|adenta|dentcrm24|clientix|klientix|medods|dentaltap|istom|qstoma|macdent|stombox|medangel|medialog|arnica|ident|stomx|dicom|pacs|rvg|xray|cbct|opg'",
+    "$rx = $env:MIGRATION_RX",
+    "$rows = @()",
     "$processes = Get-Process | Select-Object -First 500 -Property ProcessName,Path | ForEach-Object { ([string]$_.ProcessName + ' || ' + [string]$_.Path) } | Where-Object { $_ -match $rx }",
     "$services = Get-CimInstance Win32_Service | Select-Object -First 1000 -Property Name,DisplayName,PathName | ForEach-Object { ([string]$_.Name + ' || ' + [string]$_.DisplayName + ' || ' + [string]$_.PathName) } | Where-Object { $_ -match $rx }",
     "$uninstallPaths = @('HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*')",
@@ -1726,7 +1728,6 @@ async function readWindowsMigrationWorkstationSignalValues(warnings: Set<string>
     "$shell = New-Object -ComObject WScript.Shell",
     "$shortcuts = foreach ($root in $shortcutRoots) { if ($root -and (Test-Path $root)) { Get-ChildItem -Path $root -Filter *.lnk -Recurse -ErrorAction SilentlyContinue | Select-Object -First 400 | ForEach-Object { $lnk = $shell.CreateShortcut($_.FullName); ([string]$_.Name + ' || ' + [string]$lnk.TargetPath + ' || ' + [string]$lnk.Arguments + ' || ' + [string]$lnk.WorkingDirectory) } } }",
     "$shortcuts = $shortcuts | Where-Object { $_ -and $_ -match $rx } | Select-Object -First 160",
-    "$rows = @()",
     "foreach ($p in $processes) { if ($p) { $rows += [pscustomobject]@{ channel='process'; value=[string]$p } } }",
     "foreach ($s in $services) { if ($s) { $rows += [pscustomobject]@{ channel='service'; value=[string]$s } } }",
     "foreach ($a in $apps) { if ($a) { $rows += [pscustomobject]@{ channel='installed_app'; value=[string]$a } } }",
@@ -1735,26 +1736,32 @@ async function readWindowsMigrationWorkstationSignalValues(warnings: Set<string>
   ].join("; ");
   const encodedScript = Buffer.from(script, "utf16le").toString("base64");
   try {
-    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
+    const psPath = path.join(process.env.WINDIR || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    const { stdout } = await execFileAsync(psPath, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
       timeout: 2500,
       maxBuffer: 160 * 1024,
-      windowsHide: true
+      windowsHide: true,
+      env: { ...process.env, MIGRATION_RX: rxPattern }
     });
     if (!stdout.trim()) return [];
     const parsed = JSON.parse(stdout);
     const rows = Array.isArray(parsed) ? parsed : [parsed];
     return rows
-      .map((row) => ({
-        channel:
-          row?.channel === "service"
-            ? ("service" as const)
-            : row?.channel === "installed_app"
-              ? ("installed_app" as const)
-              : row?.channel === "shortcut"
-                ? ("shortcut" as const)
-                : ("process" as const),
-        value: String(row?.value ?? "").trim()
-      }))
+      .map((row) => {
+        const channelRaw = String(row?.channel ?? "").trim();
+        const value = String(row?.value ?? "").trim();
+        return {
+          channel:
+            channelRaw === "service"
+              ? ("service" as const)
+              : channelRaw === "installed_app"
+                ? ("installed_app" as const)
+                : channelRaw === "shortcut"
+                  ? ("shortcut" as const)
+                  : ("process" as const),
+          value
+        };
+      })
       .filter((row) => row.value.length >= 3);
   } catch {
     warnings.add("Системные сигналы рабочей станции не прочитаны: поиск продолжился по доступным папкам и ярлыкам без списка процессов, служб и установленных программ.");
@@ -2026,12 +2033,14 @@ async function readWindowsMigrationMappedRoots(warnings: Set<string>) {
   if (os.platform() !== "win32") return [] as string[];
   const script = [
     "$ErrorActionPreference='SilentlyContinue'",
-    "$rows = Get-PSDrive -PSProvider FileSystem | Select-Object -First 80 | ForEach-Object { [pscustomobject]@{ root=[string]$_.Root; displayRoot=[string]$_.DisplayRoot } }",
-    "$rows | ConvertTo-Json -Compress"
+    "$roots = @()",
+    "Get-PSDrive -PSProvider FileSystem | Select-Object -First 80 | ForEach-Object { $roots += [pscustomobject]@{ root=[string]$_.Root; displayRoot=[string]$_.DisplayRoot } }",
+    "$roots | ConvertTo-Json -Compress"
   ].join("; ");
   const encodedScript = Buffer.from(script, "utf16le").toString("base64");
   try {
-    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
+    const psPath = path.join(process.env.WINDIR || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    const { stdout } = await execFileAsync(psPath, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
       timeout: 1600,
       maxBuffer: 80 * 1024,
       windowsHide: true
@@ -2094,9 +2103,9 @@ async function discoverLocalMigrationSources(input: MigrationLocalSourceDiscover
   const workstationSignalRoots = migrationRootsFromWorkstationSignals(workstationSignals);
   const baseRoots = input.rootPaths?.length ? input.rootPaths : migrationDiscoveryDefaultRoots();
   const mappedRoots = input.rootPaths?.length ? [] : await readWindowsMigrationMappedRoots(warnings);
-  const roots = [...workstationSignalRoots, ...baseRoots, ...migrationDriveDataRoots(mappedRoots)]
-    .map((root) => path.resolve(root))
-    .filter((root, index, all) => migrationRootExists(root) && all.indexOf(root) === index);
+  const candidateRoots = [...workstationSignalRoots, ...baseRoots, ...migrationDriveDataRoots(mappedRoots)]
+    .map((root) => path.resolve(root));
+  const roots = Array.from(new Set(candidateRoots)).filter((root) => migrationRootExists(root));
   const candidates: MigrationLocalSourceDiscoveryCandidate[] = [];
   const visited = new Set<string>();
   const queue = roots.map((root) => ({ root, folderPath: root, depth: 0 }));
@@ -2178,7 +2187,7 @@ async function discoverLocalMigrationSources(input: MigrationLocalSourceDiscover
       if (isDicomDir) hasDicomDir = true;
       if (!firstMatchPath && (isDatabase || isDump || isTable || isArchive || isDicom || isImage)) firstMatchPath = fullPath;
       try {
-        const modified = statSync(fullPath).mtime.toISOString();
+        const modified = (await stat(fullPath)).mtime.toISOString();
         if (!latestModifiedAt || modified > latestModifiedAt) latestModifiedAt = modified;
       } catch {
         // Best-effort metadata only.
@@ -3540,7 +3549,7 @@ async function buildMigrationLocalSourceProbe(input: MigrationLocalSourceProbeRe
         }
         scannedFiles += 1;
         try {
-          const modified = statSync(fullPath).mtime.toISOString();
+          const modified = (await stat(fullPath)).mtime.toISOString();
           if (!latestModifiedAt || modified > latestModifiedAt) latestModifiedAt = modified;
         } catch {
           // Metadata is best-effort only.

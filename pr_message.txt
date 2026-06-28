@@ -1,0 +1,5 @@
+🧪 Add comprehensive tests for ssh utility
+
+🎯 **What:** This PR adds unit tests for the `ssh` utility function in `utils.py` using standard mocking techniques. It addresses the gap where no tests previously existed for the ssh utility.
+📊 **Coverage:** The new tests cover basic stdout and stderr capturing, parameter variations (custom timeout, custom description labels, and description truncation), and edge cases such as handling invalid UTF-8 bytes during decoding by mocking Paramiko's client execution and replacing them properly.
+✨ **Result:** Enhanced test coverage for the repository root utilities, increasing confidence against regressions in core deployment scripts.

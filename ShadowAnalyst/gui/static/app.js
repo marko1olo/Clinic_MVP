@@ -1174,50 +1174,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- AUTOMATIC GENDER DETECTION ---
+    const MALE_FIRST_NAMES = new Set(['никита', 'илья', 'данила', 'даниил', 'савва', 'миша', 'гриша', 'саша', 'петя', 'ваня', 'дима', 'леша', 'коля', 'юра', 'вова', 'толя', 'женя', 'сережа']);
+    const FEMALE_FIRST_NAMES = new Set(['маша', 'даша', 'лена', 'оля', 'света', 'наташа', 'катя', 'ира', 'таня', 'аня', 'юля', 'вера', 'надя', 'люба']);
+    const FEMALE_END_CHARS = new Set(['а', 'я']);
+    const MALE_END_CHARS = new Set(['б', 'в', 'г', 'д', 'ж', 'з', 'к', 'л', 'м', 'н', 'п', 'р', 'с', 'т', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'й']);
+
+    function calculateGenderPoints(word) {
+        let pointsMale = 0;
+        let pointsFemale = 0;
+
+        // Check patronymics
+        if (word.endsWith('ович') || word.endsWith('евич') || word.endsWith('ич')) {
+            pointsMale += 5;
+        } else if (word.endsWith('овна') || word.endsWith('евна') || word.endsWith('ична')) {
+            pointsFemale += 5;
+        }
+        // Check surnames
+        else if (word.endsWith('ова') || word.endsWith('ева') || word.endsWith('ина') || word.endsWith('ая')) {
+            pointsFemale += 3;
+        } else if (word.endsWith('ов') || word.endsWith('ев') || word.endsWith('ин') || word.endsWith('ий') || word.endsWith('ый')) {
+            pointsMale += 3;
+        }
+        // Check first names
+        else if (MALE_FIRST_NAMES.has(word)) {
+            pointsMale += 4;
+        } else if (FEMALE_FIRST_NAMES.has(word)) {
+            pointsFemale += 4;
+        } else {
+            // Ending characters
+            const lastChar = word.slice(-1);
+            if (FEMALE_END_CHARS.has(lastChar)) {
+                pointsFemale += 1.5;
+            } else if (MALE_END_CHARS.has(lastChar)) {
+                pointsMale += 1.5;
+            }
+        }
+
+        return { pointsMale, pointsFemale };
+    }
+
     function detectGender(name) {
         const lowercaseName = name.toLowerCase();
         const words = lowercaseName.split(/\s+/).filter(w => w.length > 0);
         if (words.length === 0) return 'Не указан';
         
-        let pointsMale = 0;
-        let pointsFemale = 0;
-        
-        const maleFirstNames = ['никита', 'илья', 'данила', 'даниил', 'савва', 'миша', 'гриша', 'саша', 'петя', 'ваня', 'дима', 'леша', 'коля', 'юра', 'вова', 'толя', 'женя', 'сережа'];
-        const femaleFirstNames = ['маша', 'даша', 'лена', 'оля', 'света', 'наташа', 'катя', 'ира', 'таня', 'аня', 'юля', 'вера', 'надя', 'люба'];
+        let totalPointsMale = 0;
+        let totalPointsFemale = 0;
         
         for (const word of words) {
-            // Check patronymics
-            if (word.endsWith('ович') || word.endsWith('евич') || word.endsWith('ич')) {
-                pointsMale += 5;
-            } else if (word.endsWith('овна') || word.endsWith('евна') || word.endsWith('ична')) {
-                pointsFemale += 5;
-            }
-            
-            // Check surnames
-            else if (word.endsWith('ова') || word.endsWith('ева') || word.endsWith('ина') || word.endsWith('ая')) {
-                pointsFemale += 3;
-            } else if (word.endsWith('ов') || word.endsWith('ев') || word.endsWith('ин') || word.endsWith('ий') || word.endsWith('ый')) {
-                pointsMale += 3;
-            }
-            
-            // Check first names
-            else if (maleFirstNames.includes(word)) {
-                pointsMale += 4;
-            } else if (femaleFirstNames.includes(word)) {
-                pointsFemale += 4;
-            } else {
-                // Ending characters
-                const lastChar = word.slice(-1);
-                if (['а', 'я'].includes(lastChar)) {
-                    pointsFemale += 1.5;
-                } else if (['б', 'в', 'г', 'д', 'ж', 'з', 'к', 'л', 'м', 'н', 'п', 'р', 'с', 'т', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'й'].includes(lastChar)) {
-                    pointsMale += 1.5;
-                }
-            }
+            const { pointsMale, pointsFemale } = calculateGenderPoints(word);
+            totalPointsMale += pointsMale;
+            totalPointsFemale += pointsFemale;
         }
         
-        if (pointsMale > pointsFemale) return 'Мужской';
-        if (pointsFemale > pointsMale) return 'Женский';
+        if (totalPointsMale > totalPointsFemale) return 'Мужской';
+        if (totalPointsFemale > totalPointsMale) return 'Женский';
         return 'Не указан';
     }
 

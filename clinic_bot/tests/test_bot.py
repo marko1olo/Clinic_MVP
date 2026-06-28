@@ -2,10 +2,12 @@ import unittest
 import logging
 import sys
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock, patch
+import asyncio
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message
+from bot import on_mqtt_message, cmd_start
+from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
     def test_on_mqtt_message_exception_handling(self):
@@ -42,6 +44,50 @@ class TestBotMqtt(unittest.TestCase):
         # This should return cleanly
         on_mqtt_message(client, userdata, msg)
 
+
+class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db')
+    async def test_cmd_start_default_role(self, mock_db):
+        # Setup the mock database to return no role
+        mock_db.get_user_role.return_value = None
+
+        # Setup the mock message
+        message = AsyncMock(spec=Message)
+        message.chat = MagicMock(spec=Chat)
+        message.chat.id = 123
+        message.from_user = MagicMock(spec=User)
+        message.from_user.full_name = "Test User"
+        message.answer = AsyncMock()
+
+        # Call the command handler
+        await cmd_start(message)
+
+        # Check if the database was called to add the user
+        mock_db.add_user.assert_called_with(123, 'guest', "Test User")
+        message.answer.assert_called_once()
+        self.assertIn('guest', message.answer.call_args[0][0])
+
+    @patch('bot.db')
+    async def test_cmd_start_existing_role(self, mock_db):
+        # Setup the mock database to return a role
+        mock_db.get_user_role.return_value = 'doctor'
+
+        # Setup the mock message
+        message = AsyncMock(spec=Message)
+        message.chat = MagicMock(spec=Chat)
+        message.chat.id = 123
+        message.from_user = MagicMock(spec=User)
+        message.from_user.full_name = "Test User"
+        message.answer = AsyncMock()
+
+        # Call the command handler
+        await cmd_start(message)
+
+        # Check if the database was NOT called to add the user
+        mock_db.add_user.assert_not_called()
+        message.answer.assert_called_once()
+        self.assertIn('doctor', message.answer.call_args[0][0])
+
+
 if __name__ == '__main__':
     unittest.main()
-

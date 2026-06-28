@@ -55,12 +55,12 @@ import { useState } from "react";
 
 export function useDocumentLogic(props: any) {
   const { dashboard, setError, documentKindMetadata, documentAmountSource, activePatient } = props;
-  
+
   ${extraText}
   ${statesText}
-  
+
   ${fnsText}
-  
+
   return {
     // we would return all state variables here
   };

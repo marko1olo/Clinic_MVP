@@ -15,7 +15,7 @@ storeCode = newImport + storeCode;
 // Wait, the error is: Object literal may only specify known properties, and 'default' does not exist in type '{ staff: string | null; documents: string | null; billing: string | null; mainMenu: string | null; appointment: string | null; tax: string | null; care: string | null; review: string | null; }'
 // Let's find where 'default' is specified. It's emptyTelegramVisualCardUrlDrafts(), wait, in my dynamic generation, did I put 'default' somewhere else?
 // Ah! TelegramVisualCardUrlDrafts has keys like 'staff', 'documents', 'billing', 'mainMenu', etc.
-// But emptyTelegramVisualCardUrlDrafts returns { "default": "" } ? No, emptyTelegramVisualCardUrlDrafts() returns { ... }. 
+// But emptyTelegramVisualCardUrlDrafts returns { "default": "" } ? No, emptyTelegramVisualCardUrlDrafts() returns { ... }.
 // Let's see what line 38 is! It's telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts()!
 // Wait, no, emptyTelegramVisualCardUrlDrafts() was an object literal from my generator script?
 // Ah, my script `fix_settings_store_final.cjs` replaced `emptyTelegramVisualCardUrlDrafts,` with `emptyTelegramVisualCardUrlDrafts(),`

@@ -32,19 +32,19 @@ const destructureEnd = viewCode.indexOf('} = props;', destructureStart);
 
 if (destructureStart > -1 && destructureEnd > -1) {
   let propsBlock = viewCode.substring(destructureStart + 'const {'.length, destructureEnd);
-  
+
   // Split props by comma
   const propLines = propsBlock.split(',').map(s => s.trim()).filter(s => s);
-  
+
   // Keep props that are NOT in usedKeys
   const remainingProps = propLines.filter(p => !usedKeys.has(p));
-  
+
   // Props that we extracted
   const extractedProps = Array.from(usedKeys);
 
   const newPropsBlock = `const {\n    ${remainingProps.join(',\n    ')}\n  } = props;`;
   const newStoreBlock = `const {\n    ${extractedProps.join(',\n    ')}\n  } = useSettingsStore();`;
-  
+
   viewCode = viewCode.substring(0, destructureStart) + newPropsBlock + '\n  ' + newStoreBlock + viewCode.substring(destructureEnd + '} = props;'.length);
 }
 

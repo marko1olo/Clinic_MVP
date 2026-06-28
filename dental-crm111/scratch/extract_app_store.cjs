@@ -9,10 +9,10 @@ const matchesToRemove = [];
 
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw, type, initialValue] = match;
-  
+
   // Exclude some that are already extracted but maybe the script is catching them?
   // Wait, if they are in App.tsx, they are NOT extracted yet!
-  
+
   states.push({
     name: stateVar,
     setter: 'set' + setterRaw,

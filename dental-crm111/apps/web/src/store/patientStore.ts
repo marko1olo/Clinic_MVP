@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import { 
-  emptyPatientCoreDraft, 
-  emptyPatientAdministrativeProfileDraft, 
-  loadUiPreferences, 
-  defaultUiPreferences, 
+import {
+  emptyPatientCoreDraft,
+  emptyPatientAdministrativeProfileDraft,
+  loadUiPreferences,
+  defaultUiPreferences,
   type PatientCoreSaveState,
   type PatientAdministrativeProfileSaveState,
   type PatientCoreDraft,

@@ -15,10 +15,10 @@ for (const line of lines) {
     // Change ./ to ../
     modifiedLine = modifiedLine.replace(/from "\.\//g, 'from "../');
     modifiedLine = modifiedLine.replace(/from '\.\//g, 'from \'../');
-    
+
     // Also change ./store/documentStore to ./documentStore since we are inside store/
     modifiedLine = modifiedLine.replace(/from "\.\.\/store\//g, 'from "./');
-    
+
     importBlock.push(modifiedLine);
   }
   if (inImport && line.includes(';')) {
@@ -40,12 +40,12 @@ while ((match = regex.exec(code)) !== null) {
   const setter = match[2];
   let type = match[3] || 'any';
   const defaultValue = match[4].trim();
-  
+
   // Exclude some things we definitely can't put in store due to closures
   if (defaultValue.includes('dashboard?') || defaultValue.includes('activeOrganizationId')) {
     continue;
   }
-  
+
   stateVars.push({ name, setter, type, defaultValue });
 }
 

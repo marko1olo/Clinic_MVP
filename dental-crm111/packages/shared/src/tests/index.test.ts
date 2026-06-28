@@ -50,4 +50,3 @@ describe('Tax Deduction Certificate Years', () => {
     assert.ok(taxDeductionCertificateMinYear > legacyTaxDeductionCertificateMaxYear);
   });
 });
-

@@ -11,20 +11,20 @@ const premiumVars = `
   --muted: #6b7280;
   --line: rgba(15, 118, 110, 0.12);
   --line-strong: rgba(15, 118, 110, 0.25);
-  
+
   /* Vibrant Colors */
   --teal: #0d9488;
   --teal-dark: #115e59;
   --teal-soft: #ccfbf1;
   --teal-glow: rgba(13, 148, 136, 0.35);
   --teal-surface: rgba(204, 251, 241, 0.4);
-  
+
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 255, 255, 0.4);
   --glass-blur: blur(12px);
   --shadow-premium: 0 10px 40px -10px rgba(15, 118, 110, 0.15), 0 1px 3px rgba(15, 118, 110, 0.05);
-  
+
   /* Smooth transitions */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);

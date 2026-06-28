@@ -42,7 +42,7 @@ type ScheduleViewProps = {
   recommendedActionPriorityLabels: Record<ScheduleSuggestion["priority"], string>;
   resetNewAppointmentDraft: () => void;
   saveAppointmentSchedule: (appointmentId: string, options?: { closeEditorOnSave?: boolean }) => Promise<boolean>;
-  
+
   shiftWarnings: Dashboard["shiftIntelligence"]["scheduleWarnings"];
   sortedAppointments: Appointment[];
   staffRoleLabels: Record<StaffRole, string>;

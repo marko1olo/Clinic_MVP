@@ -14,17 +14,17 @@ const regex = /^\s*const \[\s*([a-zA-Z0-9_]+)\s*,\s*set([a-zA-Z0-9_]+)\s*\] = us
 let match;
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw, typeArg, initial] = match;
-  
+
   // Skip if it's not a document state or if it's a settings state that we didn't want
   // wait, payment might be for FinanceView. Are payment states for FinanceView or DocumentsView?
   // Let's check if DocumentsView uses payment states.
   // We'll extract ALL of these for now and fix them.
   const isTarget = prefixes.some(p => stateVar.startsWith(p));
-  
+
   if (isTarget) {
     let cleanInitial = initial.trim();
     if (cleanInitial.startsWith('() => ')) cleanInitial = cleanInitial.slice(6).trim();
-    
+
     // Type inference
     let typeStr = typeArg || 'any';
     if (typeStr === 'any') {
@@ -44,4 +44,3 @@ while ((match = regex.exec(appCode)) !== null) {
 
 console.log("Found " + states.length + " states.");
 states.forEach(s => console.log(s.name));
-

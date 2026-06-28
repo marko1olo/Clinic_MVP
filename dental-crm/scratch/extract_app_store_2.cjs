@@ -9,14 +9,14 @@ const matchesToRemove = [];
 
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw, type, initialValue] = match;
-  
+
   // If initial value starts with () => it is a lazy init.
   let cleanInitialValue = initialValue.trim();
   if (cleanInitialValue.startsWith('() =>')) {
      // Execute it!
      cleanInitialValue = `(${cleanInitialValue})()`;
   }
-  
+
   states.push({
     name: stateVar,
     setter: 'set' + setterRaw,

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+
 import requests
 
 output_dir = r'C:\Clinic_MVP\Sample_Images'

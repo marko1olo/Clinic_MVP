@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import type { 
-  DentalSpecialty, 
-  VisitNoteDraft, 
-  AcceptVisitDraftResponse, 
-  SpeechTranscriptionResponse 
+import type {
+  DentalSpecialty,
+  VisitNoteDraft,
+  AcceptVisitDraftResponse,
+  SpeechTranscriptionResponse
 } from "@dental/shared";
 import { emptyVisitNoteForm, type VisitNoteForm, loadUiPreferences, defaultUiPreferences } from "../AppHelpers";
 
@@ -100,7 +100,7 @@ export const useVisitStore = create<VisitStore>((set) => ({
   setToothState: (code, state) => set((prev) => ({ visitToothStateByCode: { ...prev.visitToothStateByCode, [code]: state } })),
   applyAiToothCodes: (detectedCodes, primaryState = "planned", detectedToothStates) => set((prev) => {
     const next = { ...prev.visitToothStateByCode };
-    
+
     // 1. If AI returned explicit states, apply them first
     if (detectedToothStates) {
       for (const [code, state] of Object.entries(detectedToothStates)) {
@@ -109,7 +109,7 @@ export const useVisitStore = create<VisitStore>((set) => ({
         }
       }
     }
-    
+
     // 2. Fallback to just lighting up codes with primaryState (from regex parse) if not explicitly mapped
     for (const code of detectedCodes) {
       if (!next[code] || next[code] === "idle") {

@@ -8,8 +8,8 @@ const startJSX = lines.findIndex(l => l.match(/^  return \(/));
 const localsBlock = lines.slice(idx, startJSX).filter(l => !l.includes('const {') && !l.includes('} = props;')).join('\n');
 
 const tabs = [
-  "SettingsClinicTab", "SettingsAccessTab", "SettingsTelegramTab", "SettingsProtocolsTab", 
-  "SettingsRulesTab", "SettingsPricesTab", "SettingsSourcesTab", "SettingsAiTab", 
+  "SettingsClinicTab", "SettingsAccessTab", "SettingsTelegramTab", "SettingsProtocolsTab",
+  "SettingsRulesTab", "SettingsPricesTab", "SettingsSourcesTab", "SettingsAiTab",
   "SettingsImportsTab", "SettingsAuditTab"
 ];
 

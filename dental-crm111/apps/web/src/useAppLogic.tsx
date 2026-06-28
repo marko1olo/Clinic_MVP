@@ -2370,11 +2370,11 @@ const {
 
 
 
-  
-  
-  
-  
-  
+
+
+
+
+
   const [dicomFirstFramePreviewRequest, setDicomFirstFramePreviewRequest] =
     useState<DicomFirstFramePreviewRequestContext | null>(null);
   const browserDirectoryInputRef = useRef<HTMLInputElement | null>(null);
@@ -2382,7 +2382,7 @@ const {
   const browserImagingScanAbortRef = useRef<AbortController | null>(null);
   const browserMigrationScanAbortRef = useRef<AbortController | null>(null);
   const localDicomOperationAbortRef = useRef<AbortController | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const speechAudioContextRef = useRef<AudioContext | null>(null);
@@ -7275,8 +7275,8 @@ const {
       // Auto-update tooth map from AI-detected tooth codes
       if (result.quality?.detectedToothCodes?.length || result.quality?.detectedToothStates) {
         applyAiToothCodes(
-          result.quality?.detectedToothCodes || [], 
-          "planned", 
+          result.quality?.detectedToothCodes || [],
+          "planned",
           result.quality?.detectedToothStates as any
         );
       }

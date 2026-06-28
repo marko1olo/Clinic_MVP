@@ -13,9 +13,9 @@ const matchesToRemove = [];
 
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw] = match;
-  
+
   const isTarget = prefixes.some(p => stateVar.startsWith(p));
-  
+
   if (isTarget) {
     states.push({ name: stateVar, setter: 'set' + setterRaw });
     matchesToRemove.push(match[0]);

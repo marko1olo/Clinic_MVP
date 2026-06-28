@@ -41,7 +41,7 @@ for (let line of storeLines) {
         fixedLine = fixedLine.replace(/viewFromHash\(\)/g, 'null');
         fixedLine = fixedLine.replace(/settingsTabFromHash\(\)/g, 'null');
         fixedLine = fixedLine.replace(/loadPendingSpeechChunksFromLocalStorage\([^)]+\)/g, '[]');
-        
+
         newLines.push(fixedLine);
     }
 }

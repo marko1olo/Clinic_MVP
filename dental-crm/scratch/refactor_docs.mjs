@@ -20,7 +20,7 @@ if (!payloadFn || !validateFn) {
 function getDependencies(fn) {
   const deps = new Set();
   const declarations = new Set();
-  
+
   // Exclude local declarations
   fn.getVariableDeclarations().forEach(v => declarations.add(v.getName()));
   fn.getParameters().forEach(p => declarations.add(p.getName()));

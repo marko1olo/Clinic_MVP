@@ -54,7 +54,7 @@ const storeKeysToExtract = [];
 for (let line of destructureLines) {
   const cleanLine = line.trim().replace(/,$/, '');
   if (cleanLine === 'const {' || cleanLine === '} = props;') continue;
-  
+
   // It's a variable name
   if (keySet.has(cleanLine)) {
     storeKeysToExtract.push(cleanLine);

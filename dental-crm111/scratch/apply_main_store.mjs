@@ -13,13 +13,13 @@ while ((match = regex.exec(code)) !== null) {
   const name = match[1];
   const setter = match[2];
   const defaultValue = match[4].trim();
-  
+
   if (defaultValue.includes('dashboard?') || defaultValue.includes('activeOrganizationId')) {
     continue;
   }
-  
+
   varsToExtract.push(name, setter);
-  
+
   // Replace the useState declaration with an empty string
   modifiedCode = modifiedCode.replace(fullMatch + '\n', '');
   // Also try replacing it without a newline just in case

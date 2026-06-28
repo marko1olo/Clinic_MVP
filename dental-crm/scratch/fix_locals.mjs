@@ -25,8 +25,8 @@ for (let i = idx; i < mainReturnIdx; i++) {
 const correctLocalsBlock = lines.slice(destructEndIdx + 1, mainReturnIdx).join('\n');
 
 const tabs = [
-  "SettingsClinicTab", "SettingsAccessTab", "SettingsTelegramTab", "SettingsProtocolsTab", 
-  "SettingsRulesTab", "SettingsPricesTab", "SettingsSourcesTab", "SettingsAiTab", 
+  "SettingsClinicTab", "SettingsAccessTab", "SettingsTelegramTab", "SettingsProtocolsTab",
+  "SettingsRulesTab", "SettingsPricesTab", "SettingsSourcesTab", "SettingsAiTab",
   "SettingsImportsTab", "SettingsAuditTab"
 ];
 
@@ -34,11 +34,11 @@ for (const tab of tabs) {
   const filePath = `C:/Clinic_MVP/dental-crm/apps/web/src/settings/${tab}.tsx`;
   if (fs.existsSync(filePath)) {
     let content = fs.readFileSync(filePath, 'utf8');
-    
+
     // Find the end of the destructuring block in the tab
     const destructEndTabIdx = content.indexOf('  } = props;\n');
     const returnTabIdx = content.lastIndexOf('  return (\n');
-    
+
     if (destructEndTabIdx !== -1 && returnTabIdx !== -1) {
       const newContent = content.substring(0, destructEndTabIdx + 13) + '\n' + correctLocalsBlock + '\n' + content.substring(returnTabIdx);
       fs.writeFileSync(filePath, newContent);

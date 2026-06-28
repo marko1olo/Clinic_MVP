@@ -12,7 +12,7 @@ try {
     Write-Host "=============================================" -ForegroundColor Cyan
 
     $SharePath = "C:\Clinic_MVP\Dropzone_XRay"
-    
+
     if (-Not (Test-Path $SharePath)) {
         New-Item -Path $SharePath -ItemType Directory -Force | Out-Null
         Write-Host "Directory created: $SharePath" -ForegroundColor Green
@@ -25,7 +25,7 @@ try {
     foreach ($rule in $rules) {
         netsh advfirewall firewall set rule group="$rule" new enable=Yes 2>$null | Out-Null
     }
-    
+
     Write-Host "Creating SMB Share..." -ForegroundColor Cyan
     $existing = Get-SmbShare -Name "Dropzone_XRay" -ErrorAction SilentlyContinue
     if (-not $existing) {

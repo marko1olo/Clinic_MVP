@@ -1,8 +1,12 @@
-import unittest
-import sqlite3
+from __future__ import annotations
+
 import os
+import sqlite3
 import tempfile
+import unittest
+
 import clinic_admin.database
+
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -44,15 +48,17 @@ class TestDatabase(unittest.TestCase):
         c = conn.cursor()
 
         # Check if patients table exists
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='patients'")
+        c.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='patients'")
         self.assertIsNotNone(c.fetchone())
 
         # Check if appointments table exists
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='appointments'")
+        c.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='appointments'")
         self.assertIsNotNone(c.fetchone())
 
         # Check patients table schema
-        c.execute("PRAGMA table_info(patients)")
+        c.execute('PRAGMA table_info(patients)')
         columns = [row['name'] for row in c.fetchall()]
         self.assertIn('id', columns)
         self.assertIn('name', columns)
@@ -62,7 +68,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         # Check appointments table schema
-        c.execute("PRAGMA table_info(appointments)")
+        c.execute('PRAGMA table_info(appointments)')
         columns = [row['name'] for row in c.fetchall()]
         self.assertIn('id', columns)
         self.assertIn('patient_id', columns)
@@ -72,6 +78,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()

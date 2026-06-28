@@ -385,7 +385,7 @@ export function DocumentsView(props: DocumentsViewProps) {
     setIsDocumentIngesting,
   } = useDocumentStore();
   const {
-    
+
   } = useDocumentStore();
   const {
     anesthesiaAllergyRestrictionsChecked,

@@ -20,4 +20,3 @@ appCode = appCode.replace(/setScheduleVisibleDate\(\(current\) =>/g, 'setSchedul
 
 fs.writeFileSync(path.join(__dirname, '..', 'apps', 'web', 'src', 'App.tsx'), appCode);
 console.log('Fixed App.tsx implicit any errors');
-

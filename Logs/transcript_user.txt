@@ -100,56 +100,56 @@ The current local time is: 2026-06-19T22:59:30+04:00.
 </ADDITIONAL_METADATA>
 ---
 <USER_REQUEST>
-у нас есть вайргард и есть сервак.   |  
-EN
-a207997barsukdana@gmail.com
-Balance:
-9.4218 $
-Bonus balance:
-0.00 $
-Shutdown forecast:
-31.10.2026 
- v604003.hosted-by-vdsina.com
-
-62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
-Amsterdam 3, Netherlands
-Virtual console
-Connection to the server directly in the browser.
-
-Server access
-Username:
-root
-Password:
-W15n8zf781%nV25BGZ+2
-This shows the initial password after creating or reinstalling the server.
-When changing the root password in Unix/Linux, save it in a safe place, the password will not be saved in the control panel!
-When the password is changed, an automatic reboot will be performed.
-Changing Windows password via Control Panel is not supported! .  |  
-EN
-a207997barsukdana@gmail.com
-Balance:
-9.4218 $
-Bonus balance:
-0.00 $
-Shutdown forecast:
-31.10.2026 
- v604003.hosted-by-vdsina.com
-
-62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
-Amsterdam 3, Netherlands
-After the server is deleted, its IP addresses will remain with the client. The address reservation cost will be 0.08 $ / day / 1 pcs. Payment will begin to be deducted only after the server is deleted.
-IPv4
-Available for ordering IPv4-addresses: 2 pcs.
-IPv4 cost: 0.08 $ / day
-62.84.100.97
-v604003.hosted-by-vdsina.com
-62.84.100.1
-255.255.255.0
-IPv6
-Available for ordering IPv6-addresses: 2 pcs.
-IPv6 cost: 0.0004 $ / day
-
-There's nothing here
+у нас есть вайргард и есть сервак.   |
+EN
+a207997barsukdana@gmail.com
+Balance:
+9.4218 $
+Bonus balance:
+0.00 $
+Shutdown forecast:
+31.10.2026
+ v604003.hosted-by-vdsina.com
+
+62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
+Amsterdam 3, Netherlands
+Virtual console
+Connection to the server directly in the browser.
+
+Server access
+Username:
+root
+Password:
+W15n8zf781%nV25BGZ+2
+This shows the initial password after creating or reinstalling the server.
+When changing the root password in Unix/Linux, save it in a safe place, the password will not be saved in the control panel!
+When the password is changed, an automatic reboot will be performed.
+Changing Windows password via Control Panel is not supported! .  |
+EN
+a207997barsukdana@gmail.com
+Balance:
+9.4218 $
+Bonus balance:
+0.00 $
+Shutdown forecast:
+31.10.2026
+ v604003.hosted-by-vdsina.com
+
+62.84.100.97 Active  Ubuntu 22.04 CPU: 1 core   RAM: 1 Gb   Storage: 10 Gb   Traffic: 1 Tb
+Amsterdam 3, Netherlands
+After the server is deleted, its IP addresses will remain with the client. The address reservation cost will be 0.08 $ / day / 1 pcs. Payment will begin to be deducted only after the server is deleted.
+IPv4
+Available for ordering IPv4-addresses: 2 pcs.
+IPv4 cost: 0.08 $ / day
+62.84.100.97
+v604003.hosted-by-vdsina.com
+62.84.100.1
+255.255.255.0
+IPv6
+Available for ordering IPv6-addresses: 2 pcs.
+IPv6 cost: 0.0004 $ / day
+
+There's nothing here
 
 
 
@@ -167,8 +167,8 @@ The current local time is: 2026-06-19T23:05:58+04:00.
 </ADDITIONAL_METADATA>
 ---
 <USER_REQUEST>
-[6/19/2026 23:12] SaluteSpeech Bot: Смотри, мне уже нравится, что начинает вырисовываться пиздатая идея с теневым анализом изображений. Опять же, не надо мне твою хуйню. Я сам знаю, чем мы будем пользоваться. Чуть позже. Я тебе дам примерное тз, и мы будем с этим работать. Что по серверу этот сервер типа является Ну, моим тоннелем через него сайт стоял, так сказать, надо сайт, кстати, поднять. Его, блять, нужно будет использовать. Это будет проще, чем покупные випиэны с их ключами юзать для клиники. У меня уже есть 15 конфигов, из них есть, ну, 5 свободных, как нехуй и лимит. Я уверен, они особо жрать не будут по интернет соединению, по трафику. Сам сервак не будет особо сжираться. Вот давай, блять, думать по в этом направлении, как конкретно вот этот микросервер с десятью гигабайт памяти, 1 ядром и 1 гигом оперативки мы можем встроить в нашу систему, чтобы он облегчил жизнь. Прямо сейчас, нахуй, чтобы это автоматически все поднималось при старте, чтобы помогало серфить в интернете, чтобы помогало компы связывать компы, чтобы они были связаны и локально через вай Фай роутер, и хорошо были локально связаны, и онлайн поллингу аниие этого сервака было Что мы можем впихнуть вот в эту хуйню? Что остаётся? Давай вот над этим подумаем. Идея пиздатая. Естественно на нём ничего тяжёлого вообще нахуй не должно быть распознавание кстати вот тех же картинок это будет полностью на стороннем провайдере по api осуществляться и все в таком духе вот думаем агент охуенная тема, нужно блять дальше их применять везде.
-[6/19/2026 23:14] SaluteSpeech Bot: А то ты, пидорас, бросился впереди паровоза, блять, мне только нахуй мешаешь.
+[6/19/2026 23:12] SaluteSpeech Bot: Смотри, мне уже нравится, что начинает вырисовываться пиздатая идея с теневым анализом изображений. Опять же, не надо мне твою хуйню. Я сам знаю, чем мы будем пользоваться. Чуть позже. Я тебе дам примерное тз, и мы будем с этим работать. Что по серверу этот сервер типа является Ну, моим тоннелем через него сайт стоял, так сказать, надо сайт, кстати, поднять. Его, блять, нужно будет использовать. Это будет проще, чем покупные випиэны с их ключами юзать для клиники. У меня уже есть 15 конфигов, из них есть, ну, 5 свободных, как нехуй и лимит. Я уверен, они особо жрать не будут по интернет соединению, по трафику. Сам сервак не будет особо сжираться. Вот давай, блять, думать по в этом направлении, как конкретно вот этот микросервер с десятью гигабайт памяти, 1 ядром и 1 гигом оперативки мы можем встроить в нашу систему, чтобы он облегчил жизнь. Прямо сейчас, нахуй, чтобы это автоматически все поднималось при старте, чтобы помогало серфить в интернете, чтобы помогало компы связывать компы, чтобы они были связаны и локально через вай Фай роутер, и хорошо были локально связаны, и онлайн поллингу аниие этого сервака было Что мы можем впихнуть вот в эту хуйню? Что остаётся? Давай вот над этим подумаем. Идея пиздатая. Естественно на нём ничего тяжёлого вообще нахуй не должно быть распознавание кстати вот тех же картинок это будет полностью на стороннем провайдере по api осуществляться и все в таком духе вот думаем агент охуенная тема, нужно блять дальше их применять везде.
+[6/19/2026 23:14] SaluteSpeech Bot: А то ты, пидорас, бросился впереди паровоза, блять, мне только нахуй мешаешь.
 [6/19/2026 23:15] SaluteSpeech Bot: Поэтому сейчас сидим и думаем, блядь, вживись нахуй в роль, ну, как бы несколько ролей у себя в голове. Представляй, что программист, это понятно, блять, тебя так учили. Представь, что ты, блять, врач, обычный стоматолог нахуй, блять, и пожилой, блять, даже, возможно, или молодой, и тебе в клинику какую-то хуйню новую непонятную поставили, но она прикольная и полезная. Как её сделать самой пиздатой и удобной. Чтобы люди кайфовали и реально пользовались, а не хуй забили.
 </USER_REQUEST>
 <ADDITIONAL_METADATA>

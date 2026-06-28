@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import sqlite3
 from datetime import datetime
 
-DB_FILE = "clinic.db"
+DB_FILE = 'clinic.db'
+
 
 def get_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def init_db():
     conn = get_connection()
     c = conn.cursor()
-    
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +26,7 @@ def init_db():
             created_at TEXT
         )
     ''')
-    
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS appointments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,10 +38,11 @@ def init_db():
             FOREIGN KEY (patient_id) REFERENCES patients(id)
         )
     ''')
-    
+
     conn.commit()
     conn.close()
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     init_db()
-    print("Database initialized.")
+    print('Database initialized.')

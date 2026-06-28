@@ -35,4 +35,3 @@ appCode = appCode.replace(/new Map\(\)/g, 'new Map<any, any>()');
 
 fs.writeFileSync(appPath, appCode);
 console.log('Fixed implicit anys in App.tsx');
-

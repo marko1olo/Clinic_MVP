@@ -921,7 +921,7 @@ import {
 } from "./AppHelpers";
 
 export function App() {
-  
+
   const {
     acceptDraftToVisit,
     activeAppointment,
@@ -1856,7 +1856,7 @@ export function App() {
     workspaceScopeLabels,
     xrayPregnancyStatusOptions,
     xrayStudyTypeOptions,
-  
+
   accessUnlockRequired,
   accessUnlockMessage,
   clinicalAdminSecretDraft,
@@ -3240,7 +3240,7 @@ export function App() {
                 recommendedActionPriorityLabels={recommendedActionPriorityLabels}
                 resetNewAppointmentDraft={resetNewAppointmentDraft}
                 saveAppointmentSchedule={saveAppointmentSchedule}
-                
+
                 shiftWarnings={shiftWarnings}
                 sortedAppointments={sortedAppointments}
                 staffRoleLabels={staffRoleLabels}
@@ -4081,28 +4081,28 @@ export function App() {
               setTelegramAdminSecretDraft={
                 settingsAdminSecretDomain === "telegram" ? setTelegramAdminSecretDraft : setSettingsAdminSecretDraft
               }
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               settingsTab={settingsTab}
               settingsTabs={settingsTabs}
               setUiLanguage={setUiLanguage}

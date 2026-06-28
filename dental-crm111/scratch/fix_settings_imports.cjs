@@ -2,9 +2,9 @@ const fs = require('fs');
 let storeCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/settingsStore.ts', 'utf8');
 
 const importsToAdd = `
-import { 
-  DenteTelegramHandoffTarget, 
-  DenteTelegramBotStatus, 
+import {
+  DenteTelegramHandoffTarget,
+  DenteTelegramBotStatus,
   TelegramFeaturePlan,
   DenteTelegramOutboxResponse,
   TelegramOutboxStatusFilter,

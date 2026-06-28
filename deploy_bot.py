@@ -1,43 +1,49 @@
+from __future__ import annotations
+
 import os
-import paramiko
 import sys
-from utils import ssh, scp_file
+
+import paramiko
+
+from utils import scp_file
+from utils import ssh
 
 host = os.environ.get('VPS_HOST', '62.84.100.97')
 user = os.environ.get('VPS_USER', 'root')
 password = os.environ.get('VPS_PASSWORD')
 if not password:
-    sys.exit("ERROR: VPS_PASSWORD environment variable is not set.")
-
+    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
 
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+sys.stdout.buffer.write(b'Connected.\n')
 
 # 1. Create remote app dir
-ssh(client, "mkdir -p /opt/clinic_bot/config", "Create bot dir")
+ssh(client, 'mkdir -p /opt/clinic_bot/config', 'Create bot dir')
 
 # 2. Upload files via SFTP
 for local, remote in [
-    (r"C:\Clinic_MVP\clinic_bot\bot.py",              "/opt/clinic_bot/bot.py"),
-    (r"C:\Clinic_MVP\clinic_bot\db.py",               "/opt/clinic_bot/db.py"),
-    (r"C:\Clinic_MVP\clinic_bot\requirements.txt",    "/opt/clinic_bot/requirements.txt"),
-    (r"C:\Clinic_MVP\clinic_bot\Dockerfile",          "/opt/clinic_bot/Dockerfile"),
-    (r"C:\Clinic_MVP\clinic_bot\config\settings.py",  "/opt/clinic_bot/config/settings.py"),
+    (r'C:\Clinic_MVP\clinic_bot\bot.py',              '/opt/clinic_bot/bot.py'),
+    (r'C:\Clinic_MVP\clinic_bot\db.py',               '/opt/clinic_bot/db.py'),
+    (r'C:\Clinic_MVP\clinic_bot\requirements.txt',
+     '/opt/clinic_bot/requirements.txt'),
+    (r'C:\Clinic_MVP\clinic_bot\Dockerfile',          '/opt/clinic_bot/Dockerfile'),
+    (r'C:\Clinic_MVP\clinic_bot\config\settings.py',
+     '/opt/clinic_bot/config/settings.py'),
 ]:
     scp_file(client, local, remote)
 
 # 3. Create __init__.py for config package
-ssh(client, "touch /opt/clinic_bot/config/__init__.py", "Create config __init__.py")
+ssh(client, 'touch /opt/clinic_bot/config/__init__.py', 'Create config __init__.py')
 
 # 4. Set MQTT env vars in the production docker-compose environment section
 # settings.py now reads from env vars, no sed patching needed
-ssh(client, "echo 'MQTT_HOST set via docker environment block'", "MQTT host via env")
+ssh(client, "echo 'MQTT_HOST set via docker environment block'", 'MQTT host via env')
 
 # 5. Add bot service to docker-compose
-ssh(client, "cat /opt/clinic_infra/docker-compose.yml", "Current docker-compose")
+ssh(client, 'cat /opt/clinic_infra/docker-compose.yml', 'Current docker-compose')
 
 bot_service = """
   clinic_bot:
@@ -50,17 +56,23 @@ bot_service = """
     environment:
       - PYTHONUNBUFFERED=1
 """
-ssh(client,
+ssh(
+    client,
     f"grep -q 'clinic_bot' /opt/clinic_infra/docker-compose.yml || "
     f"printf '{bot_service}' >> /opt/clinic_infra/docker-compose.yml",
-    "Add bot service to docker-compose")
+    'Add bot service to docker-compose',
+)
 
 # 6. Build and start
-ssh(client, "cd /opt/clinic_infra && docker-compose build clinic_bot 2>&1 | tail -8", "Build bot image", timeout=180)
-ssh(client, "docker rm -f clinic_bot", "Remove old bot container to avoid ContainerConfig error")
-ssh(client, "cd /opt/clinic_infra && docker-compose up -d clinic_bot 2>&1", "Start clinic_bot container")
-ssh(client, "sleep 4 && docker ps --format 'table {{.Names}}\\t{{.Status}}'", "All containers")
-ssh(client, "docker logs clinic_bot 2>&1 | tail -10", "Bot logs")
+ssh(client, 'cd /opt/clinic_infra && docker-compose build clinic_bot 2>&1 | tail -8',
+    'Build bot image', timeout=180)
+ssh(client, 'docker rm -f clinic_bot',
+    'Remove old bot container to avoid ContainerConfig error')
+ssh(client, 'cd /opt/clinic_infra && docker-compose up -d clinic_bot 2>&1',
+    'Start clinic_bot container')
+ssh(client,
+    "sleep 4 && docker ps --format 'table {{.Names}}\\t{{.Status}}'", 'All containers')
+ssh(client, 'docker logs clinic_bot 2>&1 | tail -10', 'Bot logs')
 
 client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+sys.stdout.buffer.write(b'\nDone.\n')

@@ -2,10 +2,10 @@
 window.showToast = function(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     let iconSvg = '';
     if (type === 'success') {
         iconSvg = '<svg viewBox="0 0 24 24" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
@@ -20,24 +20,24 @@ window.showToast = function(message, type = 'info') {
         <div class="toast-content">${message}</div>
         <button class="toast-close">&times;</button>
     `;
-    
+
     container.appendChild(toast);
-    
+
     // Trigger reflow for transition
     toast.offsetHeight;
     toast.classList.add('show');
-    
+
     // Auto remove after 4 seconds
     const timeout = setTimeout(() => {
         closeToast();
     }, 4000);
-    
+
     const closeBtn = toast.querySelector('.toast-close');
     closeBtn.addEventListener('click', () => {
         clearTimeout(timeout);
         closeToast();
     });
-    
+
     function closeToast() {
         toast.classList.remove('show');
         setTimeout(() => {
@@ -82,13 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleAutoAnalyze = document.getElementById('toggle-auto-analyze');
     const toggleAutoSpeak = document.getElementById('toggle-auto-speak');
     const toggleAutoEnhance = document.getElementById('toggle-auto-enhance');
-    
+
     const btnSettings = document.getElementById('btn-settings');
     const btnAnalyze = document.getElementById('btn-analyze');
     const btnReanalyze = document.getElementById('btn-reanalyze');
     const btnSpeak = document.getElementById('btn-speak');
     const btnPrint = document.getElementById('btn-print');
-    
+
     // Modal Elements
     const settingsModal = document.getElementById('settings-modal');
     const btnCloseSettings = document.getElementById('btn-close-settings');
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputWatchDir = document.getElementById('input-watch-dir');
     const selectTheme = document.getElementById('select-theme');
     const selectVoice = document.getElementById('select-voice');
-    
+
     // ElevenLabs elements
     const selectTtsProvider = document.getElementById('select-tts-provider');
     const inputElevenlabsKeys = document.getElementById('input-elevenlabs-keys');
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const patientAge = document.getElementById('patient-age');
     const patientGender = document.getElementById('patient-gender');
     const btnSaveHistory = document.getElementById('btn-save-history');
-    
+
     const btnOpenHistory = document.getElementById('btn-open-history');
     const btnCloseHistory = document.getElementById('btn-close-history');
     const historyDrawer = document.getElementById('history-drawer');
@@ -164,10 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isResizing) return;
         const containerWidth = document.querySelector('.app-container').clientWidth;
         let percentage = (e.clientX / containerWidth) * 100;
-        
+
         // Limits: 20% min, 80% max
         percentage = Math.max(20, Math.min(percentage, 80));
-        
+
         viewerPanel.style.flex = `0 0 ${percentage}%`;
         reportPanel.style.flex = `0 0 ${99 - percentage}%`;
     });
@@ -206,21 +206,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/status');
             const data = await res.json();
-            
+
             inputWatchDir.value = data.watch_dir || '';
             selectTheme.value = data.theme || 'theme-noir';
             if (selectVoice) selectVoice.value = data.tts_voice || 'ru-RU-DmitryNeural';
             if (toggleSliderOption) toggleSliderOption.checked = data.comparison_slider !== false;
             if (toggleAutorun) toggleAutorun.checked = data.autorun === true;
-            
+
             if (selectTtsProvider) selectTtsProvider.value = data.tts_provider || 'edge';
-            
+
             // Populate ElevenLabs keys textarea
             if (inputElevenlabsKeys) {
                 const keysList = data.elevenlabs_api_keys || (data.elevenlabs_api_key ? [data.elevenlabs_api_key] : []);
                 inputElevenlabsKeys.value = keysList.join('\n');
             }
-            
+
             // Populate ElevenLabs voice selector
             if (selectElevenlabsVoice) {
                 const currentVoice = data.elevenlabs_voice_id || 'pNInz6obpgq54HWK483c';
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-            
+
             updateTtsProviderFields();
 
             if (inputGeminiKeys) {
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (inputGroqKeys) {
                 inputGroqKeys.value = (data.groq_api_keys || []).join('\n');
             }
-            
+
             const modelTierInput = document.getElementById('range-model-tier');
             if (modelTierInput) {
                 const tier = data.model_tier !== undefined ? data.model_tier : 2;
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const googleKeys = inputGeminiKeys ? inputGeminiKeys.value.split('\n').map(k => k.trim()).filter(k => k.length > 0) : [];
         const groqKeys = inputGroqKeys ? inputGroqKeys.value.split('\n').map(k => k.trim()).filter(k => k.length > 0) : [];
         const elevenKeys = inputElevenlabsKeys ? inputElevenlabsKeys.value.split('\n').map(k => k.trim()).filter(k => k.length > 0) : [];
-        
+
         let voiceId = 'pNInz6obpgq54HWK483c';
         if (selectElevenlabsVoice) {
             if (selectElevenlabsVoice.value === 'custom') {
@@ -487,23 +487,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Slider dragging logic
     let isDraggingSlider = false;
-    
+
     const handleSliderMove = (clientX) => {
         const rect = comparisonContainer.getBoundingClientRect();
         let posX = clientX - rect.left;
         let percentage = (posX / rect.width) * 100;
         percentage = Math.max(0, Math.min(percentage, 100));
-        
+
         sliderHandle.style.left = `${percentage}%`;
         xrayImageEnhanced.style.clipPath = `inset(0 0 0 ${percentage}%)`;
     };
-    
+
     sliderHandle.addEventListener('mousedown', (e) => {
         isDraggingSlider = true;
         e.stopPropagation();
         e.preventDefault();
     });
-    
+
     sliderHandle.addEventListener('touchstart', (e) => {
         isDraggingSlider = true;
         e.stopPropagation();
@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- AUTO ENHANCE TOGGLE ---
     toggleAutoEnhance.addEventListener('change', async () => {
         const enhanceMode = toggleAutoEnhance.checked;
-        
+
         // Save settings to backend
         try {
             await fetch('/api/settings', {
@@ -581,14 +581,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentImage = data.url;
                     const cleanUrl = currentImage.split('?')[0];
                     const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
-                    
+
                     if (showSlider) {
                         imgElement.style.display = 'none';
                         comparisonContainer.style.display = 'flex';
-                        
+
                         let originalUrl = cleanUrl;
                         let enhancedUrl = cleanUrl;
-                        
+
                         if (cleanUrl.includes('_enhanced')) {
                             originalUrl = cleanUrl.replace('_enhanced', '');
                         } else {
@@ -601,11 +601,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 enhancedUrl = cleanUrl + '_enhanced';
                             }
                         }
-                        
+
                         const timestamp = new Date().getTime();
                         xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
                         xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
-                        
+
                         if (!sliderHandle.style.left) {
                             sliderHandle.style.left = '50%';
                             xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
@@ -667,10 +667,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (showSlider) {
             imgElement.style.display = 'none';
             comparisonContainer.style.display = 'flex';
-            
+
             let originalUrl = cleanUrl;
             let enhancedUrl = cleanUrl;
-            
+
             if (cleanUrl.includes('_enhanced')) {
                 originalUrl = cleanUrl.replace('_enhanced', '');
             } else {
@@ -683,11 +683,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     enhancedUrl = cleanUrl + '_enhanced';
                 }
             }
-            
+
             const timestamp = new Date().getTime();
             xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
             xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
-            
+
             // Default 50% split on load
             sliderHandle.style.left = '50%';
             xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
@@ -709,14 +709,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reportText && reportText.trim() !== "") {
             statusBadge.textContent = "Analysis Complete";
             statusBadge.classList.add('active');
-            
+
             fullReportText.innerHTML = marked.parse(reportText);
-            
+
             btnSpeak.style.display = 'flex';
             btnAnalyze.style.display = 'none';
             if (btnReanalyze) btnReanalyze.style.display = 'block';
             if (btnPrint) btnPrint.style.display = 'block';
-            
+
             // Speak if text changed and auto speak is on
             if (reportText !== lastReportText) {
                 lastReportText = reportText;
@@ -727,14 +727,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             statusBadge.textContent = "Image Loaded";
             statusBadge.classList.remove('active');
-            
+
             fullReportText.innerHTML = '<div class="empty-state"><p>Снимок загружен. Нажмите "Анализировать снимок" для запуска ИИ.</p></div>';
-            
+
             btnSpeak.style.display = 'none';
             btnAnalyze.style.display = 'block';
             if (btnReanalyze) btnReanalyze.style.display = 'none';
             if (btnPrint) btnPrint.style.display = 'none';
-            
+
             stopSpeaking();
             lastReportText = "";
         }
@@ -802,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const speakText = (summaryText, reportText) => {
         stopSpeaking();
-        
+
         isSpeaking = true;
         btnSpeak.classList.add('active');
         btnSpeak.title = "Остановить озвучку";
@@ -813,14 +813,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const tryOnlineTTS = (summary, report) => {
         const cleanSummary = summary ? summary.replace(/[*#_`~-]/g, '').replace(/\[.*?\]\(.*?\)/g, '').replace(/:\s*/g, '. ').trim() : "";
         const cleanReport = report ? report.replace(/[*#_`~-]/g, '').replace(/\[.*?\]\(.*?\)/g, '').replace(/:\s*/g, '. ').trim() : "";
-        
+
         if (!cleanSummary && !cleanReport) {
             stopSpeaking();
             return;
         }
 
         audioQueue = [];
-        
+
         // 1. Summary voiced with ElevenLabs (if selected as provider)
         if (cleanSummary) {
             const provider = (selectTtsProvider && selectTtsProvider.value === 'elevenlabs') ? 'elevenlabs' : 'edge';
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioQueue.push(new Audio(url));
             });
         }
-        
+
         // 2. Report voiced with Edge TTS (always 'edge')
         if (cleanReport) {
             const reportChunks = splitTextIntoSpeakableChunks(cleanReport, 180);
@@ -839,24 +839,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioQueue.push(new Audio(url));
             });
         }
-        
+
         if (audioQueue.length === 0) {
             fallbackToLocalTTS(cleanSummary + " " + cleanReport);
             return;
         }
-        
+
         queueIndex = 0;
         playNextChunk(cleanSummary + " " + cleanReport);
     };
 
     const playNextChunk = (fullText) => {
         if (!isSpeaking) return;
-        
+
         if (queueIndex >= audioQueue.length) {
             stopSpeaking();
             return;
         }
-        
+
         currentAudio = audioQueue[queueIndex];
         currentAudio.play().then(() => {
             currentAudio.onended = () => {
@@ -874,24 +874,24 @@ document.addEventListener('DOMContentLoaded', () => {
             stopSpeaking();
             return;
         }
-        
+
         const speechUtterance = new SpeechSynthesisUtterance(text);
         speechUtterance.lang = 'ru-RU';
         speechUtterance.rate = 1.0;
-        
+
         const voices = window.speechSynthesis.getVoices();
         const ruVoice = voices.find(v => v.lang.includes('ru') || v.lang.includes('RU'));
         if (ruVoice) {
             speechUtterance.voice = ruVoice;
         }
-        
+
         speechUtterance.onend = () => {
             stopSpeaking();
         };
         speechUtterance.onerror = () => {
             stopSpeaking();
         };
-        
+
         window.speechSynthesis.speak(speechUtterance);
     };
 
@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let sentences = text.match(regex) || [text];
         let chunks = [];
         let currentChunk = "";
-        
+
         for (let sentence of sentences) {
             sentence = sentence.trim();
             if ((currentChunk + " " + sentence).length > maxLength) {
@@ -915,7 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentChunk) {
             chunks.push(currentChunk.trim());
         }
-        
+
         let finalChunks = [];
         for (let chunk of chunks) {
             if (chunk.length > maxLength) {
@@ -935,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalChunks.push(chunk);
             }
         }
-        
+
         return finalChunks.filter(c => c.length > 0);
     };
 
@@ -947,13 +947,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentImage = "";
     let currentReport = "";
     let currentSummary = "";
-    
+
     // Load initial settings and theme at start
     const loadInitialState = async () => {
         try {
             const res = await fetch('/api/status');
             const data = await res.json();
-            
+
             toggleAutoAnalyze.checked = data.auto_analyze;
             toggleAutoEnhance.checked = data.auto_enhance;
             if (toggleSliderOption) {
@@ -962,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toggleAutorun) {
                 toggleAutorun.checked = data.autorun === true;
             }
-            
+
             // Set initial theme
             document.body.className = data.theme || 'theme-noir';
         } catch(e) {
@@ -972,24 +972,24 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInitialState();
 
     const incomingTray = document.getElementById('incoming-tray');
-    
+
     const renderIncomingTray = (scans) => {
         if (!incomingTray) return;
         if (!scans || scans.length === 0) {
             incomingTray.classList.remove('active');
             return;
         }
-        
+
         incomingTray.classList.add('active');
         incomingTray.innerHTML = '';
-        
+
         scans.forEach(scan => {
             const thumb = document.createElement('div');
             thumb.className = 'incoming-thumb';
             // Use original image for thumbnail
             const thumbUrl = scan.image.replace('_enhanced', '');
             thumb.style.backgroundImage = `url('${thumbUrl}?t=${scan.timestamp}')`;
-            
+
             if (currentImage && scan.image === currentImage) {
                 thumb.classList.add('active-scan');
             } else {
@@ -997,16 +997,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 badge.className = 'incoming-badge';
                 thumb.appendChild(badge);
             }
-            
+
             thumb.addEventListener('click', () => {
                 currentImage = scan.image;
                 currentReport = scan.report;
                 currentSummary = scan.summary;
                 currentScanId = scan.id;
                 window.loadData(scan.image, scan.report, scan.summary);
-                renderIncomingTray(scans); 
+                renderIncomingTray(scans);
             });
-            
+
             incomingTray.appendChild(thumb);
         });
     };
@@ -1015,14 +1015,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(async () => {
         if (document.hidden) return; // Optimize CPU when window is in tray
-        
+
         try {
             const res = await fetch('/api/status');
             const data = await res.json();
-            
+
             const cleanCurrentImage = currentImage ? currentImage.split('?')[0] : "";
             const cleanLatestImage = data.latest_image ? data.latest_image.split('?')[0] : "";
-            
+
             // Check if active image gets updated (handles history loads / manual analysis)
             if (cleanCurrentImage && cleanLatestImage && (cleanCurrentImage === cleanLatestImage || cleanCurrentImage.replace('_enhanced', '') === cleanLatestImage.replace('_enhanced', ''))) {
                 if (data.latest_report !== currentReport || data.latest_summary !== currentSummary) {
@@ -1036,9 +1036,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.recent_scans && incomingTray) {
                 const hasNewScans = data.recent_scans.length > previousRecentScansLength;
                 previousRecentScansLength = data.recent_scans.length;
-                
+
                 renderIncomingTray(data.recent_scans);
-                
+
                 // Auto switch when a new scan is detected
                 if (hasNewScans && data.recent_scans.length > 0) {
                     const latest = data.recent_scans[data.recent_scans.length - 1];
@@ -1049,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.loadData(latest.image, latest.report, latest.summary);
                     renderIncomingTray(data.recent_scans);
                 }
-                
+
                 // If the currently viewed image is in recent_scans, update it from there as well
                 const activeScan = data.recent_scans.find(s => {
                     const sClean = s.image.split('?')[0];
@@ -1072,9 +1072,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.is_processing) {
                 const cleanCurrentImage = currentImage.split('?')[0];
                 const cleanProcessingImage = data.processing_image ? data.processing_image.split('?')[0] : "";
-                
+
                 const isCurrentProcessing = cleanProcessingImage && (cleanCurrentImage === cleanProcessingImage || cleanCurrentImage.replace('_enhanced', '') === cleanProcessingImage.replace('_enhanced', ''));
-                
+
                 if (isCurrentProcessing) {
                     if (!loaderOverlay.classList.contains('active')) {
                         window.showLoader();
@@ -1178,13 +1178,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const lowercaseName = name.toLowerCase();
         const words = lowercaseName.split(/\s+/).filter(w => w.length > 0);
         if (words.length === 0) return 'Не указан';
-        
+
         let pointsMale = 0;
         let pointsFemale = 0;
-        
+
         const maleFirstNames = ['никита', 'илья', 'данила', 'даниил', 'савва', 'миша', 'гриша', 'саша', 'петя', 'ваня', 'дима', 'леша', 'коля', 'юра', 'вова', 'толя', 'женя', 'сережа'];
         const femaleFirstNames = ['маша', 'даша', 'лена', 'оля', 'света', 'наташа', 'катя', 'ира', 'таня', 'аня', 'юля', 'вера', 'надя', 'люба'];
-        
+
         for (const word of words) {
             // Check patronymics
             if (word.endsWith('ович') || word.endsWith('евич') || word.endsWith('ич')) {
@@ -1192,14 +1192,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (word.endsWith('овна') || word.endsWith('евна') || word.endsWith('ична')) {
                 pointsFemale += 5;
             }
-            
+
             // Check surnames
             else if (word.endsWith('ова') || word.endsWith('ева') || word.endsWith('ина') || word.endsWith('ая')) {
                 pointsFemale += 3;
             } else if (word.endsWith('ов') || word.endsWith('ев') || word.endsWith('ин') || word.endsWith('ий') || word.endsWith('ый')) {
                 pointsMale += 3;
             }
-            
+
             // Check first names
             else if (maleFirstNames.includes(word)) {
                 pointsMale += 4;
@@ -1215,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         if (pointsMale > pointsFemale) return 'Мужской';
         if (pointsFemale > pointsMale) return 'Женский';
         return 'Не указан';
@@ -1306,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (patientName) patientName.value = scan.patient_name || '';
         if (patientAge) patientAge.value = scan.patient_age || '';
         if (patientGender) patientGender.value = scan.patient_gender || 'Не указан';
-        
+
         currentImage = scan.original_image;
         currentReport = scan.report || '';
         currentSummary = scan.summary || '';
@@ -1323,37 +1323,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: scan.id
             })
         }).catch(err => console.error("Failed to sync active scan to backend", err));
-        
+
         // Restore adjustments
         brightnessSlider.value = scan.brightness !== undefined ? scan.brightness : 100;
         contrastSlider.value = scan.contrast !== undefined ? scan.contrast : 100;
         inverted = !!scan.inverted;
-        
+
         btnInvert.style.background = inverted ? 'rgba(16, 185, 129, 0.2)' : '';
         btnInvert.style.color = inverted ? '#10b981' : '';
         btnInvert.style.borderColor = inverted ? 'rgba(16, 185, 129, 0.4)' : '';
-        
+
         updateFilters();
-        
+
         // Restore viewport scale & pan
         scale = scan.scale !== undefined ? scan.scale : 1.0;
         translateX = scan.translate_x !== undefined ? scan.translate_x : 0.0;
         translateY = scan.translate_y !== undefined ? scan.translate_y : 0.0;
         updateTransform();
-        
+
         // Render data
         window.loadData(scan.original_image, scan.report, scan.summary);
-        
+
         // Apply split slider position after loading images
         const sliderPos = scan.slider_position !== undefined ? scan.slider_position : 50.0;
         sliderHandle.style.left = `${sliderPos}%`;
         xrayImageEnhanced.style.clipPath = `inset(0 0 0 ${sliderPos}%)`;
-        
+
         // Auto-play TTS if checked
         if (toggleAutoSpeak.checked) {
             speakText(scan.summary, scan.report);
         }
-        
+
         // Close history drawer
         if (historyDrawer) {
             historyDrawer.classList.remove('active');
@@ -1366,25 +1366,25 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/history');
             const scans = await res.json();
-            
+
             if (!scans || scans.length === 0) {
                 if (historyEmpty) historyEmpty.style.display = 'block';
                 if (historyList) historyList.style.display = 'none';
                 return;
             }
-            
+
             if (historyEmpty) historyEmpty.style.display = 'none';
             if (historyList) {
                 historyList.style.display = 'flex';
                 historyList.innerHTML = '';
-                
+
                 scans.forEach(scan => {
                     const card = document.createElement('div');
                     card.className = 'history-card';
                     if (scan.patient_gender === 'Мужской') card.classList.add('male');
                     else if (scan.patient_gender === 'Женский') card.classList.add('female');
                     else card.classList.add('other');
-                    
+
                     const genderLabel = scan.patient_gender === 'Мужской' ? 'М' : (scan.patient_gender === 'Женский' ? 'Ж' : '-');
                     const genderClass = scan.patient_gender === 'Мужской' ? 'male' : (scan.patient_gender === 'Женский' ? 'female' : 'other');
                     const ageText = scan.patient_age ? `${scan.patient_age} лет` : 'возраст не указан';
@@ -1392,7 +1392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                     });
-                    
+
                     card.innerHTML = `
                         <div class="history-card-header">
                             <span class="history-patient-name" title="${scan.patient_name}">${scan.patient_name}</span>
@@ -1407,9 +1407,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="history-date">${formattedDate}</div>
                     `;
-                    
+
                     card.addEventListener('click', () => loadScan(scan));
-                    
+
                     const delBtn = card.querySelector('.history-delete-btn');
                     delBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
@@ -1425,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     });
-                    
+
                     historyList.appendChild(card);
                 });
             }
@@ -1459,7 +1459,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
+
     // Logs Modal Logic
     const btnOpenLogs = document.getElementById('btn-open-logs');
     const logsModal = document.getElementById('logs-modal');

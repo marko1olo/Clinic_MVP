@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import sqlite3
 from pathlib import Path
 
 DB_FILE = str(Path(__file__).parent / 'bot_users.db')
 
+
 def get_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_connection()
@@ -21,12 +25,15 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_user(chat_id: int, role: str, name: str = ""):
+
+def add_user(chat_id: int, role: str, name: str = ''):
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT OR REPLACE INTO users (chat_id, role, name) VALUES (?, ?, ?)', (chat_id, role, name))
+    c.execute('INSERT OR REPLACE INTO users (chat_id, role, name) VALUES (?, ?, ?)',
+              (chat_id, role, name))
     conn.commit()
     conn.close()
+
 
 def get_users_by_role(role: str):
     conn = get_connection()
@@ -36,6 +43,7 @@ def get_users_by_role(role: str):
     conn.close()
     return users
 
+
 def get_user_role(chat_id: int):
     conn = get_connection()
     c = conn.cursor()
@@ -44,11 +52,12 @@ def get_user_role(chat_id: int):
     conn.close()
     return row['role'] if row else None
 
+
 # Инициализация при импорте
 init_db()
 
 # Дефолтные админы (из старого кода)
 add_user(8721416291, 'admin', 'Danat')
 add_user(7716348189, 'admin', 'Danat 2')
-add_user(8721416291, 'doctor', 'Danat Doctor') # Добавляем для теста
-add_user(7716348189, 'doctor', 'Danat Doctor 2') # Добавляем для теста
+add_user(8721416291, 'doctor', 'Danat Doctor')  # Добавляем для теста
+add_user(7716348189, 'doctor', 'Danat Doctor 2')  # Добавляем для теста

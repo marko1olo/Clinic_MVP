@@ -5,12 +5,12 @@ let appCode = fs.readFileSync(appFile, 'utf8');
 
 const storeFile = 'C:/Clinic_MVP/dental-crm/apps/web/src/store/visitStore.ts';
 const storeCode = `import { create } from "zustand";
-import type { 
-  DentalSpecialty, 
-  VisitNoteDraft, 
-  VisitNoteForm, 
-  AcceptVisitDraftResponse, 
-  SpeechTranscriptionResponse 
+import type {
+  DentalSpecialty,
+  VisitNoteDraft,
+  VisitNoteForm,
+  AcceptVisitDraftResponse,
+  SpeechTranscriptionResponse
 } from "@dental/shared";
 import { emptyVisitNoteForm, loadUiPreferences, defaultUiPreferences } from "../AppHelpers";
 
@@ -175,7 +175,7 @@ toReplace.forEach(r => {
 if (foundAll) {
   // We need to inject the store usage
   const injectTarget = '  const { recognitionKind, setRecognitionKind, recognitionTarget, setRecognitionTarget } = useImagingStore();';
-  
+
   const injectString = `  const {
     selectedSpecialty, setSelectedSpecialty,
     selectedProtocolId, setSelectedProtocolId,

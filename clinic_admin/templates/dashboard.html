@@ -16,7 +16,7 @@
             --accent-hover: #2563eb;
             --card-bg: #1e293b;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
@@ -26,7 +26,7 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
             background-attachment: fixed;
@@ -194,7 +194,7 @@
         <div class="grid">
             <!-- Forms Column -->
             <div style="display: flex; flex-direction: column; gap: 2rem;">
-                
+
                 <div class="glass-panel">
                     <h2>Новая запись</h2>
                     <form action="/appointments/add" method="POST">
@@ -238,7 +238,7 @@
                         <button type="submit">Добавить пациента</button>
                     </form>
                 </div>
-                
+
                 <div class="glass-panel" style="border-color: rgba(59, 130, 246, 0.4);">
                     <h2 style="display: flex; align-items: center; gap: 0.5rem;">
                         <svg style="width: 24px; height: 24px; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
@@ -249,9 +249,9 @@
                         <textarea id="reviewText" rows="4" placeholder="Вставьте сюда текст отзыва пациента..." style="width: 100%; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); border-radius: 0.5rem; color: var(--text-main); outline: none; resize: vertical;"></textarea>
                     </div>
                     <button id="generateBtn" onclick="generateResponse()" style="background: linear-gradient(to right, #3b82f6, #2563eb);">Сгенерировать ответ</button>
-                    
+
                     <div id="loading" style="display: none; margin-top: 1rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">Нейросеть пишет ответ...</div>
-                    
+
                     <div id="responseContainer" style="display: none; margin-top: 1.5rem;">
                         <label>Готовый SEO-ответ:</label>
                         <div id="responseText" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem; color: #cbd5e1; white-space: pre-wrap; margin-bottom: 1rem; border-left: 3px solid #60a5fa;"></div>
@@ -259,17 +259,17 @@
                             Скопировать текст
                         </button>
                     </div>
-                    
+
                     <script>
                         async function generateResponse() {
                             const btn = document.getElementById('generateBtn');
                             const text = document.getElementById('reviewText').value;
                             if (!text) return;
-                            
+
                             btn.style.display = 'none';
                             document.getElementById('loading').style.display = 'block';
                             document.getElementById('responseContainer').style.display = 'none';
-                            
+
                             try {
                                 const res = await fetch('/api/generate_review_response', {
                                     method: 'POST',
@@ -282,7 +282,7 @@
                             } catch (e) {
                                 alert("Ошибка: " + e.message);
                             }
-                            
+
                             btn.style.display = 'block';
                             document.getElementById('loading').style.display = 'none';
                         }
@@ -325,14 +325,14 @@
                 </div>
                 {% endif %}
             </div>
-            
+
             <!-- Marketing Tasks Panel -->
             <div class="glass-panel" style="margin-top: 2rem; border-color: rgba(139, 92, 246, 0.3);">
                 <h2 style="display: flex; align-items: center; gap: 0.5rem;">
                     <svg style="width: 24px; height: 24px; color: #a78bfa;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
                     Маркетинг: Напоминания
                 </h2>
-                
+
                 {% if marketing_tasks %}
                 <div style="display: grid; gap: 1rem;">
                     {% for task in marketing_tasks %}
@@ -344,9 +344,9 @@
                             </div>
                             <div style="color: #94a3b8; font-size: 0.875rem; font-family: monospace;">{{ task.phone }}</div>
                         </div>
-                        
+
                         <div style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.25rem; font-size: 0.875rem; color: #cbd5e1; white-space: pre-wrap; margin-bottom: 1rem; border-left: 3px solid #8b5cf6;">{{ task.message }}</div>
-                        
+
                         <button onclick="navigator.clipboard.writeText(`{{ task.message }}`); this.innerText='Скопировано!'; setTimeout(() => this.innerText='Скопировать текст', 2000);" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); margin-top: 0; padding: 0.5rem 1rem;">
                             Скопировать текст
                         </button>

@@ -41,10 +41,10 @@ for (const v of targetVars) {
     // otherwise just `useState(`.
     const regex = new RegExp(`const \\[${v}, set${cap}\\] = useState(?:<(.+?)>)?\\((.*?)\\);`, 's');
     const match = regex.exec(appCode);
-    
+
     if (match) {
         let type = match[1] ? match[1].trim() : 'any';
-        
+
         // Remove trailing "() => new Set()" from type if the regex captured it by accident
         if (type.includes('() =>')) {
             type = 'any';
@@ -52,19 +52,19 @@ for (const v of targetVars) {
 
         storeInterface.push(`  ${v}: ${type};`);
         storeInterface.push(`  set${cap}: (val: ${type} | ((prev: ${type}) => ${type})) => void;`);
-        
+
         let val = match[2].trim();
         if (val.startsWith('() =>')) {
             val = val.replace('() =>', '').trim();
             if (val.startsWith('{') && val.endsWith('}')) val = val.slice(1,-1).trim();
         }
-        
+
         storeState.push(`  ${v}: ${val},`);
         storeActions.push(`  set${cap}: (val) => set((state) => ({ ${v}: typeof val === 'function' ? (val as any)(state.${v}) : val })),`);
-        
+
         destructureKeys.push(v);
         destructureKeys.push(`set${cap}`);
-        
+
         appCode = appCode.replace(match[0], '');
     } else {
         console.log(`Failed to match: ${v}`);

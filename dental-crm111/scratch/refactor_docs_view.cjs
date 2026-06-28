@@ -52,7 +52,7 @@ let docsViewCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/Docume
 allKeys.forEach(key => {
     const propRegex = new RegExp(`^\\s+${key}:\\s+.*?;\\r?\\n`, 'gm');
     docsViewCode = docsViewCode.replace(propRegex, '');
-    
+
     const destructureRegex = new RegExp(`^\\s+${key},\\r?\\n`, 'gm');
     docsViewCode = docsViewCode.replace(destructureRegex, '');
 });

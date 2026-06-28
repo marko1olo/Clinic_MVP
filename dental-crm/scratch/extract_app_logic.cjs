@@ -109,4 +109,3 @@ ${logicString}
 fs.writeFileSync('C:/Clinic_MVP/dental-crm/scratch/useAppLogic_draft.ts', hookCode);
 fs.writeFileSync('C:/Clinic_MVP/dental-crm/scratch/jsx_vars.json', JSON.stringify(varsArray, null, 2));
 console.log('Drafted useAppLogic');
-

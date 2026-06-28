@@ -1471,11 +1471,11 @@ const {
     telegramRevokingLinkId,
     setTelegramRevokingLinkId
   } = useSettingsStore();
-  
-  
-  
-  
-  
+
+
+
+
+
   const [dicomFirstFramePreviewRequest, setDicomFirstFramePreviewRequest] =
     useState<DicomFirstFramePreviewRequestContext | null>(null);
   const browserDirectoryInputRef = useRef<HTMLInputElement | null>(null);
@@ -1483,7 +1483,7 @@ const {
   const browserImagingScanAbortRef = useRef<AbortController | null>(null);
   const browserMigrationScanAbortRef = useRef<AbortController | null>(null);
   const localDicomOperationAbortRef = useRef<AbortController | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const speechAudioContextRef = useRef<AudioContext | null>(null);

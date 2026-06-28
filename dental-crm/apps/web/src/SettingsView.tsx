@@ -3712,7 +3712,7 @@ export function SettingsView(props: SettingsViewProps) {
                       {rule.blockedServiceIds.map((serviceId) => <span key={`${rule.id}-b-${serviceId}`}>блок {serviceTitle(serviceId)}</span>)}
                     </div>
                     <small>{rule.patientText}</small>
- 
+
                            </article>
                 ))}
               </section>

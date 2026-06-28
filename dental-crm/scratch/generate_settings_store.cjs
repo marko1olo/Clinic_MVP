@@ -14,13 +14,13 @@ const states = [];
 
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw, typeArg, initial] = match;
-  
+
   const isTarget = prefixes.some(p => stateVar.startsWith(p));
-  
+
   if (isTarget) {
     let cleanInitial = initial.trim();
     if (cleanInitial.startsWith('() => ')) cleanInitial = cleanInitial.slice(6).trim();
-    
+
     // Better initial handling for JSON/Multi-line
     if (cleanInitial.includes('localStorage.getItem(')) {
         // Fallback for types that shouldn't crash

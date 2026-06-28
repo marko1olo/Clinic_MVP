@@ -14,7 +14,7 @@ while ((match = regex.exec(code)) !== null) {
   const setter = match[2];
   const type = match[3] || 'any'; // Naive fallback, many will be inferred
   const defaultValue = match[4].trim();
-  
+
   // We cannot easily put `() => new Date()` as a raw default in Zustand create(), but we can do it in the initialization.
   stateVars.push({ name, setter, type, defaultValue });
 }

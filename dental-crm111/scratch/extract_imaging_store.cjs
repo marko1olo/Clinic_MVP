@@ -83,11 +83,11 @@ stateVars.forEach(v => {
   const cap = v.charAt(0).toUpperCase() + v.slice(1);
   const regex = new RegExp(`const \\[${v}, set${cap}\\] = useState(?:<([^>]+)>)?\\((.*?)\\);`, 's');
   const match = appCode.match(regex);
-  
+
   if (match) {
     let type = match[1] || 'any';
     let init = match[2].trim();
-    
+
     // Handle specific lazy initializers
     if (init.startsWith('() =>')) {
         if (init.includes('loadUiPreferences().imagingKindFilter')) {
@@ -101,15 +101,15 @@ stateVars.forEach(v => {
             init = 'null'; // fallback for complex lazy init
         }
     }
-    
+
     if (type.includes('typeof')) type = 'any';
-    
+
     storeInterface.push(`  ${v}: ${type};`);
     storeInterface.push(`  set${cap}: (val: ${type} | ((prev: ${type}) => ${type})) => void;`);
-    
+
     storeState.push(`  ${v}: ${init},`);
     storeSetters.push(`  set${cap}: (val) => set((state) => ({ ${v}: typeof val === 'function' ? (val as any)(state.${v}) : val })),`);
-    
+
     // Remove from App.tsx
     appCode = appCode.replace(match[0], '');
   } else {
@@ -119,17 +119,17 @@ stateVars.forEach(v => {
     if (fbMatch) {
       let init = fbMatch[1].trim();
       let type = 'any';
-      
+
       if (init === 'false' || init === 'true') type = 'boolean';
       if (init === '""') type = 'string';
       if (init === '0') type = 'number';
-      
+
       storeInterface.push(`  ${v}: ${type};`);
       storeInterface.push(`  set${cap}: (val: ${type} | ((prev: ${type}) => ${type})) => void;`);
-      
+
       storeState.push(`  ${v}: ${init},`);
       storeSetters.push(`  set${cap}: (val) => set((state) => ({ ${v}: typeof val === 'function' ? (val as any)(state.${v}) : val })),`);
-      
+
       appCode = appCode.replace(fbMatch[0], '');
     }
   }
@@ -138,7 +138,7 @@ stateVars.forEach(v => {
 const storeCode = `// @ts-nocheck
 import { create } from "zustand";
 import { loadUiPreferences, defaultImagingViewerState } from "../AppHelpers";
-import type { 
+import type {
   ImagingSourceKind, LocalImagingFolderDraft, BrowserPickedImagingFolderPreview, BrowserImagingScanProgress,
   ImagingImportPreviewResponse, ImagingImportCommitResponse, ImagingFolderScanResponse, DicomLocalFolderDiscoveryResponse,
   LocalImagingOrganizerResponse, DicomSeriesPreviewResponse, DicomFolderSeriesPreviewResponse, DicomFolderWorkupPlanResponse,

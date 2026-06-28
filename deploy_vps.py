@@ -1,7 +1,11 @@
+from __future__ import annotations
+
+import functools
 import os
 import sys
+
 import paramiko
-import functools
+
 from utils import ssh as base_ssh
 
 ssh = functools.partial(base_ssh, timeout=90)
@@ -16,14 +20,17 @@ if not password:
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
-sys.stdout.buffer.write(b"Connected.\n")
+sys.stdout.buffer.write(b'Connected.\n')
 
 # в”Ђв”Ђ 1. Save iptables rules without installing iptables-persistent interactively в”Ђв”Ђ
 # Just save to file and add cron to restore on boot - simpler and no apt needed
-ssh(client, "mkdir -p /etc/iptables && iptables-save > /etc/iptables/rules.v4", "Save iptables rules to file")
+ssh(client, 'mkdir -p /etc/iptables && iptables-save > /etc/iptables/rules.v4',
+    'Save iptables rules to file')
 # Add restore on boot via rc.local
-ssh(client, "grep -q 'iptables-restore' /etc/rc.local 2>/dev/null || echo 'iptables-restore < /etc/iptables/rules.v4' >> /etc/rc.local; chmod +x /etc/rc.local", "Auto-restore iptables on boot via rc.local")
-ssh(client, "iptables -L INPUT -n | grep -E '(3000|DROP)'", "Verify iptables rules active")
+ssh(client, "grep -q 'iptables-restore' /etc/rc.local 2>/dev/null || echo 'iptables-restore < /etc/iptables/rules.v4' >> /etc/rc.local; chmod +x /etc/rc.local",
+    'Auto-restore iptables on boot via rc.local')
+ssh(client, "iptables -L INPUT -n | grep -E '(3000|DROP)'",
+    'Verify iptables rules active')
 
 # в”Ђв”Ђ 2. Nginx config в”Ђв”Ђ
 nginx_conf = """server {
@@ -54,11 +61,13 @@ server {
     }
 }
 """
-ssh(client, f"cat > /etc/nginx/sites-available/clinic << 'NGINXEOF'\n{nginx_conf}\nNGINXEOF", "Write nginx config")
-ssh(client, "ln -sf /etc/nginx/sites-available/clinic /etc/nginx/sites-enabled/clinic && rm -f /etc/nginx/sites-enabled/default", "Enable clinic, remove default")
+ssh(client,
+    f"cat > /etc/nginx/sites-available/clinic << 'NGINXEOF'\n{nginx_conf}\nNGINXEOF", 'Write nginx config')
+ssh(client, 'ln -sf /etc/nginx/sites-available/clinic /etc/nginx/sites-enabled/clinic && rm -f /etc/nginx/sites-enabled/default',
+    'Enable clinic, remove default')
 
 # в”Ђв”Ђ 3. Site placeholder в”Ђв”Ђ
-ssh(client, "mkdir -p /var/www/clinic", "Create webroot")
+ssh(client, 'mkdir -p /var/www/clinic', 'Create webroot')
 html = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -79,18 +88,20 @@ p{color:#8892a4;font-size:1.1rem;}
 </div>
 </body>
 </html>"""
-ssh(client, f"cat > /var/www/clinic/index.html << 'HTMLEOF'\n{html}\nHTMLEOF", "Write site placeholder")
+ssh(client,
+    f"cat > /var/www/clinic/index.html << 'HTMLEOF'\n{html}\nHTMLEOF", 'Write site placeholder')
 
 # в”Ђв”Ђ 4. Test + reload nginx в”Ђв”Ђ
-ssh(client, "nginx -t 2>&1", "Nginx config test")
-ssh(client, "systemctl reload nginx && echo 'Nginx reloaded OK'", "Reload nginx")
+ssh(client, 'nginx -t 2>&1', 'Nginx config test')
+ssh(client, "systemctl reload nginx && echo 'Nginx reloaded OK'", 'Reload nginx')
 
 # в”Ђв”Ђ 5. Final summary в”Ђв”Ђ
-ssh(client, "ss -tulpn | grep -E ':(80|8884|1883|9001|53|3000) ' | sort", "Active ports")
-ssh(client, "docker ps --format 'table {{.Names}}\\t{{.Status}}'", "Containers")
-ssh(client, "free -m | head -2", "RAM")
-ssh(client, "curl -s http://127.0.0.1/index.html | grep -o '<h1>.*</h1>'", "Site reachable check")
+ssh(client, "ss -tulpn | grep -E ':(80|8884|1883|9001|53|3000) ' | sort", 'Active ports')
+ssh(client,
+    "docker ps --format 'table {{.Names}}\\t{{.Status}}'", 'Containers')
+ssh(client, 'free -m | head -2', 'RAM')
+ssh(client, "curl -s http://127.0.0.1/index.html | grep -o '<h1>.*</h1>'",
+    'Site reachable check')
 
 client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
-
+sys.stdout.buffer.write(b'\nDone.\n')

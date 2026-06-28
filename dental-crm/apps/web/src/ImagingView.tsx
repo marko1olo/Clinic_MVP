@@ -242,7 +242,7 @@ export function ImagingView(props: ImagingViewProps) {
                   </button>
                 </div>
               </div>
-    
+
               <div className="imaging-patient-strip" aria-label="Контекст снимков">
                 <article>
                   <span>Пациент</span>
@@ -260,7 +260,7 @@ export function ImagingView(props: ImagingViewProps) {
                   <small>{selectedImagingViewerPlan?.warnings[0] ?? "ИИ только помогает, решение остается за врачом"}</small>
                 </article>
               </div>
-    
+
               {browserImagingScanProgress || browserPickedImagingFolder ? (
                 <div
                   className={`imaging-upload-status ${browserImagingScanProgress?.phase ?? "ready"}`}
@@ -295,7 +295,7 @@ export function ImagingView(props: ImagingViewProps) {
                   {browserPickedImagingFolder?.warnings?.[0] ? <small>{browserPickedImagingFolder.warnings[0]}</small> : null}
                 </div>
               ) : null}
-    
+
               <div className="imaging-kind-filter" aria-label="Фильтр типа снимка">
                 <button className={imagingKindFilter === "all" ? "active" : ""} type="button" aria-pressed={imagingKindFilter === "all"} onClick={() => setImagingKindFilter("all")}>
                   Все
@@ -312,7 +312,7 @@ export function ImagingView(props: ImagingViewProps) {
                   </button>
                 ))}
               </div>
-    
+
               <div className="imaging-layout">
                 <article className="imaging-viewer">
                   {selectedImagingStudy ? (
@@ -332,7 +332,7 @@ export function ImagingView(props: ImagingViewProps) {
                           <p>{selectedImagingStudy.aiSummary}</p>
                         </div>
                       </div>
-    
+
                       {selectedImagingViewerPlan ? (
                         <div className={`imaging-viewer-plan viewer-plan-${selectedImagingViewerPlan.mode}`}>
                           <div>
@@ -347,7 +347,7 @@ export function ImagingView(props: ImagingViewProps) {
                           {selectedImagingViewerPlan.warnings[0] ? <small>{selectedImagingViewerPlan.warnings[0]}</small> : null}
                         </div>
                       ) : null}
-    
+
                       {imagingComparisonCandidates.length ? (
                         <div className="imaging-compare-strip" data-testid="imaging-compare-strip" aria-label="Быстрое сравнение снимков пациента">
                           <div className="imaging-compare-head">
@@ -374,7 +374,7 @@ export function ImagingView(props: ImagingViewProps) {
                           </div>
                         </div>
                       ) : null}
-    
+
                       <div className="imaging-viewer-toolbar" aria-label="Настройки рентген-снимка">
                         <div className="imaging-viewer-tools">
                           <button
@@ -541,7 +541,7 @@ export function ImagingView(props: ImagingViewProps) {
                     </div>
                   )}
                 </article>
-    
+
                 <div className="imaging-list">
                   {visibleImagingStudies.map((study: any) => (
                     <article
@@ -583,7 +583,7 @@ export function ImagingView(props: ImagingViewProps) {
                   ))}
                 </div>
               </div>
-    
+
               {selectedImagingStudy?.kind === "cbct" ? (
                 <section className="clinical-mpr-panel" aria-label="Управление КЛКТ и КТ-срезами">
                   <div className="clinical-mpr-head">

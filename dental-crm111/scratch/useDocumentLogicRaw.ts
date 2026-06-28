@@ -3,10 +3,10 @@ import { useState } from "react";
 
 export function useDocumentLogic(props: any) {
   const { dashboard, setError, documentKindMetadata, documentAmountSource, activePatient } = props;
-  
+
   const [documentCreateSavingKind, setDocumentCreateSavingKind] = useState<GeneratedDocument["kind"] | null>(null);
   const documentPatient = selectedPatient ?? activePatient;
-  
+
   const [paidContractNumber, setPaidContractNumber] = useState("");
   const [paidContractDate, setPaidContractDate] = useState(() => new Date().toLocaleDateString("ru-RU"));
   const [paidContractServiceStart, setPaidContractServiceStart] = useState("");
@@ -307,7 +307,7 @@ export function useDocumentLogic(props: any) {
   const [outpatient025uInsurerName, setOutpatient025uInsurerName] = useState("");
   const [outpatient025uSocialSupportCode, setOutpatient025uSocialSupportCode] = useState("");
   const [outpatient025uHealthStatusDisclosureContact, setOutpatient025uHealthStatusDisclosureContact] = useState("");
-  
+
   function documentPayloadForKind(kind: GeneratedDocument["kind"]): DocumentPayload | null {
     if (kind === "paid_medical_services_contract") {
       return {
@@ -1499,7 +1499,7 @@ export function useDocumentLogic(props: any) {
       setDocumentCreateSavingKind(null);
     }
   }
-  
+
   return {
     // we would return all state variables here
   };

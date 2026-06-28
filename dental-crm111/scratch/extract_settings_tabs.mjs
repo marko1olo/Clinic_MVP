@@ -37,17 +37,17 @@ if (!fs.existsSync('C:/Clinic_MVP/dental-crm/apps/web/src/settings')) {
 for (const tab of tabs) {
   const startPattern = `{settingsTab === "${tab}" ? (`;
   const altStartPattern = `{clinicPublicLookup && settingsTab === "${tab}" ? (`; // edge case for imports
-  
+
   let startIdx = modifiedContent.indexOf(startPattern);
   if (startIdx === -1) {
     startIdx = modifiedContent.indexOf(altStartPattern);
   }
-  
+
   if (startIdx === -1) {
     console.log(`Tab ${tab} not found!`);
     continue;
   }
-  
+
   // Find matching closing parenthesis for the ternary
   // We are at `{settingsTab === "..." ? (`
   // We want to find the matching `) : null}`
@@ -63,16 +63,16 @@ for (const tab of tabs) {
       }
     }
   }
-  
+
   if (endIdx === -1) {
     console.log(`Could not find end for ${tab}`);
     continue;
   }
-  
+
   const block = modifiedContent.substring(startIdx, endIdx + 1);
   // Extract the inner JSX inside the ternary:
   // `{settingsTab === "..." ? (  INNER  ) : null}`
-  
+
   let innerMatch = block.match(/\? \(\s*([\s\S]+?)\s*\)\s*:\s*(null|undefined)\s*\}$/);
   let innerJSX = "";
   if (innerMatch) {
@@ -89,27 +89,27 @@ for (const tab of tabs) {
       continue;
     }
   }
-  
+
   const tabName = tab.charAt(0).toUpperCase() + tab.slice(1);
   const componentName = `Settings${tabName}Tab`;
-  
+
   // Create component file
   // We must include imports! We will just copy the top imports from SettingsView.tsx.
   const importsMatch = content.match(/^([\s\S]+?)type SettingsViewProps/);
   const imports = importsMatch ? importsMatch[1] : `import React, { KeyboardEvent, useRef } from "react";\nimport {\n  AlertTriangle, Check, CheckCircle2, Copy, FileText, Image as ImageIcon, Plus, RefreshCw, Send, Sparkles, UploadCloud, UserCheck\n} from "lucide-react";\n`;
-  
+
   // Filter the destructuring block to only include props actually used in innerJSX
   const usedProps = propsList.filter(p => innerJSX.includes(p) || p === "activePatient");
   const localDestruct = `const {\n    ${usedProps.join(',\n    ')}\n  } = props;`;
-  
+
   const componentContent = `${imports}\ntype SettingsViewProps = Record<string, any>;\n\nexport function ${componentName}(props: SettingsViewProps) {\n  ${localDestruct}\n\n  return (\n    <>\n      ${innerJSX}\n    </>\n  );\n}\n`;
-  
+
   fs.writeFileSync(`C:/Clinic_MVP/dental-crm/apps/web/src/settings/${componentName}.tsx`, componentContent);
   console.log(`Created ${componentName}.tsx`);
-  
+
   // Replace in modifiedContent
-  modifiedContent = modifiedContent.substring(0, startIdx) + 
-                    `{settingsTab === "${tab}" ? <${componentName} {...props} /> : null}` + 
+  modifiedContent = modifiedContent.substring(0, startIdx) +
+                    `{settingsTab === "${tab}" ? <${componentName} {...props} /> : null}` +
                     modifiedContent.substring(endIdx + 1);
 }
 

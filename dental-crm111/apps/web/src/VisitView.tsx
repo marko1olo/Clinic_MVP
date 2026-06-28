@@ -225,7 +225,7 @@ export function VisitView(props: VisitViewProps) {
                   <p>
                     Черновик, требует подтверждения врача.{" "}
                     <span style={{ color: 'var(--slate-500)', fontSize: '0.9em' }}>
-                      {serverDraftSyncState === "saving" || pendingVisitSaveCount > 0 ? "Синхронизация..." 
+                      {serverDraftSyncState === "saving" || pendingVisitSaveCount > 0 ? "Синхронизация..."
                         : !isOnline ? "Офлайн (сохранено локально)"
                         : lastServerDraftSavedAt ? `Сохранено ${formatTime(lastServerDraftSavedAt)}`
                         : lastLocalSavedAt ? `Локально сохранено ${formatTime(lastLocalSavedAt)}`
@@ -255,10 +255,10 @@ export function VisitView(props: VisitViewProps) {
                 <button
                   className={isServerVoiceRecording ? "primary-button" : "secondary-button"}
                   type="button"
-                  style={{ 
-                    padding: '12px 16px', 
-                    fontSize: '15px', 
-                    justifyContent: 'center', 
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    justifyContent: 'center',
                     backgroundColor: isServerVoiceRecording ? 'var(--rust)' : undefined,
                     color: isServerVoiceRecording ? '#fff' : undefined,
                     borderColor: isServerVoiceRecording ? 'var(--rust)' : undefined,

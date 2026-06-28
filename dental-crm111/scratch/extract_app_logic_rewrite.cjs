@@ -106,4 +106,3 @@ let newAppCode = `import { useAppLogic } from './useAppLogic';\n` + beforeLogic 
 
 fs.writeFileSync(appPath, newAppCode);
 console.log('Successfully split App.tsx and useAppLogic.tsx!');
-

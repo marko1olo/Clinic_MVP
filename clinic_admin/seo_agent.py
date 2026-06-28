@@ -1,25 +1,30 @@
-import json
-import requests
-import random
-import os
+from __future__ import annotations
 
-CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
+import json
+import os
+import random
+
+import requests
+
+CONFIG_PATH = 'C:/Clinic_MVP/ShadowAnalyst/gui/config.json'
+
 
 def get_groq_api_key():
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, encoding='utf-8') as f:
             config = json.load(f)
-            keys = config.get("groq_api_keys", [])
+            keys = config.get('groq_api_keys', [])
             if keys:
                 return random.choice(keys)
     except Exception as e:
         print(f"Error loading config: {e}")
     return None
 
+
 def generate_seo_response(review_text: str) -> str:
     api_key = get_groq_api_key()
     if not api_key:
-        return "Ошибка: Не найден API ключ Groq в конфигурации."
+        return 'Ошибка: Не найден API ключ Groq в конфигурации.'
 
     system_prompt = """Ты — ведущий PR-менеджер и Senior SEO-оптимизатор стоматологической клиники "DENTE" (г. Самара). Твой опыт работы в маркетинге медицинских услуг — 10 лет. Твоя цель — писать безупречные, профессиональные ответы на отзывы пациентов для публикации на платформах Яндекс.Карты, 2ГИС и ПроДокторов.
 
@@ -60,26 +65,25 @@ def generate_seo_response(review_text: str) -> str:
 """
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        'Authorization': f"Bearer {api_key}",
+        'Content-Type': 'application/json',
     }
-    
+
     payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Вот текст отзыва: \"{review_text}\"\n\nНапиши ответ."}
+        'model': 'llama-3.3-70b-versatile',
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': f"Вот текст отзыва: \"{review_text}\"\n\nНапиши ответ."},
         ],
-        "temperature": 0.7,
-        "max_tokens": 512
+        'temperature': 0.7,
+        'max_tokens': 512,
     }
 
     try:
-        response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=15)
+        response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions', headers=headers, json=payload, timeout=15)
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        return data['choices'][0]['message']['content'].strip()
     except Exception as e:
         return f"Ошибка генерации: {str(e)}"
-
-

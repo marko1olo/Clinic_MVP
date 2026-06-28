@@ -11,4 +11,3 @@ let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/scratch/extract_app_stor
 
 // Let's just fix appStore.ts by hand! Or we can restore App.tsx, and then rerun it.
 // Let's do `git checkout apps/web/src/App.tsx` and run a better script!
-

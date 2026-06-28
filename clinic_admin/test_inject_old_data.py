@@ -1,9 +1,13 @@
-import unittest
-import sqlite3
+from __future__ import annotations
+
 import os
+import sqlite3
 import tempfile
+import unittest
+
 import clinic_admin.database
 import clinic_admin.inject_old_data
+
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -38,29 +42,29 @@ class TestInjectOldData(unittest.TestCase):
         c = conn.cursor()
 
         # Verify patients were added
-        c.execute("SELECT name, phone FROM patients")
+        c.execute('SELECT name, phone FROM patients')
         patients = c.fetchall()
         self.assertEqual(len(patients), 3)
 
         expected_patients = {
-            "Смирнов Алексей": "+79991234567",
-            "Козлова Елена": "+79123456789",
-            "Петров Дмитрий": "+79001112233"
+            'Смирнов Алексей': '+79991234567',
+            'Козлова Елена': '+79123456789',
+            'Петров Дмитрий': '+79001112233',
         }
 
         for p in patients:
-            name, phone = p["name"], p["phone"]
+            name, phone = p['name'], p['phone']
             self.assertIn(name, expected_patients)
             self.assertEqual(phone, expected_patients[name])
 
         # Verify appointments were added
-        c.execute("SELECT doctor, status FROM appointments")
+        c.execute('SELECT doctor, status FROM appointments')
         appointments = c.fetchall()
         self.assertEqual(len(appointments), 3)
 
         for a in appointments:
-            self.assertEqual(a["doctor"], "Др. Хаус")
-            self.assertEqual(a["status"], "completed")
+            self.assertEqual(a['doctor'], 'Др. Хаус')
+            self.assertEqual(a['status'], 'completed')
 
         conn.close()
 
@@ -75,13 +79,14 @@ class TestInjectOldData(unittest.TestCase):
         c = conn.cursor()
 
         # Check if rows are duplicated (should still be 3)
-        c.execute("SELECT COUNT(*) as count FROM patients")
-        self.assertEqual(c.fetchone()["count"], 3)
+        c.execute('SELECT COUNT(*) as count FROM patients')
+        self.assertEqual(c.fetchone()['count'], 3)
 
-        c.execute("SELECT COUNT(*) as count FROM appointments")
-        self.assertEqual(c.fetchone()["count"], 3)
+        c.execute('SELECT COUNT(*) as count FROM appointments')
+        self.assertEqual(c.fetchone()['count'], 3)
 
         conn.close()
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     unittest.main()

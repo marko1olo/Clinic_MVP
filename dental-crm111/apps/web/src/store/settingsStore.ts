@@ -9,25 +9,25 @@ import {
   type OnboardingStep,
   loadUiPreferences, defaultUiPreferences, emptyTelegramVisualCardUrlDrafts, } from "../AppHelpers";
 
-import { 
-   
-  DenteTelegramBotStatus, 
-  
+import {
+
+  DenteTelegramBotStatus,
+
   DenteTelegramOutboxResponse,
-  
-  
+
+
   DenteTelegramLinkCodePublic,
   DenteTelegramChatLinkPublic,
   DenteTelegramLinkCodeListResponse,
   DenteTelegramChatLinkListResponse,
-  
+
   DenteTelegramLinkCodeCreated,
   DenteTelegramMessagePreview,
   DenteTelegramBotMode,
   DenteTelegramVisualCardUrls,
   DenteTelegramFeature,
   DenteTelegramPrivacyMode,
-  
+
 } from "@dental/shared";
 
 

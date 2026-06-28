@@ -13,15 +13,15 @@ const matchesToRemove = [];
 
 while ((match = regex.exec(appCode)) !== null) {
   const [, stateVar, setterRaw, typeArg, initial] = match;
-  
+
   // Exclude some things that start with document but shouldn't be in documentStore
   // (actually everything starting with document is documentStore related)
   const isTarget = prefixes.some(p => stateVar.startsWith(p));
-  
+
   if (isTarget) {
     let cleanInitial = initial.trim();
     if (cleanInitial.startsWith('() => ')) cleanInitial = cleanInitial.slice(6).trim();
-    
+
     // Type inference
     let typeStr = typeArg || 'any';
     if (typeStr === 'any') {

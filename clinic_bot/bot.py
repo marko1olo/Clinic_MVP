@@ -8,6 +8,7 @@ import threading
 import logging
 import json
 import sys
+import time
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -203,7 +204,7 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
             client.loop_forever()
         except Exception as e:
             log.error(f"MQTT error: {e}, retrying in 5s...")
-            import time; time.sleep(5)
+            time.sleep(5)
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 

@@ -1,11 +1,10 @@
 import os
 import json
 import base64
-import time
+import asyncio
 import random
-import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 try:
     font = ImageFont.truetype("arial.ttf", 40)
@@ -67,7 +66,7 @@ def get_base64(path):
         img.save(buf, format="JPEG", quality=90)
         return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
 
-def call_groq(prompt, b64):
+async def call_groq(prompt, b64):
     keys = API_KEYS.copy()
     if not keys:
         print("Ошибка: Ключи GROQ_API_KEYS не заданы.")
@@ -75,9 +74,9 @@ def call_groq(prompt, b64):
     while True:
         random.shuffle(keys)
         for key in keys:
-            client = OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1", max_retries=0)
+            client = AsyncOpenAI(api_key=key, base_url="https://api.groq.com/openai/v1", max_retries=0)
             try:
-                resp = client.chat.completions.create(
+                resp = await client.chat.completions.create(
                     model=MODEL,
                     messages=[
                         {"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": b64}}]}
@@ -92,7 +91,7 @@ def call_groq(prompt, b64):
                 print(f"Ошибка API: {e}")
                 return "{}"
         print("Лимиты на всех ключах, ждем 15 сек...")
-        time.sleep(15)
+        await asyncio.sleep(15)
 
 # --- 10 СТИЛЕЙ ОТРИСОВКИ ---
 def style_1_neon(draw, img, x1, y1, x2, y2, name):
@@ -183,52 +182,57 @@ STYLES = [
     style_6_overlay, style_7_police, style_8_minimal, style_9_target, style_10_glass
 ]
 
-def run_tests():
-    b64 = get_base64(IMG_PATH)
+async def process_prompt(i, prompt, b64):
+    print(f"\n--- Промпт {i+1}/10 ---")
+    print(f"Промпт: {prompt[:80]}...")
     
-    for i in range(10):
-        print(f"\n--- Промпт {i+1}/10 ---")
-        prompt = PROMPTS[i]
-        print(f"Промпт: {prompt[:80]}...")
-        
-        json_resp = call_groq(prompt, b64)
-        print(f"Ответ ИИ: {json_resp[:100]}...")
-        
-        try:
-            data = json.loads(json_resp)
-            objects = data.get("objects", [])
-        except:
-            objects = []
-            
-        # Рисуем
-        with Image.open(IMG_PATH) as img:
-            if img.mode != 'RGBA': img = img.convert('RGBA')
-            draw = ImageDraw.Draw(img)
-            
-            w, h = img.size
-            for obj in objects:
-                name = obj.get("name", "X")
-                box = obj.get("box", [0,0,0,0])
-                if len(box) == 4:
-                    # Фикс координат если они от 0.0 до 1.0
-                    if max(box) <= 1.0:
-                        box = [b * 1000 for b in box]
+    json_resp = await call_groq(prompt, b64)
+    print(f"Ответ ИИ: {json_resp[:100]}...")
 
-                    bx1 = int((box[0]/1000)*w)
-                    by1 = int((box[1]/1000)*h)
-                    bx2 = int((box[2]/1000)*w)
-                    by2 = int((box[3]/1000)*h)
-                    
-                    # Фикс координат
-                    x1, x2 = min(bx1, bx2), max(bx1, bx2)
-                    y1, y2 = min(by1, by2), max(by1, by2)
-                    
-                    if x2 > x1 and y2 > y1:
-                        STYLES[i](draw, img, x1, y1, x2, y2, name)
-            
-            out_path = os.path.join(OUTPUT_DIR, f"Style_{i+1}.png")
-            img.save(out_path, "PNG")
-            print(f"Сохранено: {out_path}")
+    try:
+        data = json.loads(json_resp)
+        objects = data.get("objects", [])
+    except:
+        objects = []
+
+    # Рисуем
+    with Image.open(IMG_PATH) as img:
+        if img.mode != 'RGBA': img = img.convert('RGBA')
+        draw = ImageDraw.Draw(img)
+        
+        w, h = img.size
+        for obj in objects:
+            name = obj.get("name", "X")
+            box = obj.get("box", [0,0,0,0])
+            if len(box) == 4:
+                # Фикс координат если они от 0.0 до 1.0
+                if max(box) <= 1.0:
+                    box = [b * 1000 for b in box]
+
+                bx1 = int((box[0]/1000)*w)
+                by1 = int((box[1]/1000)*h)
+                bx2 = int((box[2]/1000)*w)
+                by2 = int((box[3]/1000)*h)
+
+                # Фикс координат
+                x1, x2 = min(bx1, bx2), max(bx1, bx2)
+                y1, y2 = min(by1, by2), max(by1, by2)
+
+                if x2 > x1 and y2 > y1:
+                    STYLES[i](draw, img, x1, y1, x2, y2, name)
+        
+        out_path = os.path.join(OUTPUT_DIR, f"Style_{i+1}.png")
+        img.save(out_path, "PNG")
+        print(f"Сохранено: {out_path}")
+
+async def run_tests():
+    b64 = get_base64(IMG_PATH)
+
+    tasks = []
+    for i in range(10):
+        tasks.append(process_prompt(i, PROMPTS[i], b64))
+
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
-    run_tests()
+    asyncio.run(run_tests())

@@ -20,6 +20,31 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
+    @patch('ShadowAnalyst.watcher.os.makedirs')
+    def test_setup_dirs_success(self, mock_makedirs):
+        # Patching WATCH_DIR and PROCESSED_DIR just to be sure we check the right values
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher.setup_dirs()
+
+            # Check if os.makedirs was called correctly
+            self.assertEqual(mock_makedirs.call_count, 2)
+            mock_makedirs.assert_any_call('/tmp/mock_watch', exist_ok=True)
+            mock_makedirs.assert_any_call('/tmp/mock_processed', exist_ok=True)
+
+    @patch('ShadowAnalyst.watcher.os.makedirs')
+    def test_setup_dirs_error(self, mock_makedirs):
+        # Simulate an OSError during directory creation
+        mock_makedirs.side_effect = OSError("Permission denied")
+
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            # The exception should propagate up
+            with self.assertRaises(OSError) as context:
+                watcher.setup_dirs()
+
+            self.assertIn("Permission denied", str(context.exception))
+
     def test_prepare_image_normal(self):
         # Create a small RGB image
         img = Image.new('RGB', (100, 100), color = 'red')

@@ -587,50 +587,18 @@ def set_active_scan(data: dict):
 def update_settings(settings: dict):
     global GOOGLE_API_KEYS, GROQ_API_KEYS
     updated = False
-    if "auto_analyze" in settings:
-        app_state["auto_analyze"] = settings["auto_analyze"]
-        config["auto_analyze"] = settings["auto_analyze"]
-        updated = True
-    if "auto_enhance" in settings:
-        app_state["auto_enhance"] = settings["auto_enhance"]
-        config["auto_enhance"] = settings["auto_enhance"]
-        updated = True
-    if "theme" in settings:
-        app_state["theme"] = settings["theme"]
-        config["theme"] = settings["theme"]
-        updated = True
-    if "enable_ai_vision" in settings:
-        app_state["enable_ai_vision"] = settings["enable_ai_vision"]
-        config["enable_ai_vision"] = settings["enable_ai_vision"]
-        updated = True
-    if "tts_voice" in settings:
-        app_state["tts_voice"] = settings["tts_voice"]
-        config["tts_voice"] = settings["tts_voice"]
-        updated = True
-    if "model_tier" in settings:
-        app_state["model_tier"] = settings["model_tier"]
-        config["model_tier"] = settings["model_tier"]
-        updated = True
-    if "comparison_slider" in settings:
-        app_state["comparison_slider"] = settings["comparison_slider"]
-        config["comparison_slider"] = settings["comparison_slider"]
-        updated = True
-    if "tts_provider" in settings:
-        app_state["tts_provider"] = settings["tts_provider"]
-        config["tts_provider"] = settings["tts_provider"]
-        updated = True
-    if "elevenlabs_api_key" in settings:
-        app_state["elevenlabs_api_key"] = settings["elevenlabs_api_key"]
-        config["elevenlabs_api_key"] = settings["elevenlabs_api_key"]
-        updated = True
-    if "elevenlabs_api_keys" in settings:
-        app_state["elevenlabs_api_keys"] = settings["elevenlabs_api_keys"]
-        config["elevenlabs_api_keys"] = settings["elevenlabs_api_keys"]
-        updated = True
-    if "elevenlabs_voice_id" in settings:
-        app_state["elevenlabs_voice_id"] = settings["elevenlabs_voice_id"]
-        config["elevenlabs_voice_id"] = settings["elevenlabs_voice_id"]
-        updated = True
+
+    simple_keys = [
+        "auto_analyze", "auto_enhance", "theme", "enable_ai_vision",
+        "tts_voice", "model_tier", "comparison_slider", "tts_provider",
+        "elevenlabs_api_key", "elevenlabs_api_keys", "elevenlabs_voice_id"
+    ]
+    for key in simple_keys:
+        if key in settings:
+            app_state[key] = settings[key]
+            config[key] = settings[key]
+            updated = True
+
     if "google_api_keys" in settings:
         app_state["google_api_keys"] = settings["google_api_keys"]
         config["google_api_keys"] = settings["google_api_keys"]

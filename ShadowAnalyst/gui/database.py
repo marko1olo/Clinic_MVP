@@ -122,14 +122,6 @@ def get_all_scans() -> list:
     conn.close()
     return [dict(r) for r in rows]
 
-def get_scan_by_id(scan_id: int) -> dict | None:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM scans WHERE id = ?", (scan_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
 def delete_scan(scan_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()

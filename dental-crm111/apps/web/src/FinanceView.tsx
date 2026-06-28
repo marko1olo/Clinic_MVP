@@ -73,28 +73,6 @@ type FinanceViewProps = {
   treatmentStatusLabels: Record<TreatmentPlanItem["status"], string>;
 };
 
-function FinanceHeading({
-  onGoToDocuments,
-  patientFullName,
-}: {
-  onGoToDocuments: () => void;
-  patientFullName: string | null;
-}) {
-  return (
-    <div className="panel-heading">
-      <div>
-        <h2>Оплаты, план лечения и вычет</h2>
-        <p className="finance-scope-label">
-          Сводка по пациенту: {patientFullName ?? "пациент не выбран"}
-        </p>
-      </div>
-      <button className="text-button" type="button" onClick={onGoToDocuments}>
-        Документы
-      </button>
-    </div>
-  );
-}
-
 export function FinanceView({
   activePayments,
   activeTreatmentPlanItems,
@@ -164,10 +142,17 @@ export function FinanceView({
 
   return (
     <div className="panel finance-panel" id="finance">
-      <FinanceHeading
-        onGoToDocuments={onGoToDocuments}
-        patientFullName={documentPatient?.fullName ?? null}
-      />
+      <div className="panel-heading">
+        <div>
+          <h2>Оплаты, план лечения и вычет</h2>
+          <p className="finance-scope-label">
+            Сводка по пациенту: {documentPatient?.fullName ?? "пациент не выбран"}
+          </p>
+        </div>
+        <button className="text-button" type="button" onClick={onGoToDocuments}>
+          Документы
+        </button>
+      </div>
 
       <FinancePlanningOverview
         activePaymentsCount={activePayments.length}

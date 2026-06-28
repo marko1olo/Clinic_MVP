@@ -184,12 +184,7 @@ import {
   type VisitNoteDraft,
   type XrayCbctReferralPregnancyStatus,
   type XrayCbctReferralPriority,
-  type XrayCbctReferralStudyType,
-  type LocalImagingFolderDraft,
-  type BrowserPickedImagingFolderPreview,
-  type BrowserPickedImagingScanStats,
-  type BrowserImagingScanPhase,
-  type BrowserImagingScanProgress
+  type XrayCbctReferralStudyType
 } from "@dental/shared";
 import { AppLoadingState, AppUnlockState } from "./AppBootState";
 import {
@@ -477,7 +472,16 @@ export type MprWorkbenchIndexedDbDraft = MprWorkbenchLocalDraft & {
   organizationId: string | null;
 };
 
-
+export type LocalImagingFolderDraft = {
+  version: 1;
+  folderPath: string;
+  safeDisplayName: string;
+  sourceLabel: string;
+  sourceKind: string;
+  folderFingerprint: string | null;
+  origin: "manual" | "discovery" | "organizer" | "workbench";
+  savedAt: string;
+};
 
 export type DicomFirstFramePreviewMetadata = Partial<Omit<LocalImagingFolderDraft, "version" | "folderPath" | "savedAt">>;
 
@@ -516,7 +520,51 @@ export type DentalDesktopRuntimeWindow = BrowserDirectoryPickerWindow & {
   electronAPI?: unknown;
 };
 
+export type BrowserPickedImagingFolderPreview = {
+  version: 1;
+  safeDisplayName: string;
+  sourceLabel: string;
+  sourceKind: "browser_directory_picker" | "browser_file_input";
+  folderFingerprint: string;
+  rootName: string;
+  scannedFiles: number;
+  scannedFolders: number;
+  dicomLikeFiles: number;
+  archiveFiles: number;
+  modelFiles: number;
+  imageFiles: number;
+  totalBytes: number;
+  createdAt: string;
+  nextAction: string;
+  warnings: string[];
+};
 
+export type BrowserPickedImagingScanStats = {
+  rootName: string;
+  sourceKind: BrowserPickedImagingFolderPreview["sourceKind"];
+  scannedFiles: number;
+  scannedFolders: number;
+  dicomLikeFiles: number;
+  archiveFiles: number;
+  modelFiles: number;
+  imageFiles: number;
+  totalBytes: number;
+  warnings: string[];
+};
+
+export type BrowserImagingScanPhase = "scanning" | "done" | "cancelled";
+
+export type BrowserImagingScanProgress = BrowserPickedImagingScanStats & {
+  phase: BrowserImagingScanPhase;
+  currentItem: string | null;
+  startedAt: string;
+  updatedAt: string;
+  elapsedMs: number;
+  processedUnits: number;
+  fileLimit: number;
+  folderLimit: number;
+  magicReadLimit: number;
+};
 
 export type BrowserImagingScanOptions = {
   signal?: AbortSignal;
@@ -812,7 +860,8 @@ export function loadDocumentIssueSignatureDraft(organizationId: string | null | 
       staffRole: typeof parsed.staffRole === "string" && parsed.staffRole.trim() ? parsed.staffRole.slice(0, 120) : "Врач/администратор",
       savedAt
     };
-  } catch {
+  } catch (error) {
+    console.warn(error);
     return fallback;
   }
 }
@@ -835,7 +884,8 @@ export function saveDocumentIssueSignatureDraft(
         savedAt: new Date().toISOString()
       } satisfies DocumentIssueSignatureDraft)
     );
-  } catch {
+  } catch (error) {
+    console.warn(error);
     // Signature defaults are convenience only; the server still requires explicit attestation on issue.
   }
 }
@@ -899,6 +949,7 @@ export function loadDocumentPaymentSelectionStore(organizationId: string | null 
     }
     return { version: 1, selections };
   } catch {
+    // Document payment selection is local operator convenience; read failures are safe to ignore.
     return emptyDocumentPaymentSelectionStore();
   }
 }
@@ -1246,7 +1297,8 @@ export function loadLocalImagingViewerDraft(studyId: string | null, organization
       return null;
     }
     return parsed?.state && Array.isArray(parsed.annotations) ? parsed : null;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load local imaging viewer draft", error);
     return null;
   }
 }
@@ -1309,7 +1361,8 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(organizationId: str
       return null;
     }
     return parsed;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load local DICOM workbench draft from local storage:", error);
     return null;
   }
 }
@@ -1398,7 +1451,8 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
     }
     const state = normalizeMprWorkbenchState(parsed.state);
     return state ? { ...parsed, state } : null;
-  } catch {
+  } catch (error) {
+    console.warn(error);
     return null;
   }
 }
@@ -3393,7 +3447,7 @@ export const photoVideoMaterialOptions: Array<{ value: PhotoVideoConsentMaterial
 export const defaultUiPreferences: UiPreferences = {
   version: 1,
   uiLanguage: "ru",
-  selectedWorkspaceRole: "doctor",
+  selectedWorkspaceRole: "owner",
   selectedSpecialty: "therapist",
   selectedProtocolId: null,
   selectedPatientId: null,
@@ -4065,7 +4119,13 @@ export function parseOnboardingDismissalState(raw: string | null): OnboardingDis
 export function loadOnboardingDismissalState(organizationId: string | null | undefined = null): OnboardingDismissalState | null {
   if (typeof window === "undefined") return null;
   try {
-    return parseOnboardingDismissalState(window.localStorage.getItem(onboardingLocalKey(organizationId)));
+    const scopedVal = window.localStorage.getItem(onboardingLocalKey(organizationId));
+    if (scopedVal) {
+      const parsed = parseOnboardingDismissalState(scopedVal);
+      if (parsed) return parsed;
+    }
+    const unscopedVal = window.localStorage.getItem(onboardingStorageKey);
+    return parseOnboardingDismissalState(unscopedVal);
   } catch {
     return null;
   }
@@ -4511,7 +4571,7 @@ export function clinicProfileDraftFromProfile(profile: ClinicProfile): ClinicPro
     appointmentBufferMinutes: 10
   };
   return {
-    clinicName: profile.clinicName,
+    clinicName: profile.clinicName ?? "",
     legalName: profile.legalName ?? "",
     inn: profile.inn ?? "",
     kpp: profile.kpp ?? "",
@@ -4526,13 +4586,13 @@ export function clinicProfileDraftFromProfile(profile: ClinicProfile): ClinicPro
     bankDetails: profile.bankDetails ?? "",
     signatoryName: profile.signatoryName ?? "",
     signatoryTitle: profile.signatoryTitle ?? "",
-    timezone: profile.timezone,
-    defaultVisitMinutes: String(profile.defaultVisitMinutes),
-    workdayStart: schedule.workdayStart,
-    workdayEnd: schedule.workdayEnd,
+    timezone: profile.timezone ?? "Europe/Samara",
+    defaultVisitMinutes: String(profile.defaultVisitMinutes ?? 45),
+    workdayStart: schedule.workdayStart ?? "09:00",
+    workdayEnd: schedule.workdayEnd ?? "18:00",
     workingDays: normalizeWorkingDaysDraft(schedule.workingDays),
-    appointmentBufferMinutes: String(schedule.appointmentBufferMinutes),
-    egiszEnabled: profile.egiszEnabled
+    appointmentBufferMinutes: String(schedule.appointmentBufferMinutes ?? 10),
+    egiszEnabled: profile.egiszEnabled ?? false
   };
 }
 
@@ -5792,14 +5852,11 @@ export type AdminSecretSessionDomain = "clinical" | "settings" | "schedule" | "t
 export type AdminSecretUnlockDomain = AdminSecretSessionDomain | "all";
 
 export const onboardingSteps: Array<{ id: OnboardingStep; title: string; detail: string }> = [
-  { id: "intro", title: "Знакомство", detail: "что где лежит" },
-  { id: "role", title: "Роль", detail: "врач и специализация" },
-  { id: "clinic", title: "Клиника", detail: "режим и контакты" },
-  { id: "legal", title: "Документы", detail: "юрданные и лицензия" },
-  { id: "team", title: "Команда", detail: "сотрудники и кресла" },
-  { id: "sources", title: "Импорт", detail: "прайс, снимки, голос" },
+  { id: "intro", title: "Режим запуска", detail: "демо или чистая" },
+  { id: "clinic", title: "Клиника", detail: "название и телефон" },
+  { id: "team", title: "Команда", detail: "первый врач и кресло" },
   { id: "telegram", title: "ТГ-бот", detail: "бот, QR и отзывы" },
-  { id: "done", title: "Готово", detail: "проверка перед работой" }
+  { id: "done", title: "Готово", detail: "проверка и старт" }
 ];
 
 export const roleFocusOrder: StaffRole[] = ["doctor", "administrator", "assistant", "manager", "owner"];

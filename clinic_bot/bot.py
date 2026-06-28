@@ -103,15 +103,17 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
         log.warning(f"No registered {role}s to send photo to.")
         return
     
+    # Pre-chunk the report text outside the per-user loop to avoid redundant slicing
+    max_len = 4000
+    report_chunks = [report_text[i:i+max_len] for i in range(0, len(report_text), max_len)]
+
     async def _send_to_user(chat_id):
         try:
             input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
             await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
             
-            # Send the rest as text
-            max_len = 4000
-            for i in range(0, len(report_text), max_len):
-                chunk = report_text[i:i+max_len]
+            # Send the rest as text sequentially to preserve correct ordering
+            for chunk in report_chunks:
                 await bot.send_message(chat_id, text=chunk)
         except Exception as e:
             log.error(f"Failed to send photo to {chat_id}: {e}")

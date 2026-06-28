@@ -3890,11 +3890,21 @@ const {
     setTelegramLinkActionState(null);
   }, [telegramLinkActionState, telegramLinkCode, telegramLinkTargetKey]);
 
+  const telegramPatientsById = useMemo(() => {
+    if (!dashboard) return new Map<string, Dashboard["patients"][number]>();
+    return new Map(dashboard.patients.map((p) => [p.id, p]));
+  }, [dashboard]);
+
+  const telegramStaffById = useMemo(() => {
+    if (!dashboard) return new Map<string, Dashboard["clinicSettings"]["staff"][number]>();
+    return new Map(dashboard.clinicSettings.staff.map((s) => [s.id, s]));
+  }, [dashboard]);
+
   function telegramSubjectName(subjectType: DenteTelegramChatLinkPublic["subjectType"], subjectId: string): string {
     if (subjectType === "patient") {
-      return dashboard?.patients.find((patient) => patient.id === subjectId)?.fullName ?? "Пациент";
+      return telegramPatientsById.get(subjectId)?.fullName ?? "Пациент";
     }
-    return dashboard?.clinicSettings.staff.find((member) => member.id === subjectId)?.fullName ?? "Сотрудник";
+    return telegramStaffById.get(subjectId)?.fullName ?? "Сотрудник";
   }
 
   const activeChair = useMemo(() => {

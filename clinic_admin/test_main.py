@@ -89,6 +89,42 @@ class TestMain(unittest.TestCase):
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)
 
+
+    def test_add_patient_unauthenticated(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        form_data = {
+            "name": "Jane Doe",
+            "phone": "9876543210"
+        }
+        response = self.client.post("/patients/add", data=form_data)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Not authenticated"})
+
+    def test_add_patient_authenticated(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        form_data = {
+            "name": "Jane Doe",
+            "phone": "9876543210"
+        }
+
+        response = self.client.post("/patients/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        # Verify the patient is in the database
+        from clinic_admin.database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = ?", ("Jane Doe",))
+        patient = c.fetchone()
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["phone"], "9876543210")
+
+        conn.close()
+
     def test_add_appointment_unauthenticated(self):
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"

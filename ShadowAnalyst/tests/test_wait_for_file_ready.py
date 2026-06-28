@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import patch, mock_open
-import os
 
 from gui.app import wait_for_file_ready
 

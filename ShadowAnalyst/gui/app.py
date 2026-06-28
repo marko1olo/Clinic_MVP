@@ -33,12 +33,20 @@ class LogInterceptor:
         self.original_stdout = original_stdout
 
     def write(self, message):
-        self.original_stdout.write(message)
+        if self.original_stdout is not None:
+            try:
+                self.original_stdout.write(message)
+            except Exception:
+                pass
         if message.strip():
             log_buffer.append(message.strip())
 
     def flush(self):
-        self.original_stdout.flush()
+        if self.original_stdout is not None:
+            try:
+                self.original_stdout.flush()
+            except Exception:
+                pass
 
     def isatty(self):
         return False
@@ -114,15 +122,16 @@ def stop_tunnel():
 
 def make_groq_client(api_key: str, use_proxy: bool = False) -> OpenAI:
     """Создаёт OpenAI-совместимый Groq-клиент, опционально через SOCKS5."""
+    timeout_val = 20.0 if use_proxy else 12.0
     kwargs = dict(
         api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
-        timeout=45.0,
+        timeout=timeout_val,
         max_retries=0
     )
     if use_proxy:
         import httpx
-        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=45.0)
+        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=20.0)
         kwargs["http_client"] = http_client
     return OpenAI(**kwargs)
 
@@ -143,15 +152,85 @@ def is_retryable(exception):
         return False
     return True
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True, retry=retry_if_exception(is_retryable))
-def groq_chat(api_key: str, **kwargs):
-    """
-    Выполняет запрос к Groq с автоматическим переключением на SOCKS5-прокси
-    при ошибке соединения (Connection, Timeout, блокировка).
-    """
-    # 1-я попытка — напрямую
+gemini_use_proxy = False
+groq_use_proxy = False
+
+def check_tcp_socks5(target_host, target_port, timeout=3.0) -> bool:
+    import socket
     try:
-        client = make_groq_client(api_key, use_proxy=False)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect(("127.0.0.1", SOCKS_PORT))
+        
+        # SOCKS5 greeting
+        s.sendall(b"\x05\x01\x00")
+        resp = s.recv(2)
+        if len(resp) < 2 or resp[0] != 0x05 or resp[1] != 0x00:
+            s.close()
+            return False
+            
+        # SOCKS5 CONNECT request
+        host_bytes = target_host.encode('ascii')
+        request = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + target_port.to_bytes(2, 'big')
+        s.sendall(request)
+        
+        resp = s.recv(10)
+        s.close()
+        if len(resp) >= 2 and resp[0] == 0x05 and resp[1] == 0x00:
+            return True
+        return False
+    except Exception:
+        return False
+
+def check_connection_loop():
+    global gemini_use_proxy, groq_use_proxy
+    print("[VPN] Запущен фоновый мониторинг доступности API...")
+    
+    # Сначала сделаем быструю проверку при запуске
+    time.sleep(2)
+    
+    while True:
+        # 1. Проверяем Gemini напрямую по TCP
+        import socket
+        try:
+            socket.setdefaulttimeout(3.0)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(("generativelanguage.googleapis.com", 443))
+            s.close()
+            if gemini_use_proxy:
+                print("[VPN Monitor] Gemini API доступен напрямую. Переключаем на direct.")
+            gemini_use_proxy = False
+        except Exception:
+            # Если прямой доступ не удался, пробуем через SSH-туннель
+            if ensure_tunnel():
+                if check_tcp_socks5("generativelanguage.googleapis.com", 443):
+                    if not gemini_use_proxy:
+                        print("[VPN Monitor] Gemini напрямую недоступен. Переключаем на прокси.")
+                    gemini_use_proxy = True
+
+        # 2. Проверяем Groq напрямую по TCP
+        try:
+            socket.setdefaulttimeout(3.0)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(("api.groq.com", 443))
+            s.close()
+            if groq_use_proxy:
+                print("[VPN Monitor] Groq API доступен напрямую. Переключаем на direct.")
+            groq_use_proxy = False
+        except Exception:
+            # Если прямой доступ не удался, пробуем через SSH-туннель
+            if ensure_tunnel():
+                if check_tcp_socks5("api.groq.com", 443):
+                    if not groq_use_proxy:
+                        print("[VPN Monitor] Groq напрямую недоступен. Переключаем на прокси.")
+                    groq_use_proxy = True
+        
+        time.sleep(60)
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=8), reraise=True, retry=retry_if_exception(is_retryable))
+def groq_chat(api_key: str, **kwargs):
+    client = make_groq_client(api_key, use_proxy=groq_use_proxy)
+    try:
         return client.chat.completions.create(**kwargs)
     except Exception as e:
         err = str(e)
@@ -161,39 +240,33 @@ def groq_chat(api_key: str, **kwargs):
             "Network", "OSError", "[Errno"
         ])
         if not is_conn_err:
-            raise  # 429 и прочие API ошибки бросаем дальше, tenacity отменит ретрай если это 429/401
-        print(f"[VPN] Прямое подключение упало: {e}")
-
-    # 2-я попытка — через SOCKS5 туннель
-    if not ensure_tunnel():
-        raise ConnectionError("Прямое подключение заблокировано, SSH туннель не поднялся")
-    print("[VPN] Повтор через SOCKS5...")
-    client = make_groq_client(api_key, use_proxy=True)
-    return client.chat.completions.create(**kwargs)
+            raise
+        if not groq_use_proxy:
+            print(f"[VPN] Сбой прямого запроса Groq ({e}). Пробуем через SSH SOCKS5...")
+            if ensure_tunnel():
+                client_proxy = make_groq_client(api_key, use_proxy=True)
+                return client_proxy.chat.completions.create(**kwargs)
+        raise
 
 def make_gemini_client(api_key: str, use_proxy: bool = False) -> OpenAI:
     """Создаёт OpenAI-совместимый Gemini-клиент, опционально через SOCKS5."""
+    timeout_val = 20.0 if use_proxy else 12.0
     kwargs = dict(
         api_key=api_key,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        timeout=45.0,
+        timeout=timeout_val,
         max_retries=1
     )
     if use_proxy:
         import httpx
-        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=45.0)
+        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=20.0)
         kwargs["http_client"] = http_client
     return OpenAI(**kwargs)
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True, retry=retry_if_exception(is_retryable))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=8), reraise=True, retry=retry_if_exception(is_retryable))
 def gemini_chat(api_key: str, **kwargs):
-    """
-    Выполняет запрос к Gemini с автоматическим переключением на SOCKS5-прокси
-    при ошибке соединения (блокировка, таймаут).
-    """
-    # 1-я попытка — напрямую
+    client = make_gemini_client(api_key, use_proxy=gemini_use_proxy)
     try:
-        client = make_gemini_client(api_key, use_proxy=False)
         return client.chat.completions.create(**kwargs)
     except Exception as e:
         err = str(e)
@@ -203,15 +276,13 @@ def gemini_chat(api_key: str, **kwargs):
             "Network", "OSError", "[Errno"
         ])
         if not is_conn_err:
-            raise  # 429 и прочие API ошибки бросаем дальше
-        print(f"[VPN] Прямое подключение к Gemini упало: {e}")
-
-    # 2-я попытка — через SOCKS5 туннель
-    if not ensure_tunnel():
-        raise ConnectionError("Прямое подключение к Gemini заблокировано, SSH туннель не поднялся")
-    print("[VPN] Повтор Gemini через SOCKS5...")
-    client = make_gemini_client(api_key, use_proxy=True)
-    return client.chat.completions.create(**kwargs)
+            raise
+        if not gemini_use_proxy:
+            print(f"[VPN] Сбой прямого запроса Gemini ({e}). Пробуем через SSH SOCKS5...")
+            if ensure_tunnel():
+                client_proxy = make_gemini_client(api_key, use_proxy=True)
+                return client_proxy.chat.completions.create(**kwargs)
+        raise
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -394,6 +465,7 @@ os.makedirs(os.path.join(STATIC_DIR, "uploads"), exist_ok=True)
 # State
 app_state = {
     "is_processing": False,
+    "processing_image": None,
     "error_message": "",
     "queue_length": 0,
     "latest_image": "",
@@ -458,10 +530,10 @@ def run_cv2_enhancement(src_path, dest_path):
             print("Failed to decode image. Corrupted or unsupported format.")
             return False
             
-        clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8,8))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         enhanced = clahe.apply(img)
         gaussian = cv2.GaussianBlur(enhanced, (0, 0), 3.0)
-        sharpened = cv2.addWeighted(enhanced, 2.0, gaussian, -1.0, 0)
+        sharpened = cv2.addWeighted(enhanced, 1.4, gaussian, -0.4, 0)
         
         ext = os.path.splitext(dest_path)[1] or '.jpg'
         is_success, im_buf_arr = cv2.imencode(ext, sharpened)
@@ -762,6 +834,8 @@ def trigger_analysis():
     if not image_url:
         return {"error": "No image loaded to analyze"}
     filename = os.path.basename(image_url).split('?')[0]
+    app_state["is_processing"] = True
+    app_state["processing_image"] = f"/static/uploads/{filename}"
     threading.Thread(target=process_analysis_only, args=(filename,), daemon=True).start()
     return {"status": "processing"}
 
@@ -795,7 +869,7 @@ def prepare_image(file_path):
         with img:
             if img.mode != 'RGB':
                 img = img.convert('RGB')
-            max_size = 1000
+            max_size = 600
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             buffer = BytesIO()
@@ -832,31 +906,38 @@ def run_ai_analysis(file_path, patient_info=None):
             except Exception:
                 pass
 
-    if patient_info:
-        system_prompt += f"\n\nВАЖНО: Это снимок пациента по имени {patient_info['patient_name']}. Упомяни его имя в отчете."
 
     # Map intelligence tier to fallback cascade list
-    model_tier = config.get("model_tier", 4)
-    if model_tier == 4:
+    model_tier = config.get("model_tier", 2)
+    if model_tier == 5:
         models_with_providers = [
             ("gemini-3.5-flash", "gemini"),
-            ("gemini-3.1-flash-lite", "gemini"),
+            ("gemini-3-flash-preview", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
-    elif model_tier == 3:
+    elif model_tier == 4:
         models_with_providers = [
-            ("gemini-3.1-flash-lite", "gemini"),
+            ("gemini-3-flash-preview", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
-    elif model_tier == 2:
+    elif model_tier == 3: # Qwen + Qwen + Gemini fallback
         models_with_providers = [
             ("qwen/qwen3.6-27b", "groq"),
+            ("gemini-3-flash-preview", "gemini"),
+            ("gemini-3.5-flash", "gemini"),
+            (GROQ_VISION_MODEL, "groq")
+        ]
+    elif model_tier == 2: # Qwen + Llama + Gemini fallback
+        models_with_providers = [
+            ("qwen/qwen3.6-27b", "groq"),
+            ("gemini-3-flash-preview", "gemini"),
             (GROQ_VISION_MODEL, "groq")
         ]
     else:  # model_tier == 1
         models_with_providers = [
+            ("gemini-3-flash-preview", "gemini"),
             (GROQ_VISION_MODEL, "groq")
         ]
 
@@ -871,7 +952,9 @@ def run_ai_analysis(file_path, patient_info=None):
             keys = GROQ_API_KEYS.copy()
             chat_func = groq_chat
 
-        # Shuffle keys for each model pass to distribute load
+        if not keys:
+            print(f"Skipping model {model_name} ({provider}) - no API keys configured.")
+            continue
         random.shuffle(keys)
         success = False
         for api_key in keys:
@@ -893,9 +976,9 @@ def run_ai_analysis(file_path, patient_info=None):
                     val = response.choices[0].message.content
                     if val:
                         import re
-                        val_cleaned = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        val_cleaned = re.sub(r"(?i)<think>.*?(?:</think>|$)", "", val, flags=re.DOTALL).strip()
                         # If response is too short (cut off or failed), treat as failure and try next model
-                        if len(val_cleaned) >= 250:
+                        if len(val_cleaned) >= 80:
                             first_report = val_cleaned
                             first_model_idx = idx
                             success = True
@@ -908,6 +991,10 @@ def run_ai_analysis(file_path, patient_info=None):
             except Exception as e:
                 print(f"Error using key {api_key[:10]}... with model {model_name} ({provider}): {e}")
                 last_err = e
+                err_str = str(e).lower()
+                if "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str:
+                    print(f"[AI Pass 1] Rate limit (429) hit for model {model_name} with key {api_key[:10]}... trying next key.")
+                    continue
                 continue
         if success:
             break
@@ -942,7 +1029,14 @@ def run_ai_analysis(file_path, patient_info=None):
         )
 
     # Build critic cascade: prioritize the model AFTER the one that did Pass 1 (e.g. Qwen -> Llama)
-    critic_models = models_with_providers[first_model_idx + 1:] + models_with_providers[:first_model_idx + 1]
+    if model_tier == 3:
+        # Critic models: Qwen first, then Llama as fallback
+        critic_models = [
+            ("qwen/qwen3.6-27b", "groq"),
+            (GROQ_VISION_MODEL, "groq")
+        ]
+    else:
+        critic_models = models_with_providers[first_model_idx + 1:] + models_with_providers[:first_model_idx + 1]
     print(f"[AI Pass 2] Critic cascade: {[m[0] for m in critic_models]}")
 
     final_output = ""
@@ -955,6 +1049,9 @@ def run_ai_analysis(file_path, patient_info=None):
             keys = GROQ_API_KEYS.copy()
             chat_func = groq_chat
 
+        if not keys:
+            print(f"Skipping critic model {model_name} ({provider}) - no API keys configured.")
+            continue
         random.shuffle(keys)
         success = False
         for api_key in keys:
@@ -977,9 +1074,9 @@ def run_ai_analysis(file_path, patient_info=None):
                     val = response.choices[0].message.content
                     if val:
                         import re
-                        val_cleaned = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        val_cleaned = re.sub(r"(?i)<think>.*?(?:</think>|$)", "", val, flags=re.DOTALL).strip()
                         # Verify critic response length, if too short fallback to next
-                        if len(val_cleaned) >= 300:
+                        if len(val_cleaned) >= 100:
                             final_output = val_cleaned
                             success = True
                             print(f"[AI Pass 2] Success with critic model {model_name} ({len(val_cleaned)} chars)")
@@ -991,6 +1088,10 @@ def run_ai_analysis(file_path, patient_info=None):
             except Exception as e:
                 print(f"Error using key {api_key[:10]}... with model {model_name} in critic ({provider}): {e}")
                 last_err_critic = e
+                err_str = str(e).lower()
+                if "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str:
+                    print(f"[AI Pass 2] Rate limit (429) hit for model {model_name} in critic with key {api_key[:10]}... trying next key.")
+                    continue
                 continue
         if success:
             break
@@ -1020,6 +1121,9 @@ def run_ai_analysis(file_path, patient_info=None):
     cjk_pattern = re.compile(r'[\u4e00-\u9fff]+')
     summary_text = cjk_pattern.sub('', summary_text)
     report_text = cjk_pattern.sub('', report_text)
+
+    # Clean markdown headers or symbols like '###' or '**' from summary
+    summary_text = re.sub(r'^[#*\s\-\d.]+|[#*\s\-\d.]+$', '', summary_text).strip()
 
     return report_text, summary_text
 
@@ -1280,6 +1384,7 @@ def parse_patient_from_file(file_path: str) -> dict:
 
 def process_analysis_only(filename):
     app_state["is_processing"] = True
+    app_state["processing_image"] = f"/static/uploads/{filename}"
     app_state["latest_report"] = ""
     app_state["latest_summary"] = ""
     
@@ -1299,21 +1404,10 @@ def process_analysis_only(filename):
     if not os.path.exists(file_path):
         app_state["latest_report"] = "Снимок не найден на диске для анализа."
         app_state["is_processing"] = False
+        app_state["processing_image"] = None
         return
 
     patient_info = None
-    try:
-        resp = requests.get(CRM_API_URL, timeout=3)
-        if resp.status_code == 200:
-            data = resp.json()
-            if "error" not in data:
-                patient_info = data
-                print(f"CRM Link: Found patient {patient_info['patient_name']}")
-    except Exception as e:
-        print(f"CRM API error: {e}")
-
-    if not patient_info or not patient_info.get("patient_name"):
-        patient_info = parse_patient_from_file(file_path)
 
     base_name, ext = os.path.splitext(orig_name)
     enhanced_file_path = os.path.join(STATIC_DIR, "uploads", f"{base_name}_enhanced{ext}")
@@ -1327,15 +1421,15 @@ def process_analysis_only(filename):
     if summary == "Сбой анализа." or "Сбой:" in report:
         app_state["error_message"] = report
 
-    pat_name = patient_info["patient_name"] if (patient_info and patient_info.get("patient_name")) else "Неизвестен"
+    pat_name = "Не указан"
     threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
 
     # Automatically save scan into SQLite database
     ext = os.path.splitext(orig_name)[1]
     db_payload = {
-        "patient_name": pat_name,
-        "patient_age": patient_info.get("patient_age") if patient_info else None,
-        "patient_gender": patient_info.get("patient_gender", "Не указан") if patient_info else "Не указан",
+        "patient_name": "Не указан",
+        "patient_age": None,
+        "patient_gender": "Не указан",
         "original_image": f"/static/uploads/{orig_name}",
         "enhanced_image": f"/static/uploads/{orig_name.replace(ext, '_enhanced' + ext)}",
         "ai_image": "",
@@ -1366,6 +1460,7 @@ def process_analysis_only(filename):
     app_state["latest_summary"] = summary
     app_state["latest_ai_image"] = ""
     app_state["is_processing"] = False
+    app_state["processing_image"] = None
     
     # Update the item in recent_scans if it exists
     for s in app_state["recent_scans"]:
@@ -1382,6 +1477,7 @@ def process_new_xray(file_path):
         return
     
     processing_files.add(filename)
+    app_state["is_processing"] = True
     try:
         print(f"Waiting for file to be ready: {file_path}")
         if not wait_for_file_ready(file_path):
@@ -1408,6 +1504,8 @@ def process_new_xray(file_path):
             static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
             shutil.copy2(file_path, static_img_path)
 
+        app_state["processing_image"] = f"/static/uploads/{filename}"
+
         # Always pre-generate CLAHE enhanced version so it's ready for instant comparison slider
         base, ext = os.path.splitext(filename)
         enhanced_filename = f"{base}_enhanced{ext}"
@@ -1415,6 +1513,7 @@ def process_new_xray(file_path):
         if not run_cv2_enhancement(static_img_path, enhanced_path):
             app_state["error_message"] = f"Не удалось прочитать или улучшить изображение: {filename}"
             app_state["is_processing"] = False
+            app_state["processing_image"] = None
             return
 
         app_state["latest_image"] = f"/static/uploads/{filename}"
@@ -1441,6 +1540,7 @@ def process_new_xray(file_path):
             threading.Thread(target=process_analysis_only, args=(filename,), daemon=True).start()
         else:
             app_state["is_processing"] = False
+            app_state["processing_image"] = None
             print("Auto-analyze disabled. Waiting for manual trigger.")
             
     finally:
@@ -1609,6 +1709,9 @@ if __name__ == '__main__':
     # Start watcher
     observer_ref = start_watchdog()
 
+    # Start connection monitoring thread
+    threading.Thread(target=check_connection_loop, daemon=True).start()
+
     # Start PyWebView UI
     print("Starting Desktop App...")
     global_window = webview.create_window(
@@ -1654,16 +1757,7 @@ if __name__ == '__main__':
         global_window.hide()
         return False
 
-    def on_loaded():
-        try:
-            import pyi_splash
-            if pyi_splash.is_alive():
-                pyi_splash.close()
-        except ImportError:
-            pass
-
     global_window.events.closing += on_closing
-    global_window.events.loaded += on_loaded
     threading.Thread(target=setup_tray, args=(global_window,), daemon=True).start()
 
     webview.start(debug=False, icon='icon.ico')

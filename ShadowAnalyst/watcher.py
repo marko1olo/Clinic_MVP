@@ -107,7 +107,7 @@ def analyze_image(file_path):
     # Default cascade sequence
     models_with_providers = [
         ("gemini-3.5-flash", "gemini"),
-        ("gemini-3.1-flash-lite", "gemini"),
+        ("gemini-3-flash-preview", "gemini"),
         ("qwen/qwen3.6-27b", "groq"),
         (GROQ_VISION_MODEL, "groq")
     ]

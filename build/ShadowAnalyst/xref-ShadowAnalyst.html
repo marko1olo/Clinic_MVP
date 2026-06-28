@@ -23,6 +23,7 @@ imports:
  &#8226;   <a href="#_collections_abc">_collections_abc</a>
  &#8226;   <a href="#_weakrefset">_weakrefset</a>
  &#8226;   <a href="#abc">abc</a>
+ &#8226;   <a href="#aiofiles">aiofiles</a>
  &#8226;   <a href="#base64">base64</a>
  &#8226;   <a href="#codecs">codecs</a>
  &#8226;   <a href="#collections">collections</a>
@@ -158,6 +159,7 @@ imports:
  &#8226;   <a href="#fastapi.responses">fastapi.responses</a>
  &#8226;   <a href="#fastapi.staticfiles">fastapi.staticfiles</a>
  &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#gc">gc</a>
  &#8226;   <a href="#genericpath">genericpath</a>
  &#8226;   <a href="#hashlib">hashlib</a>
  &#8226;   <a href="#heapq">heapq</a>
@@ -182,6 +184,8 @@ imports:
  &#8226;   <a href="#pyi_rth_pythoncom.py">pyi_rth_pythoncom.py</a>
  &#8226;   <a href="#pyi_rth_pywintypes.py">pyi_rth_pywintypes.py</a>
  &#8226;   <a href="#pyi_rth_setuptools.py">pyi_rth_setuptools.py</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#random">random</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#re._casefix">re._casefix</a>
@@ -191,12 +195,15 @@ imports:
  &#8226;   <a href="#reprlib">reprlib</a>
  &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#traceback">traceback</a>
@@ -208,6 +215,7 @@ imports:
  &#8226;   <a href="#watchdog.observers">watchdog.observers</a>
  &#8226;   <a href="#weakref">weakref</a>
  &#8226;   <a href="#webview">webview</a>
+ &#8226;   <a href="#winreg">winreg</a>
  &#8226;   <a href="#xml.etree.ElementTree">xml.etree.ElementTree</a>
 
   </div>
@@ -386,6 +394,17 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="'PyObjCTools.MachSignals'"></a>
+  <a target="code" href="" type="text/plain"><tt>'PyObjCTools.MachSignals'</tt></a>
+<span class="moduletype">MissingModule</span>  <div class="import">
+imported by:
+    <a href="#pystray._darwin">pystray._darwin</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="'PyQt5.QtNetwork'"></a>
   <a target="code" href="" type="text/plain"><tt>'PyQt5.QtNetwork'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -482,6 +501,28 @@ imported by:
 imported by:
     <a href="#webview.platforms.edgechromium">webview.platforms.edgechromium</a>
  &#8226;   <a href="#webview.platforms.mshtml">webview.platforms.mshtml</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="'Xlib.XK'"></a>
+  <a target="code" href="" type="text/plain"><tt>'Xlib.XK'</tt></a>
+<span class="moduletype">MissingModule</span>  <div class="import">
+imported by:
+    <a href="#pystray._xorg">pystray._xorg</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="'Xlib.threaded'"></a>
+  <a target="code" href="" type="text/plain"><tt>'Xlib.threaded'</tt></a>
+<span class="moduletype">MissingModule</span>  <div class="import">
+imported by:
+    <a href="#pystray._xorg">pystray._xorg</a>
 
   </div>
 
@@ -590,6 +631,7 @@ imported by:
  &#8226;   <a href="#PIL.TiffImagePlugin">PIL.TiffImagePlugin</a>
  &#8226;   <a href="#_pyrepl.readline">_pyrepl.readline</a>
  &#8226;   <a href="#_pyrepl.types">_pyrepl.types</a>
+ &#8226;   <a href="#aiofiles.base">aiofiles.base</a>
  &#8226;   <a href="#aiohttp.abc">aiohttp.abc</a>
  &#8226;   <a href="#aiohttp.payload">aiohttp.payload</a>
  &#8226;   <a href="#aiohttp.web">aiohttp.web</a>
@@ -921,7 +963,11 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>'gi.repository'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#webview.platforms.gtk">webview.platforms.gtk</a>
+    <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._gtk">pystray._gtk</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#webview.platforms.gtk">webview.platforms.gtk</a>
 
   </div>
 
@@ -1310,7 +1356,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>AppKit</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
+    <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
 
   </div>
 
@@ -1354,7 +1401,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>Foundation</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
+    <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
 
   </div>
 
@@ -1658,6 +1706,8 @@ imported by:
  &#8226;   <a href="#pydicom.pixels.decoders.pillow">pydicom.pixels.decoders.pillow</a>
  &#8226;   <a href="#pydicom.pixels.processing">pydicom.pixels.processing</a>
  &#8226;   <a href="#pygments.formatters.img">pygments.formatters.img</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
 
   </div>
 
@@ -3898,6 +3948,7 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#bottle">bottle</a>
+ &#8226;   <a href="#six">six</a>
 
   </div>
 
@@ -3944,6 +3995,17 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="Xlib"></a>
+  <a target="code" href="" type="text/plain"><tt>Xlib</tt></a>
+<span class="moduletype">MissingModule</span>  <div class="import">
+imported by:
+    <a href="#pystray._xorg">pystray._xorg</a>
 
   </div>
 
@@ -4900,6 +4962,7 @@ imported by:
  &#8226;   <a href="#setuptools.monkey">setuptools.monkey</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
  &#8226;   <a href="#setuptools.warnings">setuptools.warnings</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#starlette._exception_handler">starlette._exception_handler</a>
  &#8226;   <a href="#starlette._utils">starlette._utils</a>
  &#8226;   <a href="#starlette.applications">starlette.applications</a>
@@ -7239,6 +7302,11 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.packaging.specifiers">setuptools._vendor.packaging.specifiers</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.convert">setuptools._vendor.wheel.cli.convert</a>
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging.specifiers">setuptools._vendor.wheel.vendored.packaging.specifiers</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#twisted.internet.base">twisted.internet.base</a>
  &#8226;   <a href="#twisted.internet.defer">twisted.internet.defer</a>
@@ -7256,6 +7324,179 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#aiohttp.resolver">aiohttp.resolver</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/__init__.py" type="text/plain"><tt>aiofiles</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#app.py">app.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.base"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/base.py" type="text/plain"><tt>aiofiles.base</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'collections.abc'">'collections.abc'</a>
+ &#8226;   <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#asyncio">asyncio</a>
+ &#8226;   <a href="#contextlib">contextlib</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.tempfile.temptypes">aiofiles.tempfile.temptypes</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#aiofiles.threadpool.binary">aiofiles.threadpool.binary</a>
+ &#8226;   <a href="#aiofiles.threadpool.text">aiofiles.threadpool.text</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.tempfile"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/tempfile/__init__.py" type="text/plain"><tt>aiofiles.tempfile</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.tempfile.temptypes">aiofiles.tempfile.temptypes</a>
+ &#8226;   <a href="#aiofiles.threadpool.binary">aiofiles.threadpool.binary</a>
+ &#8226;   <a href="#aiofiles.threadpool.text">aiofiles.threadpool.text</a>
+ &#8226;   <a href="#asyncio">asyncio</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#io">io</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.tempfile.temptypes">aiofiles.tempfile.temptypes</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.tempfile.temptypes"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/tempfile/temptypes.py" type="text/plain"><tt>aiofiles.tempfile.temptypes</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool.utils">aiofiles.threadpool.utils</a>
+ &#8226;   <a href="#functools">functools</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.threadpool"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/threadpool/__init__.py" type="text/plain"><tt>aiofiles.threadpool</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.threadpool.binary">aiofiles.threadpool.binary</a>
+ &#8226;   <a href="#aiofiles.threadpool.text">aiofiles.threadpool.text</a>
+ &#8226;   <a href="#asyncio">asyncio</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#io">io</a>
+ &#8226;   <a href="#sys">sys</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles">aiofiles</a>
+ &#8226;   <a href="#aiofiles.threadpool.binary">aiofiles.threadpool.binary</a>
+ &#8226;   <a href="#aiofiles.threadpool.text">aiofiles.threadpool.text</a>
+ &#8226;   <a href="#aiofiles.threadpool.utils">aiofiles.threadpool.utils</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.threadpool.binary"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/threadpool/binary.py" type="text/plain"><tt>aiofiles.threadpool.binary</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#aiofiles.threadpool.utils">aiofiles.threadpool.utils</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.threadpool.text"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/threadpool/text.py" type="text/plain"><tt>aiofiles.threadpool.text</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#aiofiles.threadpool.utils">aiofiles.threadpool.utils</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="aiofiles.threadpool.utils"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/aiofiles/threadpool/utils.py" type="text/plain"><tt>aiofiles.threadpool.utils</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#functools">functools</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#aiofiles.tempfile.temptypes">aiofiles.tempfile.temptypes</a>
+ &#8226;   <a href="#aiofiles.threadpool.binary">aiofiles.threadpool.binary</a>
+ &#8226;   <a href="#aiofiles.threadpool.text">aiofiles.threadpool.text</a>
 
   </div>
 
@@ -10361,7 +10602,10 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#aiohappyeyeballs._staggered">aiohappyeyeballs._staggered</a>
+    <a href="#aiofiles.base">aiofiles.base</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#aiohappyeyeballs._staggered">aiohappyeyeballs._staggered</a>
  &#8226;   <a href="#aiohappyeyeballs.impl">aiohappyeyeballs.impl</a>
  &#8226;   <a href="#aiohttp.abc">aiohttp.abc</a>
  &#8226;   <a href="#aiohttp.base_protocol">aiohttp.base_protocol</a>
@@ -10441,6 +10685,7 @@ imported by:
  &#8226;   <a href="#openai.resources.vector_stores.file_batches">openai.resources.vector_stores.file_batches</a>
  &#8226;   <a href="#sniffio._impl">sniffio._impl</a>
  &#8226;   <a href="#starlette._utils">starlette._utils</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
  &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
  &#8226;   <a href="#tornado.gen">tornado.gen</a>
  &#8226;   <a href="#tornado.http1connection">tornado.http1connection</a>
@@ -11373,6 +11618,8 @@ imported by:
  &#8226;   <a href="#multiprocessing.forkserver">multiprocessing.forkserver</a>
  &#8226;   <a href="#multiprocessing.popen_fork">multiprocessing.popen_fork</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
  &#8226;   <a href="#pythonnet">pythonnet</a>
  &#8226;   <a href="#rlcompleter">rlcompleter</a>
  &#8226;   <a href="#site">site</a>
@@ -14637,6 +14884,7 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imported by:
     <a href="#concurrent.futures">concurrent.futures</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
 
   </div>
@@ -14671,6 +14919,7 @@ imported by:
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#openai.resources.vector_stores.file_batches">openai.resources.vector_stores.file_batches</a>
  &#8226;   <a href="#setuptools._distutils.command.build_ext">setuptools._distutils.command.build_ext</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
  &#8226;   <a href="#tornado.gen">tornado.gen</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
@@ -14877,6 +15126,7 @@ imported by:
  &#8226;   <a href="#_pyrepl.historical_reader">_pyrepl.historical_reader</a>
  &#8226;   <a href="#_pyrepl.reader">_pyrepl.reader</a>
  &#8226;   <a href="#_threading_local">_threading_local</a>
+ &#8226;   <a href="#aiofiles.base">aiofiles.base</a>
  &#8226;   <a href="#aiohappyeyeballs._staggered">aiohappyeyeballs._staggered</a>
  &#8226;   <a href="#aiohappyeyeballs.impl">aiohappyeyeballs.impl</a>
  &#8226;   <a href="#aiohttp.client">aiohttp.client</a>
@@ -14977,6 +15227,8 @@ imported by:
  &#8226;   <a href="#pydicom.dataset">pydicom.dataset</a>
  &#8226;   <a href="#pydicom.fileutil">pydicom.fileutil</a>
  &#8226;   <a href="#pydicom.tag">pydicom.tag</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
  &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#rich._timer">rich._timer</a>
  &#8226;   <a href="#rich.ansi">rich.ansi</a>
@@ -16788,6 +17040,8 @@ imported by:
  &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
  &#8226;   <a href="#platform">platform</a>
  &#8226;   <a href="#psutil._common">psutil._common</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
  &#8226;   <a href="#rich._win32_console">rich._win32_console</a>
  &#8226;   <a href="#rich._windows">rich._windows</a>
  &#8226;   <a href="#setuptools._vendor.packaging._manylinux">setuptools._vendor.packaging._manylinux</a>
@@ -16968,6 +17222,8 @@ imported by:
  &#8226;   <a href="#click._winconsole">click._winconsole</a>
  &#8226;   <a href="#colorama.win32">colorama.win32</a>
  &#8226;   <a href="#dns.win32util">dns.win32util</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
  &#8226;   <a href="#rich._win32_console">rich._win32_console</a>
  &#8226;   <a href="#setuptools.windows_support">setuptools.windows_support</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
@@ -17461,6 +17717,7 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.packaging._tokenizer">setuptools._vendor.packaging._tokenizer</a>
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging._tokenizer">setuptools._vendor.wheel.vendored.packaging._tokenizer</a>
  &#8226;   <a href="#starlette.formparsers">starlette.formparsers</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#tornado.httputil">tornado.httputil</a>
  &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
  &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
@@ -17545,6 +17802,7 @@ imported by:
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#sqlite3.dbapi2">sqlite3.dbapi2</a>
  &#8226;   <a href="#starlette.responses">starlette.responses</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
  &#8226;   <a href="#toml.decoder">toml.decoder</a>
  &#8226;   <a href="#toml.encoder">toml.encoder</a>
  &#8226;   <a href="#toml.tz">toml.tz</a>
@@ -26664,6 +26922,10 @@ imported by:
  &#8226;   <a href="#PIL.PsdImagePlugin">PIL.PsdImagePlugin</a>
  &#8226;   <a href="#_pyrepl.simple_interact">_pyrepl.simple_interact</a>
  &#8226;   <a href="#_pyrepl.utils">_pyrepl.utils</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.tempfile.temptypes">aiofiles.tempfile.temptypes</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
+ &#8226;   <a href="#aiofiles.threadpool.utils">aiofiles.threadpool.utils</a>
  &#8226;   <a href="#aiohappyeyeballs.impl">aiohappyeyeballs.impl</a>
  &#8226;   <a href="#aiohttp.client_reqrep">aiohttp.client_reqrep</a>
  &#8226;   <a href="#aiohttp.connector">aiohttp.connector</a>
@@ -26809,6 +27071,9 @@ imported by:
  &#8226;   <a href="#pydicom.data.download">pydicom.data.download</a>
  &#8226;   <a href="#pydicom.data.retry">pydicom.data.retry</a>
  &#8226;   <a href="#pygments.formatters.html">pygments.formatters.html</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#rich.cells">rich.cells</a>
  &#8226;   <a href="#rich.color">rich.color</a>
@@ -26853,6 +27118,7 @@ imported by:
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
  &#8226;   <a href="#setuptools.extension">setuptools.extension</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#socks">socks</a>
  &#8226;   <a href="#socksio.compat">socksio.compat</a>
  &#8226;   <a href="#socksio.utils">socksio.utils</a>
@@ -26862,6 +27128,9 @@ imported by:
  &#8226;   <a href="#starlette.routing">starlette.routing</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#tokenize">tokenize</a>
  &#8226;   <a href="#tomli._re">tomli._re</a>
@@ -26923,6 +27192,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#_posixsubprocess">_posixsubprocess</a>
+ &#8226;   <a href="#app.py">app.py</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#twisted.internet.process">twisted.internet.process</a>
  &#8226;   <a href="#twisted.persisted.styles">twisted.persisted.styles</a>
@@ -27066,7 +27336,11 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>gi</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#webview.platforms.gtk">webview.platforms.gtk</a>
+    <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._gtk">pystray._gtk</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#webview.platforms.gtk">webview.platforms.gtk</a>
 
   </div>
 
@@ -30954,6 +31228,7 @@ imported by:
  &#8226;   <a href="#setuptools._distutils.command.build_py">setuptools._distutils.command.build_py</a>
  &#8226;   <a href="#setuptools._distutils.util">setuptools._distutils.util</a>
  &#8226;   <a href="#setuptools._imp">setuptools._imp</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#starlette.staticfiles">starlette.staticfiles</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#werkzeug.middleware.shared_data">werkzeug.middleware.shared_data</a>
@@ -31151,6 +31426,7 @@ imported by:
  &#8226;   <a href="#pydicom.jsonrep">pydicom.jsonrep</a>
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
  &#8226;   <a href="#rich._inspect">rich._inspect</a>
  &#8226;   <a href="#rich.console">rich.console</a>
  &#8226;   <a href="#rich.pretty">rich.pretty</a>
@@ -31168,6 +31444,7 @@ imported by:
  &#8226;   <a href="#setuptools.warnings">setuptools.warnings</a>
  &#8226;   <a href="#starlette.middleware.errors">starlette.middleware.errors</a>
  &#8226;   <a href="#starlette.routing">starlette.routing</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
  &#8226;   <a href="#tornado.gen">tornado.gen</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
  &#8226;   <a href="#tornado.util">tornado.util</a>
@@ -31233,6 +31510,8 @@ imported by:
  &#8226;   <a href="#_compression">_compression</a>
  &#8226;   <a href="#_pyrepl.pager">_pyrepl.pager</a>
  &#8226;   <a href="#_pyrepl.windows_console">_pyrepl.windows_console</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
  &#8226;   <a href="#aiohttp.client_reqrep">aiohttp.client_reqrep</a>
  &#8226;   <a href="#aiohttp.formdata">aiohttp.formdata</a>
  &#8226;   <a href="#aiohttp.payload">aiohttp.payload</a>
@@ -31326,6 +31605,7 @@ imported by:
  &#8226;   <a href="#pygments.formatters.html">pygments.formatters.html</a>
  &#8226;   <a href="#pygments.formatters.latex">pygments.formatters.latex</a>
  &#8226;   <a href="#pygments.util">pygments.util</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
  &#8226;   <a href="#quopri">quopri</a>
  &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#requests.models">requests.models</a>
@@ -31347,6 +31627,7 @@ imported by:
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
  &#8226;   <a href="#shlex">shlex</a>
  &#8226;   <a href="#site">site</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
@@ -31549,6 +31830,7 @@ imported by:
  &#8226;   <a href="#pydicom.misc">pydicom.misc</a>
  &#8226;   <a href="#pydicom.pixels.encoders.native">pydicom.pixels.encoders.native</a>
  &#8226;   <a href="#pygments.regexopt">pygments.regexopt</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
  &#8226;   <a href="#random">random</a>
  &#8226;   <a href="#reprlib">reprlib</a>
  &#8226;   <a href="#rich.align">rich.align</a>
@@ -31589,6 +31871,7 @@ imported by:
  &#8226;   <a href="#setuptools.installer">setuptools.installer</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
@@ -32893,6 +33176,7 @@ imported by:
  &#8226;   <a href="#pydicom.pixels.decoders.base">pydicom.pixels.decoders.base</a>
  &#8226;   <a href="#pydicom.pixels.encoders.base">pydicom.pixels.encoders.base</a>
  &#8226;   <a href="#pydicom.pixels.utils">pydicom.pixels.utils</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
  &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#rich.segment">rich.segment</a>
  &#8226;   <a href="#setuptools._distutils._log">setuptools._distutils._log</a>
@@ -32908,6 +33192,9 @@ imported by:
  &#8226;   <a href="#setuptools.config.pyprojecttoml">setuptools.config.pyprojecttoml</a>
  &#8226;   <a href="#setuptools.logging">setuptools.logging</a>
  &#8226;   <a href="#socks">socks</a>
+ &#8226;   <a href="#tenacity.after">tenacity.after</a>
+ &#8226;   <a href="#tenacity.before">tenacity.before</a>
+ &#8226;   <a href="#tenacity.before_sleep">tenacity.before_sleep</a>
  &#8226;   <a href="#tornado.http1connection">tornado.http1connection</a>
  &#8226;   <a href="#tornado.log">tornado.log</a>
  &#8226;   <a href="#tqdm.cli">tqdm.cli</a>
@@ -45235,7 +45522,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>objc</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
+    <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#webview.platforms.cocoa">webview.platforms.cocoa</a>
 
   </div>
 
@@ -69989,6 +70277,7 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.more_itertools.recipes">setuptools._vendor.more_itertools.recipes</a>
  &#8226;   <a href="#setuptools._vendor.packaging.markers">setuptools._vendor.packaging.markers</a>
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging.markers">setuptools._vendor.wheel.vendored.packaging.markers</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#typing">typing</a>
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
@@ -70304,6 +70593,10 @@ imported by:
  &#8226;   <a href="#pyi_rth_pythoncom.py">pyi_rth_pythoncom.py</a>
  &#8226;   <a href="#pyi_rth_pywintypes.py">pyi_rth_pywintypes.py</a>
  &#8226;   <a href="#pyi_rth_setuptools.py">pyi_rth_setuptools.py</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
  &#8226;   <a href="#pythonnet">pythonnet</a>
  &#8226;   <a href="#pywintypes">pywintypes</a>
  &#8226;   <a href="#random">random</a>
@@ -85435,6 +85728,325 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="pystray"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/__init__.py" type="text/plain"><tt>pystray</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#os">os</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#pystray._dummy">pystray._dummy</a>
+ &#8226;   <a href="#pystray._gtk">pystray._gtk</a>
+ &#8226;   <a href="#pystray._info">pystray._info</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
+ &#8226;   <a href="#sys">sys</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.py">app.py</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#pystray._dummy">pystray._dummy</a>
+ &#8226;   <a href="#pystray._gtk">pystray._gtk</a>
+ &#8226;   <a href="#pystray._info">pystray._info</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._appindicator"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_appindicator.py" type="text/plain"><tt>pystray._appindicator</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'gi.repository'">'gi.repository'</a>
+ &#8226;   <a href="#gi">gi</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._base"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_base.py" type="text/plain"><tt>pystray._base</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#functools">functools</a>
+ &#8226;   <a href="#inspect">inspect</a>
+ &#8226;   <a href="#itertools">itertools</a>
+ &#8226;   <a href="#logging">logging</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#six.moves">six.moves</a>
+ &#8226;   <a href="#six.moves.queue">six.moves.queue</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#pystray._dummy">pystray._dummy</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._darwin"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_darwin.py" type="text/plain"><tt>pystray._darwin</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'PyObjCTools.MachSignals'">'PyObjCTools.MachSignals'</a>
+ &#8226;   <a href="#AppKit">AppKit</a>
+ &#8226;   <a href="#Foundation">Foundation</a>
+ &#8226;   <a href="#PIL">PIL</a>
+ &#8226;   <a href="#io">io</a>
+ &#8226;   <a href="#objc">objc</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#signal">signal</a>
+ &#8226;   <a href="#subprocess">subprocess</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._dummy"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_dummy.py" type="text/plain"><tt>pystray._dummy</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._gtk"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_gtk.py" type="text/plain"><tt>pystray._gtk</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'gi.repository'">'gi.repository'</a>
+ &#8226;   <a href="#gi">gi</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._info"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_info.py" type="text/plain"><tt>pystray._info</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#pystray">pystray</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._util"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_util/__init__.py" type="text/plain"><tt>pystray._util</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#contextlib">contextlib</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._util.gtk"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_util/gtk.py" type="text/plain"><tt>pystray._util.gtk</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'gi.repository'">'gi.repository'</a>
+ &#8226;   <a href="#atexit">atexit</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#gi">gi</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
+ &#8226;   <a href="#signal">signal</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._appindicator">pystray._appindicator</a>
+ &#8226;   <a href="#pystray._gtk">pystray._gtk</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._util.notify_dbus"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_util/notify_dbus.py" type="text/plain"><tt>pystray._util.notify_dbus</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'gi.repository'">'gi.repository'</a>
+ &#8226;   <a href="#atexit">atexit</a>
+ &#8226;   <a href="#gi">gi</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._util.win32"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_util/win32.py" type="text/plain"><tt>pystray._util.win32</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#ctypes">ctypes</a>
+ &#8226;   <a href="#ctypes.wintypes">ctypes.wintypes</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._win32"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_win32.py" type="text/plain"><tt>pystray._win32</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#ctypes">ctypes</a>
+ &#8226;   <a href="#ctypes.wintypes">ctypes.wintypes</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.win32">pystray._util.win32</a>
+ &#8226;   <a href="#six.moves">six.moves</a>
+ &#8226;   <a href="#six.moves.queue">six.moves.queue</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="pystray._xorg"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/pystray/_xorg.py" type="text/plain"><tt>pystray._xorg</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#'Xlib.XK'">'Xlib.XK'</a>
+ &#8226;   <a href="#'Xlib.threaded'">'Xlib.threaded'</a>
+ &#8226;   <a href="#PIL">PIL</a>
+ &#8226;   <a href="#Xlib">Xlib</a>
+ &#8226;   <a href="#contextlib">contextlib</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#six">six</a>
+ &#8226;   <a href="#six.moves">six.moves</a>
+ &#8226;   <a href="#six.moves.queue">six.moves.queue</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#types">types</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray">pystray</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="python_socks"></a>
   <a target="code" href="" type="text/plain"><tt>python_socks</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -85546,6 +86158,7 @@ imports:
 imported by:
     <a href="#anyio._backends._asyncio">anyio._backends._asyncio</a>
  &#8226;   <a href="#anyio._backends._trio">anyio._backends._trio</a>
+ &#8226;   <a href="#app.py">app.py</a>
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
  &#8226;   <a href="#edge_tts.communicate">edge_tts.communicate</a>
@@ -85557,6 +86170,7 @@ imported by:
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
  &#8226;   <a href="#multiprocessing.queues">multiprocessing.queues</a>
  &#8226;   <a href="#setuptools._vendor.more_itertools.more">setuptools._vendor.more_itertools.more</a>
+ &#8226;   <a href="#six.moves.queue">six.moves.queue</a>
  &#8226;   <a href="#twisted._threads._pool">twisted._threads._pool</a>
  &#8226;   <a href="#twisted.internet.threads">twisted.internet.threads</a>
  &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
@@ -85638,6 +86252,7 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.more_itertools.recipes">setuptools._vendor.more_itertools.recipes</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
  &#8226;   <a href="#tornado.process">tornado.process</a>
  &#8226;   <a href="#twisted.cred.credentials">twisted.cred.credentials</a>
@@ -86074,6 +86689,7 @@ imported by:
  &#8226;   <a href="#string">string</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#tarfile">tarfile</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
  &#8226;   <a href="#textwrap">textwrap</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#tokenize">tokenize</a>
@@ -93338,6 +93954,7 @@ imported by:
  &#8226;   <a href="#numpy.lib._datasource">numpy.lib._datasource</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#pygments.lexers._php_builtins">pygments.lexers._php_builtins</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
  &#8226;   <a href="#setuptools._distutils.spawn">setuptools._distutils.spawn</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.context">setuptools._vendor.jaraco.context</a>
@@ -93393,6 +94010,8 @@ imported by:
  &#8226;   <a href="#pdb">pdb</a>
  &#8226;   <a href="#psutil">psutil</a>
  &#8226;   <a href="#psutil._pswindows">psutil._pswindows</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tornado.process">tornado.process</a>
  &#8226;   <a href="#twisted.internet._signals">twisted.internet._signals</a>
@@ -93470,6 +94089,70 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="six"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/six.py" type="text/plain"><tt>six</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#StringIO">StringIO</a>
+ &#8226;   <a href="#__future__">__future__</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#importlib.util">importlib.util</a>
+ &#8226;   <a href="#io">io</a>
+ &#8226;   <a href="#itertools">itertools</a>
+ &#8226;   <a href="#operator">operator</a>
+ &#8226;   <a href="#struct">struct</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#types">types</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray._xorg">pystray._xorg</a>
+ &#8226;   <a href="#six.moves">six.moves</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="six.moves"></a>
+  <a target="code" href="" type="text/plain"><tt>six.moves</tt></a>
+<span class="moduletype">RuntimePackage</span>  <div class="import">
+imports:
+    <a href="#six">six</a>
+ &#8226;   <a href="#six.moves.queue">six.moves.queue</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="six.moves.queue"></a>
+  <a target="code" href="" type="text/plain"><tt>six.moves.queue</tt></a>
+<span class="moduletype">AliasNode</span>  <div class="import">
+imports:
+    <a href="#queue">queue</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
+ &#8226;   <a href="#six.moves">six.moves</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="smtplib"></a>
   <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/smtplib.py" type="text/plain"><tt>smtplib</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -93520,6 +94203,7 @@ imported by:
  &#8226;   <a href="#openai.resources.vector_stores.file_batches">openai.resources.vector_stores.file_batches</a>
  &#8226;   <a href="#sniffio._impl">sniffio._impl</a>
  &#8226;   <a href="#sniffio._version">sniffio._version</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
 
   </div>
 
@@ -93598,6 +94282,7 @@ imported by:
  &#8226;   <a href="#anyio._core._sockets">anyio._core._sockets</a>
  &#8226;   <a href="#anyio.abc._eventloop">anyio.abc._eventloop</a>
  &#8226;   <a href="#anyio.abc._sockets">anyio.abc._sockets</a>
+ &#8226;   <a href="#app.py">app.py</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.events">asyncio.events</a>
  &#8226;   <a href="#asyncio.proactor_events">asyncio.proactor_events</a>
@@ -95079,6 +95764,7 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging._elffile">setuptools._vendor.wheel.vendored.packaging._elffile</a>
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging.tags">setuptools._vendor.wheel.vendored.packaging.tags</a>
  &#8226;   <a href="#setuptools.command.bdist_wheel">setuptools.command.bdist_wheel</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#socks">socks</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#tqdm.utils">tqdm.utils</a>
@@ -95172,6 +95858,7 @@ imported by:
  &#8226;   <a href="#pygments.formatters.img">pygments.formatters.img</a>
  &#8226;   <a href="#pygments.lexers._scilab_builtins">pygments.lexers._scilab_builtins</a>
  &#8226;   <a href="#pyi_rth_multiprocessing.py">pyi_rth_multiprocessing.py</a>
+ &#8226;   <a href="#pystray._darwin">pystray._darwin</a>
  &#8226;   <a href="#setuptools._distutils.compilers.C.msvc">setuptools._distutils.compilers.C.msvc</a>
  &#8226;   <a href="#setuptools._distutils.spawn">setuptools._distutils.spawn</a>
  &#8226;   <a href="#setuptools._distutils.util">setuptools._distutils.util</a>
@@ -95236,6 +95923,8 @@ imported by:
  &#8226;   <a href="#_pyrepl.windows_console">_pyrepl.windows_console</a>
  &#8226;   <a href="#_pytest.outcomes">_pytest.outcomes</a>
  &#8226;   <a href="#_sitebuiltins">_sitebuiltins</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
+ &#8226;   <a href="#aiofiles.threadpool">aiofiles.threadpool</a>
  &#8226;   <a href="#aiohttp.client">aiohttp.client</a>
  &#8226;   <a href="#aiohttp.client_reqrep">aiohttp.client_reqrep</a>
  &#8226;   <a href="#aiohttp.client_ws">aiohttp.client_ws</a>
@@ -95509,6 +96198,8 @@ imported by:
  &#8226;   <a href="#pyi_rth_multiprocessing.py">pyi_rth_multiprocessing.py</a>
  &#8226;   <a href="#pyi_rth_pythoncom.py">pyi_rth_pythoncom.py</a>
  &#8226;   <a href="#pyi_rth_pywintypes.py">pyi_rth_pywintypes.py</a>
+ &#8226;   <a href="#pystray">pystray</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
  &#8226;   <a href="#pythonnet">pythonnet</a>
  &#8226;   <a href="#pywintypes">pywintypes</a>
  &#8226;   <a href="#quopri">quopri</a>
@@ -95590,6 +96281,7 @@ imported by:
  &#8226;   <a href="#shlex">shlex</a>
  &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#site">site</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#sniffio._impl">sniffio._impl</a>
  &#8226;   <a href="#socket">socket</a>
@@ -95609,6 +96301,10 @@ imported by:
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#tokenize">tokenize</a>
@@ -95846,6 +96542,7 @@ imported by:
  &#8226;   <a href="#PIL.Image">PIL.Image</a>
  &#8226;   <a href="#PIL.JpegImagePlugin">PIL.JpegImagePlugin</a>
  &#8226;   <a href="#_pyrepl.pager">_pyrepl.pager</a>
+ &#8226;   <a href="#aiofiles.tempfile">aiofiles.tempfile</a>
  &#8226;   <a href="#aiohttp.web_request">aiohttp.web_request</a>
  &#8226;   <a href="#anyio._core._tempfile">anyio._core._tempfile</a>
  &#8226;   <a href="#asyncio.windows_utils">asyncio.windows_utils</a>
@@ -95866,6 +96563,9 @@ imported by:
  &#8226;   <a href="#numpy.lib._datasource">numpy.lib._datasource</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#pydicom.pixel_data_handlers.gdcm_handler">pydicom.pixel_data_handlers.gdcm_handler</a>
+ &#8226;   <a href="#pystray._util">pystray._util</a>
+ &#8226;   <a href="#pystray._util.gtk">pystray._util.gtk</a>
+ &#8226;   <a href="#pystray._util.notify_dbus">pystray._util.notify_dbus</a>
  &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
  &#8226;   <a href="#setuptools._distutils.compilers.C.base">setuptools._distutils.compilers.C.base</a>
@@ -95881,6 +96581,293 @@ imported by:
  &#8226;   <a href="#werkzeug.formparser">werkzeug.formparser</a>
  &#8226;   <a href="#werkzeug.serving">werkzeug.serving</a>
  &#8226;   <a href="#werkzeug.test">werkzeug.test</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/__init__.py" type="text/plain"><tt>tenacity</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#abc">abc</a>
+ &#8226;   <a href="#concurrent">concurrent</a>
+ &#8226;   <a href="#concurrent.futures">concurrent.futures</a>
+ &#8226;   <a href="#dataclasses">dataclasses</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.after">tenacity.after</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#tenacity.before">tenacity.before</a>
+ &#8226;   <a href="#tenacity.before_sleep">tenacity.before_sleep</a>
+ &#8226;   <a href="#tenacity.nap">tenacity.nap</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#tornado">tornado</a>
+ &#8226;   <a href="#types">types</a>
+ &#8226;   <a href="#typing">typing</a>
+ &#8226;   <a href="#typing_extensions">typing_extensions</a>
+ &#8226;   <a href="#warnings">warnings</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.py">app.py</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.after">tenacity.after</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+ &#8226;   <a href="#tenacity.before">tenacity.before</a>
+ &#8226;   <a href="#tenacity.before_sleep">tenacity.before_sleep</a>
+ &#8226;   <a href="#tenacity.nap">tenacity.nap</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity._utils"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/_utils.py" type="text/plain"><tt>tenacity._utils</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#datetime">datetime</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#inspect">inspect</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.after">tenacity.after</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+ &#8226;   <a href="#tenacity.before">tenacity.before</a>
+ &#8226;   <a href="#tenacity.before_sleep">tenacity.before_sleep</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.after"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/after.py" type="text/plain"><tt>tenacity.after</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#logging">logging</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.asyncio"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/asyncio/__init__.py" type="text/plain"><tt>tenacity.asyncio</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#asyncio">asyncio</a>
+ &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#sniffio">sniffio</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
+ &#8226;   <a href="#trio">trio</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.asyncio.retry"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/asyncio/retry.py" type="text/plain"><tt>tenacity.asyncio.retry</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#abc">abc</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity.asyncio">tenacity.asyncio</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.before"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/before.py" type="text/plain"><tt>tenacity.before</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#logging">logging</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.before_sleep"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/before_sleep.py" type="text/plain"><tt>tenacity.before_sleep</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#logging">logging</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.nap"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/nap.py" type="text/plain"><tt>tenacity.nap</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.retry"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/retry.py" type="text/plain"><tt>tenacity.retry</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#abc">abc</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.py">app.py</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.stop"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/stop.py" type="text/plain"><tt>tenacity.stop</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#abc">abc</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.tornadoweb"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/tornadoweb.py" type="text/plain"><tt>tenacity.tornadoweb</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#sys">sys</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tornado">tornado</a>
+ &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
+ &#8226;   <a href="#tornado.gen">tornado.gen</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tenacity.wait"></a>
+  <a target="code" href="///C:/Users/Admin/AppData/Local/Programs/Python/Python313/Lib/site-packages/tenacity/wait.py" type="text/plain"><tt>tenacity.wait</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#abc">abc</a>
+ &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
 
   </div>
 
@@ -96036,6 +97023,9 @@ imported by:
  &#8226;   <a href="#psutil._common">psutil._common</a>
  &#8226;   <a href="#psutil._pswindows">psutil._pswindows</a>
  &#8226;   <a href="#pydoc">pydoc</a>
+ &#8226;   <a href="#pystray._base">pystray._base</a>
+ &#8226;   <a href="#pystray._win32">pystray._win32</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#requests.auth">requests.auth</a>
  &#8226;   <a href="#requests.cookies">requests.cookies</a>
@@ -96047,6 +97037,9 @@ imported by:
  &#8226;   <a href="#sounddevice">sounddevice</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.nap">tenacity.nap</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
  &#8226;   <a href="#tornado.platform.asyncio">tornado.platform.asyncio</a>
  &#8226;   <a href="#tqdm._monitor">tqdm._monitor</a>
  &#8226;   <a href="#tqdm.std">tqdm.std</a>
@@ -96240,6 +97233,8 @@ imported by:
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tarfile">tarfile</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.nap">tenacity.nap</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tornado.httputil">tornado.httputil</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
@@ -96599,7 +97594,9 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#tornado.concurrent">tornado.concurrent</a>
+    <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
  &#8226;   <a href="#tornado.escape">tornado.escape</a>
  &#8226;   <a href="#tornado.gen">tornado.gen</a>
  &#8226;   <a href="#tornado.http1connection">tornado.http1connection</a>
@@ -96640,7 +97637,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#tornado.gen">tornado.gen</a>
+    <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tornado.gen">tornado.gen</a>
  &#8226;   <a href="#tornado.http1connection">tornado.http1connection</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
  &#8226;   <a href="#tornado.iostream">tornado.iostream</a>
@@ -96705,7 +97703,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#tornado.http1connection">tornado.http1connection</a>
+    <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tornado.http1connection">tornado.http1connection</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
  &#8226;   <a href="#tornado.platform.asyncio">tornado.platform.asyncio</a>
  &#8226;   <a href="#tornado.tcpserver">tornado.tcpserver</a>
@@ -97521,6 +98520,7 @@ imported by:
  &#8226;   <a href="#httpx._transports.asgi">httpx._transports.asgi</a>
  &#8226;   <a href="#httpx._utils">httpx._utils</a>
  &#8226;   <a href="#openai.resources.vector_stores.file_batches">openai.resources.vector_stores.file_batches</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
  &#8226;   <a href="#watchfiles.main">watchfiles.main</a>
 
   </div>
@@ -101456,6 +102456,7 @@ imported by:
  &#8226;   <a href="#pydicom.filebase">pydicom.filebase</a>
  &#8226;   <a href="#pygments.formatters">pygments.formatters</a>
  &#8226;   <a href="#pygments.lexers">pygments.lexers</a>
+ &#8226;   <a href="#pystray._xorg">pystray._xorg</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#rich._null_file">rich._null_file</a>
  &#8226;   <a href="#rich.console">rich.console</a>
@@ -101474,9 +102475,11 @@ imported by:
  &#8226;   <a href="#setuptools.config.pyprojecttoml">setuptools.config.pyprojecttoml</a>
  &#8226;   <a href="#setuptools.depends">setuptools.depends</a>
  &#8226;   <a href="#setuptools.monkey">setuptools.monkey</a>
+ &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#starlette.routing">starlette.routing</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#tomli._parser">tomli._parser</a>
  &#8226;   <a href="#tomllib._parser">tomllib._parser</a>
  &#8226;   <a href="#tornado.concurrent">tornado.concurrent</a>
@@ -102869,6 +103872,18 @@ imported by:
  &#8226;   <a href="#starlette.staticfiles">starlette.staticfiles</a>
  &#8226;   <a href="#starlette.types">starlette.types</a>
  &#8226;   <a href="#starlette.websockets">starlette.websockets</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
+ &#8226;   <a href="#tenacity._utils">tenacity._utils</a>
+ &#8226;   <a href="#tenacity.after">tenacity.after</a>
+ &#8226;   <a href="#tenacity.asyncio">tenacity.asyncio</a>
+ &#8226;   <a href="#tenacity.asyncio.retry">tenacity.asyncio.retry</a>
+ &#8226;   <a href="#tenacity.before">tenacity.before</a>
+ &#8226;   <a href="#tenacity.before_sleep">tenacity.before_sleep</a>
+ &#8226;   <a href="#tenacity.nap">tenacity.nap</a>
+ &#8226;   <a href="#tenacity.retry">tenacity.retry</a>
+ &#8226;   <a href="#tenacity.stop">tenacity.stop</a>
+ &#8226;   <a href="#tenacity.tornadoweb">tenacity.tornadoweb</a>
+ &#8226;   <a href="#tenacity.wait">tenacity.wait</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#tomli._parser">tomli._parser</a>
  &#8226;   <a href="#tomli._re">tomli._re</a>
@@ -104115,6 +105130,7 @@ imported by:
  &#8226;   <a href="#starlette.background">starlette.background</a>
  &#8226;   <a href="#starlette.concurrency">starlette.concurrency</a>
  &#8226;   <a href="#starlette.middleware">starlette.middleware</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#tornado.ioloop">tornado.ioloop</a>
  &#8226;   <a href="#tornado.platform.asyncio">tornado.platform.asyncio</a>
  &#8226;   <a href="#twisted.internet._signals">twisted.internet._signals</a>
@@ -107689,6 +108705,7 @@ imported by:
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#tenacity">tenacity</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#threadpoolctl">threadpoolctl</a>
  &#8226;   <a href="#toml.decoder">toml.decoder</a>
@@ -112773,7 +113790,8 @@ imported by:
   <a name="winreg"></a>
   <tt>winreg</tt> <span class="moduletype"><i>(builtin module)</i></span>  <div class="import">
 imported by:
-    <a href="#dns.win32util">dns.win32util</a>
+    <a href="#app.py">app.py</a>
+ &#8226;   <a href="#dns.win32util">dns.win32util</a>
  &#8226;   <a href="#importlib._bootstrap_external">importlib._bootstrap_external</a>
  &#8226;   <a href="#mimetypes">mimetypes</a>
  &#8226;   <a href="#platform">platform</a>

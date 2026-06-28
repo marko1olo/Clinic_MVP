@@ -532,12 +532,11 @@ function isDenteTelegramOutboxItemDue(item: DenteTelegramOutboxItem, nowMs: numb
 }
 
 async function executeTelegramOutboxSend(
-  outboxItemIdOrItem: string | DenteTelegramOutboxItem,
+  outboxItemId: string,
   input: DenteTelegramOutboxSendRequest,
   runtime?: TelegramResolvedOutboxRuntime
 ): Promise<TelegramOutboxSendExecutionResult> {
   const clientMutationId = input.clientMutationId?.trim() || null;
-  const outboxItemId = typeof outboxItemIdOrItem === "string" ? outboxItemIdOrItem : outboxItemIdOrItem.id;
   const replay = findDenteTelegramOutboxDeliveryReceipt(outboxItemId, clientMutationId);
   if (replay && !(replay.status === "failed" && clientMutationId?.startsWith("due-"))) {
     const body = denteTelegramOutboxSendResponseSchema.parse({
@@ -560,7 +559,7 @@ async function executeTelegramOutboxSend(
   }
 
   const token = runtimeResult.runtime.context.botToken;
-  const prepared = prepareDenteTelegramOutboxDelivery(outboxItemIdOrItem, runtimeResult.runtime.runtimeScope);
+  const prepared = prepareDenteTelegramOutboxDelivery(outboxItemId, runtimeResult.runtime.runtimeScope);
 
   if (!prepared.ok) {
     return {
@@ -793,22 +792,23 @@ export async function executeDenteTelegramOutboxDueBatch(
   const dueItems = outbox.items
     .filter((item) => item.deliveryStatus === "ready" && isDenteTelegramOutboxItemDue(item, nowMs))
     .slice(0, input.limit);
-  const results: any[] = [];
-  for (const item of dueItems) {
-    const sendResult = await executeTelegramOutboxSend(
-      item,
-      {
-        dryRun: input.dryRun,
-        clientMutationId: input.dryRun ? null : dueOutboxClientMutationId(item.id, item.scheduledAt)
-      },
-      runtimeResult.runtime
-    );
-    results.push({
-      itemId: item.id,
-      statusCode: sendResult.statusCode,
-      result: sendResult.body
-    });
-  }
+  const results: any[] = await Promise.all(
+    dueItems.map(async (item) => {
+      const sendResult = await executeTelegramOutboxSend(
+        item.id,
+        {
+          dryRun: input.dryRun,
+          clientMutationId: input.dryRun ? null : dueOutboxClientMutationId(item.id, item.scheduledAt)
+        },
+        runtimeResult.runtime
+      );
+      return {
+        itemId: item.id,
+        statusCode: sendResult.statusCode,
+        result: sendResult.body
+      };
+    })
+  );
   const sentCount = results.filter((entry) => "status" in entry.result && entry.result.status === "sent").length;
   const dryRunCount = results.filter((entry) => "status" in entry.result && entry.result.status === "dry_run").length;
   const blockedCount = results.filter((entry) => "status" in entry.result && entry.result.status === "blocked").length;

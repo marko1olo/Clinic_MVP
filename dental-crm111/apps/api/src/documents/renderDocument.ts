@@ -1264,13 +1264,12 @@ function paymentReceiptSelectionBlockReason(document: GeneratedDocument, context
   const actualReceiptNumbers = new Set(
     selectedPayments.map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber)).filter(Boolean)
   );
-  const payloadReceiptNumbersSet = new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean));
-  const payloadReceiptNumbers = [...payloadReceiptNumbersSet];
+  const payloadReceiptNumbers = [...new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean))];
   const unknownPayloadReceipts = payloadReceiptNumbers.filter((receiptNumber) => !actualReceiptNumbers.has(receiptNumber));
   if (unknownPayloadReceipts.length) {
     return `Платежная квитанция содержит фискальный чек без связи с выбранной оплатой: ${unknownPayloadReceipts.join(", ")}.`;
   }
-  const missingPayloadReceipts = [...actualReceiptNumbers].filter((receiptNumber) => !payloadReceiptNumbersSet.has(receiptNumber));
+  const missingPayloadReceipts = [...actualReceiptNumbers].filter((receiptNumber) => !payloadReceiptNumbers.includes(receiptNumber));
   if (missingPayloadReceipts.length) {
     return `Платежная квитанция должна включать все фискальные чеки выбранных оплат: ${missingPayloadReceipts.join(", ")}.`;
   }
@@ -1307,8 +1306,7 @@ function completedWorksActFiscalReceiptBlockReason(document: GeneratedDocument, 
   const actualReceiptNumbers = new Set(
     paidPayments.map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber)).filter(Boolean)
   );
-  const payloadReceiptNumbersSet = new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean));
-  const payloadReceiptNumbers = [...payloadReceiptNumbersSet];
+  const payloadReceiptNumbers = [...new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean))];
 
   if (!paidPayments.length) return null;
   if (!actualReceiptNumbers.size) {
@@ -1320,7 +1318,7 @@ function completedWorksActFiscalReceiptBlockReason(document: GeneratedDocument, 
     return `Акт выполненных работ содержит фискальный чек без связи с оплатой визита: ${unknownPayloadReceipts.join(", ")}.`;
   }
 
-  const missingPayloadReceipts = [...actualReceiptNumbers].filter((receiptNumber) => !payloadReceiptNumbersSet.has(receiptNumber));
+  const missingPayloadReceipts = [...actualReceiptNumbers].filter((receiptNumber) => !payloadReceiptNumbers.includes(receiptNumber));
   if (missingPayloadReceipts.length) {
     return `Акт выполненных работ должен включать все фискальные чеки оплаченных платежей визита: ${missingPayloadReceipts.join(", ")}.`;
   }

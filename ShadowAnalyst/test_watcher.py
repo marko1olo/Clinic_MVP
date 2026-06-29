@@ -20,17 +20,36 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
-    @patch('ShadowAnalyst.watcher.os.makedirs')
-    def test_setup_dirs_success(self, mock_makedirs):
-        # Patching WATCH_DIR and PROCESSED_DIR just to be sure we check the right values
-        with patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'), \
-             patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+    def test_setup_dirs_success(self):
+        watch_dir = os.path.join(self.tmp_dir, "mock_watch")
+        processed_dir = os.path.join(self.tmp_dir, "mock_processed")
+
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', watch_dir), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', processed_dir):
             watcher.setup_dirs()
 
-            # Check if os.makedirs was called correctly
-            self.assertEqual(mock_makedirs.call_count, 2)
-            mock_makedirs.assert_any_call('/tmp/mock_watch', exist_ok=True)
-            mock_makedirs.assert_any_call('/tmp/mock_processed', exist_ok=True)
+            # Check if directories were created
+            self.assertTrue(os.path.exists(watch_dir))
+            self.assertTrue(os.path.exists(processed_dir))
+            self.assertTrue(os.path.isdir(watch_dir))
+            self.assertTrue(os.path.isdir(processed_dir))
+
+    def test_setup_dirs_existing(self):
+        watch_dir = os.path.join(self.tmp_dir, "mock_watch_ext")
+        processed_dir = os.path.join(self.tmp_dir, "mock_processed_ext")
+
+        # Pre-create the directories
+        os.makedirs(watch_dir)
+        os.makedirs(processed_dir)
+
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', watch_dir), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', processed_dir):
+            # Should not raise an exception when directories already exist
+            watcher.setup_dirs()
+
+            # Verify they still exist
+            self.assertTrue(os.path.exists(watch_dir))
+            self.assertTrue(os.path.exists(processed_dir))
 
     @patch('ShadowAnalyst.watcher.os.makedirs')
     def test_setup_dirs_error(self, mock_makedirs):
@@ -111,6 +130,19 @@ class TestWatcher(unittest.TestCase):
 
         # Assert
         self.assertIsNone(result)
+
+    @patch('ShadowAnalyst.watcher.Image.open')
+    def test_prepare_image_exception(self, mock_image_open):
+        # Set the side effect to raise an exception
+        mock_image_open.side_effect = Exception("Mocked error")
+
+        # Call prepare_image
+        img_path = os.path.join(self.tmp_dir, "mock_error.jpg")
+        result = watcher.prepare_image(img_path)
+
+        # Assert
+        self.assertIsNone(result)
+        mock_image_open.assert_called_once_with(img_path)
 
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')

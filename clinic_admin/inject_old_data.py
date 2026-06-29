@@ -5,6 +5,44 @@ from datetime import datetime, timedelta
 DB_FILE = "C:/Clinic_MVP/clinic_admin/clinic.db"
 
 
+def _get_existing_names(c, names):
+    if not names:
+        return set()
+
+    c.execute(
+        "SELECT name FROM patients WHERE name IN "
+        "(SELECT value FROM json_each(?))",
+        (json.dumps(names),)
+    )
+    return set(row[0] for row in c.fetchall())
+
+def _insert_patients(c, new_patients_data):
+    c.executemany(
+        "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
+        new_patients_data
+    )
+
+    inserted_names = [p[0] for p in new_patients_data]
+    c.execute(
+        "SELECT id FROM patients WHERE name IN "
+        "(SELECT value FROM json_each(?))",
+        (json.dumps(inserted_names),)
+    )
+    return [row[0] for row in c.fetchall()]
+
+def _insert_appointments(c, inserted_ids, now):
+    old_date = (now - timedelta(days=210)).isoformat()
+    appointments_data = [
+        (pid, "Др. Хаус", old_date, "completed", now.isoformat())
+        for pid in inserted_ids
+    ]
+
+    c.executemany(
+        "INSERT INTO appointments (patient_id, doctor, "
+        "appointment_date, status, created_at) VALUES (?, ?, ?, ?, ?)",
+        appointments_data
+    )
+
 def inject_dummy_data():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -18,17 +56,8 @@ def inject_dummy_data():
         ("Петров Дмитрий", "+79001112233")
     ]
 
-    # Pre-check all existing names to avoid N queries
     names = [p[0] for p in old_patients]
-    if names:
-        c.execute(
-            "SELECT name FROM patients WHERE name IN "
-            "(SELECT value FROM json_each(?))",
-            (json.dumps(names),)
-        )
-        existing_names = set(row[0] for row in c.fetchall())
-    else:
-        existing_names = set()
+    existing_names = _get_existing_names(c, names)
 
     new_patients_data = []
     for name, phone in old_patients:
@@ -36,32 +65,8 @@ def inject_dummy_data():
             new_patients_data.append((name, phone, now.isoformat()))
 
     if new_patients_data:
-        c.executemany(
-            "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
-            new_patients_data
-        )
-
-        # Get the IDs of the newly inserted patients
-        inserted_names = [p[0] for p in new_patients_data]
-        c.execute(
-            "SELECT id FROM patients WHERE name IN "
-            "(SELECT value FROM json_each(?))",
-            (json.dumps(inserted_names),)
-        )
-        inserted_ids = [row[0] for row in c.fetchall()]
-
-        # Add an appointment 7 months ago for each new patient
-        old_date = (now - timedelta(days=210)).isoformat()
-        appointments_data = [
-            (pid, "Др. Хаус", old_date, "completed", now.isoformat())
-            for pid in inserted_ids
-        ]
-
-        c.executemany(
-            "INSERT INTO appointments (patient_id, doctor, "
-            "appointment_date, status, created_at) VALUES (?, ?, ?, ?, ?)",
-            appointments_data
-        )
+        inserted_ids = _insert_patients(c, new_patients_data)
+        _insert_appointments(c, inserted_ids, now)
 
     conn.commit()
     conn.close()

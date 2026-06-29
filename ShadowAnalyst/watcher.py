@@ -6,6 +6,7 @@ import time
 import json
 import base64
 import random
+import re
 import threading
 from io import BytesIO
 from PIL import Image
@@ -98,6 +99,32 @@ def make_groq_client(api_key: str) -> OpenAI:
 def make_gemini_client(api_key: str) -> OpenAI:
     return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
 
+def _try_analyze_with_model(client_maker, api_key, model_name, image_b64, provider):
+    """Пытается проанализировать снимок конкретной моделью и ключом."""
+    try:
+        client = client_maker(api_key)
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": SYSTEM_PROMPT},
+                        {"type": "image_url", "image_url": {"url": image_b64}}
+                    ]
+                }
+            ]
+        )
+        if response.choices and len(response.choices) > 0:
+            val = response.choices[0].message.content
+            if val:
+                report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                return True, report, None
+    except Exception as e:
+        print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
+        return False, "", e
+    return False, "", None
+
 def analyze_image(file_path):
     """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
     image_b64 = prepare_image(file_path)
@@ -129,31 +156,14 @@ def analyze_image(file_path):
         for api_key in keys:
             if not api_key:
                 continue
-            try:
-                client = client_maker(api_key)
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": SYSTEM_PROMPT},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
-                        }
-                    ]
-                )
-                if response.choices and len(response.choices) > 0:
-                    val = response.choices[0].message.content
-                    if val:
-                        import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
-            except Exception as e:
-                print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
-                last_err = e
-                continue
+
+            success, report, err = _try_analyze_with_model(client_maker, api_key, model_name, image_b64, provider)
+            if success:
+                first_report = report
+                break
+            if err:
+                last_err = err
+
         if success:
             break
 

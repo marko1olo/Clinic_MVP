@@ -1,8 +1,12 @@
+import os
+import sys
 import paramiko
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
+if not password:
+    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
 
 try:
     client = paramiko.SSHClient()

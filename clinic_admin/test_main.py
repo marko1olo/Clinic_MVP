@@ -138,6 +138,27 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+    def test_insert_patient_function(self):
+        from clinic_admin.main import insert_patient
+        from clinic_admin.database import get_connection
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) as count FROM patients")
+        initial_count = c.fetchone()["count"]
+
+        insert_patient("Direct Insert", "555-9999")
+
+        c.execute("SELECT * FROM patients WHERE name = 'Direct Insert'")
+        patient = c.fetchone()
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["phone"], "555-9999")
+
+        c.execute("SELECT COUNT(*) as count FROM patients")
+        new_count = c.fetchone()["count"]
+        self.assertEqual(new_count, initial_count + 1)
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -6425,12 +6425,18 @@ function paymentReminderAlreadyCovered(outboxItemId: string): boolean {
 }
 
 function patientPaymentBalanceRub(patientId: string, organizationScope = denteTelegramBotSettings.organizationId): number {
-  const plannedRub = treatmentPlanItems
-    .filter((item) => item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled")
-    .reduce((total, item) => total + treatmentLineTotal(item), 0);
-  const paidRub = payments
-    .filter((payment) => payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid")
-    .reduce((total, payment) => total + payment.amountRub, 0);
+  const plannedRub = treatmentPlanItems.reduce((total, item) => {
+    if (item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled") {
+      return total + treatmentLineTotal(item);
+    }
+    return total;
+  }, 0);
+  const paidRub = payments.reduce((total, payment) => {
+    if (payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid") {
+      return total + payment.amountRub;
+    }
+    return total;
+  }, 0);
   return Math.max(0, plannedRub - paidRub);
 }
 

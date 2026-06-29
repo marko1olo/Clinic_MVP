@@ -84,7 +84,7 @@ async def cmd_test(message: Message):
 
 async def broadcast(text: str, role: str = 'admin'):
     """Отправить текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
@@ -99,7 +99,7 @@ async def broadcast(text: str, role: str = 'admin'):
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send photo to.")
         return

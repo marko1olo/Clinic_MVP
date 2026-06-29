@@ -28,6 +28,12 @@ class TestDatabase(unittest.TestCase):
         except OSError:
             pass
 
+    @patch('gui.database.sqlite3.connect')
+    def test_get_db_connection_error(self, mock_connect):
+        mock_connect.side_effect = sqlite3.OperationalError("Mock connection error")
+        with self.assertRaises(sqlite3.OperationalError):
+            get_db_connection()
+
     def test_init_db(self):
         conn = get_db_connection()
         cursor = conn.cursor()

@@ -138,6 +138,41 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+    def test_insert_appointment(self):
+        from clinic_admin.main import insert_appointment
+        from clinic_admin.database import get_connection
+
+        # First insert a patient to get a valid patient_id
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test Patient", "1234567890"))
+        patient_id = c.lastrowid
+        conn.commit()
+
+        # Count appointments before
+        c.execute("SELECT COUNT(*) FROM appointments")
+        count_before = c.fetchone()[0]
+        conn.close()
+
+        # Call the function being tested
+        insert_appointment(patient_id, "Dr. Who", "2023-11-01T15:00")
+
+        # Verify the appointment was added
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM appointments")
+        count_after = c.fetchone()[0]
+
+        self.assertEqual(count_after, count_before + 1)
+
+        c.execute("SELECT * FROM appointments WHERE patient_id = ? AND doctor = ?", (patient_id, "Dr. Who"))
+        appointment = c.fetchone()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["appointment_date"], "2023-11-01T15:00")
+        self.assertIsNotNone(appointment["created_at"])
+
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

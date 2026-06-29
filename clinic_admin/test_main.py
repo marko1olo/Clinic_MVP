@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+import unittest.mock
 import tempfile
 from fastapi.testclient import TestClient
 
@@ -65,6 +66,20 @@ class TestMain(unittest.TestCase):
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 200)
+
+    @unittest.mock.patch('clinic_admin.main.get_connection')
+    def test_get_dashboard_data_db_error(self, mock_get_connection):
+        # Simulate a database error
+        mock_get_connection.side_effect = Exception("Simulated DB Error")
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        # This calls the / endpoint, which calls get_dashboard_data
+        response = self.client.get("/", auth=("admin", "admin"))
+
+        # It should still return 200, not 500
         self.assertEqual(response.status_code, 200)
 
     def test_read_root_authenticated_incorrect(self):

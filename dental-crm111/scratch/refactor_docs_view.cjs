@@ -62,6 +62,12 @@ if (docsViewCode.includes('useDocumentStore();') && !docsViewCode.includes('taxD
     docsViewCode = docsViewCode.replace('  } = useDocumentStore();', '    taxDocumentYear,\n    setTaxDocumentYear,\n    selectedDocumentKind,\n    setSelectedDocumentKind,\n    isDocumentIngesting,\n    setIsDocumentIngesting,\n  } = useDocumentStore();');
 }
 
+// Also fix typescript error with setter parameters that lack type in docsViewCode
+allKeys.filter(k => k.startsWith('set')).forEach(key => {
+    const regex = new RegExp(`(?<![a-zA-Z0-9_])${key}\\(\\(current\\) =>`, 'g');
+    docsViewCode = docsViewCode.replace(regex, `${key}((current: any) =>`);
+});
+
 fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/DocumentsView.tsx', docsViewCode);
 
 console.log('Fixed DocumentsView.tsx and App.tsx');

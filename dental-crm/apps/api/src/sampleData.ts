@@ -451,6 +451,18 @@ export const documents: GeneratedDocument[] = [
   }
 ];
 
+
+export function getServiceCatalogItem(serviceId: string): ServiceCatalogItem | undefined {
+  let service = serviceCatalogMap.get(serviceId);
+  if (service === undefined) {
+    service = serviceCatalog.find((catalogItem) => catalogItem.id === serviceId);
+    if (service) {
+      serviceCatalogMap.set(serviceId, service);
+    }
+  }
+  return service;
+}
+
 export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
 export const serviceCatalog: ServiceCatalogItem[] = [
   {
@@ -1076,7 +1088,7 @@ export function buildBillingSummary(): BillingSummary {
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents
@@ -6425,12 +6437,18 @@ function paymentReminderAlreadyCovered(outboxItemId: string): boolean {
 }
 
 function patientPaymentBalanceRub(patientId: string, organizationScope = denteTelegramBotSettings.organizationId): number {
-  const plannedRub = treatmentPlanItems
-    .filter((item) => item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled")
-    .reduce((total, item) => total + treatmentLineTotal(item), 0);
-  const paidRub = payments
-    .filter((payment) => payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid")
-    .reduce((total, payment) => total + payment.amountRub, 0);
+  const plannedRub = treatmentPlanItems.reduce((total, item) => {
+    if (item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled") {
+      return total + treatmentLineTotal(item);
+    }
+    return total;
+  }, 0);
+  const paidRub = payments.reduce((total, payment) => {
+    if (payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid") {
+      return total + payment.amountRub;
+    }
+    return total;
+  }, 0);
   return Math.max(0, plannedRub - paidRub);
 }
 
@@ -6501,7 +6519,7 @@ function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntime
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     if (service?.category !== "hygiene") return [];
 
     const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");
@@ -6683,13 +6701,16 @@ function taxApplicationSlaWarning(document: GeneratedDocument): string | null {
 function buildDenteTelegramTaxDocumentRequestItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+  const activePatientIds = new Set(
+    patients.filter((p) => p.status === "active").map((p) => p.id)
+  );
+
   return documents.flatMap((document) => {
     if (document.organizationId !== organizationScope) return [];
     if (document.kind !== "tax_deduction_application") return [];
     if (document.status !== "issued") return [];
     if (!document.payload?.taxDeductionApplication) return [];
-    const patient = patients.find((candidate) => candidate.id === document.patientId && candidate.status === "active");
-    if (!patient) return [];
+    if (!activePatientIds.has(document.patientId)) return [];
 
     const itemId = taxDocumentRequestOutboxId(document);
     if (taxDocumentRequestAlreadySent(itemId)) return [];

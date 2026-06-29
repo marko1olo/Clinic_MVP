@@ -1315,49 +1315,28 @@ def parse_patient_from_file(file_path: str) -> dict:
         
     return info
 
-def process_analysis_only(filename):
-    app_state["is_processing"] = True
-    app_state["processing_image"] = f"/static/uploads/{filename}"
-    app_state["latest_report"] = ""
-    app_state["latest_summary"] = ""
-    
-    orig_name = filename
+def _resolve_file_path(filename: str) -> str:
     if filename.endswith('.jpg'):
         dcm_name = filename[:-4]
         dcm_path = os.path.join(WATCH_DIR, dcm_name)
         if os.path.exists(dcm_path):
-            file_path = dcm_path
+            return dcm_path
         else:
-            file_path = os.path.join(STATIC_DIR, "uploads", filename)
+            return os.path.join(STATIC_DIR, "uploads", filename)
     else:
         file_path = os.path.join(WATCH_DIR, filename)
         if not os.path.exists(file_path):
-            file_path = os.path.join(STATIC_DIR, "uploads", filename)
+            return os.path.join(STATIC_DIR, "uploads", filename)
+        return file_path
 
-    if not os.path.exists(file_path):
-        app_state["latest_report"] = "Снимок не найден на диске для анализа."
-        app_state["is_processing"] = False
-        app_state["processing_image"] = None
-        return
-
-    patient_info = None
-
+def _resolve_analysis_path(orig_name: str, file_path: str) -> str:
     base_name, ext = os.path.splitext(orig_name)
     enhanced_file_path = os.path.join(STATIC_DIR, "uploads", f"{base_name}_enhanced{ext}")
     if os.path.exists(enhanced_file_path):
-        analysis_path = enhanced_file_path
-    else:
-        analysis_path = file_path
+        return enhanced_file_path
+    return file_path
 
-    report, summary = run_ai_analysis(analysis_path, patient_info)
-
-    if summary == "Сбой анализа." or "Сбой:" in report:
-        app_state["error_message"] = report
-
-    pat_name = "Не указан"
-    threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
-
-    # Automatically save scan into SQLite database
+def _auto_save_scan_to_db(orig_name: str, summary: str, report: str) -> int | None:
     ext = os.path.splitext(orig_name)[1]
     db_payload = {
         "patient_name": "Не указан",
@@ -1384,10 +1363,48 @@ def process_analysis_only(filename):
 
     try:
         scan_id = database.save_scan(db_payload)
-        app_state["current_scan_id"] = scan_id
         print(f"[DB] Automatically saved scan {orig_name} with ID {scan_id}")
+        return scan_id
     except Exception as dbe:
         print(f"[DB] Error auto-saving scan: {dbe}")
+        return None
+
+def _update_recent_scans(orig_name: str, summary: str, report: str):
+    for s in app_state["recent_scans"]:
+        if s.get("image") == f"/static/uploads/{orig_name}":
+            s["summary"] = summary
+            s["report"] = report
+            break
+
+def process_analysis_only(filename):
+    app_state["is_processing"] = True
+    app_state["processing_image"] = f"/static/uploads/{filename}"
+    app_state["latest_report"] = ""
+    app_state["latest_summary"] = ""
+
+    orig_name = filename
+    file_path = _resolve_file_path(filename)
+
+    if not os.path.exists(file_path):
+        app_state["latest_report"] = "Снимок не найден на диске для анализа."
+        app_state["is_processing"] = False
+        app_state["processing_image"] = None
+        return
+
+    patient_info = None
+    analysis_path = _resolve_analysis_path(orig_name, file_path)
+
+    report, summary = run_ai_analysis(analysis_path, patient_info)
+
+    if summary == "Сбой анализа." or "Сбой:" in report:
+        app_state["error_message"] = report
+
+    pat_name = "Не указан"
+    threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
+
+    scan_id = _auto_save_scan_to_db(orig_name, summary, report)
+    if scan_id is not None:
+        app_state["current_scan_id"] = scan_id
 
     app_state["latest_report"] = report
     app_state["latest_summary"] = summary
@@ -1395,12 +1412,7 @@ def process_analysis_only(filename):
     app_state["is_processing"] = False
     app_state["processing_image"] = None
     
-    # Update the item in recent_scans if it exists
-    for s in app_state["recent_scans"]:
-        if s.get("image") == f"/static/uploads/{orig_name}":
-            s["summary"] = summary
-            s["report"] = report
-            break
+    _update_recent_scans(orig_name, summary, report)
             
     print("Analysis complete.")
 

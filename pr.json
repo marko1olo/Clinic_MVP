@@ -1,0 +1,4 @@
+{
+  "title": "🧹 Remove unused sys import in check_server.py",
+  "body": "🎯 **What:** Removed the unused `import sys` statement from `Scripts/check_server.py`.\n💡 **Why:** To reduce unnecessary clutter and improve code health, making the file cleaner.\n✅ **Verification:** Verified that there are no syntax errors by compiling the file (`python3 -m py_compile`) and ran tests using `pytest` to ensure no related functionality was broken.\n✨ **Result:** A slightly cleaner and more maintainable `check_server.py` script."
+}

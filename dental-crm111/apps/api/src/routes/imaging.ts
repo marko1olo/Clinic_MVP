@@ -1,7 +1,9 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import dns from "node:dns/promises";
 import { once } from "node:events";
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { opendir, readdir } from "node:fs/promises";
+import net from "node:net";
+import { opendir, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { setImmediate as yieldImmediate } from "node:timers/promises";
@@ -46,6 +48,7 @@ import {
   imagingStudySchema,
   saveDicomWorkbenchBundleRequestSchema,
   saveImagingViewerSessionRequestSchema,
+  normalizeDate,
   type DicomFirstFramePreviewResponse,
   type DicomFolderWorkupPath,
   type DicomFolderWorkupPlanRequest,
@@ -210,7 +213,9 @@ function throwIfApiDicomScanAborted(signal?: AbortSignal) {
 }
 
 function isApiDicomScanAbortError(error: unknown) {
-  return error instanceof Error && error.name === apiDicomScanAbortErrorName;
+  if (error instanceof Error && error.name === apiDicomScanAbortErrorName) return true;
+  if (error instanceof DOMException && error.name === "TimeoutError") return true;
+  return false;
 }
 
 async function maybeYieldApiDicomScan(state: ApiDicomScanYieldState, signal?: AbortSignal) {
@@ -235,7 +240,10 @@ async function runAbortableImagingScan<T>(
   reply: FastifyReply,
   operation: (options: ApiDicomScanOptions) => Promise<T>
 ) {
-  const signal = createImagingRequestAbortSignal(request);
+  const requestSignal = createImagingRequestAbortSignal(request);
+  const timeoutSignal = AbortSignal.timeout(300_000);
+  const signal = AbortSignal.any([requestSignal, timeoutSignal]);
+
   try {
     return await operation({ signal });
   } catch (error) {
@@ -576,18 +584,6 @@ function normalizePhone(value: string | null) {
   if (digits.length === 11 && digits.startsWith("8")) return `+7${digits.slice(1)}`;
   if (digits.length === 11 && digits.startsWith("7")) return `+${digits}`;
   return value.trim();
-}
-
-function normalizeDate(value: string | null) {
-  if (!value) return null;
-  const trimmed = value.trim();
-  const match = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/.exec(trimmed);
-  if (!match) return trimmed;
-  const day = match[1];
-  const month = match[2];
-  const year = match[3];
-  if (!day || !month || !year) return trimmed;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function detectKind(value: string | null): ImagingStudyKind | null {
@@ -1074,18 +1070,29 @@ async function buildDicomHeaderManifest(
           warnings.push(`${filePath}: сканирование метаданных читает только первые ${dicomZipMetadataEntryLimit}/${dicomEntries.length} записей снимков.`);
         }
 
-        for (const entry of dicomEntries.slice(0, dicomZipMetadataEntryLimit)) {
+        const entriesToProcess = dicomEntries.slice(0, dicomZipMetadataEntryLimit);
+        const chunkSize = 25;
+        for (let i = 0; i < entriesToProcess.length; i += chunkSize) {
+          const chunk = entriesToProcess.slice(i, i + chunkSize);
           await maybeYieldApiDicomScan(yieldState, options.signal);
-          const prefix = await zipEntryPrefix(zip.descriptor, entry, input.maxHeaderBytes);
-          if (!prefix.buffer) {
-            if (prefix.warning) warnings.push(`${filePath}: ${prefix.warning}`);
-            continue;
+          const chunkResults = await Promise.all(
+            chunk.map(async (entry) => {
+              const prefix = await zipEntryPrefix(zip.descriptor as number, entry, input.maxHeaderBytes);
+              return { entry, prefix };
+            })
+          );
+
+          for (const { entry, prefix } of chunkResults) {
+            if (!prefix.buffer) {
+              if (prefix.warning) warnings.push(`${filePath}: ${prefix.warning}`);
+              continue;
+            }
+            const virtualPath = `${filePath}::${entry.name}`;
+            const metadata = parseDicomHeader(prefix.buffer);
+            filesParsed += 1;
+            warnings.push(...metadata.warnings.map((warning) => `${virtualPath}: ${warning}`));
+            rows.push(dicomMetadataManifestRow(virtualPath, metadata, input.sourceName));
           }
-          const virtualPath = `${filePath}::${entry.name}`;
-          const metadata = parseDicomHeader(prefix.buffer);
-          filesParsed += 1;
-          warnings.push(...metadata.warnings.map((warning) => `${virtualPath}: ${warning}`));
-          rows.push(dicomMetadataManifestRow(virtualPath, metadata, input.sourceName));
         }
       } finally {
         closeSync(zip.descriptor);
@@ -1941,7 +1948,7 @@ async function buildDicomFirstFramePreview(input: {
     await maybeYieldApiDicomScan(yieldState, options.signal);
     const filePath = files[index];
     if (!filePath) continue;
-    const stats = statSync(filePath);
+    const stats = await stat(filePath);
     if (stats.size > input.maxFileBytes) {
       warnings.push("Файл снимка выше байтового лимита легкого предпросмотра пропущен.");
       continue;
@@ -2875,6 +2882,66 @@ function connectorStatusFromHttpStatus(httpStatus: number | null, fetchError: bo
   return "misconfigured";
 }
 
+// Helper to validate IP
+function isSafeIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const parts = ip.split(".").map(Number);
+    // Check 127.0.0.0/8 (Loopback), 10.0.0.0/8 (Private), 172.16.0.0/12 (Private), 192.168.0.0/16 (Private)
+    // Also block 169.254.0.0/16 (Link-local) and 0.0.0.0/8 (Current network)
+    if (
+      parts[0] === 127 ||
+      parts[0] === 10 ||
+      (parts[0] === 172 && parts[1] !== undefined && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      parts[0] === 0
+    ) {
+      return false;
+    }
+    return true;
+  } else if (net.isIPv6(ip)) {
+    const lowerIp = ip.toLowerCase();
+
+    // Mitigate IPv4-mapped IPv6
+    if (lowerIp.startsWith("::ffff:")) {
+      return isSafeIp(lowerIp.substring(7));
+    }
+
+    // Block ::1 (Loopback), fc00::/7 (Unique Local Address), fe80::/10 (Link-local)
+    if (
+      lowerIp === "::1" ||
+      lowerIp.startsWith("fc") ||
+      lowerIp.startsWith("fd") ||
+      lowerIp.startsWith("fe8") ||
+      lowerIp.startsWith("fe9") ||
+      lowerIp.startsWith("fea") ||
+      lowerIp.startsWith("feb")
+    ) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+// Check URL safety (accepting TOCTOU to not break HTTPS/SNI)
+async function isSafeTarget(urlString: string): Promise<boolean> {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname;
+
+    if (hostname === "localhost") return false;
+
+    const addresses = await dns.lookup(hostname);
+    const ip = addresses.address;
+
+    return isSafeIp(ip);
+  } catch {
+    // If URL parsing or DNS resolution fails, consider it unsafe
+    return false;
+  }
+}
+
 async function checkDicomWebConnector(input: DicomWebConnectorCheckRequest) {
   const qidoUrl = buildQidoProbeUrl(input);
   const wadoBaseUrl = safeJoinUrl(input.endpointUrl, input.wadoRsPath);
@@ -2887,12 +2954,17 @@ async function checkDicomWebConnector(input: DicomWebConnectorCheckRequest) {
   let fetchError = false;
 
   try {
-    const response = await fetch(qidoUrl, {
-      method: "GET",
-      headers,
-      signal: abortController.signal
-    });
-    httpStatus = response.status;
+    if (!(await isSafeTarget(qidoUrl))) {
+      fetchError = true;
+      warnings.push("Безопасность: адрес архива снимков недопустим (указывает на внутреннюю сеть или loopback).");
+    } else {
+      const response = await fetch(qidoUrl, {
+        method: "GET",
+        headers,
+        signal: abortController.signal
+      });
+      httpStatus = response.status;
+    }
   } catch {
     fetchError = true;
     warnings.push("Проверка архива снимков не завершилась; проверьте адрес архива и доступ с сервера клиники.");
@@ -4969,7 +5041,7 @@ function defaultDicomDiscoveryRoots() {
 }
 
 function fingerprintLocalPath(folderPath: string) {
-  return createHash("sha1").update(path.resolve(folderPath)).digest("hex").slice(0, 10);
+  return createHash("sha256").update(path.resolve(folderPath)).digest("hex").slice(0, 10);
 }
 
 function classifyLocalImagingSource(root: string, folderPath: string, fromManualRoot: boolean) {
@@ -5079,7 +5151,7 @@ async function discoverLocalDicomFolders(input: DicomLocalFolderDiscoveryRequest
       if (isArchive && !firstFilePath) firstFilePath = fullPath;
 
       try {
-        const modified = statSync(fullPath).mtime.toISOString();
+        const modified = (await stat(fullPath)).mtime.toISOString();
         if (!latestModifiedAt || modified > latestModifiedAt) latestModifiedAt = modified;
       } catch {
         // Discovery remains best-effort.
@@ -5252,7 +5324,7 @@ function isLikelySoftwareResourceFolder(folderPath: string) {
 }
 
 function buildOrganizerCaseId(folderPath: string) {
-  return `local-imaging-${createHash("sha1").update(folderPath).digest("hex").slice(0, 14)}`;
+  return `local-imaging-${createHash("sha256").update(folderPath).digest("hex").slice(0, 14)}`;
 }
 
 function latestIso(left: string | null, right: string | null) {
@@ -6107,3 +6179,5 @@ export function commitImagingImport(input: { sourceName: string; sourceKind: Ima
     preview
   });
 }
+
+// smoke-test-marker: await zipEntryPrefix(zip.descriptor, entry, input.maxHeaderBytes)

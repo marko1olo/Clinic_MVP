@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const btnSettings = document.getElementById('btn-settings');
     const btnAnalyze = document.getElementById('btn-analyze');
+    const btnReanalyze = document.getElementById('btn-reanalyze');
     const btnSpeak = document.getElementById('btn-speak');
     const btnPrint = document.getElementById('btn-print');
     
@@ -181,16 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Toggle ElevenLabs configuration fields visibility
     const updateTtsProviderFields = () => {
-        const provider = selectTtsProvider ? selectTtsProvider.value : 'edge';
-        if (provider === 'elevenlabs') {
-            if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'flex';
-            if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'flex';
-            if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'none';
-        } else {
-            if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'none';
-            if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'none';
-            if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'flex';
-        }
+        // Показываем все поля настроек озвучки всегда, чтобы ключи ElevenLabs и настройки Edge всегда были доступны!
+        if (elevenlabsApiKeyGroup) elevenlabsApiKeyGroup.style.display = 'flex';
+        if (elevenlabsVoiceIdGroup) elevenlabsVoiceIdGroup.style.display = 'flex';
+        if (edgeVoiceGroup) edgeVoiceGroup.style.display = 'flex';
     };
     if (selectTtsProvider) {
         selectTtsProvider.addEventListener('change', updateTtsProviderFields);
@@ -256,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const modelTierInput = document.getElementById('range-model-tier');
             if (modelTierInput) {
-                const tier = data.model_tier || 4;
+                const tier = data.model_tier !== undefined ? data.model_tier : 2;
                 modelTierInput.value = tier;
                 updateModelTierLabel(tier);
             }
@@ -363,12 +358,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = document.getElementById('model-tier-label');
         if (!label) return;
         const val = parseInt(value);
-        if (val === 4) {
+        if (val === 5) {
             label.textContent = "Интеллектуальная (Gemini 3.5 Flash)";
+        } else if (val === 4) {
+            label.textContent = "Умеренная (Gemini 3.1 Flash Lite)";
         } else if (val === 3) {
-            label.textContent = "Умеренная (Gemini 3.0 Flash)";
+            label.textContent = "Каскад Qwen (Qwen 3.6 + Qwen 3.6)";
         } else if (val === 2) {
-            label.textContent = "Базовая (Qwen 3.6 / Groq)";
+            label.textContent = "Рекомендованная (Qwen 3.6 + Llama)";
         } else {
             label.textContent = "Тупая модель (Llama 4 Scout)";
         }
@@ -573,7 +570,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reload data to show or hide the slider
         if (currentImage) {
-            window.showLoader();
             try {
                 const res = await fetch('/api/enhance', {
                     method: 'POST',
@@ -582,14 +578,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await res.json();
                 if (data.url) {
-                    // Update current image path in state (cached urls will load)
                     currentImage = data.url;
-                    window.loadData(currentImage, currentReport, currentSummary);
+                    const cleanUrl = currentImage.split('?')[0];
+                    const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
+
+                    if (showSlider) {
+                        imgElement.style.display = 'none';
+                        comparisonContainer.style.display = 'flex';
+
+                        let originalUrl = cleanUrl;
+                        let enhancedUrl = cleanUrl;
+
+                        if (cleanUrl.includes('_enhanced')) {
+                            originalUrl = cleanUrl.replace('_enhanced', '');
+                        } else {
+                            const extIndex = cleanUrl.lastIndexOf('.');
+                            if (extIndex !== -1) {
+                                const base = cleanUrl.substring(0, extIndex);
+                                const ext = cleanUrl.substring(extIndex);
+                                enhancedUrl = `${base}_enhanced${ext}`;
+                            } else {
+                                enhancedUrl = cleanUrl + '_enhanced';
+                            }
+                        }
+
+                        const timestamp = new Date().getTime();
+                        xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
+                        xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
+
+                        if (!sliderHandle.style.left) {
+                            sliderHandle.style.left = '50%';
+                            xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
+                        }
+                    } else {
+                        comparisonContainer.style.display = 'none';
+                        imgElement.style.display = 'block';
+                        imgElement.src = cleanUrl + "?t=" + new Date().getTime();
+                    }
                 }
             } catch (e) {
                 console.error("Enhancement toggle failed", e);
-            } finally {
-                loaderOverlay.classList.remove('active');
             }
         }
     });
@@ -686,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             btnSpeak.style.display = 'flex';
             btnAnalyze.style.display = 'none';
+            if (btnReanalyze) btnReanalyze.style.display = 'block';
             if (btnPrint) btnPrint.style.display = 'block';
             
             // Speak if text changed and auto speak is on
@@ -703,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             btnSpeak.style.display = 'none';
             btnAnalyze.style.display = 'block';
+            if (btnReanalyze) btnReanalyze.style.display = 'none';
             if (btnPrint) btnPrint.style.display = 'none';
             
             stopSpeaking();
@@ -727,6 +757,18 @@ document.addEventListener('DOMContentLoaded', () => {
             statusBadge.innerText = 'Analysis failed';
         }
     });
+
+    if (btnReanalyze) {
+        btnReanalyze.addEventListener('click', async () => {
+            window.showLoader();
+            try {
+                await fetch('/api/analyze', { method: 'POST' });
+            } catch (e) {
+                window.showToast("Ошибка анализа: " + e.message, "error");
+                statusBadge.innerText = 'Analysis failed';
+            }
+        });
+    }
 
     if (btnPrint) {
         btnPrint.addEventListener('click', () => {
@@ -978,14 +1020,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/status');
             const data = await res.json();
             
+            const cleanCurrentImage = currentImage ? currentImage.split('?')[0] : "";
+            const cleanLatestImage = data.latest_image ? data.latest_image.split('?')[0] : "";
+
+            // Check if active image gets updated (handles history loads / manual analysis)
+            if (cleanCurrentImage && cleanLatestImage && (cleanCurrentImage === cleanLatestImage || cleanCurrentImage.replace('_enhanced', '') === cleanLatestImage.replace('_enhanced', ''))) {
+                if (data.latest_report !== currentReport || data.latest_summary !== currentSummary) {
+                    currentReport = data.latest_report;
+                    currentSummary = data.latest_summary;
+                    currentScanId = data.current_scan_id || null;
+                    window.loadData(currentImage, currentReport, currentSummary);
+                }
+            }
+
             if (data.recent_scans && incomingTray) {
                 const hasNewScans = data.recent_scans.length > previousRecentScansLength;
                 previousRecentScansLength = data.recent_scans.length;
                 
                 renderIncomingTray(data.recent_scans);
                 
-                // Auto switch only if we are on empty state
-                if (hasNewScans && emptyState.style.display !== 'none' && data.recent_scans.length > 0) {
+                // Auto switch when a new scan is detected
+                if (hasNewScans && data.recent_scans.length > 0) {
                     const latest = data.recent_scans[data.recent_scans.length - 1];
                     currentImage = latest.image;
                     currentReport = latest.report;
@@ -995,24 +1050,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderIncomingTray(data.recent_scans);
                 }
                 
-                // If the currently viewed image gets a report update, show it
-                const activeScan = data.recent_scans.find(s => s.image === currentImage);
+                // If the currently viewed image is in recent_scans, update it from there as well
+                const activeScan = data.recent_scans.find(s => {
+                    const sClean = s.image.split('?')[0];
+                    return sClean === cleanCurrentImage || sClean.replace('_enhanced', '') === cleanCurrentImage.replace('_enhanced', '');
+                });
                 if (activeScan) {
                     if (activeScan.report !== currentReport || activeScan.summary !== currentSummary) {
                         currentReport = activeScan.report;
                         currentSummary = activeScan.summary;
                         window.loadData(currentImage, currentReport, currentSummary);
-                    }
-                }
-            } else {
-                // Fallback if recent_scans is missing
-                if (data.latest_image && emptyState.style.display === 'none') {
-                    if (data.latest_image !== currentImage || data.latest_report !== currentReport || data.latest_summary !== currentSummary) {
-                        currentImage = data.latest_image;
-                        currentReport = data.latest_report;
-                        currentSummary = data.latest_summary;
-                        currentScanId = data.current_scan_id || null;
-                        window.loadData(data.latest_image, data.latest_report, data.latest_summary);
                     }
                 }
             }
@@ -1023,15 +1070,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (data.is_processing) {
-                if (!loaderOverlay.classList.contains('active')) {
-                    window.showLoader();
-                }
-                const loaderText = document.querySelector('.loader-text');
-                if (loaderText) {
-                    if (data.queue_length > 0) {
-                        loaderText.textContent = `Читаем снимок... (В очереди: ${data.queue_length})`;
-                    } else {
-                        loaderText.textContent = `Читаем снимок...`;
+                const cleanCurrentImage = currentImage.split('?')[0];
+                const cleanProcessingImage = data.processing_image ? data.processing_image.split('?')[0] : "";
+
+                const isCurrentProcessing = cleanProcessingImage && (cleanCurrentImage === cleanProcessingImage || cleanCurrentImage.replace('_enhanced', '') === cleanProcessingImage.replace('_enhanced', ''));
+
+                if (isCurrentProcessing) {
+                    if (!loaderOverlay.classList.contains('active')) {
+                        window.showLoader();
+                    }
+                    const loaderText = document.querySelector('.loader-text');
+                    if (loaderText) {
+                        if (data.queue_length > 0) {
+                            loaderText.textContent = `Читаем снимок... (В очереди: ${data.queue_length})`;
+                        } else {
+                            loaderText.textContent = `Читаем снимок...`;
+                        }
+                    }
+                } else {
+                    if (loaderOverlay.classList.contains('active')) {
+                        loaderOverlay.classList.remove('active');
                     }
                 }
             } else {
@@ -1040,13 +1098,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (e) {
-            console.log("Waiting for backend...");
+            // waiting for backend
         }
     }, 1000);
 
     // --- UPLOADS & PASTING ---
     const fileInput = document.getElementById('file-input');
     const appContainer = document.querySelector('.app-container');
+
+    // Prevent browser from opening dragged files as new tabs at document level
+    document.addEventListener('dragover', (e) => { e.preventDefault(); });
+    document.addEventListener('drop', (e) => { e.preventDefault(); });
 
     if (emptyState) {
         emptyState.addEventListener('click', () => {
@@ -1064,16 +1126,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     appContainer.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '0.7';
     });
 
     appContainer.addEventListener('dragleave', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '1';
     });
 
     appContainer.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         appContainer.style.opacity = '1';
         if (e.dataTransfer.files.length > 0) {
             uploadFile(e.dataTransfer.files[0]);
@@ -1109,50 +1174,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- AUTOMATIC GENDER DETECTION ---
+    const MALE_FIRST_NAMES = new Set(['никита', 'илья', 'данила', 'даниил', 'савва', 'миша', 'гриша', 'саша', 'петя', 'ваня', 'дима', 'леша', 'коля', 'юра', 'вова', 'толя', 'женя', 'сережа']);
+    const FEMALE_FIRST_NAMES = new Set(['маша', 'даша', 'лена', 'оля', 'света', 'наташа', 'катя', 'ира', 'таня', 'аня', 'юля', 'вера', 'надя', 'люба']);
+    const FEMALE_END_CHARS = new Set(['а', 'я']);
+    const MALE_END_CHARS = new Set(['б', 'в', 'г', 'д', 'ж', 'з', 'к', 'л', 'м', 'н', 'п', 'р', 'с', 'т', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'й']);
+
+    function calculateGenderPoints(word) {
+        let pointsMale = 0;
+        let pointsFemale = 0;
+
+        // Check patronymics
+        if (word.endsWith('ович') || word.endsWith('евич') || word.endsWith('ич')) {
+            pointsMale += 5;
+        } else if (word.endsWith('овна') || word.endsWith('евна') || word.endsWith('ична')) {
+            pointsFemale += 5;
+        }
+        // Check surnames
+        else if (word.endsWith('ова') || word.endsWith('ева') || word.endsWith('ина') || word.endsWith('ая')) {
+            pointsFemale += 3;
+        } else if (word.endsWith('ов') || word.endsWith('ев') || word.endsWith('ин') || word.endsWith('ий') || word.endsWith('ый')) {
+            pointsMale += 3;
+        }
+        // Check first names
+        else if (MALE_FIRST_NAMES.has(word)) {
+            pointsMale += 4;
+        } else if (FEMALE_FIRST_NAMES.has(word)) {
+            pointsFemale += 4;
+        } else {
+            // Ending characters
+            const lastChar = word.slice(-1);
+            if (FEMALE_END_CHARS.has(lastChar)) {
+                pointsFemale += 1.5;
+            } else if (MALE_END_CHARS.has(lastChar)) {
+                pointsMale += 1.5;
+            }
+        }
+
+        return { pointsMale, pointsFemale };
+    }
+
     function detectGender(name) {
         const lowercaseName = name.toLowerCase();
         const words = lowercaseName.split(/\s+/).filter(w => w.length > 0);
         if (words.length === 0) return 'Не указан';
         
-        let pointsMale = 0;
-        let pointsFemale = 0;
-        
-        const maleFirstNames = ['никита', 'илья', 'данила', 'даниил', 'савва', 'миша', 'гриша', 'саша', 'петя', 'ваня', 'дима', 'леша', 'коля', 'юра', 'вова', 'толя', 'женя', 'сережа'];
-        const femaleFirstNames = ['маша', 'даша', 'лена', 'оля', 'света', 'наташа', 'катя', 'ира', 'таня', 'аня', 'юля', 'вера', 'надя', 'люба'];
+        let totalPointsMale = 0;
+        let totalPointsFemale = 0;
         
         for (const word of words) {
-            // Check patronymics
-            if (word.endsWith('ович') || word.endsWith('евич') || word.endsWith('ич')) {
-                pointsMale += 5;
-            } else if (word.endsWith('овна') || word.endsWith('евна') || word.endsWith('ична')) {
-                pointsFemale += 5;
-            }
-            
-            // Check surnames
-            else if (word.endsWith('ова') || word.endsWith('ева') || word.endsWith('ина') || word.endsWith('ая')) {
-                pointsFemale += 3;
-            } else if (word.endsWith('ов') || word.endsWith('ев') || word.endsWith('ин') || word.endsWith('ий') || word.endsWith('ый')) {
-                pointsMale += 3;
-            }
-            
-            // Check first names
-            else if (maleFirstNames.includes(word)) {
-                pointsMale += 4;
-            } else if (femaleFirstNames.includes(word)) {
-                pointsFemale += 4;
-            } else {
-                // Ending characters
-                const lastChar = word.slice(-1);
-                if (['а', 'я'].includes(lastChar)) {
-                    pointsFemale += 1.5;
-                } else if (['б', 'в', 'г', 'д', 'ж', 'з', 'к', 'л', 'м', 'н', 'п', 'р', 'с', 'т', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'й'].includes(lastChar)) {
-                    pointsMale += 1.5;
-                }
-            }
+            const { pointsMale, pointsFemale } = calculateGenderPoints(word);
+            totalPointsMale += pointsMale;
+            totalPointsFemale += pointsFemale;
         }
         
-        if (pointsMale > pointsFemale) return 'Мужской';
-        if (pointsFemale > pointsMale) return 'Женский';
+        if (totalPointsMale > totalPointsFemale) return 'Мужской';
+        if (totalPointsFemale > totalPointsMale) return 'Женский';
         return 'Не указан';
     }
 

@@ -860,7 +860,8 @@ export function loadDocumentIssueSignatureDraft(organizationId: string | null | 
       staffRole: typeof parsed.staffRole === "string" && parsed.staffRole.trim() ? parsed.staffRole.slice(0, 120) : "Врач/администратор",
       savedAt
     };
-  } catch {
+  } catch (error) {
+    console.warn(error);
     return fallback;
   }
 }
@@ -884,7 +885,7 @@ export function saveDocumentIssueSignatureDraft(
       } satisfies DocumentIssueSignatureDraft)
     );
   } catch (error) {
-    console.error("Failed to load signature draft", error);
+    console.warn(error);
     // Signature defaults are convenience only; the server still requires explicit attestation on issue.
   }
 }
@@ -948,6 +949,7 @@ export function loadDocumentPaymentSelectionStore(organizationId: string | null 
     }
     return { version: 1, selections };
   } catch {
+    // Document payment selection is local operator convenience; read failures are safe to ignore.
     return emptyDocumentPaymentSelectionStore();
   }
 }
@@ -979,8 +981,7 @@ export function saveDocumentPaymentSelection(
       documentPaymentSelectionLocalKey(organizationId),
       JSON.stringify({ version: 1, selections: trimmedSelections } satisfies DocumentPaymentSelectionStore)
     );
-  } catch (error) {
-    console.error("Failed to save payment selection", error);
+  } catch {
     // Document payment selection is local operator convenience; failed storage must not block document issue.
   }
 }
@@ -1231,8 +1232,7 @@ export function saveOutpatient025uDocumentDraft(
       documentPayloadDraftLocalKey(organizationId),
       JSON.stringify({ version: 1, drafts: trimmedDrafts } satisfies DocumentPayloadDraftStore)
     );
-  } catch (error) {
-    console.error("Failed to save outpatient 025u document draft", error);
+  } catch {
     // Payload drafts are recovery data only; document issue still validates all facts server-side.
   }
 }
@@ -1272,8 +1272,7 @@ export function saveMedicalRecordExtractDocumentDraft(
       documentPayloadDraftLocalKey(organizationId),
       JSON.stringify({ version: 1, drafts: trimmedDrafts } satisfies DocumentPayloadDraftStore)
     );
-  } catch (error) {
-    console.error("Failed to save medical record extract document draft", error);
+  } catch {
     // Payload drafts are recovery data only; document issue still validates all facts server-side.
   }
 }
@@ -1298,7 +1297,8 @@ export function loadLocalImagingViewerDraft(studyId: string | null, organization
       return null;
     }
     return parsed?.state && Array.isArray(parsed.annotations) ? parsed : null;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load local imaging viewer draft", error);
     return null;
   }
 }
@@ -1361,7 +1361,8 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(organizationId: str
       return null;
     }
     return parsed;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load local DICOM workbench draft from local storage:", error);
     return null;
   }
 }
@@ -1450,7 +1451,8 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
     }
     const state = normalizeMprWorkbenchState(parsed.state);
     return state ? { ...parsed, state } : null;
-  } catch {
+  } catch (error) {
+    console.warn(error);
     return null;
   }
 }
@@ -1946,8 +1948,7 @@ export function saveBrowserPickedImagingFolderPreview(
       organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId),
       JSON.stringify(preview)
     );
-  } catch (error) {
-    console.error("Failed to save browser picked imaging folder preview", error);
+  } catch {
     // Browser-picked folder summaries are best-effort and contain no raw local path.
   }
 }
@@ -1980,8 +1981,7 @@ export function removeBrowserPickedImagingFolderPreview(organizationId: string |
   try {
     window.localStorage.removeItem(organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId));
     if (organizationId) window.localStorage.removeItem(browserPickedImagingFolderStorageKey);
-  } catch (error) {
-    console.error("Failed to remove browser picked imaging folder preview", error);
+  } catch {
     // ignore unavailable storage
   }
 }
@@ -2058,8 +2058,7 @@ export function saveLocalImagingFolderDraft(draft: LocalImagingFolderDraft, orga
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId), JSON.stringify(draft));
-  } catch (error) {
-    console.error("Failed to save local imaging folder draft", error);
+  } catch {
     // Local folder recovery is best-effort and never sent to the server.
   }
 }
@@ -2069,8 +2068,7 @@ export function removeLocalImagingFolderDraft(organizationId: string | null | un
   try {
     window.localStorage.removeItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId));
     if (organizationId) window.localStorage.removeItem(localImagingFolderStorageKey);
-  } catch (error) {
-    console.error("Failed to remove local imaging folder draft", error);
+  } catch {
     // ignore unavailable storage
   }
 }
@@ -2115,8 +2113,7 @@ export function removeLocalDicomWorkbenchDraftFromLocalStorage(organizationId: s
   try {
     window.localStorage.removeItem(organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId));
     if (organizationId) window.localStorage.removeItem(dicomWorkbenchLocalStorageKey);
-  } catch (error) {
-    console.error("Failed to remove local dicom workbench draft", error);
+  } catch {
     // ignore unavailable storage
   }
 }
@@ -3450,7 +3447,7 @@ export const photoVideoMaterialOptions: Array<{ value: PhotoVideoConsentMaterial
 export const defaultUiPreferences: UiPreferences = {
   version: 1,
   uiLanguage: "ru",
-  selectedWorkspaceRole: "doctor",
+  selectedWorkspaceRole: "owner",
   selectedSpecialty: "therapist",
   selectedProtocolId: null,
   selectedPatientId: null,
@@ -4122,7 +4119,13 @@ export function parseOnboardingDismissalState(raw: string | null): OnboardingDis
 export function loadOnboardingDismissalState(organizationId: string | null | undefined = null): OnboardingDismissalState | null {
   if (typeof window === "undefined") return null;
   try {
-    return parseOnboardingDismissalState(window.localStorage.getItem(onboardingLocalKey(organizationId)));
+    const scopedVal = window.localStorage.getItem(onboardingLocalKey(organizationId));
+    if (scopedVal) {
+      const parsed = parseOnboardingDismissalState(scopedVal);
+      if (parsed) return parsed;
+    }
+    const unscopedVal = window.localStorage.getItem(onboardingStorageKey);
+    return parseOnboardingDismissalState(unscopedVal);
   } catch {
     return null;
   }
@@ -4161,8 +4164,7 @@ export function saveOnboardingDismissed(
       onboardingLocalKey(organizationId),
       JSON.stringify({ version: 1, ...state })
     );
-  } catch (error) {
-    console.error("Failed to save onboarding dismissed state", error);
+  } catch {
     // Onboarding state is convenience only; real clinic settings are saved server-side.
   }
   return state;
@@ -4569,7 +4571,7 @@ export function clinicProfileDraftFromProfile(profile: ClinicProfile): ClinicPro
     appointmentBufferMinutes: 10
   };
   return {
-    clinicName: profile.clinicName,
+    clinicName: profile.clinicName ?? "",
     legalName: profile.legalName ?? "",
     inn: profile.inn ?? "",
     kpp: profile.kpp ?? "",
@@ -4584,13 +4586,13 @@ export function clinicProfileDraftFromProfile(profile: ClinicProfile): ClinicPro
     bankDetails: profile.bankDetails ?? "",
     signatoryName: profile.signatoryName ?? "",
     signatoryTitle: profile.signatoryTitle ?? "",
-    timezone: profile.timezone,
-    defaultVisitMinutes: String(profile.defaultVisitMinutes),
-    workdayStart: schedule.workdayStart,
-    workdayEnd: schedule.workdayEnd,
+    timezone: profile.timezone ?? "Europe/Samara",
+    defaultVisitMinutes: String(profile.defaultVisitMinutes ?? 45),
+    workdayStart: schedule.workdayStart ?? "09:00",
+    workdayEnd: schedule.workdayEnd ?? "18:00",
     workingDays: normalizeWorkingDaysDraft(schedule.workingDays),
-    appointmentBufferMinutes: String(schedule.appointmentBufferMinutes),
-    egiszEnabled: profile.egiszEnabled
+    appointmentBufferMinutes: String(schedule.appointmentBufferMinutes ?? 10),
+    egiszEnabled: profile.egiszEnabled ?? false
   };
 }
 
@@ -5180,8 +5182,7 @@ export async function saveLocalDicomWorkbenchDraft(
       await saveLocalDicomWorkbenchDraftToIndexedDb(draft, organizationId);
       removeLocalDicomWorkbenchDraftFromLocalStorage(organizationId);
       return true;
-    } catch (error) {
-      console.error("Failed to save local dicom workbench draft to indexed db", error);
+    } catch {
       // Keep local CT workbench recovery available on restricted browsers.
     }
   }
@@ -5308,8 +5309,7 @@ export async function saveLocalMprWorkbenchDraft(
         if (organizationId) window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey));
       }
       return true;
-    } catch (error) {
-      console.error("Failed to remove local MPR workbench draft from local storage", error);
+    } catch {
       // Keep MPR recovery available on restricted browsers.
     }
   }
@@ -5433,8 +5433,7 @@ export async function savePendingVisitSaves(queue: PendingVisitSave[], organizat
       window.localStorage.removeItem(pendingVisitSaveQueueLocalKey(normalizedOrganizationId));
       if (normalizedOrganizationId) window.localStorage.removeItem(pendingVisitSaveQueueKey);
       return;
-    } catch (error) {
-      console.error("Failed to save pending visit saves to indexed db", error);
+    } catch {
       // Keep accepted visits retryable on restricted browsers.
     }
   }
@@ -5567,8 +5566,7 @@ export async function queuePendingSpeechChunk(
       window.localStorage.removeItem(pendingSpeechChunkQueueLocalKey(normalizedOrganizationId));
       if (normalizedOrganizationId) window.localStorage.removeItem(pendingSpeechChunkQueueKey);
       return queued;
-    } catch (error) {
-      console.error("Failed to put pending speech chunk to indexed db", error);
+    } catch {
       // Fall through to the small legacy fallback. It may reject instead of silently dropping audio.
     }
   }
@@ -5585,8 +5583,7 @@ export async function removePendingSpeechChunkById(id: string, organizationId: s
     try {
       await deletePendingSpeechChunkFromIndexedDb(id);
       return;
-    } catch (error) {
-      console.error("Failed to delete pending speech chunk from indexed db", error);
+    } catch {
       // Legacy fallback below keeps retry cleanup working when browser audio storage is unavailable mid-session.
     }
   }
@@ -5855,14 +5852,11 @@ export type AdminSecretSessionDomain = "clinical" | "settings" | "schedule" | "t
 export type AdminSecretUnlockDomain = AdminSecretSessionDomain | "all";
 
 export const onboardingSteps: Array<{ id: OnboardingStep; title: string; detail: string }> = [
-  { id: "intro", title: "Знакомство", detail: "что где лежит" },
-  { id: "role", title: "Роль", detail: "врач и специализация" },
-  { id: "clinic", title: "Клиника", detail: "режим и контакты" },
-  { id: "legal", title: "Документы", detail: "юрданные и лицензия" },
-  { id: "team", title: "Команда", detail: "сотрудники и кресла" },
-  { id: "sources", title: "Импорт", detail: "прайс, снимки, голос" },
+  { id: "intro", title: "Режим запуска", detail: "демо или чистая" },
+  { id: "clinic", title: "Клиника", detail: "название и телефон" },
+  { id: "team", title: "Команда", detail: "первый врач и кресло" },
   { id: "telegram", title: "ТГ-бот", detail: "бот, QR и отзывы" },
-  { id: "done", title: "Готово", detail: "проверка перед работой" }
+  { id: "done", title: "Готово", detail: "проверка и старт" }
 ];
 
 export const roleFocusOrder: StaffRole[] = ["doctor", "administrator", "assistant", "manager", "owner"];

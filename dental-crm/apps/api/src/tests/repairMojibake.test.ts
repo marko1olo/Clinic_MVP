@@ -3,64 +3,95 @@ import assert from 'node:assert';
 import { repairMojibakeText, repairMojibakeDeep } from '../text/repairMojibake.js';
 
 describe('repairMojibakeText', () => {
-  test('returns unmodified text if likelyMojibake is false', () => {
-    assert.strictEqual(repairMojibakeText('Hello World'), 'Hello World');
-    assert.strictEqual(repairMojibakeText('Привет мир'), 'Привет мир');
-    assert.strictEqual(repairMojibakeText('12345'), '12345');
-    assert.strictEqual(repairMojibakeText(''), '');
+  test('returns normal ascii strings unchanged', () => {
+    const input = "Hello world!";
+    assert.strictEqual(repairMojibakeText(input), input);
   });
 
-  test('repairs fully encoded mojibake (CP1252 misinterpreted as UTF-8)', () => {
-    assert.strictEqual(repairMojibakeText('ÐŸÑ€Ð¸Ð²ÐµÑ‚'), 'Привет'); // Привет
-    assert.strictEqual(repairMojibakeText('Ð–Ð°Ð»Ð¾Ð±Ñ‹ Ð½Ð° Ð±Ð¾Ð»ÑŒ'), 'Жалобы на боль'); // Жалобы на боль
-    assert.strictEqual(repairMojibakeText('ÐšÐ°Ñ€Ð¸ÐµÑ\x81'), 'Кариес'); // Кариес
-    assert.strictEqual(repairMojibakeText('Ð—ÑƒÐ±'), 'Зуб'); // Зуб
+  test('returns normal cyrillic strings unchanged', () => {
+    const input = "Привет, мир!";
+    assert.strictEqual(repairMojibakeText(input), input);
   });
 
-  test('repairs partially encoded mojibake (by token)', () => {
-    assert.strictEqual(repairMojibakeText('Hello ÐŸÑ€Ð¸Ð²ÐµÑ‚'), 'Hello Привет');
-    assert.strictEqual(repairMojibakeText('Ð—ÑƒÐ± 123 ÐšÐ°Ñ€Ð¸ÐµÑ\x81'), 'Зуб 123 Кариес');
-    assert.strictEqual(repairMojibakeText('Normal ÐŸÑ€Ð¸Ð²ÐµÑ‚ Text'), 'Normal Привет Text');
+  test('repairs fully mangled cyrillic mojibake', () => {
+    const input = "Ð\u0098Ð²Ð°Ð½"; // Иван
+    const expected = "Иван";
+    assert.strictEqual(repairMojibakeText(input), expected);
   });
 
-  test('leaves string unchanged if decoding produces replacement characters or no improvement', () => {
-    assert.strictEqual(repairMojibakeText('Ã. some text'), 'Ã. some text');
-    assert.strictEqual(repairMojibakeText('Ñ.'), 'Ñ.');
-    assert.strictEqual(repairMojibakeText('ÐŸÑ. invalid'), 'ÐŸÑ. invalid');
+  test('repairs token-mixed strings with mojibake', () => {
+    const input = "Hello Ð\u0098Ð²Ð°Ð½";
+    const expected = "Hello Иван";
+    assert.strictEqual(repairMojibakeText(input), expected);
+  });
+
+  test('gracefully handles likely mojibake that cannot be decoded', () => {
+    const input = "?\u0300\u0301\u0302 invalid";
+    assert.strictEqual(repairMojibakeText(input), input);
   });
 });
 
 describe('repairMojibakeDeep', () => {
-  test('returns unmodified non-string primitives', () => {
-    assert.strictEqual(repairMojibakeDeep(123), 123);
-    assert.strictEqual(repairMojibakeDeep(true), true);
-    assert.strictEqual(repairMojibakeDeep(null), null);
-    assert.strictEqual(repairMojibakeDeep(undefined), undefined);
-  });
-
-  test('repairs strings deeply nested in arrays', () => {
-    const input = ['Hello', 'ÐŸÑ€Ð¸Ð²ÐµÑ‚', 123, ['Ð—ÑƒÐ±']];
-    const expected = ['Hello', 'Привет', 123, ['Зуб']];
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
-  });
-
-  test('repairs strings deeply nested in objects', () => {
+  test('repairs deep mojibake correctly', () => {
     const input = {
-      name: 'ÐŸÑ€Ð¸Ð²ÐµÑ‚',
-      age: 30,
-      nested: {
-        diagnosis: 'ÐšÐ°Ñ€Ð¸ÐµÑ\x81',
-        notes: ['Normal', 'Ð—ÑƒÐ±']
-      }
+      name: "Ð\u0098Ð²Ð°Ð½", // Иван
+      profile: {
+        address: "Ð\u009CÐ¾Ñ\u0081ÐºÐ²Ð°", // Москва
+        tags: ["Ð²Ñ\u0080Ð°Ñ\u0087", "Ð¿Ð°Ñ\u0086Ð¸ÐµÐ½Ñ\u0082"], // врач, пациент
+        age: 30,
+        isVerified: true,
+        metadata: null
+      },
+      status: 200,
+      active: true,
+      data: null,
+      history: [
+        {
+          date: "2023-01-01",
+          note: "Ð\u009EÐ±Ñ\u0081Ð»ÐµÐ´Ð¾Ð²Ð°Ð½Ð¸Ðµ", // Обследование
+          details: {
+            doctor: "Ð\u009FÐµÑ\u0082Ñ\u0080Ð¾Ð²" // Петров
+          }
+        }
+      ]
     };
-    const expected = {
-      name: 'Привет',
-      age: 30,
-      nested: {
-        diagnosis: 'Кариес',
-        notes: ['Normal', 'Зуб']
-      }
+
+    const result = repairMojibakeDeep(input);
+
+    assert.deepStrictEqual(result, {
+      name: "Иван",
+      profile: {
+        address: "Москва",
+        tags: ["врач", "пациент"],
+        age: 30,
+        isVerified: true,
+        metadata: null
+      },
+      status: 200,
+      active: true,
+      data: null,
+      history: [
+        {
+          date: "2023-01-01",
+          note: "Обследование",
+          details: {
+            doctor: "Петров"
+          }
+        }
+      ]
+    });
+  });
+
+  test('does not modify non-string primitive values', () => {
+    const input = {
+      num: 42,
+      bool: false,
+      nil: null,
+      undef: undefined,
+      arr: [1, 2, 3]
     };
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
+
+    const result = repairMojibakeDeep(input);
+    assert.deepStrictEqual(result, input);
   });
 });

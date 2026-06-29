@@ -1,4 +1,7 @@
 import os
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 import time
 import json
 import base64
@@ -104,7 +107,7 @@ def analyze_image(file_path):
     # Default cascade sequence
     models_with_providers = [
         ("gemini-3.5-flash", "gemini"),
-        ("gemini-3.0-flash", "gemini"),
+        ("gemini-3-flash-preview", "gemini"),
         ("qwen/qwen3.6-27b", "groq"),
         (GROQ_VISION_MODEL, "groq")
     ]
@@ -138,8 +141,7 @@ def analyze_image(file_path):
                                 {"type": "image_url", "image_url": {"url": image_b64}}
                             ]
                         }
-                    ],
-                    max_tokens=1500
+                    ]
                 )
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content

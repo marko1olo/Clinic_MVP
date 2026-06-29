@@ -1,9 +1,10 @@
+import os
 import paramiko
 import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
 
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
@@ -16,14 +17,23 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.flush()
     return out, err
 
+<<<<<<< HEAD
+if __name__ == "__main__":
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.connect(hostname=host, username=user, password=password, timeout=10)
+    sys.stdout.buffer.write(b"Connected.\n")
+=======
 client = paramiko.SSHClient()
 client.load_system_host_keys()
 client.set_missing_host_key_policy(paramiko.RejectPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
+>>>>>>> 79d4de5 (🔒 Fix insecure SSH Host Key Policy by rejecting unknown hosts)
 
-# Create backup script
-backup_script = """#!/bin/bash
+    # Create backup script
+    backup_script = """#!/bin/bash
 BACKUP_DIR="/opt/backups/clinic"
 DB_FILE="/opt/clinic_admin/clinic.db"
 DATE=$(date +%Y-%m-%d_%H-%M)
@@ -36,10 +46,10 @@ if [ -f "$DB_FILE" ]; then
 fi
 """
 
-ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
-ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
-ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
-ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
+    ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
+    ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
+    ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
+    ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
 
-client.close()
-sys.stdout.buffer.write(b"\nDone.\n")
+    client.close()
+    sys.stdout.buffer.write(b"\nDone.\n")

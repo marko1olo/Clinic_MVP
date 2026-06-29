@@ -44,6 +44,7 @@ body {
     display: flex;
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    position: relative;
 }
 
 .viewer-panel {
@@ -405,8 +406,8 @@ input[type=range]::-webkit-slider-runnable-track {
 
 /* Loader Overlay */
 .loader-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(10, 14, 23, 0.85);
     backdrop-filter: blur(8px);
     display: none;
@@ -415,6 +416,7 @@ input[type=range]::-webkit-slider-runnable-track {
     align-items: center;
     z-index: 1000;
     gap: 20px;
+    border-radius: 16px;
 }
 .loader-overlay.active {
     display: flex;
@@ -467,6 +469,7 @@ input[type=range]::-webkit-slider-runnable-track {
     display: inline-block;
     width: 36px;
     height: 20px;
+    flex-shrink: 0;
 }
 
 .switch input {

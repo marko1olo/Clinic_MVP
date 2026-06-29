@@ -8,12 +8,13 @@ import threading
 import logging
 import json
 import sys
+import time
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
-from aiogram import Bot, Dispatcher, Router, F
+from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
-from aiogram.filters import Command, CommandStart
+from aiogram.filters.command import Command, CommandStart
 
 sys.path.insert(0, '.')
 from config.settings import (
@@ -40,9 +41,9 @@ dp.include_router(router)
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     chat_id = message.chat.id
-    role = db.get_user_role(chat_id)
+    role = await asyncio.to_thread(db.get_user_role, chat_id)
     if not role:
-        db.add_user(chat_id, 'guest', message.from_user.full_name) # По умолчанию гость для безопасности
+        await asyncio.to_thread(db.add_user, chat_id, 'guest', message.from_user.full_name) # По умолчанию гость для безопасности
         role = 'guest'
     log.info(f"New chat registered: {chat_id} as {role}")
     await message.answer(
@@ -57,8 +58,8 @@ async def cmd_start(message: Message):
 
 @router.message(Command("status"))
 async def cmd_status(message: Message):
-    doctors = len(db.get_users_by_role('doctor'))
-    admins = len(db.get_users_by_role('admin'))
+    doctors = len(await asyncio.to_thread(db.get_users_by_role, 'doctor'))
+    admins = len(await asyncio.to_thread(db.get_users_by_role, 'admin'))
     await message.answer(
         f"*Система работает* ✅\n"
         f"Врачей: {doctors}, Админов: {admins}\n"
@@ -83,7 +84,7 @@ async def cmd_test(message: Message):
 
 async def broadcast(text: str, role: str = 'admin'):
     """Отправить текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
@@ -98,25 +99,77 @@ async def broadcast(text: str, role: str = 'admin'):
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send photo to.")
         return
     
+    # Pre-chunk the report text outside the per-user loop to avoid redundant slicing
+    max_len = 4000
+    report_chunks = [report_text[i:i+max_len] for i in range(0, len(report_text), max_len)]
+
     async def _send_to_user(chat_id):
         try:
             input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
             await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
             
-            # Send the rest as text
-            max_len = 4000
-            for i in range(0, len(report_text), max_len):
-                chunk = report_text[i:i+max_len]
+            # Send the rest as text sequentially to preserve correct ordering
+            for chunk in report_chunks:
                 await bot.send_message(chat_id, text=chunk)
         except Exception as e:
             log.error(f"Failed to send photo to {chat_id}: {e}")
 
     await asyncio.gather(*(_send_to_user(chat_id) for chat_id in users))
+
+def handle_xray_result(topic, payload, loop):
+    image_b64 = payload.get('image_b64')
+    report = payload.get('report', 'No report')
+    patient_name = payload.get('patient_name')
+
+    patient_str = f"Пациент: {patient_name}" if patient_name and patient_name != "Неизвестен" else "Пациент: неизвестен (нет записи)"
+
+    if image_b64:
+        photo_bytes = base64.b64decode(image_b64)
+        caption = f"🦷 *Новый рентген проанализирован!*\n👤 _{patient_str}_\nПолный отчет следующим сообщением."
+        asyncio.run_coroutine_threadsafe(broadcast_photo(photo_bytes, caption, report, role='doctor'), loop)
+        # Notify admins as well but just a short text
+        admin_text = f"🔄 *Система*: Снимок {payload.get('file', '')} ({patient_str}) отправлен врачам."
+        asyncio.run_coroutine_threadsafe(broadcast(admin_text, role='admin'), loop)
+    else:
+        text = f"🦷 *Анализ снимка готов*\n👤 _{patient_str}_\n\nНаходки:\n{report}\n"
+        asyncio.run_coroutine_threadsafe(broadcast(text, role='doctor'), loop)
+
+def handle_alert_admin(topic, payload, loop):
+    text = f"🚨 *АЛЕРТ*\n\n{payload.get('text', str(payload))}"
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_review_neg(topic, payload, loop):
+    text = (
+        f"⚠️ *Негативный отзыв*\n\n"
+        f"Пациент: {payload.get('patient', 'неизвестен')}\n"
+        f"Сообщение: _{payload.get('text', '')}_\n\n"
+        f"Требует обратной связи!"
+    )
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_marketing_send(topic, payload, loop):
+    text = (
+        f"📣 *Маркетинг — задание*\n\n"
+        f"Пациент: {payload.get('patient', '?')}\n"
+        f"Черновик: _{payload.get('draft', '')}_"
+    )
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+def handle_default(topic, payload, loop):
+    text = f"📨 `{topic}`\n\n{str(payload)}"
+    asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+
+TOPIC_HANDLERS = {
+    TOPIC_XRAY_RESULT: handle_xray_result,
+    TOPIC_ALERT_ADMIN: handle_alert_admin,
+    TOPIC_REVIEW_NEG: handle_review_neg,
+    TOPIC_MARKETING_SEND: handle_marketing_send,
+}
 
 def on_mqtt_message(client, userdata, msg):
     """Колбэк от MQTT — запускаем корутину broadcast в event loop бота."""
@@ -136,46 +189,8 @@ def on_mqtt_message(client, userdata, msg):
     if not loop:
         return
 
-    # Формируем текст в зависимости от топика
-    if topic == TOPIC_XRAY_RESULT:
-        # X-Ray Results go to DOCTORS
-        image_b64 = payload.get('image_b64')
-        report = payload.get('report', 'No report')
-        patient_name = payload.get('patient_name')
-        
-        patient_str = f"Пациент: {patient_name}" if patient_name and patient_name != "Неизвестен" else "Пациент: неизвестен (нет записи)"
-
-        if image_b64:
-            photo_bytes = base64.b64decode(image_b64)
-            caption = f"🦷 *Новый рентген проанализирован!*\n👤 _{patient_str}_\nПолный отчет следующим сообщением."
-            asyncio.run_coroutine_threadsafe(broadcast_photo(photo_bytes, caption, report, role='doctor'), loop)
-            # Notify admins as well but just a short text
-            admin_text = f"🔄 *Система*: Снимок {payload.get('file', '')} ({patient_str}) отправлен врачам."
-            asyncio.run_coroutine_threadsafe(broadcast(admin_text, role='admin'), loop)
-        else:
-            text = f"🦷 *Анализ снимка готов*\n👤 _{patient_str}_\n\nНаходки:\n{report}\n"
-            asyncio.run_coroutine_threadsafe(broadcast(text, role='doctor'), loop)
-    elif topic == TOPIC_ALERT_ADMIN:
-        text = f"🚨 *АЛЕРТ*\n\n{payload.get('text', str(payload))}"
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    elif topic == TOPIC_REVIEW_NEG:
-        text = (
-            f"⚠️ *Негативный отзыв*\n\n"
-            f"Пациент: {payload.get('patient', 'неизвестен')}\n"
-            f"Сообщение: _{payload.get('text', '')}_\n\n"
-            f"Требует обратной связи!"
-        )
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    elif topic == TOPIC_MARKETING_SEND:
-        text = (
-            f"📣 *Маркетинг — задание*\n\n"
-            f"Пациент: {payload.get('patient', '?')}\n"
-            f"Черновик: _{payload.get('draft', '')}_"
-        )
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
-    else:
-        text = f"📨 `{topic}`\n\n{str(payload)}"
-        asyncio.run_coroutine_threadsafe(broadcast(text, role='admin'), loop)
+    handler = TOPIC_HANDLERS.get(topic, handle_default)
+    handler(topic, payload, loop)
 
 def start_mqtt(loop: asyncio.AbstractEventLoop):
     """Запускает MQTT клиент в отдельном потоке."""
@@ -201,7 +216,7 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
             client.loop_forever()
         except Exception as e:
             log.error(f"MQTT error: {e}, retrying in 5s...")
-            import time; time.sleep(5)
+            time.sleep(5)
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 

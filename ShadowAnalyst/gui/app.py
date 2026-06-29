@@ -1,4 +1,5 @@
 import os
+import asyncio
 import sys
 import time
 import shutil
@@ -33,12 +34,20 @@ class LogInterceptor:
         self.original_stdout = original_stdout
 
     def write(self, message):
-        self.original_stdout.write(message)
+        if self.original_stdout is not None:
+            try:
+                self.original_stdout.write(message)
+            except Exception:
+                pass
         if message.strip():
             log_buffer.append(message.strip())
 
     def flush(self):
-        self.original_stdout.flush()
+        if self.original_stdout is not None:
+            try:
+                self.original_stdout.flush()
+            except Exception:
+                pass
 
     def isatty(self):
         return False
@@ -114,15 +123,16 @@ def stop_tunnel():
 
 def make_groq_client(api_key: str, use_proxy: bool = False) -> OpenAI:
     """Создаёт OpenAI-совместимый Groq-клиент, опционально через SOCKS5."""
+    timeout_val = 20.0 if use_proxy else 12.0
     kwargs = dict(
         api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
-        timeout=45.0,
+        timeout=timeout_val,
         max_retries=0
     )
     if use_proxy:
         import httpx
-        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=45.0)
+        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=20.0)
         kwargs["http_client"] = http_client
     return OpenAI(**kwargs)
 
@@ -143,15 +153,85 @@ def is_retryable(exception):
         return False
     return True
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True, retry=retry_if_exception(is_retryable))
-def groq_chat(api_key: str, **kwargs):
-    """
-    Выполняет запрос к Groq с автоматическим переключением на SOCKS5-прокси
-    при ошибке соединения (Connection, Timeout, блокировка).
-    """
-    # 1-я попытка — напрямую
+gemini_use_proxy = False
+groq_use_proxy = False
+
+def check_tcp_socks5(target_host, target_port, timeout=3.0) -> bool:
+    import socket
     try:
-        client = make_groq_client(api_key, use_proxy=False)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect(("127.0.0.1", SOCKS_PORT))
+
+        # SOCKS5 greeting
+        s.sendall(b"\x05\x01\x00")
+        resp = s.recv(2)
+        if len(resp) < 2 or resp[0] != 0x05 or resp[1] != 0x00:
+            s.close()
+            return False
+
+        # SOCKS5 CONNECT request
+        host_bytes = target_host.encode('ascii')
+        request = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + target_port.to_bytes(2, 'big')
+        s.sendall(request)
+
+        resp = s.recv(10)
+        s.close()
+        if len(resp) >= 2 and resp[0] == 0x05 and resp[1] == 0x00:
+            return True
+        return False
+    except Exception:
+        return False
+
+def check_connection_loop():
+    global gemini_use_proxy, groq_use_proxy
+    print("[VPN] Запущен фоновый мониторинг доступности API...")
+
+    # Сначала сделаем быструю проверку при запуске
+    time.sleep(2)
+
+    while True:
+        # 1. Проверяем Gemini напрямую по TCP
+        import socket
+        try:
+            socket.setdefaulttimeout(3.0)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(("generativelanguage.googleapis.com", 443))
+            s.close()
+            if gemini_use_proxy:
+                print("[VPN Monitor] Gemini API доступен напрямую. Переключаем на direct.")
+            gemini_use_proxy = False
+        except Exception:
+            # Если прямой доступ не удался, пробуем через SSH-туннель
+            if ensure_tunnel():
+                if check_tcp_socks5("generativelanguage.googleapis.com", 443):
+                    if not gemini_use_proxy:
+                        print("[VPN Monitor] Gemini напрямую недоступен. Переключаем на прокси.")
+                    gemini_use_proxy = True
+
+        # 2. Проверяем Groq напрямую по TCP
+        try:
+            socket.setdefaulttimeout(3.0)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(("api.groq.com", 443))
+            s.close()
+            if groq_use_proxy:
+                print("[VPN Monitor] Groq API доступен напрямую. Переключаем на direct.")
+            groq_use_proxy = False
+        except Exception:
+            # Если прямой доступ не удался, пробуем через SSH-туннель
+            if ensure_tunnel():
+                if check_tcp_socks5("api.groq.com", 443):
+                    if not groq_use_proxy:
+                        print("[VPN Monitor] Groq напрямую недоступен. Переключаем на прокси.")
+                    groq_use_proxy = True
+
+        time.sleep(60)
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=8), reraise=True, retry=retry_if_exception(is_retryable))
+def groq_chat(api_key: str, **kwargs):
+    client = make_groq_client(api_key, use_proxy=groq_use_proxy)
+    try:
         return client.chat.completions.create(**kwargs)
     except Exception as e:
         err = str(e)
@@ -161,39 +241,33 @@ def groq_chat(api_key: str, **kwargs):
             "Network", "OSError", "[Errno"
         ])
         if not is_conn_err:
-            raise  # 429 и прочие API ошибки бросаем дальше, tenacity отменит ретрай если это 429/401
-        print(f"[VPN] Прямое подключение упало: {e}")
-
-    # 2-я попытка — через SOCKS5 туннель
-    if not ensure_tunnel():
-        raise ConnectionError("Прямое подключение заблокировано, SSH туннель не поднялся")
-    print("[VPN] Повтор через SOCKS5...")
-    client = make_groq_client(api_key, use_proxy=True)
-    return client.chat.completions.create(**kwargs)
+            raise
+        if not groq_use_proxy:
+            print(f"[VPN] Сбой прямого запроса Groq ({e}). Пробуем через SSH SOCKS5...")
+            if ensure_tunnel():
+                client_proxy = make_groq_client(api_key, use_proxy=True)
+                return client_proxy.chat.completions.create(**kwargs)
+        raise
 
 def make_gemini_client(api_key: str, use_proxy: bool = False) -> OpenAI:
     """Создаёт OpenAI-совместимый Gemini-клиент, опционально через SOCKS5."""
+    timeout_val = 20.0 if use_proxy else 12.0
     kwargs = dict(
         api_key=api_key,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        timeout=45.0,
+        timeout=timeout_val,
         max_retries=1
     )
     if use_proxy:
         import httpx
-        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=45.0)
+        http_client = httpx.Client(proxy=SOCKS_PROXY, timeout=20.0)
         kwargs["http_client"] = http_client
     return OpenAI(**kwargs)
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True, retry=retry_if_exception(is_retryable))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=8), reraise=True, retry=retry_if_exception(is_retryable))
 def gemini_chat(api_key: str, **kwargs):
-    """
-    Выполняет запрос к Gemini с автоматическим переключением на SOCKS5-прокси
-    при ошибке соединения (блокировка, таймаут).
-    """
-    # 1-я попытка — напрямую
+    client = make_gemini_client(api_key, use_proxy=gemini_use_proxy)
     try:
-        client = make_gemini_client(api_key, use_proxy=False)
         return client.chat.completions.create(**kwargs)
     except Exception as e:
         err = str(e)
@@ -203,15 +277,13 @@ def gemini_chat(api_key: str, **kwargs):
             "Network", "OSError", "[Errno"
         ])
         if not is_conn_err:
-            raise  # 429 и прочие API ошибки бросаем дальше
-        print(f"[VPN] Прямое подключение к Gemini упало: {e}")
-
-    # 2-я попытка — через SOCKS5 туннель
-    if not ensure_tunnel():
-        raise ConnectionError("Прямое подключение к Gemini заблокировано, SSH туннель не поднялся")
-    print("[VPN] Повтор Gemini через SOCKS5...")
-    client = make_gemini_client(api_key, use_proxy=True)
-    return client.chat.completions.create(**kwargs)
+            raise
+        if not gemini_use_proxy:
+            print(f"[VPN] Сбой прямого запроса Gemini ({e}). Пробуем через SSH SOCKS5...")
+            if ensure_tunnel():
+                client_proxy = make_gemini_client(api_key, use_proxy=True)
+                return client_proxy.chat.completions.create(**kwargs)
+        raise
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -229,7 +301,59 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 # Config loading
-CONFIG_FILE = os.path.join(EXE_DIR, "config.json")
+import database
+PROJECT_ROOT = database.PROJECT_ROOT
+
+# Manual .env Loader to avoid third-party library issues and load from root paths
+def load_dotenv_manually():
+    possible_env_paths = [
+        os.path.join(PROJECT_ROOT, ".env"),
+        os.path.abspath(os.path.join(BASE_DIR, "..", "..", ".env")), # C:\Clinic_MVP\.env
+        os.path.abspath(os.path.join(BASE_DIR, "..", ".env")),      # C:\Clinic_MVP\ShadowAnalyst\.env
+        os.path.join(BASE_DIR, ".env"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\.env
+        os.path.join(EXE_DIR, ".env"),
+        os.path.join(os.getcwd(), ".env")
+    ]
+    loaded = False
+    for path in possible_env_paths:
+        if os.path.exists(path):
+            print(f"[CONFIG] Found .env file at {path}. Loading environment variables.")
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = line.split("=", 1)
+                        if len(parts) == 2:
+                            k = parts[0].strip()
+                            v = parts[1].strip()
+                            if v.startswith(('"', "'")) and v.endswith(('"', "'")):
+                                v = v[1:-1]
+                            os.environ[k] = v
+                loaded = True
+            except Exception as e:
+                print(f"[CONFIG] Error reading .env at {path}: {e}")
+    if not loaded:
+        print("[CONFIG] No .env file loaded on startup.")
+
+load_dotenv_manually()
+
+# Config loading - search in multiple locations to support dev/prod mode configs
+CONFIG_FILE = os.path.join(PROJECT_ROOT, "config.json")
+possible_config_paths = [
+    CONFIG_FILE,
+    os.path.abspath(os.path.join(BASE_DIR, "..", "..", "config.json")), # C:\Clinic_MVP\config.json
+    os.path.abspath(os.path.join(BASE_DIR, "..", "config.json")),      # C:\Clinic_MVP\ShadowAnalyst\config.json
+    os.path.join(EXE_DIR, "config.json"),                             # C:\Clinic_MVP\ShadowAnalyst\gui\config.json
+    os.path.join(os.getcwd(), "config.json")
+]
+
+for path in possible_config_paths:
+    if os.path.exists(path):
+        CONFIG_FILE = path
+        print(f"[CONFIG] Found config.json at {path}")
+        break
 
 DEFAULT_CONFIG = {
     "watch_dir": r"C:\Clinic_MVP\Dropzone_XRay",
@@ -247,16 +371,12 @@ DEFAULT_CONFIG = {
     "auto_enhance": False,
     "theme": "theme-noir",
     "tts_voice": "ru-RU-DmitryNeural",
-    "model_tier": 4,
+    "model_tier": 2, # Default tier is 2 (Qwen 3.6 + Llama 4) as recommended by user
     "comparison_slider": True,
     "tts_provider": "elevenlabs",
     "autorun": False,
-    "elevenlabs_api_key": "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-    "elevenlabs_api_keys": [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ],
+    "elevenlabs_api_key": os.getenv("ELEVENLABS_API_KEY", ""),
+    "elevenlabs_api_keys": [key.strip() for key in os.getenv("ELEVENLABS_API_KEYS", "").split(",") if key.strip()],
     "elevenlabs_voice_id": "pNInz6obpgq54HWK483c"
 }
 
@@ -301,8 +421,22 @@ else:
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-# Apply autorun on startup
-set_autorun(config.get("autorun", False))
+# Merge environment keys if present in env but not in config
+def merge_unique_keys(config_keys, env_keys):
+    res = list(config_keys)
+    for k in env_keys:
+        if k not in res:
+            res.append(k)
+    return res
+
+env_groq = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
+config["groq_api_keys"] = merge_unique_keys(config.get("groq_api_keys", []), env_groq)
+
+env_google = [key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()]
+config["google_api_keys"] = merge_unique_keys(config.get("google_api_keys", []), env_google)
+
+# Save merged config back to CONFIG_FILE (ignored in git)
+save_config(config)
 
 WATCH_DIR = config.get("watch_dir", DEFAULT_CONFIG["watch_dir"])
 GROQ_API_KEYS = config.get("groq_api_keys", DEFAULT_CONFIG["groq_api_keys"])
@@ -328,6 +462,7 @@ os.makedirs(os.path.join(STATIC_DIR, "uploads"), exist_ok=True)
 # State
 app_state = {
     "is_processing": False,
+    "processing_image": None,
     "error_message": "",
     "queue_length": 0,
     "latest_image": "",
@@ -339,15 +474,11 @@ app_state = {
     "theme": config.get("theme", DEFAULT_CONFIG["theme"]),
     "watch_dir": WATCH_DIR,
     "tts_voice": config.get("tts_voice", DEFAULT_CONFIG["tts_voice"]),
-    "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 4)),
+    "model_tier": config.get("model_tier", DEFAULT_CONFIG.get("model_tier", 2)),
     "comparison_slider": config.get("comparison_slider", DEFAULT_CONFIG.get("comparison_slider", True)),
     "tts_provider": config.get("tts_provider", DEFAULT_CONFIG.get("tts_provider", "edge")),
     "elevenlabs_api_key": config.get("elevenlabs_api_key", DEFAULT_CONFIG.get("elevenlabs_api_key", "")),
-    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ])),
+    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [])),
     "elevenlabs_voice_id": config.get("elevenlabs_voice_id", DEFAULT_CONFIG.get("elevenlabs_voice_id", "pNInz6obpgq54HWK483c")),
     "google_api_keys": config.get("google_api_keys", DEFAULT_CONFIG.get("google_api_keys", [])),
     "groq_api_keys": config.get("groq_api_keys", DEFAULT_CONFIG.get("groq_api_keys", [])),
@@ -392,10 +523,10 @@ def run_cv2_enhancement(src_path, dest_path):
             print("Failed to decode image. Corrupted or unsupported format.")
             return False
             
-        clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8,8))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         enhanced = clahe.apply(img)
         gaussian = cv2.GaussianBlur(enhanced, (0, 0), 3.0)
-        sharpened = cv2.addWeighted(enhanced, 2.0, gaussian, -1.0, 0)
+        sharpened = cv2.addWeighted(enhanced, 1.4, gaussian, -0.4, 0)
         
         ext = os.path.splitext(dest_path)[1] or '.jpg'
         is_success, im_buf_arr = cv2.imencode(ext, sharpened)
@@ -448,50 +579,18 @@ def set_active_scan(data: dict):
 def update_settings(settings: dict):
     global GOOGLE_API_KEYS, GROQ_API_KEYS
     updated = False
-    if "auto_analyze" in settings:
-        app_state["auto_analyze"] = settings["auto_analyze"]
-        config["auto_analyze"] = settings["auto_analyze"]
-        updated = True
-    if "auto_enhance" in settings:
-        app_state["auto_enhance"] = settings["auto_enhance"]
-        config["auto_enhance"] = settings["auto_enhance"]
-        updated = True
-    if "theme" in settings:
-        app_state["theme"] = settings["theme"]
-        config["theme"] = settings["theme"]
-        updated = True
-    if "enable_ai_vision" in settings:
-        app_state["enable_ai_vision"] = settings["enable_ai_vision"]
-        config["enable_ai_vision"] = settings["enable_ai_vision"]
-        updated = True
-    if "tts_voice" in settings:
-        app_state["tts_voice"] = settings["tts_voice"]
-        config["tts_voice"] = settings["tts_voice"]
-        updated = True
-    if "model_tier" in settings:
-        app_state["model_tier"] = settings["model_tier"]
-        config["model_tier"] = settings["model_tier"]
-        updated = True
-    if "comparison_slider" in settings:
-        app_state["comparison_slider"] = settings["comparison_slider"]
-        config["comparison_slider"] = settings["comparison_slider"]
-        updated = True
-    if "tts_provider" in settings:
-        app_state["tts_provider"] = settings["tts_provider"]
-        config["tts_provider"] = settings["tts_provider"]
-        updated = True
-    if "elevenlabs_api_key" in settings:
-        app_state["elevenlabs_api_key"] = settings["elevenlabs_api_key"]
-        config["elevenlabs_api_key"] = settings["elevenlabs_api_key"]
-        updated = True
-    if "elevenlabs_api_keys" in settings:
-        app_state["elevenlabs_api_keys"] = settings["elevenlabs_api_keys"]
-        config["elevenlabs_api_keys"] = settings["elevenlabs_api_keys"]
-        updated = True
-    if "elevenlabs_voice_id" in settings:
-        app_state["elevenlabs_voice_id"] = settings["elevenlabs_voice_id"]
-        config["elevenlabs_voice_id"] = settings["elevenlabs_voice_id"]
-        updated = True
+
+    simple_keys = [
+        "auto_analyze", "auto_enhance", "theme", "enable_ai_vision",
+        "tts_voice", "model_tier", "comparison_slider", "tts_provider",
+        "elevenlabs_api_key", "elevenlabs_api_keys", "elevenlabs_voice_id"
+    ]
+    for key in simple_keys:
+        if key in settings:
+            app_state[key] = settings[key]
+            config[key] = settings[key]
+            updated = True
+
     if "google_api_keys" in settings:
         app_state["google_api_keys"] = settings["google_api_keys"]
         config["google_api_keys"] = settings["google_api_keys"]
@@ -530,12 +629,14 @@ async def get_tts(text: str, provider: str = None):
     cache_filename = f"audio_{text_hash}.mp3"
     cache_path = os.path.join(STATIC_DIR, "uploads", cache_filename)
     
-    if os.path.exists(cache_path):
-        try:
-            with open(cache_path, "rb") as f:
-                return Response(content=f.read(), media_type="audio/mpeg")
-        except Exception as e:
-            print(f"Error reading audio cache: {e}")
+    try:
+        async with aiofiles.open(cache_path, "rb") as f:
+            content = await f.read()
+        return Response(content=content, media_type="audio/mpeg")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error reading audio cache: {e}")
 
     audio_bytes = None
         
@@ -696,6 +797,8 @@ def trigger_analysis():
     if not image_url:
         return {"error": "No image loaded to analyze"}
     filename = os.path.basename(image_url).split('?')[0]
+    app_state["is_processing"] = True
+    app_state["processing_image"] = f"/static/uploads/{filename}"
     threading.Thread(target=process_analysis_only, args=(filename,), daemon=True).start()
     return {"status": "processing"}
 
@@ -729,7 +832,7 @@ def prepare_image(file_path):
         with img:
             if img.mode != 'RGB':
                 img = img.convert('RGB')
-            max_size = 1000
+            max_size = 600
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             buffer = BytesIO()
@@ -742,61 +845,68 @@ def prepare_image(file_path):
 
 
 
-def run_ai_analysis(file_path, patient_info=None):
-    image_b64 = prepare_image(file_path)
-    if not image_b64:
-        return "Ошибка обработки картинки.", "Снимок не обработан."
-
-    if not check_internet_connection(timeout=1.5):
-        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
-
-    system_prompt = "Опиши снимок зубов."
-    prompt_paths = [
-        os.path.join(EXE_DIR, "dentalimage.md"),
-        os.path.join(os.path.dirname(EXE_DIR), "dentalimage.md"),
-        os.path.join(BASE_DIR, "dentalimage.md"),
-        os.path.join(os.path.dirname(BASE_DIR), "dentalimage.md"),
+def _load_prompt(filename, default_text):
+    import os
+    paths = [
+        os.path.join(EXE_DIR, filename),
+        os.path.join(os.path.dirname(EXE_DIR), filename),
+        os.path.join(BASE_DIR, filename),
+        os.path.join(os.path.dirname(BASE_DIR), filename),
     ]
-    for prompt_path in prompt_paths:
-        if os.path.exists(prompt_path):
+    for path in paths:
+        if os.path.exists(path):
             try:
-                with open(prompt_path, "r", encoding="utf-8") as f:
-                    system_prompt = f.read()
-                break
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read()
             except Exception:
                 pass
+    return default_text
 
-    if patient_info:
-        system_prompt += f"\n\nВАЖНО: Это снимок пациента по имени {patient_info['patient_name']}. Упомяни его имя в отчете."
-
-    # Map intelligence tier to fallback cascade list
-    model_tier = config.get("model_tier", 4)
-    if model_tier == 4:
-        models_with_providers = [
+def _get_models_for_tier(model_tier):
+    if model_tier == 5:
+        return [
             ("gemini-3.5-flash", "gemini"),
-            ("gemini-3.1-flash-lite", "gemini"),
+            ("gemini-3-flash-preview", "gemini"),
+            ("qwen/qwen3.6-27b", "groq"),
+            (GROQ_VISION_MODEL, "groq")
+        ]
+    elif model_tier == 4:
+        return [
+            ("gemini-3-flash-preview", "gemini"),
             ("qwen/qwen3.6-27b", "groq"),
             (GROQ_VISION_MODEL, "groq")
         ]
     elif model_tier == 3:
-        models_with_providers = [
-            ("gemini-3.1-flash-lite", "gemini"),
+        return [
             ("qwen/qwen3.6-27b", "groq"),
+            ("gemini-3-flash-preview", "gemini"),
+            ("gemini-3.5-flash", "gemini"),
             (GROQ_VISION_MODEL, "groq")
         ]
     elif model_tier == 2:
-        models_with_providers = [
+        return [
             ("qwen/qwen3.6-27b", "groq"),
+            ("gemini-3-flash-preview", "gemini"),
             (GROQ_VISION_MODEL, "groq")
         ]
     else:  # model_tier == 1
-        models_with_providers = [
+        return [
+            ("gemini-3-flash-preview", "gemini"),
             (GROQ_VISION_MODEL, "groq")
         ]
 
-    first_report = ""
+def _execute_ai_cascade(models, prompt, image_b64, min_len, pass_name, extra_messages=None):
+    import random
+    import re
+
+    output_text = ""
+    success_idx = 0
     last_err = "No keys available"
-    for model_name, provider in models_with_providers:
+
+    if extra_messages is None:
+        extra_messages = []
+
+    for idx, (model_name, provider) in enumerate(models):
         if provider == "gemini":
             keys = GOOGLE_API_KEYS.copy()
             chat_func = gemini_chat
@@ -804,123 +914,59 @@ def run_ai_analysis(file_path, patient_info=None):
             keys = GROQ_API_KEYS.copy()
             chat_func = groq_chat
 
-        # Shuffle keys for each model pass to distribute load
+        if not keys:
+            print(f"Skipping model {model_name} ({provider}) - no API keys configured.")
+            continue
+
         random.shuffle(keys)
         success = False
+
         for api_key in keys:
             try:
+                content = [{"type": "text", "text": prompt}] + extra_messages + [{"type": "image_url", "image_url": {"url": image_b64}}]
                 response = chat_func(
                     api_key=api_key,
                     model=model_name,
                     messages=[
                         {
                             "role": "user",
-                            "content": [
-                                {"type": "text", "text": system_prompt},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
+                            "content": content
                         }
                     ]
                 )
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
+                        val_cleaned = re.sub(r"(?i)<think>.*?(?:</think>|$)", "", val, flags=re.DOTALL).strip()
+                        if len(val_cleaned) >= min_len:
+                            output_text = val_cleaned
+                            success_idx = idx
+                            success = True
+                            print(f"[{pass_name}] Success with model {model_name} ({len(val_cleaned)} chars)")
+                            break
+                        else:
+                            print(f"[{pass_name}] Model {model_name} returned cut-off or too short response ({len(val_cleaned)} chars). Trying next model.")
                     else:
                         print(f"Key {api_key[:10]}... returned empty content for model {model_name}.")
             except Exception as e:
                 print(f"Error using key {api_key[:10]}... with model {model_name} ({provider}): {e}")
                 last_err = e
-                continue
-        if success:
-            break
-            
-    if not first_report or "Сбой" in first_report:
-        return first_report or f"Сбой: все ключи и модели исчерпаны. Последняя ошибка: {last_err}", "Сбой анализа."
-
-    # Load critic prompt from file (same lookup as main prompt)
-    critic_prompt = ""
-    critic_paths = [
-        os.path.join(EXE_DIR, "dentalimage_critic.md"),
-        os.path.join(os.path.dirname(EXE_DIR), "dentalimage_critic.md"),
-        os.path.join(BASE_DIR, "dentalimage_critic.md"),
-        os.path.join(os.path.dirname(BASE_DIR), "dentalimage_critic.md"),
-    ]
-    for cpath in critic_paths:
-        if os.path.exists(cpath):
-            try:
-                with open(cpath, "r", encoding="utf-8") as f:
-                    critic_prompt = f.read()
-                break
-            except Exception:
-                pass
-
-    if not critic_prompt:
-        # Minimal inline fallback
-        critic_prompt = (
-            "Ты — главный рентгенолог-редактор. Проверь черновой отчёт по снимку, исправь ошибки, "
-            "удали иероглифы, улучши стиль. Ответ строго в тегах:\n"
-            "<summary>[3+ предложения: тип снимка, ключевые находки, главный вывод и рекомендация]</summary>\n"
-            "<report>[Полный отчёт Markdown]</report>"
-        )
-
-    final_output = ""
-    last_err_critic = "No keys available"
-    for model_name, provider in models_with_providers:
-        if provider == "gemini":
-            keys = GOOGLE_API_KEYS.copy()
-            chat_func = gemini_chat
-        else:
-            keys = GROQ_API_KEYS.copy()
-            chat_func = groq_chat
-
-        random.shuffle(keys)
-        success = False
-        for api_key in keys:
-            try:
-                response = chat_func(
-                    api_key=api_key,
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": critic_prompt},
-                                {"type": "text", "text": f"Вот первоначальный отчет, который тебе нужно проверить и улучшить:\n\n{first_report}"},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
-                        }
-                    ]
-                )
-                if response.choices and len(response.choices) > 0:
-                    val = response.choices[0].message.content
-                    if val:
-                        import re
-                        final_output = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
-                    else:
-                        print(f"Key {api_key[:10]}... returned empty content for model {model_name} in critic.")
-            except Exception as e:
-                print(f"Error using key {api_key[:10]}... with model {model_name} in critic ({provider}): {e}")
-                last_err_critic = e
+                err_str = str(e).lower()
+                if "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str:
+                    print(f"[{pass_name}] Rate limit (429) hit for model {model_name} with key {api_key[:10]}... trying next key.")
+                    continue
                 continue
         if success:
             break
 
-    if not final_output:
-        return first_report, "Анализ снимка выполнен. Резюме недоступно."
+    return output_text, success_idx, last_err
 
+def _parse_final_output(final_output, first_report):
     import re
     summary_match = re.search(r"<summary>(.*?)</summary>", final_output, re.DOTALL | re.IGNORECASE)
     report_match = re.search(r"<report>(.*?)</report>", final_output, re.DOTALL | re.IGNORECASE)
 
-    # Fallback to general text extraction if tags are missed
     if not summary_match and not report_match:
-        # If the LLM just responded directly, separate first sentences
         cleaned = final_output.strip()
         sentences = re.split(r'(?<=[.!?])\s+', cleaned)
         if len(sentences) >= 2:
@@ -937,7 +983,66 @@ def run_ai_analysis(file_path, patient_info=None):
     summary_text = cjk_pattern.sub('', summary_text)
     report_text = cjk_pattern.sub('', report_text)
 
+    summary_text = re.sub(r'^[#*\s\-\d.]+|[#*\s\-\d.]+$', '', summary_text).strip()
+
     return report_text, summary_text
+
+def run_ai_analysis(file_path, patient_info=None):
+    image_b64 = prepare_image(file_path)
+    if not image_b64:
+        return "Ошибка обработки картинки.", "Снимок не обработан."
+
+    if not check_internet_connection(timeout=1.5):
+        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
+
+    system_prompt = _load_prompt("dentalimage.md", "Опиши снимок зубов.")
+    model_tier = config.get("model_tier", 2)
+    models_with_providers = _get_models_for_tier(model_tier)
+
+    first_report, first_model_idx, last_err = _execute_ai_cascade(
+        models=models_with_providers,
+        prompt=system_prompt,
+        image_b64=image_b64,
+        min_len=80,
+        pass_name="AI Pass 1"
+    )
+
+    if not first_report or "Сбой" in first_report:
+        return first_report or f"Сбой: все ключи и модели исчерпаны. Последняя ошибка: {last_err}", "Сбой анализа."
+
+    default_critic = (
+        "Ты — главный рентгенолог-редактор. Проверь черновой отчёт по снимку, исправь ошибки, "
+        "удали иероглифы, улучши стиль. Ответ строго в тегах:\n"
+        "<summary>[3+ предложения: тип снимка, ключевые находки, главный вывод и рекомендация]</summary>\n"
+        "<report>[Полный отчёт Markdown]</report>"
+    )
+    critic_prompt = _load_prompt("dentalimage_critic.md", default_critic)
+
+    if model_tier == 3:
+        critic_models = [
+            ("qwen/qwen3.6-27b", "groq"),
+            (GROQ_VISION_MODEL, "groq")
+        ]
+    else:
+        critic_models = models_with_providers[first_model_idx + 1:] + models_with_providers[:first_model_idx + 1]
+
+    print(f"[AI Pass 2] Critic cascade: {[m[0] for m in critic_models]}")
+
+    extra_messages = [{"type": "text", "text": f"Вот первоначальный отчет, который тебе нужно проверить и улучшить:\n\n{first_report}"}]
+
+    final_output, _, _ = _execute_ai_cascade(
+        models=critic_models,
+        prompt=critic_prompt,
+        image_b64=image_b64,
+        min_len=100,
+        pass_name="AI Pass 2",
+        extra_messages=extra_messages
+    )
+
+    if not final_output:
+        return first_report, "Анализ снимка выполнен. Резюме недоступно."
+
+    return _parse_final_output(final_output, first_report)
 
 def send_to_mqtt(image_path, report_text, filename, patient_name=None):
     import paho.mqtt.client as mqtt
@@ -1065,7 +1170,7 @@ def parse_patient_from_filename(filename: str) -> dict:
     if len(name_parts) >= 2:
         p1, p2 = name_parts[0], name_parts[1]
         p1_lower = p1.lower()
-        if any(p1_lower.endswith(s) for s in ['ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская']):
+        if p1_lower.endswith(('ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская')):
             patient_name = f"{p2} {p1}"
         else:
             patient_name = f"{p1} {p2}"
@@ -1081,49 +1186,107 @@ def parse_patient_from_filename(filename: str) -> dict:
         "patient_gender": patient_gender
     }
 
-def parse_patient_from_file(file_path: str) -> dict:
-    filename = os.path.basename(file_path)
-    info = parse_patient_from_filename(filename)
-    
-    if file_path.lower().endswith('.dcm'):
-        try:
-            import pydicom
-            import datetime
-            import re
-            ds = pydicom.dcmread(file_path, stop_before_pixels=True)
-            dcm_name = str(getattr(ds, 'PatientName', '')).replace('^', ' ').strip()
-            if dcm_name:
-                info['patient_name'] = dcm_name
-            dcm_gender = str(getattr(ds, 'PatientSex', '')).upper()
-            if dcm_gender == 'M':
-                info['patient_gender'] = 'Мужской'
-            elif dcm_gender == 'F':
-                info['patient_gender'] = 'Женский'
-            dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
-            dcm_age = None
-            if dcm_age_raw:
-                match = re.match(r'(\d+)([YMD])', dcm_age_raw)
-                if match:
-                    val = int(match.group(1))
-                    unit = match.group(2)
-                    if unit == 'Y':
-                        dcm_age = val
-                    else:
-                        dcm_age = 0
-            if dcm_age is not None:
-                info['patient_age'] = dcm_age
-            else:
-                dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
-                if dcm_birth and len(dcm_birth) >= 4:
-                    try:
-                        birth_year = int(dcm_birth[:4])
-                        current_year = datetime.datetime.now().year
-                        info['patient_age'] = current_year - birth_year
-                    except Exception:
-                        pass
-        except Exception as e:
-            print(f"Error reading DICOM patient info: {e}")
-            
+def _parse_dicom_patient_info(file_path: str, info: dict):
+    try:
+        import pydicom
+        import datetime
+        import re
+        ds = pydicom.dcmread(file_path, stop_before_pixels=True)
+        dcm_name = str(getattr(ds, 'PatientName', '')).replace('^', ' ').strip()
+        if dcm_name:
+            info['patient_name'] = dcm_name
+        dcm_gender = str(getattr(ds, 'PatientSex', '')).upper()
+        if dcm_gender == 'M':
+            info['patient_gender'] = 'Мужской'
+        elif dcm_gender == 'F':
+            info['patient_gender'] = 'Женский'
+        dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
+        dcm_age = None
+        if dcm_age_raw:
+            match = re.match(r'(\d+)([YMD])', dcm_age_raw)
+            if match:
+                val = int(match.group(1))
+                unit = match.group(2)
+                if unit == 'Y':
+                    dcm_age = val
+                else:
+                    dcm_age = 0
+        if dcm_age is not None:
+            info['patient_age'] = dcm_age
+        else:
+            dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
+            if dcm_birth and len(dcm_birth) >= 4:
+                try:
+                    birth_year = int(dcm_birth[:4])
+                    current_year = datetime.datetime.now().year
+                    info['patient_age'] = current_year - birth_year
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"Error reading DICOM patient info: {e}")
+
+def _parse_xml_sidecar(content: str, info: dict):
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(content)
+        for elem in root.iter():
+            tag_lower = elem.tag.lower()
+            if 'name' in tag_lower or 'patient' in tag_lower:
+                if elem.text:
+                    info['patient_name'] = elem.text.strip()
+            elif 'age' in tag_lower:
+                if elem.text and elem.text.isdigit():
+                    info['patient_age'] = int(elem.text)
+            elif 'gender' in tag_lower or 'sex' in tag_lower:
+                if elem.text:
+                    g = elem.text.strip().lower()
+                    if g in ['m', 'male', 'муж', 'мужской']:
+                        info['patient_gender'] = 'Мужской'
+                    elif g in ['f', 'female', 'жен', 'женский']:
+                        info['patient_gender'] = 'Женский'
+    except Exception:
+        pass
+
+def _parse_ini_txt_sidecar(content: str, info: dict):
+    for line in content.splitlines():
+        if '=' in line:
+            parts = line.split('=', 1)
+            key = parts[0].strip().lower()
+            val = parts[1].strip()
+            if key in ['name', 'patient', 'patientname', 'fio', 'фио']:
+                info['patient_name'] = val
+            elif key in ['age', 'years', 'возраст']:
+                if val.isdigit():
+                    info['patient_age'] = int(val)
+            elif key in ['gender', 'sex', 'пол']:
+                if val.lower() in ['m', 'male', 'муж', 'мужской']:
+                    info['patient_gender'] = 'Мужской'
+                elif val.lower() in ['f', 'female', 'жен', 'женский']:
+                    info['patient_gender'] = 'Женский'
+
+def _parse_json_sidecar(content: str, info: dict):
+    try:
+        data = json.loads(content)
+        def check_dict(d):
+            for k, v in d.items():
+                k_lower = k.lower()
+                if k_lower in ['name', 'patient', 'patientname', 'fio', 'фио']:
+                    info['patient_name'] = str(v)
+                elif k_lower in ['age', 'years', 'возраст']:
+                    if str(v).isdigit():
+                        info['patient_age'] = int(v)
+                elif k_lower in ['gender', 'sex', 'пол']:
+                    if str(v).lower() in ['m', 'male', 'муж', 'мужской']:
+                        info['patient_gender'] = 'Мужской'
+                    elif str(v).lower() in ['f', 'female', 'жен', 'женский']:
+                        info['patient_gender'] = 'Женский'
+                elif isinstance(v, dict):
+                    check_dict(v)
+        check_dict(data)
+    except Exception:
+        pass
+
+def _parse_sidecar_patient_info(file_path: str, info: dict):
     try:
         base_path = os.path.splitext(file_path)[0]
         for ext in ['.xml', '.ini', '.txt', '.json']:
@@ -1132,70 +1295,29 @@ def parse_patient_from_file(file_path: str) -> dict:
                 with open(sidecar, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                 if ext == '.xml':
-                    import xml.etree.ElementTree as ET
-                    try:
-                        root = ET.fromstring(content)
-                        for elem in root.iter():
-                            tag_lower = elem.tag.lower()
-                            if 'name' in tag_lower or 'patient' in tag_lower:
-                                if elem.text:
-                                    info['patient_name'] = elem.text.strip()
-                            elif 'age' in tag_lower:
-                                if elem.text and elem.text.isdigit():
-                                    info['patient_age'] = int(elem.text)
-                            elif 'gender' in tag_lower or 'sex' in tag_lower:
-                                if elem.text:
-                                    g = elem.text.strip().lower()
-                                    if g in ['m', 'male', 'муж', 'мужской']:
-                                        info['patient_gender'] = 'Мужской'
-                                    elif g in ['f', 'female', 'жен', 'женский']:
-                                        info['patient_gender'] = 'Женский'
-                    except Exception:
-                        pass
+                    _parse_xml_sidecar(content, info)
                 elif ext in ['.ini', '.txt']:
-                    for line in content.splitlines():
-                        if '=' in line:
-                            parts = line.split('=', 1)
-                            key = parts[0].strip().lower()
-                            val = parts[1].strip()
-                            if key in ['name', 'patient', 'patientname', 'fio', 'фио']:
-                                info['patient_name'] = val
-                            elif key in ['age', 'years', 'возраст']:
-                                if val.isdigit():
-                                    info['patient_age'] = int(val)
-                            elif key in ['gender', 'sex', 'пол']:
-                                if val.lower() in ['m', 'male', 'муж', 'мужской']:
-                                    info['patient_gender'] = 'Мужской'
-                                elif val.lower() in ['f', 'female', 'жен', 'женский']:
-                                    info['patient_gender'] = 'Женский'
+                    _parse_ini_txt_sidecar(content, info)
                 elif ext == '.json':
-                    try:
-                        data = json.loads(content)
-                        def check_dict(d):
-                            for k, v in d.items():
-                                k_lower = k.lower()
-                                if k_lower in ['name', 'patient', 'patientname', 'fio', 'фио']:
-                                    info['patient_name'] = str(v)
-                                elif k_lower in ['age', 'years', 'возраст']:
-                                    if str(v).isdigit():
-                                        info['patient_age'] = int(v)
-                                elif k_lower in ['gender', 'sex', 'пол']:
-                                    if str(v).lower() in ['m', 'male', 'муж', 'мужской']:
-                                        info['patient_gender'] = 'Мужской'
-                                    elif str(v).lower() in ['f', 'female', 'жен', 'женский']:
-                                        info['patient_gender'] = 'Женский'
-                                elif isinstance(v, dict):
-                                    check_dict(v)
-                        check_dict(data)
-                    except Exception:
-                        pass
+                    _parse_json_sidecar(content, info)
+                break
     except Exception as se:
         print(f"Error checking sidecars: {se}")
+
+def parse_patient_from_file(file_path: str) -> dict:
+    filename = os.path.basename(file_path)
+    info = parse_patient_from_filename(filename)
+
+    if file_path.lower().endswith('.dcm'):
+        _parse_dicom_patient_info(file_path, info)
+
+    _parse_sidecar_patient_info(file_path, info)
         
     return info
 
 def process_analysis_only(filename):
     app_state["is_processing"] = True
+    app_state["processing_image"] = f"/static/uploads/{filename}"
     app_state["latest_report"] = ""
     app_state["latest_summary"] = ""
     
@@ -1215,21 +1337,10 @@ def process_analysis_only(filename):
     if not os.path.exists(file_path):
         app_state["latest_report"] = "Снимок не найден на диске для анализа."
         app_state["is_processing"] = False
+        app_state["processing_image"] = None
         return
 
     patient_info = None
-    try:
-        resp = requests.get(CRM_API_URL, timeout=3)
-        if resp.status_code == 200:
-            data = resp.json()
-            if "error" not in data:
-                patient_info = data
-                print(f"CRM Link: Found patient {patient_info['patient_name']}")
-    except Exception as e:
-        print(f"CRM API error: {e}")
-
-    if not patient_info or not patient_info.get("patient_name"):
-        patient_info = parse_patient_from_file(file_path)
 
     base_name, ext = os.path.splitext(orig_name)
     enhanced_file_path = os.path.join(STATIC_DIR, "uploads", f"{base_name}_enhanced{ext}")
@@ -1243,15 +1354,15 @@ def process_analysis_only(filename):
     if summary == "Сбой анализа." or "Сбой:" in report:
         app_state["error_message"] = report
 
-    pat_name = patient_info["patient_name"] if (patient_info and patient_info.get("patient_name")) else "Неизвестен"
+    pat_name = "Не указан"
     threading.Thread(target=send_to_mqtt, args=(file_path, report, orig_name, pat_name), daemon=True).start()
 
     # Automatically save scan into SQLite database
     ext = os.path.splitext(orig_name)[1]
     db_payload = {
-        "patient_name": pat_name,
-        "patient_age": patient_info.get("patient_age") if patient_info else None,
-        "patient_gender": patient_info.get("patient_gender", "Не указан") if patient_info else "Не указан",
+        "patient_name": "Не указан",
+        "patient_age": None,
+        "patient_gender": "Не указан",
         "original_image": f"/static/uploads/{orig_name}",
         "enhanced_image": f"/static/uploads/{orig_name.replace(ext, '_enhanced' + ext)}",
         "ai_image": "",
@@ -1282,6 +1393,7 @@ def process_analysis_only(filename):
     app_state["latest_summary"] = summary
     app_state["latest_ai_image"] = ""
     app_state["is_processing"] = False
+    app_state["processing_image"] = None
     
     # Update the item in recent_scans if it exists
     for s in app_state["recent_scans"]:
@@ -1298,6 +1410,7 @@ def process_new_xray(file_path):
         return
     
     processing_files.add(filename)
+    app_state["is_processing"] = True
     try:
         print(f"Waiting for file to be ready: {file_path}")
         if not wait_for_file_ready(file_path):
@@ -1324,6 +1437,8 @@ def process_new_xray(file_path):
             static_img_path = os.path.join(STATIC_DIR, "uploads", filename)
             shutil.copy2(file_path, static_img_path)
 
+        app_state["processing_image"] = f"/static/uploads/{filename}"
+
         # Always pre-generate CLAHE enhanced version so it's ready for instant comparison slider
         base, ext = os.path.splitext(filename)
         enhanced_filename = f"{base}_enhanced{ext}"
@@ -1331,6 +1446,7 @@ def process_new_xray(file_path):
         if not run_cv2_enhancement(static_img_path, enhanced_path):
             app_state["error_message"] = f"Не удалось прочитать или улучшить изображение: {filename}"
             app_state["is_processing"] = False
+            app_state["processing_image"] = None
             return
 
         app_state["latest_image"] = f"/static/uploads/{filename}"
@@ -1357,6 +1473,7 @@ def process_new_xray(file_path):
             threading.Thread(target=process_analysis_only, args=(filename,), daemon=True).start()
         else:
             app_state["is_processing"] = False
+            app_state["processing_image"] = None
             print("Auto-analyze disabled. Waiting for manual trigger.")
             
     finally:
@@ -1525,6 +1642,9 @@ if __name__ == '__main__':
     # Start watcher
     observer_ref = start_watchdog()
 
+    # Start connection monitoring thread
+    threading.Thread(target=check_connection_loop, daemon=True).start()
+
     # Start PyWebView UI
     print("Starting Desktop App...")
     global_window = webview.create_window(
@@ -1570,16 +1690,7 @@ if __name__ == '__main__':
         global_window.hide()
         return False
 
-    def on_loaded():
-        try:
-            import pyi_splash
-            if pyi_splash.is_alive():
-                pyi_splash.close()
-        except ImportError:
-            pass
-
     global_window.events.closing += on_closing
-    global_window.events.loaded += on_loaded
     threading.Thread(target=setup_tray, args=(global_window,), daemon=True).start()
 
     webview.start(debug=False, icon='icon.ico')

@@ -451,6 +451,19 @@ export const documents: GeneratedDocument[] = [
   }
 ];
 
+
+export function getServiceCatalogItem(serviceId: string): ServiceCatalogItem | undefined {
+  let service = serviceCatalogMap.get(serviceId);
+  if (service === undefined) {
+    service = serviceCatalog.find((catalogItem) => catalogItem.id === serviceId);
+    if (service) {
+      serviceCatalogMap.set(serviceId, service);
+    }
+  }
+  return service;
+}
+
+export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
 export const serviceCatalog: ServiceCatalogItem[] = [
   {
     id: "svc-consult-primary",
@@ -702,6 +715,8 @@ export const treatmentPlanScenarios: TreatmentPlanScenario[] = [
     active: false
   }
 ];
+
+serviceCatalog.forEach(s => serviceCatalogMap.set(s.id, s));
 
 export const clinicalRules: ClinicalRule[] = [
   {
@@ -1073,7 +1088,7 @@ export function buildBillingSummary(): BillingSummary {
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents
@@ -1443,13 +1458,57 @@ function buildPatientInsights(): PatientInsight[] {
     "completed_works_act"
   ];
 
+  const documentsByPatient = new Map<string, typeof documents>();
+  for (const doc of documents) {
+    if (doc.patientId === null) continue;
+    if (!documentsByPatient.has(doc.patientId)) documentsByPatient.set(doc.patientId, []);
+    documentsByPatient.get(doc.patientId)!.push(doc);
+  }
+
+  const tasksByPatient = new Map<string, typeof communicationTasks>();
+  for (const task of communicationTasks) {
+    if (isOpenCommunicationTask(task) && task.patientId !== null) {
+      if (!tasksByPatient.has(task.patientId)) tasksByPatient.set(task.patientId, []);
+      tasksByPatient.get(task.patientId)!.push(task);
+    }
+  }
+
+  const imagesByPatient = new Map<string, typeof imagingStudies>();
+  for (const image of imagingStudies) {
+    if (image.patientId === null) continue;
+    if (!imagesByPatient.has(image.patientId)) imagesByPatient.set(image.patientId, []);
+    imagesByPatient.get(image.patientId)!.push(image);
+  }
+
+  const paymentsByPatient = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    if (payment.status === "paid" && payment.patientId !== null) {
+      if (!paymentsByPatient.has(payment.patientId)) paymentsByPatient.set(payment.patientId, []);
+      paymentsByPatient.get(payment.patientId)!.push(payment);
+    }
+  }
+
+  const planItemsByPatient = new Map<string, typeof treatmentPlanItems>();
+  for (const item of treatmentPlanItems) {
+    if (item.patientId === null) continue;
+    if (!planItemsByPatient.has(item.patientId)) planItemsByPatient.set(item.patientId, []);
+    planItemsByPatient.get(item.patientId)!.push(item);
+  }
+
+  const appointmentsByPatient = new Map<string, typeof appointments>();
+  for (const appointment of appointments) {
+    if (appointment.patientId === null) continue;
+    if (!appointmentsByPatient.has(appointment.patientId)) appointmentsByPatient.set(appointment.patientId, []);
+    appointmentsByPatient.get(appointment.patientId)!.push(appointment);
+  }
+
   return patients.map((patient) => {
-    const patientDocuments = documents.filter((document) => document.patientId === patient.id);
-    const patientTasks = communicationTasks.filter((task) => task.patientId === patient.id && isOpenCommunicationTask(task));
-    const patientImages = imagingStudies.filter((study) => study.patientId === patient.id);
-    const patientPayments = payments.filter((payment) => payment.patientId === patient.id && payment.status === "paid");
-    const patientPlanItems = treatmentPlanItems.filter((item) => item.patientId === patient.id);
-    const patientAppointments = appointments.filter((appointment) => appointment.patientId === patient.id);
+    const patientDocuments = documentsByPatient.get(patient.id) || [];
+    const patientTasks = tasksByPatient.get(patient.id) || [];
+    const patientImages = imagesByPatient.get(patient.id) || [];
+    const patientPayments = paymentsByPatient.get(patient.id) || [];
+    const patientPlanItems = planItemsByPatient.get(patient.id) || [];
+    const patientAppointments = appointmentsByPatient.get(patient.id) || [];
     const draftVisit = activeVisit.patientId === patient.id && activeVisit.status === "draft";
     const missingDocumentKinds = requiredDocuments.filter(
       (kind) => !patientDocuments.some((document) => document.kind === kind && document.status !== "voided")
@@ -1827,19 +1886,52 @@ function staffDailyCapacityMinutes(staff: StaffMember): number {
 }
 
 function buildAppointmentReadiness(patientInsights = buildPatientInsights()): AppointmentReadiness[] {
+  const patientsById = new Map(patients.map((p) => [p.id, p]));
+  const activeStaffById = new Map(staffMembers.filter((m) => m.active).map((m) => [m.id, m]));
+  const activeChairsById = new Map(chairs.filter((c) => c.active).map((c) => [c.id, c]));
+  const patientInsightsByPatientId = new Map(patientInsights.map((i) => [i.patientId, i]));
+
+  const documentsByPatientId = new Map<string, typeof documents>();
+  for (const doc of documents) {
+    if (doc.status !== "voided") {
+      if (!documentsByPatientId.has(doc.patientId)) documentsByPatientId.set(doc.patientId, []);
+      documentsByPatientId.get(doc.patientId)!.push(doc);
+    }
+  }
+
+  const imagesByPatientId = new Map<string, typeof imagingStudies>();
+  for (const study of imagingStudies) {
+    if (!imagesByPatientId.has(study.patientId)) imagesByPatientId.set(study.patientId, []);
+    imagesByPatientId.get(study.patientId)!.push(study);
+  }
+
+  const tasksByAppointmentId = new Map<string, typeof communicationTasks>();
+  for (const task of communicationTasks) {
+    if (isOpenCommunicationTask(task) && task.appointmentId !== null) {
+      if (!tasksByAppointmentId.has(task.appointmentId)) tasksByAppointmentId.set(task.appointmentId, []);
+      tasksByAppointmentId.get(task.appointmentId)!.push(task);
+    }
+  }
+
   return appointments.map((appointment) => {
-    const patient = patients.find((item) => item.id === appointment.patientId);
-    const doctor = staffMembers.find((member) => member.id === appointment.doctorUserId && member.active);
+    const patientId = appointment.patientId || "";
+    const doctorUserId = appointment.doctorUserId || "";
+    const chairId = appointment.chairId || "";
+
+    const patient = patientsById.get(patientId);
+    const doctor = activeStaffById.get(doctorUserId);
     const assistant = appointment.assistantUserId
-      ? staffMembers.find((member) => member.id === appointment.assistantUserId && member.role === "assistant" && member.active)
+      ? activeStaffById.get(appointment.assistantUserId) ?? null
       : null;
-    const chair = chairs.find((item) => item.id === appointment.chairId && item.active);
-    const patientDocuments = documents.filter((document) => document.patientId === appointment.patientId && document.status !== "voided");
-    const patientImages = imagingStudies.filter((study) => study.patientId === appointment.patientId);
-    const insight = patientInsights.find((item) => item.patientId === appointment.patientId);
-    const appointmentTasks = communicationTasks.filter(
-      (task) => task.appointmentId === appointment.id && isOpenCommunicationTask(task)
-    );
+
+    // Check if the assistant role matches, since the old code did `&& member.role === "assistant"`
+    const finalAssistant = (assistant && assistant.role === "assistant") ? assistant : null;
+
+    const chair = activeChairsById.get(chairId);
+    const patientDocuments = documentsByPatientId.get(patientId) ?? [];
+    const patientImages = imagesByPatientId.get(patientId) ?? [];
+    const insight = patientInsightsByPatientId.get(patientId);
+    const appointmentTasks = tasksByAppointmentId.get(appointment.id) ?? [];
     const hasContract = patientDocuments.some((document) => document.kind === "paid_medical_services_contract");
     const hasConsent = patientDocuments.some((document) => document.kind === "informed_consent");
     const hasImageForTreatment = patientImages.some((study) => study.status !== "failed");
@@ -1850,7 +1942,7 @@ function buildAppointmentReadiness(patientInsights = buildPatientInsights()): Ap
     const doctorScheduleCheck = appointmentWithinStaffSchedule(appointment, doctor, "врача");
     const assistantRequired = clinicProfile.mode !== "solo_doctor";
     const assistantScheduleCheck = assistantRequired
-      ? appointmentWithinStaffSchedule(appointment, assistant, "ассистента")
+      ? appointmentWithinStaffSchedule(appointment, finalAssistant, "ассистента")
       : { ready: true, detail: "ассистент не требуется для режима клиники" };
     const chairScheduleCheck = appointmentWithinChairSchedule(appointment, chair);
     const patientPreferenceWarnings = patientScheduleCheck.ready ? [] : [`Вне удобного окна пациента: ${patientScheduleCheck.detail}`];
@@ -3448,6 +3540,126 @@ function normalizePostVisitCheckupDelayHoursByTopic(input: unknown): DenteTelegr
     }
   }
   return normalized;
+}
+
+const originalDemoData = JSON.parse(JSON.stringify(mutableStateSnapshot()));
+
+export function resetToDemo(): void {
+  replaceCollection(patients, originalDemoData.patients);
+  replaceCollection(appointments, originalDemoData.appointments);
+  replaceCollection(payments, originalDemoData.payments);
+  replaceCollection(documents, originalDemoData.documents);
+  replaceCollection(clinicalRules, originalDemoData.clinicalRules);
+  replaceCollection(imagingStudies, originalDemoData.imagingStudies);
+  replaceCollection(importBatches, originalDemoData.importBatches);
+  replaceCollection(aiRecognitionJobs, originalDemoData.aiRecognitionJobs);
+  replaceCollection(imagingViewerSessions, originalDemoData.imagingViewerSessions);
+  replaceCollection(dicomWorkbenchBundles, originalDemoData.dicomWorkbenchBundles);
+  replaceCollection(speechTranscriptionChunks, originalDemoData.speechTranscriptionChunks);
+  replaceCollection(visitSaveReceipts, originalDemoData.visitSaveReceipts);
+  replaceCollection(visitDraftAutosaves, originalDemoData.visitDraftAutosaves);
+  replaceCollection(communicationTasks, originalDemoData.communicationTasks);
+  replaceCollection(communicationEvents, originalDemoData.communicationEvents);
+  replaceCollection(chairs, originalDemoData.chairs);
+  replaceCollection(staffMembers, originalDemoData.staffMembers);
+  replaceCollection(denteTelegramLinkCodes, originalDemoData.denteTelegramLinkCodes);
+  replaceCollection(denteTelegramChatLinks, originalDemoData.denteTelegramChatLinks);
+  replaceCollection(denteTelegramWebhookEvents, originalDemoData.denteTelegramWebhookEvents);
+  replaceCollection(denteTelegramOutboxDeliveryReceipts, originalDemoData.denteTelegramOutboxDeliveryReceipts);
+  Object.assign(clinicProfile, originalDemoData.clinicProfile);
+  Object.assign(activeVisit, originalDemoData.activeVisit);
+  Object.assign(denteTelegramBotSettings, originalDemoData.denteTelegramBotSettings);
+  persistMutableState();
+}
+
+export function resetToZeroMode(role: StaffRole): void {
+  patients.length = 0;
+  appointments.length = 0;
+  payments.length = 0;
+  documents.length = 0;
+  clinicalRules.length = 0;
+  imagingStudies.length = 0;
+  importBatches.length = 0;
+  aiRecognitionJobs.length = 0;
+  imagingViewerSessions.length = 0;
+  dicomWorkbenchBundles.length = 0;
+  speechTranscriptionChunks.length = 0;
+  visitSaveReceipts.length = 0;
+  visitDraftAutosaves.length = 0;
+  communicationTasks.length = 0;
+  communicationEvents.length = 0;
+  chairs.length = 0;
+  denteTelegramLinkCodes.length = 0;
+  denteTelegramChatLinks.length = 0;
+  denteTelegramWebhookEvents.length = 0;
+  denteTelegramOutboxDeliveryReceipts.length = 0;
+
+  Object.assign(clinicProfile, {
+    organizationId,
+    clinicName: "",
+    legalName: null,
+    inn: null,
+    kpp: null,
+    ogrn: null,
+    address: null,
+    phone: null,
+    email: null,
+    website: null,
+    medicalLicenseNumber: null,
+    medicalLicenseIssuedAt: null,
+    medicalLicenseIssuer: null,
+    bankDetails: null,
+    signatoryName: null,
+    signatoryTitle: null,
+    mode: "solo_doctor",
+    timezone: "Europe/Moscow",
+    defaultVisitMinutes: 45,
+    scheduleDefaults: defaultClinicScheduleDefaults,
+    networkEnabled: false,
+    egiszEnabled: false,
+    updatedAt: new Date().toISOString()
+  });
+
+  staffMembers.length = 0;
+  const defaultMember: StaffMember = {
+    id: doctorUserId,
+    organizationId,
+    fullName: role === "doctor" ? "Врач-Организатор" : "Администратор",
+    role: role,
+    specialties: role === "doctor" ? ["therapist"] : [],
+    phone: "+79999999999",
+    email: "clinic@example.com",
+    active: true,
+    canSignMedicalRecords: true,
+    canManageMoney: role === "owner" || role === "manager" || role === "administrator",
+    canManageImports: role === "owner" || role === "manager" || role === "administrator",
+    color: "#0f766e",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  staffMembers.push(defaultMember);
+
+  Object.assign(activeVisit, {
+    id: activeVisitId,
+    organizationId,
+    patientId: marinaPatientId,
+    appointmentId: null,
+    doctorId: doctorUserId,
+    chairId: null,
+    status: "draft",
+    diagnoses: [],
+    complaints: "",
+    anamnesis: "",
+    objectiveStatus: "",
+    treatmentDone: "",
+    toothCardState: "{}",
+    protocolText: "",
+    revision: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
+  persistMutableState();
 }
 
 function applyPersistentState(): void {
@@ -6269,12 +6481,18 @@ function paymentReminderAlreadyCovered(outboxItemId: string): boolean {
 }
 
 function patientPaymentBalanceRub(patientId: string, organizationScope = denteTelegramBotSettings.organizationId): number {
-  const plannedRub = treatmentPlanItems
-    .filter((item) => item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled")
-    .reduce((total, item) => total + treatmentLineTotal(item), 0);
-  const paidRub = payments
-    .filter((payment) => payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid")
-    .reduce((total, payment) => total + payment.amountRub, 0);
+  const plannedRub = treatmentPlanItems.reduce((total, item) => {
+    if (item.organizationId === organizationScope && item.patientId === patientId && item.status !== "cancelled") {
+      return total + treatmentLineTotal(item);
+    }
+    return total;
+  }, 0);
+  const paidRub = payments.reduce((total, payment) => {
+    if (payment.organizationId === organizationScope && payment.patientId === patientId && payment.status === "paid") {
+      return total + payment.amountRub;
+    }
+    return total;
+  }, 0);
   return Math.max(0, plannedRub - paidRub);
 }
 
@@ -6345,7 +6563,7 @@ function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntime
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     if (service?.category !== "hygiene") return [];
 
     const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");
@@ -6527,13 +6745,16 @@ function taxApplicationSlaWarning(document: GeneratedDocument): string | null {
 function buildDenteTelegramTaxDocumentRequestItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+  const activePatientIds = new Set(
+    patients.filter((p) => p.status === "active").map((p) => p.id)
+  );
+
   return documents.flatMap((document) => {
     if (document.organizationId !== organizationScope) return [];
     if (document.kind !== "tax_deduction_application") return [];
     if (document.status !== "issued") return [];
     if (!document.payload?.taxDeductionApplication) return [];
-    const patient = patients.find((candidate) => candidate.id === document.patientId && candidate.status === "active");
-    if (!patient) return [];
+    if (!activePatientIds.has(document.patientId)) return [];
 
     const itemId = taxDocumentRequestOutboxId(document);
     if (taxDocumentRequestAlreadySent(itemId)) return [];
@@ -6817,9 +7038,8 @@ function buildDenteTelegramReviewRequestItems(runtimeScope?: DenteTelegramOutbox
     .filter((payment) => payment.organizationId === organizationScope && payment.status === "paid")
     .sort((left, right) => (right.paidAt ?? right.createdAt).localeCompare(left.paidAt ?? left.createdAt));
 
-  const activePatientsMap = new Map(patients.filter((p) => p.status === "active").map((p) => [p.id, p]));
   for (const payment of paidMilestones) {
-    const patient = activePatientsMap.get(payment.patientId) ?? null;
+    const patient = patients.find((candidate) => candidate.id === payment.patientId && candidate.status === "active") ?? null;
     if (!patient || !reviewRequestVisitIsClosed(payment)) continue;
     const visit = payment.visitId ? findVisitById(payment.visitId) : null;
     pushReviewRequest({

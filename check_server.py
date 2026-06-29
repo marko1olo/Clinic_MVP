@@ -1,7 +1,11 @@
 import os
+import sys
 import paramiko
 
-host = '62.84.100.97'
+host = os.environ.get('VPS_HOST')
+if not host:
+    sys.exit('ERROR: VPS_HOST environment variable is not set.')
+
 user = 'root'
 password = os.environ.get('VPS_PASSWORD')
 if not password:

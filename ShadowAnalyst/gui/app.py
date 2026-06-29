@@ -637,15 +637,14 @@ async def get_tts(text: str, provider: str = None):
     cache_filename = f"audio_{text_hash}.mp3"
     cache_path = os.path.join(STATIC_DIR, "uploads", cache_filename)
     
-    if os.path.exists(cache_path):
-        try:
-            def _read_cache():
-                with open(cache_path, "rb") as f:
-                    return f.read()
-            content = await asyncio.to_thread(_read_cache)
-            return Response(content=content, media_type="audio/mpeg")
-        except Exception as e:
-            print(f"Error reading audio cache: {e}")
+    try:
+        async with aiofiles.open(cache_path, "rb") as f:
+            content = await f.read()
+        return Response(content=content, media_type="audio/mpeg")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error reading audio cache: {e}")
 
     audio_bytes = None
         

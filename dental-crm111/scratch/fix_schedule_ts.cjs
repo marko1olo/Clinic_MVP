@@ -1,6 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 
-let storeCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/scheduleStore.ts', 'utf8');
+let storeCode = fs.readFileSync(path.join(__dirname, '../apps/web/src/store/scheduleStore.ts'), 'utf8');
 
 // Fix imports
 storeCode = storeCode.replace(
@@ -12,9 +13,9 @@ storeCode = storeCode.replace(
     'import { emptyAppointmentScheduleDraft, StaffScheduleDraft, StaffScheduleSaveState, AppointmentScheduleDraft, AppointmentScheduleSaveState, loadUiPreferences, defaultUiPreferences } from "../AppHelpers";\n\nconst initialUiPreferences = loadUiPreferences() ?? defaultUiPreferences;'
 );
 
-fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/scheduleStore.ts', storeCode);
+fs.writeFileSync(path.join(__dirname, '../apps/web/src/store/scheduleStore.ts'), storeCode);
 
-let appCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', 'utf8');
+let appCode = fs.readFileSync(path.join(__dirname, '../apps/web/src/App.tsx'), 'utf8');
 
 // Fix 'day' any types
 appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
@@ -28,6 +29,6 @@ appCode = appCode.replace(/setStaffScheduleDrafts\(\(current\) =>/g, 'setStaffSc
 appCode = appCode.replace(/setAppointmentScheduleDrafts\(\(current\) =>/g, 'setAppointmentScheduleDrafts((current: any) =>');
 appCode = appCode.replace(/setChairScheduleDrafts\(\(current\) =>/g, 'setChairScheduleDrafts((current: any) =>');
 
-fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', appCode);
+fs.writeFileSync(path.join(__dirname, '../apps/web/src/App.tsx'), appCode);
 
 console.log('Fixed TS errors in scheduleStore and App.tsx');

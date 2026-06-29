@@ -33,7 +33,6 @@ class TestMain(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
-        import clinic_admin.database
         import clinic_admin.main
         clinic_admin.main.get_connection = self.original_get_connection
         clinic_admin.database.DB_FILE = self.original_db_file

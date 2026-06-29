@@ -183,6 +183,46 @@ def publish_result(filename, findings):
 processing_files = set()
 processing_lock = threading.Lock()
 
+def _check_file_ready(file_path):
+    size1 = os.path.getsize(file_path)
+    time.sleep(1)
+    if not os.path.exists(file_path):
+        return False
+    size2 = os.path.getsize(file_path)
+    return size1 == size2 and size1 > 0
+
+def _analyze_and_publish(file_path, filename):
+    print(f"\n[+] Найден новый снимок: {filename}")
+    print("    Отправка в ИИ...")
+
+    start_time = time.time()
+    marked_path, findings = analyze_image(file_path)
+    elapsed = time.time() - start_time
+    print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
+
+    final_file_for_popup = marked_path if marked_path else file_path
+    publish_result(os.path.basename(final_file_for_popup), findings)
+
+    return marked_path
+
+def _move_processed_files(file_path, filename, marked_path):
+    processed_path = os.path.join(PROCESSED_DIR, filename)
+    try:
+        os.replace(file_path, processed_path)
+    except PermissionError:
+        print("    [!] Файл занят, повторная попытка через 2 сек...")
+        time.sleep(2)
+        os.replace(file_path, processed_path)
+
+    if marked_path and os.path.exists(marked_path):
+        marked_filename = os.path.basename(marked_path)
+        try:
+            os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+        except Exception as e:
+            print(f"    [!] Ошибка перемещения размеченного файла: {e}")
+
+    print(f"    Файлы перемещены в {PROCESSED_DIR}")
+
 def process_single_file(file_path):
     with processing_lock:
         if file_path in processing_files:
@@ -192,46 +232,10 @@ def process_single_file(file_path):
     try:
         filename = os.path.basename(file_path)
 
-        # Проверка что файл полностью записался
-        size1 = os.path.getsize(file_path)
-        time.sleep(1)
-        if not os.path.exists(file_path):
-            return
-        size2 = os.path.getsize(file_path)
+        if _check_file_ready(file_path):
+            marked_path = _analyze_and_publish(file_path, filename)
+            _move_processed_files(file_path, filename, marked_path)
 
-        if size1 == size2 and size1 > 0:
-            print(f"\n[+] Найден новый снимок: {filename}")
-            print("    Отправка в ИИ...")
-
-            start_time = time.time()
-            # Анализ ИИ и отрисовка рамок
-            marked_path, findings = analyze_image(file_path)
-            elapsed = time.time() - start_time
-            print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
-
-            # Отправка результатов
-            # Если размеченный файл создан, отправляем его имя
-            final_file_for_popup = marked_path if marked_path else file_path
-            publish_result(os.path.basename(final_file_for_popup), findings)
-
-            # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
-            processed_path = os.path.join(PROCESSED_DIR, filename)
-            try:
-                os.replace(file_path, processed_path)
-            except PermissionError:
-                print("    [!] Файл занят, повторная попытка через 2 сек...")
-                time.sleep(2)
-                os.replace(file_path, processed_path)
-
-            # Если есть размеченный, тоже переносим
-            if marked_path and os.path.exists(marked_path):
-                marked_filename = os.path.basename(marked_path)
-                try:
-                    os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-                except Exception as e:
-                    print(f"    [!] Ошибка перемещения размеченного файла: {e}")
-
-            print(f"    Файлы перемещены в {PROCESSED_DIR}")
     except FileNotFoundError:
         pass # File was already processed or moved
     except Exception as e:

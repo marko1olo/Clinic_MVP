@@ -138,6 +138,23 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+
+    def test_insert_patient(self):
+        from clinic_admin.main import insert_patient
+        from clinic_admin.database import get_connection
+
+        # Call the function directly
+        insert_patient("Direct Insert", "555-5555")
+
+        # Verify it was added to the test database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = 'Direct Insert'")
+        patient = c.fetchone()
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["phone"], "555-5555")
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

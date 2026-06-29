@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-let storeCode = fs.readFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/settingsStore.ts', 'utf8');
+let storeCode = fs.readFileSync('/app/dental-crm111/apps/web/src/store/settingsStore.ts', 'utf8');
 
 // 1. Remove my hardcoded variables
 storeCode = storeCode.replace(/const currentView = "settings";\n/g, '');
@@ -33,7 +33,7 @@ storeCode = storeCode.replace(
 );
 
 // 5. Fix emptyTelegramVisualCardUrlDrafts and defaultTelegramPostVisitCheckupDelayDrafts calls in the object
-storeCode = storeCode.replace(/emptyTelegramVisualCardUrlDrafts,/g, 'emptyTelegramVisualCardUrlDrafts(),');
+storeCode = storeCode.replace(/telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts,/g, 'telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts(),');
 // For defaultTelegramPostVisitCheckupDelayDrafts it's an object exported from AppHelpers, keep it as is, just imported.
 
 // 6. Fix currentView and settingsTab usages (they were inside a lambda)
@@ -41,5 +41,5 @@ storeCode = storeCode.replace(/emptyTelegramVisualCardUrlDrafts,/g, 'emptyTelegr
 // Let's replace it with false, as a default initial state for store.
 storeCode = storeCode.replace(/currentView === "settings" && settingsTab === "clinic"/g, 'false');
 
-fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/settingsStore.ts', storeCode);
+fs.writeFileSync('/app/dental-crm111/apps/web/src/store/settingsStore.ts', storeCode);
 console.log('settingsStore fixed');

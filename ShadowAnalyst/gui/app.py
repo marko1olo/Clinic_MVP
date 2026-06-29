@@ -1131,12 +1131,38 @@ def detect_gender_ru(name: str) -> str:
         return "Женский"
     return "Не указан"
 
+def _parse_age_from_part(part_clean: str):
+    if part_clean.isdigit():
+        val = int(part_clean)
+        if 0 < val < 120:
+            return val
+    return None
+
+def _parse_gender_from_part(part_clean: str):
+    part_upper = part_clean.upper()
+    if part_upper in ['M', 'М', 'MALE', 'МУЖ']:
+        return "Мужской"
+    elif part_upper in ['F', 'Ж', 'FEMALE', 'ЖЕН']:
+        return "Женский"
+    return None
+
+def _format_patient_name(name_parts: list) -> str:
+    if len(name_parts) >= 2:
+        p1, p2 = name_parts[0], name_parts[1]
+        p1_lower = p1.lower()
+        if p1_lower.endswith(('ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская')):
+            return f"{p2} {p1}"
+        else:
+            return f"{p1} {p2}"
+    elif len(name_parts) == 1:
+        return name_parts[0]
+    return ""
+
 def parse_patient_from_filename(filename: str) -> dict:
     base = os.path.splitext(filename)[0]
     # Replace separators with spaces
     parts = re.split(r'[_\-\s]+', base)
     
-    patient_name = ""
     patient_age = None
     patient_gender = "Не указан"
     
@@ -1148,34 +1174,22 @@ def parse_patient_from_filename(filename: str) -> dict:
             continue
             
         # Age
-        if part_clean.isdigit():
-            val = int(part_clean)
-            if 0 < val < 120:
-                patient_age = val
+        age_val = _parse_age_from_part(part_clean)
+        if age_val is not None:
+            patient_age = age_val
             continue
             
         # Gender
-        part_upper = part_clean.upper()
-        if part_upper in ['M', 'М', 'MALE', 'МУЖ']:
-            patient_gender = "Мужской"
-            continue
-        elif part_upper in ['F', 'Ж', 'FEMALE', 'ЖЕН']:
-            patient_gender = "Женский"
+        gender_val = _parse_gender_from_part(part_clean)
+        if gender_val is not None:
+            patient_gender = gender_val
             continue
             
         # Name
         if part_clean.isalpha():
             name_parts.append(part_clean.capitalize())
             
-    if len(name_parts) >= 2:
-        p1, p2 = name_parts[0], name_parts[1]
-        p1_lower = p1.lower()
-        if p1_lower.endswith(('ов', 'ев', 'ин', 'ова', 'ева', 'ина', 'их', 'ых', 'ский', 'ская')):
-            patient_name = f"{p2} {p1}"
-        else:
-            patient_name = f"{p1} {p2}"
-    elif len(name_parts) == 1:
-        patient_name = name_parts[0]
+    patient_name = _format_patient_name(name_parts)
         
     if patient_gender == "Не указан" and patient_name:
         patient_gender = detect_gender_ru(patient_name)

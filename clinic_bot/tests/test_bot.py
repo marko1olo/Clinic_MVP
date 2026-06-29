@@ -2,7 +2,6 @@ import unittest
 import sys
 import os
 from unittest.mock import MagicMock, AsyncMock, patch
-import asyncio
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from bot import on_mqtt_message, cmd_start

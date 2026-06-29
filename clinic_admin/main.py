@@ -49,30 +49,34 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 def get_dashboard_data():
-    conn = get_connection()
-    c = conn.cursor()
-    
-    # Get upcoming appointments
-    c.execute('''
-        SELECT a.id, a.appointment_date, a.doctor, a.status, p.name as patient_name, p.phone
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        WHERE a.status = 'scheduled'
-        ORDER BY a.appointment_date ASC
-        LIMIT 20
-    ''')
-    appointments = c.fetchall()
-    
-    # Get all patients for the dropdown
-    c.execute('SELECT * FROM patients ORDER BY name ASC LIMIT 100')
-    patients = c.fetchall()
-    
-    # Convert rows to dicts inside the threadpool to avoid keeping cursor alive
-    res_appointments = [dict(ix) for ix in appointments]
-    res_patients = [dict(ix) for ix in patients]
+    try:
+        conn = get_connection()
+        c = conn.cursor()
 
-    conn.close()
-    return res_appointments, res_patients
+        # Get upcoming appointments
+        c.execute('''
+            SELECT a.id, a.appointment_date, a.doctor, a.status, p.name as patient_name, p.phone
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            WHERE a.status = 'scheduled'
+            ORDER BY a.appointment_date ASC
+            LIMIT 20
+        ''')
+        appointments = c.fetchall()
+
+        # Get all patients for the dropdown
+        c.execute('SELECT * FROM patients ORDER BY name ASC LIMIT 100')
+        patients = c.fetchall()
+
+        # Convert rows to dicts inside the threadpool to avoid keeping cursor alive
+        res_appointments = [dict(ix) for ix in appointments]
+        res_patients = [dict(ix) for ix in patients]
+
+        conn.close()
+        return res_appointments, res_patients
+    except Exception as e:
+        print(f"Error fetching dashboard data: {e}")
+        return [], []
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, username: str = Depends(get_current_username)):

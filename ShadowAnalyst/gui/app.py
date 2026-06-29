@@ -895,9 +895,51 @@ def _get_models_for_tier(model_tier):
             (GROQ_VISION_MODEL, "groq")
         ]
 
+def _try_model_with_keys(keys, model_name, provider, chat_func, prompt, image_b64, min_len, pass_name, extra_messages):
+    import re
+    success = False
+    output_text = ""
+    last_err = None
+
+    for api_key in keys:
+        try:
+            content = [{"type": "text", "text": prompt}] + extra_messages + [{"type": "image_url", "image_url": {"url": image_b64}}]
+            response = chat_func(
+                api_key=api_key,
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content
+                    }
+                ]
+            )
+            if response.choices and len(response.choices) > 0:
+                val = response.choices[0].message.content
+                if val:
+                    val_cleaned = re.sub(r"(?i)<think>.*?(?:</think>|$)", "", val, flags=re.DOTALL).strip()
+                    if len(val_cleaned) >= min_len:
+                        output_text = val_cleaned
+                        success = True
+                        print(f"[{pass_name}] Success with model {model_name} ({len(val_cleaned)} chars)")
+                        break
+                    else:
+                        print(f"[{pass_name}] Model {model_name} returned cut-off or too short response ({len(val_cleaned)} chars). Trying next model.")
+                else:
+                    print(f"Key {api_key[:10]}... returned empty content for model {model_name}.")
+        except Exception as e:
+            print(f"Error using key {api_key[:10]}... with model {model_name} ({provider}): {e}")
+            last_err = e
+            err_str = str(e).lower()
+            if "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str:
+                print(f"[{pass_name}] Rate limit (429) hit for model {model_name} with key {api_key[:10]}... trying next key.")
+                continue
+            continue
+
+    return success, output_text, last_err
+
 def _execute_ai_cascade(models, prompt, image_b64, min_len, pass_name, extra_messages=None):
     import random
-    import re
 
     output_text = ""
     success_idx = 0
@@ -919,45 +961,18 @@ def _execute_ai_cascade(models, prompt, image_b64, min_len, pass_name, extra_mes
             continue
 
         random.shuffle(keys)
-        success = False
 
-        for api_key in keys:
-            try:
-                content = [{"type": "text", "text": prompt}] + extra_messages + [{"type": "image_url", "image_url": {"url": image_b64}}]
-                response = chat_func(
-                    api_key=api_key,
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": content
-                        }
-                    ]
-                )
-                if response.choices and len(response.choices) > 0:
-                    val = response.choices[0].message.content
-                    if val:
-                        val_cleaned = re.sub(r"(?i)<think>.*?(?:</think>|$)", "", val, flags=re.DOTALL).strip()
-                        if len(val_cleaned) >= min_len:
-                            output_text = val_cleaned
-                            success_idx = idx
-                            success = True
-                            print(f"[{pass_name}] Success with model {model_name} ({len(val_cleaned)} chars)")
-                            break
-                        else:
-                            print(f"[{pass_name}] Model {model_name} returned cut-off or too short response ({len(val_cleaned)} chars). Trying next model.")
-                    else:
-                        print(f"Key {api_key[:10]}... returned empty content for model {model_name}.")
-            except Exception as e:
-                print(f"Error using key {api_key[:10]}... with model {model_name} ({provider}): {e}")
-                last_err = e
-                err_str = str(e).lower()
-                if "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str:
-                    print(f"[{pass_name}] Rate limit (429) hit for model {model_name} with key {api_key[:10]}... trying next key.")
-                    continue
-                continue
+        success, current_output, current_err = _try_model_with_keys(
+            keys, model_name, provider, chat_func, prompt, image_b64, min_len, pass_name, extra_messages
+        )
+
         if success:
+            output_text = current_output
+            success_idx = idx
             break
+
+        if current_err is not None:
+            last_err = current_err
 
     return output_text, success_idx, last_err
 

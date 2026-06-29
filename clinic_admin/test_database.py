@@ -2,7 +2,6 @@ import unittest
 import sqlite3
 import os
 import tempfile
-import clinic_admin.database
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):

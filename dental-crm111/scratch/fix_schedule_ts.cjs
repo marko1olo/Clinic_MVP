@@ -22,11 +22,7 @@ appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
 appCode = appCode.replace(/onChange=\{\(item\) =>/g, 'onChange={(item: any) =>');
 
 // Fix 'current' any types in setters that might not have been caught
-appCode = appCode.replace(/setStaffScheduleSaveStates\(\(current\) =>/g, 'setStaffScheduleSaveStates((current: any) =>');
-appCode = appCode.replace(/setAppointmentScheduleSaveStates\(\(current\) =>/g, 'setAppointmentScheduleSaveStates((current: any) =>');
-appCode = appCode.replace(/setStaffScheduleDrafts\(\(current\) =>/g, 'setStaffScheduleDrafts((current: any) =>');
-appCode = appCode.replace(/setAppointmentScheduleDrafts\(\(current\) =>/g, 'setAppointmentScheduleDrafts((current: any) =>');
-appCode = appCode.replace(/setChairScheduleDrafts\(\(current\) =>/g, 'setChairScheduleDrafts((current: any) =>');
+appCode = appCode.replace(/set([A-Za-z0-9_]+)\(\(current\) =>/g, "set$1((current: any) =>");
 
 fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx', appCode);
 

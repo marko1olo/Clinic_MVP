@@ -1,12 +1,14 @@
 import paramiko
+import os
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
 
 try:
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     print(f"Connecting to {user}@{host}...")
     client.connect(hostname=host, username=user, password=password, timeout=10)
     

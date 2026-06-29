@@ -1,6 +1,6 @@
-🧹 [code health] Remove unused `get_scan_by_id` function
+🔒 Fix hardcoded credentials in setup_backups.py
 
-🎯 What: Removed the `get_scan_by_id` function from `ShadowAnalyst/gui/database.py`.
-💡 Why: The function was identified as unused dead code and its removal improves maintainability and readability of the codebase by eliminating unneeded code paths.
-✅ Verification: Confirmed via search that the function is not referenced anywhere else in the codebase and executed python test script to ensure that the module can still be imported successfully.
-✨ Result: Reduced dead code, improving overall code health without affecting functionality.
+
+🎯 **What:** Removed hardcoded server IP address and root password from Scripts/setup_backups.py.
+⚠️ **Risk:** Hardcoded IP address makes configuration management difficult and could expose internal network architecture. Hardcoded root password is a critical security vulnerability that allows unauthorized SSH access to the server.
+🛡️ **Solution:** Modified the script to read the IP address from the VPS_HOST environment variable and the password from the VPS_PASSWORD environment variable. Added validation checks to exit with clear error messages if these variables are not set.

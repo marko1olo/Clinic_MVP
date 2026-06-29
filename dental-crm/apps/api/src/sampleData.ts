@@ -8432,16 +8432,24 @@ function speechRecordingRecoveryFromChunks(recordingId: string, chunks: SpeechTr
     .slice()
     .sort((left, right) => left.chunkIndex - right.chunkIndex || left.createdAt.localeCompare(right.createdAt));
   const assembly = assembleSpeechRecordingFromChunks(recordingId, sortedChunks);
-  const statusCounts = {
-    transcribed: sortedChunks.filter((chunk) => chunk.status === "transcribed").length,
-    fallback_text: sortedChunks.filter((chunk) => chunk.status === "fallback_text").length,
-    needs_provider_key: sortedChunks.filter((chunk) => chunk.status === "needs_provider_key").length,
-    failed: sortedChunks.filter((chunk) => chunk.status === "failed").length
-  };
-  const totalDurationMs = sortedChunks.some((chunk) => chunk.durationMs !== null)
-    ? sortedChunks.reduce((total, chunk) => total + (chunk.durationMs ?? 0), 0)
-    : null;
-  const totalBytes = sortedChunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+  const statusCounts = { transcribed: 0, fallback_text: 0, needs_provider_key: 0, failed: 0 };
+  let hasDuration = false;
+  let totalDurationMsSum = 0;
+  let totalBytes = 0;
+
+  for (const chunk of sortedChunks) {
+    if (chunk.status === "transcribed") statusCounts.transcribed++;
+    else if (chunk.status === "fallback_text") statusCounts.fallback_text++;
+    else if (chunk.status === "needs_provider_key") statusCounts.needs_provider_key++;
+    else if (chunk.status === "failed") statusCounts.failed++;
+
+    if (chunk.durationMs !== null) {
+      hasDuration = true;
+      totalDurationMsSum += chunk.durationMs;
+    }
+    totalBytes += chunk.byteLength;
+  }
+  const totalDurationMs = hasDuration ? totalDurationMsSum : null;
   const qualityCounts = countSpeechQualities(sortedChunks);
   const transcriptPreview = assembly.transcript.replace(/\s+/g, " ").trim().slice(0, 220);
   const recoveryState =

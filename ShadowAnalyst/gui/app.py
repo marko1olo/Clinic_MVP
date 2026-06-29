@@ -375,12 +375,8 @@ DEFAULT_CONFIG = {
     "comparison_slider": True,
     "tts_provider": "elevenlabs",
     "autorun": False,
-    "elevenlabs_api_key": "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-    "elevenlabs_api_keys": [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ],
+    "elevenlabs_api_key": os.getenv("ELEVENLABS_API_KEY", ""),
+    "elevenlabs_api_keys": [key.strip() for key in os.getenv("ELEVENLABS_API_KEYS", "").split(",") if key.strip()],
     "elevenlabs_voice_id": "pNInz6obpgq54HWK483c"
 }
 
@@ -482,11 +478,7 @@ app_state = {
     "comparison_slider": config.get("comparison_slider", DEFAULT_CONFIG.get("comparison_slider", True)),
     "tts_provider": config.get("tts_provider", DEFAULT_CONFIG.get("tts_provider", "edge")),
     "elevenlabs_api_key": config.get("elevenlabs_api_key", DEFAULT_CONFIG.get("elevenlabs_api_key", "")),
-    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ])),
+    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [])),
     "elevenlabs_voice_id": config.get("elevenlabs_voice_id", DEFAULT_CONFIG.get("elevenlabs_voice_id", "pNInz6obpgq54HWK483c")),
     "google_api_keys": config.get("google_api_keys", DEFAULT_CONFIG.get("google_api_keys", [])),
     "groq_api_keys": config.get("groq_api_keys", DEFAULT_CONFIG.get("groq_api_keys", [])),
@@ -637,15 +629,14 @@ async def get_tts(text: str, provider: str = None):
     cache_filename = f"audio_{text_hash}.mp3"
     cache_path = os.path.join(STATIC_DIR, "uploads", cache_filename)
     
-    if os.path.exists(cache_path):
-        try:
-            def _read_cache():
-                with open(cache_path, "rb") as f:
-                    return f.read()
-            content = await asyncio.to_thread(_read_cache)
-            return Response(content=content, media_type="audio/mpeg")
-        except Exception as e:
-            print(f"Error reading audio cache: {e}")
+    try:
+        async with aiofiles.open(cache_path, "rb") as f:
+            content = await f.read()
+        return Response(content=content, media_type="audio/mpeg")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error reading audio cache: {e}")
 
     audio_bytes = None
         
@@ -1195,49 +1186,107 @@ def parse_patient_from_filename(filename: str) -> dict:
         "patient_gender": patient_gender
     }
 
-def parse_patient_from_file(file_path: str) -> dict:
-    filename = os.path.basename(file_path)
-    info = parse_patient_from_filename(filename)
-    
-    if file_path.lower().endswith('.dcm'):
-        try:
-            import pydicom
-            import datetime
-            import re
-            ds = pydicom.dcmread(file_path, stop_before_pixels=True)
-            dcm_name = str(getattr(ds, 'PatientName', '')).replace('^', ' ').strip()
-            if dcm_name:
-                info['patient_name'] = dcm_name
-            dcm_gender = str(getattr(ds, 'PatientSex', '')).upper()
-            if dcm_gender == 'M':
-                info['patient_gender'] = 'Мужской'
-            elif dcm_gender == 'F':
-                info['patient_gender'] = 'Женский'
-            dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
-            dcm_age = None
-            if dcm_age_raw:
-                match = re.match(r'(\d+)([YMD])', dcm_age_raw)
-                if match:
-                    val = int(match.group(1))
-                    unit = match.group(2)
-                    if unit == 'Y':
-                        dcm_age = val
-                    else:
-                        dcm_age = 0
-            if dcm_age is not None:
-                info['patient_age'] = dcm_age
-            else:
-                dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
-                if dcm_birth and len(dcm_birth) >= 4:
-                    try:
-                        birth_year = int(dcm_birth[:4])
-                        current_year = datetime.datetime.now().year
-                        info['patient_age'] = current_year - birth_year
-                    except Exception:
-                        pass
-        except Exception as e:
-            print(f"Error reading DICOM patient info: {e}")
-            
+def _parse_dicom_patient_info(file_path: str, info: dict):
+    try:
+        import pydicom
+        import datetime
+        import re
+        ds = pydicom.dcmread(file_path, stop_before_pixels=True)
+        dcm_name = str(getattr(ds, 'PatientName', '')).replace('^', ' ').strip()
+        if dcm_name:
+            info['patient_name'] = dcm_name
+        dcm_gender = str(getattr(ds, 'PatientSex', '')).upper()
+        if dcm_gender == 'M':
+            info['patient_gender'] = 'Мужской'
+        elif dcm_gender == 'F':
+            info['patient_gender'] = 'Женский'
+        dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
+        dcm_age = None
+        if dcm_age_raw:
+            match = re.match(r'(\d+)([YMD])', dcm_age_raw)
+            if match:
+                val = int(match.group(1))
+                unit = match.group(2)
+                if unit == 'Y':
+                    dcm_age = val
+                else:
+                    dcm_age = 0
+        if dcm_age is not None:
+            info['patient_age'] = dcm_age
+        else:
+            dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
+            if dcm_birth and len(dcm_birth) >= 4:
+                try:
+                    birth_year = int(dcm_birth[:4])
+                    current_year = datetime.datetime.now().year
+                    info['patient_age'] = current_year - birth_year
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"Error reading DICOM patient info: {e}")
+
+def _parse_xml_sidecar(content: str, info: dict):
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(content)
+        for elem in root.iter():
+            tag_lower = elem.tag.lower()
+            if 'name' in tag_lower or 'patient' in tag_lower:
+                if elem.text:
+                    info['patient_name'] = elem.text.strip()
+            elif 'age' in tag_lower:
+                if elem.text and elem.text.isdigit():
+                    info['patient_age'] = int(elem.text)
+            elif 'gender' in tag_lower or 'sex' in tag_lower:
+                if elem.text:
+                    g = elem.text.strip().lower()
+                    if g in ['m', 'male', 'муж', 'мужской']:
+                        info['patient_gender'] = 'Мужской'
+                    elif g in ['f', 'female', 'жен', 'женский']:
+                        info['patient_gender'] = 'Женский'
+    except Exception:
+        pass
+
+def _parse_ini_txt_sidecar(content: str, info: dict):
+    for line in content.splitlines():
+        if '=' in line:
+            parts = line.split('=', 1)
+            key = parts[0].strip().lower()
+            val = parts[1].strip()
+            if key in ['name', 'patient', 'patientname', 'fio', 'фио']:
+                info['patient_name'] = val
+            elif key in ['age', 'years', 'возраст']:
+                if val.isdigit():
+                    info['patient_age'] = int(val)
+            elif key in ['gender', 'sex', 'пол']:
+                if val.lower() in ['m', 'male', 'муж', 'мужской']:
+                    info['patient_gender'] = 'Мужской'
+                elif val.lower() in ['f', 'female', 'жен', 'женский']:
+                    info['patient_gender'] = 'Женский'
+
+def _parse_json_sidecar(content: str, info: dict):
+    try:
+        data = json.loads(content)
+        def check_dict(d):
+            for k, v in d.items():
+                k_lower = k.lower()
+                if k_lower in ['name', 'patient', 'patientname', 'fio', 'фио']:
+                    info['patient_name'] = str(v)
+                elif k_lower in ['age', 'years', 'возраст']:
+                    if str(v).isdigit():
+                        info['patient_age'] = int(v)
+                elif k_lower in ['gender', 'sex', 'пол']:
+                    if str(v).lower() in ['m', 'male', 'муж', 'мужской']:
+                        info['patient_gender'] = 'Мужской'
+                    elif str(v).lower() in ['f', 'female', 'жен', 'женский']:
+                        info['patient_gender'] = 'Женский'
+                elif isinstance(v, dict):
+                    check_dict(v)
+        check_dict(data)
+    except Exception:
+        pass
+
+def _parse_sidecar_patient_info(file_path: str, info: dict):
     try:
         base_path = os.path.splitext(file_path)[0]
         for ext in ['.xml', '.ini', '.txt', '.json']:
@@ -1246,66 +1295,23 @@ def parse_patient_from_file(file_path: str) -> dict:
                 with open(sidecar, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                 if ext == '.xml':
-                    import xml.etree.ElementTree as ET
-                    try:
-                        root = ET.fromstring(content)
-                        for elem in root.iter():
-                            tag_lower = elem.tag.lower()
-                            if 'name' in tag_lower or 'patient' in tag_lower:
-                                if elem.text:
-                                    info['patient_name'] = elem.text.strip()
-                            elif 'age' in tag_lower:
-                                if elem.text and elem.text.isdigit():
-                                    info['patient_age'] = int(elem.text)
-                            elif 'gender' in tag_lower or 'sex' in tag_lower:
-                                if elem.text:
-                                    g = elem.text.strip().lower()
-                                    if g in ['m', 'male', 'муж', 'мужской']:
-                                        info['patient_gender'] = 'Мужской'
-                                    elif g in ['f', 'female', 'жен', 'женский']:
-                                        info['patient_gender'] = 'Женский'
-                    except Exception:
-                        pass
+                    _parse_xml_sidecar(content, info)
                 elif ext in ['.ini', '.txt']:
-                    for line in content.splitlines():
-                        if '=' in line:
-                            parts = line.split('=', 1)
-                            key = parts[0].strip().lower()
-                            val = parts[1].strip()
-                            if key in ['name', 'patient', 'patientname', 'fio', 'фио']:
-                                info['patient_name'] = val
-                            elif key in ['age', 'years', 'возраст']:
-                                if val.isdigit():
-                                    info['patient_age'] = int(val)
-                            elif key in ['gender', 'sex', 'пол']:
-                                if val.lower() in ['m', 'male', 'муж', 'мужской']:
-                                    info['patient_gender'] = 'Мужской'
-                                elif val.lower() in ['f', 'female', 'жен', 'женский']:
-                                    info['patient_gender'] = 'Женский'
+                    _parse_ini_txt_sidecar(content, info)
                 elif ext == '.json':
-                    try:
-                        data = json.loads(content)
-                        def check_dict(d):
-                            for k, v in d.items():
-                                k_lower = k.lower()
-                                if k_lower in ['name', 'patient', 'patientname', 'fio', 'фио']:
-                                    info['patient_name'] = str(v)
-                                elif k_lower in ['age', 'years', 'возраст']:
-                                    if str(v).isdigit():
-                                        info['patient_age'] = int(v)
-                                elif k_lower in ['gender', 'sex', 'пол']:
-                                    if str(v).lower() in ['m', 'male', 'муж', 'мужской']:
-                                        info['patient_gender'] = 'Мужской'
-                                    elif str(v).lower() in ['f', 'female', 'жен', 'женский']:
-                                        info['patient_gender'] = 'Женский'
-                                elif isinstance(v, dict):
-                                    check_dict(v)
-                        check_dict(data)
-                    except Exception:
-                        pass
+                    _parse_json_sidecar(content, info)
                 break
     except Exception as se:
         print(f"Error checking sidecars: {se}")
+
+def parse_patient_from_file(file_path: str) -> dict:
+    filename = os.path.basename(file_path)
+    info = parse_patient_from_filename(filename)
+
+    if file_path.lower().endswith('.dcm'):
+        _parse_dicom_patient_info(file_path, info)
+
+    _parse_sidecar_patient_info(file_path, info)
         
     return info
 

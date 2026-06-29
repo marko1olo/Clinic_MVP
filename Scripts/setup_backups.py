@@ -1,9 +1,10 @@
+import os
 import paramiko
 import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
+password = os.environ.get('VPS_PASSWORD')
 
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
@@ -18,7 +19,8 @@ def ssh(client, cmd, desc="", timeout=60):
 
 if __name__ == "__main__":
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(hostname=host, username=user, password=password, timeout=10)
     sys.stdout.buffer.write(b"Connected.\n")
 

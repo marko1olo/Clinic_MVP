@@ -258,10 +258,10 @@ def watch_loop():
     
     # Process existing files first
     try:
-        for filename in os.listdir(WATCH_DIR):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                file_path = os.path.join(WATCH_DIR, filename)
-                threading.Thread(target=process_single_file, args=(file_path,), daemon=True).start()
+        with os.scandir(WATCH_DIR) as it:
+            for entry in it:
+                if entry.name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                    threading.Thread(target=process_single_file, args=(entry.path,), daemon=True).start()
     except Exception as e:
         print(f"Ошибка при проверке существующих файлов: {e}")
 

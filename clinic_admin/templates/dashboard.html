@@ -198,6 +198,7 @@
                 <div class="glass-panel">
                     <h2>Новая запись</h2>
                     <form action="/appointments/add" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <div class="form-group">
                             <label>Пациент</label>
                             <select name="patient_id" required>
@@ -227,6 +228,7 @@
                 <div class="glass-panel">
                     <h2>Новый пациент</h2>
                     <form action="/patients/add" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <div class="form-group">
                             <label>ФИО</label>
                             <input type="text" name="name" required placeholder="Иванов Иван Иванович">

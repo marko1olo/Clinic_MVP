@@ -129,10 +129,17 @@ class TestMain(unittest.TestCase):
 
         form_data = {
             "name": "Jane Doe",
-            "phone": "9876543210"
+            "phone": "9876543210",
+            "csrf_token": "dummy_token"
         }
 
-        response = self.client.post("/patients/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        response = self.client.post(
+            "/patients/add",
+            data=form_data,
+            auth=("admin", "admin"),
+            cookies={"csrf_token": "dummy_token"},
+            follow_redirects=False
+        )
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/")
 
@@ -146,6 +153,45 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "9876543210")
 
         conn.close()
+
+    def test_add_patient_csrf_missing(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        form_data = {
+            "name": "Jane Doe",
+            "phone": "9876543210"
+        }
+
+        response = self.client.post(
+            "/patients/add",
+            data=form_data,
+            auth=("admin", "admin"),
+            follow_redirects=False
+        )
+        # Should fail due to missing csrf_token form field
+        self.assertEqual(response.status_code, 422)
+
+    def test_add_patient_csrf_mismatch(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        form_data = {
+            "name": "Jane Doe",
+            "phone": "9876543210",
+            "csrf_token": "dummy_token_1"
+        }
+
+        response = self.client.post(
+            "/patients/add",
+            data=form_data,
+            auth=("admin", "admin"),
+            cookies={"csrf_token": "dummy_token_2"},
+            follow_redirects=False
+        )
+        # Should fail due to mismatched csrf tokens
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json(), {"detail": "CSRF token mismatch"})
 
     def test_add_appointment_unauthenticated(self):
         os.environ["ADMIN_USERNAME"] = "admin"
@@ -164,7 +210,13 @@ class TestMain(unittest.TestCase):
         os.environ["ADMIN_PASSWORD"] = "admin"
 
         # First we need to make sure a patient exists since appointment has a foreign key to patients
-        response_patient = self.client.post("/patients/add", data={"name": "Test Patient", "phone": "1234567890"}, auth=("admin", "admin"), follow_redirects=False)
+        response_patient = self.client.post(
+            "/patients/add",
+            data={"name": "Test Patient", "phone": "1234567890", "csrf_token": "dummy_token"},
+            auth=("admin", "admin"),
+            cookies={"csrf_token": "dummy_token"},
+            follow_redirects=False
+        )
         self.assertEqual(response_patient.status_code, 303)
 
         # Get the patient from the DB to dynamically determine the ID
@@ -179,10 +231,17 @@ class TestMain(unittest.TestCase):
         form_data = {
             "patient_id": patient_id,
             "doctor": "Dr. Smith",
-            "date": "2023-10-27T10:00"
+            "date": "2023-10-27T10:00",
+            "csrf_token": "dummy_token"
         }
 
-        response = self.client.post("/appointments/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        response = self.client.post(
+            "/appointments/add",
+            data=form_data,
+            auth=("admin", "admin"),
+            cookies={"csrf_token": "dummy_token"},
+            follow_redirects=False
+        )
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/")
 

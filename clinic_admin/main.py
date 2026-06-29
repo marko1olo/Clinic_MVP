@@ -1,6 +1,6 @@
 import os
 import secrets
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Cookie, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
@@ -82,11 +82,15 @@ def get_dashboard_data():
 async def read_root(request: Request, username: str = Depends(get_current_username)):
     appointments, patients = await run_in_threadpool(get_dashboard_data)
 
-    return templates.TemplateResponse(request=request, name="dashboard.html", context={
+    csrf_token = request.cookies.get("csrf_token") or secrets.token_hex(32)
+    response_obj = templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request, 
         "appointments": appointments,
-        "patients": patients
+        "patients": patients,
+        "csrf_token": csrf_token
     })
+    response_obj.set_cookie(key="csrf_token", value=csrf_token, httponly=True, samesite="lax")
+    return response_obj
 
 def insert_patient(name, phone):
     conn = get_connection()
@@ -97,7 +101,9 @@ def insert_patient(name, phone):
     conn.close()
 
 @app.post("/patients/add")
-async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(get_current_username)):
+async def add_patient(name: str = Form(...), phone: str = Form(None), csrf_token: str = Form(...), cookie_csrf_token: str = Cookie(None, alias="csrf_token"), username: str = Depends(get_current_username)):
+    if not cookie_csrf_token or not secrets.compare_digest(csrf_token, cookie_csrf_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token mismatch")
     await run_in_threadpool(insert_patient, name, phone)
     return RedirectResponse(url="/", status_code=303)
 
@@ -113,7 +119,9 @@ def insert_appointment(patient_id, doctor, date):
     conn.close()
 
 @app.post("/appointments/add")
-async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(get_current_username)):
+async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), csrf_token: str = Form(...), cookie_csrf_token: str = Cookie(None, alias="csrf_token"), username: str = Depends(get_current_username)):
+    if not cookie_csrf_token or not secrets.compare_digest(csrf_token, cookie_csrf_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token mismatch")
     await run_in_threadpool(insert_appointment, patient_id, doctor, date)
     return RedirectResponse(url="/", status_code=303)
 

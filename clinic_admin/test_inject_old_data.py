@@ -3,7 +3,6 @@ import sqlite3
 import os
 import tempfile
 import clinic_admin.database
-import clinic_admin.inject_old_data
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):

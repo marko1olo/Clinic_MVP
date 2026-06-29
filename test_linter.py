@@ -1,0 +1,2 @@
+import clinic_admin.inject_old_data
+print(clinic_admin.inject_old_data)

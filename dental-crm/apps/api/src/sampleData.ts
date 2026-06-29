@@ -451,6 +451,18 @@ export const documents: GeneratedDocument[] = [
   }
 ];
 
+
+export function getServiceCatalogItem(serviceId: string): ServiceCatalogItem | undefined {
+  let service = serviceCatalogMap.get(serviceId);
+  if (service === undefined) {
+    service = serviceCatalog.find((catalogItem) => catalogItem.id === serviceId);
+    if (service) {
+      serviceCatalogMap.set(serviceId, service);
+    }
+  }
+  return service;
+}
+
 export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
 export const serviceCatalog: ServiceCatalogItem[] = [
   {
@@ -1076,7 +1088,7 @@ export function buildBillingSummary(): BillingSummary {
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents
@@ -6507,7 +6519,7 @@ function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntime
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = getServiceCatalogItem(item.serviceId);
     if (service?.category !== "hygiene") return [];
 
     const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");

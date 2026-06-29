@@ -138,6 +138,31 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+
+    def test_insert_appointment_function(self):
+        from clinic_admin.main import insert_appointment, insert_patient
+        from clinic_admin.database import get_connection
+
+        insert_patient("John Doe", "123456789")
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM patients WHERE name = 'John Doe'")
+        patient = c.fetchone()
+        patient_id = patient["id"]
+        conn.close()
+
+        insert_appointment(patient_id, "Dr. Who", "2023-11-01T15:00")
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM appointments WHERE patient_id = ? AND doctor = ?", (patient_id, "Dr. Who"))
+        appointment = c.fetchone()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["appointment_date"], "2023-11-01T15:00")
+        conn.close()
+
 if __name__ == '__main__':
+
     unittest.main()
 

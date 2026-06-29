@@ -3,44 +3,38 @@ from unittest.mock import patch, MagicMock, mock_open
 from clinic_admin.seo_agent import generate_seo_response, get_groq_api_key
 
 class TestSEOAgent(unittest.TestCase):
-    @patch('builtins.open')
-    def test_get_groq_api_key_error_path(self, mock_open):
-        # Configure the mock to raise an IOError when open() is called
-        mock_open.side_effect = IOError("Simulated IOError for testing")
-
-        # Call the function
-        result = get_groq_api_key()
-
-        # Verify the exception was caught and handled correctly
-        self.assertIsNone(result)
-
     @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": ["key1", "key2"]}')
     @patch('clinic_admin.seo_agent.random.choice')
-    def test_get_groq_api_key_success(self, mock_choice, mock_file):
-        # Configure the mock to return a specific key when choice is called
+    def test_get_groq_api_key_valid(self, mock_choice, mock_file):
+        # Test the happy path where a valid config exists
         mock_choice.return_value = "key1"
-
-        # Call the function
         result = get_groq_api_key()
-
-        # Verify the key was retrieved properly
         self.assertEqual(result, "key1")
         mock_choice.assert_called_once_with(["key1", "key2"])
 
-    @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": []}')
-    def test_get_groq_api_key_empty(self, mock_file):
-        # Call the function
+    @patch('builtins.open')
+    def test_get_groq_api_key_io_error(self, mock_open):
+        # Test handling of IOError (e.g., file not found)
+        mock_open.side_effect = IOError("Simulated IOError for testing")
         result = get_groq_api_key()
+        self.assertIsNone(result)
 
-        # Verify we get None when no keys exist
+    @patch('builtins.open', new_callable=mock_open, read_data='invalid json content')
+    def test_get_groq_api_key_json_decode_error(self, mock_file):
+        # Test handling of malformed JSON
+        result = get_groq_api_key()
+        self.assertIsNone(result)
+
+    @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": []}')
+    def test_get_groq_api_key_empty_list(self, mock_file):
+        # Test behavior when the keys list is empty
+        result = get_groq_api_key()
         self.assertIsNone(result)
 
     @patch('builtins.open', new_callable=mock_open, read_data='{}')
     def test_get_groq_api_key_missing_key(self, mock_file):
-        # Call the function
+        # Test behavior when 'groq_api_keys' is not in the JSON object
         result = get_groq_api_key()
-
-        # Verify we get None when the key doesn't exist
         self.assertIsNone(result)
 
     @patch('clinic_admin.seo_agent.get_groq_api_key')

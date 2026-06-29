@@ -375,12 +375,8 @@ DEFAULT_CONFIG = {
     "comparison_slider": True,
     "tts_provider": "elevenlabs",
     "autorun": False,
-    "elevenlabs_api_key": "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-    "elevenlabs_api_keys": [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ],
+    "elevenlabs_api_key": os.getenv("ELEVENLABS_API_KEY", ""),
+    "elevenlabs_api_keys": [key.strip() for key in os.getenv("ELEVENLABS_API_KEYS", "").split(",") if key.strip()],
     "elevenlabs_voice_id": "pNInz6obpgq54HWK483c"
 }
 
@@ -482,11 +478,7 @@ app_state = {
     "comparison_slider": config.get("comparison_slider", DEFAULT_CONFIG.get("comparison_slider", True)),
     "tts_provider": config.get("tts_provider", DEFAULT_CONFIG.get("tts_provider", "edge")),
     "elevenlabs_api_key": config.get("elevenlabs_api_key", DEFAULT_CONFIG.get("elevenlabs_api_key", "")),
-    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [
-        "sk_7ec26dd2067a1110f4cd27a2d2ea18e9f536a7256d9065e4",
-        "sk_f891c9ef32d99fa018749f081d00f84d092ea2120bf5db1a",
-        "sk_f71e9d767c1b151745f78117aad2a9678c84ea23881e5544"
-    ])),
+    "elevenlabs_api_keys": config.get("elevenlabs_api_keys", DEFAULT_CONFIG.get("elevenlabs_api_keys", [])),
     "elevenlabs_voice_id": config.get("elevenlabs_voice_id", DEFAULT_CONFIG.get("elevenlabs_voice_id", "pNInz6obpgq54HWK483c")),
     "google_api_keys": config.get("google_api_keys", DEFAULT_CONFIG.get("google_api_keys", [])),
     "groq_api_keys": config.get("groq_api_keys", DEFAULT_CONFIG.get("groq_api_keys", [])),

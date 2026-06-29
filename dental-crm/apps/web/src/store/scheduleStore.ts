@@ -73,7 +73,7 @@ export const useScheduleStore = create<ScheduleStore>((set) => ({
   appointmentScheduleDirtyIds: new Set(),
   appointmentScheduleSaveStates: {},
   appointmentScheduleErrors: {},
-  newAppointmentDraft: emptyAppointmentScheduleDraft(),
+  newAppointmentDraft: emptyAppointmentScheduleDraft,
   newAppointmentSaveState: "idle",
   setScheduleDoctorFilterId: (val) => set((state) => ({ scheduleDoctorFilterId: typeof val === 'function' ? (val as any)(state.scheduleDoctorFilterId) : val })),
   setScheduleAssistantFilterId: (val) => set((state) => ({ scheduleAssistantFilterId: typeof val === 'function' ? (val as any)(state.scheduleAssistantFilterId) : val })),

@@ -3203,19 +3203,17 @@ export type AppointmentScheduleDraft = {
 };
 export type AppointmentScheduleSaveState = "idle" | "saving" | "saved" | "error";
 
-export function emptyAppointmentScheduleDraft(): AppointmentScheduleDraft {
-  return {
-    patientId: "",
-    doctorUserId: "",
-    assistantUserId: "",
-    chairId: "",
-    status: "planned",
-    startsAt: "",
-    endsAt: "",
-    reason: "",
-    comment: ""
-  };
-}
+export const emptyAppointmentScheduleDraft: AppointmentScheduleDraft = {
+  patientId: "",
+  doctorUserId: "",
+  assistantUserId: "",
+  chairId: "",
+  status: "planned",
+  startsAt: "",
+  endsAt: "",
+  reason: "",
+  comment: ""
+};
 
 export type MedicalDocumentReleaseChannel = "paper" | "pdf" | "dicom_archive" | "secure_link" | "physical_media" | "other";
 export const medicalDocumentReleaseChannelLabels: Record<MedicalDocumentReleaseChannel, string> = {

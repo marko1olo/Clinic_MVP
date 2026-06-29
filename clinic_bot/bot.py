@@ -14,7 +14,7 @@ from datetime import datetime
 import paho.mqtt.client as mqtt
 from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
-from aiogram.filters import Command, CommandStart
+from aiogram.filters.command import Command, CommandStart
 
 sys.path.insert(0, '.')
 from config.settings import (
@@ -41,9 +41,9 @@ dp.include_router(router)
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     chat_id = message.chat.id
-    role = db.get_user_role(chat_id)
+    role = await asyncio.to_thread(db.get_user_role, chat_id)
     if not role:
-        db.add_user(chat_id, 'guest', message.from_user.full_name) # По умолчанию гость для безопасности
+        await asyncio.to_thread(db.add_user, chat_id, 'guest', message.from_user.full_name) # По умолчанию гость для безопасности
         role = 'guest'
     log.info(f"New chat registered: {chat_id} as {role}")
     await message.answer(
@@ -58,8 +58,8 @@ async def cmd_start(message: Message):
 
 @router.message(Command("status"))
 async def cmd_status(message: Message):
-    doctors = len(db.get_users_by_role('doctor'))
-    admins = len(db.get_users_by_role('admin'))
+    doctors = len(await asyncio.to_thread(db.get_users_by_role, 'doctor'))
+    admins = len(await asyncio.to_thread(db.get_users_by_role, 'admin'))
     await message.answer(
         f"*Система работает* ✅\n"
         f"Врачей: {doctors}, Админов: {admins}\n"
@@ -84,7 +84,7 @@ async def cmd_test(message: Message):
 
 async def broadcast(text: str, role: str = 'admin'):
     """Отправить текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
@@ -99,7 +99,7 @@ async def broadcast(text: str, role: str = 'admin'):
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
-    users = db.get_users_by_role(role)
+    users = await asyncio.to_thread(db.get_users_by_role, role)
     if not users:
         log.warning(f"No registered {role}s to send photo to.")
         return

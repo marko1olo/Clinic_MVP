@@ -2,6 +2,7 @@ import os
 import sys
 import unittest
 import tempfile
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 # Add clinic_admin directory to sys.path to resolve database import
@@ -38,6 +39,13 @@ class TestMain(unittest.TestCase):
         clinic_admin.database.DB_FILE = self.original_db_file
         os.close(self.db_fd)
         os.unlink(self.db_path)
+
+    def test_startup_event_error(self):
+        # Using the TestClient as a context manager triggers the startup event
+        with patch('clinic_admin.main.init_db', side_effect=Exception("Database initialization failed")):
+            with self.assertRaisesRegex(Exception, "Database initialization failed"):
+                with TestClient(app):
+                    pass
 
     def test_read_root_unconfigured_credentials(self):
         # temporarily delete credentials if they exist

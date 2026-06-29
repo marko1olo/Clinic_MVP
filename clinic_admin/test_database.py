@@ -1,8 +1,8 @@
+from clinic_admin import database
 import unittest
 import sqlite3
 import os
 import tempfile
-import clinic_admin.database
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -10,14 +10,14 @@ class TestDatabase(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp()
 
         # Save the original DB_FILE
-        self.original_db_file = clinic_admin.database.DB_FILE
+        self.original_db_file = database.DB_FILE
 
         # Point the database to the temporary file
-        clinic_admin.database.DB_FILE = self.db_path
+        database.DB_FILE = self.db_path
 
     def tearDown(self):
         # Restore the original DB_FILE
-        clinic_admin.database.DB_FILE = self.original_db_file
+        database.DB_FILE = self.original_db_file
 
         # Close and remove the temporary file
         os.close(self.db_fd)
@@ -25,7 +25,7 @@ class TestDatabase(unittest.TestCase):
 
     def test_get_connection(self):
         # Call the function
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
 
         # Verify it returns a connection object
         self.assertIsInstance(conn, sqlite3.Connection)
@@ -37,10 +37,10 @@ class TestDatabase(unittest.TestCase):
 
     def test_init_db(self):
         # Initialize the database
-        clinic_admin.database.init_db()
+        database.init_db()
 
         # Connect to verify tables were created
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
         c = conn.cursor()
 
         # Check if patients table exists

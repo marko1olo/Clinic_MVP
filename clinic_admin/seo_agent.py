@@ -1,18 +1,26 @@
-import json
 import os
+import json
 import requests
 import random
 
 CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
 
+_cached_groq_keys = None
 
 def get_groq_api_key():
+    global _cached_groq_keys
+
+    if _cached_groq_keys is not None:
+        if _cached_groq_keys:
+            return random.choice(_cached_groq_keys)
+        return None
+
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = json.load(f)
-            keys = config.get("groq_api_keys", [])
-            if keys:
-                return random.choice(keys)
+            _cached_groq_keys = config.get("groq_api_keys", [])
+            if _cached_groq_keys:
+                return random.choice(_cached_groq_keys)
     except Exception as e:
         print(f"Error loading config: {e}")
     return None
@@ -23,7 +31,7 @@ def generate_seo_response(review_text: str) -> str:
     if not api_key:
         return "Ошибка: Не найден API ключ Groq в конфигурации."
 
-    clinic_phone = os.getenv("CLINIC_PHONE", "+7 (XXX) XXX-XX-XX")
+    clinic_phone = os.getenv("CLINIC_PHONE", "+7 (999) 000-00-00")
 
     system_prompt = f"""Ты — ведущий PR-менеджер и Senior SEO-оптимизатор стоматологической клиники "DENTE" (г. Самара). Твой опыт работы в маркетинге медицинских услуг — 10 лет. Твоя цель — писать безупречные, профессиональные ответы на отзывы пациентов для публикации на платформах Яндекс.Карты, 2ГИС и ПроДокторов.
 

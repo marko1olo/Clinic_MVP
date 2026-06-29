@@ -1075,8 +1075,14 @@ export function buildBillingSummary(): BillingSummary {
   const totalPaidRub = payments
     .filter((payment) => payment.status === "paid")
     .reduce((total, payment) => total + payment.amountRub, 0);
+  if (serviceCatalogMap.size !== serviceCatalog.length) {
+    serviceCatalogMap.clear();
+    for (const catalogItem of serviceCatalog) {
+      serviceCatalogMap.set(catalogItem.id, catalogItem);
+    }
+  }
   const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId);
     return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
   }, 0);
   const draftDocumentAmountRub = documents
@@ -6497,11 +6503,19 @@ function recallScheduledAt(item: TreatmentPlanItem): string {
 function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+
+  if (serviceCatalogMap.size !== serviceCatalog.length) {
+    serviceCatalogMap.clear();
+    for (const catalogItem of serviceCatalog) {
+      serviceCatalogMap.set(catalogItem.id, catalogItem);
+    }
+  }
+
   return treatmentPlanItems.flatMap((item) => {
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId);
     if (service?.category !== "hygiene") return [];
 
     const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");

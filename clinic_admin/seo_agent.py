@@ -1,8 +1,10 @@
 import json
+import os
 import requests
 import random
 
 CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
+
 
 def get_groq_api_key():
     try:
@@ -14,6 +16,7 @@ def get_groq_api_key():
     except Exception as e:
         print(f"Error loading config: {e}")
     return None
+
 
 def generate_seo_response(review_text: str) -> str:
     api_key = get_groq_api_key()
@@ -60,27 +63,30 @@ def generate_seo_response(review_text: str) -> str:
 Выдавай ТОЛЬКО готовый текст ответа, который администратор скопирует и вставит на сайт. Никаких пояснений, мета-комментариев или приветствий к администратору. Текст должен быть готов к копипасту на 100%.
 """
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
     payload = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Вот текст отзыва: \"{review_text}\"\n\nНапиши ответ."}
+            {
+                "role": "user",
+                "content": f'Вот текст отзыва: "{review_text}"\n\nНапиши ответ.',
+            },
         ],
         "temperature": 0.7,
-        "max_tokens": 512
+        "max_tokens": 512,
     }
 
     try:
-        response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=15)
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=15,
+        )
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
         return f"Ошибка генерации: {str(e)}"
-
-

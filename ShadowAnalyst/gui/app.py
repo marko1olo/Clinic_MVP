@@ -55,6 +55,47 @@ class LogInterceptor:
 sys.stdout = LogInterceptor(sys.stdout)
 sys.stderr = LogInterceptor(sys.stderr)
 
+DENTAL_PATH_CANDIDATES = [
+    # XVSensor / XspectVision
+    r"C:\Program Files (x86)\XspectVision\XVSensor\Image",
+    r"C:\Program Files\XspectVision\XVSensor\Image",
+    r"C:\XspectVision\XVSensor\Image",
+    r"C:\Program Files (x86)\XspectVision\Image",
+    r"C:\Program Files\XspectVision\Image",
+    r"C:\XspectVision\Image",
+    r"C:\Program Files (x86)\XVSensor\Image",
+    r"C:\XVSensor\Image",
+
+    # Romexis
+    r"C:\romexis_images",
+
+    # EZDent-i (Vatech)
+    r"C:\Program Files (x86)\VATECH\Common\FM\FMdata",
+    r"C:\VATECH\Common\FM\FMdata",
+
+    # VixWin
+    r"C:\VxImages",
+    r"C:\VixWin\VxImages",
+
+    # DEXIS
+    r"C:\DEXIS\Data\Images",
+    r"C:\DEXIS Imaging Suite\Data\Images",
+
+    # Sidexis
+    r"C:\Sidexis\PDATA",
+    r"C:\PDATA",
+    r"C:\ProgramData\Sirona\Sidexis\PDATA",
+
+    # Carestream / RVG
+    r"C:\ProgramData\Carestream\CSImaging\Database",
+
+    # Digora / CliniView
+    r"C:\CliniView\Images",
+    r"C:\Digora\Images",
+
+    # Owandy
+    r"C:\Owandy\QuickVision\Images"
+]
 
 # ─── SSH SOCKS5 Tunnel Manager ────────────────────────────────────────────────
 # При блокировке Groq API (РФ-фильтры) автоматически поднимает SOCKS5 прокси
@@ -1527,50 +1568,9 @@ class XRayHandler(FileSystemEventHandler):
 
 def auto_detect_dental_paths() -> list:
     detected = []
-    candidates = [
-        # XVSensor / XspectVision
-        r"C:\Program Files (x86)\XspectVision\XVSensor\Image",
-        r"C:\Program Files\XspectVision\XVSensor\Image",
-        r"C:\XspectVision\XVSensor\Image",
-        r"C:\Program Files (x86)\XspectVision\Image",
-        r"C:\Program Files\XspectVision\Image",
-        r"C:\XspectVision\Image",
-        r"C:\Program Files (x86)\XVSensor\Image",
-        r"C:\XVSensor\Image",
-        
-        # Romexis
-        r"C:\romexis_images",
-        
-        # EZDent-i (Vatech)
-        r"C:\Program Files (x86)\VATECH\Common\FM\FMdata",
-        r"C:\VATECH\Common\FM\FMdata",
-        
-        # VixWin
-        r"C:\VxImages",
-        r"C:\VixWin\VxImages",
-        
-        # DEXIS
-        r"C:\DEXIS\Data\Images",
-        r"C:\DEXIS Imaging Suite\Data\Images",
-        
-        # Sidexis
-        r"C:\Sidexis\PDATA",
-        r"C:\PDATA",
-        r"C:\ProgramData\Sirona\Sidexis\PDATA",
-        
-        # Carestream / RVG
-        r"C:\ProgramData\Carestream\CSImaging\Database",
-        
-        # Digora / CliniView
-        r"C:\CliniView\Images",
-        r"C:\Digora\Images",
-        
-        # Owandy
-        r"C:\Owandy\QuickVision\Images"
-    ]
     drives = ["C", "D", "E"]
     for drive in drives:
-        for c in candidates:
+        for c in DENTAL_PATH_CANDIDATES:
             if not c.startswith("C:"):
                 continue
             path = drive + c[1:]

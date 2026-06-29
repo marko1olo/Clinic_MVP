@@ -1458,13 +1458,57 @@ function buildPatientInsights(): PatientInsight[] {
     "completed_works_act"
   ];
 
+  const documentsByPatient = new Map<string, typeof documents>();
+  for (const doc of documents) {
+    if (doc.patientId === null) continue;
+    if (!documentsByPatient.has(doc.patientId)) documentsByPatient.set(doc.patientId, []);
+    documentsByPatient.get(doc.patientId)!.push(doc);
+  }
+
+  const tasksByPatient = new Map<string, typeof communicationTasks>();
+  for (const task of communicationTasks) {
+    if (isOpenCommunicationTask(task) && task.patientId !== null) {
+      if (!tasksByPatient.has(task.patientId)) tasksByPatient.set(task.patientId, []);
+      tasksByPatient.get(task.patientId)!.push(task);
+    }
+  }
+
+  const imagesByPatient = new Map<string, typeof imagingStudies>();
+  for (const image of imagingStudies) {
+    if (image.patientId === null) continue;
+    if (!imagesByPatient.has(image.patientId)) imagesByPatient.set(image.patientId, []);
+    imagesByPatient.get(image.patientId)!.push(image);
+  }
+
+  const paymentsByPatient = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    if (payment.status === "paid" && payment.patientId !== null) {
+      if (!paymentsByPatient.has(payment.patientId)) paymentsByPatient.set(payment.patientId, []);
+      paymentsByPatient.get(payment.patientId)!.push(payment);
+    }
+  }
+
+  const planItemsByPatient = new Map<string, typeof treatmentPlanItems>();
+  for (const item of treatmentPlanItems) {
+    if (item.patientId === null) continue;
+    if (!planItemsByPatient.has(item.patientId)) planItemsByPatient.set(item.patientId, []);
+    planItemsByPatient.get(item.patientId)!.push(item);
+  }
+
+  const appointmentsByPatient = new Map<string, typeof appointments>();
+  for (const appointment of appointments) {
+    if (appointment.patientId === null) continue;
+    if (!appointmentsByPatient.has(appointment.patientId)) appointmentsByPatient.set(appointment.patientId, []);
+    appointmentsByPatient.get(appointment.patientId)!.push(appointment);
+  }
+
   return patients.map((patient) => {
-    const patientDocuments = documents.filter((document) => document.patientId === patient.id);
-    const patientTasks = communicationTasks.filter((task) => task.patientId === patient.id && isOpenCommunicationTask(task));
-    const patientImages = imagingStudies.filter((study) => study.patientId === patient.id);
-    const patientPayments = payments.filter((payment) => payment.patientId === patient.id && payment.status === "paid");
-    const patientPlanItems = treatmentPlanItems.filter((item) => item.patientId === patient.id);
-    const patientAppointments = appointments.filter((appointment) => appointment.patientId === patient.id);
+    const patientDocuments = documentsByPatient.get(patient.id) || [];
+    const patientTasks = tasksByPatient.get(patient.id) || [];
+    const patientImages = imagesByPatient.get(patient.id) || [];
+    const patientPayments = paymentsByPatient.get(patient.id) || [];
+    const patientPlanItems = planItemsByPatient.get(patient.id) || [];
+    const patientAppointments = appointmentsByPatient.get(patient.id) || [];
     const draftVisit = activeVisit.patientId === patient.id && activeVisit.status === "draft";
     const missingDocumentKinds = requiredDocuments.filter(
       (kind) => !patientDocuments.some((document) => document.kind === kind && document.status !== "voided")

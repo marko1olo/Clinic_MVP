@@ -6683,13 +6683,16 @@ function taxApplicationSlaWarning(document: GeneratedDocument): string | null {
 function buildDenteTelegramTaxDocumentRequestItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+  const activePatientIds = new Set(
+    patients.filter((p) => p.status === "active").map((p) => p.id)
+  );
+
   return documents.flatMap((document) => {
     if (document.organizationId !== organizationScope) return [];
     if (document.kind !== "tax_deduction_application") return [];
     if (document.status !== "issued") return [];
     if (!document.payload?.taxDeductionApplication) return [];
-    const patient = patients.find((candidate) => candidate.id === document.patientId && candidate.status === "active");
-    if (!patient) return [];
+    if (!activePatientIds.has(document.patientId)) return [];
 
     const itemId = taxDocumentRequestOutboxId(document);
     if (taxDocumentRequestAlreadySent(itemId)) return [];

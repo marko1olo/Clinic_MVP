@@ -138,6 +138,46 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+    def test_insert_patient(self):
+        from clinic_admin.main import insert_patient
+        from clinic_admin.database import get_connection
+
+        # Call insert_patient
+        insert_patient("John Doe", "555-1234")
+
+        # Verify in database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = 'John Doe'")
+        patient = c.fetchone()
+
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["name"], "John Doe")
+        self.assertEqual(patient["phone"], "555-1234")
+        self.assertIsNotNone(patient["created_at"])
+
+        conn.close()
+
+    def test_insert_patient_null_phone(self):
+        from clinic_admin.main import insert_patient
+        from clinic_admin.database import get_connection
+
+        # Call insert_patient with None phone
+        insert_patient("Jane Doe", None)
+
+        # Verify in database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = 'Jane Doe'")
+        patient = c.fetchone()
+
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["name"], "Jane Doe")
+        self.assertIsNone(patient["phone"])
+        self.assertIsNotNone(patient["created_at"])
+
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

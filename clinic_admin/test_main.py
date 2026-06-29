@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+from unittest.mock import patch
+from fastapi import HTTPException
 import tempfile
 from fastapi.testclient import TestClient
 
@@ -137,6 +139,40 @@ class TestMain(unittest.TestCase):
         self.assertEqual(appointment["appointment_date"], "2023-10-27T10:00")
 
         conn.close()
+
+
+
+class TestGetExpectedCredentials(unittest.TestCase):
+    @patch.dict(os.environ, {"ADMIN_USERNAME": "testuser", "ADMIN_PASSWORD": "testpassword"}, clear=True)
+    def test_both_set(self):
+        from clinic_admin.main import _get_expected_credentials
+        username, password = _get_expected_credentials()
+        self.assertEqual(username, "testuser")
+        self.assertEqual(password, "testpassword")
+
+    @patch.dict(os.environ, {"ADMIN_PASSWORD": "testpassword"}, clear=True)
+    def test_missing_username(self):
+        from clinic_admin.main import _get_expected_credentials
+        with self.assertRaises(HTTPException) as cm:
+            _get_expected_credentials()
+        self.assertEqual(cm.exception.status_code, 500)
+        self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
+
+    @patch.dict(os.environ, {"ADMIN_USERNAME": "testuser"}, clear=True)
+    def test_missing_password(self):
+        from clinic_admin.main import _get_expected_credentials
+        with self.assertRaises(HTTPException) as cm:
+            _get_expected_credentials()
+        self.assertEqual(cm.exception.status_code, 500)
+        self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_missing_both(self):
+        from clinic_admin.main import _get_expected_credentials
+        with self.assertRaises(HTTPException) as cm:
+            _get_expected_credentials()
+        self.assertEqual(cm.exception.status_code, 500)
+        self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
 
 if __name__ == '__main__':
     unittest.main()

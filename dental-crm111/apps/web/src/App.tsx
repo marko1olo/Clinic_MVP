@@ -2494,7 +2494,7 @@ export function App() {
                   </label>
                   <div className="weekday-toggle-row form-span-2" role="group" aria-label="Рабочие дни клиники">
                     <span>Рабочие дни</span>
-                    {weekdayOptions.map((day: any) => (
+                    {weekdayOptions.map((day) => (
                       <button
                         className={clinicProfileDraft.workingDays.includes(day.value) ? "active" : ""}
                         key={day.value}
@@ -2681,7 +2681,7 @@ export function App() {
                                   />
                                 </label>
                                 <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни сотрудника: ${member.fullName}`}>
-                                  {weekdayOptions.map((day: any) => (
+                                  {weekdayOptions.map((day) => (
                                     <button
                                       className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                       key={day.value}
@@ -2757,7 +2757,7 @@ export function App() {
                                   />
                                 </label>
                                 <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни кресла: ${chair.name}`}>
-                                  {weekdayOptions.map((day: any) => (
+                                  {weekdayOptions.map((day) => (
                                     <button
                                       className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                       key={day.value}

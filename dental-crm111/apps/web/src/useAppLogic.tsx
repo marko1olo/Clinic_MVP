@@ -2694,7 +2694,7 @@ const {
       const nextWorkingDays = normalizeWorkingDaysDraft(patch.workingDays ?? base.workingDays);
       const nextStart = patch.start ?? base.start;
       const nextEnd = patch.end ?? base.end;
-      const perDay = base.perDay.map((day: any) => ({
+      const perDay = base.perDay.map((day) => ({
         ...day,
         enabled: nextWorkingDays.includes(day.weekday),
         start: patch.start && nextWorkingDays.includes(day.weekday) ? nextStart : day.start,
@@ -2721,7 +2721,7 @@ const {
       const nextWorkingDays = normalizeWorkingDaysDraft(patch.workingDays ?? base.workingDays);
       const nextStart = patch.start ?? base.start;
       const nextEnd = patch.end ?? base.end;
-      const perDay = base.perDay.map((day: any) => ({
+      const perDay = base.perDay.map((day) => ({
         ...day,
         enabled: nextWorkingDays.includes(day.weekday),
         start: patch.start && nextWorkingDays.includes(day.weekday) ? nextStart : day.start,
@@ -2765,7 +2765,7 @@ const {
         ...current,
         [staffId]: {
           ...base,
-          perDay: base.perDay.map((day: any) => (day.weekday === weekday ? { ...day, ...patch } : day))
+          perDay: base.perDay.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day))
         }
       };
     });
@@ -2779,7 +2779,7 @@ const {
         ...current,
         [chairId]: {
           ...base,
-          perDay: base.perDay.map((day: any) => (day.weekday === weekday ? { ...day, ...patch } : day))
+          perDay: base.perDay.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day))
         }
       };
     });

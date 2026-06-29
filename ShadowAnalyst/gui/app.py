@@ -987,29 +987,7 @@ def _parse_final_output(final_output, first_report):
 
     return report_text, summary_text
 
-def run_ai_analysis(file_path, patient_info=None):
-    image_b64 = prepare_image(file_path)
-    if not image_b64:
-        return "Ошибка обработки картинки.", "Снимок не обработан."
-
-    if not check_internet_connection(timeout=1.5):
-        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
-
-    system_prompt = _load_prompt("dentalimage.md", "Опиши снимок зубов.")
-    model_tier = config.get("model_tier", 2)
-    models_with_providers = _get_models_for_tier(model_tier)
-
-    first_report, first_model_idx, last_err = _execute_ai_cascade(
-        models=models_with_providers,
-        prompt=system_prompt,
-        image_b64=image_b64,
-        min_len=80,
-        pass_name="AI Pass 1"
-    )
-
-    if not first_report or "Сбой" in first_report:
-        return first_report or f"Сбой: все ключи и модели исчерпаны. Последняя ошибка: {last_err}", "Сбой анализа."
-
+def _run_critic_pass(first_report, image_b64, model_tier, models_with_providers, first_model_idx):
     default_critic = (
         "Ты — главный рентгенолог-редактор. Проверь черновой отчёт по снимку, исправь ошибки, "
         "удали иероглифы, улучши стиль. Ответ строго в тегах:\n"
@@ -1037,6 +1015,38 @@ def run_ai_analysis(file_path, patient_info=None):
         min_len=100,
         pass_name="AI Pass 2",
         extra_messages=extra_messages
+    )
+    return final_output
+
+def run_ai_analysis(file_path, patient_info=None):
+    image_b64 = prepare_image(file_path)
+    if not image_b64:
+        return "Ошибка обработки картинки.", "Снимок не обработан."
+
+    if not check_internet_connection(timeout=1.5):
+        return "Сбой сети: Отсутствует подключение к интернету. Проверьте кабель или Wi-Fi.", "Сбой анализа."
+
+    system_prompt = _load_prompt("dentalimage.md", "Опиши снимок зубов.")
+    model_tier = config.get("model_tier", 2)
+    models_with_providers = _get_models_for_tier(model_tier)
+
+    first_report, first_model_idx, last_err = _execute_ai_cascade(
+        models=models_with_providers,
+        prompt=system_prompt,
+        image_b64=image_b64,
+        min_len=80,
+        pass_name="AI Pass 1"
+    )
+
+    if not first_report or "Сбой" in first_report:
+        return first_report or f"Сбой: все ключи и модели исчерпаны. Последняя ошибка: {last_err}", "Сбой анализа."
+
+    final_output = _run_critic_pass(
+        first_report=first_report,
+        image_b64=image_b64,
+        model_tier=model_tier,
+        models_with_providers=models_with_providers,
+        first_model_idx=first_model_idx
     )
 
     if not final_output:

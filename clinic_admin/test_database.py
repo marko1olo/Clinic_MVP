@@ -1,3 +1,4 @@
+import clinic_admin.database
 import unittest
 from unittest.mock import patch
 import sqlite3
@@ -83,6 +84,13 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         conn.close()
+
+
+    @patch('clinic_admin.database.sqlite3.connect')
+    def test_get_connection_permission_error(self, mock_connect):
+        mock_connect.side_effect = sqlite3.OperationalError("unable to open database file")
+        with self.assertRaises(sqlite3.OperationalError):
+            clinic_admin.database.get_connection()
 
 if __name__ == '__main__':
     unittest.main()

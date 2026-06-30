@@ -347,6 +347,38 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_success(self, mock_client_class):
+        mock_client_instance = MagicMock()
+        mock_client_class.return_value = mock_client_instance
+
+        watcher.publish_result("test_file.jpg", "Test findings")
+
+        mock_client_class.assert_called_once()
+        mock_client_instance.connect.assert_called_once()
+        mock_client_instance.publish.assert_called_once()
+        mock_client_instance.disconnect.assert_called_once()
+
+    @patch('builtins.print')
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_exception(self, mock_client_class, mock_print):
+        mock_client_instance = MagicMock()
+        # Make connect raise an Exception
+        mock_client_instance.connect.side_effect = Exception("Connection refused")
+        mock_client_class.return_value = mock_client_instance
+
+        # Call the function, exception should be caught and printed
+        watcher.publish_result("test_file.jpg", "Test findings")
+
+        # Verify the exception path was followed
+        mock_client_class.assert_called_once()
+        mock_client_instance.connect.assert_called_once()
+        mock_client_instance.publish.assert_not_called()
+
+        # Check that error was printed
+        mock_print.assert_any_call("Ошибка отправки MQTT: Connection refused")
+
 if __name__ == '__main__':
     unittest.main()
 

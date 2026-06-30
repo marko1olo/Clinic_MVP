@@ -3,10 +3,10 @@ import { PaymentRefundCorrectionAction, PaymentRefundCorrectionMethod } from "..
 export type MedicalDocumentReleaseChannel = "paper" | "pdf" | "dicom_archive" | "secure_link" | "physical_media" | "other";
 import { PaymentMethod, DocumentIssueSignatureMode, DocumentVoidReasonCode, DocumentAuditFacts, DocumentIngestionTarget, DocumentIngestionResponse, GeneratedDocument, TreatmentPlanAcceptanceVariant, PostVisitCareTopic, PhotoVideoConsentMaterial, XrayCbctReferralStudyType, XrayCbctReferralPregnancyStatus, XrayCbctReferralPriority, TaxDeductionApplicationForm, TaxDeductionApplicationDeliveryChannel, TaxDeductionApplicationRelationship, PatientIntakePregnancyStatus, ProcedureSpecificConsentProcedure } from "@dental/shared";
 import { dateInputValuePlusDays, currentLocalDateTimeInputValue } from "../AppHelpers";
-import { defaultClinicalToothRowsText, toDateTimeLocalValue, loadUiPreferences } from "../AppHelpers";
+import { defaultClinicalToothRowsText, toDateTimeLocalValue, loadUiPreferences, defaultUiPreferences } from "../AppHelpers";
 import { postVisitCarePresets } from "../postVisitCareData";
 
-const initialUiPreferences = loadUiPreferences();
+const initialUiPreferences = loadUiPreferences() ?? defaultUiPreferences;
 
 export interface DocumentState {
   paymentAmount: string;

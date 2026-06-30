@@ -1,6 +1,7 @@
 
 import { create } from "zustand";
-import { loadUiPreferences, defaultImagingViewerState, initialUiPreferences, defaultDicomFirstFrameViewerState } from "../AppHelpers";
+import { loadUiPreferences, defaultUiPreferences, defaultImagingViewerState, defaultDicomFirstFrameViewerState } from "../AppHelpers";
+const initialUiPreferences = loadUiPreferences() ?? defaultUiPreferences;
 import type { ImagingViewerSessionResponse, 
   ImagingSourceKind, LocalImagingFolderDraft, BrowserPickedImagingFolderPreview, BrowserImagingScanProgress,
   ImagingImportPreviewResponse, ImagingImportCommitResponse, ImagingFolderScanResponse, DicomLocalFolderDiscoveryResponse,

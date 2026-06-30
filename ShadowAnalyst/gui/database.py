@@ -2,33 +2,32 @@ import os
 import sys
 import sqlite3
 
+from pathlib import Path
+
 def find_project_root():
     start_dirs = []
     if getattr(sys, 'frozen', False):
-        start_dirs.append(os.path.dirname(sys.executable))
+        start_dirs.append(Path(sys.executable).parent)
     else:
-        start_dirs.append(os.path.dirname(os.path.abspath(__file__)))
-    start_dirs.append(os.getcwd())
+        start_dirs.append(Path(__file__).resolve().parent)
+    start_dirs.append(Path.cwd())
     
     for start_dir in start_dirs:
-        current = os.path.abspath(start_dir)
-        while True:
-            if os.path.exists(os.path.join(current, "config.json")):
-                return current
-            parent = os.path.dirname(current)
-            if parent == current:
-                break
-            current = parent
-            
-    # Fallback
-    main_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-    current = os.path.abspath(main_dir)
+        # Search for config.json traversing upwards
+        for parent in [start_dir, *start_dir.parents]:
+            if (parent / "config.json").exists():
+                return str(parent)
+
+    # Fallback logic equivalent to the original
+    main_dir = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
+    current = main_dir
     for _ in range(5):
-        if os.path.basename(current).lower() in ["dist", "gui", "shadowanalyst"]:
-            current = os.path.dirname(current)
+        if current.name.lower() in ["dist", "gui", "shadowanalyst"]:
+            current = current.parent
         else:
             break
-    return current
+
+    return str(current)
 
 PROJECT_ROOT = find_project_root()
 

@@ -177,7 +177,7 @@ const initialSettingsState: SettingsState = {
   telegramTokenTtlDraft: "15",
   telegramReminderLeadTimesDraft: "24",
   telegramReviewRequestDelayDraft: "2",
-  telegramPostVisitCheckupDelayDrafts: defaultTelegramPostVisitCheckupDelayDrafts,
+  telegramPostVisitCheckupDelayDrafts: { ...defaultTelegramPostVisitCheckupDelayDrafts },
   telegramAllowVoiceIntakeDraft: false,
   telegramStaffEscalationChannelDraft: "",
   telegramPrivacyModeDraft: "no_phi_by_default",

@@ -1,6 +1,12 @@
-🧹 [code health] Remove unused `get_scan_by_id` function
+Title: 🧪 Add edge case tests for SSH utility
 
-🎯 What: Removed the `get_scan_by_id` function from `ShadowAnalyst/gui/database.py`.
-💡 Why: The function was identified as unused dead code and its removal improves maintainability and readability of the codebase by eliminating unneeded code paths.
-✅ Verification: Confirmed via search that the function is not referenced anywhere else in the codebase and executed python test script to ensure that the module can still be imported successfully.
-✨ Result: Reduced dead code, improving overall code health without affecting functionality.
+🎯 **What:**
+Added missing test coverage for the `ssh` function located in `utils.py`. The new tests focus on the unhandled edge cases including command timeout behaviors and decoding anomalies when reading from standard output and error streams.
+
+📊 **Coverage:**
+- Added `test_ssh_timeout`: Ensures the `timeout` argument correctly forwards to `client.exec_command`.
+- Added `test_ssh_decode_error`: Validates that invalid UTF-8 byte sequences in `stdout` and `stderr` are safely decoded using `errors='replace'` without crashing the application.
+- Added `test_ssh_long_command_and_custom_desc`: Verifies that logging properly truncates very long commands or accurately uses custom descriptions provided through the `desc` argument.
+
+✨ **Result:**
+Test coverage of the `ssh` utility has been substantially improved, bringing confidence that unexpected byte streams or edge-case execution times are appropriately handled. All tests pass with no regressions introduced in dependent scripts like `test_setup_backups.py`.

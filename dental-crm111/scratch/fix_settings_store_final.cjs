@@ -16,21 +16,34 @@ storeCode = storeCode.replace(/initialUiPreferences\./g, '(loadUiPreferences() ?
 
 // 4. Fix type imports. Types need `type` keyword or just imported normally, but TypeScript might complain if it's imported normally but only exported as type.
 // I will just use `type` for all of them.
-storeCode = storeCode.replace(
-  'TelegramFeaturePlan,', 'type TelegramFeaturePlan,'
-).replace(
-  'TelegramOutboxStatusFilter,', 'type TelegramOutboxStatusFilter,'
-).replace(
-  'TelegramOutboxTemplateFilter,', 'type TelegramOutboxTemplateFilter,'
-).replace(
-  'TelegramLinkSubjectType,', 'type TelegramLinkSubjectType,'
-).replace(
-  'TelegramPostVisitCheckupDelayDrafts,', 'type TelegramPostVisitCheckupDelayDrafts,'
-).replace(
-  'DenteTelegramHandoffTarget,', 'type DenteTelegramHandoffTarget,'
-).replace(
-  'OnboardingStep,', 'type OnboardingStep,'
-);
+const typesToAdd = [
+  'TelegramFeaturePlan',
+  'TelegramOutboxStatusFilter',
+  'TelegramOutboxTemplateFilter',
+  'TelegramLinkSubjectType',
+  'TelegramPostVisitCheckupDelayDrafts',
+  'DenteTelegramHandoffTarget',
+  'OnboardingStep',
+  // @dental/shared types
+  'DenteTelegramBotStatus',
+  'DenteTelegramOutboxResponse',
+  'DenteTelegramLinkCodePublic',
+  'DenteTelegramChatLinkPublic',
+  'DenteTelegramLinkCodeListResponse',
+  'DenteTelegramChatLinkListResponse',
+  'DenteTelegramLinkCodeCreated',
+  'DenteTelegramMessagePreview',
+  'DenteTelegramBotMode',
+  'DenteTelegramVisualCardUrls',
+  'DenteTelegramFeature',
+  'DenteTelegramPrivacyMode'
+];
+
+typesToAdd.forEach(type => {
+  // Use regex to add 'type ' only if it's not already preceded by 'type '
+  const regex = new RegExp(`(?<!type\\s+)\\b${type}\\b,`, 'g');
+  storeCode = storeCode.replace(regex, `type ${type},`);
+});
 
 // 5. Fix emptyTelegramVisualCardUrlDrafts and defaultTelegramPostVisitCheckupDelayDrafts calls in the object
 storeCode = storeCode.replace(/telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts,/g, 'telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts(),');

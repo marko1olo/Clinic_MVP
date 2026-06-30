@@ -11,22 +11,22 @@ import {
 
 import { 
    
-  DenteTelegramBotStatus, 
+  type DenteTelegramBotStatus,
   
-  DenteTelegramOutboxResponse,
+  type DenteTelegramOutboxResponse,
   
   
-  DenteTelegramLinkCodePublic,
-  DenteTelegramChatLinkPublic,
-  DenteTelegramLinkCodeListResponse,
-  DenteTelegramChatLinkListResponse,
+  type DenteTelegramLinkCodePublic,
+  type DenteTelegramChatLinkPublic,
+  type DenteTelegramLinkCodeListResponse,
+  type DenteTelegramChatLinkListResponse,
   
-  DenteTelegramLinkCodeCreated,
-  DenteTelegramMessagePreview,
-  DenteTelegramBotMode,
-  DenteTelegramVisualCardUrls,
-  DenteTelegramFeature,
-  DenteTelegramPrivacyMode,
+  type DenteTelegramLinkCodeCreated,
+  type DenteTelegramMessagePreview,
+  type DenteTelegramBotMode,
+  type DenteTelegramVisualCardUrls,
+  type DenteTelegramFeature,
+  type DenteTelegramPrivacyMode,
   
 } from "@dental/shared";
 

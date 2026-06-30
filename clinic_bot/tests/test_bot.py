@@ -87,5 +87,56 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         self.assertIn('doctor', message.answer.call_args[0][0])
 
 
-if __name__ == '__main__':
+
+class TestBotBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_success(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = [111, 222]
+        mock_bot.send_message = AsyncMock()
+
+        from bot import broadcast
+        await broadcast("Test message", role="admin")
+
+        mock_db.get_users_by_role.assert_called_once_with("admin")
+        self.assertEqual(mock_bot.send_message.call_count, 2)
+        mock_bot.send_message.assert_any_call(111, "Test message", parse_mode="Markdown")
+        mock_bot.send_message.assert_any_call(222, "Test message", parse_mode="Markdown")
+
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_no_users(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = []
+        mock_bot.send_message = AsyncMock()
+
+        from bot import broadcast
+        with self.assertLogs('bot', level='WARNING') as log_capture:
+            await broadcast("Test message", role="doctor")
+
+        mock_db.get_users_by_role.assert_called_once_with("doctor")
+        mock_bot.send_message.assert_not_called()
+        self.assertTrue(any("No registered doctors to send to." in log_msg for log_msg in log_capture.output))
+
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_exception(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = [111, 222]
+
+        # AsyncMock's side_effect allows it to raise an exception or return a result for async functions
+        async def side_effect_func(chat_id, *args, **kwargs):
+            if chat_id == 111:
+                raise Exception("Failed")
+            return None
+        mock_bot.send_message.side_effect = side_effect_func
+
+        from bot import broadcast
+        with self.assertLogs('bot', level='ERROR') as log_capture:
+            await broadcast("Test message", role="admin")
+
+        mock_db.get_users_by_role.assert_called_once_with("admin")
+        self.assertEqual(mock_bot.send_message.call_count, 2)
+        self.assertTrue(any("Failed to send to 111: Failed" in log_msg for log_msg in log_capture.output))
+
+
+if __name__ == "__main__":
     unittest.main()

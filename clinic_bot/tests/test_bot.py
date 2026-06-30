@@ -22,7 +22,7 @@ class TestBotMqtt(unittest.TestCase):
         # simulating a catastrophic failure when reading the message payload.
         msg.payload.decode.side_effect = Exception("Simulated decode error")
 
-        with self.assertLogs('bot', level='ERROR') as log_capture:
+        with self.assertLogs(level='ERROR') as log_capture:
             # This would raise an exception if not properly caught
             on_mqtt_message(client, userdata, msg)
 
@@ -86,6 +86,61 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
 
+
+
+class TestBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_happy_path(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = [111, 222]
+        mock_bot.send_message = AsyncMock()
+
+        from bot import broadcast
+        await broadcast("Test message", role='admin')
+
+        mock_db.get_users_by_role.assert_called_once_with('admin')
+        self.assertEqual(mock_bot.send_message.call_count, 2)
+
+        # Check calls without asserting strict kwargs
+        calls = mock_bot.send_message.call_args_list
+        self.assertEqual(calls[0][0][0], 111)
+        self.assertEqual(calls[0][0][1], "Test message")
+        self.assertEqual(calls[1][0][0], 222)
+        self.assertEqual(calls[1][0][1], "Test message")
+
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_no_users(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = []
+        mock_bot.send_message = AsyncMock()
+
+        from bot import broadcast
+        with self.assertLogs(level='WARNING') as log_capture:
+            await broadcast("Test message", role='doctor')
+
+        mock_db.get_users_by_role.assert_called_once_with('doctor')
+        mock_bot.send_message.assert_not_called()
+        self.assertTrue(any("registered doctors to send to" in log_msg for log_msg in log_capture.output))
+
+    @patch('bot.db')
+    @patch('bot.bot')
+    async def test_broadcast_partial_failure(self, mock_bot, mock_db):
+        mock_db.get_users_by_role.return_value = [111, 222, 333]
+
+        async def side_effect(chat_id, *args, **kwargs):
+            if chat_id == 222:
+                raise Exception("Network error")
+            return MagicMock()
+
+        mock_bot.send_message = AsyncMock(side_effect=side_effect)
+
+        from bot import broadcast
+        with self.assertLogs(level='ERROR') as log_capture:
+            await broadcast("Test message", role='admin')
+
+        mock_db.get_users_by_role.assert_called_once_with('admin')
+        self.assertEqual(mock_bot.send_message.call_count, 3)
+        self.assertTrue(any("Network error" in log_msg for log_msg in log_capture.output))
 
 if __name__ == '__main__':
     unittest.main()

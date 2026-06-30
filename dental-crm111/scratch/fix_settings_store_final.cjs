@@ -34,7 +34,7 @@ storeCode = storeCode.replace(
 
 // 5. Fix emptyTelegramVisualCardUrlDrafts and defaultTelegramPostVisitCheckupDelayDrafts calls in the object
 storeCode = storeCode.replace(/telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts,/g, 'telegramVisualCardUrlDrafts: emptyTelegramVisualCardUrlDrafts(),');
-// For defaultTelegramPostVisitCheckupDelayDrafts it's an object exported from AppHelpers, keep it as is, just imported.
+storeCode = storeCode.replace(/telegramPostVisitCheckupDelayDrafts: defaultTelegramPostVisitCheckupDelayDrafts,/g, 'telegramPostVisitCheckupDelayDrafts: { ...defaultTelegramPostVisitCheckupDelayDrafts },');
 
 // 6. Fix currentView and settingsTab usages (they were inside a lambda)
 // The initial state had `onboardingGuideExpanded: currentView === "settings" && settingsTab === "clinic"`

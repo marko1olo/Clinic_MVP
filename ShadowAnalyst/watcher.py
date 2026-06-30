@@ -98,6 +98,52 @@ def make_groq_client(api_key: str) -> OpenAI:
 def make_gemini_client(api_key: str) -> OpenAI:
     return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
 
+def _call_ai_model(client: OpenAI, model_name: str, image_b64: str) -> str | None:
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": SYSTEM_PROMPT},
+                    {"type": "image_url", "image_url": {"url": image_b64}}
+                ]
+            }
+        ]
+    )
+    if response.choices and len(response.choices) > 0:
+        val = response.choices[0].message.content
+        if val:
+            import re
+            return re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+    return None
+
+def _try_provider_keys(model_name: str, provider: str, image_b64: str) -> tuple[str, Exception | str | None]:
+    if provider == "gemini":
+        keys = GOOGLE_API_KEYS.copy()
+        client_maker = make_gemini_client
+    else:
+        keys = GROQ_API_KEYS.copy()
+        client_maker = make_groq_client
+
+    random.shuffle(keys)
+    last_err = "Нет доступных ключей"
+
+    for api_key in keys:
+        if not api_key:
+            continue
+        try:
+            client = client_maker(api_key)
+            report = _call_ai_model(client, model_name, image_b64)
+            if report:
+                return report, None
+        except Exception as e:
+            print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
+            last_err = e
+            continue
+
+    return "", last_err
+
 def analyze_image(file_path):
     """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
     image_b64 = prepare_image(file_path)
@@ -116,46 +162,12 @@ def analyze_image(file_path):
     last_err = "Нет доступных ключей"
     
     for model_name, provider in models_with_providers:
-        if provider == "gemini":
-            keys = GOOGLE_API_KEYS.copy()
-            client_maker = make_gemini_client
-        else:
-            keys = GROQ_API_KEYS.copy()
-            client_maker = make_groq_client
-
-        random.shuffle(keys)
-        success = False
-        
-        for api_key in keys:
-            if not api_key:
-                continue
-            try:
-                client = client_maker(api_key)
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": SYSTEM_PROMPT},
-                                {"type": "image_url", "image_url": {"url": image_b64}}
-                            ]
-                        }
-                    ]
-                )
-                if response.choices and len(response.choices) > 0:
-                    val = response.choices[0].message.content
-                    if val:
-                        import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
-                        success = True
-                        break
-            except Exception as e:
-                print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
-                last_err = e
-                continue
-        if success:
+        report, err = _try_provider_keys(model_name, provider, image_b64)
+        if report:
+            first_report = report
             break
+        if err:
+            last_err = err
 
     if not first_report:
         return None, f"Сбой ИИ-анализа: все ключи исчерпаны. Ошибка: {last_err}"

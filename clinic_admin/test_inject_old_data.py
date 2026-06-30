@@ -1,5 +1,6 @@
 import unittest
 import os
+import clinic_admin.database
 import tempfile
 import clinic_admin.inject_old_data
 

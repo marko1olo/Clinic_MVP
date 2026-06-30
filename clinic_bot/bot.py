@@ -108,10 +108,33 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
     max_len = 4000
     report_chunks = [report_text[i:i+max_len] for i in range(0, len(report_text), max_len)]
 
+    first_user = users[0]
+    rest_users = users[1:]
+
+    file_id = None
+    try:
+        input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
+        msg = await bot.send_photo(first_user, photo=input_file, caption=caption, parse_mode="Markdown")
+        if msg.photo:
+            file_id = msg.photo[-1].file_id
+
+        # Send the rest as text sequentially to preserve correct ordering
+        for chunk in report_chunks:
+            await bot.send_message(first_user, text=chunk)
+    except Exception as e:
+        log.error(f"Failed to send photo to first user {first_user}: {e}")
+
+    if not rest_users:
+        return
+
     async def _send_to_user(chat_id):
         try:
-            input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
-            await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
+            # Reuse file_id if available to skip re-uploading bytes
+            if file_id:
+                await bot.send_photo(chat_id, photo=file_id, caption=caption, parse_mode="Markdown")
+            else:
+                input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
+                await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
             
             # Send the rest as text sequentially to preserve correct ordering
             for chunk in report_chunks:
@@ -119,7 +142,8 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
         except Exception as e:
             log.error(f"Failed to send photo to {chat_id}: {e}")
 
-    await asyncio.gather(*(_send_to_user(chat_id) for chat_id in users))
+    await asyncio.gather(*(_send_to_user(chat_id) for chat_id in rest_users))
+
 
 def handle_xray_result(topic, payload, loop):
     image_b64 = payload.get('image_b64')

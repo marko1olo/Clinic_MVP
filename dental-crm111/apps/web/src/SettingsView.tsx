@@ -2405,7 +2405,7 @@ export function SettingsView(props: SettingsViewProps) {
                           </div>
                           <div className="staff-day-hours" aria-label={`Часы по дням: ${member.fullName}`}>
                             {typedWeekdayOptions
-                              .filter((day) => scheduleDraft.workingDays.includes(day.value))
+                              .filter((day: any) => scheduleDraft.workingDays.includes(day.value))
                               .map((day: any) => {
                                 const dayHours = scheduleDraft.perDay[day.value];
                                 return (
@@ -2556,7 +2556,7 @@ export function SettingsView(props: SettingsViewProps) {
                           </div>
                           <div className="staff-day-hours" aria-label={`Часы по дням кресла: ${chair.name}`}>
                             {typedWeekdayOptions
-                              .filter((day) => scheduleDraft.workingDays.includes(day.value))
+                              .filter((day: any) => scheduleDraft.workingDays.includes(day.value))
                               .map((day: any) => {
                                 const dayHours = scheduleDraft.perDay[day.value];
                                 return (

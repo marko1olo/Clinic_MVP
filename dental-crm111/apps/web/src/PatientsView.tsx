@@ -450,7 +450,7 @@ export function PatientsView(props: PatientsViewProps) {
                 <div className="form-span-2 patient-appointment-preferences">
                   <span>Удобные дни записи</span>
                   <div className="weekday-toggle-row" role="group" aria-label="Удобные дни записи пациента">
-                    {weekdayOptions.map((day) => {
+                    {weekdayOptions.map((day: any) => {
                       const weekdaySelected = patientAdministrativeProfileDraft.preferredAppointmentWeekdays.includes(day.value);
                       return (
                         <button

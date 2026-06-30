@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, broadcast
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -22,7 +22,7 @@ class TestBotMqtt(unittest.TestCase):
         # simulating a catastrophic failure when reading the message payload.
         msg.payload.decode.side_effect = Exception("Simulated decode error")
 
-        with self.assertLogs('bot', level='ERROR') as log_capture:
+        with self.assertLogs(None, level='ERROR') as log_capture:
             # This would raise an exception if not properly caught
             on_mqtt_message(client, userdata, msg)
 
@@ -86,6 +86,51 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
 
+
+
+class TestBotBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.bot')
+    @patch('bot.db')
+    async def test_broadcast_success(self, mock_db, mock_bot):
+        mock_db.get_users_by_role.return_value = [123, 456]
+        mock_bot.send_message = AsyncMock()
+
+        await broadcast("Test message", role="admin")
+
+        mock_db.get_users_by_role.assert_called_once_with("admin")
+        self.assertEqual(mock_bot.send_message.call_count, 2)
+
+        calls = mock_bot.send_message.call_args_list
+        self.assertEqual(calls[0][0][0], 123)
+        self.assertEqual(calls[0][0][1], "Test message")
+        self.assertEqual(calls[1][0][0], 456)
+        self.assertEqual(calls[1][0][1], "Test message")
+
+    @patch('bot.bot')
+    @patch('bot.db')
+    async def test_broadcast_no_users(self, mock_db, mock_bot):
+        mock_db.get_users_by_role.return_value = []
+        mock_bot.send_message = AsyncMock()
+
+        with self.assertLogs(level='WARNING') as log_capture:
+            await broadcast("Test message", role="admin")
+
+        mock_db.get_users_by_role.assert_called_once_with("admin")
+        mock_bot.send_message.assert_not_called()
+        self.assertTrue(any("admin" in log_msg for log_msg in log_capture.output))
+
+    @patch('bot.bot')
+    @patch('bot.db')
+    async def test_broadcast_exception_logging(self, mock_db, mock_bot):
+        mock_db.get_users_by_role.return_value = [123]
+        mock_bot.send_message = AsyncMock(side_effect=Exception("Failed to send"))
+
+        with self.assertLogs(level='ERROR') as log_capture:
+            await broadcast("Test message", role="admin")
+
+        mock_db.get_users_by_role.assert_called_once_with("admin")
+        self.assertEqual(mock_bot.send_message.call_count, 1)
+        self.assertTrue(any("123" in log_msg for log_msg in log_capture.output))
 
 if __name__ == '__main__':
     unittest.main()

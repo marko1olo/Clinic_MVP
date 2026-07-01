@@ -347,6 +347,69 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_success_with_auth(self, mock_mqtt_client_class):
+        mock_client = MagicMock()
+        mock_mqtt_client_class.return_value = mock_client
+
+        with patch('ShadowAnalyst.watcher.MQTT_USER', 'test_user'), \
+             patch('ShadowAnalyst.watcher.MQTT_PASS', 'test_pass'), \
+             patch('ShadowAnalyst.watcher.MQTT_HOST', 'localhost'), \
+             patch('ShadowAnalyst.watcher.MQTT_PORT', 1883), \
+             patch('ShadowAnalyst.watcher.TOPIC_XRAY_RESULT', 'test/topic'):
+
+            watcher.publish_result("test_file.jpg", "No findings")
+
+        mock_mqtt_client_class.assert_called_once()
+        mock_client.username_pw_set.assert_called_once_with('test_user', 'test_pass')
+        mock_client.connect.assert_called_once_with('localhost', 1883, 5)
+
+        # Verify publish was called with correctly formed JSON payload
+        import json
+        expected_payload = json.dumps({"file": "test_file.jpg", "findings": "No findings"}, ensure_ascii=False)
+        mock_client.publish.assert_called_once_with('test/topic', expected_payload)
+        mock_client.disconnect.assert_called_once()
+
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_success_no_auth(self, mock_mqtt_client_class):
+        mock_client = MagicMock()
+        mock_mqtt_client_class.return_value = mock_client
+
+        with patch('ShadowAnalyst.watcher.MQTT_USER', ''), \
+             patch('ShadowAnalyst.watcher.MQTT_PASS', ''), \
+             patch('ShadowAnalyst.watcher.MQTT_HOST', 'localhost'), \
+             patch('ShadowAnalyst.watcher.MQTT_PORT', 1883), \
+             patch('ShadowAnalyst.watcher.TOPIC_XRAY_RESULT', 'test/topic'):
+
+            watcher.publish_result("test_file2.jpg", "Some findings")
+
+        mock_mqtt_client_class.assert_called_once()
+        mock_client.username_pw_set.assert_not_called()
+        mock_client.connect.assert_called_once_with('localhost', 1883, 5)
+
+        import json
+        expected_payload = json.dumps({"file": "test_file2.jpg", "findings": "Some findings"}, ensure_ascii=False)
+        mock_client.publish.assert_called_once_with('test/topic', expected_payload)
+        mock_client.disconnect.assert_called_once()
+
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_exception(self, mock_mqtt_client_class):
+        mock_client = MagicMock()
+        mock_mqtt_client_class.return_value = mock_client
+        mock_client.connect.side_effect = Exception("Connection refused")
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.MQTT_USER', ''), \
+             patch('ShadowAnalyst.watcher.MQTT_HOST', 'localhost'), \
+             patch('ShadowAnalyst.watcher.MQTT_PORT', 1883):
+
+            watcher.publish_result("test_error.jpg", "Error case")
+
+        mock_client.connect.assert_called_once_with('localhost', 1883, 5)
+        mock_client.publish.assert_not_called()
+        mock_client.disconnect.assert_not_called()
+        mock_print.assert_called_with("Ошибка отправки MQTT: Connection refused")
+
 if __name__ == '__main__':
     unittest.main()
 

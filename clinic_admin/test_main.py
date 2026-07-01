@@ -213,6 +213,46 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+
+    @unittest.mock.patch('clinic_admin.main.get_connection')
+    def test_insert_patient_db_error(self, mock_get_connection):
+        from clinic_admin.main import insert_patient
+
+        # Simulate a database error
+        mock_get_connection.side_effect = Exception("Simulated DB Error")
+
+        with self.assertRaisesRegex(Exception, "Simulated DB Error"):
+            insert_patient("Error Patient", "111-2222")
+
+    @unittest.mock.patch('clinic_admin.main.get_connection')
+    @unittest.mock.patch('clinic_admin.main.datetime')
+    def test_insert_patient_mocked(self, mock_datetime, mock_get_connection):
+        from clinic_admin.main import insert_patient
+
+        # Setup mocks
+        mock_conn = unittest.mock.MagicMock()
+        mock_cursor = unittest.mock.MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_connection.return_value = mock_conn
+
+        mock_now = unittest.mock.MagicMock()
+        mock_now.isoformat.return_value = "2023-10-27T10:00:00"
+        mock_datetime.now.return_value = mock_now
+
+        # Call the function
+        insert_patient("Mock Patient", "999-9999")
+
+        # Verify
+        mock_get_connection.assert_called_once()
+        mock_conn.cursor.assert_called_once()
+        mock_cursor.execute.assert_called_once_with(
+            'INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)',
+            ("Mock Patient", "999-9999", "2023-10-27T10:00:00")
+        )
+        mock_conn.commit.assert_called_once()
+        mock_conn.close.assert_called_once()
+
 if __name__ == '__main__':
+
     unittest.main()
 

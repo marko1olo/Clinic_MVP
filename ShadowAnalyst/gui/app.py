@@ -1186,42 +1186,52 @@ def parse_patient_from_filename(filename: str) -> dict:
         "patient_gender": patient_gender
     }
 
+def _extract_dicom_gender(dcm_gender: str) -> str:
+    if dcm_gender == 'M':
+        return 'Мужской'
+    elif dcm_gender == 'F':
+        return 'Женский'
+    return None
+
+def _extract_dicom_age(ds) -> int:
+    import datetime
+    import re
+    dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
+    if dcm_age_raw:
+        match = re.match(r'(\d+)([YMD])', dcm_age_raw)
+        if match:
+            val = int(match.group(1))
+            unit = match.group(2)
+            if unit == 'Y':
+                return val
+            else:
+                return 0
+    dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
+    if dcm_birth and len(dcm_birth) >= 4:
+        try:
+            birth_year = int(dcm_birth[:4])
+            current_year = datetime.datetime.now().year
+            return current_year - birth_year
+        except Exception:
+            pass
+    return None
+
 def _parse_dicom_patient_info(file_path: str, info: dict):
     try:
         import pydicom
-        import datetime
-        import re
         ds = pydicom.dcmread(file_path, stop_before_pixels=True)
         dcm_name = str(getattr(ds, 'PatientName', '')).replace('^', ' ').strip()
         if dcm_name:
             info['patient_name'] = dcm_name
+
         dcm_gender = str(getattr(ds, 'PatientSex', '')).upper()
-        if dcm_gender == 'M':
-            info['patient_gender'] = 'Мужской'
-        elif dcm_gender == 'F':
-            info['patient_gender'] = 'Женский'
-        dcm_age_raw = str(getattr(ds, 'PatientAge', ''))
-        dcm_age = None
-        if dcm_age_raw:
-            match = re.match(r'(\d+)([YMD])', dcm_age_raw)
-            if match:
-                val = int(match.group(1))
-                unit = match.group(2)
-                if unit == 'Y':
-                    dcm_age = val
-                else:
-                    dcm_age = 0
-        if dcm_age is not None:
-            info['patient_age'] = dcm_age
-        else:
-            dcm_birth = str(getattr(ds, 'PatientBirthDate', ''))
-            if dcm_birth and len(dcm_birth) >= 4:
-                try:
-                    birth_year = int(dcm_birth[:4])
-                    current_year = datetime.datetime.now().year
-                    info['patient_age'] = current_year - birth_year
-                except Exception:
-                    pass
+        parsed_gender = _extract_dicom_gender(dcm_gender)
+        if parsed_gender:
+            info['patient_gender'] = parsed_gender
+
+        parsed_age = _extract_dicom_age(ds)
+        if parsed_age is not None:
+            info['patient_age'] = parsed_age
     except Exception as e:
         print(f"Error reading DICOM patient info: {e}")
 

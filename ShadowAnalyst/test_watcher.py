@@ -20,36 +20,20 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
-    def test_setup_dirs_success(self):
-        watch_dir = os.path.join(self.tmp_dir, "mock_watch")
-        processed_dir = os.path.join(self.tmp_dir, "mock_processed")
-
-        with patch('ShadowAnalyst.watcher.WATCH_DIR', watch_dir), \
-             patch('ShadowAnalyst.watcher.PROCESSED_DIR', processed_dir):
+    @patch('ShadowAnalyst.watcher.os.makedirs')
+    def test_setup_dirs_success(self, mock_makedirs):
+        from unittest.mock import call
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', '/mock_watch'), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/mock_processed'):
             watcher.setup_dirs()
 
-            # Check if directories were created
-            self.assertTrue(os.path.exists(watch_dir))
-            self.assertTrue(os.path.exists(processed_dir))
-            self.assertTrue(os.path.isdir(watch_dir))
-            self.assertTrue(os.path.isdir(processed_dir))
-
-    def test_setup_dirs_existing(self):
-        watch_dir = os.path.join(self.tmp_dir, "mock_watch_ext")
-        processed_dir = os.path.join(self.tmp_dir, "mock_processed_ext")
-
-        # Pre-create the directories
-        os.makedirs(watch_dir)
-        os.makedirs(processed_dir)
-
-        with patch('ShadowAnalyst.watcher.WATCH_DIR', watch_dir), \
-             patch('ShadowAnalyst.watcher.PROCESSED_DIR', processed_dir):
-            # Should not raise an exception when directories already exist
-            watcher.setup_dirs()
-
-            # Verify they still exist
-            self.assertTrue(os.path.exists(watch_dir))
-            self.assertTrue(os.path.exists(processed_dir))
+            # Check if makedirs was called correctly
+            expected_calls = [
+                call('/mock_watch', exist_ok=True),
+                call('/mock_processed', exist_ok=True)
+            ]
+            mock_makedirs.assert_has_calls(expected_calls, any_order=True)
+            self.assertEqual(mock_makedirs.call_count, 2)
 
     @patch('ShadowAnalyst.watcher.os.makedirs')
     def test_setup_dirs_error(self, mock_makedirs):

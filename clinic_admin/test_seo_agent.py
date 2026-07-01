@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
+import requests
 from clinic_admin.seo_agent import generate_seo_response, get_groq_api_key
 
 class TestSEOAgent(unittest.TestCase):
@@ -103,6 +104,47 @@ class TestSEOAgent(unittest.TestCase):
         self.assertIn("Connection timed out", result)
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_http_error(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key but HTTP Error from API
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("400 Client Error")
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("400 Client Error", result)
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_json_error(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key and successful HTTP response, but JSON decoding fails
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.json.side_effect = ValueError("Expecting value: line 1 column 1 (char 0)")
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("Expecting value", result)
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
+        mock_response.json.assert_called_once()
 
     @patch('clinic_admin.seo_agent.requests.post')
     @patch('clinic_admin.seo_agent.get_groq_api_key')

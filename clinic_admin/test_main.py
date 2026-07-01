@@ -197,6 +197,56 @@ class TestMain(unittest.TestCase):
         conn.close()
 
 
+    def test_get_dashboard_data_success(self):
+        from clinic_admin.main import get_dashboard_data
+        from clinic_admin.database import get_connection
+
+        # Insert test data
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Dashboard Patient", "111-2222"))
+        patient_id = c.lastrowid
+
+        # Insert one scheduled appointment that should be returned
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, ?, ?)",
+                  (patient_id, "Dr. Dashboard", "2024-01-01T10:00", "scheduled"))
+
+        # Insert one completed appointment that should NOT be returned
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, ?, ?)",
+                  (patient_id, "Dr. Other", "2024-01-01T11:00", "completed"))
+
+        # Insert 25 more scheduled appointments to test LIMIT 20
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Dashboard Patient 2", "333-4444"))
+        patient_id_2 = c.lastrowid
+        for i in range(25):
+            c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, ?, ?)",
+                      (patient_id_2, "Dr. Dashboard", f"2024-02-01T10:{i:02d}", "scheduled"))
+
+        conn.commit()
+        conn.close()
+
+        # Call the function
+        res_appointments, res_patients = get_dashboard_data()
+
+        # Verify patients
+        self.assertTrue(any(p["name"] == "Dashboard Patient" and p["phone"] == "111-2222" for p in res_patients))
+
+        # Verify appointments
+        self.assertTrue(any(
+            a["patient_name"] == "Dashboard Patient" and
+            a["phone"] == "111-2222" and
+            a["doctor"] == "Dr. Dashboard" and
+            a["status"] == "scheduled"
+            for a in res_appointments
+        ))
+
+        # Verify edge cases:
+        # 1. No completed appointments are returned
+        self.assertFalse(any(a["status"] == "completed" for a in res_appointments))
+
+        # 2. Maximum of 20 appointments returned
+        self.assertLessEqual(len(res_appointments), 20)
+
     def test_insert_patient(self):
         from clinic_admin.main import insert_patient
         from clinic_admin.database import get_connection

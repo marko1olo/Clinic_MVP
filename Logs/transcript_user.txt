@@ -265,8 +265,8 @@ The current local time is: 2026-06-20T00:09:37+04:00.
 </ADDITIONAL_METADATA>
 ---
 <USER_REQUEST>
-8721416291
-7716348189
+[REDACTED_CHAT_ID_1]
+[REDACTED_CHAT_ID_2]
 айди моих аков
 
 нахуя нам бот? что он будет кооридинроват ьи делать?

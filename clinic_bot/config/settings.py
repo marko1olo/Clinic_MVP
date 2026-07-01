@@ -16,7 +16,8 @@ MQTT_PASS = os.environ.get("MQTT_PASS", "")
 # ADMIN_CHAT_ID   = главврач / владелец
 # DOCTORS_CHAT_ID = общий чат врачей (если нужен)
 # Оба твоих аккаунта получают все алерты
-ADMIN_CHAT_IDS = [8721416291, 7716348189]
+admin_chat_ids_env = os.environ.get("ADMIN_CHAT_IDS", "")
+ADMIN_CHAT_IDS = [int(x.strip()) for x in admin_chat_ids_env.split(',')] if admin_chat_ids_env else []
 
 # MQTT Topics
 TOPIC_XRAY_RESULT    = "clinic/xray/result"      # результат анализа снимка

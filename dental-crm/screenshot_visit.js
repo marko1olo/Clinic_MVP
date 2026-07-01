@@ -27,4 +27,3 @@ await page.waitForTimeout(600);
 await page.screenshot({ path: 'C:/Clinic_MVP/shot_tooth_map.png', fullPage: false });
 
 await browser.close();
-console.log('done');

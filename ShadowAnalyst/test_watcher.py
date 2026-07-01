@@ -347,6 +347,40 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+    @patch('ShadowAnalyst.watcher.OpenAI')
+    def test_get_openai_client_caching(self, mock_openai):
+        # First call creates the client
+        client1 = watcher.get_openai_client("test_key", "test_url")
+        mock_openai.assert_called_once_with(
+            api_key="test_key",
+            base_url="test_url",
+            timeout=30.0,
+            max_retries=0
+        )
+
+        # Second call should return the exact same object from cache
+        client2 = watcher.get_openai_client("test_key", "test_url")
+        self.assertIs(client1, client2)
+        # Should still only be called once
+        mock_openai.assert_called_once()
+
+    @patch('ShadowAnalyst.watcher.OpenAI')
+    def test_get_openai_client_different_keys(self, mock_openai):
+        # Ensure a new object is returned each time OpenAI is instantiated
+        mock_openai.side_effect = lambda *args, **kwargs: MagicMock()
+
+        # Different keys or URLs should create different clients
+        client1 = watcher.get_openai_client("key1", "url1")
+        client2 = watcher.get_openai_client("key2", "url1")
+        client3 = watcher.get_openai_client("key1", "url2")
+
+        self.assertIsNot(client1, client2)
+        self.assertIsNot(client1, client3)
+        self.assertIsNot(client2, client3)
+
+        # Should be called 3 times total
+        self.assertEqual(mock_openai.call_count, 3)
+
 if __name__ == '__main__':
     unittest.main()
 

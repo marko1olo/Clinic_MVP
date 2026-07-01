@@ -12,6 +12,24 @@ def test_parse_findings_empty_or_none():
     assert body == ["Патологий не обнаружено. Норма."]
     assert alert == []
 
+def test_parse_findings_whitespace_only():
+    # Test spaces
+    body, alert = parse_findings("   ")
+    assert body == ["Патологий не обнаружено. Норма."]
+    assert alert == []
+
+    # Test newlines
+    body, alert = parse_findings("\n\n")
+    assert body == ["Патологий не обнаружено. Норма."]
+    assert alert == []
+
+def test_parse_findings_empty_lines_ignored():
+    # Test empty lines between findings
+    findings = "Зуб 11 в порядке\n\nЗуб 12: кариес\n  \nЗуб 13: пломба"
+    body, alert = parse_findings(findings)
+    assert body == ["Зуб 11 в порядке", "Зуб 13: пломба"]
+    assert alert == ["Зуб 12: кариес"]
+
 def test_parse_findings_normal_exact():
     # Test exactly "Норма"
     body, alert = parse_findings("Норма")

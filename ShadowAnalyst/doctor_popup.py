@@ -35,10 +35,12 @@ def parse_findings(findings):
     body_lines = []
     alert_lines = []
 
-    if not findings or findings == "Норма":
+    if not findings or findings.strip() == "" or findings.strip() == "Норма":
         body_lines.append("Патологий не обнаружено. Норма.")
     else:
         for line in findings.split('\n'):
+            if not line.strip():
+                continue
             if 'кариес' in line.lower() or 'воспаление' in line.lower():
                 alert_lines.append(line)
             else:

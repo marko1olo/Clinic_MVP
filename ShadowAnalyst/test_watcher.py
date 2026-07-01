@@ -145,6 +145,18 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(result)
         mock_image_open.assert_called_once_with(img_path)
 
+    def test_prepare_image_invalid_file(self):
+        # Create a real invalid file (text file) to trigger PIL open error
+        invalid_file_path = os.path.join(self.tmp_dir, "invalid_image.txt")
+        with open(invalid_file_path, "w") as f:
+            f.write("This is a simple text file, not an image.")
+
+        # Call prepare_image
+        result = watcher.prepare_image(invalid_file_path)
+
+        # Assert
+        self.assertIsNone(result)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_success(self, mock_openai_class, mock_prepare_image):

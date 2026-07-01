@@ -55,4 +55,3 @@ await page.waitForTimeout(600);
 await page.screenshot({ path: 'C:/Clinic_MVP/shot_emk_focused.png', fullPage: false });
 
 await browser.close();
-console.log('done');

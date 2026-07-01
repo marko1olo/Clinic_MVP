@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 import clinic_admin.inject_old_data
+import clinic_admin.database
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):

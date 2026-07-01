@@ -14,7 +14,7 @@ def _get_existing_names(c, names):
         "(SELECT value FROM json_each(?))",
         (json.dumps(names),)
     )
-    return set(row[0] for row in c.fetchall())
+    return set(row[0].lower() for row in c.fetchall())
 
 def _insert_patients(c, new_patients_data):
     c.executemany(
@@ -61,7 +61,7 @@ def inject_dummy_data():
 
     new_patients_data = []
     for name, phone in old_patients:
-        if name not in existing_names:
+        if name.lower() not in existing_names:
             new_patients_data.append((name, phone, now.isoformat()))
 
     if new_patients_data:

@@ -1,12 +1,19 @@
 import os
 import json
-import requests
 import random
+import httpx
 import os
 
 CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
 
 _cached_groq_keys = None
+_client = None
+
+def get_async_client():
+    global _client
+    if _client is None:
+        _client = httpx.AsyncClient()
+    return _client
 
 def get_groq_api_key():
     global _cached_groq_keys
@@ -26,7 +33,7 @@ def get_groq_api_key():
         print(f"Error loading config: {e}")
     return None
 
-def generate_seo_response(review_text: str) -> str:
+async def generate_seo_response(review_text: str) -> str:
     api_key = get_groq_api_key()
     if not api_key:
         return "Ошибка: Не найден API ключ Groq в конфигурации."
@@ -87,7 +94,8 @@ def generate_seo_response(review_text: str) -> str:
     }
 
     try:
-        response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=15)
+        client = get_async_client()
+        response = await client.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=15.0)
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"].strip()

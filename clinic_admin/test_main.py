@@ -171,7 +171,7 @@ class TestMain(unittest.TestCase):
         from clinic_admin.database import get_connection
         conn = get_connection()
         c = conn.cursor()
-        c.execute("SELECT id FROM patients WHERE name = 'Test Patient'")
+        c.execute("SELECT id FROM patients WHERE name = ?", ('Test Patient',))
         patient = c.fetchone()
         patient_id = patient["id"]
         conn.close()
@@ -207,7 +207,7 @@ class TestMain(unittest.TestCase):
         # Verify it was added to the test database
         conn = get_connection()
         c = conn.cursor()
-        c.execute("SELECT * FROM patients WHERE name = 'Direct Insert'")
+        c.execute("SELECT * FROM patients WHERE name = ?", ('Direct Insert',))
         patient = c.fetchone()
         self.assertIsNotNone(patient)
         self.assertEqual(patient["phone"], "555-5555")

@@ -1,65 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { requireClinicalReadAccess } from "../../accessGuard.js";
 import {
-  createDocumentSchema,
-  issueDocumentSchema,
-  publicGeneratedDocumentSchema,
-  voidDocumentSchema
-} from "@dental/shared";
-import {
-  clinicProfile,
-  createGeneratedDocument,
   documents,
-  findVisitById,
-  issueGeneratedDocument,
-  patients,
-  payments,
-  readIssuedDocumentSnapshot,
-  storeTaxXmlSnapshot,
-  treatmentPlanItems,
-  voidGeneratedDocument
+  patients
 } from "../../sampleData.js";
 import {
-  paidAmountRubForDocument,
-  plannedAmountRubForDocument,
-  paymentRefundCorrectionSelectionErrorForDocument,
-  paymentReceiptSelectionErrorForDocument,
-  taxPaymentSelectionErrorForDocument,
-  validateDocumentCreation
-} from "../../documents/guards.js";
-
-import {
-  buildTaxPaymentSnapshotForIssue,
-  taxDocumentUsesPaymentSnapshot
-} from "../../documents/taxPaymentSnapshot.js";
-import { buildKnd1151156Xml } from "../../documents/taxXml.js";
-import { repairMojibakeText } from "../../text/repairMojibake.js";
-
-import {
   apiError,
-  buildDocumentAuditFacts,
-  configuredTaxOfficeCode,
-  documentAttachmentFileName,
-  documentCreateValidationMessageForRequest,
-  documentHasIssuedArchiveMetadata,
-  documentIssueBlockReason,
-  documentIssueChainBlockReason,
-  documentRequiresIssuedArchive,
-  findIssuedDuplicateTaxCertificate,
-  frozenTaxXmlClinicProfile,
-  frozenTaxXmlPatient,
-  frozenTaxXmlPayments,
-  issuedArchiveIntegrityError,
-  renderIssuedHtmlToPdf,
-  taxSnapshotDocument,
-  taxXmlSourceSnapshotSha256,
-  documentRenderContext,
-  documentVoidValidationMessage,
-  documentIssueValidationMessage,
-  buildMedicalDocumentReleaseJournalEntry,
-  taxXmlSourceSnapshotForIssue
+  buildDocumentAuditFacts
 } from "../documents.js";
-
 
 export async function register(app: FastifyInstance) {
   app.get("/api/documents/:id/audit-facts", async (request, reply) => {

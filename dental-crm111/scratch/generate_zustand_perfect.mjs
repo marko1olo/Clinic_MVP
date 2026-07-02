@@ -28,7 +28,9 @@ let storeBody = '';
 for (const v of stateVars) {
   let inferredType = v.type;
   if (inferredType === 'any') {
-    if (v.defaultValue.startsWith('"') || v.defaultValue.startsWith('\`')) inferredType = 'string';
+    if (['personalDataPurposes', 'personalDataCategories', 'personalDataActions'].includes(v.name)) {
+      inferredType = 'string[]';
+    } else if (v.defaultValue.startsWith('"') || v.defaultValue.startsWith('`')) inferredType = 'string';
     else if (v.defaultValue === 'false' || v.defaultValue === 'true') inferredType = 'boolean';
     else if (v.defaultValue.includes('=>')) inferredType = 'string';
   }
@@ -63,11 +65,5 @@ ${storeBody}
 }));
 `;
 
-// Fix TS issues with arrays
-const finalStore = zustandFile
-  .replace(/personalDataPurposes: any;/g, 'personalDataPurposes: string[];')
-  .replace(/personalDataCategories: any;/g, 'personalDataCategories: string[];')
-  .replace(/personalDataActions: any;/g, 'personalDataActions: string[];');
-
-fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/documentStore.ts', finalStore);
+fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/documentStore.ts', zustandFile);
 console.log(`Generated Zustand store with ${stateVars.length} state variables.`);

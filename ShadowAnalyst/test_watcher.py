@@ -347,6 +347,29 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+    @patch('ShadowAnalyst.watcher.OpenAI')
+    def test_make_groq_client(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        # Ensure cache is clear before testing
+        if hasattr(watcher, "_clients_cache"):
+            watcher._clients_cache.clear()
+
+        result = watcher.make_groq_client("test_groq_key")
+
+        # Verify the returned client is the mocked client
+        self.assertEqual(result, mock_client)
+
+        # Verify OpenAI was initialized with the correct arguments
+        # get_openai_client passes these parameters underneath
+        mock_openai_class.assert_called_once_with(
+            api_key="test_groq_key",
+            base_url="https://api.groq.com/openai/v1",
+            timeout=30.0,
+            max_retries=0
+        )
+
 if __name__ == '__main__':
     unittest.main()
 

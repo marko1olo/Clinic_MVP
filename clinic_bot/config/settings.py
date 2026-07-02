@@ -7,7 +7,7 @@ if not BOT_TOKEN:
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "dentaliya2_bot")
 
 # MQTT - сервак по WireGuard (локально пока 127.0.0.1 для разработки)
-MQTT_HOST = os.environ.get("MQTT_HOST", "62.84.100.97")
+MQTT_HOST = os.environ.get("MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")

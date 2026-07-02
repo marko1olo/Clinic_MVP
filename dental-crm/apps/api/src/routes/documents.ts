@@ -6,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { FastifyInstance } from "fastify";
-import { requireClinicalMutationAccess } from "../accessGuard.js";
 import {
   createDocumentSchema,
   documentAuditFactsSchema,

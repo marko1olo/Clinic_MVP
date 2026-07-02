@@ -1,4 +1,4 @@
 {
-  "title": "🧹 Remove unused sys import in check_server.py",
-  "body": "🎯 **What:** Removed the unused `import sys` statement from `Scripts/check_server.py`.\n💡 **Why:** To reduce unnecessary clutter and improve code health, making the file cleaner.\n✅ **Verification:** Verified that there are no syntax errors by compiling the file (`python3 -m py_compile`) and ran tests using `pytest` to ensure no related functionality was broken.\n✨ **Result:** A slightly cleaner and more maintainable `check_server.py` script."
+    "title": "🧹 [code health improvement description]",
+    "body": "🎯 **What:** The code health issue addressed\nRemoved unused import from `dental-crm/apps/api/src/routes/documents/html.ts`\n\n💡 **Why:** How this improves maintainability\nPrevents polluting the module scope and reduces bundle/evaluation size.\n\n✅ **Verification:** How you confirmed the change is safe\nRun `npm run typecheck` and smoke tests to ensure no regressions.\n\n✨ **Result:** The improvement achieved\nThe unused import was safely removed."
 }

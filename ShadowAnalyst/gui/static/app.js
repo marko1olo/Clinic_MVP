@@ -17,9 +17,10 @@ window.showToast = function(message, type = 'info') {
 
     toast.innerHTML = `
         <div class="toast-icon">${iconSvg}</div>
-        <div class="toast-content">${message}</div>
+        <div class="toast-content"></div>
         <button class="toast-close">&times;</button>
     `;
+    toast.querySelector('.toast-content').textContent = message;
     
     container.appendChild(toast);
     

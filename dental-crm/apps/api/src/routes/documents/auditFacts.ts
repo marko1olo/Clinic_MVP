@@ -33,7 +33,6 @@ import {
   taxDocumentUsesPaymentSnapshot
 } from "../../documents/taxPaymentSnapshot.js";
 import { buildKnd1151156Xml } from "../../documents/taxXml.js";
-import { repairMojibakeText } from "../../text/repairMojibake.js";
 
 import {
   apiError,

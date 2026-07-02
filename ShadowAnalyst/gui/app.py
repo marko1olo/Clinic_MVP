@@ -961,8 +961,9 @@ def _execute_ai_cascade(models, prompt, image_b64, min_len, pass_name, extra_mes
 
     return output_text, success_idx, last_err
 
+cjk_pattern = re.compile(r'[\u4e00-\u9fff]+')
+
 def _parse_final_output(final_output, first_report):
-    import re
     summary_match = re.search(r"<summary>(.*?)</summary>", final_output, re.DOTALL | re.IGNORECASE)
     report_match = re.search(r"<report>(.*?)</report>", final_output, re.DOTALL | re.IGNORECASE)
 
@@ -979,7 +980,6 @@ def _parse_final_output(final_output, first_report):
         summary_text = summary_match.group(1).strip() if summary_match else "Снимок проанализирован ИИ-ассистентом."
         report_text = report_match.group(1).strip() if report_match else first_report
 
-    cjk_pattern = re.compile(r'[\u4e00-\u9fff]+')
     summary_text = cjk_pattern.sub('', summary_text)
     report_text = cjk_pattern.sub('', report_text)
 

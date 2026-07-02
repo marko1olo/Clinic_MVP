@@ -1,4 +1,19 @@
 // Global Toast Notification System
+function escapeHTML(str) {
+    if (!str) return '';
+    if (typeof str !== 'string') str = str.toString();
+    return str.replace(/[&<>'"]/g, function(tag) {
+        const charsToReplace = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        };
+        return charsToReplace[tag] || tag;
+    });
+}
+
 window.showToast = function(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -17,7 +32,7 @@ window.showToast = function(message, type = 'info') {
 
     toast.innerHTML = `
         <div class="toast-icon">${iconSvg}</div>
-        <div class="toast-content">${message}</div>
+        <div class="toast-content">${escapeHTML(message)}</div>
         <button class="toast-close">&times;</button>
     `;
     
@@ -1398,7 +1413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const genderLabel = scan.patient_gender === 'Мужской' ? 'М' : (scan.patient_gender === 'Женский' ? 'Ж' : '-');
                     const genderClass = scan.patient_gender === 'Мужской' ? 'male' : (scan.patient_gender === 'Женский' ? 'female' : 'other');
-                    const ageText = scan.patient_age ? `${scan.patient_age} лет` : 'возраст не указан';
+                    const ageText = scan.patient_age ? `${escapeHTML(scan.patient_age)} лет` : 'возраст не указан';
                     const formattedDate = new Date(scan.created_at).toLocaleString('ru-RU', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
@@ -1406,7 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     card.innerHTML = `
                         <div class="history-card-header">
-                            <span class="history-patient-name" title="${scan.patient_name}">${scan.patient_name}</span>
+                            <span class="history-patient-name" title="${escapeHTML(scan.patient_name)}">${escapeHTML(scan.patient_name)}</span>
                             <button class="history-delete-btn" title="Удалить запись">
                                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                             </button>
@@ -1424,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const delBtn = card.querySelector('.history-delete-btn');
                     delBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (confirm(`Удалить запись пациента ${scan.patient_name}?`)) {
+                        if (confirm(`Удалить запись пациента ${escapeHTML(scan.patient_name)}?`)) {
                             try {
                                 const delRes = await fetch(`/api/history/${scan.id}`, { method: 'DELETE' });
                                 const delData = await delRes.json();

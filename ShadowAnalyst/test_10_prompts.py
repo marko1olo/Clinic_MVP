@@ -3,7 +3,7 @@ import json
 import base64
 import asyncio
 import random
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 from openai import AsyncOpenAI
 
 try:
@@ -172,6 +172,7 @@ def style_9_target(draw, img, x1, y1, x2, y2, name):
 
 def style_10_glass(draw, img, x1, y1, x2, y2, name):
     """Стиль 10: Glassmorphism (Блюр внутри)"""
+    from PIL import ImageFilter
     box = (x1, y1, x2, y2)
     ic = img.crop(box).filter(ImageFilter.GaussianBlur(5))
     img.paste(ic, box)

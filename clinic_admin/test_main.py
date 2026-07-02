@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import clinic_admin.database
-from clinic_admin.main import app
+from clinic_admin.main import app, _get_expected_credentials
 
 class TestMain(unittest.TestCase):
     def setUp(self):
@@ -48,31 +48,20 @@ class TestMain(unittest.TestCase):
                 with TestClient(app):
                     pass
 
-    def test_read_root_unconfigured_credentials(self):
-        # temporarily delete credentials if they exist
-        u = os.environ.pop("ADMIN_USERNAME", None)
-        p = os.environ.pop("ADMIN_PASSWORD", None)
-
-        response = self.client.get("/", auth=("admin", "admin"))
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(response.json(), {"detail": "Admin credentials are not configured on the server"})
-
-        if u is not None:
-            os.environ["ADMIN_USERNAME"] = u
-        if p is not None:
-            os.environ["ADMIN_PASSWORD"] = p
-
     def test_read_root_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
         response = self.client.get("/")
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
-    def test_read_root_authenticated_correct(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
-        response = self.client.get("/", auth=("admin", "admin"))
+    def test_read_root_authenticated_correct_admin(self):
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
+        response = self.client.get("/", auth=("admin", "adminpass123"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_read_root_authenticated_correct_reception(self):
+        os.environ["RECEPTION_PASSWORD"] = "reception123"
+        response = self.client.get("/", auth=("reception", "reception123"))
         self.assertEqual(response.status_code, 200)
 
     @unittest.mock.patch('clinic_admin.main.get_connection')
@@ -80,41 +69,41 @@ class TestMain(unittest.TestCase):
         # Simulate a database error
         mock_get_connection.side_effect = Exception("Simulated DB Error")
 
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
 
         # This calls the / endpoint, which calls get_dashboard_data
-        response = self.client.get("/", auth=("admin", "admin"))
+        response = self.client.get("/", auth=("admin", "adminpass123"))
 
         # It should still return 200, not 500
         self.assertEqual(response.status_code, 200)
 
     def test_read_root_authenticated_incorrect(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
         response = self.client.get("/", auth=("admin", "wrong"))
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Incorrect username or password"})
 
+    def test_read_root_authenticated_incorrect_user(self):
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
+        response = self.client.get("/", auth=("wrong", "adminpass123"))
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Incorrect username or password"})
+
     def test_api_current_appointment_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
         response = self.client.get("/api/current_appointment")
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
     def test_api_current_appointment_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
-        response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
+        response = self.client.get("/api/current_appointment", auth=("admin", "adminpass123"))
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)
 
-
     def test_add_patient_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
         form_data = {
             "name": "Jane Doe",
             "phone": "9876543210"
@@ -124,15 +113,14 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
     def test_add_patient_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
 
         form_data = {
             "name": "Jane Doe",
             "phone": "9876543210"
         }
 
-        response = self.client.post("/patients/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        response = self.client.post("/patients/add", data=form_data, auth=("admin", "adminpass123"), follow_redirects=False)
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/")
 
@@ -148,8 +136,7 @@ class TestMain(unittest.TestCase):
         conn.close()
 
     def test_add_appointment_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
         form_data = {
             "patient_id": 1,
             "doctor": "Dr. Smith",
@@ -160,11 +147,10 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
     def test_add_appointment_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "adminpass123"
 
         # First we need to make sure a patient exists since appointment has a foreign key to patients
-        response_patient = self.client.post("/patients/add", data={"name": "Test Patient", "phone": "1234567890"}, auth=("admin", "admin"), follow_redirects=False)
+        response_patient = self.client.post("/patients/add", data={"name": "Test Patient", "phone": "1234567890"}, auth=("admin", "adminpass123"), follow_redirects=False)
         self.assertEqual(response_patient.status_code, 303)
 
         # Get the patient from the DB to dynamically determine the ID
@@ -182,7 +168,7 @@ class TestMain(unittest.TestCase):
             "date": "2023-10-27T10:00"
         }
 
-        response = self.client.post("/appointments/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        response = self.client.post("/appointments/add", data=form_data, auth=("admin", "adminpass123"), follow_redirects=False)
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/")
 
@@ -195,7 +181,6 @@ class TestMain(unittest.TestCase):
         self.assertEqual(appointment["appointment_date"], "2023-10-27T10:00")
 
         conn.close()
-
 
     def test_insert_patient(self):
         from clinic_admin.main import insert_patient
@@ -213,6 +198,23 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+class TestGetExpectedCredentials(unittest.TestCase):
+    def test_default_credentials(self):
+        with patch.dict(os.environ, {}, clear=True):
+            creds = _get_expected_credentials()
+            self.assertEqual(creds, {'admin': 'adminpass123', 'reception': 'reception123'})
+
+    def test_custom_credentials(self):
+        with patch.dict(os.environ, {'ADMIN_PASSWORD': 'newadminpass', 'RECEPTION_PASSWORD': 'newreceptionpass'}):
+            creds = _get_expected_credentials()
+            self.assertEqual(creds, {'admin': 'newadminpass', 'reception': 'newreceptionpass'})
+
+    def test_mixed_credentials(self):
+        with patch.dict(os.environ, {'ADMIN_PASSWORD': 'newadminpass'}):
+            if 'RECEPTION_PASSWORD' in os.environ:
+                del os.environ['RECEPTION_PASSWORD']
+            creds = _get_expected_credentials()
+            self.assertEqual(creds, {'admin': 'newadminpass', 'reception': 'reception123'})
+
 if __name__ == '__main__':
     unittest.main()
-

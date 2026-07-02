@@ -13,7 +13,7 @@ fs.writeFileSync('dental-crm111/apps/web/src/store/scheduleStore.ts', storeCode)
 let appCode = fs.readFileSync('dental-crm111/apps/web/src/App.tsx', 'utf8');
 
 // Fix 'day' any types in .map
-appCode = appCode.replace(/\.map\(\(day(: any)?\) =>/g, '.map((day: { value: number; label: string }) =>');
+appCode = appCode.replace(/\.map\(\(day\) =>/g, '.map((day: any) =>');
 
 fs.writeFileSync('dental-crm111/apps/web/src/App.tsx', appCode);
 

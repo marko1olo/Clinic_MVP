@@ -3,11 +3,12 @@ import paramiko
 import sys
 from utils import ssh, scp_file
 
-host = os.environ.get('VPS_HOST', '62.84.100.97')
+host = os.environ.get('VPS_HOST')
 user = os.environ.get('VPS_USER', 'root')
 password = os.environ.get('VPS_PASSWORD')
-if not password:
-    sys.exit("ERROR: VPS_PASSWORD environment variable is not set.")
+
+if not host or not password:
+    sys.exit("ERROR: VPS_HOST and VPS_PASSWORD environment variables must be set.")
 
 
 

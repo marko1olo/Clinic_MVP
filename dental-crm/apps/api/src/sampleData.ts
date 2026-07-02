@@ -49,7 +49,6 @@ import type {
   CreateDenteTelegramLinkCodeInput,
   CreatePaymentInput,
   CreateStaffMemberInput,
-  DentalSpecialty,
   Dashboard,
   DenteTelegramBotSettings,
   DenteTelegramChatLink,
@@ -131,7 +130,6 @@ import type {
   VisitCloseChecklist,
   VisitDraftAutosave,
   VisitDraftAutosaveRequest,
-  VisitNoteDraft,
   VisitSaveReceipt
 } from "@dental/shared";
 import { loadPersistentState, savePersistentState, type DentalMutableState } from "./persistentState.js";

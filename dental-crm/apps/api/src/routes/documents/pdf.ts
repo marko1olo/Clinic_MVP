@@ -59,7 +59,6 @@ import {
   buildMedicalDocumentReleaseJournalEntry,
   taxXmlSourceSnapshotForIssue
 } from "../documents.js";
-import { renderDocumentHtml, taxFiscalDocumentBlockReason } from "../../documents/renderDocument.js";
 
 export async function register(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>("/api/documents/:id/pdf", async (request, reply) => {

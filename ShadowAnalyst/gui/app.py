@@ -1598,22 +1598,26 @@ def start_watchdog():
     return observer
 
 import socket
-import requests
+import httpx
+import asyncio
 
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
-def wait_for_server(url, timeout=10):
+async def wait_for_server(url, timeout=10):
     start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            r = requests.get(url, timeout=1)
-            if r.status_code == 200:
-                return True
-        except requests.RequestException:
-            pass
-        time.sleep(0.5)
+    async with httpx.AsyncClient() as client:
+        while time.time() - start_time < timeout:
+            try:
+                r = await client.get(url, timeout=1.0)
+                if r.status_code == 200:
+                    return True
+            except httpx.RequestError:
+                pass
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
     return False
 
 # Main
@@ -1636,7 +1640,7 @@ if __name__ == '__main__':
         t.start()
         
     # Wait for server to become responsive
-    if not wait_for_server(f"{server_url}/api/status"):
+    if not asyncio.run(wait_for_server(f"{server_url}/api/status")):
         print("Warning: API server did not become responsive in time. UI might fail to load data.")
 
     # Start watcher

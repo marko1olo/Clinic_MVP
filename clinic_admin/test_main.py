@@ -1,13 +1,12 @@
-import os
 import sys
 import unittest
-import unittest.mock
 import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 # Add clinic_admin directory to sys.path to resolve database import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import clinic_admin.database
 from clinic_admin.main import app
@@ -16,7 +15,11 @@ class TestMain(unittest.TestCase):
     def setUp(self):
         import clinic_admin.database
         import clinic_admin.main
-        self.db_fd, self.db_path = tempfile.mkstemp()
+
+        # Create a temporary directory that we can clean up
+        self.db_dir = tempfile.TemporaryDirectory()
+        self.db_path = str(Path(self.db_dir.name) / "test.db")
+
         self.original_db_file = clinic_admin.database.DB_FILE
         clinic_admin.database.DB_FILE = self.db_path
 
@@ -38,8 +41,7 @@ class TestMain(unittest.TestCase):
         import clinic_admin.database
         clinic_admin.main.get_connection = self.original_get_connection
         clinic_admin.database.DB_FILE = self.original_db_file
-        os.close(self.db_fd)
-        os.unlink(self.db_path)
+        self.db_dir.cleanup()
 
     def test_startup_event_error(self):
         # Using the TestClient as a context manager triggers the startup event
@@ -48,40 +50,28 @@ class TestMain(unittest.TestCase):
                 with TestClient(app):
                     pass
 
+    @patch.dict("os.environ", clear=True)
     def test_read_root_unconfigured_credentials(self):
-        # temporarily delete credentials if they exist
-        u = os.environ.pop("ADMIN_USERNAME", None)
-        p = os.environ.pop("ADMIN_PASSWORD", None)
-
         response = self.client.get("/", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json(), {"detail": "Admin credentials are not configured on the server"})
 
-        if u is not None:
-            os.environ["ADMIN_USERNAME"] = u
-        if p is not None:
-            os.environ["ADMIN_PASSWORD"] = p
-
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_read_root_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/")
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_read_root_authenticated_correct(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
 
-    @unittest.mock.patch('clinic_admin.main.get_connection')
+    @patch('clinic_admin.main.get_connection')
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_get_dashboard_data_db_error(self, mock_get_connection):
         # Simulate a database error
         mock_get_connection.side_effect = Exception("Simulated DB Error")
-
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
 
         # This calls the / endpoint, which calls get_dashboard_data
         response = self.client.get("/", auth=("admin", "admin"))
@@ -89,32 +79,27 @@ class TestMain(unittest.TestCase):
         # It should still return 200, not 500
         self.assertEqual(response.status_code, 200)
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_read_root_authenticated_incorrect(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/", auth=("admin", "wrong"))
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Incorrect username or password"})
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_api_current_appointment_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/api/current_appointment")
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_api_current_appointment_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)
 
-
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_add_patient_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         form_data = {
             "name": "Jane Doe",
             "phone": "9876543210"
@@ -123,10 +108,8 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_add_patient_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
-
         form_data = {
             "name": "Jane Doe",
             "phone": "9876543210"
@@ -147,9 +130,8 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_add_appointment_unauthenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
         form_data = {
             "patient_id": 1,
             "doctor": "Dr. Smith",
@@ -159,10 +141,8 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
+    @patch.dict("os.environ", {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"})
     def test_add_appointment_authenticated(self):
-        os.environ["ADMIN_USERNAME"] = "admin"
-        os.environ["ADMIN_PASSWORD"] = "admin"
-
         # First we need to make sure a patient exists since appointment has a foreign key to patients
         response_patient = self.client.post("/patients/add", data={"name": "Test Patient", "phone": "1234567890"}, auth=("admin", "admin"), follow_redirects=False)
         self.assertEqual(response_patient.status_code, 303)
@@ -215,4 +195,3 @@ class TestMain(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

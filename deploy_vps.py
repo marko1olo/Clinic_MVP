@@ -6,7 +6,7 @@ from utils import ssh as base_ssh
 
 ssh = functools.partial(base_ssh, timeout=90)
 
-host = '62.84.100.97'
+host = os.environ.get('VPS_HOST', '62.84.100.97')
 user = 'root'
 password = os.environ.get('VPS_PASSWORD')
 if not password:

@@ -3,7 +3,7 @@ import sys
 import paramiko
 from utils import ssh, scp_file
 
-host = '62.84.100.97'
+host = os.environ.get('VPS_HOST', '62.84.100.97')
 user = 'root'
 password = os.environ.get('VPS_PASSWORD')
 if not password:

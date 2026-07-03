@@ -2,9 +2,8 @@ import os
 import json
 import requests
 import random
-import os
 
-CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
+CONFIG_PATH = os.getenv("CONFIG_PATH", "config.json")
 
 _cached_groq_keys = None
 

@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 
 try:
     font = ImageFont.truetype("arial.ttf", 40)
-except:
+except Exception:
     font = ImageFont.load_default()
 
 def draw_text_with_bg(draw, text, x, y, text_color, bg_color=(0, 0, 0, 180)):
@@ -193,7 +193,7 @@ async def process_prompt(i, prompt, b64):
     try:
         data = json.loads(json_resp)
         objects = data.get("objects", [])
-    except:
+    except Exception:
         objects = []
 
     # Рисуем

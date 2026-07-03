@@ -8,6 +8,10 @@ describe('normalizeDate', () => {
     assert.strictEqual(normalizeDate(''), null);
   });
 
+  test('returns empty string for whitespace-only strings', () => {
+    assert.strictEqual(normalizeDate('   '), '');
+  });
+
   test('normalizes dates with various separators', () => {
     assert.strictEqual(normalizeDate('15/04/2023'), '2023-04-15');
     assert.strictEqual(normalizeDate('15.04.2023'), '2023-04-15');

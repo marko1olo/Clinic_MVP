@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, broadcast
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -85,6 +85,34 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         mock_db.add_user.assert_not_called()
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
+
+
+class TestBotBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.bot.send_message', new_callable=AsyncMock)
+    @patch('bot.db')
+    async def test_broadcast_send_message_error(self, mock_db, mock_send_message):
+        """
+        Test that if sending a message fails during broadcast,
+        the exception is caught and an error is logged.
+        """
+        # Configure mock_db to return a single dummy user
+        mock_db.get_users_by_role.return_value = [123]
+
+        # Configure the send_message mock to raise an exception
+        mock_send_message.side_effect = Exception("Simulated send error")
+
+        # Run broadcast and verify it catches the exception and logs an error
+        with self.assertLogs('bot', level='ERROR') as log_capture:
+            await broadcast("Test broadcast text", role='admin')
+
+        # Check that the database was queried
+        mock_db.get_users_by_role.assert_called_once_with('admin')
+
+        # Check that send_message was called with the right arguments
+        mock_send_message.assert_called_once_with(123, "Test broadcast text", parse_mode="Markdown")
+
+        # Verify the error log contains the expected message
+        self.assertTrue(any("Failed to send to 123: Simulated send error" in log_msg for log_msg in log_capture.output))
 
 
 if __name__ == '__main__':

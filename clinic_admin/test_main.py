@@ -48,6 +48,13 @@ class TestMain(unittest.TestCase):
                 with TestClient(app):
                     pass
 
+    def test_startup_event_success(self):
+        # Using the TestClient as a context manager triggers the startup event
+        with patch('clinic_admin.main.init_db') as mock_init_db:
+            with TestClient(app):
+                pass
+            mock_init_db.assert_called_once()
+
     def test_read_root_unconfigured_credentials(self):
         # temporarily delete credentials if they exist
         u = os.environ.pop("ADMIN_USERNAME", None)

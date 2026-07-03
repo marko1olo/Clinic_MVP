@@ -197,6 +197,33 @@ class TestMain(unittest.TestCase):
         conn.close()
 
 
+
+    def test_fetch_current_appointment(self):
+        from clinic_admin.main import fetch_current_appointment
+        from clinic_admin.database import get_connection
+        from datetime import datetime
+
+        # Should be None initially
+        self.assertIsNone(fetch_current_appointment())
+
+        # Add a patient and an appointment for today
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test Patient Current", "123"))
+        patient_id = c.lastrowid
+
+        today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date) VALUES (?, ?, ?)",
+                  (patient_id, "Dr. Who", today_str))
+        conn.commit()
+        conn.close()
+
+        # Should return the appointment details now
+        appointment = fetch_current_appointment()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["patient_name"], "Test Patient Current")
+        self.assertEqual(appointment["doctor"], "Dr. Who")
+
     def test_insert_patient(self):
         from clinic_admin.main import insert_patient
         from clinic_admin.database import get_connection

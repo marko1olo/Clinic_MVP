@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, broadcast_photo
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -86,6 +86,32 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
 
+
+class TestBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db')
+    @patch('bot.bot')
+    @patch('bot.logging')
+    async def test_broadcast_photo_error_path(self, mock_logging, mock_bot, mock_db):
+        """
+        Test that exceptions raised when sending a photo are caught and logged properly,
+        and do not crash the broadcasting function.
+        """
+        # Mock database to return some dummy user IDs
+        mock_db.get_users_by_role.return_value = [123, 456]
+
+        # Mock bot.send_photo to simulate an error
+        mock_bot.send_photo = AsyncMock()
+        mock_bot.send_photo.side_effect = Exception("Test send error")
+
+        # Call the function
+        await broadcast_photo(b'photo_data', 'caption', 'report_text')
+
+        # Verify db was queried for the right role
+        mock_db.get_users_by_role.assert_called_with('doctor')
+
+        # Verify that errors were logged for each user
+        mock_logging.warning.assert_any_call("Could not send photo to 123: Test send error")
+        mock_logging.warning.assert_any_call("Could not send photo to 456: Test send error")
 
 if __name__ == '__main__':
     unittest.main()

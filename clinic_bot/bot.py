@@ -117,7 +117,7 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
             for chunk in report_chunks:
                 await bot.send_message(chat_id, text=chunk)
         except Exception as e:
-            log.error(f"Failed to send photo to {chat_id}: {e}")
+            logging.warning(f"Could not send photo to {chat_id}: {e}")
 
     await asyncio.gather(*(_send_to_user(chat_id) for chat_id in users))
 

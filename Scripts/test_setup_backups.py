@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch, call
-from Scripts.setup_backups import ssh
+from Scripts.setup_backups import ssh, main
+import Scripts.setup_backups
 
 class TestSetupBackups(unittest.TestCase):
     @patch('sys.stdout')
@@ -65,6 +66,38 @@ class TestSetupBackups(unittest.TestCase):
 
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
+
+    @patch('Scripts.setup_backups.paramiko.SSHClient')
+    @patch('Scripts.setup_backups.ssh')
+    @patch('sys.stdout')
+    @patch('Scripts.setup_backups.paramiko.RejectPolicy')
+    def test_main(self, mock_reject_policy, mock_stdout, mock_ssh, mock_sshclient):
+        mock_client = Mock()
+        mock_sshclient.return_value = mock_client
+        mock_reject_policy_instance = Mock()
+        mock_reject_policy.return_value = mock_reject_policy_instance
+
+        main()
+
+        mock_sshclient.assert_called_once()
+        mock_client.load_system_host_keys.assert_called_once()
+        mock_client.set_missing_host_key_policy.assert_called_once_with(mock_reject_policy_instance)
+
+        mock_client.connect.assert_called_once_with(
+            hostname=Scripts.setup_backups.host,
+            username=Scripts.setup_backups.user,
+            password=Scripts.setup_backups.password,
+            timeout=10
+        )
+
+        self.assertEqual(mock_ssh.call_count, 4)
+        mock_client.close.assert_called_once()
+
+        mock_stdout.buffer.write.assert_has_calls([
+            call(b"Connected.\n"),
+            call(b"\nDone.\n")
+        ])
+
 
 if __name__ == '__main__':
     unittest.main()

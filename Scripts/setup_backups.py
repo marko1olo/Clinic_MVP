@@ -17,7 +17,7 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.flush()
     return out, err
 
-if __name__ == "__main__":
+def main():
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
@@ -45,3 +45,6 @@ fi
 
     client.close()
     sys.stdout.buffer.write(b"\nDone.\n")
+
+if __name__ == "__main__":
+    main()

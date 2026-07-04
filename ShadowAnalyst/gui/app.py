@@ -332,6 +332,7 @@ def load_dotenv_manually():
                                 v = v[1:-1]
                             os.environ[k] = v
                 loaded = True
+                break
             except Exception as e:
                 print(f"[CONFIG] Error reading .env at {path}: {e}")
     if not loaded:

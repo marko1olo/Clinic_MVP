@@ -48,9 +48,14 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     _verify_password(credentials, expected_username, expected_password)
     return credentials.username
 
+
+def dict_factory(cursor, row):
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+
 def get_dashboard_data():
     try:
         conn = get_connection()
+        conn.row_factory = dict_factory
         c = conn.cursor()
 
         # Get upcoming appointments
@@ -68,9 +73,9 @@ def get_dashboard_data():
         c.execute('SELECT * FROM patients ORDER BY name ASC LIMIT 100')
         patients = c.fetchall()
 
-        # Convert rows to dicts inside the threadpool to avoid keeping cursor alive
-        res_appointments = [dict(ix) for ix in appointments]
-        res_patients = [dict(ix) for ix in patients]
+        # Results are already dicts thanks to the dict_factory
+        res_appointments = appointments
+        res_patients = patients
 
         conn.close()
         return res_appointments, res_patients

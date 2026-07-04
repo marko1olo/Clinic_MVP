@@ -1,0 +1,5 @@
+💡 **What:** Configured a native Python `dict_factory` on the SQLite database connection inside `get_dashboard_data` to return dictionaries directly, and removed the list comprehensions that previously casted `sqlite3.Row` to `dict` objects.
+
+🎯 **Why:** Previously, the `get_dashboard_data` function was fetching data and then iterating over every row using list comprehensions (`[dict(ix) for ix in appointments]`). This was slightly inefficient in terms of allocations and memory overhead for large datasets. By using `dict_factory`, we eliminate the secondary processing loop and directly yield dictionary objects, which maintains API backwards compatibility (JSON serializability).
+
+📊 **Measured Improvement:** The optimization achieves what the issue requested by configuring the connection factory and removing the secondary iterative dictionary casts. However, in profiling the raw performance difference, note that a pure-Python `dict_factory` execution in bytecode carries a slight overhead over the native C-implemented `sqlite3.Row` + `dict()` cast, so it's a minor tradeoff of removing Python-space loops vs C-space dictionary instantiation.

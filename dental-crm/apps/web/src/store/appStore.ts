@@ -94,6 +94,7 @@ interface AppStore {
   setRecognitionKind: (val: any) => void;
   recognitionTarget: any;
   setRecognitionTarget: (val: any) => void;
+  initialRecognitionText: any;
   recognitionText: any;
   setRecognitionText: (val: any) => void;
   importSourceKind: any;
@@ -313,6 +314,7 @@ export const useAppStore = create<AppStore>((set) => ({
   setRecognitionKind: (val) => set({ recognitionKind: val }),
   recognitionTarget: null,
   setRecognitionTarget: (val) => set({ recognitionTarget: val }),
+  initialRecognitionText: "",
   recognitionText: "",
   setRecognitionText: (val) => set({ recognitionText: val }),
   importSourceKind: null,

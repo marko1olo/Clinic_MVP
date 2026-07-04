@@ -108,10 +108,30 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
     max_len = 4000
     report_chunks = [report_text[i:i+max_len] for i in range(0, len(report_text), max_len)]
 
-    async def _send_to_user(chat_id):
+    # Upload and send to first user
+    if not users:
+        return
+    first_user = users[0]
+    cached_file_id = None
+    try:
+        input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
+        msg = await bot.send_photo(first_user, photo=input_file, caption=caption, parse_mode="Markdown")
+        if msg and msg.photo:
+            cached_file_id = msg.photo[-1].file_id
+        for chunk in report_chunks:
+            await bot.send_message(first_user, text=chunk)
+    except Exception as e:
+        log.error(f"Failed to send photo to {first_user}: {e}")
+
+    rest_users = users[1:]
+    if not rest_users:
+        return
+
+    async def _send_to_user(chat_id, file_id):
         try:
-            input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
-            await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
+            # If we successfully got a file_id, use it. Otherwise fallback to bytes.
+            photo_to_send = file_id if file_id else BufferedInputFile(photo_bytes, filename="xray.jpg")
+            await bot.send_photo(chat_id, photo=photo_to_send, caption=caption, parse_mode="Markdown")
             
             # Send the rest as text sequentially to preserve correct ordering
             for chunk in report_chunks:
@@ -119,7 +139,7 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
         except Exception as e:
             log.error(f"Failed to send photo to {chat_id}: {e}")
 
-    await asyncio.gather(*(_send_to_user(chat_id) for chat_id in users))
+    await asyncio.gather(*(_send_to_user(chat_id, cached_file_id) for chat_id in rest_users))
 
 def handle_xray_result(topic, payload, loop):
     image_b64 = payload.get('image_b64')

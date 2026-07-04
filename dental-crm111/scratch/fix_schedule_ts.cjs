@@ -20,7 +20,7 @@ let appCode = fs.readFileSync(path.join(__dirname, '../apps/web/src/App.tsx'), '
 // Fix 'day' any types
 appCode = appCode.replace(/onChange=\{\(day\) =>/g, 'onChange={(day: any) =>');
 // Fix 'item' any types
-appCode = appCode.replace(/onChange=\{\(item\) =>/g, 'onChange={(item: any) =>');
+appCode = appCode.replace(/\.map\(\(item\) =>/g, '.map((item: any) =>');
 
 // Fix 'current' any types in setters that might not have been caught
 appCode = appCode.replace(/set([A-Za-z0-9_]+)\(\(current\) =>/g, "set$1((current: any) =>");

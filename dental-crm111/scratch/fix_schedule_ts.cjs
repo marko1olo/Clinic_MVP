@@ -5,7 +5,7 @@ let storeCode = fs.readFileSync(path.join(__dirname, '../apps/web/src/store/sche
 
 // Fix imports
 storeCode = storeCode.replace(
-    'import { Appointment, StaffScheduleDraft, StaffScheduleSaveState, AppointmentScheduleDraft, AppointmentScheduleSaveState } from "@dental/shared";',
+    /import\s+\{[^}]+\}\s+from\s+["']@dental\/shared["'];/,
     'import { Appointment } from "@dental/shared";'
 );
 storeCode = storeCode.replace(

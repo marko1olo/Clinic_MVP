@@ -17,18 +17,14 @@ def _get_existing_names(c, names):
     return set(row[0] for row in c.fetchall())
 
 def _insert_patients(c, new_patients_data):
-    c.executemany(
-        "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
-        new_patients_data
-    )
-
-    inserted_names = [p[0] for p in new_patients_data]
-    c.execute(
-        "SELECT id FROM patients WHERE name IN "
-        "(SELECT value FROM json_each(?))",
-        (json.dumps(inserted_names),)
-    )
-    return [row[0] for row in c.fetchall()]
+    inserted_ids = []
+    for patient_data in new_patients_data:
+        c.execute(
+            "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
+            patient_data
+        )
+        inserted_ids.append(c.lastrowid)
+    return inserted_ids
 
 def _insert_appointments(c, inserted_ids, now):
     old_date = (now - timedelta(days=210)).isoformat()

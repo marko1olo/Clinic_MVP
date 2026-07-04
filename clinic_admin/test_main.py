@@ -213,6 +213,32 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_insert_appointment(self):
+        from clinic_admin.main import insert_patient, insert_appointment
+        from clinic_admin.database import get_connection
+
+        # Create a patient first for foreign key compliance
+        insert_patient("Appointment Insert Patient", "555-0000")
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM patients WHERE name = 'Appointment Insert Patient'")
+        patient = c.fetchone()
+        patient_id = patient["id"]
+        conn.close()
+
+        # Call the function directly
+        insert_appointment(patient_id, "Dr. Who", "2023-11-01T15:00")
+
+        # Verify it was added to the test database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM appointments WHERE patient_id = ? AND doctor = ?", (patient_id, "Dr. Who"))
+        appointment = c.fetchone()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["appointment_date"], "2023-11-01T15:00")
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

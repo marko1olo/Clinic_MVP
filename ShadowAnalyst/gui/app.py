@@ -1606,6 +1606,7 @@ def is_port_in_use(port):
 
 def wait_for_server(url, timeout=10):
     start_time = time.time()
+    sleep_time = 0.05
     while time.time() - start_time < timeout:
         try:
             r = requests.get(url, timeout=1)
@@ -1613,7 +1614,8 @@ def wait_for_server(url, timeout=10):
                 return True
         except requests.RequestException:
             pass
-        time.sleep(0.5)
+        time.sleep(sleep_time)
+        sleep_time = min(0.5, sleep_time * 1.5)
     return False
 
 # Main

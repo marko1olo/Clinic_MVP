@@ -347,6 +347,46 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_success(self, mock_client_class):
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        with patch('ShadowAnalyst.watcher.MQTT_USER', ''), patch('ShadowAnalyst.watcher.MQTT_PASS', ''):
+            watcher.publish_result("test_file.jpg", "test findings")
+
+        mock_client_class.assert_called_once()
+        mock_client.connect.assert_called_once_with(watcher.MQTT_HOST, watcher.MQTT_PORT, 5)
+
+        import json
+        expected_payload = json.dumps({"file": "test_file.jpg", "findings": "test findings"}, ensure_ascii=False)
+        mock_client.publish.assert_called_once_with(watcher.TOPIC_XRAY_RESULT, expected_payload)
+        mock_client.disconnect.assert_called_once()
+
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_with_auth(self, mock_client_class):
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        with patch('ShadowAnalyst.watcher.MQTT_USER', 'testuser'), patch('ShadowAnalyst.watcher.MQTT_PASS', 'testpass'):
+            watcher.publish_result("test_file.jpg", "test findings")
+
+        mock_client.username_pw_set.assert_called_once_with('testuser', 'testpass')
+        mock_client.connect.assert_called_once_with(watcher.MQTT_HOST, watcher.MQTT_PORT, 5)
+
+    @patch('paho.mqtt.client.Client')
+    def test_publish_result_exception(self, mock_client_class):
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        mock_client.connect.side_effect = Exception("Mocked connection error")
+
+        # Test that the exception is caught and printed, not raised
+        with patch('builtins.print') as mock_print:
+            watcher.publish_result("test_file.jpg", "test findings")
+
+        mock_print.assert_called_with("Ошибка отправки MQTT: Mocked connection error")
+
 if __name__ == '__main__':
     unittest.main()
 

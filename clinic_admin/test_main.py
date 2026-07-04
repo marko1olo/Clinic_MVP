@@ -213,6 +213,54 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_fetch_current_appointment_empty(self):
+        from clinic_admin.main import fetch_current_appointment
+        # Test with empty database
+        res = fetch_current_appointment()
+        self.assertIsNone(res)
+
+    def test_fetch_current_appointment_logic(self):
+        from clinic_admin.main import fetch_current_appointment
+        from clinic_admin.database import get_connection
+
+        conn = get_connection()
+        c = conn.cursor()
+
+        # Add patient
+        c.execute("INSERT INTO patients (name) VALUES ('Jane Doe')")
+        patient_id = c.lastrowid
+
+        # Insert appointments using SQLite's date and time functions to avoid Python-side timezone flakiness
+        queries = [
+            # Yesterday
+            "INSERT INTO appointments (patient_id, appointment_date, doctor) VALUES (?, datetime('now', '-1 day'), 'Dr. Smith')",
+            # Today, 2 hours ago
+            "INSERT INTO appointments (patient_id, appointment_date, doctor) VALUES (?, date('now') || ' ' || time('now', 'localtime', '-2 hours'), 'Dr. Smith')",
+            # Today, 5 minutes from now
+            "INSERT INTO appointments (patient_id, appointment_date, doctor) VALUES (?, date('now') || ' ' || time('now', 'localtime', '+5 minutes'), 'Dr. Smith')",
+            # Today, 2 hours from now
+            "INSERT INTO appointments (patient_id, appointment_date, doctor) VALUES (?, date('now') || ' ' || time('now', 'localtime', '+2 hours'), 'Dr. Smith')",
+            # Tomorrow
+            "INSERT INTO appointments (patient_id, appointment_date, doctor) VALUES (?, datetime('now', '+1 day'), 'Dr. Smith')",
+        ]
+
+        for q in queries:
+            c.execute(q, (patient_id,))
+        conn.commit()
+
+        # Get the expected time string
+        c.execute("SELECT date('now') || ' ' || time('now', 'localtime', '+5 minutes')")
+        expected_time_str = c.fetchone()[0]
+
+        # Fetch closest appointment for today
+        res = fetch_current_appointment()
+        self.assertIsNotNone(res)
+        self.assertEqual(res["patient_name"], "Jane Doe")
+        self.assertEqual(res["doctor"], "Dr. Smith")
+        self.assertEqual(res["time"], expected_time_str)
+
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

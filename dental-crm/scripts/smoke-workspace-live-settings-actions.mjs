@@ -10,6 +10,12 @@ import { waitFor, evaluate, setFileInputFiles } from "./lib/cdp.mjs";
 import path from "node:path";
 import { inputHelpersExpression } from "./lib/inputHelpersExpression.mjs";
 
+const watchdog = setTimeout(() => {
+  console.error("SMOKE TEST TIMEOUT: Process terminated by watchdog");
+  process.exit(1);
+}, 90000);
+watchdog.unref();
+
 const width = Number(process.env.SMOKE_WIDTH ?? 1440);
 const height = Number(process.env.SMOKE_HEIGHT ?? 1100);
 const apiPort = Number(process.env.SMOKE_API_PORT ?? (await findFreePort()));
@@ -72,6 +78,10 @@ function connectCdp(wsUrl) {
 
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data);
+    if (message.method === "Runtime.consoleAPICalled") {
+      const args = message.params.args.map(a => a.value !== undefined ? a.value : a.description || JSON.stringify(a)).join(" ");
+      console.log(`[BROWSER CONSOLE]:`, args);
+    }
     if (!message.id) return;
     const request = pending.get(message.id);
     if (!request) return;
@@ -107,7 +117,14 @@ async function navigateTo(cdp, hash, selector) {
     `(() => document.readyState === "complete" && Boolean(document.querySelector(".app-shell")))()`,
     `${hash} app shell`
   );
-  await waitFor(cdp, `(() => Boolean(document.querySelector(${JSON.stringify(selector)})))()`, `${hash} selector ${selector}`);
+  await waitFor(
+    cdp,
+    `(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      return el && el.getAttribute("aria-busy") !== "true";
+    })()`,
+    `${hash} selector ${selector} not busy`
+  );
 }
 
 async function saveScreenshot(cdp, name) {
@@ -194,6 +211,9 @@ const apiProcess = spawnTracked(
       DENTE_SETTINGS_ADMIN_SECRET: "",
       DENTE_SCHEDULE_ADMIN_SECRET: "",
       DENTE_TELEGRAM_ADMIN_SECRET: "",
+      DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS: "1",
+      DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS: "1",
+      DENTE_SCHEDULE_ALLOW_UNGUARDED_MUTATIONS: "1",
       DENTAL_API_SERVER_PATH: apiServerPath,
       DENTAL_STATE_FILE: stateFilePath,
       DENTAL_STATE_BACKUP_DIR: backupDir,
@@ -278,6 +298,8 @@ try {
     cdp,
     inputHelpersExpression(`
       const panel = document.querySelector(".telegram-admin-panel");
+      const details = panel?.closest("details");
+      if (details) details.open = true;
       const input = panel?.querySelector('input[type="password"]');
       const buttons = panel ? Array.from(panel.querySelectorAll("button")) : [];
       const unlockButton = buttons[0];
@@ -659,6 +681,17 @@ try {
       screenshot: finalScreenshot
     })
   );
+} catch (error) {
+  console.error("SMOKE TEST FAILED:", error);
+  console.error("--- API PROCESS STDOUT ---");
+  console.error(apiProcess.stdout());
+  console.error("--- API PROCESS STDERR ---");
+  console.error(apiProcess.stderr());
+  console.error("--- WEB PROCESS STDOUT ---");
+  console.error(webProcess.stdout());
+  console.error("--- WEB PROCESS STDERR ---");
+  console.error(webProcess.stderr());
+  throw error;
 } finally {
   await stopTracked(browserProcess);
   await stopTracked(webProcess);

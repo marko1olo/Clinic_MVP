@@ -1,6 +1,49 @@
-import { test, describe } from 'node:test';
+import { test, describe, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { formatByteSize, formatMegabytes } from '../browserContinuity.js';
+import { formatByteSize, formatMegabytes, inspectBrowserContinuity, browserIndexedDbWritable } from '../browserContinuity.js';
+
+describe('inspectBrowserContinuity', () => {
+  test('adds warning when navigator.storage.estimate throws an error', async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const originalNavigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+
+    try {
+      Object.defineProperty(globalThis, 'window', {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {
+          storage: {
+            estimate: async () => {
+              throw new Error('Simulated storage estimate error');
+            },
+          },
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      const status = await inspectBrowserContinuity();
+
+      assert.ok(status.warnings.includes('Оценка хранилища браузера недоступна'));
+    } finally {
+      if (originalWindowDescriptor) {
+        Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+      } else {
+        delete (globalThis as any).window;
+      }
+      if (originalNavigatorDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', originalNavigatorDescriptor);
+      } else {
+        delete (globalThis as any).navigator;
+      }
+    }
+  });
+});
+
 
 describe('formatMegabytes', () => {
   test('returns "н/д" when value is null', () => {
@@ -72,5 +115,65 @@ describe('formatByteSize', () => {
     assert.strictEqual(formatByteSize(1234.5 * 1024 * 1024), `${(1234.5).toLocaleString('ru-RU')} МБ`);
     // 99999.9 MB -> 99 999,9 МБ
     assert.strictEqual(formatByteSize(99999.94 * 1024 * 1024), `${(99999.9).toLocaleString('ru-RU')} МБ`);
+  });
+});
+
+describe('browserIndexedDbWritable', () => {
+  const originalWindow = global.window;
+
+  afterEach(() => {
+    global.window = originalWindow;
+  });
+
+  test('returns false when window is undefined', async () => {
+    global.window = undefined as any;
+    assert.strictEqual(await browserIndexedDbWritable(), false);
+  });
+
+  test('returns false when indexedDB is not in window', async () => {
+    global.window = {} as any;
+    assert.strictEqual(await browserIndexedDbWritable(), false);
+  });
+
+  test('returns false when indexedDB open triggers onerror', async () => {
+    global.window = {
+      indexedDB: {
+        open: (name: string, version: number) => {
+          const request: any = {};
+          setTimeout(() => {
+            if (request.onerror) {
+              request.error = new Error('Simulated IndexedDB error');
+              request.onerror();
+            }
+          }, 0);
+          return request;
+        }
+      }
+    } as any;
+
+    assert.strictEqual(await browserIndexedDbWritable(), false);
+  });
+
+  test('returns true when indexedDB operations succeed', async () => {
+    global.window = {
+      indexedDB: {
+        open: (name: string, version: number) => {
+          const request: any = {};
+          setTimeout(() => {
+            if (request.onsuccess) {
+              request.result = {
+                close: () => {}
+              };
+              request.onsuccess();
+            }
+          }, 0);
+          return request;
+        },
+        deleteDatabase: (name: string) => {}
+      }
+    } as any;
+
+    const result = await browserIndexedDbWritable();
+    assert.strictEqual(result, true);
   });
 });

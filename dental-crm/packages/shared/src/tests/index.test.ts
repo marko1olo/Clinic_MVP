@@ -4,6 +4,7 @@ import {
   documentRequiresPaidRecord,
   documentAmountSource,
   documentKindSchema,
+  documentPayloadDisallowedKeys,
   buildRuleBasedVisitDraftFromTranscript,
 } from "../index.js";
 
@@ -90,6 +91,13 @@ describe("documentRequiresPaidRecord", () => {
       const result = documentRequiresPaidRecord(kind);
       assert.strictEqual(typeof result, "boolean");
     }
+  });
+
+  test("edge cases: handles invalid or missing document kinds gracefully", () => {
+    assert.strictEqual(documentRequiresPaidRecord("" as any), false);
+    assert.strictEqual(documentRequiresPaidRecord("invalid_kind" as any), false);
+    assert.strictEqual(documentRequiresPaidRecord(undefined as any), false);
+    assert.strictEqual(documentRequiresPaidRecord(null as any), false);
   });
 });
 
@@ -185,5 +193,12 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
     // Implantologist should have a different objective fallback
     assert.notStrictEqual(universalDraft.objectiveStatus, implantologistDraft.objectiveStatus);
     assert.ok(implantologistDraft.objectiveStatus?.includes("уточнить зону адентии"));
+  });
+});
+
+describe("documentPayloadDisallowedKeys", () => {
+  test("returns empty array for null or undefined payload", () => {
+    assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", null), []);
+    assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", undefined), []);
   });
 });

@@ -82,8 +82,9 @@ export const issuedArchiveIntegrityError =
 
 export function pdfBrowserCandidates(): string[] {
   return [
-    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/usr/bin/microsoft-edge",
@@ -106,7 +107,7 @@ const allowedPdfBrowserExecutables = new Set([
 ]);
 
 function isSafeBrowserPath(candidate: string): boolean {
-  const basename = candidate.split(/[\/]/).pop()?.toLowerCase();
+  const basename = candidate.split(/[\/\\]/).pop()?.toLowerCase();
   return basename ? allowedPdfBrowserExecutables.has(basename) : false;
 }
 
@@ -294,26 +295,39 @@ export function findIssuedDuplicateTaxCertificate(document: GeneratedDocument): 
   const targetPaymentIds = paymentIdsForTaxDocument(document, payments);
   if (!targetAnnualScopes.length && !targetReceiptKeys.size && !targetPaymentIds.size) return null;
 
-  return (
-    documents.find((candidate) => {
-      if (candidate.id === document.id) return false;
-      if (candidate.organizationId !== document.organizationId) return false;
-      if (candidate.status !== "issued") return false;
-      if (candidate.kind !== document.kind) return false;
-      if (candidate.patientId !== document.patientId) return false;
-      if (candidate.taxYear !== document.taxYear) return false;
+  for (const candidate of documents) {
+    if (candidate.patientId !== document.patientId) continue;
+    if (candidate.taxYear !== document.taxYear) continue;
+    if (candidate.status !== "issued") continue;
+    if (candidate.kind !== document.kind) continue;
+    if (candidate.organizationId !== document.organizationId) continue;
+    if (candidate.id === document.id) continue;
 
-      const candidateAnnualScopes = annualTaxpayerScopesForDocument(candidate);
-      if (annualTaxpayerScopesOverlap(targetAnnualScopes, candidateAnnualScopes)) return true;
+    const candidateAnnualScopes = annualTaxpayerScopesForDocument(candidate);
+    if (annualTaxpayerScopesOverlap(targetAnnualScopes, candidateAnnualScopes)) return candidate;
 
-      const candidateReceiptKeys = receiptKeysForTaxDocument(candidate, payments);
-      const candidatePaymentIds = paymentIdsForTaxDocument(candidate, payments);
-      return (
-        [...candidateReceiptKeys].some((key) => targetReceiptKeys.has(key)) ||
-        [...candidatePaymentIds].some((id) => targetPaymentIds.has(id))
-      );
-    }) ?? null
-  );
+    const candidateReceiptKeys = receiptKeysForTaxDocument(candidate, payments);
+    let hasReceiptKey = false;
+    for (const key of candidateReceiptKeys) {
+      if (targetReceiptKeys.has(key)) {
+        hasReceiptKey = true;
+        break;
+      }
+    }
+    if (hasReceiptKey) return candidate;
+
+    const candidatePaymentIds = paymentIdsForTaxDocument(candidate, payments);
+    let hasPaymentId = false;
+    for (const id of candidatePaymentIds) {
+      if (targetPaymentIds.has(id)) {
+        hasPaymentId = true;
+        break;
+      }
+    }
+    if (hasPaymentId) return candidate;
+  }
+
+  return null;
 }
 
 export function taxSnapshotDocument(document: GeneratedDocument, snapshot: TaxPaymentSnapshot | null): GeneratedDocument {
@@ -879,7 +893,9 @@ export function buildDocumentAuditFacts(document: GeneratedDocument, patient: (t
   const metadata = documentKindMetadata[document.kind];
   const htmlPreviewUrl = `/api/documents/${document.id}/html`;
   const htmlDownloadUrl = immutableSnapshotReady ? `${htmlPreviewUrl}?download=1` : null;
-  const pdfDownloadUrl = immutableSnapshotReady && hasIssueSignatureAttestation ? `/api/documents/${document.id}/pdf` : null;
+  // treatment_plan PDFs are rendered on-the-fly (no signed archive required) — available in draft too
+  const treatmentPlanPdfUrl = document.kind === "treatment_plan" ? `/api/documents/${document.id}/treatment-plan-pdf` : null;
+  const pdfDownloadUrl = treatmentPlanPdfUrl ?? (immutableSnapshotReady && hasIssueSignatureAttestation ? `/api/documents/${document.id}/pdf` : null);
   const canExportFnsXml =
     document.kind === "tax_deduction_certificate" &&
     document.status === "issued" &&

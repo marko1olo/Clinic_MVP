@@ -16,10 +16,10 @@ const initialUiPreferences = loadUiPreferences();
 code = code.replace(/import { GeneratedDocument } from "@dental\/shared";/, 'import { GeneratedDocument } from "@dental/shared";' + extraImports);
 
 // Fix TS issues with arrays where type was incorrectly inferred
-// e.g.   personalDataPurposes: any; -> personalDataPurposes: string[];
-code = code.replace(/personalDataPurposes: any;/g, 'personalDataPurposes: string[];');
-code = code.replace(/personalDataCategories: any;/g, 'personalDataCategories: string[];');
-code = code.replace(/personalDataActions: any;/g, 'personalDataActions: string[];');
+// e.g.   personalDataPurposes: string; -> personalDataPurposes: string[];
+code = code.replace(/personalDataPurposes: string;/g, 'personalDataPurposes: string[];');
+code = code.replace(/personalDataCategories: string;/g, 'personalDataCategories: string[];');
+code = code.replace(/personalDataActions: string;/g, 'personalDataActions: string[];');
 
 fs.writeFileSync('C:/Clinic_MVP/dental-crm/apps/web/src/store/documentStore.ts', code);
 console.log("Fixed documentStore.ts");

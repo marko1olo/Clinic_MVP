@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 import sqlite3
 import os
+import clinic_admin.database
 import tempfile
 
 class TestDatabase(unittest.TestCase):

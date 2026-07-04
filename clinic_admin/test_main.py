@@ -103,13 +103,23 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
-    def test_api_current_appointment_authenticated(self):
+    @unittest.mock.patch('clinic_admin.main.fetch_current_appointment')
+    def test_api_current_appointment_authenticated_with_data(self, mock_fetch):
+        mock_fetch.return_value = {"appointment_id": 1, "patient_name": "Test", "doctor": "Dr. Smith", "time": "2023-10-27T10:00"}
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertTrue("error" in data or "appointment_id" in data)
+        self.assertEqual(response.json(), {"appointment_id": 1, "patient_name": "Test", "doctor": "Dr. Smith", "time": "2023-10-27T10:00"})
+
+    @unittest.mock.patch('clinic_admin.main.fetch_current_appointment')
+    def test_api_current_appointment_authenticated_no_data(self, mock_fetch):
+        mock_fetch.return_value = None
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"error": "No appointments today"})
 
 
     def test_add_patient_unauthenticated(self):

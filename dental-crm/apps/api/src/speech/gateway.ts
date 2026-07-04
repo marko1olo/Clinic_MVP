@@ -1209,9 +1209,13 @@ function textFromVoskPayload(payload: Record<string, unknown>): string {
     if (resultText) return resultText;
   }
   if (Array.isArray(result)) {
-    const words = result
-      .map((item) => (item && typeof item === "object" ? stringFromRecord(item as Record<string, unknown>, ["word", "text"]) : ""))
-      .filter(Boolean);
+    const words = result.reduce<string[]>((acc, item) => {
+      if (item && typeof item === "object") {
+        const val = stringFromRecord(item as Record<string, unknown>, ["word", "text"]);
+        if (val) acc.push(val);
+      }
+      return acc;
+    }, []);
     if (words.length) return words.join(" ");
   }
 
@@ -1231,20 +1235,26 @@ function confidenceFromVoskPayload(payload: Record<string, unknown>): number | n
   const result = payload.result;
   if (Array.isArray(result)) {
     return averageConfidence(
-      result
-        .map((item) => (item && typeof item === "object" ? numberFromUnknown((item as Record<string, unknown>).conf) : null))
-        .filter((value): value is number => value !== null)
+      result.reduce<number[]>((acc, item) => {
+        if (item && typeof item === "object") {
+          const conf = numberFromUnknown((item as Record<string, unknown>).conf);
+          if (conf !== null) acc.push(conf);
+        }
+        return acc;
+      }, [])
     );
   }
 
   const alternatives = payload.alternatives;
   if (Array.isArray(alternatives)) {
     return averageConfidence(
-      alternatives
-        .map((item) =>
-          item && typeof item === "object" ? numberFromUnknown((item as Record<string, unknown>).confidence) : null
-        )
-        .filter((value): value is number => value !== null)
+      alternatives.reduce<number[]>((acc, item) => {
+        if (item && typeof item === "object") {
+          const conf = numberFromUnknown((item as Record<string, unknown>).confidence);
+          if (conf !== null) acc.push(conf);
+        }
+        return acc;
+      }, [])
     );
   }
 

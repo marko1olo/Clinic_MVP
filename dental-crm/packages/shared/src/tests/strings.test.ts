@@ -20,6 +20,11 @@ describe('splitLine', () => {
     assert.deepStrictEqual(splitLine(' a , "b, c" , d ', ','), ['a', 'b, c', 'd']);
   });
 
+  test('handles empty string delimiter', () => {
+    assert.deepStrictEqual(splitLine('abc', ''), ['abc']);
+    assert.deepStrictEqual(splitLine('', ''), ['']);
+  });
+
   test('handles empty string', () => {
     assert.deepStrictEqual(splitLine('', ','), ['']);
   });
@@ -61,6 +66,24 @@ describe('splitLine', () => {
     assert.deepStrictEqual(splitLine('   ', ','), ['']);
   });
 
+  test('handles strings with no delimiters', () => {
+    assert.deepStrictEqual(splitLine('hello', ','), ['hello']);
+    assert.deepStrictEqual(splitLine('hello world', ','), ['hello world']);
+  });
+
+  test('handles emojis and unicode characters', () => {
+    assert.deepStrictEqual(splitLine('👋,🌍,🔥', ','), ['👋', '🌍', '🔥']);
+    assert.deepStrictEqual(splitLine('привет,мир', ','), ['привет', 'мир']);
+  });
+
+  test('handles newlines inside quotes', () => {
+    assert.deepStrictEqual(splitLine('a,"b\nc",d', ','), ['a', 'b\nc', 'd']);
+  });
+
+  test('preserves spaces inside quotes but trims outside', () => {
+    assert.deepStrictEqual(splitLine('  " a b "  ,  c  ', ','), ['a b', 'c']);
+  });
+
   test('handles whitespace around empty elements', () => {
     assert.deepStrictEqual(splitLine('a, ,c', ','), ['a', '', 'c']);
   });
@@ -72,4 +95,6 @@ describe('splitLine', () => {
   test('handles quotes adjacent to characters without delimiters', () => {
     assert.deepStrictEqual(splitLine('a,"b""c",d', ','), ['a', 'bc', 'd']);
   });
+
+
 });

@@ -217,6 +217,18 @@ export const denteTelegramBotSettings: DenteTelegramBotSettings = {
 
 export const denteTelegramWebhookEvents: DenteTelegramWebhookEvent[] = [];
 export const denteTelegramOutboxDeliveryReceipts: DenteTelegramOutboxDeliveryReceipt[] = [];
+export const denteTelegramOutboxDeliveryReceiptsMap = new Map<string, DenteTelegramOutboxDeliveryReceipt>();
+
+function syncDenteTelegramOutboxDeliveryReceiptsMap(): void {
+  denteTelegramOutboxDeliveryReceiptsMap.clear();
+  for (let i = denteTelegramOutboxDeliveryReceipts.length - 1; i >= 0; i--) {
+    const receipt = denteTelegramOutboxDeliveryReceipts[i];
+    if (receipt && receipt.clientMutationId) {
+      denteTelegramOutboxDeliveryReceiptsMap.set(`${receipt.outboxItemId}:${receipt.clientMutationId}`, receipt);
+    }
+  }
+}
+
 export const denteTelegramLinkCodes: DenteTelegramLinkCode[] = [];
 export const denteTelegramChatLinks: DenteTelegramChatLink[] = [];
 
@@ -247,6 +259,22 @@ export const clinicProfile: ClinicProfile = {
 };
 
 export const staffMembers: StaffMember[] = [
+  {
+    id: "e44d32ca-7777-4c00-a001-c88f01b92e21",
+    organizationId,
+    fullName: "Петров Иван Иванович",
+    role: "owner",
+    specialties: [],
+    phone: "+7 927 555-55-55",
+    email: "owner@example.com",
+    active: true,
+    canSignMedicalRecords: false,
+    canManageMoney: true,
+    canManageImports: true,
+    color: "#1e293b",
+    createdAt: nowIso,
+    updatedAt: nowIso
+  },
   {
     id: doctorUserId,
     organizationId,
@@ -324,6 +352,7 @@ export const patients: Patient[] = [
     email: null,
     notes: "Боится анестезии, предпочитает утренние приемы.",
     administrativeProfile: null,
+    balanceRub: 0,
     createdAt: nowIso,
     updatedAt: nowIso
   },
@@ -337,6 +366,7 @@ export const patients: Patient[] = [
     email: "petrov@example.com",
     notes: "Нужны документы для налогового вычета.",
     administrativeProfile: null,
+    balanceRub: 0,
     createdAt: nowIso,
     updatedAt: nowIso
   },
@@ -350,6 +380,7 @@ export const patients: Patient[] = [
     email: null,
     notes: null,
     administrativeProfile: null,
+    balanceRub: 0,
     createdAt: nowIso,
     updatedAt: nowIso
   }
@@ -458,6 +489,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A01.07.001",
     title: "Первичная консультация стоматолога",
+    aliases: [],
     category: "consultation",
     specialty: "universal",
     basePriceRub: 1200,
@@ -470,6 +502,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A16.07.002",
     title: "Лечение кариеса с восстановлением",
+    aliases: [],
     category: "therapy",
     specialty: "therapist",
     basePriceRub: 6800,
@@ -482,6 +515,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A16.07.093",
     title: "Изоляция коффердамом",
+    aliases: [],
     category: "therapy",
     specialty: "therapist",
     basePriceRub: 1500,
@@ -494,6 +528,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A16.07.051",
     title: "Профессиональная гигиена",
+    aliases: [],
     category: "hygiene",
     specialty: "hygienist",
     basePriceRub: 4500,
@@ -506,6 +541,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A06.07.004",
     title: "ОПТГ",
+    aliases: [],
     category: "imaging",
     specialty: "radiologist",
     basePriceRub: 1800,
@@ -518,6 +554,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A16.07.001",
     title: "Удаление зуба",
+    aliases: [],
     category: "surgery",
     specialty: "surgeon",
     basePriceRub: 5200,
@@ -530,6 +567,7 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     organizationId,
     code: "A16.07.006",
     title: "Коронка керамическая",
+    aliases: [],
     category: "prosthetics",
     specialty: "orthopedist",
     basePriceRub: 26000,
@@ -546,6 +584,8 @@ export const treatmentPlanItems: TreatmentPlanItem[] = [
     patientId: marinaPatientId,
     visitId: activeVisitId,
     serviceId: "svc-therapy-caries",
+    snapshotServiceName: "Legacy Snapshot",
+    snapshotServiceCategory: null,
     toothCode: "36",
     quantity: 1,
     unitPriceRub: 6800,
@@ -561,6 +601,8 @@ export const treatmentPlanItems: TreatmentPlanItem[] = [
     patientId: marinaPatientId,
     visitId: activeVisitId,
     serviceId: "svc-imaging-opg",
+    snapshotServiceName: "Legacy Snapshot",
+    snapshotServiceCategory: null,
     toothCode: null,
     quantity: 1,
     unitPriceRub: 1800,
@@ -576,6 +618,8 @@ export const treatmentPlanItems: TreatmentPlanItem[] = [
     patientId: alexeyPatientId,
     visitId: null,
     serviceId: "svc-hygiene-pro",
+    snapshotServiceName: "Legacy Snapshot",
+    snapshotServiceCategory: null,
     toothCode: null,
     quantity: 1,
     unitPriceRub: 4500,
@@ -1069,19 +1113,58 @@ function treatmentLineTotal(item: TreatmentPlanItem): number {
 }
 
 export function buildBillingSummary(): BillingSummary {
-  const activePlanItems = treatmentPlanItems.filter((item) => item.status !== "cancelled");
-  const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
-  const totalDiscountRub = activePlanItems.reduce((total, item) => total + item.discountRub, 0);
-  const totalPaidRub = payments
-    .filter((payment) => payment.status === "paid")
-    .reduce((total, payment) => total + payment.amountRub, 0);
-  const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
+  let totalPlannedRub = 0;
+  let totalDiscountRub = 0;
+  let taxDeductionEligibleRub = 0;
+  let openTreatmentItems = 0;
+
+  for (let i = 0; i < treatmentPlanItems.length; i++) {
+    const item = treatmentPlanItems[i];
+    if (!item || item.status === "cancelled") continue;
+
+    const lineTotal = treatmentLineTotal(item);
+    totalPlannedRub += lineTotal;
+    totalDiscountRub += item.discountRub;
+
     const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
-    return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
-  }, 0);
-  const draftDocumentAmountRub = documents
-    .filter((document) => document.status === "draft")
-    .reduce((total, document) => total + (document.totalAmountRub ?? 0), 0);
+    if (service?.taxDeductible) {
+      taxDeductionEligibleRub += lineTotal;
+    }
+
+    if (item.status !== "completed") {
+      openTreatmentItems += 1;
+    }
+  }
+
+  let totalPaidRub = 0;
+  const paidDocumentIds = new Set<string>();
+  for (let i = 0; i < payments.length; i++) {
+    const payment = payments[i];
+    if (!payment) continue;
+
+    if (payment.status === "paid") {
+      totalPaidRub += payment.amountRub;
+      if (payment.documentId) {
+        paidDocumentIds.add(payment.documentId);
+      }
+    }
+  }
+
+  let draftDocumentAmountRub = 0;
+  let unpaidDocuments = 0;
+  for (let i = 0; i < documents.length; i++) {
+    const document = documents[i];
+    if (!document) continue;
+
+    if (document.status === "draft") {
+      const amount = document.totalAmountRub ?? 0;
+      draftDocumentAmountRub += amount;
+
+      if (amount > 0 && !paidDocumentIds.has(document.id)) {
+        unpaidDocuments += 1;
+      }
+    }
+  }
 
   return {
     totalPlannedRub,
@@ -1090,17 +1173,75 @@ export function buildBillingSummary(): BillingSummary {
     totalDueRub: Math.max(0, totalPlannedRub - totalPaidRub),
     taxDeductionEligibleRub,
     draftDocumentAmountRub,
-    openTreatmentItems: activePlanItems.filter((item) => item.status !== "completed").length,
-    unpaidDocuments: documents.filter(
-      (document) =>
-        document.status === "draft" &&
-        (document.totalAmountRub ?? 0) > 0 &&
-        !payments.some((payment) => payment.status === "paid" && payment.documentId === document.id)
-    ).length
+    openTreatmentItems,
+    unpaidDocuments
   };
 }
 
-function buildVisitCloseChecklist(): VisitCloseChecklist {
+
+type ChecklistItem = VisitCloseChecklist["items"][number];
+
+function buildVisitNoteChecklistItem(): ChecklistItem {
+  const visitNoteReady = Boolean(
+    activeVisit.complaint &&
+      activeVisit.objectiveStatus &&
+      activeVisit.diagnosis &&
+      activeVisit.treatmentPlan
+  );
+  return {
+    id: "visit-note",
+    visitId: activeVisit.id,
+    title: "ЭМК заполнена",
+    detail: visitNoteReady
+      ? "Жалобы, статус, диагноз и план готовы к подписи."
+      : "Заполните жалобы, объективный статус, диагноз и план лечения.",
+    ready: visitNoteReady,
+    blocking: true,
+    ownerRole: "doctor",
+    section: "visit",
+    actionLabel: "Проверить запись"
+  };
+}
+
+function buildClinicalRulesChecklistItem(clinical: ReturnType<typeof buildClinicalRuleSummary>): ChecklistItem {
+  return {
+    id: "clinical-rules",
+    visitId: activeVisit.id,
+    title: "Клинические предупреждения",
+    detail: clinical.unresolved
+      ? `${clinical.unresolved} правил требуют внимания, важных предупреждений ${clinical.blockers}.`
+      : "Бандлы, ограничения и предупреждения закрыты.",
+    ready: clinical.blockers === 0,
+    blocking: clinical.blockers > 0,
+    ownerRole: "doctor",
+    section: "visit",
+    actionLabel: clinical.blockers > 0 ? "Проверить предупреждения" : "Посмотреть правила"
+  };
+}
+
+function buildImagingReviewChecklistItem(): ChecklistItem {
+  const activeImages = imagingStudies.filter(
+    (study) => study.patientId === activeVisit.patientId && study.visitId === activeVisit.id
+  );
+  const reviewImages = activeImages.filter((study) => study.status === "needs_review");
+  return {
+    id: "imaging-review",
+    visitId: activeVisit.id,
+    title: "Снимки проверены",
+    detail: reviewImages.length
+      ? `${reviewImages.length} снимок требует врачебной проверки перед закрытием.`
+      : activeImages.length
+        ? "Снимки связаны с приемом и не ждут проверки."
+        : "К приему не прикреплены снимки.",
+    ready: reviewImages.length === 0,
+    blocking: reviewImages.length > 0,
+    ownerRole: "doctor",
+    section: "visit",
+    actionLabel: "Открыть снимки"
+  };
+}
+
+function buildLegalDocumentsChecklistItem(): ChecklistItem {
   const activeDocuments = documents.filter(
     (document) => document.patientId === activeVisit.patientId && document.visitId === activeVisit.id && document.status !== "voided"
   );
@@ -1112,124 +1253,92 @@ function buildVisitCloseChecklist(): VisitCloseChecklist {
   const missingDocumentKinds = requiredDocumentKinds.filter(
     (kind) => !activeDocuments.some((document) => document.kind === kind)
   );
-  const activeImages = imagingStudies.filter(
-    (study) => study.patientId === activeVisit.patientId && study.visitId === activeVisit.id
-  );
-  const reviewImages = activeImages.filter((study) => study.status === "needs_review");
-  const clinical = buildClinicalRuleSummary();
-  const billing = buildBillingSummary();
+  return {
+    id: "legal-documents",
+    visitId: activeVisit.id,
+    title: "Документы готовы",
+    detail: missingDocumentKinds.length
+      ? `Не хватает документов: ${missingDocumentKinds.length}.`
+      : "Договор, согласие и акт привязаны к приему.",
+    ready: missingDocumentKinds.length === 0,
+    blocking: missingDocumentKinds.length > 0,
+    ownerRole: "administrator",
+    section: "documents",
+    actionLabel: "Собрать документы"
+  };
+}
+
+function buildAiDraftReviewChecklistItem(): ChecklistItem {
   const hasReviewedAiDraft = aiRecognitionJobs.some(
     (job) =>
       job.patientId === activeVisit.patientId &&
       job.target === "visit_note" &&
       (job.status === "accepted" || job.status === "needs_review")
   );
+  return {
+    id: "ai-draft-review",
+    visitId: activeVisit.id,
+    title: "AI-черновик проверен",
+    detail: hasReviewedAiDraft
+      ? "AI-черновик уже прошел врачебный контроль."
+      : "AI не подписывает прием: врач сверяет текст вручную.",
+    ready: hasReviewedAiDraft,
+    blocking: false,
+    ownerRole: "doctor",
+    section: "visit",
+    actionLabel: "Сверить черновик"
+  };
+}
+
+function buildPaymentLinkChecklistItem(billing: ReturnType<typeof buildBillingSummary>): ChecklistItem {
+  const formatRub = (amountRub: number) => `${amountRub.toLocaleString("ru-RU")} ₽`;
+  return {
+    id: "payment-link",
+    visitId: activeVisit.id,
+    title: "Оплата связана",
+    detail: billing.totalDueRub
+      ? `Остаток по плану ${formatRub(billing.totalDueRub)}.`
+      : "Оплата закрыта или не требуется.",
+    ready: billing.totalDueRub === 0,
+    blocking: false,
+    ownerRole: "administrator",
+    section: "finance",
+    actionLabel: "Проверить оплату"
+  };
+}
+
+function buildPostVisitInstructionsChecklistItem(): ChecklistItem {
   const postVisitInstruction = communicationTasks.find(
     (task) => task.visitId === activeVisit.id && task.intent === "post_visit_instruction"
   );
   const postVisitInstructionReady = postVisitInstruction?.status === "completed" || postVisitInstruction?.status === "sent";
-  const visitNoteReady = Boolean(
-    activeVisit.complaint &&
-      activeVisit.objectiveStatus &&
-      activeVisit.diagnosis &&
-      activeVisit.treatmentPlan
-  );
-  const formatRub = (amountRub: number) => `${amountRub.toLocaleString("ru-RU")} ₽`;
+  return {
+    id: "post-visit-instructions",
+    visitId: activeVisit.id,
+    title: "Рекомендации пациенту",
+    detail: postVisitInstructionReady
+      ? "Пациент получил рекомендации после приема."
+      : "Ассистенту нужно отправить короткую памятку после лечения.",
+    ready: Boolean(postVisitInstructionReady),
+    blocking: false,
+    ownerRole: "assistant",
+    section: "communications",
+    actionLabel: "Отправить памятку"
+  };
+}
+
+function buildVisitCloseChecklist(): VisitCloseChecklist {
+  const clinical = buildClinicalRuleSummary();
+  const billing = buildBillingSummary();
 
   const items: VisitCloseChecklist["items"] = [
-    {
-      id: "visit-note",
-      visitId: activeVisit.id,
-      title: "ЭМК заполнена",
-      detail: visitNoteReady
-        ? "Жалобы, статус, диагноз и план готовы к подписи."
-        : "Заполните жалобы, объективный статус, диагноз и план лечения.",
-      ready: visitNoteReady,
-      blocking: true,
-      ownerRole: "doctor",
-      section: "visit",
-      actionLabel: "Проверить запись"
-    },
-    {
-      id: "clinical-rules",
-      visitId: activeVisit.id,
-      title: "Клинические предупреждения",
-      detail: clinical.unresolved
-        ? `${clinical.unresolved} правил требуют внимания, важных предупреждений ${clinical.blockers}.`
-        : "Бандлы, ограничения и предупреждения закрыты.",
-      ready: clinical.blockers === 0,
-      blocking: clinical.blockers > 0,
-      ownerRole: "doctor",
-      section: "visit",
-      actionLabel: clinical.blockers > 0 ? "Проверить предупреждения" : "Посмотреть правила"
-    },
-    {
-      id: "imaging-review",
-      visitId: activeVisit.id,
-      title: "Снимки проверены",
-      detail: reviewImages.length
-        ? `${reviewImages.length} снимок требует врачебной проверки перед закрытием.`
-        : activeImages.length
-          ? "Снимки связаны с приемом и не ждут проверки."
-          : "К приему не прикреплены снимки.",
-      ready: reviewImages.length === 0,
-      blocking: reviewImages.length > 0,
-      ownerRole: "doctor",
-      section: "visit",
-      actionLabel: "Открыть снимки"
-    },
-    {
-      id: "legal-documents",
-      visitId: activeVisit.id,
-      title: "Документы готовы",
-      detail: missingDocumentKinds.length
-        ? `Не хватает документов: ${missingDocumentKinds.length}.`
-        : "Договор, согласие и акт привязаны к приему.",
-      ready: missingDocumentKinds.length === 0,
-      blocking: missingDocumentKinds.length > 0,
-      ownerRole: "administrator",
-      section: "documents",
-      actionLabel: "Собрать документы"
-    },
-    {
-      id: "ai-draft-review",
-      visitId: activeVisit.id,
-      title: "AI-черновик проверен",
-      detail: hasReviewedAiDraft
-        ? "AI-черновик уже прошел врачебный контроль."
-        : "AI не подписывает прием: врач сверяет текст вручную.",
-      ready: hasReviewedAiDraft,
-      blocking: false,
-      ownerRole: "doctor",
-      section: "visit",
-      actionLabel: "Сверить черновик"
-    },
-    {
-      id: "payment-link",
-      visitId: activeVisit.id,
-      title: "Оплата связана",
-      detail: billing.totalDueRub
-        ? `Остаток по плану ${formatRub(billing.totalDueRub)}.`
-        : "Оплата закрыта или не требуется.",
-      ready: billing.totalDueRub === 0,
-      blocking: false,
-      ownerRole: "administrator",
-      section: "finance",
-      actionLabel: "Проверить оплату"
-    },
-    {
-      id: "post-visit-instructions",
-      visitId: activeVisit.id,
-      title: "Рекомендации пациенту",
-      detail: postVisitInstructionReady
-        ? "Пациент получил рекомендации после приема."
-        : "Ассистенту нужно отправить короткую памятку после лечения.",
-      ready: Boolean(postVisitInstructionReady),
-      blocking: false,
-      ownerRole: "assistant",
-      section: "communications",
-      actionLabel: "Отправить памятку"
-    }
+    buildVisitNoteChecklistItem(),
+    buildClinicalRulesChecklistItem(clinical),
+    buildImagingReviewChecklistItem(),
+    buildLegalDocumentsChecklistItem(),
+    buildAiDraftReviewChecklistItem(),
+    buildPaymentLinkChecklistItem(billing),
+    buildPostVisitInstructionsChecklistItem()
   ];
 
   const readyItems = items.filter((item) => item.ready).length;
@@ -1623,7 +1732,7 @@ function normalizeMutableScheduleState(): void {
 
 const appointmentTimeFormatters = new Map<string, Intl.DateTimeFormat>();
 
-function validScheduleTimeZone(value: string | null | undefined): string {
+export function validScheduleTimeZone(value: string | null | undefined): string {
   const timeZone = value?.trim() || defaultClinicTimezone;
   try {
     getAppointmentTimeFormatter(timeZone);
@@ -3510,6 +3619,7 @@ export function resetToDemo(): void {
   replaceCollection(denteTelegramChatLinks, originalDemoData.denteTelegramChatLinks);
   replaceCollection(denteTelegramWebhookEvents, originalDemoData.denteTelegramWebhookEvents);
   replaceCollection(denteTelegramOutboxDeliveryReceipts, originalDemoData.denteTelegramOutboxDeliveryReceipts);
+  syncDenteTelegramOutboxDeliveryReceiptsMap();
   Object.assign(clinicProfile, originalDemoData.clinicProfile);
   Object.assign(activeVisit, originalDemoData.activeVisit);
   Object.assign(denteTelegramBotSettings, originalDemoData.denteTelegramBotSettings);
@@ -3537,6 +3647,7 @@ export function resetToZeroMode(role: StaffRole): void {
   denteTelegramChatLinks.length = 0;
   denteTelegramWebhookEvents.length = 0;
   denteTelegramOutboxDeliveryReceipts.length = 0;
+  syncDenteTelegramOutboxDeliveryReceiptsMap();
 
   Object.assign(clinicProfile, {
     organizationId,
@@ -3648,6 +3759,7 @@ function applyPersistentState(): void {
   normalizeDenteTelegramBotScopedLedgers();
   replaceCollection(denteTelegramWebhookEvents, state.denteTelegramWebhookEvents);
   replaceCollection(denteTelegramOutboxDeliveryReceipts, state.denteTelegramOutboxDeliveryReceipts);
+  syncDenteTelegramOutboxDeliveryReceiptsMap();
   uiPreferences = state.uiPreferences ?? null;
   if (state.activeVisit) {
     Object.assign(activeVisit, state.activeVisit);
@@ -4686,40 +4798,145 @@ function staffCanSeeTelegramDigestTask(staff: StaffMember, task: CommunicationTa
   return task.assignedRole === staff.role;
 }
 
-function buildStaffDailyDigestTelegramPreview(
-  input: DenteTelegramMessagePreviewRequest,
-  baseWarning: string,
-  organizationScope: string
-): Omit<DenteTelegramMessagePreview, "replyMarkup" | "photoUrl"> {
-  const staff = input.staffId
-    ? staffMembers.find((member) => member.id === input.staffId && member.organizationId === organizationScope && member.active) ?? null
-    : null;
-  if (input.staffId && !staff) {
-    throw new Error("Сотрудник для предпросмотра Telegram не найден.");
-  }
-  const clinicDateKey = appointmentClinicDateKey(new Date().toISOString());
-  const scopedAppointments = appointments.filter(
-    (appointment) =>
-      appointment.organizationId === organizationScope &&
-      staffDigestVisibleAppointmentStatuses.has(appointment.status) &&
-      appointmentClinicDateKey(appointment.startsAt) === clinicDateKey &&
-      (!staff || staffCanSeeTelegramDigestAppointment(staff, appointment))
-  );
-  const scopedTasks = communicationTasks.filter(
-    (task) => task.organizationId === organizationScope && isOpenCommunicationTask(task) && (!staff || staffCanSeeTelegramDigestTask(staff, task))
-  );
-  const roleLabel = staff ? staffRoleLabelForTelegramDigest(staff.role) : "команда клиники";
-  const urgentTaskCount = scopedTasks.filter((task) => task.priority === "urgent" || task.priority === "high").length;
 
-  return {
-    templateKind: "staff_daily_digest",
-    classification: "limited_admin",
-    allowedByDefault: true,
-    text: `DENTE: сводка на сегодня для роли "${roleLabel}": приемов ${scopedAppointments.length}, открытых задач ${scopedTasks.length}, срочных ${urgentTaskCount}. Откройте расписание или очередь связи в DENTE.`,
-    variablesUsed: ["staffRole", "appointmentCount", "openTaskCount", "urgentTaskCount"],
-    warnings: [baseWarning, "Сводка содержит только счетчики и не раскрывает пациентов, диагнозы, зубы, оплату и документы."],
-    blockedReason: null
-  };
+
+export function buildDenteTelegramMessagePreviewData(
+  templateKind: DenteTelegramTemplateKind,
+  context: TelegramMessageContext,
+  baseWarning: string
+): Omit<DenteTelegramMessagePreview, "replyMarkup" | "photoUrl"> {
+  switch (templateKind) {
+    case "appointment_reminder":
+      return {
+        templateKind: "appointment_reminder",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: напоминаем о приеме в ${context.clinicName} ${context.appointmentTime}. Если нужно перенести запись, свяжитесь с клиникой.`,
+        variablesUsed: ["clinicName", ...(context.hasAppointment ? ["appointmentTime"] : [])],
+        warnings: [baseWarning, "Напоминание содержит только административное время приема и не раскрывает причину визита."],
+        blockedReason: null
+      };
+    case "appointment_confirmation":
+      return {
+        templateKind: "appointment_confirmation",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: напоминание о записи от ${context.clinicName}. Подтвердите прием, перенесите его или позвоните в клинику.`,
+        variablesUsed: ["clinicName"],
+        warnings: [baseWarning],
+        blockedReason: null
+      };
+    case "payment_reminder_notice":
+      return {
+        templateKind: "payment_reminder_notice",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: context.portalUrl
+          ? `DENTE: у клиники есть вопрос по оплате. Свяжитесь с ${context.clinicName} или откройте защищенный портал: ${context.portalUrl}`
+          : `DENTE: у клиники есть вопрос по оплате. Свяжитесь с ${context.clinicName}.`,
+        variablesUsed: context.portalUrl ? ["clinicName", "patientPortalBaseUrl"] : ["clinicName"],
+        warnings: [baseWarning, "Сумма, детализация лечения и фискальные данные не отправляются через Telegram."],
+        blockedReason: null
+      };
+    case "document_ready_notice":
+      return {
+        templateKind: "document_ready_notice",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: документ клиники готов. Открывайте его только в защищенном портале: ${context.portalUrl}`,
+        variablesUsed: ["patientPortalBaseUrl"],
+        warnings: [baseWarning, "Telegram передает только уведомление о готовности и ссылку на портал."],
+        blockedReason: null
+      };
+    case "tax_document_request_status":
+      return {
+        templateKind: "tax_document_request_status",
+        classification: "no_phi",
+        allowedByDefault: true,
+        text: context.portalUrl
+          ? `DENTE: статус запроса налоговых документов обновлен. Откройте налоговый раздел защищенного портала: ${context.portalUrl}`
+          : "DENTE: статус запроса налоговых документов обновлен. Файлы готовятся внутри DENTE или защищенного портала.",
+        variablesUsed: context.portalUrl ? ["patientPortalBaseUrl"] : [],
+        warnings: [baseWarning, "Файл налоговой справки не отправляется через Telegram."],
+        blockedReason: null
+      };
+    case "callback_request_received":
+      return {
+        templateKind: "callback_request_received",
+        classification: "no_phi",
+        allowedByDefault: true,
+        text: "DENTE: запрос обратного звонка получен. Администратор клиники свяжется с вами.",
+        variablesUsed: [],
+        warnings: [baseWarning],
+        blockedReason: null
+      };
+    case "post_visit_instruction_link":
+      return {
+        templateKind: "post_visit_instruction_link",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: памятка после приема готова в защищенном портале клиники: ${context.portalUrl}`,
+        variablesUsed: ["patientPortalBaseUrl"],
+        warnings: [baseWarning, "Текст памятки не встраивается в Telegram."],
+        blockedReason: null
+      };
+    case "post_visit_checkup":
+      return {
+        templateKind: "post_visit_checkup",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: проверьте памятку после приема в защищенном портале: ${context.portalUrl}. Если есть вопросы или самочувствие ухудшается, свяжитесь с клиникой.`,
+        variablesUsed: ["patientPortalBaseUrl"],
+        warnings: [baseWarning, "Контрольное сообщение не раскрывает процедуру, зуб, диагноз, назначения и текст памятки."],
+        blockedReason: null
+      };
+    case "recall_notice":
+      return {
+        templateKind: "recall_notice",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: ${context.clinicName} приглашает вас на профилактический контроль. Запишитесь через защищенный портал: ${context.portalUrl}`,
+        variablesUsed: ["clinicName", "patientPortalBaseUrl"],
+        warnings: [baseWarning, "Сообщение не раскрывает проведенную процедуру и причину приглашения."],
+        blockedReason: null
+      };
+    case "review_request":
+      return {
+        templateKind: "review_request",
+        classification: "no_phi",
+        allowedByDefault: true,
+        text: `DENTE: спасибо за визит в ${context.clinicName}. Ниже ссылка, чтобы оценить клинику.`,
+        variablesUsed: ["clinicName", ...(context.reviewUrl ? ["clinicReviewUrl"] : []), ...(context.mapsUrl ? ["clinicMapsUrl"] : [])],
+        warnings: [
+          baseWarning,
+          "Ссылки для отзывов должны быть общими HTTPS-ссылками клиники без пациента, приема, диагноза и идентификаторов лечения."
+        ],
+        blockedReason: null
+      };
+    case "staff_daily_digest":
+      return {
+        templateKind: "staff_daily_digest",
+        classification: "limited_admin",
+        allowedByDefault: true,
+        text: `DENTE: сводка на сегодня для роли "${context.staffRoleLabel}": приемов ${context.appointmentCount}, открытых задач ${context.openTaskCount}, срочных ${context.urgentTaskCount}. Откройте расписание или очередь связи в DENTE.`,
+        variablesUsed: ["staffRole", "appointmentCount", "openTaskCount", "urgentTaskCount"],
+        warnings: [baseWarning, "Сводка содержит только счетчики и не раскрывает пациентов, диагнозы, зубы, оплату и документы."],
+        blockedReason: null
+      };
+  }
+}
+
+export interface TelegramMessageContext {
+  clinicName: string;
+  appointmentTime?: string;
+  hasAppointment: boolean;
+  portalUrl: string | null;
+  reviewUrl: string | null;
+  mapsUrl: string | null;
+  staffRoleLabel?: string;
+  appointmentCount?: number;
+  openTaskCount?: number;
+  urgentTaskCount?: number;
 }
 
 export function renderDenteTelegramMessagePreview(
@@ -4810,108 +5027,42 @@ export function renderDenteTelegramMessagePreview(
 
   const baseWarning =
     "В Telegram не включаются диагнозы, номера зубов, план лечения, снимки, налоговые PDF, детализация оплаты и копии меддокументов.";
-  const previews: Record<DenteTelegramMessagePreviewRequest["templateKind"], Omit<DenteTelegramMessagePreview, "replyMarkup" | "photoUrl">> = {
-    appointment_reminder: {
-      templateKind: "appointment_reminder",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: напоминаем о приеме в ${clinicName} ${appointmentTime}. Если нужно перенести запись, свяжитесь с клиникой.`,
-      variablesUsed: ["clinicName", ...(appointment ? ["appointmentTime"] : [])],
-      warnings: [baseWarning, "Напоминание содержит только административное время приема и не раскрывает причину визита."],
-      blockedReason: null
-    },
-    appointment_confirmation: {
-      templateKind: "appointment_confirmation",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: напоминание о записи от ${clinicName}. Подтвердите прием, перенесите его или позвоните в клинику.`,
-      variablesUsed: ["clinicName"],
-      warnings: [baseWarning],
-      blockedReason: null
-    },
-    payment_reminder_notice: {
-      templateKind: "payment_reminder_notice",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: portal
-        ? `DENTE: у клиники есть вопрос по оплате. Свяжитесь с ${clinicName} или откройте защищенный портал: ${portal}`
-        : `DENTE: у клиники есть вопрос по оплате. Свяжитесь с ${clinicName}.`,
-      variablesUsed: portal ? ["clinicName", "patientPortalBaseUrl"] : ["clinicName"],
-      warnings: [baseWarning, "Сумма, детализация лечения и фискальные данные не отправляются через Telegram."],
-      blockedReason: null
-    },
-    document_ready_notice: {
-      templateKind: "document_ready_notice",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: документ клиники готов. Открывайте его только в защищенном портале: ${portal}`,
-      variablesUsed: ["patientPortalBaseUrl"],
-      warnings: [baseWarning, "Telegram передает только уведомление о готовности и ссылку на портал."],
-      blockedReason: null
-    },
-    tax_document_request_status: {
-      templateKind: "tax_document_request_status",
-      classification: "no_phi",
-      allowedByDefault: true,
-      text: portal
-        ? `DENTE: статус запроса налоговых документов обновлен. Откройте налоговый раздел защищенного портала: ${portal}`
-        : "DENTE: статус запроса налоговых документов обновлен. Файлы готовятся внутри DENTE или защищенного портала.",
-      variablesUsed: portal ? ["patientPortalBaseUrl"] : [],
-      warnings: [baseWarning, "Файл налоговой справки не отправляется через Telegram."],
-      blockedReason: null
-    },
-    callback_request_received: {
-      templateKind: "callback_request_received",
-      classification: "no_phi",
-      allowedByDefault: true,
-      text: "DENTE: запрос обратного звонка получен. Администратор клиники свяжется с вами.",
-      variablesUsed: [],
-      warnings: [baseWarning],
-      blockedReason: null
-    },
-    post_visit_instruction_link: {
-      templateKind: "post_visit_instruction_link",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: памятка после приема готова в защищенном портале клиники: ${portal}`,
-      variablesUsed: ["patientPortalBaseUrl"],
-      warnings: [baseWarning, "Текст памятки не встраивается в Telegram."],
-      blockedReason: null
-    },
-    post_visit_checkup: {
-      templateKind: "post_visit_checkup",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: проверьте памятку после приема в защищенном портале: ${portal}. Если есть вопросы или самочувствие ухудшается, свяжитесь с клиникой.`,
-      variablesUsed: ["patientPortalBaseUrl"],
-      warnings: [baseWarning, "Контрольное сообщение не раскрывает процедуру, зуб, диагноз, назначения и текст памятки."],
-      blockedReason: null
-    },
-    recall_notice: {
-      templateKind: "recall_notice",
-      classification: "limited_admin",
-      allowedByDefault: true,
-      text: `DENTE: ${clinicName} приглашает вас на профилактический контроль. Запишитесь через защищенный портал: ${portal}`,
-      variablesUsed: ["clinicName", "patientPortalBaseUrl"],
-      warnings: [baseWarning, "Сообщение не раскрывает проведенную процедуру и причину приглашения."],
-      blockedReason: null
-    },
-    review_request: {
-      templateKind: "review_request",
-      classification: "no_phi",
-      allowedByDefault: true,
-      text: `DENTE: спасибо за визит в ${clinicName}. Ниже ссылка, чтобы оценить клинику.`,
-      variablesUsed: ["clinicName", ...(reviewUrl ? ["clinicReviewUrl"] : []), ...(mapsUrl ? ["clinicMapsUrl"] : [])],
-      warnings: [
-        baseWarning,
-        "Ссылки для отзывов должны быть общими HTTPS-ссылками клиники без пациента, приема, диагноза и идентификаторов лечения."
-      ],
-      blockedReason: null
-    },
-    staff_daily_digest: buildStaffDailyDigestTelegramPreview(input, baseWarning, settings.organizationId)
+    const context: TelegramMessageContext = {
+    clinicName,
+    appointmentTime,
+    hasAppointment: !!appointment,
+    portalUrl: portal,
+    reviewUrl,
+    mapsUrl,
   };
 
-  const preview = previews[input.templateKind];
+  if (input.templateKind === "staff_daily_digest") {
+    const staff = input.staffId
+      ? staffMembers.find((member) => member.id === input.staffId && member.organizationId === settings.organizationId && member.active) ?? null
+      : null;
+    if (input.staffId && !staff) {
+      throw new Error("Сотрудник для предпросмотра Telegram не найден.");
+    }
+    const clinicDateKey = appointmentClinicDateKey(new Date().toISOString());
+    const scopedAppointments = appointments.filter(
+      (appointment) =>
+        appointment.organizationId === settings.organizationId &&
+        staffDigestVisibleAppointmentStatuses.has(appointment.status) &&
+        appointmentClinicDateKey(appointment.startsAt) === clinicDateKey &&
+        (!staff || staffCanSeeTelegramDigestAppointment(staff, appointment))
+    );
+    const scopedTasks = communicationTasks.filter(
+      (task) => task.organizationId === settings.organizationId && isOpenCommunicationTask(task) && (!staff || staffCanSeeTelegramDigestTask(staff, task))
+    );
+    const urgentTaskCount = scopedTasks.filter((task) => task.priority === "urgent" || task.priority === "high").length;
+
+    context.staffRoleLabel = staff ? staffRoleLabelForTelegramDigest(staff.role) : "команда клиники";
+    context.appointmentCount = scopedAppointments.length;
+    context.openTaskCount = scopedTasks.length;
+    context.urgentTaskCount = urgentTaskCount;
+  }
+
+  const preview = buildDenteTelegramMessagePreviewData(input.templateKind, context, baseWarning);
   const appointmentCallbackUnavailable =
     (input.templateKind === "appointment_reminder" || input.templateKind === "appointment_confirmation") &&
     Boolean(input.appointmentId) &&
@@ -6497,14 +6648,17 @@ function recallScheduledAt(item: TreatmentPlanItem): string {
 function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+  const activePatientsMap = new Map(
+    patients.filter((p) => p.status === "active").map((p) => [p.id, p])
+  );
   return treatmentPlanItems.flatMap((item) => {
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
-    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    const service = serviceCatalogMap.get(item.serviceId);
     if (service?.category !== "hygiene") return [];
 
-    const patient = patients.find((candidate) => candidate.id === item.patientId && candidate.status === "active");
+    const patient = activePatientsMap.get(item.patientId);
     if (!patient) return [];
 
     const itemId = recallOutboxId(item);
@@ -6530,11 +6684,7 @@ export function findDenteTelegramOutboxDeliveryReceipt(
   clientMutationId: string | null | undefined
 ): DenteTelegramOutboxDeliveryReceipt | null {
   if (!clientMutationId) return null;
-  return (
-    denteTelegramOutboxDeliveryReceipts.find(
-      (receipt) => receipt.outboxItemId === outboxItemId && receipt.clientMutationId === clientMutationId
-    ) ?? null
-  );
+  return denteTelegramOutboxDeliveryReceiptsMap.get(`${outboxItemId}:${clientMutationId}`) ?? null;
 }
 
 export function claimDenteTelegramOutboxDeliveryReceipt(
@@ -6558,7 +6708,11 @@ export function claimDenteTelegramOutboxDeliveryReceipt(
     createdAt: new Date().toISOString()
   };
   denteTelegramOutboxDeliveryReceipts.unshift(receipt);
-  denteTelegramOutboxDeliveryReceipts.splice(200);
+  denteTelegramOutboxDeliveryReceiptsMap.set(`${receipt.outboxItemId}:${receipt.clientMutationId}`, receipt);
+  const removed = denteTelegramOutboxDeliveryReceipts.splice(200);
+  for (const r of removed) {
+    denteTelegramOutboxDeliveryReceiptsMap.delete(`${r.outboxItemId}:${r.clientMutationId}`);
+  }
   persistMutableState();
   return null;
 }
@@ -6741,11 +6895,19 @@ function documentReadyAlreadyCovered(document: GeneratedDocument, outboxItemId: 
 function buildDenteTelegramDocumentReadyItems(runtimeScope?: DenteTelegramOutboxRuntimeScope): DenteTelegramOutboxItem[] {
   const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
   const organizationScope = runtime.settings.organizationId;
+
+  const activePatients = new Map<string, Patient>();
+  for (const p of patients) {
+    if (p.status === "active") {
+      activePatients.set(p.id, p);
+    }
+  }
+
   return documents.flatMap((document) => {
     if (document.organizationId !== organizationScope) return [];
     if (document.status !== "issued") return [];
     if (documentReadyNoticeExcludedKinds.has(document.kind)) return [];
-    const patient = patients.find((candidate) => candidate.id === document.patientId && candidate.status === "active");
+    const patient = activePatients.get(document.patientId);
     if (!patient) return [];
 
     const itemId = documentReadyOutboxId(document);
@@ -6973,8 +7135,12 @@ function buildDenteTelegramReviewRequestItems(runtimeScope?: DenteTelegramOutbox
     .filter((payment) => payment.organizationId === organizationScope && payment.status === "paid")
     .sort((left, right) => (right.paidAt ?? right.createdAt).localeCompare(left.paidAt ?? left.createdAt));
 
+  const activePatientsById = new Map(
+    patients.filter((p) => p.status === "active").map((p) => [p.id, p])
+  );
+
   for (const payment of paidMilestones) {
-    const patient = patients.find((candidate) => candidate.id === payment.patientId && candidate.status === "active") ?? null;
+    const patient = activePatientsById.get(payment.patientId) ?? null;
     if (!patient || !reviewRequestVisitIsClosed(payment)) continue;
     const visit = payment.visitId ? findVisitById(payment.visitId) : null;
     pushReviewRequest({
@@ -7000,28 +7166,20 @@ function denteTelegramMainMenuRow(): Array<{ text: string; callback_data: string
   return [{ text: "Главное меню", callback_data: "dente:start" }];
 }
 
-function telegramReplyMarkupFor(
-  templateKind: DenteTelegramTemplateKind,
-  appointmentId: string | null = null,
-  settings: DenteTelegramBotSettings = denteTelegramBotSettings,
-  appointmentCallbackScope: DenteTelegramAppointmentCallbackScope = {}
+function telegramReplyMarkupForReviewRequest(settings: DenteTelegramBotSettings): Record<string, unknown> | null {
+  const reviewUrl = safeHttpsUrl(settings.clinicReviewUrl);
+  const mapsUrl = safeHttpsUrl(settings.clinicMapsUrl);
+  const buttons: Array<{ text: string; url: string }> = [];
+  if (reviewUrl) buttons.push({ text: "Оценить клинику", url: reviewUrl });
+  if (mapsUrl) buttons.push({ text: "Открыть карту", url: mapsUrl });
+  return buttons.length ? { inline_keyboard: [buttons, denteTelegramMainMenuRow()] } : null;
+}
+
+function telegramReplyMarkupForAppointment(
+  appointmentId: string | null,
+  signedAppointmentCallbackScope: Record<string, unknown>
 ): Record<string, unknown> | null {
-  const portalRow = denteTelegramPortalRowForTemplate(templateKind, settings);
-  const signedAppointmentCallbackScope = normalizeDenteTelegramAppointmentCallbackScope(
-    appointmentCallbackScope,
-    settings
-  );
-
-  if (templateKind === "review_request") {
-    const reviewUrl = safeHttpsUrl(settings.clinicReviewUrl);
-    const mapsUrl = safeHttpsUrl(settings.clinicMapsUrl);
-    const buttons: Array<{ text: string; url: string }> = [];
-    if (reviewUrl) buttons.push({ text: "Оценить клинику", url: reviewUrl });
-    if (mapsUrl) buttons.push({ text: "Открыть карту", url: mapsUrl });
-    return buttons.length ? { inline_keyboard: [buttons, denteTelegramMainMenuRow()] } : null;
-  }
-
-  if ((templateKind === "appointment_reminder" || templateKind === "appointment_confirmation") && appointmentId) {
+  if (appointmentId) {
     if (!denteTelegramAppointmentCallbacksReady()) {
       return {
         inline_keyboard: [
@@ -7048,102 +7206,134 @@ function telegramReplyMarkupFor(
     };
   }
 
-  if (templateKind === "appointment_reminder" || templateKind === "appointment_confirmation") {
-    return {
-      inline_keyboard: [
-        [
-          { text: "Связаться с клиникой", callback_data: "dente:contact" },
-          { text: "Конфиденциальность", callback_data: "dente:privacy" }
-        ],
-        denteTelegramMainMenuRow()
-      ]
-    };
-  }
-
-  if (templateKind === "document_ready_notice") {
-    const rows = [
-      portalRow,
+  return {
+    inline_keyboard: [
       [
-        { text: "Документы", callback_data: "dente:documents" },
-        { text: "Связаться", callback_data: "dente:contact" }
-      ],
-      [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
-      denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
-
-  if (templateKind === "tax_document_request_status") {
-    const rows = [
-      portalRow,
-      [
-        { text: "Налоговая", callback_data: "dente:tax" },
-        { text: "Документы", callback_data: "dente:documents" }
-      ],
-      [
-        { text: "Связаться", callback_data: "dente:contact" },
+        { text: "Связаться с клиникой", callback_data: "dente:contact" },
         { text: "Конфиденциальность", callback_data: "dente:privacy" }
       ],
       denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
+    ]
+  };
+}
 
-  if (templateKind === "payment_reminder_notice") {
-    const rows = [
-      portalRow,
-      [
-        { text: "Оплата и чеки", callback_data: "dente:billing" },
-        { text: "Документы", callback_data: "dente:documents" }
-      ],
-      [
-        { text: "Связаться", callback_data: "dente:contact" },
-        { text: "Конфиденциальность", callback_data: "dente:privacy" }
-      ],
-      denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
+function telegramReplyMarkupForDocumentReadyNotice(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Документы", callback_data: "dente:documents" },
+      { text: "Связаться", callback_data: "dente:contact" }
+    ],
+    [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
 
-  if (templateKind === "post_visit_instruction_link" || templateKind === "post_visit_checkup") {
-    const rows = [
-      portalRow,
-      [
-        { text: "Памятки", callback_data: "dente:care" },
-        { text: "Связаться", callback_data: "dente:contact" }
-      ],
-      [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
-      denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
+function telegramReplyMarkupForTaxDocumentRequestStatus(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Налоговая", callback_data: "dente:tax" },
+      { text: "Документы", callback_data: "dente:documents" }
+    ],
+    [
+      { text: "Связаться", callback_data: "dente:contact" },
+      { text: "Конфиденциальность", callback_data: "dente:privacy" }
+    ],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
 
-  if (templateKind === "recall_notice") {
-    const rows = [
-      portalRow,
-      [
-        { text: "Расписание", callback_data: "dente:schedule" },
-        { text: "Связаться", callback_data: "dente:contact" }
-      ],
-      [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
-      denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
+function telegramReplyMarkupForPaymentReminderNotice(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Оплата и чеки", callback_data: "dente:billing" },
+      { text: "Документы", callback_data: "dente:documents" }
+    ],
+    [
+      { text: "Связаться", callback_data: "dente:contact" },
+      { text: "Конфиденциальность", callback_data: "dente:privacy" }
+    ],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
 
-  if (templateKind === "staff_daily_digest") {
-    const rows = [
-      portalRow,
-      [
-        { text: "Расписание", callback_data: "dente:schedule" },
-        { text: "Связь", callback_data: "dente:contact" }
-      ],
-      denteTelegramMainMenuRow()
-    ].filter((row) => row.length);
-    return rows.length ? { inline_keyboard: rows } : null;
-  }
+function telegramReplyMarkupForPostVisit(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Памятки", callback_data: "dente:care" },
+      { text: "Связаться", callback_data: "dente:contact" }
+    ],
+    [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
 
-  return null;
+function telegramReplyMarkupForRecallNotice(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Расписание", callback_data: "dente:schedule" },
+      { text: "Связаться", callback_data: "dente:contact" }
+    ],
+    [{ text: "Конфиденциальность", callback_data: "dente:privacy" }],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
+
+function telegramReplyMarkupForStaffDailyDigest(portalRow: Array<{ text: string; url: string }>): Record<string, unknown> | null {
+  const rows = [
+    portalRow,
+    [
+      { text: "Расписание", callback_data: "dente:schedule" },
+      { text: "Связь", callback_data: "dente:contact" }
+    ],
+    denteTelegramMainMenuRow()
+  ].filter((row) => row.length);
+  return rows.length ? { inline_keyboard: rows } : null;
+}
+
+function telegramReplyMarkupFor(
+  templateKind: DenteTelegramTemplateKind,
+  appointmentId: string | null = null,
+  settings: DenteTelegramBotSettings = denteTelegramBotSettings,
+  appointmentCallbackScope: DenteTelegramAppointmentCallbackScope = {}
+): Record<string, unknown> | null {
+  const portalRow = denteTelegramPortalRowForTemplate(templateKind, settings);
+  const signedAppointmentCallbackScope = normalizeDenteTelegramAppointmentCallbackScope(
+    appointmentCallbackScope,
+    settings
+  );
+
+  switch (templateKind) {
+    case "review_request":
+      return telegramReplyMarkupForReviewRequest(settings);
+    case "appointment_reminder":
+    case "appointment_confirmation":
+      return telegramReplyMarkupForAppointment(appointmentId, signedAppointmentCallbackScope);
+    case "document_ready_notice":
+      return telegramReplyMarkupForDocumentReadyNotice(portalRow);
+    case "tax_document_request_status":
+      return telegramReplyMarkupForTaxDocumentRequestStatus(portalRow);
+    case "payment_reminder_notice":
+      return telegramReplyMarkupForPaymentReminderNotice(portalRow);
+    case "post_visit_instruction_link":
+    case "post_visit_checkup":
+      return telegramReplyMarkupForPostVisit(portalRow);
+    case "recall_notice":
+      return telegramReplyMarkupForRecallNotice(portalRow);
+    case "staff_daily_digest":
+      return telegramReplyMarkupForStaffDailyDigest(portalRow);
+    default:
+      return null;
+  }
 }
 
 function telegramScheduleReplyMarkupForPatientAppointment(
@@ -7326,14 +7516,16 @@ export function recordDenteTelegramOutboxDelivery(input: {
       blockedReason: input.blockedReason ?? (input.status === "failed" ? "telegram_transport_failed" : null),
       createdAt: now
     };
-    const existingIndex = denteTelegramOutboxDeliveryReceipts.findIndex(
-      (candidate) => candidate.outboxItemId === receipt.outboxItemId && candidate.clientMutationId === receipt.clientMutationId
-    );
-    if (existingIndex >= 0) {
-      denteTelegramOutboxDeliveryReceipts[existingIndex] = receipt;
+    const existing = denteTelegramOutboxDeliveryReceiptsMap.get(`${receipt.outboxItemId}:${receipt.clientMutationId}`);
+    if (existing) {
+      Object.assign(existing, receipt);
     } else {
       denteTelegramOutboxDeliveryReceipts.unshift(receipt);
-      denteTelegramOutboxDeliveryReceipts.splice(200);
+      denteTelegramOutboxDeliveryReceiptsMap.set(`${receipt.outboxItemId}:${receipt.clientMutationId}`, receipt);
+      const removed = denteTelegramOutboxDeliveryReceipts.splice(200);
+      for (const r of removed) {
+        denteTelegramOutboxDeliveryReceiptsMap.delete(`${r.outboxItemId}:${r.clientMutationId}`);
+      }
     }
   }
 
@@ -7758,6 +7950,7 @@ export function createPatient(input: {
     email: nullableTrimmed(input.email),
     notes: nullableTrimmed(input.notes),
     administrativeProfile: normalizePatientAdministrativeProfile(input.administrativeProfile),
+    balanceRub: 0,
     createdAt,
     updatedAt: createdAt
   };

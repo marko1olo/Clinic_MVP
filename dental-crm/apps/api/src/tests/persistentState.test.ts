@@ -13,15 +13,94 @@ import {
 } from "../persistentState.js";
 
 describe("loadPersistentState", () => {
-  const originalPersistenceEnv = process.env.DENTAL_STATE_PERSISTENCE;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let stateFile: string;
+  let backupDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dental-state-test-load-"));
+    originalEnv = { ...process.env };
+    stateFile = path.join(tempDir, "state.json");
+    backupDir = path.join(tempDir, "backups");
+
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    process.env.DENTAL_STATE_FILE = stateFile;
+    process.env.DENTAL_STATE_BACKUP_DIR = backupDir;
+  });
 
   afterEach(() => {
     mock.restoreAll();
-    if (originalPersistenceEnv !== undefined) {
-      process.env.DENTAL_STATE_PERSISTENCE = originalPersistenceEnv;
-    } else {
-      delete process.env.DENTAL_STATE_PERSISTENCE;
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
     }
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value !== undefined) {
+        process.env[key] = value;
+      }
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  test("returns null when persistence is disabled", () => {
+    process.env.DENTAL_STATE_PERSISTENCE = "off";
+    fs.writeFileSync(stateFile, JSON.stringify({ version: 1, state: {} }), "utf8");
+
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when state file does not exist", () => {
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+  });
+
+
+  test("returns null when persistence is disabled", () => {
+    process.env.DENTAL_STATE_PERSISTENCE = "off";
+    const result = loadPersistentState();
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when file is missing", () => {
+    mock.method(fs, "existsSync", () => false);
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    const result = loadPersistentState();
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when file is unreadable (invalid json)", () => {
+    mock.method(fs, "existsSync", () => true);
+    mock.method(fs, "readFileSync", () => "{ invalid json");
+    mock.method(console, "warn", () => {});
+
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    const result = loadPersistentState();
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when version mismatches", () => {
+    mock.method(fs, "existsSync", () => true);
+    mock.method(fs, "readFileSync", () => JSON.stringify({ version: 999, state: {} }));
+    mock.method(console, "warn", () => {});
+
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    const result = loadPersistentState();
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when checksum mismatches", () => {
+    mock.method(fs, "existsSync", () => true);
+    mock.method(fs, "readFileSync", () => JSON.stringify({ version: 1, state: {}, checksum: "invalid" }));
+    mock.method(console, "warn", () => {});
+
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    const result = loadPersistentState();
+    assert.strictEqual(result, null);
   });
 
   test("returns null when file system access throws an error", () => {
@@ -31,11 +110,67 @@ describe("loadPersistentState", () => {
     });
     mock.method(console, "warn", () => {}); // Suppress expected warning
 
-    process.env.DENTAL_STATE_PERSISTENCE = "on";
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when file contains invalid JSON", () => {
+    fs.writeFileSync(stateFile, "{ invalid json", "utf8");
+    mock.method(console, "warn", () => {}); // Suppress expected warning
 
     const result = loadPersistentState();
 
     assert.strictEqual(result, null);
+  });
+
+  test("returns null when file has incorrect version", () => {
+    fs.writeFileSync(stateFile, JSON.stringify({ version: 999, state: {} }), "utf8");
+
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null when file has no state property", () => {
+    fs.writeFileSync(stateFile, JSON.stringify({ version: 1 }), "utf8");
+
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+  });
+
+  test("returns null and logs warning when checksum mismatch", () => {
+    const payload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      state: {},
+      checksum: "invalid-checksum"
+    };
+    fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
+
+    let warningLogged = false;
+    mock.method(console, "warn", (message: string) => {
+      if (message.includes("checksum mismatch")) {
+        warningLogged = true;
+      }
+    });
+
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+    assert.strictEqual(warningLogged, true);
+  });
+
+  test("returns parsed state when file is valid and checksum matches", () => {
+    const mockState = { clinicProfile: { id: "test-123" } } as any;
+
+    // Use savePersistentState to generate a valid file with correct checksum
+    savePersistentState(mockState);
+
+    const result = loadPersistentState();
+
+    assert.deepStrictEqual(result, mockState);
   });
 });
 
@@ -182,9 +317,9 @@ describe("getPersistentStateIntegrityReport", () => {
     return { ...core, checksum };
   };
 
-  test("reports missing file warning when state file does not exist", () => {
+  test("reports missing file warning when state file does not exist", async () => {
     setupTempEnv();
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.meta.exists, false);
@@ -192,12 +327,12 @@ describe("getPersistentStateIntegrityReport", () => {
     assert.ok(report.warnings.some(w => w.includes("Файл состояния еще не создан")));
   });
 
-  test("returns ok report for valid state file with no backups", () => {
+  test("returns ok report for valid state file with no backups", async () => {
     const { stateFile } = setupTempEnv();
     const payload = createValidPayload();
     fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
 
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, true);
     assert.strictEqual(report.meta.exists, true);
@@ -205,31 +340,31 @@ describe("getPersistentStateIntegrityReport", () => {
     assert.deepStrictEqual(report.warnings, []);
   });
 
-  test("returns warning for state file checksum mismatch", () => {
+  test("returns warning for state file checksum mismatch", async () => {
     const { stateFile } = setupTempEnv();
     const payload = createValidPayload();
     payload.checksum = "invalid-checksum";
     fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
 
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.checksumVerified, false);
     assert.ok(report.warnings.some(w => w.includes("Контрольная сумма файла состояния не совпала")));
   });
 
-  test("returns warning when state file is unreadable (invalid json)", () => {
+  test("returns warning when state file is unreadable (invalid json)", async () => {
     const { stateFile } = setupTempEnv();
     fs.writeFileSync(stateFile, "{ invalid json", "utf8");
 
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.checksumVerified, null);
     assert.ok(report.warnings.some(w => w.includes("Файл состояния не читается")));
   });
 
-  test("returns ok report with valid backups", () => {
+  test("returns ok report with valid backups", async () => {
     const { stateFile, backupDir } = setupTempEnv();
 
     // Valid state file
@@ -240,7 +375,7 @@ describe("getPersistentStateIntegrityReport", () => {
     const backupFile = path.join(backupDir, "dental-crm-state-20240101T000000Z.json");
     fs.writeFileSync(backupFile, JSON.stringify(payload), "utf8");
 
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, true);
     assert.strictEqual(report.backups.length, 1);
@@ -249,7 +384,23 @@ describe("getPersistentStateIntegrityReport", () => {
     assert.deepStrictEqual(report.warnings, []);
   });
 
-  test("returns warning for backup checksum mismatch", () => {
+  test("returns null for stateFileHash when fs.promises.readFile throws an error (e.g. EACCES)", async () => {
+    const { stateFile } = setupTempEnv();
+    const payload = createValidPayload();
+    fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
+
+    mock.method(fs.promises, "readFile", () => {
+      const error: any = new Error("EACCES: permission denied");
+      error.code = "EACCES";
+      return Promise.reject(error);
+    });
+
+    const report = await getPersistentStateIntegrityReport();
+
+    assert.strictEqual(report.stateFileHash, null);
+  });
+
+  test("returns warning for backup checksum mismatch", async () => {
     const { stateFile, backupDir } = setupTempEnv();
 
     // Valid state file
@@ -262,7 +413,7 @@ describe("getPersistentStateIntegrityReport", () => {
     const backupFile = path.join(backupDir, "dental-crm-state-20240101T000000Z.json");
     fs.writeFileSync(backupFile, JSON.stringify(invalidBackupPayload), "utf8");
 
-    const report = getPersistentStateIntegrityReport();
+    const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.backups.length, 1);

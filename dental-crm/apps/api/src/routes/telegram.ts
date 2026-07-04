@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -792,7 +792,7 @@ export async function executeDenteTelegramOutboxDueBatch(
   const dueItems = outbox.items
     .filter((item) => item.deliveryStatus === "ready" && isDenteTelegramOutboxItemDue(item, nowMs))
     .slice(0, input.limit);
-  const results: any[] = await Promise.all(
+  const results: DenteTelegramOutboxSendDueResponse["results"] = await Promise.all(
     dueItems.map(async (item) => {
       const sendResult = await executeTelegramOutboxSend(
         item.id,
@@ -2393,9 +2393,8 @@ export async function registerTelegramWebhookRoutes(app: FastifyInstance) {
   app.post("/api/telegram/webhook/:organizationId", handleWebhook);
 }
 
-export async function registerTelegramRoutes(app: FastifyInstance) {
-  const telegramControlPlaneRouteOptions = { preHandler: requireTelegramControlPlaneAccess };
 
+function registerTelegramStatusRoutes(app: FastifyInstance, telegramControlPlaneRouteOptions: { preHandler: (request: FastifyRequest, reply: FastifyReply) => Promise<void> }) {
   app.get("/api/telegram/status", telegramControlPlaneRouteOptions, async () => buildStatus());
 
   app.get<{ Params: { organizationId: string } }>("/api/telegram/status/:organizationId", telegramControlPlaneRouteOptions, async (request, reply) => {
@@ -2423,7 +2422,9 @@ export async function registerTelegramRoutes(app: FastifyInstance) {
       return buildStatus(request.params.organizationId, request.params.botConfigId);
     }
   );
+}
 
+function registerTelegramSettingsRoutes(app: FastifyInstance, telegramControlPlaneRouteOptions: { preHandler: (request: FastifyRequest, reply: FastifyReply) => Promise<void> }) {
   app.get("/api/settings/telegram", telegramControlPlaneRouteOptions, async () => buildStatus());
 
   app.put("/api/settings/telegram", telegramControlPlaneRouteOptions, async (request, reply) => {
@@ -2449,7 +2450,9 @@ export async function registerTelegramRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/telegram/feature-plan", telegramControlPlaneRouteOptions, async () => buildFeaturePlan(getDenteTelegramBotSettings()));
+}
 
+function registerTelegramOutboxRoutes(app: FastifyInstance, telegramControlPlaneRouteOptions: { preHandler: (request: FastifyRequest, reply: FastifyReply) => Promise<void> }) {
   app.get<{ Querystring: Record<string, unknown> }>("/api/telegram/outbox", telegramControlPlaneRouteOptions, async (request, reply) => {
     const runtimeResult = resolveTelegramOutboxRuntimeScopeFromQuery(request.query);
     if (!runtimeResult.ok) {
@@ -2488,7 +2491,9 @@ export async function registerTelegramRoutes(app: FastifyInstance) {
     const response = await executeDenteTelegramOutboxDueBatch(input, runtimeResult.runtime);
     return reply.code(response.failedCount > 0 ? 502 : response.blockedCount > 0 ? 409 : 200).send(response);
   });
+}
 
+function registerTelegramLinkRoutes(app: FastifyInstance, telegramControlPlaneRouteOptions: { preHandler: (request: FastifyRequest, reply: FastifyReply) => Promise<void> }) {
   app.post("/api/telegram/link-codes", telegramControlPlaneRouteOptions, async (request, reply) => {
     const parsedInput = parseTelegramRouteBody(createDenteTelegramLinkCodeSchema, request.body);
     if (!parsedInput.ok) return sendTelegramValidationError(reply);
@@ -2590,7 +2595,9 @@ export async function registerTelegramRoutes(app: FastifyInstance) {
     }
     return denteTelegramChatLinkPublicSchema.parse(revoked);
   });
+}
 
+function registerTelegramPreviewRoutes(app: FastifyInstance, telegramControlPlaneRouteOptions: { preHandler: (request: FastifyRequest, reply: FastifyReply) => Promise<void> }) {
   app.post<{ Querystring: Record<string, unknown> }>("/api/telegram/messages/preview", telegramControlPlaneRouteOptions, async (request, reply) => {
     const runtimeResult = resolveTelegramOutboxRuntimeScopeFromQuery(request.query);
     if (!runtimeResult.ok) {
@@ -2609,6 +2616,14 @@ export async function registerTelegramRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "TelegramMessagePreviewNotFound", reason: rejection.reason, message: rejection.message });
     }
   });
+}
 
+export async function registerTelegramRoutes(app: FastifyInstance) {
+  const telegramControlPlaneRouteOptions = { preHandler: requireTelegramControlPlaneAccess };
 
+  registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions);
+  registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions);
+  registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions);
+  registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions);
+  registerTelegramPreviewRoutes(app, telegramControlPlaneRouteOptions);
 }

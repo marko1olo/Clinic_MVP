@@ -726,7 +726,7 @@ export function documentAmountSource(kind: DocumentKind): DocumentAmountSource {
 }
 
 export function documentRequiresPaidRecord(kind: DocumentKind): boolean {
-  return documentKindMetadata[kind].requiresPaidRecord;
+  return documentKindMetadata[kind]?.requiresPaidRecord ?? false;
 }
 
 export const aiJobKindSchema = z.enum([
@@ -1468,7 +1468,8 @@ export const clinicSettingsSchema = z.object({
   integrationPresets: z.array(integrationPresetSchema),
   workspaceProfiles: z.array(clinicWorkspaceProfileSchema),
   roleAccessPolicies: z.array(roleAccessPolicySchema),
-  modeHints: z.array(z.string())
+  modeHints: z.array(z.string()),
+  soloDoctorMode: z.boolean().optional()
 });
 export type ClinicSettings = z.infer<typeof clinicSettingsSchema>;
 
@@ -1557,6 +1558,7 @@ export const serviceCatalogItemSchema = z.object({
   organizationId: z.string().uuid(),
   code: z.string(),
   title: z.string(),
+  aliases: z.array(z.string()).default([]),
   category: serviceCategorySchema,
   specialty: dentalSpecialtySchema,
   basePriceRub: z.number().int().nonnegative(),
@@ -1703,6 +1705,8 @@ export const treatmentPlanItemSchema = z.object({
   patientId: z.string().uuid(),
   visitId: z.string().uuid().nullable(),
   serviceId: z.string(),
+  snapshotServiceName: z.string(),
+  snapshotServiceCategory: serviceCategorySchema.nullable().optional(),
   toothCode: z.string().nullable(),
   quantity: z.number().int().positive(),
   unitPriceRub: z.number().int().nonnegative(),
@@ -2484,6 +2488,7 @@ export const patientSchema = z.object({
   email: z.string().email().nullable(),
   notes: z.string().nullable(),
   administrativeProfile: patientAdministrativeProfileSchema.nullable().default(null),
+  balanceRub: z.number().int().default(0),
   createdAt: z.string(),
   updatedAt: z.string()
 });
@@ -3589,7 +3594,10 @@ export const treatmentPlanPayloadSchema = z.object({
   plannedAt: documentDateLikeStringSchema,
   patientQuestionsAnswered: z.literal(true),
   planRequiresSeparateConsent: z.literal(true),
-  planRequiresNewApprovalOnChange: z.literal(true)
+  planRequiresNewApprovalOnChange: z.literal(true),
+  patientFriendlyExplanation: z.string().trim().max(4000).nullable().optional(),
+  patientHygieneAdvice: z.string().trim().max(4000).nullable().optional(),
+  customHygieneTextOverride: z.string().trim().max(4000).nullable().optional()
 });
 export type TreatmentPlanPayload = z.infer<typeof treatmentPlanPayloadSchema>;
 

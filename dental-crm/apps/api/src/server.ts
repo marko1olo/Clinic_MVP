@@ -21,12 +21,18 @@ import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerTelegramRoutes, registerTelegramWebhookRoutes, startDenteTelegramOutboxDueWorker } from "./routes/telegram.js";
 import { registerVisitRoutes } from "./routes/visits.js";
+import { registerDicomwebRoutes } from "./routes/dicomweb.js";
+import { registerXrayRoutes } from "./routes/xray.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { repairMojibakeText } from "./text/repairMojibake.js";
 import net from "node:net";
 import { ensureSshTunnel } from "./speech/tunnel.js";
+import { getProxyAgent } from "./speech/keyPool.js";
+import { startWatchdog } from "./watchdog.js";
 
 loadAdditionalServerEnv();
+startWatchdog();
 
 async function checkProxyPortDirectly(proxyUrlString: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -64,25 +70,22 @@ export async function setupProxyAndTunnels() {
     process.env.HTTPS_PROXY = "socks5://127.0.0.1:1080";
     process.env.HTTP_PROXY = "socks5://127.0.0.1:1080";
     process.env.PROXY_URL = "socks5://127.0.0.1:1080";
-    console.log("[Proxy Boot] Traffic routed via active SSH SOCKS5 tunnel on port 1080.");
-    return;
+  } else {
+    // 2. Если туннеля нет, проверяем настроенный прокси из .env
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
+    if (proxyUrl) {
+      const isOnline = await checkProxyPortDirectly(proxyUrl);
+      if (!isOnline) {
+        console.warn(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.`);
+        delete process.env.HTTPS_PROXY;
+        delete process.env.HTTP_PROXY;
+        delete process.env.PROXY_URL;
+      }
+    }
   }
 
-  // 2. Если туннеля нет, проверяем настроенный прокси из .env
-  const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
-  if (proxyUrl) {
-    const isOnline = await checkProxyPortDirectly(proxyUrl);
-    if (isOnline) {
-      console.log(`[Proxy Boot] Configured proxy ${proxyUrl} is online. Traffic routed via proxy.`);
-    } else {
-      console.warn(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.`);
-      delete process.env.HTTPS_PROXY;
-      delete process.env.HTTP_PROXY;
-      delete process.env.PROXY_URL;
-    }
-  } else {
-    console.log("[Proxy Boot] No proxy configured. Operating in direct connection mode.");
-  }
+  // Register global agent for direct undici fetches
+  (globalThis as any)._dentalProxyAgent = getProxyAgent() || undefined;
 }
 
 type HttpErrorLike = {
@@ -139,7 +142,12 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
     .map((origin) => origin.trim())
     .filter(Boolean)
     .map((origin) => {
-      if (origin === "*" || origin === "null") return origin;
+      if (origin === "*" || origin === "null") {
+        if (process.env.NODE_ENV === "production") {
+          throw new Error(`Insecure WEB_ORIGIN configured: "${origin}" is not allowed in production`);
+        }
+        return origin;
+      }
       try {
         return new URL(origin).origin;
       } catch {
@@ -206,6 +214,9 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   await registerTelegramRoutes(app);
   await registerTelegramWebhookRoutes(app);
   await registerVisitRoutes(app);
+  await registerDicomwebRoutes(app);
+  await registerXrayRoutes(app);
+  await registerAuthRoutes(app);
 
   if (options.startTelegramWorker !== false) {
     const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });

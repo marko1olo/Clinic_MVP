@@ -4,11 +4,9 @@
 Когда агент на ноуте пуляет событие в MQTT -> бот шлет сообщение в Telegram.
 """
 import asyncio
-import threading
 import logging
 import json
 import sys
-import time
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -192,8 +190,8 @@ def on_mqtt_message(client, userdata, msg):
     handler = TOPIC_HANDLERS.get(topic, handle_default)
     handler(topic, payload, loop)
 
-def start_mqtt(loop: asyncio.AbstractEventLoop):
-    """Запускает MQTT клиент в отдельном потоке."""
+async def start_mqtt(loop: asyncio.AbstractEventLoop):
+    """Запускает MQTT клиент как асинхронную задачу."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'loop': loop})
     client.username_pw_set(MQTT_USER, MQTT_PASS)
@@ -210,23 +208,28 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
     )
     client.on_disconnect = lambda c, ud, d, rc, p: log.warning(f"MQTT disconnected rc={rc}")
 
+    # Регистрируем хук для корректного завершения
+    async def on_shutdown(*args, **kwargs):
+        log.info("Disconnecting MQTT...")
+        client.disconnect()
+    dp.shutdown.register(on_shutdown)
+
     while True:
         try:
-            client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
-            client.loop_forever()
+            await asyncio.to_thread(client.connect, MQTT_HOST, MQTT_PORT, 60)
+            await asyncio.to_thread(client.loop_forever)
         except Exception as e:
             log.error(f"MQTT error: {e}, retrying in 5s...")
-            time.sleep(5)
+            await asyncio.sleep(5)
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
     loop = asyncio.get_event_loop()
 
-    # Запускаем MQTT в фоновом потоке
-    mqtt_thread = threading.Thread(target=start_mqtt, args=(loop,), daemon=True)
-    mqtt_thread.start()
-    log.info("MQTT bridge thread started")
+    # Запускаем MQTT как фоновую задачу
+    mqtt_task = asyncio.create_task(start_mqtt(loop))
+    log.info("MQTT bridge task started")
 
     log.info("Starting Telegram bot polling...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

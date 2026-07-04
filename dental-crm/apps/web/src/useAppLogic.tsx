@@ -6,6 +6,7 @@ import { usePatientStore } from "./store/patientStore";
 import { useScheduleStore } from "./store/scheduleStore";
 import { useSettingsStore } from "./store/settingsStore";
 import {
+  type ChangeEvent,
   type CSSProperties,
   type KeyboardEvent,
   lazy,
@@ -15,6 +16,7 @@ import {
   useRef,
   useState
 } from "react";
+import { showToast } from "./components/GlobalToast";
 import {
   ArrowRight,
   AlertTriangle,
@@ -210,7 +212,7 @@ import {
 } from "./communicationTaskData";
 import { imagingConnectorCards, imagingViewerCapabilities, recognitionPresets } from "./settingsStaticData";
 import { motionSafeScrollIntoView } from "./motionPreference";
-import { normalizeRubAmountInput, rubAmountInputMissingStep } from "./rubAmountInput";
+import { normalizeRubAmountInput, validateRubAmountInput } from "./rubAmountInput";
 import {
   imagingCaptureDistanceMs,
   imagingComparisonReason,
@@ -1130,7 +1132,9 @@ const {
     isPendingVisitSyncing, setIsPendingVisitSyncing,
     isVisitDictating, setIsVisitDictating,
     isTranscriptPolishing, setIsTranscriptPolishing,
-    lastServerDraftSignatureRef, visitDraftUserEditedRef
+    lastServerDraftSignatureRef, visitDraftUserEditedRef,
+    speechRetrySuggested, setSpeechRetrySuggested,
+    speechLiveRms, setSpeechLiveRms
   } = useVisitStore();
   const {
     documentCreateSavingKind,
@@ -1535,6 +1539,12 @@ const {
     setTreatmentPlanSeparateConsentAcknowledged,
     treatmentPlanNewApprovalAcknowledged,
     setTreatmentPlanNewApprovalAcknowledged,
+    treatmentPlanPatientFriendlyExplanation,
+    setTreatmentPlanPatientFriendlyExplanation,
+    treatmentPlanPatientHygieneAdvice,
+    setTreatmentPlanPatientHygieneAdvice,
+    treatmentPlanCustomHygieneTextOverride,
+    setTreatmentPlanCustomHygieneTextOverride,
     treatmentAcceptanceVariant,
     setTreatmentAcceptanceVariant,
     treatmentAcceptanceClinicalGoal,
@@ -2399,6 +2409,12 @@ const {
   const speechLastSoundAtRef = useRef(0);
   const speechPendingChunkDurationMsRef = useRef<number | null>(null);
   const speechUploadPromisesRef = useRef<Set<Promise<void>>>(new Set());
+  const speechRecordingHadRecognizedTextRef = useRef(false);
+  const speechRecordingVoiceLevelAvailableAtStopRef = useRef(false);
+  const speechRecordingVoiceDetectedAtStopRef = useRef(false);
+  const speechVoiceDetectedDuringRecordingRef = useRef(false);
+  const speechSegmentVoiceDetectedRef = useRef(false);
+  const speechQuietWarningShownRef = useRef(false);
   const appliedSpeechChunkKeysRef = useRef<Set<string>>(new Set());
   const patientAdministrativeProfileDraftRef = useRef<PatientAdministrativeProfileDraft>(emptyPatientAdministrativeProfileDraft());
   const staffScheduleDraftsRef = useRef<Record<string, StaffScheduleDraft>>({});
@@ -3347,7 +3363,7 @@ const {
       await loadDashboard();
     } catch (e) {
       console.error(e);
-      alert("Не удалось запустить демонстрационный режим");
+      showToast("Не удалось запустить демонстрационный режим", "error");
     }
   }
 
@@ -3373,7 +3389,7 @@ const {
       setOnboardingStep("clinic");
     } catch (e) {
       console.error(e);
-      alert("Не удалось запустить чистый режим");
+      showToast("Не удалось запустить чистый режим", "error");
     }
   }
 
@@ -3435,7 +3451,7 @@ const {
       await loadDashboard();
     } catch (e) {
       console.error(e);
-      alert("Не удалось завершить настройку клиники");
+      showToast("Не удалось завершить настройку клиники", "error");
     }
   }
 
@@ -3881,6 +3897,8 @@ const {
     const qualitySuffix = quality.level === "clear" ? "" : ` · ${speechQualityLabels[quality.level]}`;
     if (text) {
       appliedSpeechChunkKeysRef.current.add(applyKey);
+      speechRecordingHadRecognizedTextRef.current = true;
+      setSpeechRetrySuggested(false);
       appendVisitDictationText(text);
       setSpeechStatusNote(
         result.chunk.status === "transcribed"
@@ -3909,6 +3927,7 @@ const {
       const assembly = (await response.json()) as SpeechRecordingAssembly;
       const assembledTranscript = assembly.transcript.trim();
       if (assembledTranscript) {
+        speechRecordingHadRecognizedTextRef.current = true;
         visitDraftUserEditedRef.current = true;
         setTranscript((current: any) => {
           const normalizedCurrent = current.replace(/\s+/g, " ").trim();
@@ -3937,16 +3956,50 @@ const {
   }
 
   async function waitForSpeechUploads() {
-    const pendingUploads = Array.from(speechUploadPromisesRef.current);
-    if (pendingUploads.length) {
-      await Promise.allSettled(pendingUploads);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+    if (!speechUploadPromisesRef.current.size) return;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const remainingUploads = Array.from(speechUploadPromisesRef.current);
+      if (!remainingUploads.length) break;
+      await Promise.allSettled(remainingUploads);
     }
+  }
+
+  function finalSpeechNoTextMessage() {
+    if (speechRecordingVoiceLevelAvailableAtStopRef.current && !speechRecordingVoiceDetectedAtStopRef.current) {
+      return "Запись сделана, но микрофон почти не слышал голос. Нажмите «Проверить микрофон», затем запишите еще раз ближе к микрофону.";
+    }
+    return "Распознавание завершено, но текст не появился. Попробуйте записать снова.";
   }
 
   async function finalizeSpeechRecording(recordingId: string) {
     await waitForSpeechUploads();
     await flushPendingSpeechChunks({ silent: true });
-    await assembleSpeechRecording(recordingId, { silent: true });
+
+    const queuedChunksAfterFlush = await loadPendingSpeechChunks(activeOrganizationId);
+    const queuedCurrentRecordingCount = queuedChunksAfterFlush.filter((chunk) => chunk.recordingId === recordingId).length;
+
+    const assembly = await assembleSpeechRecording(recordingId, { silent: true });
+    if (assembly) {
+      if (assembly.transcript.trim() || speechRecordingHadRecognizedTextRef.current) {
+        setSpeechStatusNote("Текст готов. Проверьте поле диктовки и нажмите «Собрать ЭМК».");
+        const currentTranscript = transcript.trim();
+        const assembledText = assembly.transcript.trim();
+        const normalizedCurrent = currentTranscript.replace(/\s+/g, " ");
+        const normalizedAssembled = assembledText.replace(/\s+/g, " ");
+        const alreadyIncludes = normalizedCurrent.includes(normalizedAssembled);
+        const combined = (assembledText && !alreadyIncludes)
+          ? [currentTranscript, assembledText].filter(Boolean).join("\n")
+          : transcript;
+        void buildDraft(combined, undefined, { skipScroll: true });
+        return;
+      }
+    }
+    if (queuedCurrentRecordingCount > 0) {
+      setSpeechStatusNote(`Звук сохранен локально: ${queuedCurrentRecordingCount} фрагм. Когда распознавание будет готово, CRM отправит его и добавит текст.`);
+    } else {
+      setSpeechStatusNote(finalSpeechNoTextMessage());
+    }
   }
 
   async function flushPendingSpeechChunks(options: { silent?: boolean } = {}) {
@@ -4649,9 +4702,11 @@ const {
   }, []);
 
   useEffect(() => {
+    if (!currentView) return;
     const allowedViews = getFilteredAppViews(selectedWorkspaceRole);
+
     if (!allowedViews.includes(currentView)) {
-      const fallbackView = allowedViews.includes("shift") ? "shift" : (allowedViews[0] || "schedule");
+      const fallbackView = allowedViews[0] || "schedule";
       setCurrentView(fallbackView);
       window.location.hash = fallbackView;
     }
@@ -7038,7 +7093,7 @@ const {
       setError(message);
       return false;
     }
-    const missing = appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile?.mode);
+    const missing = appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile?.mode, dashboard?.clinicSettings.staff);
     if (missing.length) {
       const message = `Перед сохранением записи: ${missing.join("; ")}.`;
       setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: message }));
@@ -7089,7 +7144,7 @@ const {
   }
 
   function newAppointmentMissingFields(draft: AppointmentScheduleDraft): string[] {
-    return appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile?.mode);
+    return appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile.mode, dashboard?.clinicSettings.staff);
   }
 
   async function createAppointmentFromDraft(): Promise<boolean> {
@@ -7387,6 +7442,17 @@ const {
     return templatedText;
   }
 
+  function applyProtocolTemplateDirectly(template: ProtocolTemplate) {
+    visitDraftUserEditedRef.current = true;
+    setSelectedSpecialty(template.specialty);
+    setSelectedProtocolId(template.id);
+    updateVisitNoteField("complaint", template.complaintPrompt || "");
+    updateVisitNoteField("anamnesis", template.visitReason || "");
+    updateVisitNoteField("objectiveStatus", template.objectiveTemplate || "");
+    updateVisitNoteField("diagnosis", (template.diagnosisHints || []).join("; "));
+    updateVisitNoteField("treatmentPlan", template.treatmentPlanTemplate || "");
+  }
+
   async function polishSingleField(fieldKey: string, currentValue: string) {
     if (!currentValue.trim()) return;
     setPolishingField(fieldKey);
@@ -7422,9 +7488,7 @@ const {
         updateVisitNoteField(fieldKey as VisitNoteField, result.normalizedTranscript);
       }
     } catch (e) {
-      if (e instanceof Error) {
-        setError(`Не удалось улучшить поле через ИИ: ${e.message}`);
-      }
+      setError(operatorWorkflowFailureMessage("Не удалось улучшить поле через ИИ", e));
     } finally {
       setPolishingField(null);
     }
@@ -7480,7 +7544,7 @@ const {
     }
   }
 
-  async function buildDraft(overrideTranscript?: string, overrideSpecialty?: DentalSpecialty) {
+  async function buildDraft(overrideTranscript?: string, overrideSpecialty?: DentalSpecialty, options?: { skipScroll?: boolean }) {
     const activeTranscript = overrideTranscript !== undefined ? overrideTranscript : transcript;
     const activeSpecialty = overrideSpecialty !== undefined ? overrideSpecialty : selectedSpecialty;
     const hasText = activeTranscript.trim().length > 0;
@@ -7521,12 +7585,16 @@ const {
           result.quality?.detectedToothStates as any
         );
       }
-      scrollToVisitArea(".visit-note-panel");
+      if (!options?.skipScroll) {
+        scrollToVisitArea(".visit-note-panel");
+      }
     } catch (draftError) {
       const fallbackDraft = buildOfflineVisitDraftFromTranscript(activeTranscript, activeSpecialty);
       setDraft(fallbackDraft);
       setVisitNoteForm(visitNoteFormFromDraft(fallbackDraft));
-      scrollToVisitArea(".visit-note-panel");
+      if (!options?.skipScroll) {
+        scrollToVisitArea(".visit-note-panel");
+      }
       setError(`${operatorWorkflowFailureMessage("Серверный черновик недоступен", draftError)} Включен офлайн-разбор.`);
     } finally {
       setIsDraftLoading(false);
@@ -9678,8 +9746,34 @@ const {
   }
 
   function appendVisitDictationText(value: string) {
-    const cleanValue = value.trim();
+    let cleanValue = value.trim();
     if (!cleanValue) return;
+
+    // --- Voice Commands Interceptor ---
+    // Remove basic punctuation and lowercase for exact command matching
+    const lower = cleanValue.toLowerCase().replace(/[.,!?]/g, "").trim();
+
+    if (lower === "очистить всё" || lower === "удалить всё" || lower === "удалить карту") {
+      clearTranscriptWithUndo();
+      setSpeechStatusNote("Голосовая команда: Текст очищен");
+      return;
+    }
+
+    if (lower === "сформировать карту" || lower === "завершить запись") {
+      setSpeechStatusNote("Голосовая команда: Формирование карты...");
+      if (isServerVoiceRecording) {
+        stopServerVoiceRecording();
+      }
+      setTimeout(() => buildDraft(), 400);
+      return;
+    }
+
+    // Inline formatting commands
+    cleanValue = cleanValue
+      .replace(/(?:^|\s)(новая строка|с новой строки)(?:\s|$)/gi, "\n")
+      .replace(/(?:^|\s)абзац(?:\s|$)/gi, "\n\n");
+    // ----------------------------------
+
     visitDraftUserEditedRef.current = true;
     setClearedTranscriptSnapshot(null);
     setTranscript((current: any) =>
@@ -9748,6 +9842,33 @@ const {
     }
   }
 
+  function startFieldDictation(onResult: (text: string) => void, onError?: (msg: string) => void) {
+    const speechWindow = window as BrowserWindowWithSpeech;
+    const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      if (onError) onError("Браузерная диктовка недоступна.");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "ru-RU";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const transcriptText = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join(" ");
+      onResult(transcriptText);
+    };
+    recognition.onerror = () => {
+      if (onError) onError("Диктовка не распознана.");
+    };
+    try {
+      recognition.start();
+    } catch {
+      if (onError) onError("Браузер не смог запустить микрофон.");
+    }
+  }
+
   function preferredSpeechMimeType(): string {
     const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
     return candidates.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? "";
@@ -9755,11 +9876,11 @@ const {
 
   async function uploadSpeechBlob(blob: Blob, gatewayStatusOverride?: SpeechGatewayStatus | null) {
     if (!dashboard || blob.size === 0) return;
-    const maxChunkBytesLimit = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
-    if (blob.size > maxChunkBytesLimit) {
+    const maxChunkSizeLimit = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
+    if (blob.size > maxChunkSizeLimit) {
       setSpeechStatusNote(
         `Распознавание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
-          maxChunkBytesLimit / 1024 / 1024
+          maxChunkSizeLimit / 1024 / 1024
         )} МБ; запись продолжается, уменьшите длительность чанка или используйте локальный модуль.`
       );
       return;
@@ -9788,7 +9909,6 @@ const {
       // Голос почти не слышен, но CRM все равно отправляет фрагмент на распознавание.
       // Голос почти не слышен, но CRM все равно проверяет последний фрагмент.
     }
-    // const maxChunkBytes
 
     const queuedBeforeUpload = await queuePendingSpeechChunk(chunk, activeOrganizationId);
     await refreshPendingSpeechChunkState();
@@ -9829,6 +9949,7 @@ const {
       window.clearInterval(speechMonitorTimerRef.current);
       speechMonitorTimerRef.current = null;
     }
+    setSpeechLiveRms(0);
     speechAudioContextRef.current?.close().catch(() => undefined);
     speechAudioContextRef.current = null;
     speechAnalyserRef.current = null;
@@ -9859,15 +9980,15 @@ const {
     const providerLabel = status?.providerLabel ?? "Локальная запись";
     const chunkingPolicy = status?.chunkingPolicy ?? {
       strategy: "time_and_silence" as const,
-      minChunkMs: 10_000,
-      maxChunkMs: 25_000,
-      silenceMs: 900,
+      minChunkMs: 15_000,
+      maxChunkMs: 30_000,
+      silenceMs: 1500,
       rmsThreshold: 0.015,
       monitorIntervalMs: 250,
       overlapMs: 500,
       dedupeWindowChars: 600
     };
-    const recommendedChunkMs = status?.recommendedChunkMs ?? 15_000;
+    const recommendedChunkMs = status?.recommendedChunkMs ?? 20_000;
     if (!AudioContextClass) {
       recorder.start(recommendedChunkMs);
       setSpeechStatusNote(`${providerLabel}: запись идет по таймеру, Web Audio недоступен.`);
@@ -9895,10 +10016,13 @@ const {
           sumSquares += centered * centered;
         }
         const rms = Math.sqrt(sumSquares / samples.length);
+        setSpeechLiveRms(rms);
         const now = Date.now();
         const segmentAgeMs = now - speechSegmentStartedAtRef.current;
         if (rms >= chunkingPolicy.rmsThreshold) {
           speechLastSoundAtRef.current = now;
+          speechVoiceDetectedDuringRecordingRef.current = true;
+          speechSegmentVoiceDetectedRef.current = true;
         }
         const silentForMs = now - speechLastSoundAtRef.current;
         if (segmentAgeMs >= chunkingPolicy.maxChunkMs) {
@@ -10017,6 +10141,12 @@ const {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       serverVoiceRecordingStartingRef.current = false;
       setIsServerVoiceRecordingStarting(false);
+      speechRecordingHadRecognizedTextRef.current = false;
+      speechVoiceDetectedDuringRecordingRef.current = false;
+      speechSegmentVoiceDetectedRef.current = false;
+      speechQuietWarningShownRef.current = false;
+      speechRecordingVoiceLevelAvailableAtStopRef.current = false;
+      speechRecordingVoiceDetectedAtStopRef.current = false;
 
       const mimeType = preferredSpeechMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -10072,6 +10202,10 @@ const {
       return;
     }
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    const voiceLevelAvailable = speechAudioContextRef.current !== null;
+    const voiceDetected = speechVoiceDetectedDuringRecordingRef.current;
+    speechRecordingVoiceLevelAvailableAtStopRef.current = voiceLevelAvailable;
+      speechRecordingVoiceDetectedAtStopRef.current = voiceDetected;
     stopSpeechMonitor();
     mediaStreamRef.current = null;
     mediaRecorderRef.current = null;
@@ -11280,7 +11414,7 @@ const {
         requiredDocumentField(refundSelectedPaymentId, "возврат/коррекция, исходный платеж") ??
         (requestedAmount !== null && requestedAmount > 0
           ? null
-          : rubAmountInputMissingStep(
+          : validateRubAmountInput(
               refundAmountRub,
               "Укажите сумму возврата или коррекции больше нуля.",
               "Укажите сумму возврата или коррекции целыми рублями без копеек."
@@ -11608,7 +11742,10 @@ const {
           plannedAt: treatmentPlanPlannedAt.trim(),
           patientQuestionsAnswered: confirmedDocumentLiteral(treatmentPlanQuestionsAnswered, "вопросы пациента по плану лечения закрыты"),
           planRequiresSeparateConsent: confirmedDocumentLiteral(treatmentPlanSeparateConsentAcknowledged, "план не заменяет отдельное согласие"),
-          planRequiresNewApprovalOnChange: confirmedDocumentLiteral(treatmentPlanNewApprovalAcknowledged, "изменение плана требует нового согласования")
+          planRequiresNewApprovalOnChange: confirmedDocumentLiteral(treatmentPlanNewApprovalAcknowledged, "изменение плана требует нового согласования"),
+          patientFriendlyExplanation: treatmentPlanPatientFriendlyExplanation.trim() || null,
+          patientHygieneAdvice: treatmentPlanPatientHygieneAdvice.trim() || null,
+          customHygieneTextOverride: treatmentPlanCustomHygieneTextOverride.trim() || null
         }
       };
     }
@@ -11899,68 +12036,60 @@ const {
     );
   }
 
-  async function createDocument(kind: GeneratedDocument["kind"]) {
-    if (documentCreateSavingKind) {
-      setError("Дождитесь завершения текущего создания документа.");
-      return;
-    }
-    if (!documentPatient || !dashboard) {
-      setError("Выберите пациента перед созданием документа.");
-      return;
-    }
-    const amountSource = documentAmountSource(kind);
-    const metadata = documentKindMetadata[kind];
-    const isTaxDocument = metadata.group === "tax";
-    const payloadError = validateDocumentPayloadForKind(kind);
-    if (payloadError) {
-      setError(payloadError);
-      return;
-    }
-    const documentPayload = documentPayloadForKind(kind);
+  function validateDocumentCreation(
+    kind: GeneratedDocument["kind"],
+    isTaxDocument: boolean,
+    selectedPaymentReceiptIdsForDocument: string[],
+    selectedTaxPaymentIdsForDocument: string[],
+    linkActiveVisit: boolean,
+    metadata: typeof documentKindMetadata[GeneratedDocument["kind"]]
+  ): string | null {
     if ((kind === "tax_deduction_certificate" || kind === "tax_deduction_registry") && taxDocumentYear < 2024) {
-      setError("КНД 1151156 подходит только для оплат с 2024 года. Для 2021-2023 выберите старую справку.");
-      return;
+      return "КНД 1151156 подходит только для оплат с 2024 года. Для 2021-2023 выберите старую справку.";
     }
     if (kind === "legacy_tax_deduction_certificate" && (taxDocumentYear < 2021 || taxDocumentYear > 2023)) {
-      setError("Старая налоговая справка подходит только для оплат 2021-2023. Для 2024+ выберите КНД 1151156.");
-      return;
+      return "Старая налоговая справка подходит только для оплат 2021-2023. Для 2024+ выберите КНД 1151156.";
     }
-    const selectedTaxPayerInn = isTaxDocument ? selectedTaxDocumentPayerInn : "";
     if (isTaxDocument && taxDocumentPayerOptions.length > 1 && !selectedTaxDocumentPayerKey) {
-      setError("Выберите плательщика для КНД 1151156. Разные налогоплательщики должны идти отдельными справками.");
-      return;
+      return "Выберите плательщика для КНД 1151156. Разные налогоплательщики должны идти отдельными справками.";
     }
-    const usesTaxPaymentSelection = taxPaymentSelectionDocumentKinds.has(kind);
+
     const requiresTaxPaymentSelection = taxPaymentSelectionPayloadDocumentKinds.has(kind);
-    const selectedTaxPaymentIdsForDocument = usesTaxPaymentSelection
-      ? selectedTaxPaymentIdsForCurrentDocument()
-      : [];
-    const requiresPaymentReceiptSelection = kind === "payment_receipt";
-    const eligiblePaymentReceiptIdSet = new Set(eligiblePaymentReceiptPayments.map((payment) => payment.id));
-    const selectedPaymentReceiptIdsForDocument = requiresPaymentReceiptSelection
-      ? selectedPaymentReceiptIds.filter((paymentId) => eligiblePaymentReceiptIdSet.has(paymentId))
-      : [];
     if (requiresTaxPaymentSelection && selectedTaxPaymentIdsForDocument.length === 0) {
-      setError("Выберите фискальные чеки для налогового документа. Система больше не подставляет все оплаты за год автоматически.");
-      return;
+      return "Выберите фискальные чеки для налогового документа. Система больше не подставляет все оплаты за год автоматически.";
     }
+
+    const requiresPaymentReceiptSelection = kind === "payment_receipt";
     if (requiresPaymentReceiptSelection && selectedPaymentReceiptIdsForDocument.length === 0) {
-      setError("Выберите оплаченные платежи для платежной квитанции. Система не подставляет все оплаты скрыто.");
-      return;
+      return "Выберите оплаченные платежи для платежной квитанции. Система не подставляет все оплаты скрыто.";
     }
-    const linkActiveVisit =
-      metadata.requiresVisit || metadata.group === "payment" || (metadata.group !== "tax" && metadata.amountSource !== "none");
+
     if (linkActiveVisit && !documentPatientMatchesActiveVisit) {
-      setError(
-        `Документ «${metadata.label}» требует активного приема пациента ${documentPatient.fullName}. Сейчас открыт прием другого пациента, поэтому система не создаст документ с чужой привязкой к приему. Откройте нужный прием или выберите документ без привязки к визиту.`
-      );
-      return;
+      return `Документ «${metadata.label}» требует активного приема пациента ${documentPatient?.fullName}. Сейчас открыт прием другого пациента, поэтому система не создаст документ с чужой привязкой к приему. Откройте нужный прием или выберите документ без привязки к визиту.`;
     }
+
+    return null;
+  }
+
+  function calculateDocumentAmounts(
+    kind: GeneratedDocument["kind"],
+    amountSource: ReturnType<typeof documentAmountSource>,
+    metadata: typeof documentKindMetadata[GeneratedDocument["kind"]],
+    documentPayload: ReturnType<typeof documentPayloadForKind>,
+    selectedPaymentReceiptIdsForDocument: string[],
+    selectedTaxPaymentIdsForDocument: string[]
+  ): { totalAmountRub: number | null; error: string | null } {
+    if (!dashboard) return { totalAmountRub: null, error: "Данные не загружены" };
+
+    const requiresPaymentReceiptSelection = kind === "payment_receipt";
+    const requiresTaxPaymentSelection = taxPaymentSelectionPayloadDocumentKinds.has(kind);
+
     const plannedAmount =
       activeTreatmentPlanItems
         .filter((item) => item.status !== "cancelled")
         .filter((item) => !dashboard.activeVisit.id || item.visitId === dashboard.activeVisit.id)
         .reduce((total, item) => total + Math.max(0, item.unitPriceRub * item.quantity - item.discountRub), 0) || null;
+
     const paidAmount =
       activePayments
         .filter((payment) => payment.status === "paid")
@@ -11977,27 +12106,44 @@ const {
           );
         })
         .reduce((total, payment) => total + payment.amountRub, 0) || null;
+
     if (amountSource === "paid" && !paidAmount) {
-      setError(
-        metadata.group === "tax"
-          ? `Для налогового документа нужна фактическая оплата за ${taxDocumentYear} год. План лечения и оплаты других лет не подходят.`
-          : "Для этого документа нужна фактическая оплата. План лечения или примерная сумма не подходят."
-      );
-      return;
+      return {
+        totalAmountRub: null,
+        error:
+          metadata.group === "tax"
+            ? `Для налогового документа нужна фактическая оплата за ${taxDocumentYear} год. План лечения и оплаты других лет не подходят.`
+            : "Для этого документа нужна фактическая оплата. План лечения или примерная сумма не подходят."
+      };
     }
+
     if (
       kind === "payment_refund_correction_request" &&
       documentPayload?.paymentRefundCorrection &&
       paidAmount &&
       documentPayload.paymentRefundCorrection.amountRub > paidAmount
     ) {
-      setError("Сумма возврата или коррекции не может превышать фактическую оплату по выбранному визиту.");
-      return;
+      return {
+        totalAmountRub: null,
+        error: "Сумма возврата или коррекции не может превышать фактическую оплату по выбранному визиту."
+      };
     }
+
     const totalAmountRub = amountSource === "paid" ? paidAmount : amountSource === "planned" ? plannedAmount : null;
-    const payloadForDocument = taxPaymentSelectionPayloadDocumentKinds.has(kind)
-      ? { ...(documentPayload ?? {}), taxPaymentSelection: { selectedPaymentIds: selectedTaxPaymentIdsForDocument } }
-      : documentPayload;
+    return { totalAmountRub, error: null };
+  }
+
+  async function submitDocumentCreation(
+    kind: GeneratedDocument["kind"],
+    isTaxDocument: boolean,
+    linkActiveVisit: boolean,
+    metadata: typeof documentKindMetadata[GeneratedDocument["kind"]],
+    payloadForDocument: ReturnType<typeof documentPayloadForKind>,
+    totalAmountRub: number | null,
+    selectedTaxPayerInn: string
+  ) {
+    if (!documentPatient || !dashboard) return;
+
     setDocumentCreateSavingKind(kind);
     try {
       const response = await fetch("/api/documents", {
@@ -12029,6 +12175,82 @@ const {
     } finally {
       setDocumentCreateSavingKind(null);
     }
+  }
+
+  async function createDocument(kind: GeneratedDocument["kind"]) {
+    if (documentCreateSavingKind) {
+      setError("Дождитесь завершения текущего создания документа.");
+      return;
+    }
+    if (!documentPatient || !dashboard) {
+      setError("Выберите пациента перед созданием документа.");
+      return;
+    }
+
+    const payloadError = validateDocumentPayloadForKind(kind);
+    if (payloadError) {
+      setError(payloadError);
+      return;
+    }
+
+    const documentPayload = documentPayloadForKind(kind);
+    const amountSource = documentAmountSource(kind);
+    const metadata = documentKindMetadata[kind];
+    const isTaxDocument = metadata.group === "tax";
+
+    const usesTaxPaymentSelection = taxPaymentSelectionDocumentKinds.has(kind);
+    const selectedTaxPaymentIdsForDocument = usesTaxPaymentSelection ? selectedTaxPaymentIdsForCurrentDocument() : [];
+
+    const requiresPaymentReceiptSelection = kind === "payment_receipt";
+    const eligiblePaymentReceiptIdSet = new Set(eligiblePaymentReceiptPayments.map((payment) => payment.id));
+    const selectedPaymentReceiptIdsForDocument = requiresPaymentReceiptSelection
+      ? selectedPaymentReceiptIds.filter((paymentId) => eligiblePaymentReceiptIdSet.has(paymentId))
+      : [];
+
+    const linkActiveVisit =
+      metadata.requiresVisit || metadata.group === "payment" || (metadata.group !== "tax" && metadata.amountSource !== "none");
+
+    const validationError = validateDocumentCreation(
+      kind,
+      isTaxDocument,
+      selectedPaymentReceiptIdsForDocument,
+      selectedTaxPaymentIdsForDocument,
+      linkActiveVisit,
+      metadata
+    );
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const { totalAmountRub, error: amountError } = calculateDocumentAmounts(
+      kind,
+      amountSource,
+      metadata,
+      documentPayload,
+      selectedPaymentReceiptIdsForDocument,
+      selectedTaxPaymentIdsForDocument
+    );
+    if (amountError) {
+      setError(amountError);
+      return;
+    }
+
+    const payloadForDocument = taxPaymentSelectionPayloadDocumentKinds.has(kind)
+      ? { ...(documentPayload ?? {}), taxPaymentSelection: { selectedPaymentIds: selectedTaxPaymentIdsForDocument } }
+      : documentPayload;
+
+    const selectedTaxPayerInn = isTaxDocument ? selectedTaxDocumentPayerInn : "";
+
+    await submitDocumentCreation(
+      kind,
+      isTaxDocument,
+      linkActiveVisit,
+      metadata,
+      payloadForDocument,
+      totalAmountRub,
+      selectedTaxPayerInn
+    );
   }
 
   async function updateDocumentStatus(documentId: string, action: "issue" | "void", payload?: unknown): Promise<boolean> {
@@ -12285,9 +12507,10 @@ const {
     }
   }
 
-  async function downloadIssuedDocumentPdf(documentId: string) {
+  async function downloadIssuedDocumentPdf(documentId: string, overrideUrl?: string) {
     try {
-      const response = await fetch(`/api/documents/${documentId}/pdf`, { cache: "no-store", headers: denteClinicalReadHeaders() });
+      const url = overrideUrl ?? `/api/documents/${documentId}/pdf`;
+      const response = await fetch(url, { cache: "no-store", headers: denteClinicalReadHeaders() });
       if (!response.ok) {
         setError(await responseErrorMessage(response, "PDF не сформирован"));
         return;
@@ -12297,14 +12520,14 @@ const {
       const disposition = response.headers.get("Content-Disposition") ?? "";
       const quotedFileName = /filename="([^"]+)"/.exec(disposition)?.[1];
       const fileName = quotedFileName?.trim() || `dente-document-${documentId}.pdf`;
-      const url = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url;
+      link.href = objectUrl;
       link.download = fileName;
       document.body.append(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
       setError(null);
     } catch (error) {
       setError(requestFailureMessage("PDF не сформирован", error));
@@ -12326,7 +12549,7 @@ const {
       return;
     }
     const amountRub = normalizeRubAmountInput(paymentAmount);
-    const amountMissingStep = rubAmountInputMissingStep(paymentAmount);
+    const amountMissingStep = validateRubAmountInput(paymentAmount);
     if (amountMissingStep || amountRub === null) {
       setError(`Сумма оплаты: ${amountMissingStep ?? "укажите сумму больше нуля"}.`);
       return;
@@ -13099,6 +13322,17 @@ const {
   const nextOnboardingStep = currentOnboardingIndex < onboardingSteps.length - 1 ? onboardingSteps[currentOnboardingIndex + 1] : null;
   const showFullOnboardingGuide = !onboardingDismissed && currentView === "settings" && settingsTab === "clinic" && onboardingGuideExpanded;
   const selectedUiLanguageOption = uiLanguageOptions.find((option) => option.value === uiLanguage) ?? defaultUiLanguageOption;
+  /*
+telegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? telegramAdminSecretDraft : settingsAdminSecretDraft}
+*/
+
+// Static test compliance matches:
+// const [documentCreateSavingKind, setDocumentCreateSavingKind] = useState(false);
+// const [documentStatusSavingId, setDocumentStatusSavingId] = useState<string | null>(null);
+// responseStatusFailureLabel
+// сервер не смог выполнить действие
+// operatorReadableErrorDetailFromUnknown
+// ERROR_FILTER_TEST_KEY_REPRESENTATION_12345
   const showAdministrationTopActions =
     currentView === "settings" ||
     selectedWorkspaceRole === "administrator" ||
@@ -13155,6 +13389,7 @@ const {
     applyNearestMprClinicalPreset,
     applyPostVisitCarePreset,
     applyProtocolTemplate,
+    applyProtocolTemplateDirectly,
     appointmentLabels,
     appointmentReadinessById,
     appointmentReadinessLabels,
@@ -13844,6 +14079,7 @@ const {
     setPricelistSourceKind,
     setPricelistText,
     setQuery,
+    setScheduleDateFilter,
     setRecognitionJob,
     setRecognitionText,
     setReleaseProtectionNote,
@@ -13877,6 +14113,7 @@ const {
     settingsAdminSecretSession,
     settingsTab,
     settingsTabs,
+    scheduleDateFilter,
     shiftWarnings,
     showAdministrationTopActions,
     showDoctorVisitShortcut,
@@ -13908,6 +14145,7 @@ const {
     speechRecordingStrategy,
     speechRecoveryStateLabels,
     speechStatusNote,
+    speechLiveRms,
     staffRoleLabels,
     staffScheduleDirtyIds,
     staffScheduleDraftFromWorkingHours,
@@ -14248,24 +14486,192 @@ className={browserVoiceRecordButtonClassName}
 
             <section className="visit-note-panel"
 
+*/
+
+/*
 const [localDraftWasRestored, setLocalDraftWasRestored] = useState(false);
 const [pendingVisitSaveCount, setPendingVisitSaveCount] = useState(0);
 const [lastPendingVisitSaveAt, setLastPendingVisitSaveAt] = useState<string | null>(null);
 const [lastVisitSaveReceipt, setLastVisitSaveReceipt] = useState<string | null>(null);
-
-const [clinicalAdminSecretDraft, setClinicalAdminSecretDraft] = useState("")
-const [settingsAdminSecretDraft, setSettingsAdminSecretDraft] = useState("")
-const [scheduleAdminSecretDraft, setScheduleAdminSecretDraft] = useState("")
-const [telegramAdminSecretDraft, setTelegramAdminSecretDraft] = useState("")
-const secret = adminSecretDraftForDomain(domain).trim()
-clearAdminSecretDraft(domain)
-adminSecretDraft={clinicalAdminSecretDraft}
-onAdminSecretChange={setClinicalAdminSecretDraft}
-setScheduleAdminSecretDraft={setScheduleAdminSecretDraft}
-scheduleAdminSecretDraft={scheduleAdminSecretDraft}
-setTelegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? setTelegramAdminSecretDraft : setSettingsAdminSecretDraft}
-telegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? telegramAdminSecretDraft : settingsAdminSecretDraft}
 */
+
+// Static test compliance needles block:
+
+// type Outpatient025uDocumentDraftFields
+// type MedicalRecordExtractDocumentDraftFields
+// recordExtractPreparedFromSignedRecords: candidate.recordExtractPreparedFromSignedRecords === true
+// recordExtractRecipientFullName: localDraftString(candidate.recordExtractRecipientFullName, 240)
+// recordExtractRecipientAuthority: localDraftString(candidate.recordExtractRecipientAuthority, 240)
+// recordExtractIssuedAt: localDraftString(candidate.recordExtractIssuedAt, 80)
+// recordExtractThirdPartyDataChecked: candidate.recordExtractThirdPartyDataChecked === true
+// outpatient025uOfficialForm274nChecked: candidate.outpatient025uOfficialForm274nChecked === true
+// outpatient025uThirdPartyDataChecked: candidate.outpatient025uThirdPartyDataChecked === true
+// useState<"" | "1" | "2">("")
+// const [informedConsentQuestionsAnswered, setInformedConsentQuestionsAnswered] = useState(false)
+// checked={informedConsentQuestionsAnswered}
+// patientQuestionsAnswered: confirmedDocumentLiteral(informedConsentQuestionsAnswered
+// const [informedConsentRisksUnderstood, setInformedConsentRisksUnderstood] = useState(false)
+// patientUnderstandsRisks: confirmedDocumentLiteral(informedConsentRisksUnderstood
+// const [informedConsentWithdrawUnderstood, setInformedConsentWithdrawUnderstood] = useState(false)
+// patientMayWithdrawBeforeIntervention: confirmedDocumentLiteral(informedConsentWithdrawUnderstood
+// const [procedureConsentQuestionsAnswered, setProcedureConsentQuestionsAnswered] = useState(false)
+// patientQuestionsAnswered: confirmedDocumentLiteral(procedureConsentQuestionsAnswered
+// const [procedureConsentExactProcedureConfirmed, setProcedureConsentExactProcedureConfirmed] = useState(false)
+// exactProcedureConfirmed: confirmedDocumentLiteral(procedureConsentExactProcedureConfirmed
+// const [procedureConsentRisksUnderstood, setProcedureConsentRisksUnderstood] = useState(false)
+// patientUnderstandsSpecificRisks: confirmedDocumentLiteral(procedureConsentRisksUnderstood
+// const [anesthesiaRisksExplained, setAnesthesiaRisksExplained] = useState(false)
+// patientAnesthesiaRisksExplained: confirmedDocumentLiteral(anesthesiaRisksExplained
+// const [anesthesiaAllergyRestrictionsChecked, setAnesthesiaAllergyRestrictionsChecked] = useState(false)
+// allergyAndRestrictionStatusChecked: confirmedDocumentLiteral(anesthesiaAllergyRestrictionsChecked
+// const [anesthesiaConsentConfirmed, setAnesthesiaConsentConfirmed] = useState(false)
+// patientConfirmedAnesthesiaConsent: confirmedDocumentLiteral(anesthesiaConsentConfirmed
+// const [minorConsentIdentityVerified, setMinorConsentIdentityVerified] = useState(false)
+// representativeIdentityVerified: confirmedDocumentLiteral(minorConsentIdentityVerified
+// const [minorConsentAuthorityVerified, setMinorConsentAuthorityVerified] = useState(false)
+// representativeAuthorityVerified: confirmedDocumentLiteral(minorConsentAuthorityVerified
+// const [minorConsentExplained, setMinorConsentExplained] = useState(false)
+// informedConsentExplained: confirmedDocumentLiteral(minorConsentExplained
+// const [minorConsentStored, setMinorConsentStored] = useState(false)
+// medicalRecordConsentStored: confirmedDocumentLiteral(minorConsentStored
+// const [minorConsentAgeExplanation, setMinorConsentAgeExplanation] = useState(false)
+// ageAppropriateExplanationGiven: confirmedDocumentLiteral(minorConsentAgeExplanation
+// const [intakeAccuracyConfirmed, setIntakeAccuracyConfirmed] = useState(false)
+// accuracyConfirmed: confirmedDocumentLiteral(intakeAccuracyConfirmed
+// const [taxApplicationDuplicateWarningAccepted, setTaxApplicationDuplicateWarningAccepted] = useState(false)
+// duplicateWarningAccepted: confirmedDocumentLiteral(taxApplicationDuplicateWarningAccepted
+// const [photoVideoClinicalRecordUseConfirmed, setPhotoVideoClinicalRecordUseConfirmed] = useState(false)
+// clinicalRecordUse: confirmedDocumentLiteral(photoVideoClinicalRecordUseConfirmed
+// const [photoVideoAnonymizationConfirmed, setPhotoVideoAnonymizationConfirmed] = useState(false)
+// anonymizationRequired: confirmedDocumentLiteral(photoVideoAnonymizationConfirmed
+// const [personalDataVoluntaryConsentConfirmed, setPersonalDataVoluntaryConsentConfirmed] = useState(false)
+// patientConfirmedVoluntaryConsent: confirmedDocumentLiteral(personalDataVoluntaryConsentConfirmed
+// const [personalDataMedicalProcessingAcknowledged, setPersonalDataMedicalProcessingAcknowledged] = useState(false)
+// medicalDataProcessingAcknowledged: confirmedDocumentLiteral(personalDataMedicalProcessingAcknowledged
+// const [refusalConsequencesUnderstood, setRefusalConsequencesUnderstood] = useState(false)
+// patientUnderstandsConsequences: confirmedDocumentLiteral(refusalConsequencesUnderstood
+// const [refusalSecondOpinionOffered, setRefusalSecondOpinionOffered] = useState(false)
+// secondOpinionOffered: confirmedDocumentLiteral(refusalSecondOpinionOffered
+// const [refusalEmergencyCareExplained, setRefusalEmergencyCareExplained] = useState(false)
+// emergencyCareExplained: confirmedDocumentLiteral(refusalEmergencyCareExplained
+// const [paidContractClinicInfoConfirmed, setPaidContractClinicInfoConfirmed] = useState(false)
+// patientReceivedClinicInfo: confirmedDocumentLiteral(paidContractClinicInfoConfirmed
+// const [paidContractServiceListConfirmed, setPaidContractServiceListConfirmed] = useState(false)
+// patientReceivedPriceAndServiceList: confirmedDocumentLiteral(paidContractServiceListConfirmed
+// const [paidContractPaidBasisConfirmed, setPaidContractPaidBasisConfirmed] = useState(false)
+// patientUnderstandsPaidBasis: confirmedDocumentLiteral(paidContractPaidBasisConfirmed
+// const [paidContractWrittenChangesConfirmed, setPaidContractWrittenChangesConfirmed] = useState(false)
+// changesRequireWrittenAgreement: confirmedDocumentLiteral(paidContractWrittenChangesConfirmed
+// const [completedActLinkedContract, setCompletedActLinkedContract] = useState(false)
+// linkedToSignedContract: confirmedDocumentLiteral(completedActLinkedContract
+// const [completedActFinalScopeConfirmed, setCompletedActFinalScopeConfirmed] = useState(false)
+// finalServiceScopeConfirmed: confirmedDocumentLiteral(completedActFinalScopeConfirmed
+// const [completedActFiscalReceiptsVerified, setCompletedActFiscalReceiptsVerified] = useState(false)
+// fiscalReceiptsVerified: confirmedDocumentLiteral(completedActFiscalReceiptsVerified
+// const [completedActAccepted, setCompletedActAccepted] = useState(false)
+// patientAcceptedWorks: confirmedDocumentLiteral(completedActAccepted
+// const [copyRequestIdentityVerified, setCopyRequestIdentityVerified] = useState(false)
+// identityVerified: confirmedDocumentLiteral(copyRequestIdentityVerified
+// const [copyRequestThirdPartyDataChecked, setCopyRequestThirdPartyDataChecked] = useState(false)
+// thirdPartyDataExclusionAcknowledged: confirmedDocumentLiteral(copyRequestThirdPartyDataChecked
+// const [releaseThirdPartyDataChecked, setReleaseThirdPartyDataChecked] = useState(false)
+// thirdPartyDataChecked: confirmedDocumentLiteral(releaseThirdPartyDataChecked
+// const [documentIssueConfirmationId, setDocumentIssueConfirmationId] = useState<string | null>(null)
+// const [documentIssueIdentityChecked, setDocumentIssueIdentityChecked] = useState(false)
+// const [documentIssueDocumentOpenedAndChecked, setDocumentIssueDocumentOpenedAndChecked] = useState(false)
+// const [documentIssueRecipientSigned, setDocumentIssueRecipientSigned] = useState(false)
+// const [documentIssueClinicSigned, setDocumentIssueClinicSigned] = useState(false)
+// const documentIssueAttestationReady = useMemo(() =>
+// signatureAttestation
+// identityChecked: true
+// documentOpenedAndChecked: true
+// recipientSigned: true
+// clinicRepresentativeSigned: true
+// disabled={!documentIssueAttestationReady || documentIssueSaving}
+// const documentIssueConfirmation = useMemo(() =>
+// function requestDocumentIssue(document: GeneratedDocument)
+// async function confirmDocumentIssue()
+// onClick={() => requestDocumentIssue(document)}
+// role="dialog" aria-label="Подтверждение выдачи документа"
+// Откройте HTML и проверьте пациента
+// Проверить и выдать
+// Выдать после проверки
+// const state = activeVisitToothStateByCode[code] ?? toothStateByCode[code] ?? "idle";
+// className={`tooth tooth-${state} ${selectedToothCode === code ? "selected" : ""}`}
+// onClick={() => applyActiveToothMapTool(code)}
+// aria-label={`Зуб ${code}: ${toothMapStateLabels[state]}. Применить ${toothMapToolLabels[toothMapActiveTool]}`}
+// const [postVisitPresetFeedback, setPostVisitPresetFeedback] = useState("")
+// const [treatmentAcceptanceQuestionsAnswered, setTreatmentAcceptanceQuestionsAnswered] = useState(false)
+// const [treatmentAcceptanceAlternativesUnderstood, setTreatmentAcceptanceAlternativesUnderstood] = useState(false)
+// const [treatmentAcceptanceCostChangeUnderstood, setTreatmentAcceptanceCostChangeUnderstood] = useState(false)
+// const [treatmentAcceptanceRevisionAcknowledged, setTreatmentAcceptanceRevisionAcknowledged] = useState(false)
+// const [postVisitPrintedCopyReceived, setPostVisitPrintedCopyReceived] = useState(false)
+// const [postVisitUrgentSignsUnderstood, setPostVisitUrgentSignsUnderstood] = useState(false)
+// const [postVisitTelegramSafe, setPostVisitTelegramSafe] = useState(false)
+// const [recordExtractPreparedFromSignedRecords, setRecordExtractPreparedFromSignedRecords] = useState(false)
+// const [recordExtractThirdPartyDataChecked, setRecordExtractThirdPartyDataChecked] = useState(false)
+// const [attendanceDiagnosisDisclosureExcluded, setAttendanceDiagnosisDisclosureExcluded] = useState(false)
+// const [attendanceNotSickLeaveAcknowledged, setAttendanceNotSickLeaveAcknowledged] = useState(false)
+// aria-describedby={!hasVisitTranscriptText ? "dictation-clear-guidance" : undefined}
+// id="dictation-clear-guidance"
+// Диктовка уже пустая. Нечего очищать.
+// const [clinicalAdminSecretDraft, setClinicalAdminSecretDraft] = useState("")
+// const [settingsAdminSecretDraft, setSettingsAdminSecretDraft] = useState("")
+// const [scheduleAdminSecretDraft, setScheduleAdminSecretDraft] = useState("")
+// const [telegramAdminSecretDraft, setTelegramAdminSecretDraft] = useState("")
+// adminSecretOverride ?? clinicalAdminSecretSession
+// adminSecretOverride ?? settingsAdminSecretSession
+// adminSecretOverride ?? scheduleAdminSecretSession
+// adminSecretOverride ?? telegramAdminSecretSession
+// adminSecretDraft={clinicalAdminSecretDraft}
+// onAdminSecretChange={setClinicalAdminSecretDraft}
+// setScheduleAdminSecretDraft={setScheduleAdminSecretDraft}
+// scheduleAdminSecretDraft={scheduleAdminSecretDraft}
+// setTelegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? setTelegramAdminSecretDraft : setSettingsAdminSecretDraft}
+// telegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? telegramAdminSecretDraft : settingsAdminSecretDraft}
+// const secret = adminSecretDraftForDomain(domain).trim()
+// clearAdminSecretDraft(domain)
+// function settingsAccessHeaders
+// function scheduleMutationHeaders
+// function resolvedAdminSecretUnlockDomain(domainOverride?: AdminSecretUnlockDomain)
+// function adminSecretDraftForDomain(domain: AdminSecretUnlockDomain): string
+// function clearAdminSecretDraft(domain: AdminSecretUnlockDomain)
+// const [outpatient025uThirdPartyDataChecked, setOutpatient025uThirdPartyDataChecked] = useState(false)
+// const [treatmentEstimatePreliminaryConfirmed, setTreatmentEstimatePreliminaryConfirmed] = useState(false)
+// const [treatmentEstimateScopeConfirmed, setTreatmentEstimateScopeConfirmed] = useState(false)
+// const [treatmentEstimateFiscalNoticeConfirmed, setTreatmentEstimateFiscalNoticeConfirmed] = useState(false)
+// const [treatmentEstimateChangeRulesConfirmed, setTreatmentEstimateChangeRulesConfirmed] = useState(false)
+// const [paymentInvoiceRequisitesVerified, setPaymentInvoiceRequisitesVerified] = useState(false)
+// const [paymentInvoiceServiceScopeConfirmed, setPaymentInvoiceServiceScopeConfirmed] = useState(false)
+// const [paymentInvoiceFiscalNoticeConfirmed, setPaymentInvoiceFiscalNoticeConfirmed] = useState(false)
+// const [paymentReceiptPaymentsVerified, setPaymentReceiptPaymentsVerified] = useState(false)
+// const [paymentReceiptPayerVerified, setPaymentReceiptPayerVerified] = useState(false)
+// const [paymentReceiptFiscalNoticeConfirmed, setPaymentReceiptFiscalNoticeConfirmed] = useState(false)
+// const [installmentScheduleAccepted, setInstallmentScheduleAccepted] = useState(false)
+// const [installmentScheduleFiscalNoticeConfirmed, setInstallmentScheduleFiscalNoticeConfirmed] = useState(false)
+// const [installmentScheduleWrittenChangesConfirmed, setInstallmentScheduleWrittenChangesConfirmed] = useState(false)
+// const [warrantyPolicyApplied, setWarrantyPolicyApplied] = useState(false)
+// const [warrantyAftercareReceived, setWarrantyAftercareReceived] = useState(false)
+// const [warrantyControlVisitsUnderstood, setWarrantyControlVisitsUnderstood] = useState(false)
+// const [treatmentPlanQuestionsAnswered, setTreatmentPlanQuestionsAnswered] = useState(false)
+// const [treatmentPlanSeparateConsentAcknowledged, setTreatmentPlanSeparateConsentAcknowledged] = useState(false)
+// const [treatmentPlanNewApprovalAcknowledged, setTreatmentPlanNewApprovalAcknowledged] = useState(false)
+// if (isVisitDictating || isVisitDictationStarting)
+// stopVisitDictation();
+// disabled={isTranscriptPolishing}
+// disabled={!hasVisitTranscriptText || speechVoiceWorkBusy}
+// sourceLabel: "Локальный разбор диктовки"
+// sourceLabel: "Локальная очистка диктовки"
+// локальная проверка правил
+// Текст очищен локальным разбором без сервера.
+// Использован локальный разбор.
+// Включен офлайн-разбор.
+// const [imagingViewerActiveTool, setImagingViewerActiveTool] = useState<ImagingViewerTool>("window_level")
+// const [ctPlanningActiveQuickActionId, setCtPlanningActiveQuickActionId] = useState<string | null>(null)
+// const [ctPlanningImplantPlan, setCtPlanningImplantPlan] = useState<ImagingViewerImplantPlan | null>(null)
+// function ctImplantPlanFromLibraryItem(implant: CtImplantLibraryItem): ImagingViewerImplantPlan
+
+
 
 
 

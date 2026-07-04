@@ -10,12 +10,17 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
     sys.stdout.flush()
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
-    return out, err
+    try:
+        out = stdout.read().decode('utf-8', errors='replace').strip()
+        err = stderr.read().decode('utf-8', errors='replace').strip()
+        if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
+        if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
+        sys.stdout.flush()
+        return out, err
+    finally:
+        stdin.close()
+        stdout.close()
+        stderr.close()
 
 if __name__ == "__main__":
     client = paramiko.SSHClient()

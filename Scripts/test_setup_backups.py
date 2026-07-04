@@ -66,5 +66,26 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
 
+    @patch('sys.stdout')
+    def test_ssh_exception_closes_channels(self, mock_stdout):
+        mock_client = Mock()
+        mock_stdin = Mock()
+        mock_stdout_ssh = Mock()
+        mock_stderr_ssh = Mock()
+
+        mock_stdout_ssh.read.side_effect = Exception("Simulated network failure")
+
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+
+        with self.assertRaisesRegex(Exception, "Simulated network failure"):
+            ssh(mock_client, "ls", desc="")
+
+        mock_client.exec_command.assert_called_once_with("ls", timeout=60)
+
+        # Ensure that close() is called on all channels in the finally block
+        mock_stdin.close.assert_called_once()
+        mock_stdout_ssh.close.assert_called_once()
+        mock_stderr_ssh.close.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()

@@ -148,7 +148,12 @@ export function taxPaymentSelectionErrorForDocument(input: CreateDocumentInput, 
     return "В выбранных чеках есть дубли. Оставьте каждый фискальный чек один раз.";
   }
 
-  const paymentsById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paymentsById = new Map<string, Payment>();
+  for (const payment of payments) {
+    if (uniqueSelectedIds.has(payment.id)) {
+      paymentsById.set(payment.id, payment);
+    }
+  }
   for (const paymentId of selectedIds) {
     const payment = paymentsById.get(paymentId);
     if (!payment) {
@@ -230,7 +235,12 @@ export function paymentReceiptSelectionErrorForDocument(input: CreateDocumentInp
     return "В выбранных платежах квитанции есть дубли. Оставьте каждый платеж один раз.";
   }
 
-  const paymentsById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paymentsById = new Map<string, Payment>();
+  for (const payment of payments) {
+    if (uniqueSelectedIds.has(payment.id)) {
+      paymentsById.set(payment.id, payment);
+    }
+  }
   const selectedPayments: Payment[] = [];
   for (const paymentId of selectedIds) {
     const payment = paymentsById.get(paymentId);
@@ -286,7 +296,12 @@ export function paymentRefundCorrectionSelectionErrorForDocument(input: CreateDo
   }
 
   const expectedReceiptNumber = normalizedFiscalReceiptNumber(payload.originalFiscalReceiptNumber);
-  const paymentsById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paymentsById = new Map<string, Payment>();
+  for (const payment of payments) {
+    if (uniqueSelectedIds.has(payment.id)) {
+      paymentsById.set(payment.id, payment);
+    }
+  }
   for (const paymentId of selectedIds) {
     const payment = paymentsById.get(paymentId);
     if (!payment) return "Выбранный исходный платеж для возврата или коррекции не найден. Обновите экран и выберите платеж заново.";

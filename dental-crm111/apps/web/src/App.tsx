@@ -2639,8 +2639,8 @@ export function App() {
                     </div>
                     <div className="staff-list">
                       {dashboard.clinicSettings.staff
-                        .filter((member) => member.role === "doctor" || member.role === "assistant")
-                        .map((member) => {
+                        .filter((member: any) => member.role === "doctor" || member.role === "assistant")
+                        .map((member: any) => {
                           const scheduleDraft = staffScheduleDrafts[member.id] ?? staffScheduleDraftFromWorkingHours(member.workingHours ?? null);
                           const scheduleSaveState = staffScheduleSaveStates[member.id] ?? "saved";
                           const scheduleDirty = staffScheduleDirtyIds.has(member.id);
@@ -2658,7 +2658,7 @@ export function App() {
                               <div>
                                 <strong>{member.fullName}</strong>
                                 <p>
-                                  {staffRoleLabels[member.role]} · {member.specialties.map((item) => specialtyLabels[item]).join(", ")}
+                                  {staffRoleLabels[member.role]} · {member.specialties.map((item: any) => specialtyLabels[item]).join(", ")}
                                 </p>
                               </div>
                               <div className="staff-schedule-editor onboarding-compact-schedule-editor">
@@ -2717,8 +2717,8 @@ export function App() {
                     </div>
                     <div className="staff-list">
                       {dashboard.clinicSettings.chairs
-                        .filter((chair) => chair.active)
-                        .map((chair) => {
+                        .filter((chair: any) => chair.active)
+                        .map((chair: any) => {
                           const scheduleDraft = chairScheduleDrafts[chair.id] ?? staffScheduleDraftFromWorkingHours(chair.workingHours ?? null);
                           const scheduleSaveState = chairScheduleSaveStates[chair.id] ?? "saved";
                           const scheduleDirty = chairScheduleDirtyIds.has(chair.id);
@@ -4010,7 +4010,7 @@ export function App() {
             <span>Служебные ограничения</span>
           </summary>
           <div>
-            {dashboard.complianceWarnings.map((warning) => (
+            {dashboard.complianceWarnings.map((warning: any) => (
               <p key={warning}>{warning}</p>
             ))}
           </div>

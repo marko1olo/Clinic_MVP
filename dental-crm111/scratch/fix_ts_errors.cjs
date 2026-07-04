@@ -1,38 +1,42 @@
 const fs = require('fs');
+const path = require('path');
 
 // Fix appStore.ts
-const path = 'C:/Clinic_MVP/dental-crm/apps/web/src/store/appStore.ts';
-let code = fs.readFileSync(path, 'utf8');
-code = code.replace(/initialRecognitionText/g, '""');
-fs.writeFileSync(path, code);
-console.log('Fixed appStore.ts');
+const appStorePath = path.resolve(__dirname, '../apps/web/src/store/appStore.ts');
+if (fs.existsSync(appStorePath)) {
+  let code = fs.readFileSync(appStorePath, 'utf8');
+  code = code.replace(/initialRecognitionText/g, '""');
+  fs.writeFileSync(appStorePath, code);
+  console.log('Fixed appStore.ts');
+} else {
+  console.log(`Could not find ${appStorePath}`);
+}
 
 // Fix App.tsx implicit any errors
-const appPath = 'C:/Clinic_MVP/dental-crm/apps/web/src/App.tsx';
-let appCode = fs.readFileSync(appPath, 'utf8');
+const appPath = path.resolve(__dirname, '../apps/web/src/App.tsx');
+if (fs.existsSync(appPath)) {
+  let appCode = fs.readFileSync(appPath, 'utf8');
 
-// Replace standard implicit anys
-// e.g. .map(payment => ...) -> .map((payment: any) => ...)
-appCode = appCode.replace(/\b(payment) =>/g, '(payment: any) =>');
-appCode = appCode.replace(/\b(document) =>/g, '(document: any) =>');
-appCode = appCode.replace(/\b(current) =>/g, '(current: any) =>');
-appCode = appCode.replace(/\b(item) =>/g, '(item: any) =>');
-appCode = appCode.replace(/\b(source) =>/g, '(source: any) =>');
-appCode = appCode.replace(/\b(warning) =>/g, '(warning: any) =>');
-appCode = appCode.replace(/\b(catalogItem) =>/g, '(catalogItem: any) =>');
-appCode = appCode.replace(/\b(line) =>/g, '(line: any) =>');
-appCode = appCode.replace(/\b(profile) =>/g, '(profile: any) =>');
-appCode = appCode.replace(/\b(policy) =>/g, '(policy: any) =>');
-appCode = appCode.replace(/\b(queue) =>/g, '(queue: any) =>');
-appCode = appCode.replace(/\b(action) =>/g, '(action: any) =>');
-appCode = appCode.replace(/\b(suggestion) =>/g, '(suggestion: any) =>');
-appCode = appCode.replace(/\b(service) =>/g, '(service: any) =>');
-appCode = appCode.replace(/\b(member) =>/g, '(member: any) =>');
-appCode = appCode.replace(/\b(chair) =>/g, '(chair: any) =>');
+  // Replace standard implicit anys
+  // e.g. .map(payment => ...) -> .map((payment: any) => ...)
+  const params = [
+    'payment', 'document', 'current', 'item', 'source', 'warning', 'catalogItem',
+    'line', 'profile', 'policy', 'queue', 'action', 'suggestion', 'service', 'member', 'chair'
+  ];
 
-// Also Map types: `new Map()` -> `new Map<any, any>()`
-appCode = appCode.replace(/new Map\(\)/g, 'new Map<any, any>()');
+  params.forEach(param => {
+    const regex = new RegExp('\\b(' + param + ')\\s*=>', 'g');
+    appCode = appCode.replace(regex, '($1: any) =>');
 
-fs.writeFileSync(appPath, appCode);
-console.log('Fixed implicit anys in App.tsx');
+    const regex2 = new RegExp('\\(\\s*(' + param + ')\\s*\\)\\s*=>', 'g');
+    appCode = appCode.replace(regex2, '($1: any) =>');
+  });
 
+  // Also Map types: `new Map()` -> `new Map<any, any>()`
+  appCode = appCode.replace(/new Map\(\)/g, 'new Map<any, any>()');
+
+  fs.writeFileSync(appPath, appCode);
+  console.log('Fixed implicit anys in App.tsx');
+} else {
+  console.log(`Could not find ${appPath}`);
+}

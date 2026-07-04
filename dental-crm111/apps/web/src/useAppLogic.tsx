@@ -2414,7 +2414,7 @@ const {
   }
 
   function updateTelegramVisualCardUrlDraft(key: DenteTelegramVisualCardKey, value: string) {
-    setTelegramVisualCardUrlDrafts((current) => ({
+    setTelegramVisualCardUrlDrafts((current: any) => ({
       ...current,
       [key]: value.trim() ? value : null
     }));
@@ -2422,7 +2422,7 @@ const {
   }
 
   function toggleTelegramFeature(feature: DenteTelegramFeature) {
-    setTelegramEnabledFeaturesDraft((current) =>
+    setTelegramEnabledFeaturesDraft((current: any) =>
       current.includes(feature) ? current.filter((item) => item !== feature) : [...current, feature]
     );
     if (feature === "voice_note_intake" && !telegramEnabledFeaturesDraft.includes(feature)) {
@@ -2470,7 +2470,7 @@ const {
   }
 
   function updateTelegramPostVisitCheckupDelayDraft(key: TelegramPostVisitCheckupDelayKey, value: string) {
-    setTelegramPostVisitCheckupDelayDrafts((current) => ({
+    setTelegramPostVisitCheckupDelayDrafts((current: any) => ({
       ...current,
       [key]: value
     }));
@@ -2639,7 +2639,7 @@ const {
   }
 
   function updateClinicProfileDraft<K extends keyof ClinicProfileDraft>(key: K, value: ClinicProfileDraft[K]) {
-    setClinicProfileDraft((current) => ({ ...current, [key]: value }));
+    setClinicProfileDraft((current: any) => ({ ...current, [key]: value }));
     setClinicProfileDirty(true);
     setClinicProfileSaveState("idle");
   }
@@ -2660,7 +2660,7 @@ const {
   }
 
   function toggleClinicWorkingDay(day: number) {
-    setClinicProfileDraft((current) => {
+    setClinicProfileDraft((current: any) => {
       const nextDays = current.workingDays.includes(day)
         ? current.workingDays.filter((item) => item !== day)
         : [...current.workingDays, day];
@@ -2685,7 +2685,7 @@ const {
       next.add(chairId);
       return next;
     });
-    setChairScheduleSaveStates((current) => ({ ...current, [chairId]: "idle" }));
+    setChairScheduleSaveStates((current: any) => ({ ...current, [chairId]: "idle" }));
   }
 
   function updateStaffScheduleDraft(staffId: string, patch: Partial<StaffScheduleDraft>) {
@@ -2793,7 +2793,7 @@ const {
       [appointment.id]: current[appointment.id] ?? appointmentScheduleDraftFromAppointment(appointment)
     }));
     setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointment.id]: "idle" }));
-    setAppointmentScheduleErrors((current) => ({ ...current, [appointment.id]: null }));
+    setAppointmentScheduleErrors((current: any) => ({ ...current, [appointment.id]: null }));
   }
 
   function markAppointmentScheduleDirty(appointmentId: string) {
@@ -2803,7 +2803,7 @@ const {
       return next;
     });
     setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "idle" }));
-    setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: null }));
+    setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: null }));
   }
 
   function updateAppointmentScheduleDraft<K extends keyof AppointmentScheduleDraft>(
@@ -2861,7 +2861,7 @@ const {
 
   function updateNewAppointmentDraft<K extends keyof AppointmentScheduleDraft>(key: K, value: AppointmentScheduleDraft[K]) {
     newAppointmentDraftUserEditedRef.current = true;
-    setNewAppointmentDraft((current) => ({ ...current, [key]: value }));
+    setNewAppointmentDraft((current: any) => ({ ...current, [key]: value }));
     if (key === "patientId" && typeof value === "string") setSelectedPatientId(value || null);
     if (key === "doctorUserId" && typeof value === "string") setScheduleDefaultDoctorUserId(value || null);
     if (key === "assistantUserId" && typeof value === "string") setScheduleDefaultAssistantUserId(value || null);
@@ -2879,9 +2879,9 @@ const {
   }
 
   function closeAppointmentEditor(appointmentId: string) {
-    setEditingAppointmentId((current) => (current === appointmentId ? null : current));
+    setEditingAppointmentId((current: any) => (current === appointmentId ? null : current));
     setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "idle" }));
-    setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: null }));
+    setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: null }));
   }
 
   async function saveClinicProfileFromDraft(): Promise<boolean> {
@@ -2901,7 +2901,7 @@ const {
       });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Профиль клиники не сохранен"));
       const clinicSettings = (await response.json()) as Dashboard["clinicSettings"];
-      setDashboard((current) =>
+      setDashboard((current: any) =>
         current
           ? {
               ...current,
@@ -2957,7 +2957,7 @@ const {
       });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Карточка пациента не сохранена"));
       const savedPatient = (await response.json()) as Patient;
-      setDashboard((current) =>
+      setDashboard((current: any) =>
         current
           ? {
               ...current,
@@ -3006,7 +3006,7 @@ const {
       });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Данные пациента не сохранены"));
       const savedPatient = (await response.json()) as Patient;
-      setDashboard((current) =>
+      setDashboard((current: any) =>
         current
           ? {
               ...current,
@@ -3693,7 +3693,7 @@ const {
   }
 
   function applyAcceptedVisitResponse(result: AcceptVisitDraftResponse) {
-    setDashboard((current) =>
+    setDashboard((current: any) =>
       current
         ? {
             ...current,
@@ -4278,7 +4278,7 @@ const {
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     if (!imagingPreviewWorkset.length) {
-      setImagingPreviewObjectUrls((current) => {
+      setImagingPreviewObjectUrls((current: Record<string, string>) => {
         revokeObjectUrlMap(current);
         return {};
       });
@@ -4313,7 +4313,7 @@ const {
         }
         const next = Object.fromEntries(entries.filter((entry): entry is [string, string] => Boolean(entry)));
         const nextUrls = new Set(Object.values(next));
-        setImagingPreviewObjectUrls((current) => {
+        setImagingPreviewObjectUrls((current: Record<string, string>) => {
           Object.values(current).forEach((url) => {
             if (!nextUrls.has(url)) revokeObjectUrlIfNeeded(url);
           });
@@ -4323,7 +4323,7 @@ const {
       .catch(() => {
         createdUrls.forEach(revokeObjectUrlIfNeeded);
         if (!cancelled) {
-          setImagingPreviewObjectUrls((current) => {
+          setImagingPreviewObjectUrls((current: Record<string, string>) => {
             revokeObjectUrlMap(current);
             return {};
           });
@@ -4753,7 +4753,7 @@ const {
       setLocalDraftWasRestored(true);
     } else {
       const defaultSpecialty = inferDashboardVisitSpecialty(dashboard);
-      setSelectedSpecialty((current) => (current === "therapist" || current === "universal" ? defaultSpecialty : current));
+      setSelectedSpecialty((current: any) => (current === "therapist" || current === "universal" ? defaultSpecialty : current));
       setVisitNoteForm(visitNoteFormFromVisit(dashboard.activeVisit));
       setLastLocalSavedAt(null);
       setLocalDraftWasRestored(false);
@@ -6765,7 +6765,7 @@ const {
 
   function updateVisitNoteField(field: VisitNoteField, value: string) {
     visitDraftUserEditedRef.current = true;
-    setVisitNoteForm((current) => ({ ...current, [field]: value }));
+    setVisitNoteForm((current: any) => ({ ...current, [field]: value }));
   }
 
   function buildOfflineDraft() {
@@ -6861,7 +6861,7 @@ const {
     setNewPatientBirthDate("");
     setSelectedPatientId(patient.id);
     setQuery(patient.fullName);
-    setDashboard((current) =>
+    setDashboard((current: any) =>
       current
         ? {
             ...current,
@@ -6887,7 +6887,7 @@ const {
     });
     if (response.ok) {
       const clinicSettings = (await response.json()) as Dashboard["clinicSettings"];
-      setDashboard((current) =>
+      setDashboard((current: any) =>
         current
           ? {
               ...current,
@@ -6989,7 +6989,7 @@ const {
     if (!draft) return false;
     const expectedSignature = staffScheduleDraftSignature(draft);
     setChairScheduleSavingId(chairId);
-    setChairScheduleSaveStates((current) => ({ ...current, [chairId]: "saving" }));
+    setChairScheduleSaveStates((current: any) => ({ ...current, [chairId]: "saving" }));
     try {
       const response = await fetch(`/api/settings/chairs/${chairId}/working-hours`, {
         method: "PUT",
@@ -6997,7 +6997,7 @@ const {
         body: JSON.stringify({ workingHours: staffWorkingHoursFromDraft(draft) })
       });
       if (!response.ok) {
-        setChairScheduleSaveStates((current) => ({ ...current, [chairId]: "error" }));
+        setChairScheduleSaveStates((current: any) => ({ ...current, [chairId]: "error" }));
         setError(await responseErrorMessage(response, "Расписание кресла не сохранено"));
         return false;
       }
@@ -7010,11 +7010,11 @@ const {
           return next;
         });
       }
-      setChairScheduleSaveStates((current) => ({ ...current, [chairId]: latestMatchesSaved ? "saved" : "idle" }));
+      setChairScheduleSaveStates((current: any) => ({ ...current, [chairId]: latestMatchesSaved ? "saved" : "idle" }));
       await loadDashboard();
       return true;
     } catch (scheduleSaveError) {
-      setChairScheduleSaveStates((current) => ({ ...current, [chairId]: "error" }));
+      setChairScheduleSaveStates((current: any) => ({ ...current, [chairId]: "error" }));
       setError(operatorWorkflowFailureMessage("Расписание кресла не сохранено", scheduleSaveError));
       return false;
     } finally {
@@ -7033,7 +7033,7 @@ const {
     const draft = appointmentScheduleDrafts[appointmentId];
     if (!draft) {
       const message = "Откройте запись в расписании перед сохранением.";
-      setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: message }));
+      setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: message }));
       setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "error" }));
       setError(message);
       return false;
@@ -7041,14 +7041,14 @@ const {
     const missing = appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile?.mode);
     if (missing.length) {
       const message = `Перед сохранением записи: ${missing.join("; ")}.`;
-      setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: message }));
+      setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: message }));
       setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "error" }));
       setError(message);
       return false;
     }
     const expectedSignature = appointmentScheduleDraftSignature(draft);
     setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "saving" }));
-    setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: null }));
+    setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: null }));
     try {
       const response = await fetch(`/api/appointments/${appointmentId}`, {
         method: "PATCH",
@@ -7081,7 +7081,7 @@ const {
       return true;
     } catch (saveError) {
       const message = operatorWorkflowFailureMessage("Запись не сохранена", saveError);
-      setAppointmentScheduleErrors((current) => ({ ...current, [appointmentId]: message }));
+      setAppointmentScheduleErrors((current: any) => ({ ...current, [appointmentId]: message }));
       setAppointmentScheduleSaveStates((current: any) => ({ ...current, [appointmentId]: "error" }));
       setError(message);
       return false;
@@ -7583,7 +7583,7 @@ const {
         doctorSummary: doctorSummary || "Черновик ЭМК принят врачом локально и ожидает синхронизацию.",
         updatedAt: queued.queuedAt
       };
-      setDashboard((current) => (current ? { ...current, activeVisit: optimisticVisit } : current));
+      setDashboard((current: any) => (current ? { ...current, activeVisit: optimisticVisit } : current));
       setDraft(null);
       setVisitNoteForm(visitNoteFormFromVisit(optimisticVisit));
       scrollToVisitArea(".visit-fields");
@@ -7949,7 +7949,7 @@ const {
 
   function addMigrationDiscoveryCandidateToSmartImport(candidate: MigrationLocalSourceDiscoveryResponse["candidates"][number]) {
     setSmartImportMode("auto");
-    setSmartImportText((current) => [current.trim(), candidate.smartImportLine].filter(Boolean).join("\n"));
+    setSmartImportText((current: any) => [current.trim(), candidate.smartImportLine].filter(Boolean).join("\n"));
     setSmartImportPreview(null);
     setSmartImportCommit(null);
   }
@@ -8397,7 +8397,7 @@ const {
       await runMigrationAutopilot(discovery);
     } catch (scanError) {
       if (isBrowserMigrationScanAbortError(scanError)) {
-        setBrowserMigrationScanProgress((current) =>
+        setBrowserMigrationScanProgress((current: any) =>
           current
             ? (() => {
                 const updatedAt = new Date().toISOString();
@@ -10090,7 +10090,7 @@ const {
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!Recognition) {
       setImportSourceKind("voice_dictation");
-      setImportText((current) =>
+      setImportText((current: any) =>
         `${current}\n\nДиктовка недоступна в этом браузере. Вставь распознанный текст сюда: Иванов Иван, телефон +7 900 000-00-00, дата рождения 01.01.1980.`
       );
       setError("Браузерная диктовка импорта недоступна. Вставьте список пациентов вручную или загрузите OCR.");
@@ -10105,7 +10105,7 @@ const {
         .map((result) => result[0].transcript)
         .join(" ");
       setImportSourceKind("voice_dictation");
-      setImportText((current) => `${current.trim()}\n${transcriptText}`.trim());
+      setImportText((current: any) => `${current.trim()}\n${transcriptText}`.trim());
       setImportPreview(null);
       setImportCommit(null);
     };
@@ -10821,7 +10821,7 @@ const {
   }
 
   function togglePhotoVideoMaterial(material: PhotoVideoConsentMaterial) {
-    setPhotoVideoMaterials((current) =>
+    setPhotoVideoMaterials((current: any) =>
       current.includes(material) ? current.filter((item) => item !== material) : [...current, material]
     );
   }
@@ -12606,7 +12606,7 @@ const {
       const response = await fetch(`/api/telegram/outbox?${outboxParams.toString()}`, { cache: "no-store", headers });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Очередь Telegram"));
       const nextPage = (await response.json()) as DenteTelegramOutboxResponse;
-      setTelegramOutbox((current) => {
+      setTelegramOutbox((current: any) => {
         if (!current) return nextPage;
         const knownIds = new Set(current.items.map((item) => item.id));
         return {

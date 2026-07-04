@@ -89,6 +89,34 @@ class TestMain(unittest.TestCase):
         # It should still return 200, not 500
         self.assertEqual(response.status_code, 200)
 
+
+    def test_get_current_username_success(self):
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import get_current_username
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        credentials = HTTPBasicCredentials(username="admin", password="admin")
+        username = get_current_username(credentials)
+        self.assertEqual(username, "admin")
+
+    def test_get_current_username_failure(self):
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import get_current_username
+        from fastapi import HTTPException
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        credentials = HTTPBasicCredentials(username="wrong", password="wrong")
+        with self.assertRaises(HTTPException) as cm:
+            get_current_username(credentials)
+
+        self.assertEqual(cm.exception.status_code, 401)
+        self.assertEqual(cm.exception.detail, "Incorrect username or password")
+        self.assertEqual(cm.exception.headers, {"WWW-Authenticate": "Basic"})
+
     def test_read_root_authenticated_incorrect(self):
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"

@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -11,8 +10,8 @@ def _get_existing_names(c, names):
 
     c.execute(
         "SELECT name FROM patients WHERE name IN "
-        "(SELECT value FROM json_each(?))",
-        (json.dumps(names),)
+        f"({','.join(['?']*len(names))})",
+        names
     )
     return set(row[0] for row in c.fetchall())
 
@@ -25,8 +24,8 @@ def _insert_patients(c, new_patients_data):
     inserted_names = [p[0] for p in new_patients_data]
     c.execute(
         "SELECT id FROM patients WHERE name IN "
-        "(SELECT value FROM json_each(?))",
-        (json.dumps(inserted_names),)
+        f"({','.join(['?']*len(inserted_names))})",
+        inserted_names
     )
     return [row[0] for row in c.fetchall()]
 

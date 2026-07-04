@@ -1,6 +1,6 @@
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Dispatcher, Router
 from aiogram.types import Message
-from aiogram.filters.command import Command, CommandStart
+from aiogram.filters.command import CommandStart
 
 dp = Dispatcher()
 router = Router()

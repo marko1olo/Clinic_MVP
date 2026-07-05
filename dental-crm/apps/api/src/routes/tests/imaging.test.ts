@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
-import { patients, imagingStudies, auditEvents } from "../../sampleData.js";
+import { patients, imagingStudies, auditEvents } from "../../telegram/legacyMocks.js";
 import type { ImagingSourceKind, ImagingStudy, AuditEvent } from "@dental/shared";
 import { commitImagingImport } from "../imaging.js";
 
@@ -37,7 +37,7 @@ describe("commitImagingImport", () => {
       ].join("\n")
      };
 
-     const result = await commitImagingImport(input);
+     const result = await commitImagingImport("mock-org", input);
 
     assert.strictEqual(result.preview.totalRows, 3);
     assert.strictEqual(result.importedCount, 1);

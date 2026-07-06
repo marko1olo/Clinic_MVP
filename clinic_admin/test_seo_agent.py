@@ -46,6 +46,30 @@ class TestSEOAgent(unittest.TestCase):
         # Verify we get None when the key doesn't exist
         self.assertIsNone(result)
 
+    @patch('builtins.open', new_callable=mock_open, read_data='invalid json')
+    def test_get_groq_api_key_json_error(self, mock_file):
+        # Call the function, json.load will raise an error
+        result = get_groq_api_key()
+
+        # Verify it returns None
+        self.assertIsNone(result)
+
+    @patch('clinic_admin.seo_agent.random.choice')
+    @patch('clinic_admin.seo_agent._cached_groq_keys', ["cached1", "cached2"])
+    def test_get_groq_api_key_cached_keys(self, mock_choice):
+        mock_choice.return_value = "cached1"
+
+        result = get_groq_api_key()
+
+        self.assertEqual(result, "cached1")
+        mock_choice.assert_called_once_with(["cached1", "cached2"])
+
+    @patch('clinic_admin.seo_agent._cached_groq_keys', [])
+    def test_get_groq_api_key_cached_empty(self):
+        result = get_groq_api_key()
+
+        self.assertIsNone(result)
+
     @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_missing_api_key(self, mock_get_api_key):
         # Setup: Return None to simulate missing API key

@@ -12,6 +12,8 @@ if not api_key:
 
 api_key = os.environ.get("GROQ_API_KEYS", "").split(",")[0] if os.environ.get("GROQ_API_KEYS") else ""
 api_key = os.getenv("GROQ_API_KEY", "dummy_key")
+env_keys = os.environ.get("GROQ_API_KEYS", "")
+api_key = env_keys.split(",")[0].strip() if env_keys else ""
 client = OpenAI(
     api_key=api_key if api_key else "dummy_key",
     base_url="https://api.groq.com/openai/v1",

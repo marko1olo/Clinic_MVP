@@ -6,6 +6,26 @@ class TestSEOAgent(unittest.TestCase):
     def setUp(self):
         import clinic_admin.seo_agent
         clinic_admin.seo_agent._cached_groq_keys = None
+
+    @patch('clinic_admin.seo_agent.random.choice')
+    def test_get_groq_api_key_cached_success(self, mock_choice):
+        import clinic_admin.seo_agent
+        clinic_admin.seo_agent._cached_groq_keys = ["cached_key1", "cached_key2"]
+        mock_choice.return_value = "cached_key1"
+
+        result = clinic_admin.seo_agent.get_groq_api_key()
+
+        self.assertEqual(result, "cached_key1")
+        mock_choice.assert_called_once_with(["cached_key1", "cached_key2"])
+
+    def test_get_groq_api_key_cached_empty(self):
+        import clinic_admin.seo_agent
+        clinic_admin.seo_agent._cached_groq_keys = []
+
+        result = clinic_admin.seo_agent.get_groq_api_key()
+
+        self.assertIsNone(result)
+
     @patch('builtins.open')
     def test_get_groq_api_key_error_path(self, mock_open):
         # Configure the mock to raise an IOError when open() is called

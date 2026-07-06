@@ -12,6 +12,34 @@ def test_parse_findings_empty_or_none():
     assert body == ["Патологий не обнаружено. Норма."]
     assert alert == []
 
+def test_parse_findings_whitespace_only():
+    # Test strings with only whitespace
+    body, alert = parse_findings("   ")
+    assert body == ["   "]
+    assert alert == []
+
+    body, alert = parse_findings("\n")
+    assert body == ["", ""]
+    assert alert == []
+
+    body, alert = parse_findings(" \t ")
+    assert body == [" \t "]
+    assert alert == []
+
+def test_parse_findings_special_chars():
+    # Test strings with special characters
+    findings = "!@#$%^&*()"
+    body, alert = parse_findings(findings)
+    assert body == ["!@#$%^&*()"]
+    assert alert == []
+
+def test_parse_findings_numbers_only():
+    # Test string with numbers
+    findings = "1234567890"
+    body, alert = parse_findings(findings)
+    assert body == ["1234567890"]
+    assert alert == []
+
 def test_parse_findings_normal_exact():
     # Test exactly "Норма"
     body, alert = parse_findings("Норма")

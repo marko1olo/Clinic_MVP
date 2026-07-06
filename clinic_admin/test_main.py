@@ -213,6 +213,56 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_fetch_current_appointment_no_data(self):
+        from clinic_admin.main import fetch_current_appointment
+        # Assuming fresh DB, there should be no appointments for today
+        result = fetch_current_appointment()
+        self.assertIsNone(result)
+
+    def test_fetch_current_appointment_with_data(self):
+        from clinic_admin.main import fetch_current_appointment
+        from clinic_admin.database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        # Insert a patient
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test Patient Fetch", "555-0000"))
+        patient_id = c.lastrowid
+        # Insert an appointment for today
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, datetime('now', 'localtime'), 'scheduled')", (patient_id, "Dr. Fetch"))
+        conn.commit()
+        conn.close()
+
+        result = fetch_current_appointment()
+        self.assertIsNotNone(result)
+        self.assertEqual(result["patient_name"], "Test Patient Fetch")
+        self.assertEqual(result["doctor"], "Dr. Fetch")
+
+    def test_fetch_current_appointment_closest_time(self):
+        from clinic_admin.main import fetch_current_appointment
+        from clinic_admin.database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        # Insert a patient
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test Patient Closest", "555-1111"))
+        patient_id = c.lastrowid
+
+        # Insert multiple appointments for today
+        # One exactly now
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, datetime('now', 'localtime'), 'scheduled')", (patient_id, "Dr. Now"))
+
+        # One 2 hours ago
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, datetime('now', '-2 hours', 'localtime'), 'scheduled')", (patient_id, "Dr. Past"))
+
+        # One 2 hours in the future
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, datetime('now', '+2 hours', 'localtime'), 'scheduled')", (patient_id, "Dr. Future"))
+
+        conn.commit()
+        conn.close()
+
+        result = fetch_current_appointment()
+        self.assertIsNotNone(result)
+        self.assertEqual(result["doctor"], "Dr. Now")
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -4,6 +4,7 @@ import tempfile
 import shutil
 import unittest
 from io import BytesIO
+import pytest
 from PIL import Image
 from unittest.mock import patch, MagicMock
 
@@ -476,4 +477,87 @@ from watcher import prepare_image, analyze_image
 
         self.assertIsNone(res1)
         self.assertEqual(res2, "Сбой ИИ-анализа: Some unknown error")
+
+def test_prepare_image_normal(tmp_path):
+    # Create a small RGB image
+    img_path = tmp_path / "normal.jpg"
+    img.save(img_path)
+
+    result = watcher.prepare_image(str(img_path))
+
+    assert result is not None
+    assert result.startswith("data:image/jpeg;base64,")
+
+        assert decoded_img.size == (100, 100)
+
+def test_prepare_image_resize(tmp_path):
+    # Create a large image that needs resizing
+    img_path = tmp_path / "large.jpg"
+    img.save(img_path)
+
+    result = watcher.prepare_image(str(img_path))
+
+    assert result is not None
+
+        assert max(decoded_img.size) == 1000
+        assert decoded_img.size == (1000, 750) # Assuming aspect ratio is maintained
+
+def test_prepare_image_non_rgb(tmp_path):
+    # Create an RGBA image
+    img_path = tmp_path / "rgba.png"
+    img.save(img_path)
+
+    result = watcher.prepare_image(str(img_path))
+
+    assert result is not None
+    assert result.startswith("data:image/jpeg;base64,")
+
+        assert decoded_img.mode == 'RGB'
+
+def test_prepare_image_error(tmp_path):
+    # Pass a non-existent file
+    img_path = tmp_path / "does_not_exist.jpg"
+
+    result = watcher.prepare_image(str(img_path))
+
+    assert result is None
+
+def test_analyze_image_success(mock_openai_class, mock_prepare_image):
+
+
+
+
+    assert marked_path is None
+    assert report == "All clear"
+
+    mock_openai_class.assert_called()
+
+def test_analyze_image_rate_limit_retry(mock_openai_class, mock_prepare_image):
+
+
+
+
+
+
+    assert marked_path is None
+    assert report == "Success on second try"
+
+    assert mock_openai_class.call_count == 2
+
+def test_analyze_image_rate_limit_exhausted(mock_openai_class, mock_prepare_image):
+
+
+
+
+    assert marked_path is None
+    assert report == "Сбой: Все ключи Groq исчерпали лимиты (429)."
+
+    # Ensure client was created as many times as there are API keys
+    assert mock_openai_class.call_count == len(watcher.GROQ_API_KEYS)
+
+def test_analyze_image_prepare_failed(mock_openai_class, mock_prepare_image):
+
+
+    assert marked_path is None
+    assert report == "Ошибка обработки файла"
 

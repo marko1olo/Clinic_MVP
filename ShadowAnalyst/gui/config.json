@@ -2,7 +2,8 @@
     "watch_dir": "C:\\Clinic_MVP\\Dropzone_XRay",
     "groq_api_keys": [
         "YOUR_GROQ_API_KEY_1",
-        "YOUR_GROQ_API_KEY_2"
+        "YOUR_GROQ_API_KEY_2",
+        "mock_key_1"
     ],
     "groq_vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
     "google_api_keys": [

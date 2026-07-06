@@ -6,7 +6,8 @@ try:
     try:
         font = ImageFont.truetype(font_path, 48)
         font_sub = ImageFont.truetype(font_path, 20)
-    except Exception:
+    except Exception as e:
+        print(f"Could not load segoeui.ttf, falling back to default font. Error: {e}")
         font = ImageFont.load_default()
         font_sub = ImageFont.load_default()
     txt = Image.new('RGBA', img.size, (255,255,255,0))

@@ -37,8 +37,8 @@ class LogInterceptor:
         if self.original_stdout is not None:
             try:
                 self.original_stdout.write(message)
-            except Exception:
-                pass
+            except Exception as e:
+                log_buffer.append(f"[LogInterceptor Error] write failed: {e}")
         if message.strip():
             log_buffer.append(message.strip())
 
@@ -46,8 +46,8 @@ class LogInterceptor:
         if self.original_stdout is not None:
             try:
                 self.original_stdout.flush()
-            except Exception:
-                pass
+            except Exception as e:
+                log_buffer.append(f"[LogInterceptor Error] flush failed: {e}")
 
     def isatty(self):
         return False
@@ -142,7 +142,8 @@ def check_internet_connection(timeout=1):
         socket.setdefaulttimeout(timeout)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
         return True
-    except Exception:
+    except Exception as e:
+        print(f"[Internet Check] connection failed: {e}")
         return False
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
@@ -180,7 +181,8 @@ def check_tcp_socks5(target_host, target_port, timeout=3.0) -> bool:
         if len(resp) >= 2 and resp[0] == 0x05 and resp[1] == 0x00:
             return True
         return False
-    except Exception:
+    except Exception as e:
+        print(f"[TCP SOCKS5] connection check failed: {e}")
         return False
 
 def check_connection_loop():
@@ -858,8 +860,8 @@ def _load_prompt(filename, default_text):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Error reading config {path}: {e}")
     return default_text
 
 def _get_models_for_tier(model_tier):
@@ -1220,8 +1222,8 @@ def _parse_dicom_patient_info(file_path: str, info: dict):
                     birth_year = int(dcm_birth[:4])
                     current_year = datetime.datetime.now().year
                     info['patient_age'] = current_year - birth_year
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Error parsing PatientBirthDate '{dcm_birth}': {e}")
     except Exception as e:
         print(f"Error reading DICOM patient info: {e}")
 
@@ -1244,8 +1246,8 @@ def _parse_xml_sidecar(content: str, info: dict):
                         info['patient_gender'] = 'Мужской'
                     elif g in ['f', 'female', 'жен', 'женский']:
                         info['patient_gender'] = 'Женский'
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error parsing XML sidecar: {e}")
 
 def _parse_ini_txt_sidecar(content: str, info: dict):
     for line in content.splitlines():
@@ -1283,8 +1285,8 @@ def _parse_json_sidecar(content: str, info: dict):
                 elif isinstance(v, dict):
                     check_dict(v)
         check_dict(data)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error parsing JSON sidecar: {e}")
 
 def _parse_sidecar_patient_info(file_path: str, info: dict):
     try:
@@ -1518,8 +1520,8 @@ class XRayHandler(FileSystemEventHandler):
             if 'global_window' in globals() and global_window:
                 global_window.restore()
                 global_window.show()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error bringing window to front: {e}")
         
         # Add to queue instead of spinning up parallel threads
         file_queue.put(event.src_path)

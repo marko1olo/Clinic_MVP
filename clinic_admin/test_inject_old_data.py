@@ -1,3 +1,4 @@
+import clinic_admin.database
 import unittest
 import os
 import tempfile
@@ -27,6 +28,45 @@ class TestInjectOldData(unittest.TestCase):
         # Close and remove the temporary file
         os.close(self.db_fd)
         os.unlink(self.db_path)
+
+    def test_get_existing_names_empty_list(self):
+        import sqlite3
+        conn = sqlite3.connect(':memory:')
+        c = conn.cursor()
+
+        # Test with empty list
+        existing_names = clinic_admin.inject_old_data._get_existing_names(c, [])
+        self.assertEqual(existing_names, set())
+
+        # Test with None
+        existing_names_none = clinic_admin.inject_old_data._get_existing_names(c, None)
+        self.assertEqual(existing_names_none, set())
+
+        conn.close()
+
+    def test_get_existing_names_with_data(self):
+        import sqlite3
+        conn = sqlite3.connect(':memory:')
+        c = conn.cursor()
+        c.execute('CREATE TABLE patients (name TEXT)')
+
+        # Insert test data
+        test_patients = [("Patient One",), ("Patient Two",)]
+        c.executemany("INSERT INTO patients (name) VALUES (?)", test_patients)
+        conn.commit()
+
+        # Test finding existing names
+        names_to_check = ["Patient One", "Patient Three"]
+        existing_names = clinic_admin.inject_old_data._get_existing_names(c, names_to_check)
+
+        # Should only find "Patient One"
+        self.assertEqual(existing_names, {"Patient One"})
+
+        # Test finding all names
+        all_names = clinic_admin.inject_old_data._get_existing_names(c, ["Patient One", "Patient Two"])
+        self.assertEqual(all_names, {"Patient One", "Patient Two"})
+
+        conn.close()
 
     def test_inject_dummy_data(self):
         # 1. Inject data

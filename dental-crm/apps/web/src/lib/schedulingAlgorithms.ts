@@ -1,5 +1,5 @@
 ﻿// @ts-nocheck
-import { Dashboard, Appointment, StaffMember, Chair, StaffWorkingDay } from "@dental/shared";
+import { Dashboard, Appointment, StaffMember, Chair, StaffWorkingDay, parseStrictAppointmentDateTimeMs } from "@dental/shared";
 
 interface ResourceRequirements {
   doctorId: string;
@@ -41,10 +41,6 @@ function getWorkingHoursForDay(staff: StaffMember | Chair, weekday: number): Sta
   return staff.workingHours.find(day => day.enabled && day.weekday === weekday);
 }
 
-function parseStrictAppointmentDateTimeMs(value: string): number {
-  return new Date(value).getTime();
-}
-
 /**
  * Finds available slots considering working hours and existing appointments.
  * It's a simplified algorithm for the MVP that searches day by day.
@@ -60,7 +56,7 @@ export function findAvailableSlots(dashboard: Dashboard, req: ResourceRequiremen
 
   // Sort appointments by start time
   const sortedAppointments = [...dashboard.appointments].sort((a, b) => 
-    parseStrictAppointmentDateTimeMs(a.startsAt) - parseStrictAppointmentDateTimeMs(b.startsAt)
+    (parseStrictAppointmentDateTimeMs(a.startsAt) ?? 0) - (parseStrictAppointmentDateTimeMs(b.startsAt) ?? 0)
   );
 
   const availableSlots: Slot[] = [];
@@ -123,8 +119,8 @@ export function findAvailableSlots(dashboard: Dashboard, req: ResourceRequiremen
       // Check collisions with existing appointments
       let hasCollision = false;
       for (const app of dayAppointments) {
-        const appStartMs = parseStrictAppointmentDateTimeMs(app.startsAt);
-        const appEndMs = parseStrictAppointmentDateTimeMs(app.endsAt);
+        const appStartMs = parseStrictAppointmentDateTimeMs(app.startsAt) ?? 0;
+        const appEndMs = parseStrictAppointmentDateTimeMs(app.endsAt) ?? 0;
         
         // (StartA < EndB) and (EndA > StartB)
         if (slotStartMs < appEndMs && slotEndMs > appStartMs) {

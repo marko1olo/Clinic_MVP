@@ -2544,7 +2544,7 @@ export const appointmentSchema = z.object({
 });
 export type Appointment = z.infer<typeof appointmentSchema>;
 
-function parseStrictAppointmentDateTimeMs(value: string): number | null {
+export function parseStrictAppointmentDateTimeMs(value: string): number | null {
   const trimmed = value.trim();
   const match =
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})$/.exec(trimmed);

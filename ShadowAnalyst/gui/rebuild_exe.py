@@ -1,10 +1,21 @@
-import subprocess, sys, os, time
+import os
+import shutil
+import subprocess
+import sys
+import time
 
 print("[1] Killing ShadowAnalyst processes...")
-subprocess.run(
-    ["taskkill", "/F", "/IM", "ShadowAnalyst.exe", "/T"],
-    capture_output=True
+taskkill_exe = os.path.join(
+    os.environ.get("SystemRoot", r"C:\Windows"), "System32", "taskkill.exe"
 )
+if os.path.exists(taskkill_exe):
+    subprocess.run(
+        [taskkill_exe, "/F", "/IM", "ShadowAnalyst.exe", "/T"],
+        capture_output=True,
+    )
+else:
+    print(f"  Warning: {taskkill_exe} not found, skipping process end.")
+
 time.sleep(2)
 
 print("[2] Removing locked files...")
@@ -20,7 +31,7 @@ for f in [
             print(f"  Could not delete {f}: {e}")
 
 print("[3] Removing build/dist folders...")
-import shutil
+
 for d in [
     r"C:\Clinic_MVP\ShadowAnalyst\gui\build",
     r"C:\Clinic_MVP\ShadowAnalyst\gui\dist",
@@ -32,10 +43,10 @@ for d in [
 time.sleep(1)
 
 print("[4] Running PyInstaller...")
-py = r"C:\Users\Admin\AppData\Local\Programs\Python\Python313\python.exe"
+py = sys.executable
 result = subprocess.run(
     [py, "-m", "PyInstaller", "--clean", "ShadowAnalyst.spec"],
-    cwd=r"C:\Clinic_MVP\ShadowAnalyst\gui"
+    cwd=r"C:\Clinic_MVP\ShadowAnalyst\gui",
 )
 
 if result.returncode == 0:

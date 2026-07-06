@@ -213,6 +213,51 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+
+    def test_get_expected_credentials_success(self):
+        from clinic_admin.main import _get_expected_credentials
+        with unittest.mock.patch.dict(os.environ, {"ADMIN_USERNAME": "admin_user", "ADMIN_PASSWORD": "admin_password"}):
+            username, password = _get_expected_credentials()
+            self.assertEqual(username, "admin_user")
+            self.assertEqual(password, "admin_password")
+
+    def test_get_expected_credentials_missing_username(self):
+        from clinic_admin.main import _get_expected_credentials
+        from fastapi import HTTPException
+        # create a copy of environ, but without ADMIN_USERNAME
+        env_dict = dict(os.environ)
+        env_dict.pop("ADMIN_USERNAME", None)
+        env_dict["ADMIN_PASSWORD"] = "admin_password"
+        with unittest.mock.patch.dict(os.environ, env_dict, clear=True):
+            with self.assertRaises(HTTPException) as cm:
+                _get_expected_credentials()
+            self.assertEqual(cm.exception.status_code, 500)
+            self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
+
+    def test_get_expected_credentials_missing_password(self):
+        from clinic_admin.main import _get_expected_credentials
+        from fastapi import HTTPException
+        env_dict = dict(os.environ)
+        env_dict.pop("ADMIN_PASSWORD", None)
+        env_dict["ADMIN_USERNAME"] = "admin_user"
+        with unittest.mock.patch.dict(os.environ, env_dict, clear=True):
+            with self.assertRaises(HTTPException) as cm:
+                _get_expected_credentials()
+            self.assertEqual(cm.exception.status_code, 500)
+            self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
+
+    def test_get_expected_credentials_missing_both(self):
+        from clinic_admin.main import _get_expected_credentials
+        from fastapi import HTTPException
+        env_dict = dict(os.environ)
+        env_dict.pop("ADMIN_USERNAME", None)
+        env_dict.pop("ADMIN_PASSWORD", None)
+        with unittest.mock.patch.dict(os.environ, env_dict, clear=True):
+            with self.assertRaises(HTTPException) as cm:
+                _get_expected_credentials()
+            self.assertEqual(cm.exception.status_code, 500)
+            self.assertEqual(cm.exception.detail, "Admin credentials are not configured on the server")
+
 if __name__ == '__main__':
     unittest.main()
 

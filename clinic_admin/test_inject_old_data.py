@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 import clinic_admin.inject_old_data
+import clinic_admin.database
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -78,6 +79,32 @@ class TestInjectOldData(unittest.TestCase):
 
         c.execute("SELECT COUNT(*) as count FROM appointments")
         self.assertEqual(c.fetchone()["count"], 3)
+
+        conn.close()
+
+    def test_insert_patients(self):
+        conn = clinic_admin.database.get_connection()
+        c = conn.cursor()
+
+        now = "2023-10-27T10:00:00"
+        new_patients_data = [
+            ("New Patient 1", "+79000000001", now),
+            ("New Patient 2", "+79000000002", now)
+        ]
+
+        inserted_ids = clinic_admin.inject_old_data._insert_patients(c, new_patients_data)
+
+        self.assertEqual(len(inserted_ids), 2)
+        self.assertIsInstance(inserted_ids[0], int)
+        self.assertIsInstance(inserted_ids[1], int)
+
+        c.execute("SELECT name, phone, created_at FROM patients WHERE id IN (?, ?)", (inserted_ids[0], inserted_ids[1]))
+        patients = c.fetchall()
+        self.assertEqual(len(patients), 2)
+
+        fetched_data = [(p["name"], p["phone"], p["created_at"]) for p in patients]
+        for data in new_patients_data:
+            self.assertIn(data, fetched_data)
 
         conn.close()
 

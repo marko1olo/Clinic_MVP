@@ -11,6 +11,7 @@ MQTT_HOST = os.environ.get("MQTT_HOST", "10.77.0.1")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 MQTT_USER = os.environ.get("MQTT_USER", "clinic")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
+MQTT_PASS = os.environ.get("MQTT_PASS")
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 if MQTT_USER:

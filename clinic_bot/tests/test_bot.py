@@ -174,3 +174,18 @@ class TestBotCommands(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+import pytest
+import logging
+from unittest.mock import MagicMock
+
+from bot import on_mqtt_message
+
+def test_on_mqtt_message_exception_handling(caplog):
+
+
+    with caplog.at_level(logging.ERROR):
+
+    assert any("Error processing MQTT message: Simulated decode error" in record.message for record in caplog.records)
+
+def test_on_mqtt_message_missing_loop(caplog):
+

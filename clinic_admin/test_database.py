@@ -84,6 +84,18 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         conn.close()
+from unittest.mock import patch, MagicMock
+
+from clinic_admin.database import get_connection, DB_FILE
+
+    @patch('clinic_admin.database.sqlite3.connect')
+        mock_conn = MagicMock()
+        mock_connect.return_value = mock_conn
+
+        conn = get_connection()
+
+        mock_connect.assert_called_once_with(DB_FILE)
+        self.assertEqual(conn, mock_conn)
 
 if __name__ == '__main__':
     unittest.main()

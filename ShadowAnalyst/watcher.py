@@ -7,6 +7,7 @@ import json
 import base64
 import random
 import threading
+import re
 from io import BytesIO
 from PIL import Image
 from openai import OpenAI
@@ -146,7 +147,6 @@ def analyze_image(file_path):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        import re
                         first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
                         success = True
                         break

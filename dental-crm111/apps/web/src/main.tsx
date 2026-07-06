@@ -2,6 +2,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { AppShell } from "./AppShell";
 import "./styles/main.css";
+import "./styles/shadow-analyst.css";
+import "./styles/patients-redesign.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -1,4 +1,4 @@
-import type { GeneratedDocument, Payment, TaxPaymentSnapshot } from "@dental/shared";
+﻿import type { GeneratedDocument, Payment, TaxPaymentSnapshot } from "@dental/shared";
 
 const taxDocumentSnapshotKinds = new Set<GeneratedDocument["kind"]>([
   "tax_deduction_certificate",
@@ -128,11 +128,16 @@ export function taxPaymentsForIssueSnapshot(
   payments: readonly Payment[],
   documents: readonly GeneratedDocument[]
 ): Payment[] {
-  const selectedPayments = baseTaxPaymentsForDocument(document, payments);
-  if (selectedPaymentIdsForTaxDocument(document).size) return selectedPayments;
-  if (!taxDocumentDuplicateSensitive(document.kind)) return selectedPayments;
+  const explicitPaymentIds = selectedPaymentIdsForTaxDocument(document);
+  if (explicitPaymentIds.size) {
+    return baseTaxPaymentsForDocument(document, payments);
+  }
+  if (!taxDocumentDuplicateSensitive(document.kind)) {
+    return baseTaxPaymentsForDocument(document, payments);
+  }
 
   const covered = coveredIdentifiersForIssuedTaxCertificates(document, documents, payments);
+  const selectedPayments = baseTaxPaymentsForDocument(document, payments);
   return selectedPayments.filter(
     (payment) => !covered.paymentIds.has(payment.id) && !covered.fiscalReceiptKeys.has(taxPaymentReceiptKey(payment))
   );

@@ -1,12 +1,88 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import path from "path";
+import { fileURLToPath } from "url";
 
 declare const process: { env: Record<string, string | undefined> };
 
 const apiProxyTarget = process.env.DENTAL_API_PROXY_TARGET ?? "http://127.0.0.1:4100";
 
+// __dirname equivalent for ESM configs
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Always point to root node_modules to prevent React duplication
+const rootNodeModules = path.resolve(__dirname, "../../node_modules");
+
+import { VitePWA } from "vite-plugin-pwa";
+
+function cornerstoneCodecPlugin() {
+  return {
+    name: 'cornerstone-codec-plugin',
+    transform(code: string, id: string) {
+      if (id.includes('@cornerstonejs/codec-') || id.includes('@cornerstonejs\\\\codec-')) {
+        if (code.includes('module.exports = ')) {
+          const match = code.match(/module\.exports\s*=\s*([a-zA-Z0-9_]+);/);
+          if (match) {
+            return code + `\nexport default ${match[1]};\n`;
+          }
+        }
+      }
+      return null;
+    }
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    cornerstoneCodecPlugin(),
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+      manifest: {
+        name: "Dente CRM",
+        short_name: "Dente",
+        description: "Умная CRM для стоматологий",
+        theme_color: "#0d9488",
+        background_color: "#ffffff",
+        display: "standalone",
+        icons: [
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png"
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ]
+      },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
+      }
+    })
+  ],
+  resolve: {
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    alias: {
+      "react": path.join(rootNodeModules, "react"),
+      "react-dom": path.join(rootNodeModules, "react-dom"),
+      "react/jsx-runtime": path.join(rootNodeModules, "react/jsx-runtime"),
+      "react/jsx-dev-runtime": path.join(rootNodeModules, "react/jsx-dev-runtime"),
+    },
+  },
+  optimizeDeps: {
+    exclude: ["@cornerstonejs/dicom-image-loader"],
+    include: [
+      "@cornerstonejs/dicom-image-loader > dicom-parser",
+      "@cornerstonejs/dicom-image-loader > @cornerstonejs/codec-charls",
+      "@cornerstonejs/dicom-image-loader > @cornerstonejs/codec-libjpeg-turbo-8bit",
+      "@cornerstonejs/dicom-image-loader > @cornerstonejs/codec-openjpeg",
+      "@cornerstonejs/dicom-image-loader > @cornerstonejs/codec-openjph"
+    ],
+  },
   build: {
     rollupOptions: {
       output: {
@@ -60,6 +136,27 @@ export default defineConfig({
           if (normalizedId.endsWith("/apps/web/src/communicationTaskData.ts")) return "communication-task-data";
           if (normalizedId.endsWith("/apps/web/src/workspaceStaticOptions.ts")) return "workspace-static-options";
           if (normalizedId.endsWith("/apps/web/src/workspaceUiLabels.ts")) return "workspace-ui-labels";
+          if (normalizedId.endsWith("/apps/web/src/store/settingsStore.ts")) return "settings-store";
+          if (normalizedId.endsWith("/apps/web/src/store/documentStore.ts")) return "document-store";
+          if (normalizedId.endsWith("/apps/web/src/store/imagingStore.ts")) return "imaging-store";
+          if (normalizedId.endsWith("/apps/web/src/store/scheduleStore.ts")) return "schedule-store";
+          if (normalizedId.endsWith("/apps/web/src/store/patientStore.ts")) return "patient-store";
+          if (normalizedId.endsWith("/apps/web/src/store/visitStore.ts")) return "visit-store";
+          if (normalizedId.endsWith("/apps/web/src/store/appStore.ts")) return "app-store";
+          if (normalizedId.endsWith("/apps/web/src/store/uiStore.ts")) return "ui-store";
+          if (normalizedId.includes("/apps/web/src/components/settings/")) return "settings-components";
+          if (normalizedId.includes("/apps/web/src/components/dicom/")) return "dicom-components";
+          if (normalizedId.includes("/apps/web/src/components/imaging/")) return "imaging-components";
+          if (normalizedId.includes("/apps/web/src/components/SmartMicrophoneButton")) return "SmartMicrophoneButton";
+          if (normalizedId.includes("/apps/web/src/components/GlobalToast")) return "global-toast";
+          if (normalizedId.includes("/apps/web/src/components/Omnibar")) return "omnibar";
+          if (normalizedId.includes("/apps/web/src/components/Odontogram")) return "odontogram";
+          if (normalizedId.includes("/apps/web/src/components/VoiceAssistantUI")) return "voice-assistant-ui";
+          if (normalizedId.endsWith("/apps/web/src/DictationHints.tsx")) return "dictation-hints";
+          if (normalizedId.endsWith("/apps/web/src/AppHelpers.tsx")) return "app-helpers";
+          if (normalizedId.endsWith("/apps/web/src/documentLogic.ts")) return "document-logic";
+          if (normalizedId.endsWith("/apps/web/src/documentValidators.ts")) return "document-validators";
+          if (normalizedId.endsWith("/apps/web/src/useAppLogic.tsx")) return "app-logic";
           if (normalizedId.endsWith("/apps/web/src/App.tsx")) return "workspace";
           if (normalizedId.includes("/node_modules/react") || normalizedId.includes("/node_modules/react-dom")) return "react-vendor";
           if (normalizedId.includes("/node_modules/lucide-react")) return "icons";
@@ -71,8 +168,18 @@ export default defineConfig({
     }
   },
   server: {
+    host: "127.0.0.1",
+    port: 5173,
+    strictPort: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
     proxy: {
       "/api": apiProxyTarget
     }
+  },
+  worker: {
+    format: "es"
   }
 });

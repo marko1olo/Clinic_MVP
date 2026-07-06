@@ -1,0 +1,545 @@
+{
+  "merged_clean": [],
+  "merged_resolved": [
+    {
+      "branch": "origin/add-billing-summary-tests-16291274783632771964",
+      "info": [
+        "apps/api/src/tests/sampleData.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/add-browser-continuity-tests-3680950012750205607",
+      "info": [
+        "apps/web/src/tests/browserContinuity.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-edge-case-tests-17364278516335214333",
+      "info": [
+        "apps/web/src/workspaceUiLabels.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-frozen-tax-xml-clinic-profile-tests-10047809890061707083",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-frozen-tax-xml-payments-test-1969307010713912383",
+      "info": [
+        "apps/api/src/documents/documents.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/add-tax-payment-snapshot-tests-6145249684432190439",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-taxDocumentDuplicateSensitive-tests-6832615369930624915",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-telegram-qr-test-17723719168342071588",
+      "info": [
+        "apps/api/src/tests/telegramQr.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-telegram-qr-tests-16754025649877954844",
+      "info": [
+        "apps/api/src/tests/telegramQr.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-tests-documentAttachmentFileName-14364715343815011046",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-tests-documentChainDateRangeIsChronological-8835665586840338146",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/chore/remove-unused-import-repairmojibaketext-15919246155488548829",
+      "info": [
+        "apps/api/src/routes/documents/auditFacts.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/code-health-settingsStore-13122308613035354085",
+      "info": [
+        "apps/web/src/store/settingsStore.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-accessGuard-tests-18410355375021928310",
+      "info": [
+        "apps/api/src/tests/accessGuard.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/fix-app-ts-nocheck-17075731402660989649",
+      "info": [
+        "apps/web/src/App.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-console-error-in-prod-9012440689206079600",
+      "info": [
+        "apps/web/src/AppShell.tsx: ours",
+        "apps/web/src/workspaceRouteErrorBoundary.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-empty-catch-block-app-helpers-1567576626504837424",
+      "info": [
+        "apps/web/src/AppHelpers.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-insecure-cors-policy-10797208693912635323",
+      "info": [
+        "apps/api/src/server.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-insecure-id-generation-12119608115090663595",
+      "info": [
+        "apps/web/src/AppHelpers.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-persistent-state-tests-18043932546044671249",
+      "info": [
+        "apps/api/src/tests/persistentState.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-testing-persistent-state-17892367984210599965",
+      "info": [
+        "apps/api/src/tests/persistentState.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-ts-nocheck-13722134150680820743",
+      "info": [
+        "apps/web/src/VisitView.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-unused-import-55406870528678567",
+      "info": [
+        "apps/web/src/useAppLogic.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-unused-import-documents-api-11156921498222016841",
+      "info": [
+        "apps/api/src/routes/documents.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-visitdraft-any-types-14837482836075612817",
+      "info": [
+        "apps/api/src/ai/visitDraft.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/accessguard-hardcoded-secret-3-16530038887586940579",
+      "info": [
+        "apps/api/src/tests/accessGuard.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/fix/code-health-visit-view-ts-nocheck-4188459341702031665",
+      "info": [
+        "apps/web/src/VisitView.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/empty-catch-app-helpers-16150319936745321113",
+      "info": [
+        "apps/web/src/AppHelpers.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/empty-catch-blocks-apphelpers-17980994803303317533",
+      "info": [
+        "apps/web/src/AppHelpers.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/improve-tax-payment-snapshot-tests-3754699109376801654",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-11539344925843584611-ec9ddfe5",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-11734954119886233953-fe5384c7",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-1265520471936738103-3e4d5806",
+      "info": [
+        "apps/api/src/tests/accessGuard.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-13605963803178813191-b64b0014",
+      "info": [
+        "apps/api/src/ai/visitDraft.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-14071294229921790574-cbf451c7",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-16066357834948486614-be17bcc8",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-1698529657163993840-fcf9d455",
+      "info": [
+        "packages/shared/src/tests/index.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-17735059119070089496-7b9fd275",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-18187268059020758908-aa68d2c0",
+      "info": [
+        "apps/api/src/tests/documents/guards.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-3245637004101328789-8b740468",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-7120462020594266225-3f8a6136",
+      "info": [
+        "apps/api/src/routes/tests/imaging.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-8783559625174704560-92530b8f",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-code-health-fix-unused-import-10399426854066397648",
+      "info": [
+        "apps/web/src/useAppLogic.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-code-health-fix-unused-import-297275704834530257",
+      "info": [
+        "apps/web/src/useAppLogic.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-code-health-remove-unused-import-12420361435921710305",
+      "info": [
+        "apps/api/src/routes/documents/auditFacts.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-remove-unused-import-useAppLogic-12186443601402288151",
+      "info": [
+        "apps/web/src/useAppLogic.tsx: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-testing-taxPaymentSnapshotTotalRub-2869844059530224355",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/optimize-billing-summary-5584923517568413975",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/optimize-patient-lookup-10217754641142337343",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf-optimize-patient-insights-4436461504320434792",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf-optimize-speech-chunks-8068883573552193949",
+      "info": [
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf/async-stat-imaging-14093623146126715804",
+      "info": [
+        "apps/api/src/routes/imaging.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf/unpaid-documents-filter-13418990114355709560",
+      "info": [
+        "apps/api/src/telegram/legacyMocks.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/refactor-any-visitdraft-16721404143453561531",
+      "info": [
+        "apps/api/src/ai/visitDraft.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/refactor/imaging-dicom-n1-query-10384275184011723696",
+      "info": [
+        "apps/api/src/routes/imaging.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/refactor/smart-imports-discovery-3265928466527713512",
+      "info": [
+        "apps/api/src/routes/smartImports.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/remove-unused-import-buildknd1151156xml-3338342630768107499",
+      "info": [
+        "apps/api/src/routes/documents.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/security/remove-hardcoded-ssh-tunnel-secrets-11793232858533168586",
+      "info": [
+        "apps/api/src/speech/tunnel.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/test-base-tax-payments-2568994165033441051",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-document-payload-keys-6809271284304201680",
+      "info": [
+        "packages/shared/src/tests/index.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-documentPayloadDisallowedKeys-8770902745473720274",
+      "info": [
+        "packages/shared/src/tests/index.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-fallback-patient-1104627209115360006",
+      "info": [
+        "apps/api/src/tests/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-get-loaded-server-env-files-7957566097856814317",
+      "info": [
+        "apps/api/src/env/loadServerEnv.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-medical-record-extract-period-chronological-7212142005419347008",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-mpr-bounds-logic-18429611106935924799",
+      "info": [
+        "apps/web/src/tests/mprControlMath.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-pricelist-analyzer-safe-parse-15635091825919835705",
+      "info": [
+        "apps/api/src/pricelist/analyzer.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-release-material-kind-14940470959046009495",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-snapshot-payments-5507894714215147569",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-tax-document-uses-payment-snapshot-8656273301810206023",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/test-tax-payment-snapshot-scope-5900083242802371946",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-tax-payment-year-9502226569739977364",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union",
+        "package-lock.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/test-tax-payment-year-edge-cases-12225439702410834402",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-telegram-qr-3665070303882853951",
+      "info": [
+        "apps/api/src/tests/telegramQr.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/add-document-amount-source-tests-13076385029310246835",
+      "info": [
+        "packages/shared/src/tests/index.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/add-document-payload-allowed-keys-18275710642719591731",
+      "info": [
+        "packages/shared/src/tests/index.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/add-motion-preference-tests-10739048346923151116",
+      "info": [
+        "apps/web/src/tests/motionPreference.test.ts: union",
+        "pr_description.txt: ours"
+      ]
+    },
+    {
+      "branch": "origin/test/build-persistent-state-export-5991272211762515518",
+      "info": [
+        "apps/api/src/tests/persistentState.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/normalized-taxpayer-inn-7046471691602208591",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/release-source-snapshot-hash-8334435013911281771",
+      "info": [
+        "apps/api/src/routes/documents.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test/rub-amount-input-13987361571561039653",
+      "info": [
+        "apps/web/src/tests/rubAmountInput.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-improvement-format-byte-size-11947421040919274159",
+      "info": [
+        "apps/web/src/tests/browserContinuity.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-improvement/taxDocumentUsesPaymentSnapshot-10026025788104281688",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-persistent-state-export-858764686604342840",
+      "info": [
+        "apps/api/src/tests/persistentStateExport.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-splitline-14061138847917763757",
+      "info": [
+        "packages/shared/src/tests/strings.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-tax-document-uses-payment-snapshot-10181223780603634867",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-tax-payment-year-7978278981150782790",
+      "info": [
+        "apps/api/src/documents/taxPaymentSnapshot.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/testing/telegram-qr-missing-payload-5649380522993395263",
+      "info": [
+        "apps/api/src/tests/telegramQr.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/tests/payment-refund-correction-guards-6614590321162371056",
+      "info": [
+        "apps/api/src/documents/guards.test.ts: union"
+      ]
+    }
+  ],
+  "aborted_manual": [],
+  "aborted": [],
+  "commit_failed": []
+}

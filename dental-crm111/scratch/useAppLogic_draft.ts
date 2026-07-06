@@ -4122,8 +4122,9 @@ const {
     const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
     const totalDiscountRub = activePlanItems.reduce((total, item) => total + item.discountRub, 0);
     const totalPaidRub = activePayments.filter((payment) => payment.status === "paid").reduce((total, payment) => total + payment.amountRub, 0);
+    const serviceCatalogMap = new Map(dashboard.serviceCatalog.map((service) => [service.id, service]));
     const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-      const service = dashboard.serviceCatalog.find((candidate) => candidate.id === item.serviceId);
+      const service = serviceCatalogMap.get(item.serviceId);
       return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
     }, 0);
     const draftDocumentAmountRub = activeUsableDocuments

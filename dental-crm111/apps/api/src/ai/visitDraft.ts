@@ -276,7 +276,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
   }
 
   // Попытка 2: Идем по каскаду моделей
-  console.log("[AI Draft Cascade] Запуск цепочки фоллбеков...");
   for (const fallback of DENTAL_AI_CASCADING_MODELS) {
     // Пропускаем, если эта же модель только что упала в Попытке 1
     if (fallback.provider === input.config.provider && fallback.model === input.config.modelName) {
@@ -295,7 +294,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
         continue;
       }
 
-      console.log(`[AI Draft Cascade] Пробуем ${fallback.provider} (${fallback.model})...`);
       const fallbackConfig: VisitDraftNeuralConfig = {
         neuralEnabled: true,
         provider: fallback.provider,
@@ -314,7 +312,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
       });
 
       recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
-      console.log(`[AI Draft Cascade] УСПЕХ на модели ${fallback.model} (${fallback.provider})`);
       return result;
     } catch (fallbackError) {
       console.warn(`[AI Draft Cascade] Модель ${fallback.model} (${fallback.provider}) завершилась ошибкой: ${fallbackError instanceof Error ? fallbackError.message : fallbackError}`);
@@ -323,6 +320,11 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
 
   throw new Error("Сбой ИИ-генератора черновика: все модели из каскада фоллбеков завершились ошибкой или лимиты исчерпаны.");
 }
+
+function isToothState(state: unknown): state is ToothState {
+  return typeof state === "string" && ["idle", "watch", "planned", "done", "missing", "treatment"].includes(state);
+}
+
 
 export async function buildVisitDraftFromTranscript(
   transcript: string,
@@ -353,11 +355,10 @@ export async function buildVisitDraftFromTranscript(
     // Inject structured AI tooth states into quality object if present
     const finalQuality = baseline.quality ? { ...baseline.quality } : undefined;
     if (neural._rawToothStates && finalQuality) {
-      const parsedStates: Record<string, "idle" | "watch" | "planned" | "done" | "missing" | "treatment"> = {};
-      const validStates = new Set(["idle", "watch", "planned", "done", "missing", "treatment"]);
+      const parsedStates: Record<string, ToothState> = {};
       for (const [code, state] of Object.entries(neural._rawToothStates)) {
-        if (typeof state === "string" && validStates.has(state)) {
-          parsedStates[code] = state as ToothState;
+        if (isToothState(state)) {
+          parsedStates[code] = state;
         }
       }
       if (Object.keys(parsedStates).length > 0) {

@@ -10,6 +10,7 @@ import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerDocumentRoutes } from "./routes/documents.js";
 import { registerImagingRoutes } from "./routes/imaging.js";
+import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
 import { registerIngestionRoutes } from "./routes/ingestion.js";
 import { registerImportRoutes } from "./routes/imports.js";
 import { registerPatientRoutes } from "./routes/patients.js";
@@ -21,12 +22,23 @@ import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerTelegramRoutes, registerTelegramWebhookRoutes, startDenteTelegramOutboxDueWorker } from "./routes/telegram.js";
 import { registerVisitRoutes } from "./routes/visits.js";
+import { registerDicomwebRoutes } from "./routes/dicomweb.js";
+import { registerXrayRoutes } from "./routes/xray.js";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerOdontogramRoutes } from "./routes/odontogram.js";
+import registerSchedulerSync from "./routes/schedulerSync.js";
+import registerHandoff from "./routes/handoff.js";
+import registerSurgicalRoutes from "./routes/surgical.js";
+import { startRecallWorker } from "./services/recallWorker.js";
 import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { repairMojibakeText } from "./text/repairMojibake.js";
 import net from "node:net";
 import { ensureSshTunnel } from "./speech/tunnel.js";
+import { getProxyAgent } from "./speech/keyPool.js";
+import { startWatchdog } from "./watchdog.js";
 
 loadAdditionalServerEnv();
+startWatchdog();
 
 async function checkProxyPortDirectly(proxyUrlString: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -64,25 +76,22 @@ export async function setupProxyAndTunnels() {
     process.env.HTTPS_PROXY = "socks5://127.0.0.1:1080";
     process.env.HTTP_PROXY = "socks5://127.0.0.1:1080";
     process.env.PROXY_URL = "socks5://127.0.0.1:1080";
-    console.log("[Proxy Boot] Traffic routed via active SSH SOCKS5 tunnel on port 1080.");
-    return;
+  } else {
+    // 2. Если туннеля нет, проверяем настроенный прокси из .env
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
+    if (proxyUrl) {
+      const isOnline = await checkProxyPortDirectly(proxyUrl);
+      if (!isOnline) {
+        console.warn(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.`);
+        delete process.env.HTTPS_PROXY;
+        delete process.env.HTTP_PROXY;
+        delete process.env.PROXY_URL;
+      }
+    }
   }
 
-  // 2. Если туннеля нет, проверяем настроенный прокси из .env
-  const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
-  if (proxyUrl) {
-    const isOnline = await checkProxyPortDirectly(proxyUrl);
-    if (isOnline) {
-      console.log(`[Proxy Boot] Configured proxy ${proxyUrl} is online. Traffic routed via proxy.`);
-    } else {
-      console.warn(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.`);
-      delete process.env.HTTPS_PROXY;
-      delete process.env.HTTP_PROXY;
-      delete process.env.PROXY_URL;
-    }
-  } else {
-    console.log("[Proxy Boot] No proxy configured. Operating in direct connection mode.");
-  }
+  // Register global agent for direct undici fetches
+  (globalThis as any)._dentalProxyAgent = getProxyAgent() || undefined;
 }
 
 type HttpErrorLike = {
@@ -140,7 +149,10 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
     .filter(Boolean)
     .map((origin) => {
       if (origin === "*" || origin === "null") {
-        throw new Error(`Wildcard or null CORS origins are not allowed for security reasons: "${origin}"`);
+        if (process.env.NODE_ENV === "production") {
+          throw new Error(`Insecure WEB_ORIGIN configured: "${origin}" is not allowed in production`);
+        }
+        return origin;
       }
       try {
         return new URL(origin).origin;
@@ -154,6 +166,7 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   });
 
   app.setErrorHandler((error, _request, reply) => {
+    import("node:fs").then(m => m.appendFileSync("C:/Clinic_MVP/error.log", ((error as any)?.stack || (error as any)?.message || String(error)) + "\nCAUSE: " + ((error as any)?.cause || "") + "\n"));
     if (isZodValidationError(error)) {
       reply.status(400).send({
         error: "ValidationError",
@@ -196,6 +209,7 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   await registerDashboardRoutes(app);
   await registerDocumentRoutes(app);
   await registerImagingRoutes(app);
+  await registerImagingPlanningRoutes(app);
   await registerIngestionRoutes(app);
   await registerImportRoutes(app);
   await registerPatientRoutes(app);
@@ -208,11 +222,20 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   await registerTelegramRoutes(app);
   await registerTelegramWebhookRoutes(app);
   await registerVisitRoutes(app);
+  await registerDicomwebRoutes(app);
+  await registerXrayRoutes(app);
+  await registerAuthRoutes(app);
+  await registerOdontogramRoutes(app);
+  await registerSchedulerSync(app);
+  await registerHandoff(app);
+  await registerSurgicalRoutes(app);
 
   if (options.startTelegramWorker !== false) {
     const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
+    const recallWorkerTimer = startRecallWorker();
     app.addHook("onClose", async () => {
       telegramOutboxDueWorker.stop();
+      clearInterval(recallWorkerTimer);
     });
   }
 
@@ -238,3 +261,5 @@ export async function startDenteApiServer() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await startDenteApiServer();
 }
+
+// trigger restart

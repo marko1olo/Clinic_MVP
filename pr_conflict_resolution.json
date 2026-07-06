@@ -1,0 +1,611 @@
+{
+  "merged_clean": [],
+  "merged_resolved": [
+    {
+      "branch": "origin/add-clinic-admin-database-test-9909858212504150473",
+      "info": [
+        "clinic_admin/test_database.py: union"
+      ]
+    },
+    {
+      "branch": "origin/add-clinic-admin-tests-16340025118443679196",
+      "info": [
+        "clinic_admin/test_main.py: union"
+      ]
+    },
+    {
+      "branch": "origin/add-mojibake-tests-8508530996678472842",
+      "info": [
+        "dental-crm/apps/api/src/tests/repairMojibake.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/add-tests-clinic-admin-15299223312411657632",
+      "info": [
+        "clinic_admin/test_main.py: union"
+      ]
+    },
+    {
+      "branch": "origin/add-tests-cmd-start-7771391858815074596",
+      "info": [
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/add-tests-get-user-role-8089714852781838330",
+      "info": [
+        "clinic_bot/tests/test_db.py: union"
+      ]
+    },
+    {
+      "branch": "origin/code-health-deploy-vps-sys-15018367930053270558",
+      "info": [
+        "deploy_vps.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-bot-token-vulnerability-7728234210621430599",
+      "info": [
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-api-keys-12805687618259299903",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-api-keys-16185595526720040799",
+      "info": [
+        "ShadowAnalyst/test_10_prompts.py: union"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-api-keys-1743976015393964687",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-credentials-7356244894359593175",
+      "info": [
+        "ShadowAnalyst/doctor_popup.py: ours",
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_publish.py: union",
+        "ShadowAnalyst/watcher.py: ours",
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-groq-keys-2870154362140210371",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-passwords-14045881563431216221",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-passwords-1435664983298276141",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-root-password-17949795087056021615",
+      "info": [
+        "research_vps.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-root-password-8727667552168160501",
+      "info": [
+        "check_server.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-server-password-8047058493484384196",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-ssh-credentials-997267559031696096",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-hardcoded-ssh-password-5646996372646920030",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-insecure-default-role-17896481229253117363",
+      "info": [
+        "clinic_bot/bot.py: ours",
+        "clinic_bot/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/fix-missing-error-test-bot-5252747460619589643",
+      "info": [
+        "clinic_bot/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/fix-mqtt-credentials-5288092332543352205",
+      "info": [
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-unused-import-2441261114070552998",
+      "info": [
+        "check_server.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix-watcher-unused-imports-9073010230894204186",
+      "info": [
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/check-server-hardcoded-password-3048494648729818844",
+      "info": [
+        "check_server.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/hardcoded-groq-api-key-5012500310645351360",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/hardcoded-groq-api-keys-11700710429840886984",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/hardcoded-passwords-6469652790540607786",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours",
+        "transcript_user.txt: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/hardcoded-vps-password-5825652958041827424",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/remove-groq-api-keys-2491204910599190168",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/remove-hardcoded-credentials-15457287264791213032",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/remove-hardcoded-credentials-8910549352557527450",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/fix/remove-hardcoded-token-6546897317890189840",
+      "info": [
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-11067319216518309051-26f650ae",
+      "info": [
+        "clinic_bot/db.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-11817229838007777608-fa252d09",
+      "info": [
+        "clinic_bot/bot.py: ours",
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-12615502611214449669-bb9215d0",
+      "info": [
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-12884489859848124441-5ac50eec",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-13767105364788820668-3bfe6158",
+      "info": [
+        "ShadowAnalyst/doctor_popup.py: ours",
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_publish.py: union",
+        "ShadowAnalyst/watcher.py: ours",
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-14438743184494032437-e5d86adb",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours",
+        "transcript_user.txt: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-16544413130883063702-9d352ab2",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-3778713049631721146-dd391c7a",
+      "info": [
+        "clinic_admin/main.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-6008070658262808966-6d2af570",
+      "info": [
+        "clinic_admin/main.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-6670977362709873842-2c34d702",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-7861570388951176847-e13243ee",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-8110470438655958425-2963b4bc",
+      "info": [
+        "clinic_bot/db.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-8410683699816476764-d87865e8",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/test_publish.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-8834163099390925166-fd51dedd",
+      "info": [
+        "dental-crm/apps/api/src/text/repairMojibake.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/jules-9271664564090565796-0ce7b493",
+      "info": [
+        "clinic_bot/bot.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-9275962486895693559-cf3c32db",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules-code-health-uvicorn-removal-1344778985186560838",
+      "info": [
+        "clinic_admin/main.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/jules/perf-concurrent-api-calls-10374060714999312288",
+      "info": [
+        "clinic_bot/bot.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/optimize-mqtt-sleep-import-13858200995792972738",
+      "info": [
+        "clinic_bot/bot.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf-optimize-servicecatalog-lookup-8465063999098243386",
+      "info": [
+        "dental-crm/scratch/useAppLogic_draft.ts: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf/cache-openai-client-8467138112920911346",
+      "info": [
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/perf/openai-client-cache-8038090142707461689",
+      "info": [
+        "ShadowAnalyst/dentalimage.md: ours",
+        "ShadowAnalyst/watcher.py: ours",
+        "pr_description.md: ours"
+      ]
+    },
+    {
+      "branch": "origin/security-fix-clinic-admin-auth-7806722050560300603",
+      "info": [
+        "clinic_admin/main.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security-fix-hardcoded-api-keys-9342631788615466487",
+      "info": [
+        "ShadowAnalyst/gui/app.py: ours",
+        "ShadowAnalyst/gui/config.json: ours",
+        "ShadowAnalyst/test_10_prompts.py: union",
+        "ShadowAnalyst/test_groq_json.py: union",
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security-fix-hardcoded-bot-token-18321245826539937180",
+      "info": [
+        "clinic_bot/config/settings.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security-fix-hardcoded-passwords-14406314168718564440",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security/fix-hardcoded-api-keys-49467968138466937",
+      "info": [
+        "ShadowAnalyst/test_10_prompts.py: union"
+      ]
+    },
+    {
+      "branch": "origin/security/fix-hardcoded-secrets-4610269333941610636",
+      "info": [
+        "clinic_bot/config/settings.py: ours",
+        "deploy_bot.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security/fix-mqtt-creds-watcher-4958947020114373075",
+      "info": [
+        "ShadowAnalyst/watcher.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security/remove-hardcoded-ssh-password-1167063484786436088",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours"
+      ]
+    },
+    {
+      "branch": "origin/security/remove-hardcoded-ssh-password-12500362922598472975",
+      "info": [
+        "check_server.py: ours",
+        "deploy_admin.py: ours",
+        "deploy_bot.py: ours",
+        "deploy_vps.py: ours",
+        "research_vps.py: ours",
+        "setup_backups.py: ours",
+        "transcript_user.txt: ours"
+      ]
+    },
+    {
+      "branch": "origin/test-handle-default-9208762991412715630",
+      "info": [
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test-handle-review-neg-11864310552016801330",
+      "info": [
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test-handle-xray-result-5364016630607628027",
+      "info": [
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test-improvement-bot-broadcast-2689775906892256821",
+      "info": [
+        "clinic_bot/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test-repair-mojibake-11430400448492817781",
+      "info": [
+        "dental-crm/apps/api/src/tests/repairMojibake.test.ts: union"
+      ]
+    },
+    {
+      "branch": "origin/test-shadowanalyst-watcher-8515630750108007791",
+      "info": [
+        "ShadowAnalyst/test_watcher.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test-watcher-py-279527159589940510",
+      "info": [
+        "ShadowAnalyst/test_watcher.py: union"
+      ]
+    },
+    {
+      "branch": "origin/test/clinic-bot-marketing-send-7492951646002087905",
+      "info": [
+        "clinic_bot/tests/test_bot.py: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-improvement-clinic-admin-database-14877224292020827940",
+      "info": [
+        "clinic_admin/test_database.py: union"
+      ]
+    },
+    {
+      "branch": "origin/testing-improvement-database-get-connection-15728614066010880341",
+      "info": [
+        "clinic_admin/test_database.py: union"
+      ]
+    }
+  ],
+  "aborted_manual": [],
+  "aborted": [
+    {
+      "branch": "origin/jules-11874205950121756041-678d0be4",
+      "info": []
+    },
+    {
+      "branch": "origin/jules-2937970617656019196-8eb0c253",
+      "info": []
+    },
+    {
+      "branch": "origin/jules-6328882136484081305-baf96883",
+      "info": []
+    },
+    {
+      "branch": "origin/jules-8043831561658269815-1e48614e",
+      "info": []
+    },
+    {
+      "branch": "origin/jules-9812585039574050568-c063a757",
+      "info": []
+    },
+    {
+      "branch": "origin/jules-persistent-state-tests-15472055742782896064",
+      "info": []
+    },
+    {
+      "branch": "origin/perf/optimize-appointment-drafts-loop-2064844953536383513",
+      "info": []
+    },
+    {
+      "branch": "origin/test-getPersistentStateIntegrityReport-12574474680211434123",
+      "info": []
+    }
+  ],
+  "commit_failed": []
+}

@@ -10,10 +10,31 @@ import {
   RotateCw,
   UploadCloud,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Bot
 } from "lucide-react";
+
+const IMAGING_QUICK_CHIPS = [
+  "Без видимых патологий",
+  "Кариес",
+  "Киста / Периодонтит",
+  "Гранулема",
+  "Ретенция",
+  "Убыль костной ткани",
+  "Требуется имплантация"
+];
 import { CtPlanningToolsPanel } from "./ctPlanningTools";
 import { type MprWindowPreset } from "./imagingUiLabels";
+import { Cornerstone3DViewer } from "./components/dicom/Cornerstone3DViewer";
+import { DicomArchiveUploader } from "./components/dicom/DicomArchiveUploader";
+import { ShadowAnalystReport } from "./components/imaging/ShadowAnalystReport";
+import { unifiedPdfGenerator } from "./utils/unifiedPdfGenerator";
+import { HotkeyTooltip } from "./components/onboarding/HotkeyTooltip";
+import { ShadowAnalyst2D } from "./components/imaging/ShadowAnalyst2D";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { showToast } from "./components/GlobalToast";
+
+import { useVisitStore, type ToothState } from "./store/visitStore";
 
 type ImagingViewProps = Record<string, any>;
 
@@ -28,7 +49,6 @@ export function ImagingView(props: ImagingViewProps) {
   applyNearestMprClinicalPreset,
   attachBrowserDirectoryInputRef,
   browserImagingFileInputAccept,
-  browserImagingFilesInputRef,
   browserImagingScanProgress,
   browserPickedImagingFolder,
   canRetryImagingViewerSave,
@@ -126,7 +146,6 @@ export function ImagingView(props: ImagingViewProps) {
   mprWorkbenchDraftRestored,
   mprWorkbenchLocalSavedAt,
   mprWorkbenchSummaryText,
-  pickBrowserImagingFiles,
   pickBrowserImagingFolder,
   resetMprControls,
   restoreMprWorkbenchLocalDraft,
@@ -151,6 +170,63 @@ export function ImagingView(props: ImagingViewProps) {
   visibleImagingStudies
   } = props;
 
+  const localFilesInputRef = useRef<HTMLInputElement | null>(null);
+  const browserImagingFilesInputRef = props.browserImagingFilesInputRef || localFilesInputRef;
+  const pickBrowserImagingFiles = props.pickBrowserImagingFiles || (() => {
+    browserImagingFilesInputRef.current?.click();
+  });
+
+  const [localImageIds, setLocalImageIds] = useState<string[]>([]);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
+  const [enhancementOn, setEnhancementOn] = useState(false);
+  const [, forceUpdate] = useState(0);
+
+  const handleAnalyzeAI = async () => {
+    if (!selectedImagingStudy) return;
+    setIsAnalyzingAI(true);
+    try {
+      const res = await fetch(`/api/imaging/studies/${selectedImagingStudy.id}/analyze`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        selectedImagingStudy.aiSummary = data.analysisResult.summary;
+        selectedImagingStudy.aiToothUpdates = data.analysisResult.toothUpdates;
+        
+        if (data.analysisResult?.toothUpdates?.length > 0) {
+          const detectedCodes: string[] = [];
+          const detectedToothStates: Record<string, ToothState> = {};
+          const aiDiagnoses: Record<string, string> = {};
+          
+          for (const update of data.analysisResult.toothUpdates) {
+            detectedCodes.push(update.code);
+            aiDiagnoses[update.code] = update.diagnosisOrFinding;
+            
+            const aiState = update.state.toLowerCase();
+            if (aiState.includes("caries") || aiState.includes("pulpitis") || aiState.includes("periodontitis")) {
+              detectedToothStates[update.code] = "treatment";
+            } else if (aiState.includes("missing")) {
+              detectedToothStates[update.code] = "missing";
+            } else if (aiState.includes("implant") || aiState.includes("restoration") || aiState.includes("crown")) {
+              detectedToothStates[update.code] = "done";
+            } else {
+              detectedToothStates[update.code] = "watch";
+            }
+          }
+          useVisitStore.getState().applyAiToothCodes(detectedCodes, "planned", detectedToothStates, aiDiagnoses);
+        }
+        
+        setEnhancementOn(true);
+        forceUpdate(n => n + 1);
+        showToast(`Анализ завершён · ${data.analysisResult?.toothUpdates?.length ?? 0} находок добавлено в формулу`, 'success');
+      } else {
+        showToast('Ошибка анализа: ' + (data.message ?? 'Неизвестная ошибка'), 'error');
+      }
+    } catch (e: any) {
+      showToast('Сбой сети: ' + e.message, 'error');
+    } finally {
+      setIsAnalyzingAI(false);
+    }
+  };
+
   return (
     <section className="imaging-panel" id="imaging" aria-label="Снимки пациента">
               <div className="imaging-copy">
@@ -164,19 +240,17 @@ export function ImagingView(props: ImagingViewProps) {
                     data-testid="imaging-browser-local-folder-input"
                     type="file"
                     multiple
-                    hidden
-                    tabIndex={-1}
-                    onChange={(event) => void handleBrowserDirectoryInputChange(event.currentTarget.files)}
+                    style={{ position: 'absolute', opacity: 0, width: '1px', height: '1px', pointerEvents: 'none' }}
+                    onChange={(event) => void handleBrowserDirectoryInputChange(event.target.files)}
                   />
                   <input
                     ref={browserImagingFilesInputRef}
                     data-testid="imaging-browser-local-files-input"
                     type="file"
                     multiple
-                    hidden
-                    tabIndex={-1}
+                    style={{ position: 'absolute', opacity: 0, width: '1px', height: '1px', pointerEvents: 'none' }}
                     accept={browserImagingFileInputAccept}
-                    onChange={(event) => void handleBrowserDirectoryInputChange(event.currentTarget.files)}
+                    onChange={(event) => void handleBrowserDirectoryInputChange(event.target.files)}
                   />
                   <button
                     className="primary-button"
@@ -274,7 +348,7 @@ export function ImagingView(props: ImagingViewProps) {
               <div className="imaging-patient-strip" aria-label="Контекст снимков">
                 <article>
                   <span>Пациент</span>
-                  <strong>{activePatient.fullName}</strong>
+                  <strong>{activePatient?.fullName ?? "Пациент не выбран"}</strong>
                   <small>{activeAppointment?.reason ?? "текущий прием"}</small>
                 </article>
                 <article>
@@ -341,26 +415,82 @@ export function ImagingView(props: ImagingViewProps) {
                 ))}
               </div>
     
+              {/* AI Toast notification */}
+              {/* AI Toast notification has been moved to GlobalToast */}
+
               <div className="imaging-layout">
                 <article className="imaging-viewer">
-                  {selectedImagingStudy ? (
+                  {selectedImagingStudy || localImageIds.length > 0 || browserPickedImagingFolder ? (
                     <>
-                      <div className="imaging-viewer-stage">
-                        <img
-                          src={imagingPreviewSource(selectedImagingStudy)}
-                          alt={selectedImagingStudy.title}
-                          decoding="async"
-                          style={imagingViewerImageStyle}
-                        />
-                        <div className="imaging-viewer-meta">
-                          <strong>{selectedImagingStudy.title}</strong>
-                          <span>
-                            {imagingKindLabels[selectedImagingStudy.kind]} · {selectedImagingStudy.toothCode ?? selectedImagingStudy.region}
-                          </span>
-                          <p>{selectedImagingStudy.aiSummary}</p>
-                        </div>
+                      <div className="imaging-viewer-stage" style={{ position: 'relative' }}>
+                        {localImageIds.length > 0 ? (
+                          <Cornerstone3DViewer imageIds={localImageIds} />
+                        ) : selectedImagingStudy?.kind === "cbct" ? (
+                          <div className="w-full h-full flex flex-col gap-4 p-4">
+                            <DicomArchiveUploader onImagesLoaded={setLocalImageIds} />
+                            <div className="opacity-50 pointer-events-none w-full flex-1">
+                              <Cornerstone3DViewer 
+                                imageIds={[`wadouri:http://localhost:3000/api/dicomweb/studies/${selectedImagingStudy?.dicomStudyUid}/series/1/instances/1`]} 
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ height: "100%", minHeight: "400px" }}>
+                            <ShadowAnalyst2D src={imagingPreviewSource(selectedImagingStudy)} />
+                          </div>
+                        )}
+
+                        {/* AI analysis overlay loader */}
+                        {isAnalyzingAI && (
+                          <div className="sa-analyze-overlay" aria-live="polite">
+                            <div className="sa-analyze-spinner" />
+                            <span>ShadowAnalyst анализирует снимок...</span>
+                          </div>
+                        )}
                       </div>
-    
+
+                      <div className="imaging-viewer-meta">
+                        <strong>{selectedImagingStudy?.title ?? "Локальный предпросмотр"}</strong>
+                        <span>
+                          {selectedImagingStudy ? `${imagingKindLabels[selectedImagingStudy.kind]} · ${selectedImagingStudy.toothCode ?? selectedImagingStudy.region}` : "Локальные файлы DICOM (КТ)"}
+                        </span>
+                        <HotkeyTooltip hotkey="Ctrl + A" description="Автоматический анализ снимка">
+                          <button
+                          type="button"
+                          className={selectedImagingStudy?.aiSummary ? "secondary-button" : "primary-button"}
+                          disabled={isAnalyzingAI || !selectedImagingStudy}
+                          onClick={handleAnalyzeAI}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', maxWidth: 'fit-content' }}
+                        >
+                          <Bot aria-hidden="true" size={16} />
+                          {isAnalyzingAI ? "Анализирую..." : (selectedImagingStudy?.aiSummary ? "Обновить анализ" : "AI-Диагностика (ShadowAnalyst)")}
+                        </button>
+                          </HotkeyTooltip>
+                          {selectedImagingStudy?.kind === "cbct" && (
+                            <HotkeyTooltip hotkey="Ctrl + S" description="Сформировать хирургический протокол">
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() => {
+                                  unifiedPdfGenerator.generateSurgicalGuidePdf({
+                                    patientName: "Тестовый Пациент",
+                                    doctorName: "Д-р Иванов",
+                                    boneDensity: { d1: 10, d2: 50, d3: 30, d4: 10, d5: 0 },
+                                    sleeveDiameter: 5.0,
+                                    sleeveHeight: 5.0,
+                                    offset: 9.0,
+                                    divergenceWarning: false,
+                                    collisionWarning: false
+                                  }, ["dicom-canvas-axial", "dicom-canvas-coronal"]);
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', maxWidth: 'fit-content' }}
+                              >
+                                Хирургический протокол (PDF)
+                              </button>
+                            </HotkeyTooltip>
+                          )}
+                      </div>
+
                       {selectedImagingViewerPlan ? (
                         <div className={`imaging-viewer-plan viewer-plan-${selectedImagingViewerPlan.mode}`}>
                           <div>
@@ -403,7 +533,9 @@ export function ImagingView(props: ImagingViewProps) {
                         </div>
                       ) : null}
     
-                      <div className="imaging-viewer-toolbar" aria-label="Настройки рентген-снимка">
+                      {!(localImageIds.length > 0 || selectedImagingStudy?.kind === "cbct") && (
+                        <div style={{ display: 'contents' }}>
+                          <div className="imaging-viewer-toolbar" aria-label="Настройки рентген-снимка">
                         <div className="imaging-viewer-tools">
                           <button
                             className="viewer-tool-button"
@@ -475,6 +607,22 @@ export function ImagingView(props: ImagingViewProps) {
                           >
                             <RefreshCw aria-hidden="true" />
                           </button>
+
+                          {/* Enhancement toggle — appears in toolbar once AI analysis ran */}
+                          {selectedImagingStudy?.aiSummary && (
+                            <label
+                              className="sa-enhance-toggle sa-enhance-toggle--toolbar"
+                              title="Включить/выключить улучшение снимка (CLAHE симуляция)"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={enhancementOn}
+                                onChange={e => setEnhancementOn(e.target.checked)}
+                              />
+                              <span className="sa-enhance-slider" />
+                              <span className="sa-enhance-label">Enhanced</span>
+                            </label>
+                          )}
                         </div>
                         <div className="viewer-slider-grid">
                           <label>
@@ -505,12 +653,54 @@ export function ImagingView(props: ImagingViewProps) {
                             <strong>{imagingViewerSaveTitle[imagingViewerSaveState]}</strong>
                             <span>{imagingViewerSaveDetail}</span>
                           </div>
-                          <input
-                            aria-label="Заметка к снимку"
-                            value={imagingViewerNote}
-                            onChange={(event) => setImagingViewerNote(event.target.value)}
-                            placeholder="Заметка к снимку"
-                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '400px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                              <input
+                                aria-label="Заметка к снимку"
+                                value={imagingViewerNote}
+                                onChange={(event) => setImagingViewerNote(event.target.value)}
+                                placeholder="Заметка к снимку"
+                                style={{ width: '100%', paddingRight: '40px' }}
+                              />
+                              <button
+                                type="button"
+                                title="Сгенерировать с помощью ИИ (заглушка)"
+                                onClick={() => {
+                                  // Здесь будет вызов AiOrchestrator.processImagingAnalysis
+                                  setImagingViewerNote(prev => (prev + " [AI AnalyzeCTReport]").trim());
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  right: '8px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'var(--brand-500)',
+                                  padding: '4px',
+                                  borderRadius: '50%'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-50)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                              >
+                                <Bot size={16} />
+                              </button>
+                            </div>
+                            <div className="quick-chips-row" style={{ flexWrap: 'wrap', marginTop: '4px' }}>
+                              {IMAGING_QUICK_CHIPS.map(chip => (
+                                <button
+                                  key={chip}
+                                  type="button"
+                                  className="quick-chip quick-chip--sm"
+                                  onClick={() => setImagingViewerNote(prev => (prev ? `${prev}, ${chip}` : chip))}
+                                >
+                                  {chip}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                           <div className="viewer-session-actions">
                             <button
                               className="secondary-button"
@@ -554,18 +744,36 @@ export function ImagingView(props: ImagingViewProps) {
                               <article key={annotation.id}>
                                 <strong>{annotation.label}</strong>
                                 <span>
-                                  {annotation.toothCode ?? selectedImagingStudy.region ?? "study"} · {formatShortDate(annotation.updatedAt)}
+                                  {annotation.toothCode ?? selectedImagingStudy?.region ?? "study"} · {formatShortDate(annotation.updatedAt)}
                                 </span>
                               </article>
                             ))}
                           </div>
                         ) : null}
                       </div>
+                      </div>
+                      )}
+
+                      {/* SA Report — full-width below toolbar, only when AI analysis exists */}
+                      {selectedImagingStudy?.aiSummary && (
+                        <div className="sa-report-column">
+                          <ShadowAnalystReport
+                            summary={selectedImagingStudy.aiSummary}
+                            toothUpdates={selectedImagingStudy.aiToothUpdates}
+                            studyTitle={selectedImagingStudy.title}
+                          />
+                        </div>
+                      )}
                     </>
                   ) : (
-                    <div className="imaging-empty">
-                      <ImageIcon aria-hidden="true" />
-                      <p>Снимков по текущему пациенту пока нет.</p>
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
+                      <div className="text-center mb-4">
+                        <ImageIcon aria-hidden="true" style={{ fontSize: '3rem', opacity: 0.5 }} />
+                        <p className="text-neutral-400 mt-2">Снимков по текущему пациенту пока нет.</p>
+                      </div>
+                      <div className="w-full max-w-2xl">
+                        <DicomArchiveUploader onImagesLoaded={setLocalImageIds} />
+                      </div>
                     </div>
                   )}
                 </article>
@@ -576,7 +784,14 @@ export function ImagingView(props: ImagingViewProps) {
                       className={`imaging-row imaging-${study.status} ${selectedImagingStudy?.id === study.id ? "active" : ""}`}
                       key={study.id}
                     >
-                      <img src={imagingPreviewSource(study)} alt="" loading="lazy" decoding="async" />
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <img src={imagingPreviewSource(study)} alt="" loading="lazy" decoding="async" />
+                        {(study as any).aiSummary && (
+                          <span className="sa-ai-badge" title="Есть AI-заключение ShadowAnalyst">
+                            <Bot size={9} /> AI
+                          </span>
+                        )}
+                      </div>
                       <div>
                         <h3>{study.title}</h3>
                         <p>

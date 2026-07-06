@@ -1,0 +1,233 @@
+﻿diff --git a/apps/web/src/components/Odontogram.tsx b/apps/web/src/components/Odontogram.tsx
+index 7e437ca..d2f9440 100644
+--- a/apps/web/src/components/Odontogram.tsx
++++ b/apps/web/src/components/Odontogram.tsx
+@@ -16,56 +16,56 @@ const UPPER_TEETH = TOOTH_NUMBERS.slice(0, 16);
+ const LOWER_TEETH = TOOTH_NUMBERS.slice(16, 32);
+ 
+ const STATUS_COLORS: Record<ToothStatus, string> = {
+-  Healthy: 'var(--paper)',
+-  Caries: 'var(--rust)',
+-  Filling: 'var(--teal-soft)',
+-  Missing: 'var(--muted)',
+-  Implant: 'var(--teal)',
+-  Crown: 'var(--amber)'
++  Healthy: '#ffffff',
++  Caries: '#dc2626',
++  Filling: '#0ea5e9',
++  Missing: '#94a3b8',
++  Implant: '#0f766e',
++  Crown: '#f59e0b'
+ };
+ 
+ const STATUS_OPTIONS: ToothStatus[] = ["Healthy", "Caries", "Filling", "Missing", "Implant", "Crown"];
+ 
+ const renderToothSvg = (tooth: number, status: ToothStatus, color: string) => {
+   const isUpper = tooth >= 11 && tooth <= 28;
+-  const transform = isUpper ? "" : "scale(1, -1) translate(0, -50)";
++  const transform = isUpper ? "" : "scale(1, -1) translate(0, -70)";
+   
+   if (status === 'Missing') {
+     return (
+-      <svg width="40" height="50" viewBox="0 0 40 50">
+-         <line x1="10" y1="15" x2="30" y2="35" stroke="var(--muted)" strokeWidth="3" strokeLinecap="round" />
+-         <line x1="30" y1="15" x2="10" y2="35" stroke="var(--muted)" strokeWidth="3" strokeLinecap="round" />
++      <svg width="48" height="70" viewBox="0 0 48 70">
++         <line x1="12" y1="20" x2="36" y2="50" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
++         <line x1="36" y1="20" x2="12" y2="50" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+       </svg>
+     );
+   }
+ 
+   if (status === 'Implant') {
+     return (
+-      <svg width="40" height="50" viewBox="0 0 40 50" transform={transform}>
+-         <path d="M16,5 L24,5 L24,20 L16,20 Z" fill="var(--muted)" />
+-         <path d="M12,20 C12,40 28,40 28,20 Z" fill="var(--paper)" stroke="var(--teal)" strokeWidth="2" />
+-         <line x1="14" y1="8" x2="26" y2="8" stroke="var(--paper)" strokeWidth="1" />
+-         <line x1="14" y1="12" x2="26" y2="12" stroke="var(--paper)" strokeWidth="1" />
+-         <line x1="14" y1="16" x2="26" y2="16" stroke="var(--paper)" strokeWidth="1" />
++      <svg width="48" height="70" viewBox="0 0 48 70" transform={transform}>
++         <path d="M20,10 L28,10 L28,30 L20,30 Z" fill="#94a3b8" />
++         <path d="M14,30 C14,55 34,55 34,30 Z" fill="#ffffff" stroke="#0f766e" strokeWidth="3" />
++         <line x1="16" y1="15" x2="32" y2="15" stroke="#ffffff" strokeWidth="2" />
++         <line x1="16" y1="20" x2="32" y2="20" stroke="#ffffff" strokeWidth="2" />
++         <line x1="16" y1="25" x2="32" y2="25" stroke="#ffffff" strokeWidth="2" />
+       </svg>
+     );
+   }
+ 
+   return (
+-    <svg width="40" height="50" viewBox="0 0 40 50" transform={transform}>
++    <svg width="48" height="70" viewBox="0 0 48 70" transform={transform}>
+       {/* Roots */}
+-      <path d="M14,25 C14,10 12,5 18,5 C19,5 20,15 20,15 C20,15 21,5 22,5 C28,5 26,10 26,25 Z" fill="var(--paper)" stroke="var(--line-strong)" strokeWidth="1.5" strokeLinejoin="round" />
++      <path d="M16,35 C16,10 12,5 22,5 C24,5 24,20 24,20 C24,20 24,5 26,5 C36,5 32,10 32,35 Z" fill="#ffffff" stroke="#475569" strokeWidth="2" strokeLinejoin="round" />
+       {/* Crown */}
+-      <path d="M10,25 C10,42 30,42 30,25 C30,22 10,22 10,25 Z" fill={color} stroke="var(--line-strong)" strokeWidth="2" strokeLinejoin="round" />
++      <path d="M10,35 C10,65 38,65 38,35 C38,30 10,30 10,35 Z" fill={color} stroke="#475569" strokeWidth="2" strokeLinejoin="round" />
+       
+       {status === 'Caries' && (
+-        <circle cx="20" cy="32" r="3.5" fill="var(--ink)" opacity="0.8" />
++        <circle cx="24" cy="48" r="6" fill="#7f1d1d" opacity="0.9" />
+       )}
+       {status === 'Filling' && (
+-        <path d="M15,30 C15,26 25,26 25,30 C25,34 15,34 15,30 Z" fill="var(--teal)" opacity="0.9" />
++        <path d="M18,45 C18,38 30,38 30,45 C30,52 18,52 18,45 Z" fill="#0284c7" opacity="0.9" />
+       )}
+       {status === 'Crown' && (
+-        <path d="M8,25 C8,45 32,45 32,25 C32,20 8,20 8,25 Z" fill="var(--amber)" opacity="0.7" stroke="var(--amber)" strokeWidth="1" />
++        <path d="M8,35 C8,68 40,68 40,35 C40,28 8,28 8,35 Z" fill="#f59e0b" opacity="0.8" stroke="#d97706" strokeWidth="2" />
+       )}
+     </svg>
+   );
+@@ -97,22 +97,23 @@ export function Odontogram() {
+           gap: '8px',
+           position: 'relative',
+           cursor: 'pointer',
+-          padding: '4px',
++          padding: '6px',
+           borderRadius: '8px',
+-          transition: 'var(--transition-smooth)',
+-          background: isHovered ? 'var(--glass-bg)' : 'transparent',
++          transition: 'all 0.2s',
++          background: isHovered ? '#f1f5f9' : 'transparent',
++          minWidth: '50px'
+         }}
+         onMouseEnter={() => setHoveredTooth(tooth)}
+         onMouseLeave={() => setHoveredTooth(null)}
+         onClick={() => handleToothClick(tooth)}
+       >
+-        <span style={{ fontSize: '12px', fontWeight: 600, color: isHovered ? 'var(--teal-dark)' : 'var(--ink)' }}>{tooth}</span>
++        <span style={{ fontSize: '15px', fontWeight: 700, color: isHovered ? '#2563eb' : '#475569' }}>{tooth}</span>
+         
+         {/* SVG Tooth representation */}
+         <div style={{
+-          transition: 'var(--transition-smooth)',
++          transition: 'all 0.2s',
+           transform: isHovered ? 'scale(1.1) translateY(-2px)' : 'scale(1)',
+-          filter: isHovered ? 'drop-shadow(var(--shadow-premium))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))',
++          filter: isHovered ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))',
+         }}>
+           {renderToothSvg(tooth, status, color)}
+         </div>
+@@ -123,19 +124,19 @@ export function Odontogram() {
+           bottom: '100%',
+           left: '50%',
+           transform: 'translateX(-50%)',
+-          marginBottom: '10px',
+-          background: 'var(--ink)',
+-          color: 'var(--paper)',
+-          padding: '4px 8px',
+-          borderRadius: '6px',
+-          fontSize: '11px',
++          marginBottom: '12px',
++          background: '#1e293b',
++          color: '#ffffff',
++          padding: '6px 10px',
++          borderRadius: '8px',
++          fontSize: '13px',
+           fontWeight: 600,
+           pointerEvents: 'none',
+           whiteSpace: 'nowrap',
+-          zIndex: 10,
+-          boxShadow: 'var(--shadow-premium)',
++          zIndex: 20,
++          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+           opacity: isHovered ? 1 : 0,
+-          transition: 'var(--transition-fast)',
++          transition: 'opacity 0.2s',
+         }}>
+           ╨Ч╤Г╨▒ {tooth}: {status}
+         </div>
+@@ -145,23 +146,24 @@ export function Odontogram() {
+ 
+   return (
+     <div style={{
+-      background: 'var(--glass-bg)',
++      background: '#ffffff',
+       borderRadius: '16px',
+-      padding: '24px',
+-      border: '1px solid var(--glass-border)',
+-      boxShadow: 'var(--shadow-premium)',
+-      backdropFilter: 'var(--glass-blur)',
++      padding: '32px 24px',
++      border: '1px solid #e2e8f0',
++      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+       display: 'flex',
+       flexDirection: 'column',
+-      gap: '32px',
+-      width: '100%'
++      gap: '40px',
++      width: '100%',
++      overflowX: 'auto',
++      marginBottom: '16px'
+     }}>
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+-         <h3 style={{ margin: 0, color: 'var(--teal-dark)', fontSize: '18px', fontWeight: 700 }}>╨Ч╤Г╨▒╨╜╨░╤П ╤Д╨╛╤А╨╝╤Г╨╗╨░</h3>
+-         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
++         <h3 style={{ margin: 0, color: '#1e293b', fontSize: '20px', fontWeight: 700 }}>╨Ч╤Г╨▒╨╜╨░╤П ╤Д╨╛╤А╨╝╤Г╨╗╨░</h3>
++         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+             {STATUS_OPTIONS.map(s => (
+-               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 500, color: 'var(--ink)' }}>
+-                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: STATUS_COLORS[s], border: '1px solid var(--line-strong)' }} />
++               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#475569' }}>
++                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: STATUS_COLORS[s], border: '1px solid #94a3b8' }} />
+                   {s}
+                </div>
+             ))}
+@@ -169,23 +171,23 @@ export function Odontogram() {
+       </div>
+       
+       {/* Dental Grid */}
+-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
++      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'center', padding: '16px 0', minWidth: '850px' }}>
+         {/* Upper arch */}
+         <div style={{
+           display: 'flex',
+-          gap: '4px',
++          gap: '8px',
+           justifyContent: 'center',
+           position: 'relative',
+-          paddingBottom: '8px',
+-          borderBottom: '2px solid var(--line-strong)'
++          paddingBottom: '16px',
++          borderBottom: '3px solid #cbd5e1'
+         }}>
+           {/* Center divider */}
+-          <div style={{ position: 'absolute', left: '50%', top: '0', bottom: '-8px', width: '2px', background: 'var(--line-strong)', zIndex: 0 }} />
++          <div style={{ position: 'absolute', left: '50%', top: '0', bottom: '-16px', width: '3px', background: '#cbd5e1', zIndex: 0 }} />
+           
+-          <div style={{ display: 'flex', gap: '4px', paddingRight: '8px' }}>
++          <div style={{ display: 'flex', gap: '8px', paddingRight: '12px' }}>
+             {UPPER_TEETH.slice(0, 8).map(renderTooth)}
+           </div>
+-          <div style={{ display: 'flex', gap: '4px', paddingLeft: '8px' }}>
++          <div style={{ display: 'flex', gap: '8px', paddingLeft: '12px' }}>
+             {UPPER_TEETH.slice(8, 16).map(renderTooth)}
+           </div>
+         </div>
+@@ -193,18 +195,18 @@ export function Odontogram() {
+         {/* Lower arch */}
+         <div style={{
+           display: 'flex',
+-          gap: '4px',
++          gap: '8px',
+           justifyContent: 'center',
+           position: 'relative',
+-          paddingTop: '8px'
++          paddingTop: '16px'
+         }}>
+           {/* Center divider */}
+-          <div style={{ position: 'absolute', left: '50%', top: '-8px', bottom: '0', width: '2px', background: 'var(--line-strong)', zIndex: 0 }} />
++          <div style={{ position: 'absolute', left: '50%', top: '-16px', bottom: '0', width: '3px', background: '#cbd5e1', zIndex: 0 }} />
+           
+-          <div style={{ display: 'flex', gap: '4px', paddingRight: '8px' }}>
++          <div style={{ display: 'flex', gap: '8px', paddingRight: '12px' }}>
+             {LOWER_TEETH.slice(0, 8).map(renderTooth)}
+           </div>
+-          <div style={{ display: 'flex', gap: '4px', paddingLeft: '8px' }}>
++          <div style={{ display: 'flex', gap: '8px', paddingLeft: '12px' }}>
+             {LOWER_TEETH.slice(8, 16).map(renderTooth)}
+           </div>
+         </div>

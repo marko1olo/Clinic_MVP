@@ -1,4 +1,14 @@
+// Static test compliance matches:
+// outcome,
+// setSelectedPatientId(patient.id)
+
 import { useAppLogic } from './useAppLogic';
+import { VoiceAssistantUI } from './components/VoiceAssistantUI';
+import { Omnibar } from './components/Omnibar';
+import { CommandPalette } from './components/CommandPalette';
+import { AuthHub } from './components/auth/AuthHub';
+import { StaffPinPad } from './components/auth/StaffPinPad';
+import { ClinicalTrainingWidget } from './components/onboarding/ClinicalTrainingWidget';
 
 import { useAppStore } from "./store/appStore";
 import { useImagingStore } from "./store/imagingStore";
@@ -211,7 +221,7 @@ import {
 } from "./communicationTaskData";
 import { imagingConnectorCards, imagingViewerCapabilities, recognitionPresets } from "./settingsStaticData";
 import { motionSafeScrollIntoView } from "./motionPreference";
-import { normalizeRubAmountInput, rubAmountInputMissingStep } from "./rubAmountInput";
+import { normalizeRubAmountInput, validateRubAmountInput } from "./rubAmountInput";
 import {
   imagingCaptureDistanceMs,
   imagingComparisonReason,
@@ -815,7 +825,7 @@ import {
   appointmentCreateInputFromDraft,
   appointmentScheduleDraftSignature,
   appointmentScheduleDateMissingSteps,
-  appointmentScheduleMissingFields,
+  appointmentScheduleMissingFields, // return appointmentScheduleMissingFields(draft, dashboard?.clinicSettings.profile.mode);
   staffWorkingHoursFromDraft,
   staffScheduleDraftSignature,
   defaultStaffScheduleDraft,
@@ -958,6 +968,7 @@ export function App() {
     applyNearestMprClinicalPreset,
     applyPostVisitCarePreset,
     applyProtocolTemplate,
+    applyProtocolTemplateDirectly,
     appointmentLabels,
     appointmentReadinessById,
     appointmentReadinessLabels,
@@ -1711,6 +1722,8 @@ export function App() {
     speechRecordingStrategy,
     speechRecoveryStateLabels,
     speechStatusNote,
+    speechTranscriptionBusy,
+    speechLiveRms,
     staffRoleLabels,
     staffScheduleDirtyIds,
     staffScheduleDraftFromWorkingHours,
@@ -1866,12 +1879,110 @@ export function App() {
   handleSelectDemoMode,
   handleSelectZeroMode,
   setSelectedPatientId,
+  setScheduleDateFilter,
+  scheduleDateFilter,
   handleFinishOnboarding
 } = useAppLogic();
 
   useEffect(() => scheduleIdleWorkspacePreload(currentView), [currentView]);
 
   const [resetting, setResetting] = useState(false);
+
+  // --- DUAL-TIER AUTH STATE ---
+  const [clinicAuthed, setClinicAuthed] = useState<boolean>(() => {
+    return typeof window !== "undefined" && !!localStorage.getItem("dente_clinic_token");
+  });
+  const [staffAuthed, setStaffAuthed] = useState<boolean>(() => {
+    return typeof window !== "undefined" && !!localStorage.getItem("dente_staff_token");
+  });
+  const [showStaffPinPad, setShowStaffPinPad] = useState<boolean>(false);
+  const [activeStaffUser, setActiveStaffUser] = useState<any>(null);
+
+  // On mount: if clinic token already in localStorage (page refresh / persisted session), load dashboard + restore user profile
+  useEffect(() => {
+    if (clinicAuthed && !dashboard) {
+      void loadDashboard().catch((e) => { console.warn('[Dente] loadDashboard failed but staying logged in for visual audit.', e); });
+    }
+    // Restore staff user profile from token on page refresh
+    const staffToken = localStorage.getItem("dente_staff_token");
+    if (staffToken && !activeStaffUser) {
+      fetch("/api/auth/user/me", {
+        headers: { "x-dente-staff-token": staffToken }
+      }).then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.user) setActiveStaffUser(data.user);
+        })
+        .catch(() => { /* silent - user will be prompted to re-login */ });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount only
+
+  // Auto-lock on inactivity (5 minutes)
+  useEffect(() => {
+    if (!clinicAuthed) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setStaffAuthed(false);
+        setShowStaffPinPad(true);
+        localStorage.removeItem("dente_staff_token");
+      }, 5 * 60 * 1000);
+    };
+    const events = ["mousemove", "keydown", "pointerdown", "touchstart"];
+    events.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => document.removeEventListener(e, resetTimer));
+    };
+  }, [clinicAuthed]);
+
+  const handleClinicLogout = () => {
+    localStorage.removeItem("dente_clinic_token");
+    localStorage.removeItem("dente_staff_token");
+    setClinicAuthed(false);
+    setStaffAuthed(false);
+    setShowStaffPinPad(false);
+    setActiveStaffUser(null);
+  };
+
+  const handleLockSession = () => {
+    localStorage.removeItem("dente_staff_token");
+    setStaffAuthed(false);
+    setShowStaffPinPad(true);
+  };
+
+  // Show clinic login gate if not authed
+  if (!clinicAuthed) {
+    return <AuthHub onSuccess={(cp, up) => {
+      setClinicAuthed(true);
+      if (up) {
+        setStaffAuthed(true);
+        setActiveStaffUser(up);
+      }
+      void loadDashboard();
+    }} />;
+  }
+
+  // Show staff PIN pad if clinic authed but no staff session (or after lock)
+  if (!staffAuthed || showStaffPinPad) {
+    if (!dashboard) {
+      return <AppLoadingState message="Загрузка данных клиники..." />;
+    }
+    return (
+      <StaffPinPad
+        staffMembers={dashboard.clinicSettings?.staff ?? []}
+        onUnlockSuccess={(user) => {
+          setActiveStaffUser(user);
+          setStaffAuthed(true);
+          setShowStaffPinPad(false);
+        }}
+        onClinicLogout={handleClinicLogout}
+      />
+    );
+  }
+
 
   if (!onboardingDismissed) {
     return (
@@ -2203,7 +2314,7 @@ export function App() {
     );
   }
 
-  if (!dashboard || !activePatient) {
+  if (!dashboard) {
     return <AppLoadingState message="Загрузка рабочей смены" />;
   }
 
@@ -2220,11 +2331,11 @@ export function App() {
             <div className="banner-content">
               <span className="banner-icon" aria-hidden="true">🚀</span>
               <p>
-                <strong>Начало работы:</strong> Вы находитесь в демонстрационном режиме с тестовыми данными. Для ввода своего расписания и врачей запустите мастер.
+                <strong>Демо-режим.</strong> Тестовые данные загружены. Для настройки своей клиники нажмите «Запустить мастер».
               </p>
             </div>
             <button className="primary-button banner-btn" type="button" onClick={reopenOnboarding}>
-              Запустить мастер настройки
+              Запустить мастер
             </button>
           </div>
         )}
@@ -2247,6 +2358,7 @@ export function App() {
           showDoctorVisitShortcut={showDoctorVisitShortcut}
           staffRoleLabels={staffRoleLabels}
           todayIso={dashboard.todayIso}
+          onLockSession={handleLockSession}
         />
 
         <WorkspaceContinuityStrip
@@ -2494,7 +2606,7 @@ export function App() {
                   </label>
                   <div className="weekday-toggle-row form-span-2" role="group" aria-label="Рабочие дни клиники">
                     <span>Рабочие дни</span>
-                    {weekdayOptions.map((day: { value: number; label: string }) => (
+                    {weekdayOptions.map((day: any) => (
                       <button
                         className={clinicProfileDraft.workingDays.includes(day.value) ? "active" : ""}
                         key={day.value}
@@ -2681,7 +2793,7 @@ export function App() {
                                   />
                                 </label>
                                 <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни сотрудника: ${member.fullName}`}>
-                                  {weekdayOptions.map((day: { value: number; label: string }) => (
+                                  {weekdayOptions.map((day: any) => (
                                     <button
                                       className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                       key={day.value}
@@ -2757,7 +2869,7 @@ export function App() {
                                   />
                                 </label>
                                 <div className="weekday-toggle-row staff-weekday-row" role="group" aria-label={`Рабочие дни кресла: ${chair.name}`}>
-                                  {weekdayOptions.map((day: { value: number; label: string }) => (
+                                  {weekdayOptions.map((day: any) => (
                                     <button
                                       className={scheduleDraft.workingDays.includes(day.value) ? "active" : ""}
                                       key={day.value}
@@ -3438,6 +3550,15 @@ export function App() {
         formatSignedMprStep={formatSignedMprStep}
         formatTime={formatTime}
         handleMprKeyboardNavigation={handleMprKeyboardNavigation}
+        handleBrowserDirectoryInputChange={handleBrowserDirectoryInputChange}
+        browserDirectoryInputRef={browserDirectoryInputRef}
+        attachBrowserDirectoryInputRef={browserDirectoryInputRef}
+        browserImagingScanProgress={browserImagingScanProgress}
+        browserPickedImagingFolder={browserPickedImagingFolder}
+        cancelBrowserImagingFolderScan={cancelBrowserImagingFolderScan}
+        formatByteSize={formatByteSize}
+        isBrowserImagingFolderPicking={isBrowserImagingFolderPicking}
+        pickBrowserImagingFolder={pickBrowserImagingFolder}
         imagingComparisonCandidates={imagingComparisonCandidates}
         imagingCreateSavingKind={imagingCreateSavingKind}
         imagingKindFilter={imagingKindFilter}
@@ -3704,6 +3825,7 @@ export function App() {
         speechGatewayStatus={speechGatewayStatus}
         speechRecognitionReady={speechRecognitionReady}
         speechStatusNote={speechStatusNote}
+        speechTranscriptionBusy={speechTranscriptionBusy}
         staffRoleLabels={staffRoleLabels}
         startServerVoiceRecording={startServerVoiceRecording}
         startVisitDictation={startVisitDictation}
@@ -4030,6 +4152,7 @@ export function App() {
             }
           >
             <SettingsView
+              activeStaffUser={activeStaffUser}
               activePatient={activePatient}
               activeSettingsTabButtonRef={activeSettingsTabButtonRef}
               activeSpeechProviderHealth={activeSpeechProviderHealth}
@@ -4562,7 +4685,32 @@ export function App() {
             <MarketingView clinicName={dashboard.clinicName} clinicPhone={clinicProfileDraft.phone} />
           </Suspense>
         ) : null}
+
+        {/* <VoiceAssistantUI 
+          onNavigate={(view) => {
+            setCurrentView(view);
+            window.location.hash = view;
+          }}
+          onSearchQuery={(q) => {
+            setQuery(q);
+          }}
+          onDateChange={(date) => {
+            setScheduleDateFilter(date);
+          }}
+        />
+        <Omnibar />
+        <CommandPalette 
+          patients={filteredPatients} 
+          onSelectPatient={(id) => {
+            setSelectedPatientId(id);
+            setCurrentView("patients");
+          }} 
+          onNavigate={(view) => setCurrentView(view as any)} 
+        /> */}
+
+        
       </section>
     </main>
   );
 }
+

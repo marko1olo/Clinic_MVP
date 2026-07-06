@@ -1,0 +1,1587 @@
+{
+  "origin/add-billing-summary-tests-16291274783632771964": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 262,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/tests/sampleData.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/add-browser-continuity-tests-3680950012750205607": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 30,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/browserContinuity.test.ts"
+    ]
+  },
+  "origin/add-document-payload-actual-keys-tests-5732794779187443184": {
+    "verdict": "REJECT",
+    "reason": "Empty branch or no diff against main.",
+    "added_lines": 0,
+    "deleted_lines": 0,
+    "files_modified": []
+  },
+  "origin/add-edge-case-tests-17364278516335214333": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 66,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/workspaceUiLabels.test.ts"
+    ]
+  },
+  "origin/add-frozen-tax-xml-clinic-profile-tests-10047809890061707083": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 77,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/add-frozen-tax-xml-payments-test-1969307010713912383": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 47 lines).",
+    "added_lines": 40,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/documents/documents.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/add-tax-payment-snapshot-tests-6145249684432190439": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 30,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/add-taxDocumentDuplicateSensitive-tests-6832615369930624915": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 19,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/add-telegram-qr-test-17723719168342071588": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 40,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/telegramQr.test.ts"
+    ]
+  },
+  "origin/add-telegram-qr-tests-16754025649877954844": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 40,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/telegramQr.test.ts"
+    ]
+  },
+  "origin/add-test-create-clinical-rule-16949209651468574196": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 104,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/sampleData.test.ts"
+    ]
+  },
+  "origin/add-tests-documentAttachmentFileName-14364715343815011046": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 26,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/add-tests-documentChainDateRangeIsChronological-8835665586840338146": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 54,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/add-tests-for-documenthasissuedarchivemetadata-15805504420341996118": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 37,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/documents.test.ts"
+    ]
+  },
+  "origin/add-tests-for-speech-normalization-7038045008857260590": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 40,
+    "deleted_lines": 0,
+    "files_modified": [
+      "packages/shared/src/tests/speech-normalization.test.ts"
+    ]
+  },
+  "origin/add-tunnel-spawn-test-9669624078264856415": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 66 lines).",
+    "added_lines": 62,
+    "deleted_lines": 4,
+    "files_modified": [
+      "apps/api/src/speech/tests/tunnel.test.ts",
+      "apps/api/src/speech/tunnel.ts"
+    ]
+  },
+  "origin/chore/remove-unused-import-repairmojibaketext-15919246155488548829": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (2 lines).",
+    "added_lines": 1,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/documents/auditFacts.ts"
+    ]
+  },
+  "origin/code-health-dicom-parsing-17460050721223971709": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Large diff (330 lines) in key business logic files: imaging.ts.",
+    "added_lines": 170,
+    "deleted_lines": 160,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/code-health-fix-empty-catch-6946678193176905022": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (1 lines).",
+    "added_lines": 1,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/code-health-refactor-telegram-routes-15108729531296988713": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (442 total lines changed).",
+    "added_lines": 247,
+    "deleted_lines": 195,
+    "files_modified": [
+      "apps/api/src/routes/telegram.ts"
+    ]
+  },
+  "origin/code-health-settingsStore-13122308613035354085": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 4).",
+    "added_lines": 0,
+    "deleted_lines": 4,
+    "files_modified": [
+      "apps/web/src/store/settingsStore.ts"
+    ]
+  },
+  "origin/fix-access-guard-secrets-443956903308453484": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 98 lines).",
+    "added_lines": 10,
+    "deleted_lines": 88,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts",
+      "patch.cjs"
+    ]
+  },
+  "origin/fix-accessGuard-tests-18410355375021928310": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 35,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts"
+    ]
+  },
+  "origin/fix-any-type-api-1458013671374141559": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (4 lines).",
+    "added_lines": 2,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/routes/telegram.ts"
+    ]
+  },
+  "origin/fix-any-type-telegram-outbox-4147835689575395604": {
+    "verdict": "REJECT",
+    "reason": "Empty branch or no diff against main.",
+    "added_lines": 0,
+    "deleted_lines": 0,
+    "files_modified": []
+  },
+  "origin/fix-app-mpr-value-type-10579213683578609791": {
+    "verdict": "REJECT",
+    "reason": "Noise: Only lock files, temporary logs, or autogenerated files changed.",
+    "added_lines": 12,
+    "deleted_lines": 2,
+    "files_modified": [
+      "scratch/fix_app_mpr_2.cjs"
+    ]
+  },
+  "origin/fix-app-ts-nocheck-17075731402660989649": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/App.tsx"
+    ]
+  },
+  "origin/fix-console-error-in-prod-9012440689206079600": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (6 lines).",
+    "added_lines": 4,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/web/src/AppShell.tsx",
+      "apps/web/src/workspaceRouteErrorBoundary.tsx"
+    ]
+  },
+  "origin/fix-empty-catch-block-app-helpers-1567576626504837424": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix-hardcoded-ssh-credentials-6588288071944560134": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 54 lines).",
+    "added_lines": 33,
+    "deleted_lines": 21,
+    "files_modified": [
+      "apps/api/src/speech/tunnel.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/fix-hasdicommagic-test-9820136040424056738": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 56 lines).",
+    "added_lines": 35,
+    "deleted_lines": 21,
+    "files_modified": [
+      "apps/api/src/routes/imaging.test.ts",
+      "apps/api/src/routes/imaging.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/fix-imaging-tests-5428020764330211093": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 76 lines).",
+    "added_lines": 61,
+    "deleted_lines": 15,
+    "files_modified": [
+      "apps/api/src/routes/imaging.test.ts",
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/fix-insecure-cors-policy-10797208693912635323": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 7 lines).",
+    "added_lines": 6,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/server.ts"
+    ]
+  },
+  "origin/fix-insecure-id-generation-12119608115090663595": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (6 lines).",
+    "added_lines": 6,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix-load-additional-server-env-test-17901432412975917423": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 105,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/env/loadServerEnv.test.ts"
+    ]
+  },
+  "origin/fix-map-day-any-type-3122509243479962885": {
+    "verdict": "REJECT",
+    "reason": "Noise: Only lock files, temporary logs, or autogenerated files changed.",
+    "added_lines": 17,
+    "deleted_lines": 6,
+    "files_modified": [
+      "scratch/fix_schedule_ts_final.cjs"
+    ]
+  },
+  "origin/fix-persistent-state-tests-18043932546044671249": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 171,
+    "deleted_lines": 21,
+    "files_modified": [
+      "apps/api/src/tests/persistentState.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/fix-testing-persistent-state-17892367984210599965": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (43 lines).",
+    "added_lines": 37,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/tests/persistentState.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/fix-timing-attack-8164999092029721672": {
+    "verdict": "REJECT",
+    "reason": "Security/Anti-pattern: Deletion of existing security checks or test assertions without replacement.",
+    "added_lines": 4,
+    "deleted_lines": 5,
+    "files_modified": [
+      "apps/api/src/utils/timingSafeSecretEqual.ts"
+    ]
+  },
+  "origin/fix-ts-nocheck-13722134150680820743": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 1, deleted: 2).",
+    "added_lines": 1,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/web/src/VisitView.tsx"
+    ]
+  },
+  "origin/fix-type-imports-settings-store-14681721069786228941": {
+    "verdict": "REJECT",
+    "reason": "Noise: Only lock files, temporary logs, or autogenerated files changed.",
+    "added_lines": 5,
+    "deleted_lines": 0,
+    "files_modified": [
+      "scratch/fix_settings_store_final.cjs"
+    ]
+  },
+  "origin/fix-unused-import-55406870528678567": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx"
+    ]
+  },
+  "origin/fix-unused-import-documents-api-11156921498222016841": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (2 lines).",
+    "added_lines": 1,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/documents.ts"
+    ]
+  },
+  "origin/fix-visitdraft-any-types-14837482836075612817": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 39 lines).",
+    "added_lines": 32,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/ai/visitDraft.ts"
+    ]
+  },
+  "origin/fix/accessguard-hardcoded-secret-3-16530038887586940579": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 8,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts"
+    ]
+  },
+  "origin/fix/code-health-empty-catch-blocks-14788290618784379996": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (20 lines).",
+    "added_lines": 13,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix/code-health-visit-view-ts-nocheck-4188459341702031665": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (4 lines).",
+    "added_lines": 2,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/web/src/VisitView.tsx"
+    ]
+  },
+  "origin/fix/document-payload-validation-tests-2201293579622791556": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 50,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/documentLogic.test.ts"
+    ]
+  },
+  "origin/fix/empty-catch-app-helpers-16150319936745321113": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix/empty-catch-block-app-helpers-11089768804555704078": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix/empty-catch-block-app-helpers-2191413721193616366": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix/empty-catch-block-app-helpers-5751511588818555043": {
+    "verdict": "REJECT",
+    "reason": "Empty branch or no diff against main.",
+    "added_lines": 0,
+    "deleted_lines": 0,
+    "files_modified": []
+  },
+  "origin/fix/empty-catch-blocks-apphelpers-17980994803303317533": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (6 lines).",
+    "added_lines": 4,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/fix/payment-capture-refactor-11181373367954291688": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (434 total lines changed).",
+    "added_lines": 277,
+    "deleted_lines": 157,
+    "files_modified": [
+      "apps/web/src/PaymentCapture.tsx"
+    ]
+  },
+  "origin/fix/refactor-build-dicom-render-cache-plan-17598935424502923647": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 150 lines).",
+    "added_lines": 113,
+    "deleted_lines": 37,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/fix/remove-unused-import-app-tsx-97751359792052563": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/App.tsx"
+    ]
+  },
+  "origin/fix/timing-safe-secret-equal-4852973457998129062": {
+    "verdict": "REJECT",
+    "reason": "Security/Anti-pattern: Deletion of existing security checks or test assertions without replacement.",
+    "added_lines": 4,
+    "deleted_lines": 5,
+    "files_modified": [
+      "apps/api/src/utils/timingSafeSecretEqual.ts"
+    ]
+  },
+  "origin/improve-tax-payment-snapshot-tests-3754699109376801654": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 159,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/jules-11539344925843584611-ec9ddfe5": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/jules-11734954119886233953-fe5384c7": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 49,
+    "deleted_lines": 90,
+    "files_modified": [
+      "apps/api/src/sampleData.ts",
+      "patch.cjs"
+    ]
+  },
+  "origin/jules-11983535579004295466-9a7d1674": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 178,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts",
+      "apps/api/src/documents/taxPaymentSnapshot.ts"
+    ]
+  },
+  "origin/jules-1265520471936738103-3e4d5806": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 2,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts"
+    ]
+  },
+  "origin/jules-13605963803178813191-b64b0014": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 19 lines).",
+    "added_lines": 11,
+    "deleted_lines": 8,
+    "files_modified": [
+      "apps/api/src/ai/visitDraft.ts"
+    ]
+  },
+  "origin/jules-14071294229921790574-cbf451c7": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 43,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/jules-14183787243868368373-f3446c21": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 6,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts"
+    ]
+  },
+  "origin/jules-16066357834948486614-be17bcc8": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 36,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/jules-16124517578286946435-e88a4846": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 144 lines).",
+    "added_lines": 74,
+    "deleted_lines": 70,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts",
+      "scripts/smoke-api-dicom-scan-abort-yield-source.mjs"
+    ]
+  },
+  "origin/jules-1698529657163993840-fcf9d455": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 19,
+    "deleted_lines": 1,
+    "files_modified": [
+      "packages/shared/src/tests/index.test.ts"
+    ]
+  },
+  "origin/jules-17735059119070089496-7b9fd275": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 22,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/jules-18187268059020758908-aa68d2c0": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 147,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/documents/guards.test.ts"
+    ]
+  },
+  "origin/jules-2506488649229701228-bad2d2e2": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 112 lines).",
+    "added_lines": 107,
+    "deleted_lines": 5,
+    "files_modified": [
+      "apps/web/src/motionPreference.ts",
+      "apps/web/src/tests/motionPreference.test.ts"
+    ]
+  },
+  "origin/jules-2740477155384132603-ae98c15a": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 62 lines).",
+    "added_lines": 55,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/documents/renderDocument.test.ts",
+      "apps/api/src/documents/renderDocument.ts"
+    ]
+  },
+  "origin/jules-3245637004101328789-8b740468": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (7 lines).",
+    "added_lines": 5,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/jules-3904512881606770965-80d416c1": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 1,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/tests/accessGuard.test.ts"
+    ]
+  },
+  "origin/jules-6592064215183829530-6211307b": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 61 lines).",
+    "added_lines": 54,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/routes/visits.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/jules-7120462020594266225-3f8a6136": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 62,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/tests/imaging.test.ts"
+    ]
+  },
+  "origin/jules-8783559625174704560-92530b8f": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 47,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/jules-code-health-fix-unused-import-10399426854066397648": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx"
+    ]
+  },
+  "origin/jules-code-health-fix-unused-import-297275704834530257": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx"
+    ]
+  },
+  "origin/jules-code-health-remove-unused-import-12420361435921710305": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/documents/auditFacts.ts"
+    ]
+  },
+  "origin/jules-code-health-visit-draft-9078305807264298504": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (11 lines).",
+    "added_lines": 7,
+    "deleted_lines": 4,
+    "files_modified": [
+      "apps/api/src/ai/visitDraft.ts"
+    ]
+  },
+  "origin/jules-fix-sha1-vulnerability-4192314326189194431": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 1,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/jules-optimize-sample-data-loop-16168192689113767876": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 4597,
+    "deleted_lines": 1814,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/jules-persistent-state-tests-12802374963762912660": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 75,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/persistentState.test.ts"
+    ]
+  },
+  "origin/jules-refactor-patientsview-3915531781978408700": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 764,
+    "deleted_lines": 400,
+    "files_modified": [
+      "apps/web/src/PatientsView.tsx"
+    ]
+  },
+  "origin/jules-remove-unused-import-useAppLogic-12186443601402288151": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx"
+    ]
+  },
+  "origin/jules-testing-taxPaymentSnapshotTotalRub-2869844059530224355": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 21,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/jules/optimize-dicom-preview-grouping-8130128757480160418": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 51 lines).",
+    "added_lines": 36,
+    "deleted_lines": 15,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/jules/visitDraft-tests-11038933632433668380": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 49,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/ai/visitDraft.test.ts"
+    ]
+  },
+  "origin/optimize-billing-summary-5584923517568413975": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (3 lines).",
+    "added_lines": 2,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/optimize-buildDicomSeriesGroups-8531761858212936879": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 3242,
+    "deleted_lines": 1167,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/optimize-patient-insights-5286692016817927997": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 4650,
+    "deleted_lines": 1816,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/optimize-patient-lookup-10217754641142337343": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 12 lines).",
+    "added_lines": 5,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/sampleData.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/optimize-zip-parsing-15870177466701180745": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 110 lines).",
+    "added_lines": 55,
+    "deleted_lines": 55,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts",
+      "apps/api/src/routes/smartImports.ts",
+      "scripts/smoke-api-dicom-scan-abort-yield-source.mjs",
+      "scripts/smoke-imaging-manifest-parser.mjs"
+    ]
+  },
+  "origin/perf-optimize-patient-insights-4436461504320434792": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 36 lines).",
+    "added_lines": 30,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/perf-optimize-sample-data-patient-lookup-9086457322548202929": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 4636,
+    "deleted_lines": 1831,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/perf-optimize-speech-chunks-8068883573552193949": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 39 lines).",
+    "added_lines": 27,
+    "deleted_lines": 12,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx",
+      "package-lock.json"
+    ]
+  },
+  "origin/perf-parallel-sync-8991848053653101996": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 34 lines).",
+    "added_lines": 24,
+    "deleted_lines": 10,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx"
+    ]
+  },
+  "origin/perf-smart-imports-async-stat-8809548652885869216": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 3751,
+    "deleted_lines": 1188,
+    "files_modified": [
+      "apps/api/src/routes/smartImports.ts",
+      "benchmark.mjs",
+      "benchmark.ts",
+      "benchmark2.mjs",
+      "benchmark3.mjs",
+      "test_stat.js"
+    ]
+  },
+  "origin/perf/async-stat-imaging-14093623146126715804": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (6 lines).",
+    "added_lines": 3,
+    "deleted_lines": 3,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts",
+      "scripts/smoke-api-dicom-scan-abort-yield-source.mjs"
+    ]
+  },
+  "origin/perf/limit-concurrent-fetches-4028378429114234160": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 57 lines).",
+    "added_lines": 37,
+    "deleted_lines": 20,
+    "files_modified": [
+      "apps/web/src/useAppLogic.tsx",
+      "scripts/smoke-imaging-preview-object-url-lifecycle.mjs"
+    ]
+  },
+  "origin/perf/unpaid-documents-filter-13418990114355709560": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 19 lines).",
+    "added_lines": 13,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/performance-async-file-read-501464531413998576": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 175 lines).",
+    "added_lines": 128,
+    "deleted_lines": 47,
+    "files_modified": [
+      "apps/api/src/benchmark.ts",
+      "apps/api/src/persistentState.ts",
+      "apps/api/src/routes/system.ts",
+      "apps/api/src/tests/persistentState.test.ts",
+      "apps/api/src/tests/persistentStateExport.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/performance-optimization-appointment-readiness-13524750992276001922": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 4652,
+    "deleted_lines": 1819,
+    "files_modified": [
+      "apps/api/src/sampleData.ts"
+    ]
+  },
+  "origin/performance-smart-imports-1774762178577701235": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (6 lines).",
+    "added_lines": 3,
+    "deleted_lines": 3,
+    "files_modified": [
+      "apps/api/src/routes/smartImports.ts"
+    ]
+  },
+  "origin/performance/optimize-staff-lookup-3536538372283502503": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 69 lines).",
+    "added_lines": 49,
+    "deleted_lines": 20,
+    "files_modified": [
+      "apps/web/src/AppHelpers.tsx"
+    ]
+  },
+  "origin/refactor-any-visitdraft-16721404143453561531": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 27 lines).",
+    "added_lines": 20,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/ai/visitDraft.ts"
+    ]
+  },
+  "origin/refactor-dicom-pixel-parsing-1397289309613682737": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Large diff (211 lines) in key business logic files: imaging.ts.",
+    "added_lines": 110,
+    "deleted_lines": 101,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/refactor-document-validators-13250205053520203714": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (4012 total lines changed).",
+    "added_lines": 2954,
+    "deleted_lines": 1058,
+    "files_modified": [
+      "apps/web/src/documentLogic.ts",
+      "apps/web/src/documentValidators.ts"
+    ]
+  },
+  "origin/refactor-imaging-readiness-633299680576634643": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Large diff (193 lines) in key business logic files: imaging.ts.",
+    "added_lines": 150,
+    "deleted_lines": 43,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/refactor-imaging-routes-7272708792413186337": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 3261,
+    "deleted_lines": 1178,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/refactor-payment-capture-6494976536550465918": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (601 total lines changed).",
+    "added_lines": 408,
+    "deleted_lines": 193,
+    "files_modified": [
+      "apps/web/src/PaymentCapture.tsx"
+    ]
+  },
+  "origin/refactor-payment-capture-digits-input-17748409687346421566": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 57 lines).",
+    "added_lines": 34,
+    "deleted_lines": 23,
+    "files_modified": [
+      "apps/web/src/PaymentCapture.tsx",
+      "scripts/smoke-payment-capture-source.mjs"
+    ]
+  },
+  "origin/refactor-tax-xml-18084261108049352039": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (234 total lines changed).",
+    "added_lines": 129,
+    "deleted_lines": 105,
+    "files_modified": [
+      "apps/api/src/routes/documents/taxXml.ts"
+    ]
+  },
+  "origin/refactor-visitview-6768714036296542862": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (2241 total lines changed).",
+    "added_lines": 1777,
+    "deleted_lines": 464,
+    "files_modified": [
+      "apps/web/src/VisitView.tsx"
+    ]
+  },
+  "origin/refactor/ct-planning-tools-extraction-2939112650420923196": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 524,
+    "deleted_lines": 218,
+    "files_modified": [
+      "apps/web/src/ctPlanningGeometryGridPanel.tsx",
+      "apps/web/src/ctPlanningImplantLibraryPanel.tsx",
+      "apps/web/src/ctPlanningMetricGridPanel.tsx",
+      "apps/web/src/ctPlanningPlanBoardPanel.tsx",
+      "apps/web/src/ctPlanningQuickActionsPanel.tsx",
+      "apps/web/src/ctPlanningTaskBoardPanel.tsx",
+      "apps/web/src/ctPlanningToolGridPanel.tsx",
+      "apps/web/src/ctPlanningTools.tsx"
+    ]
+  },
+  "origin/refactor/document-store-slices-18006187993669504760": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (5262 total lines changed).",
+    "added_lines": 4297,
+    "deleted_lines": 965,
+    "files_modified": [
+      "apps/web/src/store/documentStore.ts"
+    ]
+  },
+  "origin/refactor/extract-long-functions-document-logic-16026302684329771698": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (3064 total lines changed).",
+    "added_lines": 2596,
+    "deleted_lines": 468,
+    "files_modified": [
+      "apps/web/src/documentLogic.ts"
+    ]
+  },
+  "origin/refactor/imaging-dicom-n1-query-10384275184011723696": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 48 lines).",
+    "added_lines": 34,
+    "deleted_lines": 14,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/refactor/smart-imports-discovery-3265928466527713512": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 56,
+    "deleted_lines": 28,
+    "files_modified": [
+      "apps/api/src/routes/smartImports.ts"
+    ]
+  },
+  "origin/remove-unused-import-buildknd1151156xml-3338342630768107499": {
+    "verdict": "ACCEPT",
+    "reason": "Code cleanup / dead code removal (lines added: 0, deleted: 1).",
+    "added_lines": 0,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/documents.ts"
+    ]
+  },
+  "origin/security-fix-powershell-injection-3213016686651948552": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 24,
+    "deleted_lines": 24,
+    "files_modified": [
+      "apps/api/src/routes/smartImports.ts"
+    ]
+  },
+  "origin/security-fix-sha256-hash-6614686802490043899": {
+    "verdict": "REJECT",
+    "reason": "Security: SQL Injection risk detected (unvalidated string interpolation/concatenation in SQL query).",
+    "added_lines": 2,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/routes/imaging.ts"
+    ]
+  },
+  "origin/security/remove-hardcoded-ssh-tunnel-secrets-11793232858533168586": {
+    "verdict": "ACCEPT",
+    "reason": "Null-safety or input validation additions (small diff: 20 lines).",
+    "added_lines": 13,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/speech/tunnel.ts"
+    ]
+  },
+  "origin/test-base-tax-payments-2568994165033441051": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 115,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/test-coverage-documents-1230430640855949152": {
+    "verdict": "REJECT",
+    "reason": "Performance: Memory allocation (new object, array, or regex) inside loop / cyclical path.",
+    "added_lines": 58,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/routes/documents.test.ts"
+    ]
+  },
+  "origin/test-ct-planning-viewer-restore-commands-9946292766167968861": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 65 lines).",
+    "added_lines": 59,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/web/src/tests/ctPlanningViewerRestore.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/test-document-extractor-1848630632402818493": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 142,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/ingestion/documentExtractor.test.ts"
+    ]
+  },
+  "origin/test-document-payload-keys-6809271284304201680": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 54,
+    "deleted_lines": 1,
+    "files_modified": [
+      "packages/shared/src/tests/index.test.ts"
+    ]
+  },
+  "origin/test-document-requires-paid-record-10249717296934682680": {
+    "verdict": "REJECT",
+    "reason": "Empty branch or no diff against main.",
+    "added_lines": 0,
+    "deleted_lines": 0,
+    "files_modified": []
+  },
+  "origin/test-documentPayloadDisallowedKeys-8770902745473720274": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 51,
+    "deleted_lines": 1,
+    "files_modified": [
+      "packages/shared/src/tests/index.test.ts"
+    ]
+  },
+  "origin/test-fallback-patient-1104627209115360006": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 38,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/documents.test.ts"
+    ]
+  },
+  "origin/test-fiscal-receipt-16903946232758165947": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 60,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/workspaceUiLabels.test.ts"
+    ]
+  },
+  "origin/test-get-loaded-server-env-files-17578461262642283503": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 92,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/env/loadServerEnv.test.ts"
+    ]
+  },
+  "origin/test-get-loaded-server-env-files-7957566097856814317": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 64,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/env/loadServerEnv.test.ts"
+    ]
+  },
+  "origin/test-imports-intake-12730654120062844391": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 70 lines).",
+    "added_lines": 64,
+    "deleted_lines": 6,
+    "files_modified": [
+      "apps/api/src/routes/imports.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/test-medical-record-extract-period-chronological-7212142005419347008": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 61,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/test-mpr-bounds-logic-18429611106935924799": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 105,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/mprControlMath.test.ts"
+    ]
+  },
+  "origin/test-mpr-slice-fraction-6532199826074947992": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 111 lines).",
+    "added_lines": 31,
+    "deleted_lines": 80,
+    "files_modified": [
+      "apps/web/src/tests/mprControlMath.test.ts",
+      "patch.cjs"
+    ]
+  },
+  "origin/test-normalized-taxpayer-inn-4458099240520094145": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 30,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/tests/documents.test.ts"
+    ]
+  },
+  "origin/test-pricelist-analyzer-safe-parse-15635091825919835705": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (41 lines).",
+    "added_lines": 40,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/pricelist/analyzer.test.ts",
+      "apps/api/src/pricelist/analyzer.ts"
+    ]
+  },
+  "origin/test-release-material-kind-14940470959046009495": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 92,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/test-snapshot-payments-5507894714215147569": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 51,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/test-tax-document-uses-payment-snapshot-8656273301810206023": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (32 lines).",
+    "added_lines": 25,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/test-tax-payment-snapshot-scope-5900083242802371946": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 206,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/test-tax-payment-year-9502226569739977364": {
+    "verdict": "ACCEPT",
+    "reason": "Small localized modification (48 lines).",
+    "added_lines": 41,
+    "deleted_lines": 7,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts",
+      "package-lock.json"
+    ]
+  },
+  "origin/test-tax-payment-year-edge-cases-12225439702410834402": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 36,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/test-telegram-qr-3665070303882853951": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 55,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/telegramQr.test.ts"
+    ]
+  },
+  "origin/test-visit-draft-error-paths-16637424435271062524": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 113 lines).",
+    "added_lines": 113,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/sampleData.ts",
+      "apps/api/src/tests/routes/visits.test.ts"
+    ]
+  },
+  "origin/test/add-document-amount-source-tests-13076385029310246835": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 82,
+    "deleted_lines": 19,
+    "files_modified": [
+      "packages/shared/src/tests/index.test.ts"
+    ]
+  },
+  "origin/test/add-document-payload-allowed-keys-18275710642719591731": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 22,
+    "deleted_lines": 1,
+    "files_modified": [
+      "packages/shared/src/tests/index.test.ts"
+    ]
+  },
+  "origin/test/add-motion-preference-tests-10739048346923151116": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 148,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/motionPreference.test.ts",
+      "pr_description.txt"
+    ]
+  },
+  "origin/test/build-persistent-state-export-5991272211762515518": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 71,
+    "deleted_lines": 2,
+    "files_modified": [
+      "apps/api/src/tests/persistentState.test.ts"
+    ]
+  },
+  "origin/test/normalized-taxpayer-inn-7046471691602208591": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 33,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/test/release-source-snapshot-hash-8334435013911281771": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 96,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/test/rub-amount-input-13987361571561039653": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 72,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/rubAmountInput.test.ts"
+    ]
+  },
+  "origin/test/tunnel-coverage-4721806023362738399": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Broad changes across multiple files (214 total lines changed).",
+    "added_lines": 210,
+    "deleted_lines": 4,
+    "files_modified": [
+      "apps/api/src/speech/tests/tunnel.test.ts",
+      "apps/api/src/speech/tunnel.ts"
+    ]
+  },
+  "origin/testing-clinic-profile-mutation-rejection-15013433451522702419": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 84 lines).",
+    "added_lines": 83,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/settings.test.ts",
+      "apps/api/src/routes/settings.ts"
+    ]
+  },
+  "origin/testing-improvement-12724224919520150831": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 222,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/__tests__/workspaceUiLabels.test.ts"
+    ]
+  },
+  "origin/testing-improvement-documents-1132457579192491817": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 47,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/documents.test.ts"
+    ]
+  },
+  "origin/testing-improvement-documents-frozen-tax-xml-payments-12420361435921710756": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 43,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/frozenTaxXmlPayments.test.ts"
+    ]
+  },
+  "origin/testing-improvement-format-byte-size-11947421040919274159": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 76,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/web/src/tests/browserContinuity.test.ts"
+    ]
+  },
+  "origin/testing-improvement-pdf-export-error-10112870655675696317": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 25,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/routes/documents.test.ts"
+    ]
+  },
+  "origin/testing-improvement/taxDocumentUsesPaymentSnapshot-10026025788104281688": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 35,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/testing-persistent-state-export-858764686604342840": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 111,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/persistentStateExport.test.ts"
+    ]
+  },
+  "origin/testing-splitline-14061138847917763757": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 39,
+    "deleted_lines": 0,
+    "files_modified": [
+      "packages/shared/src/tests/strings.test.ts"
+    ]
+  },
+  "origin/testing-ssh-tunnel-error-7136963078718480263": {
+    "verdict": "MANUAL_REVIEW",
+    "reason": "Requires manual review (diff of 67 lines).",
+    "added_lines": 63,
+    "deleted_lines": 4,
+    "files_modified": [
+      "apps/api/src/speech/tests/tunnel.test.ts",
+      "apps/api/src/speech/tunnel.ts"
+    ]
+  },
+  "origin/testing-tax-document-uses-payment-snapshot-10181223780603634867": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 23,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/testing-tax-payment-year-7978278981150782790": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 44,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/documents/taxPaymentSnapshot.test.ts"
+    ]
+  },
+  "origin/testing/telegram-qr-missing-payload-5649380522993395263": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 28,
+    "deleted_lines": 0,
+    "files_modified": [
+      "apps/api/src/tests/telegramQr.test.ts"
+    ]
+  },
+  "origin/tests/payment-refund-correction-guards-6614590321162371056": {
+    "verdict": "ACCEPT",
+    "reason": "Documentation, test additions, or documentation adjustments.",
+    "added_lines": 113,
+    "deleted_lines": 1,
+    "files_modified": [
+      "apps/api/src/documents/guards.test.ts"
+    ]
+  }
+}

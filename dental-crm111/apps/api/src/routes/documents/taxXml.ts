@@ -1,71 +1,47 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { requireClinicalReadAccess } from "../../accessGuard.js";
-import {
-  createDocumentSchema,
-  issueDocumentSchema,
-  publicGeneratedDocumentSchema,
-  voidDocumentSchema
-} from "@dental/shared";
-import {
-  clinicProfile,
-  createGeneratedDocument,
-  documents,
-  findVisitById,
-  issueGeneratedDocument,
-  patients,
-  payments,
-  readIssuedDocumentSnapshot,
-  storeTaxXmlSnapshot,
-  treatmentPlanItems,
-  voidGeneratedDocument
-} from "../../sampleData.js";
-import {
-  paidAmountRubForDocument,
-  plannedAmountRubForDocument,
-  paymentRefundCorrectionSelectionErrorForDocument,
-  paymentReceiptSelectionErrorForDocument,
-  taxPaymentSelectionErrorForDocument,
-  validateDocumentCreation
-} from "../../documents/guards.js";
+
 
 import {
   buildTaxPaymentSnapshotForIssue,
   taxDocumentUsesPaymentSnapshot
 } from "../../documents/taxPaymentSnapshot.js";
 import { buildKnd1151156Xml } from "../../documents/taxXml.js";
-import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
 
 import {
   apiError,
-  buildDocumentAuditFacts,
   configuredTaxOfficeCode,
-  documentAttachmentFileName,
-  documentCreateValidationMessageForRequest,
-  documentHasIssuedArchiveMetadata,
   documentIssueBlockReason,
   documentIssueChainBlockReason,
-  documentRequiresIssuedArchive,
   findIssuedDuplicateTaxCertificate,
   frozenTaxXmlClinicProfile,
   frozenTaxXmlPatient,
   frozenTaxXmlPayments,
-  issuedArchiveIntegrityError,
-  renderIssuedHtmlToPdf,
   taxSnapshotDocument,
   taxXmlSourceSnapshotSha256,
-  documentRenderContext,
-  documentVoidValidationMessage,
-  documentIssueValidationMessage,
-  buildMedicalDocumentReleaseJournalEntry,
-  taxXmlSourceSnapshotForIssue
+  documentRenderContext
 } from "../documents.js";
-import { renderDocumentHtml, taxFiscalDocumentBlockReason } from "../../documents/renderDocument.js";
+import { getDocumentById, issueGeneratedDocumentInDb, voidGeneratedDocumentInDb, storeTaxXmlSnapshotInDb } from "../../db/documentQuery.js";
+import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
+import { getPaymentsByPatientIdInDb } from "../../db/billingQuery.js";
+import { getVisitByIdInDb } from "../../db/visitsQuery.js";
+import { verifyToken } from "../../utils/cryptoHelper.js";
+import { TOKEN_SECRET } from "../auth.js";
+
+import { taxFiscalDocumentBlockReason } from "../../documents/renderDocument.js";
 
 export async function register(app: FastifyInstance) {
-  app.get("/api/documents/:id/tax-xml", async (request, reply) => {
-    if (!(await requireClinicalReadAccess(request, reply, "document tax xml"))) return;
+  app.get("/api/documents/:id/tax-xml", handleGetTaxXml);
+}
+
+async function handleGetTaxXml(request: FastifyRequest, reply: FastifyReply) {
+  if (!(await requireClinicalReadAccess(request, reply, "document tax xml"))) return;
     const { id } = request.params as { id: string };
-    const document = documents.find((candidate) => candidate.id === id);
+        const clinicHeader = request.headers["x-dente-clinic-token"];
+    const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
+    const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
+    const orgId = payload?.organizationId as string || "mock-org";
+    const document = await getDocumentById(orgId, id);
     if (!document) {
       return reply.code(404).send(apiError("Документ не найден"));
     }
@@ -86,16 +62,16 @@ export async function register(app: FastifyInstance) {
         .send(document.taxXmlSnapshot.xml);
     }
 
-    const patient = patients.find((candidate) => candidate.id === document.patientId);
+    const patient = await getPatientByIdFromDb(orgId, document.patientId);
     if (!patient) {
       return reply.code(404).send(apiError("Пациент не найден"));
     }
 
     const taxPaymentSnapshot =
       document.taxPaymentSnapshot ??
-      (taxDocumentUsesPaymentSnapshot(document.kind) ? buildTaxPaymentSnapshotForIssue(document, payments, documents) : null);
+      (taxDocumentUsesPaymentSnapshot(document.kind) ? buildTaxPaymentSnapshotForIssue(document, await import("../../db/billingQuery.js").then(m => m.getPaymentsByPatientIdInDb(orgId, document.patientId)), await import("../../db/documentQuery.js").then(m => m.getDocumentsByPatientId(orgId, document.patientId))) : null);
     if (taxDocumentUsesPaymentSnapshot(document.kind) && !taxPaymentSnapshot) {
-      const duplicateTaxCertificate = findIssuedDuplicateTaxCertificate(document);
+      const duplicateTaxCertificate = await findIssuedDuplicateTaxCertificate(document, []);
       if (duplicateTaxCertificate) {
         return reply
           .code(409)
@@ -118,8 +94,8 @@ export async function register(app: FastifyInstance) {
     }
     const renderContext = documentRenderContext();
     const xmlPatient = frozenTaxXmlPatient(xmlDocument, patient);
-    const xmlClinicProfile = frozenTaxXmlClinicProfile(xmlDocument, clinicProfile);
-    const xmlPayments = frozenTaxXmlPayments(xmlDocument, payments);
+    const xmlClinicProfile = frozenTaxXmlClinicProfile(xmlDocument, await import("../../db/settingsQuery.js").then(m => m.getClinicSettingsFromDb(orgId).then(s => s.profile)));
+    const xmlPayments = frozenTaxXmlPayments(xmlDocument, await import("../../db/billingQuery.js").then(m => m.getPaymentsByPatientIdInDb(orgId, xmlDocument.patientId)));
     const xmlRenderContext = { ...renderContext, clinicProfile: xmlClinicProfile, payments: xmlPayments };
     const blockReason = documentIssueBlockReason(xmlDocument, xmlPatient, xmlRenderContext);
     if (blockReason) {
@@ -129,11 +105,11 @@ export async function register(app: FastifyInstance) {
     if (taxBlockReason) {
       return reply.code(409).send(apiError(taxBlockReason));
     }
-    const chainBlockReason = documentIssueChainBlockReason(xmlDocument);
+    const chainBlockReason = await documentIssueChainBlockReason(xmlDocument);
     if (chainBlockReason) {
       return reply.code(409).send(apiError(chainBlockReason));
     }
-    const duplicateTaxCertificate = findIssuedDuplicateTaxCertificate(xmlDocument);
+    const duplicateTaxCertificate = await findIssuedDuplicateTaxCertificate(xmlDocument, []);
     if (duplicateTaxCertificate) {
       return reply
         .code(409)
@@ -153,7 +129,7 @@ export async function register(app: FastifyInstance) {
     if (!result.ok) {
       return reply.code(result.statusCode).send(apiError(result.error));
     }
-    const storedDocument = storeTaxXmlSnapshot(document.id, {
+    const storedDocument = await storeTaxXmlSnapshotInDb(orgId, document.id, {
       fileName: result.fileName,
       xml: result.xml,
       taxOfficeCode: (taxOfficeCode ?? "").replace(/\D+/g, ""),
@@ -168,5 +144,4 @@ export async function register(app: FastifyInstance) {
       .header("Content-Disposition", `attachment; filename="${snapshot.fileName}.xml"`)
       .type("application/xml; charset=utf-8")
       .send(snapshot.xml);
-  });
 }

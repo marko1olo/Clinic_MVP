@@ -1,0 +1,20 @@
+--- dental-crm111/apps/api/src/sampleData.ts
++++ dental-crm111/apps/api/src/sampleData.ts
+@@ -6970,12 +6970,16 @@
+     });
+   }
+
++  const activePatientsMap = new Map(
++    patients.filter((p) => p.status === "active").map((p) => [p.id, p])
++  );
++
+   const paidMilestones = [...payments]
+     .filter((payment) => payment.organizationId === organizationScope && payment.status === "paid")
+     .sort((left, right) => (right.paidAt ?? right.createdAt).localeCompare(left.paidAt ?? left.createdAt));
+
+   for (const payment of paidMilestones) {
+-    const patient = patients.find((candidate) => candidate.id === payment.patientId && candidate.status === "active") ?? null;
++    const patient = activePatientsMap.get(payment.patientId) ?? null;
+     if (!patient || !reviewRequestVisitIsClosed(payment)) continue;
+     const visit = payment.visitId ? findVisitById(payment.visitId) : null;
+     pushReviewRequest({

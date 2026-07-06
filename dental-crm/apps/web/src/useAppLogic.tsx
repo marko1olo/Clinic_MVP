@@ -14632,30 +14632,6 @@ const [lastVisitSaveReceipt, setLastVisitSaveReceipt] = useState<string | null>(
 // const [treatmentAcceptanceAlternativesUnderstood, setTreatmentAcceptanceAlternativesUnderstood] = useState(false)
 // const [treatmentAcceptanceCostChangeUnderstood, setTreatmentAcceptanceCostChangeUnderstood] = useState(false)
 // const [treatmentAcceptanceRevisionAcknowledged, setTreatmentAcceptanceRevisionAcknowledged] = useState(false)
-// const [postVisitPrintedCopyReceived, setPostVisitPrintedCopyReceived] = useState(false)
-// const [postVisitUrgentSignsUnderstood, setPostVisitUrgentSignsUnderstood] = useState(false)
-// const [postVisitTelegramSafe, setPostVisitTelegramSafe] = useState(false)
-// const [recordExtractPreparedFromSignedRecords, setRecordExtractPreparedFromSignedRecords] = useState(false)
-// const [recordExtractThirdPartyDataChecked, setRecordExtractThirdPartyDataChecked] = useState(false)
-// const [attendanceDiagnosisDisclosureExcluded, setAttendanceDiagnosisDisclosureExcluded] = useState(false)
-// const [attendanceNotSickLeaveAcknowledged, setAttendanceNotSickLeaveAcknowledged] = useState(false)
-// aria-describedby={!hasVisitTranscriptText ? "dictation-clear-guidance" : undefined}
-// id="dictation-clear-guidance"
-// Диктовка уже пустая. Нечего очищать.
-// const [clinicalAdminSecretDraft, setClinicalAdminSecretDraft] = useState("")
-// const [settingsAdminSecretDraft, setSettingsAdminSecretDraft] = useState("")
-// const [scheduleAdminSecretDraft, setScheduleAdminSecretDraft] = useState("")
-// const [telegramAdminSecretDraft, setTelegramAdminSecretDraft] = useState("")
-// adminSecretOverride ?? clinicalAdminSecretSession
-// adminSecretOverride ?? settingsAdminSecretSession
-// adminSecretOverride ?? scheduleAdminSecretSession
-// adminSecretOverride ?? telegramAdminSecretSession
-// adminSecretDraft={clinicalAdminSecretDraft}
-// onAdminSecretChange={setClinicalAdminSecretDraft}
-// setScheduleAdminSecretDraft={setScheduleAdminSecretDraft}
-// scheduleAdminSecretDraft={scheduleAdminSecretDraft}
-// setTelegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? setTelegramAdminSecretDraft : setSettingsAdminSecretDraft}
-// telegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? telegramAdminSecretDraft : settingsAdminSecretDraft}
 // const secret = adminSecretDraftForDomain(domain).trim()
 // clearAdminSecretDraft(domain)
 // function settingsAccessHeaders

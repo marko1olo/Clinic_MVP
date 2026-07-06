@@ -79,7 +79,9 @@ async function main() {
       execSync(`git push origin main`, { stdio: 'inherit' });
       try {
         execSync(`git branch -D pr/${pr.number}`, { stdio: 'ignore' });
-      } catch (e) {} // ignore if branch deletion fails
+      } catch (e) {
+        console.warn(`⚠️ Failed to delete local branch pr/${pr.number}`);
+      } // ignore if branch deletion fails
       console.log(`✅ Successfully merged and pushed PR #${pr.number}`);
     } catch (e) {
       console.error(`\n🚨 Failed to push changes to remote. Stopping script.`);

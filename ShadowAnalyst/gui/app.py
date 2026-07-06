@@ -1676,8 +1676,8 @@ if __name__ == '__main__':
             icon_path = os.path.join(STATIC_DIR, "logo.png")
             if os.path.exists(icon_path):
                 icon_image = Image.open(icon_path)
-        except:
-            pass
+        except Exception as e:
+            print(f"[Tray] Error loading tray icon: {e}")
 
         menu = pystray.Menu(
             pystray.MenuItem("Открыть", on_show, default=True),

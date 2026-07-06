@@ -114,28 +114,30 @@ export function containsAnyFuzzyRoot(text: string, roots: string[]): boolean {
  * Converts Russian number words into digits. 
  * Correctly combines "восемь девятьсот шестнадцать" into "8 916".
  */
-export function textToNumbers(text: string): string {
-  const numValues: Record<string, number> = {
-    "ноль": 0, "нуль": 0, "один": 1, "одна": 1, "первый": 1, "первого": 1,
-    "два": 2, "две": 2, "второй": 2, "второго": 2,
-    "три": 3, "третий": 3, "третьего": 3,
-    "четыре": 4, "четвертый": 4, "четвертого": 4,
-    "пять": 5, "пятый": 5, "пятого": 5,
-    "шесть": 6, "шестой": 6, "шестого": 6,
-    "семь": 7, "седьмой": 7, "седьмого": 7,
-    "восемь": 8, "восьмой": 8, "восьмого": 8,
-    "девять": 9, "девятый": 9, "девятого": 9,
-    "десять": 10, "десятый": 10, "десятого": 10,
-    "одиннадцать": 11, "двенадцать": 12, "тринадцать": 13, 
-    "четырнадцать": 14, "пятнадцать": 15, "шестнадцать": 16, 
-    "семнадцать": 17, "восемнадцать": 18, "девятнадцать": 19,
-    "двадцать": 20, "тридцать": 30, "сорок": 40, "пятьдесят": 50,
-    "шестьдесят": 60, "семьдесят": 70, "восемьдесят": 80, "девяносто": 90,
-    "сто": 100, "двести": 200, "триста": 300, "четыреста": 400, "четреста": 400,
-    "пятьсот": 500, "шестьсот": 600, "семьсот": 700, "восемьсот": 800, "девятьсот": 900,
-    "тысяча": 1000, "тысячи": 1000, "тысяч": 1000
-  };
+const NUM_VALUES: Record<string, number> = {
+  "ноль": 0, "нуль": 0, "один": 1, "одна": 1, "первый": 1, "первого": 1,
+  "два": 2, "две": 2, "второй": 2, "второго": 2,
+  "три": 3, "третий": 3, "третьего": 3,
+  "четыре": 4, "четвертый": 4, "четвертого": 4,
+  "пять": 5, "пятый": 5, "пятого": 5,
+  "шесть": 6, "шестой": 6, "шестого": 6,
+  "семь": 7, "седьмой": 7, "седьмого": 7,
+  "восемь": 8, "восьмой": 8, "восьмого": 8,
+  "девять": 9, "девятый": 9, "девятого": 9,
+  "десять": 10, "десятый": 10, "десятого": 10,
+  "одиннадцать": 11, "двенадцать": 12, "тринадцать": 13,
+  "четырнадцать": 14, "пятнадцать": 15, "шестнадцать": 16,
+  "семнадцать": 17, "восемнадцать": 18, "девятнадцать": 19,
+  "двадцать": 20, "тридцать": 30, "сорок": 40, "пятьдесят": 50,
+  "шестьдесят": 60, "семьдесят": 70, "восемьдесят": 80, "девяносто": 90,
+  "сто": 100, "двести": 200, "триста": 300, "четыреста": 400, "четреста": 400,
+  "пятьсот": 500, "шестьсот": 600, "семьсот": 700, "восемьсот": 800, "девятьсот": 900,
+  "тысяча": 1000, "тысячи": 1000, "тысяч": 1000
+};
 
+const SORTED_NUM_KEYS = Object.keys(NUM_VALUES).sort((a, b) => b.length - a.length);
+
+export function textToNumbers(text: string): string {
   const tokens = text.split(/(\s+)/);
   const result: string[] = [];
   
@@ -154,13 +156,11 @@ export function textToNumbers(text: string): string {
     const word = match ? match[2]!.toLowerCase() : token.toLowerCase();
     const suffix = match ? match[3] : '';
     
-    let matchedVal = numValues[word];
+    let matchedVal = NUM_VALUES[word];
     if (matchedVal === undefined) {
-      // Sort keys by length descending to match longest roots first (e.g., "двенадцать" before "две")
-      const sortedKeys = Object.keys(numValues).sort((a, b) => b.length - a.length);
-      for (const k of sortedKeys) {
+      for (const k of SORTED_NUM_KEYS) {
         if (isFuzzyRootMatch(word, k)) {
-          matchedVal = numValues[k];
+          matchedVal = NUM_VALUES[k];
           break;
         }
       }
@@ -221,10 +221,9 @@ export function textToNumbers(text: string): string {
           const wMatch = tokens[j]!.match(/^([.,;!?]*)(.*?)([.,;!?]*)$/);
           const nextWord = wMatch ? wMatch[2]!.toLowerCase() : tokens[j]!.toLowerCase();
           
-          let hasNext = numValues[nextWord] !== undefined;
+          let hasNext = NUM_VALUES[nextWord] !== undefined;
           if (!hasNext) {
-            const sortedKeys = Object.keys(numValues).sort((a, b) => b.length - a.length);
-            for (const k of sortedKeys) {
+            for (const k of SORTED_NUM_KEYS) {
               if (isFuzzyRootMatch(nextWord, k)) {
                 hasNext = true; break;
               }

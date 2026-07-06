@@ -57,15 +57,18 @@ def get_user_role(chat_id: int):
 # Инициализация при импорте
 init_db()
 
-# Дефолтные админы и врачи из переменных окружения
-initial_admins = os.environ.get("INITIAL_ADMINS", "")
-if initial_admins:
-    for admin_id in initial_admins.split(','):
-        if admin_id.strip().isdigit():
-            add_user(int(admin_id.strip()), 'admin', f'Admin {admin_id.strip()}')
+def init_from_env():
+    # Дефолтные админы и врачи из переменных окружения
+    initial_admins = os.environ.get("INITIAL_ADMINS", "")
+    if initial_admins:
+        for admin_id in initial_admins.split(','):
+            if admin_id.strip().isdigit():
+                add_user(int(admin_id.strip()), 'admin', f'Admin {admin_id.strip()}')
 
-initial_doctors = os.environ.get("INITIAL_DOCTORS", "")
-if initial_doctors:
-    for doctor_id in initial_doctors.split(','):
-        if doctor_id.strip().isdigit():
-            add_user(int(doctor_id.strip()), 'doctor', f'Doctor {doctor_id.strip()}')
+    initial_doctors = os.environ.get("INITIAL_DOCTORS", "")
+    if initial_doctors:
+        for doctor_id in initial_doctors.split(','):
+            if doctor_id.strip().isdigit():
+                add_user(int(doctor_id.strip()), 'doctor', f'Doctor {doctor_id.strip()}')
+
+init_from_env()

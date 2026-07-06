@@ -89,5 +89,43 @@ class TestDB(unittest.TestCase):
         patients = db.get_users_by_role('patient')
         self.assertEqual(patients, [])
 
+    @patch('os.environ.get')
+    def test_init_db_with_initial_admins_and_doctors(self, mock_env_get):
+        def mock_get(key, default=""):
+            if key == "INITIAL_ADMINS":
+                return " 4001, invalid, 4002 "
+            elif key == "INITIAL_DOCTORS":
+                return "5001, , 5002,notanid"
+            return default
+        mock_env_get.side_effect = mock_get
+
+        # Call the refactored function
+        db.init_from_env()
+
+        # Check that admins were added correctly
+        admins = db.get_users_by_role('admin')
+        self.assertIn(4001, admins)
+        self.assertIn(4002, admins)
+
+        # Check that doctors were added correctly
+        doctors = db.get_users_by_role('doctor')
+        self.assertIn(5001, doctors)
+        self.assertIn(5002, doctors)
+
+        # Verify specific details of an added admin
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (4001,))
+        row = c.fetchone()
+        self.assertEqual(row['role'], 'admin')
+        self.assertEqual(row['name'], 'Admin 4001')
+
+        # Verify specific details of an added doctor
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (5001,))
+        row = c.fetchone()
+        self.assertEqual(row['role'], 'doctor')
+        self.assertEqual(row['name'], 'Doctor 5001')
+
+
 if __name__ == '__main__':
     unittest.main()

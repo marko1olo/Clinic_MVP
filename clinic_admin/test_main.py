@@ -148,6 +148,7 @@ class TestMain(unittest.TestCase):
         conn.close()
 
     def test_add_appointment_unauthenticated(self):
+        """Test that unauthenticated requests to add_appointment are rejected."""
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"
         form_data = {
@@ -160,6 +161,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
     def test_add_appointment_authenticated(self):
+        """Test that authenticated requests to add_appointment successfully insert an appointment."""
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"
 
@@ -211,6 +213,29 @@ class TestMain(unittest.TestCase):
         patient = c.fetchone()
         self.assertIsNotNone(patient)
         self.assertEqual(patient["phone"], "555-5555")
+        conn.close()
+
+    def test_insert_appointment(self):
+        from clinic_admin.main import insert_patient, insert_appointment
+        from clinic_admin.database import get_connection
+
+        # Insert a patient first to satisfy the foreign key dependency
+        insert_patient("Direct Appointment Patient", "555-5556")
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM patients WHERE name = 'Direct Appointment Patient'")
+        patient = c.fetchone()
+        patient_id = patient["id"]
+
+        # Call the function directly
+        insert_appointment(patient_id, "Dr. Who", "2023-11-01T15:00")
+
+        # Verify it was added to the test database
+        c.execute("SELECT * FROM appointments WHERE patient_id = ? AND doctor = ?", (patient_id, "Dr. Who"))
+        appointment = c.fetchone()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["appointment_date"], "2023-11-01T15:00")
         conn.close()
 
 if __name__ == '__main__':

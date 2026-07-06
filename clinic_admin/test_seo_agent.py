@@ -17,6 +17,22 @@ class TestSEOAgent(unittest.TestCase):
         # Verify the exception was caught and handled correctly
         self.assertIsNone(result)
 
+
+    @patch('os.getenv')
+    @patch('clinic_admin.seo_agent.random.choice')
+    def test_get_groq_api_key_from_env(self, mock_choice, mock_getenv):
+        # Configure mock for os.getenv to return comma-separated keys
+        mock_getenv.return_value = "env_key1, env_key2"
+        mock_choice.return_value = "env_key1"
+
+        # Call the function
+        result = get_groq_api_key()
+
+        # Verify the key was retrieved properly from env var
+        self.assertEqual(result, "env_key1")
+        mock_getenv.assert_called_once_with("GROQ_API_KEYS")
+        mock_choice.assert_called_once_with(["env_key1", "env_key2"])
+
     @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": ["key1", "key2"]}')
     @patch('clinic_admin.seo_agent.random.choice')
     def test_get_groq_api_key_success(self, mock_choice, mock_file):

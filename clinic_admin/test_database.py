@@ -3,6 +3,7 @@ from unittest.mock import patch
 import sqlite3
 import os
 import tempfile
+import clinic_admin.database
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -10,6 +11,7 @@ class TestDatabase(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp()
 
         # Save the original DB_FILE
+        import clinic_admin.database
         self.original_db_file = clinic_admin.database.DB_FILE
 
         # Point the database to the temporary file

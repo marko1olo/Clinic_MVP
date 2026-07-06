@@ -16,6 +16,13 @@ def get_groq_api_key():
             return random.choice(_cached_groq_keys)
         return None
 
+    env_keys = os.getenv("GROQ_API_KEYS")
+    if env_keys:
+        keys = [k.strip() for k in env_keys.split(",") if k.strip()]
+        if keys:
+            _cached_groq_keys = keys
+            return random.choice(_cached_groq_keys)
+
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = json.load(f)

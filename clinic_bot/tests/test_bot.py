@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, handle_xray_result
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -85,6 +85,117 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         mock_db.add_user.assert_not_called()
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
+
+
+class TestBotHandleXrayResult(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    @patch('bot.base64.b64decode')
+    def test_handle_xray_result_with_image_and_patient(self, mock_b64decode, mock_broadcast, mock_broadcast_photo, mock_run_coroutine):
+        mock_b64decode.return_value = b"fake_image_bytes"
+        mock_broadcast_photo.return_value = "coro_broadcast_photo"
+        mock_broadcast.return_value = "coro_broadcast"
+
+        payload = {
+            'image_b64': 'ZmFrZV9pbWFnZV9ieXRlcw==',
+            'report': 'Found cavity on tooth 4.6',
+            'patient_name': 'Иван Иванов',
+            'file': 'xray1.jpg'
+        }
+        loop = MagicMock()
+
+        handle_xray_result('topic_xray', payload, loop)
+
+        mock_b64decode.assert_called_once_with('ZmFrZV9pbWFnZV9ieXRlcw==')
+
+        # Check broadcast_photo args
+        mock_broadcast_photo.assert_called_once()
+        args, kwargs = mock_broadcast_photo.call_args
+        self.assertEqual(args[0], b"fake_image_bytes")
+        self.assertIn("Иван Иванов", args[1])
+        self.assertEqual(args[2], 'Found cavity on tooth 4.6')
+        self.assertEqual(kwargs.get('role'), 'doctor')
+
+        # Check broadcast args (admin)
+        mock_broadcast.assert_called_once()
+        args, kwargs = mock_broadcast.call_args
+        self.assertIn("Иван Иванов", args[0])
+        self.assertIn("xray1.jpg", args[0])
+        self.assertEqual(kwargs.get('role'), 'admin')
+
+        # Check that both coroutines were submitted
+        self.assertEqual(mock_run_coroutine.call_count, 2)
+        mock_run_coroutine.assert_any_call("coro_broadcast_photo", loop)
+        mock_run_coroutine.assert_any_call("coro_broadcast", loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    @patch('bot.base64.b64decode')
+    def test_handle_xray_result_missing_patient(self, mock_b64decode, mock_broadcast, mock_broadcast_photo, mock_run_coroutine):
+        mock_b64decode.return_value = b"fake_image_bytes"
+        mock_broadcast_photo.return_value = "coro_broadcast_photo"
+        mock_broadcast.return_value = "coro_broadcast"
+
+        payload = {
+            'image_b64': 'ZmFrZV9pbWFnZV9ieXRlcw==',
+            'report': 'Found cavity'
+            # no patient_name
+        }
+        loop = MagicMock()
+
+        handle_xray_result('topic_xray', payload, loop)
+
+        mock_broadcast_photo.assert_called_once()
+        args, kwargs = mock_broadcast_photo.call_args
+        self.assertIn("неизвестен (нет записи)", args[1])
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    @patch('bot.base64.b64decode')
+    def test_handle_xray_result_patient_neizvesten(self, mock_b64decode, mock_broadcast, mock_broadcast_photo, mock_run_coroutine):
+        mock_b64decode.return_value = b"fake_image_bytes"
+        mock_broadcast_photo.return_value = "coro_broadcast_photo"
+        mock_broadcast.return_value = "coro_broadcast"
+
+        payload = {
+            'image_b64': 'ZmFrZV9pbWFnZV9ieXRlcw==',
+            'report': 'Found cavity',
+            'patient_name': 'Неизвестен'
+        }
+        loop = MagicMock()
+
+        handle_xray_result('topic_xray', payload, loop)
+
+        mock_broadcast_photo.assert_called_once()
+        args, kwargs = mock_broadcast_photo.call_args
+        self.assertIn("неизвестен (нет записи)", args[1])
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_no_image(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine):
+        mock_broadcast.return_value = "coro_broadcast"
+
+        payload = {
+            'report': 'Found cavity on tooth 4.6',
+            'patient_name': 'Иван Иванов'
+        }
+        loop = MagicMock()
+
+        handle_xray_result('topic_xray', payload, loop)
+
+        mock_broadcast_photo.assert_not_called()
+
+        mock_broadcast.assert_called_once()
+        args, kwargs = mock_broadcast.call_args
+        self.assertIn("Иван Иванов", args[0])
+        self.assertIn("Found cavity on tooth 4.6", args[0])
+        self.assertEqual(kwargs.get('role'), 'doctor')
+
+        mock_run_coroutine.assert_called_once_with("coro_broadcast", loop)
 
 
 if __name__ == '__main__':

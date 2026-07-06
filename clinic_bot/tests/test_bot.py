@@ -8,6 +8,7 @@ from bot import on_mqtt_message, cmd_start, handle_alert_admin
 from bot import on_mqtt_message, cmd_start, handle_default
 from bot import on_mqtt_message, cmd_start, handle_review_neg
 from bot import on_mqtt_message, cmd_start, handle_xray_result
+from bot import on_mqtt_message, cmd_start, handle_marketing_send
 from aiogram.types import Message, Chat, User
 import base64
 
@@ -313,6 +314,55 @@ class TestHandleXrayResult(unittest.TestCase):
         }
         handle_xray_result('test_topic', payload_valid, loop)
         mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: Petr Petrov_\n\nНаходки:\nTest report\n", role='doctor')
+
+
+class TestHandleMarketingSend(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_marketing_send(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/marketing/send"
+        payload = {
+            "patient": "John Doe",
+            "draft": "Special discount for teeth cleaning!"
+        }
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_marketing_send(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"📣 *Маркетинг — задание*\n\n"
+            f"Пациент: John Doe\n"
+            f"Черновик: _Special discount for teeth cleaning!_"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_marketing_send_missing_fields(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/marketing/send"
+        payload = {}
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_marketing_send(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"📣 *Маркетинг — задание*\n\n"
+            f"Пациент: ?\n"
+            f"Черновик: __"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
 
 
 if __name__ == '__main__':

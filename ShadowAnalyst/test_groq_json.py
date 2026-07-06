@@ -1,5 +1,6 @@
 import base64
 from openai import OpenAI
+import os
 
 api_key = os.getenv("GROQ_API_KEY")
 client = OpenAI(
@@ -17,11 +18,16 @@ def test_groq():
         " Use coordinates from 0 to 1000."
     )
     
-    img_path = r"C:\Users\danat\Desktop\stomchat\photo_2026-05-18_18-39-46.jpg"
-    with open(img_path, "rb") as f:
-        img_b64 = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
-    
     try:
+        import tempfile
+        from PIL import Image
+        import io
+
+        # Create a 1x1 dummy image
+        img = Image.new('RGB', (1, 1), color='black')
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG')
+        img_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
         response = client.chat.completions.create(
             model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[

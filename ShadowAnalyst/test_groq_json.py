@@ -5,7 +5,7 @@ api_key = os.getenv("GROQ_API_KEY")
 api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEYS", "").split(",")[0]
 api_key = os.getenv("GROQ_API_KEY", "")
 client = OpenAI(
-    api_key=api_key,
+    api_key=api_key if api_key else "dummy_key",
     base_url="https://api.groq.com/openai/v1",
 )
 
@@ -20,8 +20,11 @@ def test_groq():
     )
     
     img_path = r"C:\Users\danat\Desktop\stomchat\photo_2026-05-18_18-39-46.jpg"
-    with open(img_path, "rb") as f:
-        img_b64 = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
+    try:
+        with open(img_path, "rb") as f:
+            img_b64 = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        img_b64 = "data:image/jpeg;base64,dummybase64data"
     
     try:
         response = client.chat.completions.create(

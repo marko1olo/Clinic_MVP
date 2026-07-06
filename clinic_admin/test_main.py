@@ -10,7 +10,9 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import clinic_admin.database
-from clinic_admin.main import app
+from clinic_admin.main import app, _verify_password
+from fastapi import HTTPException
+from fastapi.security import HTTPBasicCredentials
 
 class TestMain(unittest.TestCase):
     def setUp(self):
@@ -212,6 +214,32 @@ class TestMain(unittest.TestCase):
         self.assertIsNotNone(patient)
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
+
+    def test_verify_password_valid(self):
+        credentials = HTTPBasicCredentials(username="admin", password="password")
+        # Should not raise any exception
+        _verify_password(credentials, "admin", "password")
+
+    def test_verify_password_invalid_username(self):
+        credentials = HTTPBasicCredentials(username="wrong_user", password="password")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
+    def test_verify_password_invalid_password(self):
+        credentials = HTTPBasicCredentials(username="admin", password="wrong_password")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
+    def test_verify_password_invalid_both(self):
+        credentials = HTTPBasicCredentials(username="wrong_user", password="wrong_password")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
 
 if __name__ == '__main__':
     unittest.main()

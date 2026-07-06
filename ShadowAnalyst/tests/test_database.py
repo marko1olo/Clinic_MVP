@@ -10,8 +10,77 @@ from gui.database import (
     save_scan,
     get_all_scans,
     delete_scan,
-    update_scan
+    update_scan,
+    find_project_root
 )
+
+class TestFindProjectRoot(unittest.TestCase):
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.sys')
+    def test_frozen_finds_config(self, mock_sys, mock_exists):
+        mock_sys.frozen = True
+        mock_sys.executable = '/app/dist/main.exe'
+
+        def exists_side_effect(path):
+            path = path.replace('\\', '/')
+            return path == '/app/config.json'
+
+        mock_exists.side_effect = exists_side_effect
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app')
+
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.sys')
+    @patch('gui.database.__file__', '/app/gui/database.py')
+    def test_not_frozen_finds_config(self, mock_sys, mock_exists):
+        mock_sys.frozen = False
+
+        def exists_side_effect(path):
+            path = path.replace('\\', '/')
+            return path == '/app/config.json'
+
+        mock_exists.side_effect = exists_side_effect
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app')
+
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.os.getcwd')
+    @patch('gui.database.sys')
+    @patch('gui.database.__file__', '/some/random/gui/database.py')
+    def test_finds_config_via_getcwd(self, mock_sys, mock_getcwd, mock_exists):
+        mock_sys.frozen = False
+        mock_getcwd.return_value = '/app/current/dir'
+
+        def exists_side_effect(path):
+            path = path.replace('\\', '/')
+            return path == '/app/config.json'
+
+        mock_exists.side_effect = exists_side_effect
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app')
+
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.sys')
+    @patch('gui.database.__file__', '/app/ShadowAnalyst/gui/database.py')
+    def test_fallback_not_frozen(self, mock_sys, mock_exists):
+        mock_sys.frozen = False
+        mock_exists.return_value = False
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app')
+
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.sys')
+    def test_fallback_frozen(self, mock_sys, mock_exists):
+        mock_sys.frozen = True
+        mock_sys.executable = '/app/dist/main.exe'
+        mock_exists.return_value = False
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app')
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):

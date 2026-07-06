@@ -41,11 +41,9 @@ export function parsePriceDictationLocal(input: string): ParsedPriceData {
       const rawNum = match[1].replace(/\s+/g, '');
       let price = parseInt(rawNum, 10);
       
-      // If the match was for "тысяч", multiply by 1000
       if (regex.source.includes("тысяч|тыс")) {
         price = price * 1000;
       } else if (price < 100 && rawNum.length < 3) {
-        // if someone says "за 5", they usually mean 5000 in dental context
         price = price * 1000; 
       }
       

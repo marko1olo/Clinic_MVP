@@ -6,6 +6,7 @@ import tempfile
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
+        import clinic_admin.database
         # Create a temporary file for the database
         self.db_fd, self.db_path = tempfile.mkstemp()
 
@@ -16,6 +17,7 @@ class TestDatabase(unittest.TestCase):
         clinic_admin.database.DB_FILE = self.db_path
 
     def tearDown(self):
+        import clinic_admin.database
         # Restore the original DB_FILE
         clinic_admin.database.DB_FILE = self.original_db_file
 
@@ -25,6 +27,7 @@ class TestDatabase(unittest.TestCase):
 
     @patch('sqlite3.connect')
     def test_get_connection(self, mock_connect):
+        import clinic_admin.database
         # Call the function
         conn = clinic_admin.database.get_connection()
 
@@ -39,6 +42,7 @@ class TestDatabase(unittest.TestCase):
 
     @patch('sqlite3.connect')
     def test_get_connection_error(self, mock_connect):
+        import clinic_admin.database
         # Setup mock to raise an exception
         mock_connect.side_effect = sqlite3.Error("Mocked database error")
 
@@ -47,6 +51,7 @@ class TestDatabase(unittest.TestCase):
             clinic_admin.database.get_connection()
 
     def test_init_db(self):
+        import clinic_admin.database
         # Initialize the database
         clinic_admin.database.init_db()
 

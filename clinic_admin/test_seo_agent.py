@@ -46,6 +46,29 @@ class TestSEOAgent(unittest.TestCase):
         # Verify we get None when the key doesn't exist
         self.assertIsNone(result)
 
+    @patch('clinic_admin.seo_agent.random.choice')
+    @patch('builtins.open')
+    def test_get_groq_api_key_cached_success(self, mock_open, mock_choice):
+        import clinic_admin.seo_agent
+        clinic_admin.seo_agent._cached_groq_keys = ["cached1", "cached2"]
+        mock_choice.return_value = "cached1"
+
+        result = get_groq_api_key()
+
+        self.assertEqual(result, "cached1")
+        mock_choice.assert_called_once_with(["cached1", "cached2"])
+        mock_open.assert_not_called()
+
+    @patch('builtins.open')
+    def test_get_groq_api_key_cached_empty(self, mock_open):
+        import clinic_admin.seo_agent
+        clinic_admin.seo_agent._cached_groq_keys = []
+
+        result = get_groq_api_key()
+
+        self.assertIsNone(result)
+        mock_open.assert_not_called()
+
     @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_missing_api_key(self, mock_get_api_key):
         # Setup: Return None to simulate missing API key
@@ -87,6 +110,59 @@ class TestSEOAgent(unittest.TestCase):
         self.assertEqual(called_kwargs["headers"]["Authorization"], "Bearer fake-api-key")
         self.assertEqual(called_kwargs["json"]["model"], "llama-3.3-70b-versatile")
         self.assertEqual(called_kwargs["json"]["messages"][1]["content"], "Вот текст отзыва: \"Good doctor.\"\n\nНапиши ответ.")
+
+    @patch('clinic_admin.seo_agent.os.getenv')
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_generate_seo_response_custom_phone(self, mock_get_api_key, mock_post, mock_getenv):
+        # Setup
+        mock_get_api_key.return_value = "fake-api-key"
+
+        # Make os.getenv return a custom phone only for CLINIC_PHONE, else return default
+        def side_effect(key, default=None):
+            if key == "CLINIC_PHONE":
+                return "+7 (123) 456-78-90"
+            return default
+        mock_getenv.side_effect = side_effect
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [
+                {"message": {"content": "Ответ с телефоном"}}
+            ]
+        }
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertEqual(result, "Ответ с телефоном")
+
+        # Check that the custom phone number is in the system prompt payload
+        called_args, called_kwargs = mock_post.call_args
+        system_prompt_content = called_kwargs["json"]["messages"][0]["content"]
+        self.assertIn("+7 (123) 456-78-90", system_prompt_content)
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_generate_seo_response_http_error(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key but an HTTPError via raise_for_status
+        import requests
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("401 Client Error")
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("401 Client Error", result)
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
 
     @patch('clinic_admin.seo_agent.requests.post')
     @patch('clinic_admin.seo_agent.get_groq_api_key')

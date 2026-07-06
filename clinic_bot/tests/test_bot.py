@@ -4,8 +4,9 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, handle_xray_result
 from aiogram.types import Message, Chat, User
+import base64
 
 class TestBotMqtt(unittest.TestCase):
     def test_on_mqtt_message_exception_handling(self):
@@ -85,6 +86,86 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         mock_db.add_user.assert_not_called()
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
+
+
+class TestHandleXrayResult(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_with_image(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+        mock_broadcast_photo.return_value = "mocked_coro_photo"
+
+        loop = MagicMock()
+        payload = {
+            'image_b64': base64.b64encode(b"test_image").decode('utf-8'),
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov',
+            'file': 'xray.jpg'
+        }
+
+        handle_xray_result('test_topic', payload, loop)
+
+        # Check run_coroutine_threadsafe is called twice
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 2)
+
+        # First call is broadcast_photo
+        mock_broadcast_photo.assert_called_once_with(b"test_image", "🦷 *Новый рентген проанализирован!*\n👤 _Пациент: Ivan Ivanov_\nПолный отчет следующим сообщением.", 'Test report', role='doctor')
+
+        # Second call is broadcast text to admin
+        mock_broadcast.assert_called_once_with("🔄 *Система*: Снимок xray.jpg (Пациент: Ivan Ivanov) отправлен врачам.", role='admin')
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_without_image(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+
+        loop = MagicMock()
+        payload = {
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov'
+        }
+
+        handle_xray_result('test_topic', payload, loop)
+
+        # Check run_coroutine_threadsafe is called once
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 1)
+
+        # Call is broadcast text to doctor
+        mock_broadcast.assert_called_once_with("🦷 *Анализ снимка готов*\n👤 _Пациент: Ivan Ivanov_\n\nНаходки:\nTest report\n", role='doctor')
+
+        mock_broadcast_photo.assert_not_called()
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_patient_name_formatting(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+
+        loop = MagicMock()
+
+        # Test case 1: Unknown patient
+        payload_unknown = {
+            'report': 'Test report',
+            'patient_name': 'Неизвестен'
+        }
+        handle_xray_result('test_topic', payload_unknown, loop)
+        mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: неизвестен (нет записи)_\n\nНаходки:\nTest report\n", role='doctor')
+
+        # Test case 2: Missing patient
+        payload_missing = {
+            'report': 'Test report'
+        }
+        handle_xray_result('test_topic', payload_missing, loop)
+        mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: неизвестен (нет записи)_\n\nНаходки:\nTest report\n", role='doctor')
+
+        # Test case 3: Valid patient
+        payload_valid = {
+            'report': 'Test report',
+            'patient_name': 'Petr Petrov'
+        }
+        handle_xray_result('test_topic', payload_valid, loop)
+        mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: Petr Petrov_\n\nНаходки:\nTest report\n", role='doctor')
 
 
 if __name__ == '__main__':

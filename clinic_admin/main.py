@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 import uvicorn
 from datetime import datetime
+from cachetools import cached, TTLCache
 
 from database import init_db, get_connection
 
@@ -48,6 +49,9 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     _verify_password(credentials, expected_username, expected_password)
     return credentials.username
 
+dashboard_cache = TTLCache(maxsize=1, ttl=60)
+
+@cached(cache=dashboard_cache)
 def get_dashboard_data():
     try:
         conn = get_connection()
@@ -95,6 +99,7 @@ def insert_patient(name, phone):
     c.execute('INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)', (name, phone, created_at))
     conn.commit()
     conn.close()
+    dashboard_cache.clear()
 
 @app.post("/patients/add")
 async def add_patient(name: str = Form(...), phone: str = Form(None), username: str = Depends(get_current_username)):
@@ -111,6 +116,7 @@ def insert_appointment(patient_id, doctor, date):
     ''', (patient_id, doctor, date, created_at))
     conn.commit()
     conn.close()
+    dashboard_cache.clear()
 
 @app.post("/appointments/add")
 async def add_appointment(patient_id: int = Form(...), doctor: str = Form(...), date: str = Form(...), username: str = Depends(get_current_username)):

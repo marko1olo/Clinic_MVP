@@ -4,8 +4,36 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, handle_alert_admin
 from aiogram.types import Message, Chat, User
+
+class TestHandleAlertAdmin(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_alert_admin_with_text(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        loop = MagicMock()
+        payload = {'text': 'Test alert payload'}
+
+        # Avoid AsyncMock warnings for coroutines that are never awaited
+        mock_broadcast.return_value = 'mock_coroutine'
+
+        handle_alert_admin('test/topic', payload, loop)
+
+        mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\nTest alert payload", role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_alert_admin_without_text(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        loop = MagicMock()
+        payload = {'key': 'value'}
+
+        mock_broadcast.return_value = 'mock_coroutine'
+
+        handle_alert_admin('test/topic', payload, loop)
+
+        mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\n{'key': 'value'}", role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
 
 class TestBotMqtt(unittest.TestCase):
     def test_on_mqtt_message_exception_handling(self):

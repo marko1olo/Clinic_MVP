@@ -1283,8 +1283,8 @@ def _parse_json_sidecar(content: str, info: dict):
                 elif isinstance(v, dict):
                     check_dict(v)
         check_dict(data)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error parsing JSON sidecar: {e}")
 
 def _parse_sidecar_patient_info(file_path: str, info: dict):
     try:

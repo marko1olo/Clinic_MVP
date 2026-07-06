@@ -30,6 +30,8 @@ else:
     API_KEYS = [_single_key.strip()] if _single_key and _single_key.strip() else []
 
 API_KEYS = [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k.strip()]
+env_keys = os.getenv("GROQ_API_KEYS")
+API_KEYS = [k.strip() for k in env_keys.split(",")] if env_keys else []
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 IMG_PATH = r"C:\Users\danat\Downloads\оро.webp"

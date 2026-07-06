@@ -21,6 +21,14 @@ def draw_text_with_bg(draw, text, x, y, text_color, bg_color=(0, 0, 0, 180)):
 API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
 _GROQ_CLIENTS = {key: AsyncOpenAI(api_key=key, base_url="https://api.groq.com/openai/v1", max_retries=0) for key in API_KEYS}
 API_KEYS = os.environ.get("GROQ_API_KEYS", "").split(",") if os.environ.get("GROQ_API_KEYS") else []
+# Load API keys from environment variables
+_groq_keys_env = os.environ.get("GROQ_API_KEYS", "")
+if _groq_keys_env:
+    API_KEYS = [k.strip() for k in _groq_keys_env.split(",") if k.strip()]
+else:
+    _single_key = os.environ.get("GROQ_API_KEY")
+    API_KEYS = [_single_key.strip()] if _single_key and _single_key.strip() else []
+
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 IMG_PATH = r"C:\Users\danat\Downloads\оро.webp"
@@ -73,6 +81,8 @@ async def call_groq(prompt, b64):
     if not keys:
         print("Ошибка: Ключи GROQ_API_KEYS не заданы.")
         return "{}"
+        print("Ошибка: Нет доступных API ключей.")
+
     while True:
         random.shuffle(keys)
         for key in keys:

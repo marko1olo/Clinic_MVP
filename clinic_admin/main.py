@@ -74,8 +74,7 @@ def get_dashboard_data():
 
         conn.close()
         return res_appointments, res_patients
-    except Exception as e:
-        print(f"Error fetching dashboard data: {e}")
+    except Exception:
         return [], []
 
 @app.get("/", response_class=HTMLResponse)

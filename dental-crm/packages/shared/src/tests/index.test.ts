@@ -5,7 +5,9 @@ import {
   documentAmountSource,
   documentKindSchema,
   documentPayloadDisallowedKeys,
+  documentPayloadAllowedKeys,
   buildRuleBasedVisitDraftFromTranscript,
+  DocumentKind,
 } from "../index.js";
 
 describe("documentAmountSource", () => {
@@ -200,5 +202,26 @@ describe("documentPayloadDisallowedKeys", () => {
   test("returns empty array for null or undefined payload", () => {
     assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", null), []);
     assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", undefined), []);
+  });
+});
+
+describe("documentPayloadAllowedKeys", () => {
+  test("returns expected payload keys for specific document kinds", () => {
+    assert.deepStrictEqual(documentPayloadAllowedKeys("patient_intake_questionnaire"), ["patientIntakeQuestionnaire"]);
+    assert.deepStrictEqual(documentPayloadAllowedKeys("tax_deduction_certificate"), ["taxPaymentSelection"]);
+    assert.deepStrictEqual(documentPayloadAllowedKeys("medical_intervention_refusal"), ["medicalInterventionRefusal"]);
+  });
+
+  test("returns empty array for unknown or unsupported document kinds", () => {
+    assert.deepStrictEqual(documentPayloadAllowedKeys("unknown_dummy_kind" as any), []);
+  });
+
+  test("handles all valid document kinds without throwing", () => {
+    documentKindSchema.options.forEach((kind) => {
+      assert.doesNotThrow(() => {
+        const keys = documentPayloadAllowedKeys(kind as DocumentKind);
+        assert.ok(Array.isArray(keys));
+      });
+    });
   });
 });

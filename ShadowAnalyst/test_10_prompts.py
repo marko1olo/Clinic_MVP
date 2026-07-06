@@ -33,6 +33,7 @@ API_KEYS = [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if
 env_keys = os.getenv("GROQ_API_KEYS")
 env_keys = os.environ.get("GROQ_API_KEYS", "")
 API_KEYS = [k.strip() for k in env_keys.split(",")] if env_keys else []
+API_KEYS = [k for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k]
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 

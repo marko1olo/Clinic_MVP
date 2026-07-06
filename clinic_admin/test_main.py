@@ -213,6 +213,46 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_verify_password_correct(self):
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import _verify_password
+        credentials = HTTPBasicCredentials(username="admin", password="password")
+        # Should not raise any exception
+        _verify_password(credentials, "admin", "password")
+
+    def test_verify_password_incorrect_username(self):
+        from fastapi import HTTPException
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import _verify_password
+        credentials = HTTPBasicCredentials(username="wrong", password="password")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+        self.assertEqual(context.exception.headers, {"WWW-Authenticate": "Basic"})
+
+    def test_verify_password_incorrect_password(self):
+        from fastapi import HTTPException
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import _verify_password
+        credentials = HTTPBasicCredentials(username="admin", password="wrong")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+        self.assertEqual(context.exception.headers, {"WWW-Authenticate": "Basic"})
+
+    def test_verify_password_incorrect_both(self):
+        from fastapi import HTTPException
+        from fastapi.security import HTTPBasicCredentials
+        from clinic_admin.main import _verify_password
+        credentials = HTTPBasicCredentials(username="wrong", password="wrong")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(credentials, "admin", "password")
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+        self.assertEqual(context.exception.headers, {"WWW-Authenticate": "Basic"})
+
 if __name__ == '__main__':
     unittest.main()
 

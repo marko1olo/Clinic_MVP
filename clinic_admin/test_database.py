@@ -3,6 +3,7 @@ from unittest.mock import patch
 import sqlite3
 import os
 import tempfile
+import database
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -10,14 +11,14 @@ class TestDatabase(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp()
 
         # Save the original DB_FILE
-        self.original_db_file = clinic_admin.database.DB_FILE
+        self.original_db_file = database.DB_FILE
 
         # Point the database to the temporary file
-        clinic_admin.database.DB_FILE = self.db_path
+        database.DB_FILE = self.db_path
 
     def tearDown(self):
         # Restore the original DB_FILE
-        clinic_admin.database.DB_FILE = self.original_db_file
+        database.DB_FILE = self.original_db_file
 
         # Close and remove the temporary file
         os.close(self.db_fd)
@@ -26,10 +27,10 @@ class TestDatabase(unittest.TestCase):
     @patch('sqlite3.connect')
     def test_get_connection(self, mock_connect):
         # Call the function
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
 
         # Verify sqlite3.connect was called with the correct argument
-        mock_connect.assert_called_once_with(clinic_admin.database.DB_FILE)
+        mock_connect.assert_called_once_with(database.DB_FILE)
 
         # Verify it returns the mocked connection object
         self.assertEqual(conn, mock_connect.return_value)
@@ -44,14 +45,14 @@ class TestDatabase(unittest.TestCase):
 
         # Verify that the exception is raised when get_connection is called
         with self.assertRaises(sqlite3.Error):
-            clinic_admin.database.get_connection()
+            database.get_connection()
 
     def test_init_db(self):
         # Initialize the database
-        clinic_admin.database.init_db()
+        database.init_db()
 
         # Connect to verify tables were created
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
         c = conn.cursor()
 
         # Check if patients table exists

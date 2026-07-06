@@ -147,6 +147,43 @@ class TestMain(unittest.TestCase):
 
         conn.close()
 
+    def test_add_patient_missing_phone(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        form_data = {
+            "name": "No Phone Patient",
+            # phone is intentionally missing
+        }
+
+        response = self.client.post("/patients/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        # Verify the patient is in the database with None/null phone
+        from clinic_admin.database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = ?", ("No Phone Patient",))
+        patient = c.fetchone()
+        self.assertIsNotNone(patient)
+        self.assertIsNone(patient["phone"])
+
+        conn.close()
+
+    def test_add_patient_missing_name(self):
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        form_data = {
+            "phone": "1234567890"
+            # name is intentionally missing
+        }
+
+        response = self.client.post("/patients/add", data=form_data, auth=("admin", "admin"), follow_redirects=False)
+        # FastAPI's Form(...) should return 422 Unprocessable Entity for missing required fields
+        self.assertEqual(response.status_code, 422)
+
     def test_add_appointment_unauthenticated(self):
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"

@@ -23,7 +23,12 @@ try:
         "uptime",
         "free -m",
         "df -h /",
-        "top -b -n 1 | head -n 12"
+        "top -b -n 1 | head -n 12",
+        "docker --version",
+        "docker compose version",
+        "wg show",
+        "ip a | grep wg",
+        "ss -tulpn | grep -E ':(80|443|53|1883|4222|6379) '"
     ]
     
     for cmd in commands:

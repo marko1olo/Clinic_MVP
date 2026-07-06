@@ -202,7 +202,7 @@ function parseJsonObject(text: string): NeuralPolishPayload {
   return direct;
 }
 
-function safeParseJsonObject(text: string): NeuralPolishPayload {
+export function safeParseJsonObject(text: string): NeuralPolishPayload {
   try {
     return parseJsonObject(text);
   } catch {

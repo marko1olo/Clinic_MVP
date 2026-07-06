@@ -93,5 +93,22 @@ class TestDatabase(unittest.TestCase):
         scans_after = get_all_scans()
         self.assertEqual(len(scans_after), 0)
 
+
+    def test_get_all_scans_ordering(self):
+        # Insert records directly to ensure different created_at timestamps
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO scans (patient_name, created_at) VALUES ('Oldest', '2023-01-01 10:00:00')")
+        cursor.execute("INSERT INTO scans (patient_name, created_at) VALUES ('Newest', '2023-01-03 10:00:00')")
+        cursor.execute("INSERT INTO scans (patient_name, created_at) VALUES ('Middle', '2023-01-02 10:00:00')")
+        conn.commit()
+        conn.close()
+
+        scans = get_all_scans()
+        self.assertEqual(len(scans), 3)
+        self.assertEqual(scans[0]['patient_name'], 'Newest')
+        self.assertEqual(scans[1]['patient_name'], 'Middle')
+        self.assertEqual(scans[2]['patient_name'], 'Oldest')
+
 if __name__ == '__main__':
     unittest.main()

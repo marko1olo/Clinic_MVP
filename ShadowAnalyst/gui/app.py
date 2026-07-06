@@ -1244,8 +1244,8 @@ def _parse_xml_sidecar(content: str, info: dict):
                         info['patient_gender'] = 'Мужской'
                     elif g in ['f', 'female', 'жен', 'женский']:
                         info['patient_gender'] = 'Женский'
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error parsing XML sidecar: {e}")
 
 def _parse_ini_txt_sidecar(content: str, info: dict):
     for line in content.splitlines():

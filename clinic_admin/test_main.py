@@ -10,12 +10,11 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import clinic_admin.database
+import clinic_admin.main
 from clinic_admin.main import app
 
 class TestMain(unittest.TestCase):
     def setUp(self):
-        import clinic_admin.database
-        import clinic_admin.main
         self.db_fd, self.db_path = tempfile.mkstemp()
         self.original_db_file = clinic_admin.database.DB_FILE
         clinic_admin.database.DB_FILE = self.db_path
@@ -35,7 +34,6 @@ class TestMain(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
-        import clinic_admin.database
         clinic_admin.main.get_connection = self.original_get_connection
         clinic_admin.database.DB_FILE = self.original_db_file
         os.close(self.db_fd)

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from bot import on_mqtt_message, cmd_start, handle_alert_admin
+from bot import on_mqtt_message, cmd_start, handle_default
 from aiogram.types import Message, Chat, User
 
 class TestHandleAlertAdmin(unittest.TestCase):
@@ -36,6 +37,25 @@ class TestHandleAlertAdmin(unittest.TestCase):
         mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
 
 class TestBotMqtt(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast')
+    def test_handle_default(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        """
+        Test that handle_default formats the message correctly and broadcasts it.
+        """
+        topic = 'unknown/topic'
+        payload = b'some_payload'
+        loop = MagicMock()
+
+        handle_default(topic, payload, loop)
+
+        expected_text = f"📨 `{topic}`\n\n{str(payload)}"
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+
+        # Verify run_coroutine_threadsafe was called with loop
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 1)
+        self.assertEqual(mock_run_coroutine_threadsafe.call_args[0][1], loop)
+
     def test_on_mqtt_message_exception_handling(self):
         """
         Test that if an unexpected exception occurs while processing an MQTT message,

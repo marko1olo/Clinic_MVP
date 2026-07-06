@@ -70,7 +70,6 @@ def inject_dummy_data():
 
     conn.commit()
     conn.close()
-    print("Dummy marketing data injected.")
 
 
 if __name__ == "__main__":

@@ -195,6 +195,32 @@ class TestMain(unittest.TestCase):
         conn.close()
 
 
+    def test_get_current_username(self):
+        from clinic_admin.main import get_current_username
+        from fastapi.security import HTTPBasicCredentials
+        from fastapi import HTTPException
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        # Valid credentials
+        creds = HTTPBasicCredentials(username="admin", password="admin")
+        self.assertEqual(get_current_username(creds), "admin")
+
+        # Invalid password
+        creds_invalid = HTTPBasicCredentials(username="admin", password="wrong")
+        with self.assertRaises(HTTPException) as context:
+            get_current_username(creds_invalid)
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
+        # Invalid username
+        creds_invalid_usr = HTTPBasicCredentials(username="wrong", password="admin")
+        with self.assertRaises(HTTPException) as context:
+            get_current_username(creds_invalid_usr)
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
     def test_insert_patient(self):
         from clinic_admin.main import insert_patient
         from clinic_admin.database import get_connection

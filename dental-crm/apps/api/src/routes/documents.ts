@@ -752,7 +752,7 @@ export async function signedMedicalSourceVisitsAreValid(
   const periodStart = comparableDocumentChainDate(periodStartRaw);
   const periodEnd = comparableDocumentChainDate(periodEndRaw);
   if (!documentChainDateRangeIsChronological(periodStartRaw, periodEndRaw)) return false;
-  for (const visitId of sourceVisitIds) {
+  const results = await Promise.all(sourceVisitIds.map(async (visitId) => {
     const visit = await getVisitByIdInDb(document.organizationId, visitId);
     if (!visit || visit.patientId !== document.patientId || visit.status !== "signed") return false;
 
@@ -760,8 +760,10 @@ export async function signedMedicalSourceVisitsAreValid(
     if (visitDate === null) return false;
     if (periodStart !== null && visitDate < periodStart) return false;
     if (periodEnd !== null && visitDate > periodEnd) return false;
-  }
-  return true;
+    return true;
+  }));
+
+  return results.every(Boolean);
 }
 
 export async function medicalRecordExtractSourcesAreValid(payload: MedicalRecordExtractPayload, document: GeneratedDocument): Promise<boolean> {

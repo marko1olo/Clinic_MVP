@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 import clinic_admin.inject_old_data
+import clinic_admin.database
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -61,6 +62,45 @@ class TestInjectOldData(unittest.TestCase):
             self.assertEqual(a["status"], "completed")
 
         conn.close()
+
+    def test_insert_appointments(self):
+        from datetime import datetime, timedelta
+        from unittest.mock import MagicMock
+        from clinic_admin.inject_old_data import _insert_appointments
+
+        c_mock = MagicMock()
+        inserted_ids = [1, 2]
+        now = datetime(2023, 10, 27, 12, 0, 0)
+
+        _insert_appointments(c_mock, inserted_ids, now)
+
+        old_date = (now - timedelta(days=210)).isoformat()
+        expected_query = (
+            "INSERT INTO appointments (patient_id, doctor, "
+            "appointment_date, status, created_at) VALUES (?, ?, ?, ?, ?)"
+        )
+        expected_data = [
+            (1, "Др. Хаус", old_date, "completed", now.isoformat()),
+            (2, "Др. Хаус", old_date, "completed", now.isoformat()),
+        ]
+
+        c_mock.executemany.assert_called_once_with(expected_query, expected_data)
+
+    def test_insert_appointments_empty(self):
+        from datetime import datetime
+        from unittest.mock import MagicMock
+        from clinic_admin.inject_old_data import _insert_appointments
+
+        c_mock = MagicMock()
+        now = datetime(2023, 10, 27, 12, 0, 0)
+
+        _insert_appointments(c_mock, [], now)
+
+        expected_query = (
+            "INSERT INTO appointments (patient_id, doctor, "
+            "appointment_date, status, created_at) VALUES (?, ?, ?, ?, ?)"
+        )
+        c_mock.executemany.assert_called_once_with(expected_query, [])
 
     def test_inject_dummy_data_idempotent(self):
         # Inject data first time

@@ -1220,8 +1220,8 @@ def _parse_dicom_patient_info(file_path: str, info: dict):
                     birth_year = int(dcm_birth[:4])
                     current_year = datetime.datetime.now().year
                     info['patient_age'] = current_year - birth_year
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Error parsing PatientBirthDate: {e}")
     except Exception as e:
         print(f"Error reading DICOM patient info: {e}")
 

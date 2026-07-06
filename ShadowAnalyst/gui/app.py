@@ -615,7 +615,6 @@ def update_settings(settings: dict):
 
 @api.get("/api/tts")
 async def get_tts(text: str, provider: str = None):
-    import urllib.parse
     import hashlib
     from fastapi.responses import Response
     from fastapi import HTTPException
@@ -694,11 +693,12 @@ async def get_tts(text: str, provider: str = None):
             print(f"Edge-TTS failed, falling back to Google: {e}")
             
     if not audio_bytes:
-        url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=ru&client=tw-ob&q={urllib.parse.quote(text)}"
+        url = "https://translate.google.com/translate_tts"
+        params = {"ie": "UTF-8", "tl": "ru", "client": "tw-ob", "q": text}
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         try:
             async with httpx.AsyncClient() as client:
-                r = await client.get(url, headers=headers, timeout=10.0)
+                r = await client.get(url, params=params, headers=headers, timeout=10.0)
             if r.status_code == 200:
                 audio_bytes = r.content
         except Exception as e:

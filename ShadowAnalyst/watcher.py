@@ -5,10 +5,12 @@ if hasattr(sys.stdout, "reconfigure"):
 import time
 import json
 import base64
+import re
 import random
 import threading
 from io import BytesIO
 from PIL import Image
+import paho.mqtt.client as mqtt
 from openai import OpenAI
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -146,7 +148,6 @@ def analyze_image(file_path):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        import re
                         first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
                         success = True
                         break
@@ -164,7 +165,6 @@ def analyze_image(file_path):
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
-    import paho.mqtt.client as mqtt
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASS)

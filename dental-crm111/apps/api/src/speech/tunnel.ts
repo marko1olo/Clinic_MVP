@@ -1,10 +1,20 @@
+<<<<<<< HEAD
 import child_process, { type ChildProcess } from "node:child_process";
 import fs from "node:fs";
+=======
+import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+>>>>>>> gitlab/main
 import { resolve } from "node:path";
 import net from "node:net";
 
 let tunnelProcess: ChildProcess | null = null;
 const SOCKS_PORT = 1080;
+<<<<<<< HEAD
+=======
+const SSH_KEY = "C:\\Users\\Admin\\\\.ssh\\\\id_ed25519";
+const SSH_HOST = "root@62.84.100.97";
+>>>>>>> gitlab/main
 
 function isPortOpen(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -23,6 +33,7 @@ function isPortOpen(port: number): Promise<boolean> {
 }
 
 export async function ensureSshTunnel(): Promise<boolean> {
+<<<<<<< HEAD
   const sshKey = process.env.SSH_KEY_PATH;
   const sshHost = process.env.SSH_HOST;
 
@@ -39,15 +50,30 @@ export async function ensureSshTunnel(): Promise<boolean> {
   // 1. Проверяем, слушает ли уже порт 1080
   const alreadyOpen = await isPortOpen(SOCKS_PORT);
   if (alreadyOpen) {
+=======
+  // 1. Проверяем, слушает ли уже порт 1080
+  const alreadyOpen = await isPortOpen(SOCKS_PORT);
+  if (alreadyOpen) {
+    console.log(`[SSH Tunnel] SOCKS5 port ${SOCKS_PORT} is already active/listening.`);
+>>>>>>> gitlab/main
     return true;
   }
 
   // 2. Проверяем наличие приватного ключа
+<<<<<<< HEAD
   if (!fs.existsSync(sshKey)) {
     console.warn(`[SSH Tunnel] SSH key not found at ${sshKey}. Cannot start tunnel.`);
     return false;
   }
 
+=======
+  if (!existsSync("C:\\Users\\Admin\\.ssh\\id_ed25519")) {
+    console.warn(`[SSH Tunnel] SSH key not found at C:\\Users\\Admin\\.ssh\\id_ed25519. Cannot start tunnel.`);
+    return false;
+  }
+
+  console.log(`[SSH Tunnel] Starting SSH SOCKS5 tunnel on port ${SOCKS_PORT} via ${SSH_HOST}...`);
+>>>>>>> gitlab/main
   
   try {
     const cmdArgs = [
@@ -57,11 +83,19 @@ export async function ensureSshTunnel(): Promise<boolean> {
       "-o", "ConnectTimeout=5",
       "-o", "StrictHostKeyChecking=no",
       "-o", "UserKnownHostsFile=NUL",
+<<<<<<< HEAD
       "-i", sshKey,
       sshHost
     ];
 
     tunnelProcess = child_process.spawn("ssh", cmdArgs, {
+=======
+      "-i", "C:\\Users\\Admin\\.ssh\\id_ed25519",
+      SSH_HOST
+    ];
+
+    tunnelProcess = spawn("ssh", cmdArgs, {
+>>>>>>> gitlab/main
       detached: true,
       stdio: "ignore"
     });
@@ -73,6 +107,10 @@ export async function ensureSshTunnel(): Promise<boolean> {
 
     const checkOpen = await isPortOpen(SOCKS_PORT);
     if (checkOpen) {
+<<<<<<< HEAD
+=======
+      console.log(`[SSH Tunnel] SSH SOCKS5 tunnel successfully established on port ${SOCKS_PORT}.`);
+>>>>>>> gitlab/main
       return true;
     } else {
       console.warn(`[SSH Tunnel] Tunnel process spawned but port ${SOCKS_PORT} is still closed.`);
@@ -86,6 +124,10 @@ export async function ensureSshTunnel(): Promise<boolean> {
 
 export function stopSshTunnel(): void {
   if (tunnelProcess) {
+<<<<<<< HEAD
+=======
+    console.log("[SSH Tunnel] Stopping SSH SOCKS5 tunnel...");
+>>>>>>> gitlab/main
     try {
       tunnelProcess.kill();
     } catch {

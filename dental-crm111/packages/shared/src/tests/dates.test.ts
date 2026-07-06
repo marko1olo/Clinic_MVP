@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { normalizeDate } from '../utils/dates.js';
 
 describe('normalizeDate', () => {
+<<<<<<< HEAD:dental-crm111/packages/shared/src/tests/dates.test.ts
   test('returns null for falsy values', () => {
     assert.strictEqual(normalizeDate(null), null);
     assert.strictEqual(normalizeDate(''), null);
@@ -30,4 +31,10 @@ describe('normalizeDate', () => {
     assert.strictEqual(normalizeDate('15/04/23'), '15/04/23'); // 2-digit year
     assert.strictEqual(normalizeDate('1/2'), '1/2'); // missing year
   });
+=======
+  test('returns null for empty values', () => {
+    assert.strictEqual(normalizeDate(null), null);
+    assert.strictEqual(normalizeDate(''), null);
+  });
+>>>>>>> gitlab/main:dental-crm/packages/shared/src/tests/dates.test.ts
 });

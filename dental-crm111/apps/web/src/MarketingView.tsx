@@ -27,6 +27,7 @@ const DEFAULT_STATS: MarketingStats = {
   google: { rating: 0, reviews: 0 }
 };
 
+<<<<<<< HEAD
 type ReviewTone = "positive" | "negative" | "neutral";
 
 export function MarketingView({ clinicName, clinicPhone }: { clinicName: string; clinicPhone: string }) {
@@ -54,6 +55,9 @@ export function MarketingView({ clinicName, clinicPhone }: { clinicName: string;
     localStorage.setItem("dental_crm_mkt_seo_keys", JSON.stringify(updated));
   };
 
+=======
+export function MarketingView({ clinicName, clinicPhone }: { clinicName: string; clinicPhone: string }) {
+>>>>>>> gitlab/main
   const [reviewText, setReviewText] = useState("");
   const [tone, setTone] = useState<ReviewTone>("positive");
   const [generatedReply, setGeneratedReply] = useState("");

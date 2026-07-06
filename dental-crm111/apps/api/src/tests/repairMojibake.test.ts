@@ -25,6 +25,7 @@ describe('repairMojibakeText', () => {
     assert.strictEqual(repairMojibakeText(input), expected);
   });
 
+<<<<<<< HEAD
   test('repairs various common mojibake strings', () => {
     assert.strictEqual(repairMojibakeText("ÐŸÑ€Ð¸Ð²ÐµÑ‚"), "Привет");
     assert.strictEqual(repairMojibakeText("Hello ÐŸÑ€Ð¸Ð²ÐµÑ‚ world"), "Hello Привет world");
@@ -60,6 +61,11 @@ describe('repairMojibakeText', () => {
     assert.strictEqual(repairMojibakeText('Ñ.'), 'Ñ.');
     // Let's ensure a string with mixed valid marker but invalid full sequence isn't butchered
     assert.strictEqual(repairMojibakeText('ÐŸÑ. invalid'), 'ÐŸÑ. invalid');
+=======
+  test('gracefully handles likely mojibake that cannot be decoded', () => {
+    const input = "?\u0300\u0301\u0302 invalid";
+    assert.strictEqual(repairMojibakeText(input), input);
+>>>>>>> gitlab/main
   });
 });
 

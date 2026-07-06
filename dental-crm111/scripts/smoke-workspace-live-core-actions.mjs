@@ -10,12 +10,15 @@ import { waitFor, evaluate, setFileInputFiles } from "./lib/cdp.mjs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { inputHelpersExpression } from "./lib/inputHelpersExpression.mjs";
+<<<<<<< HEAD
 
 const watchdog = setTimeout(() => {
   console.error("SMOKE TEST TIMEOUT: Process terminated by watchdog");
   process.exit(1);
 }, 90000);
 watchdog.unref();
+=======
+>>>>>>> gitlab/main
 
 const width = Number(process.env.SMOKE_WIDTH ?? 1440);
 const height = Number(process.env.SMOKE_HEIGHT ?? 1100);
@@ -695,6 +698,7 @@ try {
 
   await navigateTo(cdp, "imaging", "#imaging.imaging-panel");
   await setFileInputFiles(cdp, '[data-testid="imaging-browser-local-files-input"]', fixtureFiles);
+<<<<<<< HEAD
   let imagingResult;
   try {
     imagingResult = await waitFor(
@@ -732,6 +736,22 @@ try {
     console.error("DIAGNOSTICS ON IMAGING UPLOAD FAILURE:", JSON.stringify(diag, null, 2));
     throw error;
   }
+=======
+  const imagingResult = await waitFor(
+    cdp,
+    `(() => {
+      const status = document.querySelector('[data-testid="imaging-upload-status"]');
+      if (!status) {
+        return null;
+      }
+      const text = status.innerText;
+      const dicomLike = /DICOM|КТ|РљРў/.test(text);
+      return text.includes("3") && dicomLike ? { text } : null;
+    })()`,
+    "imaging file upload status",
+    120
+  );
+>>>>>>> gitlab/main
 
   const finalScreenshot = await saveScreenshot(cdp, "final-imaging");
   cdp.close();

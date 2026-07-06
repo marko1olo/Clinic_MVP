@@ -4,7 +4,10 @@ import { once } from "node:events";
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import net from "node:net";
 import { opendir, readdir, stat } from "node:fs/promises";
+<<<<<<< HEAD
 import { access, open, type FileHandle } from "node:fs/promises";
+=======
+>>>>>>> gitlab/main
 import os from "node:os";
 import path from "node:path";
 import { setImmediate as yieldImmediate } from "node:timers/promises";
@@ -1159,7 +1162,11 @@ async function buildDicomHeaderManifest(
           await maybeYieldApiDicomScan(yieldState, options.signal);
           const chunkResults = await Promise.all(
             chunk.map(async (entry) => {
+<<<<<<< HEAD
               const prefix = await zipEntryPrefix(zip.fileHandle as FileHandle, entry, input.maxHeaderBytes);
+=======
+              const prefix = await zipEntryPrefix(zip.descriptor as number, entry, input.maxHeaderBytes);
+>>>>>>> gitlab/main
               return { entry, prefix };
             })
           );
@@ -5424,6 +5431,7 @@ async function discoverLocalDicomFolders(input: DicomLocalFolderDiscoveryRequest
       }
       if (isArchive && !firstFilePath) firstFilePath = fullPath;
 
+<<<<<<< HEAD
       statPromises.push(
         stat(fullPath)
           .then((s) => s.mtime.toISOString())
@@ -5435,6 +5443,13 @@ async function discoverLocalDicomFolders(input: DicomLocalFolderDiscoveryRequest
     for (const modified of statResults) {
       if (modified && (!latestModifiedAt || modified > latestModifiedAt)) {
         latestModifiedAt = modified;
+=======
+      try {
+        const modified = (await stat(fullPath)).mtime.toISOString();
+        if (!latestModifiedAt || modified > latestModifiedAt) latestModifiedAt = modified;
+      } catch {
+        // Discovery remains best-effort.
+>>>>>>> gitlab/main
       }
     }
 
@@ -6572,9 +6587,13 @@ export async function commitImagingImport(orgId: string, input: { sourceName: st
   });
 }
 
+<<<<<<< HEAD
 // smoke-test-marker: await zipEntryPrefix(zip.fileHandle, entry, input.maxHeaderBytes)
 
 
 import { registerImagingPlanningRoutes } from "./imaging_planning.js";
 export async function initImagingPlanningRoutes(app: any) { await registerImagingPlanningRoutes(app); }
+=======
+// smoke-test-marker: await zipEntryPrefix(zip.descriptor, entry, input.maxHeaderBytes)
+>>>>>>> gitlab/main
 

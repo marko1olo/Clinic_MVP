@@ -48,6 +48,7 @@ import {
   buildMedicalDocumentReleaseJournalEntry,
   taxXmlSourceSnapshotForIssue
 } from "../documents.js";
+<<<<<<< HEAD
 import { getDocumentById, issueGeneratedDocumentInDb, voidGeneratedDocumentInDb, storeTaxXmlSnapshotInDb } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
 import { getPaymentsByPatientIdInDb } from "../../db/billingQuery.js";
@@ -55,6 +56,8 @@ import { getVisitByIdInDb } from "../../db/visitsQuery.js";
 import { verifyToken } from "../../utils/cryptoHelper.js";
 import { TOKEN_SECRET } from "../auth.js";
 
+=======
+>>>>>>> gitlab/main
 
 
 export async function register(app: FastifyInstance) {

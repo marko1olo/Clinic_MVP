@@ -7,6 +7,7 @@ describe('repairMojibakeDeep', () => {
     assert.strictEqual(repairMojibakeDeep(null), null);
     assert.strictEqual(repairMojibakeDeep(undefined), undefined);
     assert.strictEqual(repairMojibakeDeep(42), 42);
+<<<<<<< HEAD
 import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
 
   test('handles plain strings correctly', () => {
@@ -53,6 +54,8 @@ import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
   });
 
   test('leaves boolean alone', () => {
+=======
+>>>>>>> gitlab/main
     assert.strictEqual(repairMojibakeDeep(true), true);
     assert.strictEqual(repairMojibakeDeep(false), false);
   });
@@ -105,6 +108,7 @@ import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
       ],
       meta: 'Описание'
     };
+<<<<<<< HEAD
   test('handles complex deeply nested structure', () => {
       id: 1,
       metadata: {
@@ -128,6 +132,8 @@ import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
         { key: 'ru_name', value: repairMojibakeText('РџСЂРёРІРµС‚') }
       ]
 
+=======
+>>>>>>> gitlab/main
     assert.deepStrictEqual(repairMojibakeDeep(input), expected);
   });
 });

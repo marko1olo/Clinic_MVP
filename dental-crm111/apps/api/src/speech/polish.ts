@@ -353,7 +353,10 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input: {
   transcript: string;
   specialty: DentalSpecialty;
 }): Promise<{ normalizedTranscript: string; warnings: string[] }> {
+<<<<<<< HEAD
   let primaryError: unknown = null;
+=======
+>>>>>>> gitlab/main
   // Попытка 1: Используем основную настроенную конфигурацию
   try {
     if (input.config.neuralEnabled) {
@@ -385,12 +388,21 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input: {
         }
       }
     }
+<<<<<<< HEAD
   } catch (err) {
     primaryError = err;
     console.warn(`[AI Polish Primary Fallback Triggered] Сбой основного провайдера очистки: ${err instanceof Error ? err.message : err}`);
   }
 
   // Попытка 2: Идем по каскаду моделей
+=======
+  } catch (primaryError) {
+    console.warn(`[AI Polish Primary Fallback Triggered] Сбой основного провайдера очистки: ${primaryError instanceof Error ? primaryError.message : primaryError}`);
+  }
+
+  // Попытка 2: Идем по каскаду моделей
+  console.log("[AI Polish Cascade] Запуск цепочки фоллбеков...");
+>>>>>>> gitlab/main
   for (const fallback of DENTAL_AI_CASCADING_MODELS) {
     // Пропускаем, если эта же модель только что упала в Попытке 1
     if (fallback.provider === input.config.provider && fallback.model === input.config.modelName) {
@@ -409,6 +421,10 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input: {
         continue;
       }
 
+<<<<<<< HEAD
+=======
+      console.log(`[AI Polish Cascade] Пробуем ${fallback.provider} (${fallback.model})...`);
+>>>>>>> gitlab/main
       const fallbackConfig: SpeechPolishConfig = {
         deterministicEnabled: true,
         neuralEnabled: true,
@@ -430,6 +446,10 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input: {
       });
 
       recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
+<<<<<<< HEAD
+=======
+      console.log(`[AI Polish Cascade] УСПЕХ на модели ${fallback.model} (${fallback.provider})`);
+>>>>>>> gitlab/main
       result.warnings.push(`Текст очищен через резервную модель ${fallback.model} (${fallback.provider}).`);
       return result;
     } catch (fallbackError) {
@@ -437,9 +457,12 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input: {
     }
   }
 
+<<<<<<< HEAD
   if (primaryError) {
     throw primaryError;
   }
+=======
+>>>>>>> gitlab/main
   throw new Error("Сбой серверной очистки диктовки: все модели из каскада фоллбеков завершились ошибкой или лимиты исчерпаны.");
 }
 

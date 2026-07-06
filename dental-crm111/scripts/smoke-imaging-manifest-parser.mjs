@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import { existsSync } from "node:fs";
+=======
+import { existsSync } from "node:fs";
+>>>>>>> gitlab/main
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import assert from "node:assert";
@@ -13,7 +17,11 @@ if (!existsSync(routePath)) {
 const { parseImagingManifest } = await import(pathToFileURL(routePath).href);
 
 // Empty Input Case
+<<<<<<< HEAD
 const emptyResult = await parseImagingManifest({
+=======
+const emptyResult = parseImagingManifest({
+>>>>>>> gitlab/main
   sourceName: "testEmpty",
   sourceKind: "folder_watch",
   rawText: "   \n  \n"
@@ -30,7 +38,11 @@ const headersText = [
   "Иванова Марина Сергеевна,,UnknownKind,/path/to/image2.jpg,2023-01-03,"
 ].join("\n");
 
+<<<<<<< HEAD
 const headersResult = await parseImagingManifest({
+=======
+const headersResult = parseImagingManifest({
+>>>>>>> gitlab/main
   sourceName: "testHeaders",
   sourceKind: "folder_watch",
   rawText: headersText
@@ -59,7 +71,11 @@ const noHeadersText = [
   "/path/to/some/image/file.jpg Иванова Марина Сергеевна +7 (900) 555-55-55 01.01.2023 ОПТГ 11"
 ].join("\n");
 
+<<<<<<< HEAD
 const noHeadersResult = await parseImagingManifest({
+=======
+const noHeadersResult = parseImagingManifest({
+>>>>>>> gitlab/main
   sourceName: "testNoHeaders",
   sourceKind: "folder_watch",
   rawText: noHeadersText

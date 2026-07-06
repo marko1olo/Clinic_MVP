@@ -43,7 +43,10 @@ export async function setFileInputFiles(cdp, selector, files) {
     })()`,
     returnByValue: true
   });
+<<<<<<< HEAD
   console.log("SMOKE TEST DEBUG: setFileInputFiles evaluation result =", result.result.value);
+=======
+>>>>>>> gitlab/main
   if (result.exceptionDetails) {
     throw new Error(`dispatch files for ${selector} threw in browser: ${JSON.stringify(result.exceptionDetails)}`);
   }

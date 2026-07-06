@@ -11,6 +11,7 @@ import {
   savePersistentState,
   type DentalMutableState,
 } from "../persistentState.js";
+<<<<<<< HEAD
 import { test, describe, mock, afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
@@ -131,6 +132,21 @@ describe("loadPersistentState", () => {
     return { ...core, checksum };
   };
 
+=======
+
+describe("loadPersistentState", () => {
+  const originalPersistenceEnv = process.env.DENTAL_STATE_PERSISTENCE;
+
+  afterEach(() => {
+    mock.restoreAll();
+    if (originalPersistenceEnv !== undefined) {
+      process.env.DENTAL_STATE_PERSISTENCE = originalPersistenceEnv;
+    } else {
+      delete process.env.DENTAL_STATE_PERSISTENCE;
+    }
+  });
+
+>>>>>>> gitlab/main
   test("returns null when file system access throws an error", () => {
     mock.method(fs, "existsSync", () => true);
     mock.method(fs, "readFileSync", () => {
@@ -138,6 +154,7 @@ describe("loadPersistentState", () => {
     });
     mock.method(console, "warn", () => {}); // Suppress expected warning
 
+<<<<<<< HEAD
     const result = loadPersistentState();
 
     assert.strictEqual(result, null);
@@ -301,6 +318,13 @@ describe("loadPersistentState", () => {
 
 
     assert.strictEqual(warningMessage, "Dental state file ignored: unknown parse error");
+=======
+    process.env.DENTAL_STATE_PERSISTENCE = "on";
+
+    const result = loadPersistentState();
+
+    assert.strictEqual(result, null);
+>>>>>>> gitlab/main
   });
 });
 
@@ -442,6 +466,7 @@ describe("getPersistentStateIntegrityReport", () => {
   };
 
   const createValidPayload = (stateData = {}) => {
+<<<<<<< HEAD
     const core = {
       version: 1,
       savedAt: new Date().toISOString(),
@@ -456,21 +481,42 @@ describe("getPersistentStateIntegrityReport", () => {
   test("reports missing file warning when state file does not exist", async () => {
     setupTempEnv();
     const report = await getPersistentStateIntegrityReport();
+=======
+    const core = { version: 1, savedAt: new Date().toISOString(), state: stateData };
+    const checksum = createHash("sha256").update(JSON.stringify(core)).digest('hex');
+    return { ...core, checksum };
+  };
+
+  test("reports missing file warning when state file does not exist", () => {
+    setupTempEnv();
+    const report = getPersistentStateIntegrityReport();
+>>>>>>> gitlab/main
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.meta.exists, false);
     assert.strictEqual(report.checksumVerified, null);
+<<<<<<< HEAD
     assert.ok(
       report.warnings.some((w) => w.includes("Файл состояния еще не создан")),
     );
   });
 
   test("returns ok report for valid state file with no backups", async () => {
+=======
+    assert.ok(report.warnings.some(w => w.includes("Файл состояния еще не создан")));
+  });
+
+  test("returns ok report for valid state file with no backups", () => {
+>>>>>>> gitlab/main
     const { stateFile } = setupTempEnv();
     const payload = createValidPayload();
     fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
 
+<<<<<<< HEAD
     const report = await getPersistentStateIntegrityReport();
+=======
+    const report = getPersistentStateIntegrityReport();
+>>>>>>> gitlab/main
 
     assert.strictEqual(report.ok, true);
     assert.strictEqual(report.meta.exists, true);
@@ -478,12 +524,17 @@ describe("getPersistentStateIntegrityReport", () => {
     assert.deepStrictEqual(report.warnings, []);
   });
 
+<<<<<<< HEAD
   test("returns warning for state file checksum mismatch", async () => {
+=======
+  test("returns warning for state file checksum mismatch", () => {
+>>>>>>> gitlab/main
     const { stateFile } = setupTempEnv();
     const payload = createValidPayload();
     payload.checksum = "invalid-checksum";
     fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
 
+<<<<<<< HEAD
     const report = await getPersistentStateIntegrityReport();
 
     assert.strictEqual(report.ok, false);
@@ -509,6 +560,27 @@ describe("getPersistentStateIntegrityReport", () => {
   });
 
   test("returns ok report with valid backups", async () => {
+=======
+    const report = getPersistentStateIntegrityReport();
+
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.checksumVerified, false);
+    assert.ok(report.warnings.some(w => w.includes("Контрольная сумма файла состояния не совпала")));
+  });
+
+  test("returns warning when state file is unreadable (invalid json)", () => {
+    const { stateFile } = setupTempEnv();
+    fs.writeFileSync(stateFile, "{ invalid json", "utf8");
+
+    const report = getPersistentStateIntegrityReport();
+
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.checksumVerified, null);
+    assert.ok(report.warnings.some(w => w.includes("Файл состояния не читается")));
+  });
+
+  test("returns ok report with valid backups", () => {
+>>>>>>> gitlab/main
     const { stateFile, backupDir } = setupTempEnv();
 
     // Valid state file
@@ -516,6 +588,7 @@ describe("getPersistentStateIntegrityReport", () => {
     fs.writeFileSync(stateFile, JSON.stringify(payload), "utf8");
 
     // Valid backup file
+<<<<<<< HEAD
     const backupFile = path.join(
       backupDir,
       "dental-crm-state-20240101T000000Z.json",
@@ -523,6 +596,12 @@ describe("getPersistentStateIntegrityReport", () => {
     fs.writeFileSync(backupFile, JSON.stringify(payload), "utf8");
 
     const report = await getPersistentStateIntegrityReport();
+=======
+    const backupFile = path.join(backupDir, "dental-crm-state-20240101T000000Z.json");
+    fs.writeFileSync(backupFile, JSON.stringify(payload), "utf8");
+
+    const report = getPersistentStateIntegrityReport();
+>>>>>>> gitlab/main
 
     assert.strictEqual(report.ok, true);
     assert.strictEqual(report.backups.length, 1);
@@ -531,6 +610,7 @@ describe("getPersistentStateIntegrityReport", () => {
     assert.deepStrictEqual(report.warnings, []);
   });
 
+<<<<<<< HEAD
   test("returns null for stateFileHash when fs.promises.readFile throws an error (e.g. EACCES)", async () => {
     const { stateFile } = setupTempEnv();
     const payload = createValidPayload();
@@ -548,6 +628,9 @@ describe("getPersistentStateIntegrityReport", () => {
   });
 
   test("returns warning for backup checksum mismatch", async () => {
+=======
+  test("returns warning for backup checksum mismatch", () => {
+>>>>>>> gitlab/main
     const { stateFile, backupDir } = setupTempEnv();
 
     // Valid state file
@@ -557,6 +640,7 @@ describe("getPersistentStateIntegrityReport", () => {
     // Invalid backup file
     const invalidBackupPayload = createValidPayload();
     invalidBackupPayload.checksum = "invalid";
+<<<<<<< HEAD
     const backupFile = path.join(
       backupDir,
       "dental-crm-state-20240101T000000Z.json",
@@ -564,10 +648,17 @@ describe("getPersistentStateIntegrityReport", () => {
     fs.writeFileSync(backupFile, JSON.stringify(invalidBackupPayload), "utf8");
 
     const report = await getPersistentStateIntegrityReport();
+=======
+    const backupFile = path.join(backupDir, "dental-crm-state-20240101T000000Z.json");
+    fs.writeFileSync(backupFile, JSON.stringify(invalidBackupPayload), "utf8");
+
+    const report = getPersistentStateIntegrityReport();
+>>>>>>> gitlab/main
 
     assert.strictEqual(report.ok, false);
     assert.strictEqual(report.backups.length, 1);
     assert.strictEqual(report.backups[0]?.checksumVerified, false);
+<<<<<<< HEAD
     assert.ok(
       report.warnings.some(
         (w) =>
@@ -575,6 +666,9 @@ describe("getPersistentStateIntegrityReport", () => {
           w.toLowerCase().includes("не прошла проверку"),
       ),
     );
+=======
+    assert.ok(report.warnings.some(w => w.includes("одна из последних резервных копий не прошла проверку") || w.toLowerCase().includes("не прошла проверку")));
+>>>>>>> gitlab/main
   });
 });
 
@@ -667,10 +761,14 @@ describe("savePersistentState", () => {
     assert.strictEqual(fs.existsSync(stateFile), true);
 
     // Modify state slightly for second save
+<<<<<<< HEAD
     const modifiedState = {
       ...mockState,
       clinicProfile: { id: "clinic-2", name: "Updated" } as any,
     };
+=======
+    const modifiedState = { ...mockState, clinicProfile: { id: "clinic-2", name: "Updated" } as any };
+>>>>>>> gitlab/main
 
     // Second save
     savePersistentState(modifiedState);
@@ -680,10 +778,14 @@ describe("savePersistentState", () => {
     assert.strictEqual(backups.length, 1);
     const backupName = backups[0];
     if (!backupName) throw new Error("No backup files found");
+<<<<<<< HEAD
     const backupContent = fs.readFileSync(
       path.join(backupDir, backupName),
       "utf8",
     );
+=======
+    const backupContent = fs.readFileSync(path.join(backupDir, backupName), "utf8");
+>>>>>>> gitlab/main
     const backupParsed = JSON.parse(backupContent);
 
     // Backup should be the FIRST state
@@ -713,6 +815,7 @@ describe("savePersistentState", () => {
 
     assert.strictEqual(warningLogged, true);
   });
+<<<<<<< HEAD
 
   test("enforces the backup limit by deleting stale backups", async () => {
     process.env.DENTAL_STATE_PERSISTENCE = "on";
@@ -855,4 +958,6 @@ describe('buildPersistentStateExport', () => {
     );
     assert.strictEqual(result.payload, null);
   });
+=======
+>>>>>>> gitlab/main
 });

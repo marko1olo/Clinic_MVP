@@ -463,7 +463,11 @@ img {
 }
 
 .role-switcher-options {
+<<<<<<< HEAD
   background: var(--paper);
+=======
+  background: #ffffff;
+>>>>>>> gitlab/main
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -495,7 +499,11 @@ img {
 }
 
 .workspace-role-switcher button:hover {
+<<<<<<< HEAD
   background: var(--paper-soft);
+=======
+  background: #f3f4f6;
+>>>>>>> gitlab/main
   color: var(--teal-dark);
 }
 
@@ -10437,7 +10445,11 @@ img {
 
 .document-factory-tax-year input,
 .document-factory-tax-payer select {
+<<<<<<< HEAD
   background: var(--paper);
+=======
+  background: #fff;
+>>>>>>> gitlab/main
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   color: var(--ink);
@@ -13764,10 +13776,13 @@ input:focus, select:focus, textarea:focus {
     gap: 0 !important;
     border-right: none !important;
     border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+<<<<<<< HEAD
     position: fixed !important;
     bottom: 0 !important;
     width: 100% !important;
     z-index: 50 !important;
+=======
+>>>>>>> gitlab/main
   }
   .sidebar nav {
     display: grid !important;
@@ -13942,7 +13957,11 @@ input:focus, select:focus, textarea:focus {
 
 .document-factory-selected-kind select {
   width: 100% !important;
+<<<<<<< HEAD
   background: var(--paper);
+=======
+  background: #fff;
+>>>>>>> gitlab/main
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   color: var(--ink);
@@ -13963,7 +13982,11 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.4;
   color: var(--muted);
   background: #fdfaf2;
+<<<<<<< HEAD
   border: 1px solid var(--line);
+=======
+  border: 1px solid #f5d393;
+>>>>>>> gitlab/main
   padding: 8px 12px;
   border-radius: 6px;
 }
@@ -14694,13 +14717,22 @@ input:focus, select:focus, textarea:focus {
 
 .visit-risk-card.risk-high {
   background: #fef2f2;
+<<<<<<< HEAD
   border: 1px solid var(--line);
+=======
+  border: 1px solid #fecaca;
+>>>>>>> gitlab/main
   color: #991b1b;
 }
 
 .visit-risk-card.risk-watch {
+<<<<<<< HEAD
   background: var(--paper);
   border: 1px solid var(--line);
+=======
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+>>>>>>> gitlab/main
   color: #92400e;
 }
 
@@ -14820,7 +14852,11 @@ input:focus, select:focus, textarea:focus {
 
 .emk-tab-button.active {
   background: var(--teal);
+<<<<<<< HEAD
   color: var(--paper);
+=======
+  color: #ffffff;
+>>>>>>> gitlab/main
   border-color: var(--teal);
   box-shadow: 0 2px 5px rgba(13, 148, 136, 0.2);
 }
@@ -14836,7 +14872,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .emk-tab-button.active .emk-tab-dot {
+<<<<<<< HEAD
   background-color: var(--paper);
+=======
+  background-color: #ffffff;
+>>>>>>> gitlab/main
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
@@ -14863,7 +14903,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .quadrant-nav-btn {
+<<<<<<< HEAD
   background: var(--paper);
+=======
+  background: #ffffff;
+>>>>>>> gitlab/main
   border: 1px solid var(--line);
   color: var(--slate-600);
   font-size: 11px;
@@ -14883,7 +14927,11 @@ input:focus, select:focus, textarea:focus {
 
 .quadrant-nav-btn.active {
   background: var(--teal);
+<<<<<<< HEAD
   color: var(--paper);
+=======
+  color: #ffffff;
+>>>>>>> gitlab/main
   border-color: var(--teal);
   box-shadow: 0 2px 4px rgba(13, 148, 136, 0.2);
 }
@@ -14935,7 +14983,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .stamp-btn {
+<<<<<<< HEAD
   background: var(--paper);
+=======
+  background: #ffffff;
+>>>>>>> gitlab/main
   border: 1px solid var(--line);
   color: var(--slate-700);
   font-size: 11px;
@@ -14953,17 +15005,27 @@ input:focus, select:focus, textarea:focus {
 }
 
 .stamp-btn.active {
+<<<<<<< HEAD
   background: var(--paper-strong);
   border-color: #94a3b8;
   color: var(--ink);
 }
 
 .stamp-btn.active.stamp-planned { background: var(--paper-strong); border-color: #0284c7; color: #0369a1; }
+=======
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.stamp-btn.active.stamp-planned { background: #e0f2fe; border-color: #0284c7; color: #0369a1; }
+>>>>>>> gitlab/main
 .stamp-btn.active.stamp-treatment { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
 .stamp-btn.active.stamp-watch { background: #fef3c7; border-color: #d97706; color: #b45309; }
 .stamp-btn.active.stamp-done { background: #dcfce7; border-color: #166534; color: #15803d; }
 .stamp-btn.active.stamp-missing { background: #f1f5f9; border-color: #cbd5e1; color: #ef4444; }
 
+<<<<<<< HEAD
 
 
 /* --- TODAY'S WORKSPACE & DIALOGUE REFACTOR OVERRIDES --- */
@@ -16214,3 +16276,5 @@ input:focus, select:focus, textarea:focus {
   grid-template-columns: 1fr auto !important; 
   min-height: 80px !important; 
 }
+=======
+>>>>>>> gitlab/main

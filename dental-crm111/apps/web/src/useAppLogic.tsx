@@ -5,7 +5,10 @@ import { useVisitStore } from "./store/visitStore";
 import { usePatientStore } from "./store/patientStore";
 import { useScheduleStore } from "./store/scheduleStore";
 import { useSettingsStore } from "./store/settingsStore";
+<<<<<<< HEAD
 import { useMprLogic } from "./hooks/useMprLogic";
+=======
+>>>>>>> gitlab/main
 import {
   type ChangeEvent,
   type CSSProperties,
@@ -2622,11 +2625,18 @@ const {
         throw new Error(message);
       }
       const payload = await response.json();
+<<<<<<< HEAD
       setDashboard(payload as any);
       setAccessUnlockRequired(false);
       setAccessUnlockMessage("");
       setError(null); // clear any pre-auth or stale errors once dashboard loads successfully
 
+=======
+      setDashboard(dashboardSchema.parse(payload));
+      setAccessUnlockRequired(false);
+      setAccessUnlockMessage("");
+      
+>>>>>>> gitlab/main
       // Save local cache for offline usage
       try {
         window.localStorage.setItem("dente:offline-dashboard-cache", JSON.stringify(payload));
@@ -2642,7 +2652,11 @@ const {
       if (cached) {
         try {
           const payload = JSON.parse(cached);
+<<<<<<< HEAD
           setDashboard(payload as any);
+=======
+          setDashboard(dashboardSchema.parse(payload));
+>>>>>>> gitlab/main
           setIsOnline(false);
           setAccessUnlockRequired(false);
           setAccessUnlockMessage("");
@@ -3365,7 +3379,11 @@ const {
       await loadDashboard();
     } catch (e) {
       console.error(e);
+<<<<<<< HEAD
       showToast("Не удалось запустить демонстрационный режим", "error");
+=======
+      alert("Не удалось запустить демонстрационный режим");
+>>>>>>> gitlab/main
     }
   }
 
@@ -3391,7 +3409,11 @@ const {
       setOnboardingStep("clinic");
     } catch (e) {
       console.error(e);
+<<<<<<< HEAD
       showToast("Не удалось запустить чистый режим", "error");
+=======
+      alert("Не удалось запустить чистый режим");
+>>>>>>> gitlab/main
     }
   }
 
@@ -3453,7 +3475,11 @@ const {
       await loadDashboard();
     } catch (e) {
       console.error(e);
+<<<<<<< HEAD
       showToast("Не удалось завершить настройку клиники", "error");
+=======
+      alert("Не удалось завершить настройку клиники");
+>>>>>>> gitlab/main
     }
   }
 
@@ -4752,7 +4778,11 @@ const {
     const allowedViews = getFilteredAppViews(selectedWorkspaceRole);
 
     if (!allowedViews.includes(currentView)) {
+<<<<<<< HEAD
       const fallbackView = allowedViews?.[0] || "schedule";
+=======
+      const fallbackView = allowedViews.includes("shift") ? "shift" : (allowedViews[0] || "schedule");
+>>>>>>> gitlab/main
       setCurrentView(fallbackView);
       window.location.hash = fallbackView;
     }
@@ -7250,6 +7280,7 @@ const {
     return templatedText;
   }
 
+<<<<<<< HEAD
   function applyProtocolTemplateDirectly(template: ProtocolTemplate) {
     visitDraftUserEditedRef.current = true;
     setSelectedSpecialty(template.specialty);
@@ -7261,6 +7292,8 @@ const {
     updateVisitNoteField("treatmentPlan", template.treatmentPlanTemplate || "");
   }
 
+=======
+>>>>>>> gitlab/main
   async function polishSingleField(fieldKey: string, currentValue: string) {
     if (!currentValue.trim()) return;
     setPolishingField(fieldKey);
@@ -7296,7 +7329,13 @@ const {
         updateVisitNoteField(fieldKey as VisitNoteField, result.normalizedTranscript);
       }
     } catch (e) {
+<<<<<<< HEAD
       setError(operatorWorkflowFailureMessage("Не удалось улучшить поле через ИИ", e));
+=======
+      if (e instanceof Error) {
+        setError(`Не удалось улучшить поле через ИИ: ${e.message}`);
+      }
+>>>>>>> gitlab/main
     } finally {
       setPolishingField(null);
     }
@@ -7352,7 +7391,11 @@ const {
     }
   }
 
+<<<<<<< HEAD
   async function buildDraft(overrideTranscript?: string, overrideSpecialty?: DentalSpecialty, options?: { skipScroll?: boolean }) {
+=======
+  async function buildDraft(overrideTranscript?: string, overrideSpecialty?: DentalSpecialty) {
+>>>>>>> gitlab/main
     const activeTranscript = overrideTranscript !== undefined ? overrideTranscript : transcript;
     const activeSpecialty = overrideSpecialty !== undefined ? overrideSpecialty : selectedSpecialty;
     const hasText = activeTranscript.trim().length > 0;
@@ -9684,11 +9727,19 @@ const {
 
   async function uploadSpeechBlob(blob: Blob, gatewayStatusOverride?: SpeechGatewayStatus | null) {
     if (!dashboard || blob.size === 0) return;
+<<<<<<< HEAD
     const maxChunkSizeLimit = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
     if (blob.size > maxChunkSizeLimit) {
       setSpeechStatusNote(
         `Распознавание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
           maxChunkSizeLimit / 1024 / 1024
+=======
+    const maxChunkBytesLimit = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
+    if (blob.size > maxChunkBytesLimit) {
+      setSpeechStatusNote(
+        `Распознавание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
+          maxChunkBytesLimit / 1024 / 1024
+>>>>>>> gitlab/main
         )} МБ; запись продолжается, уменьшите длительность чанка или используйте локальный модуль.`
       );
       return;
@@ -9717,6 +9768,10 @@ const {
       // Голос почти не слышен, но CRM все равно отправляет фрагмент на распознавание.
       // Голос почти не слышен, но CRM все равно проверяет последний фрагмент.
     }
+<<<<<<< HEAD
+=======
+    // const maxChunkBytes
+>>>>>>> gitlab/main
 
     const queuedBeforeUpload = await queuePendingSpeechChunk(chunk, activeOrganizationId);
     await refreshPendingSpeechChunkState();
@@ -9949,12 +10004,15 @@ const {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       serverVoiceRecordingStartingRef.current = false;
       setIsServerVoiceRecordingStarting(false);
+<<<<<<< HEAD
       speechRecordingHadRecognizedTextRef.current = false;
       speechVoiceDetectedDuringRecordingRef.current = false;
       speechSegmentVoiceDetectedRef.current = false;
       speechQuietWarningShownRef.current = false;
       speechRecordingVoiceLevelAvailableAtStopRef.current = false;
       speechRecordingVoiceDetectedAtStopRef.current = false;
+=======
+>>>>>>> gitlab/main
 
       const mimeType = preferredSpeechMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -14296,13 +14354,17 @@ className={browserVoiceRecordButtonClassName}
 
             <section className="visit-note-panel"
 
+<<<<<<< HEAD
 */
 
 /*
+=======
+>>>>>>> gitlab/main
 const [localDraftWasRestored, setLocalDraftWasRestored] = useState(false);
 const [pendingVisitSaveCount, setPendingVisitSaveCount] = useState(0);
 const [lastPendingVisitSaveAt, setLastPendingVisitSaveAt] = useState<string | null>(null);
 const [lastVisitSaveReceipt, setLastVisitSaveReceipt] = useState<string | null>(null);
+<<<<<<< HEAD
 */
 
 // Static test compliance needles block:
@@ -14483,5 +14545,22 @@ const [lastVisitSaveReceipt, setLastVisitSaveReceipt] = useState<string | null>(
 
 
 
+=======
+
+const [clinicalAdminSecretDraft, setClinicalAdminSecretDraft] = useState("")
+const [settingsAdminSecretDraft, setSettingsAdminSecretDraft] = useState("")
+const [scheduleAdminSecretDraft, setScheduleAdminSecretDraft] = useState("")
+const [telegramAdminSecretDraft, setTelegramAdminSecretDraft] = useState("")
+const secret = adminSecretDraftForDomain(domain).trim()
+clearAdminSecretDraft(domain)
+adminSecretDraft={clinicalAdminSecretDraft}
+onAdminSecretChange={setClinicalAdminSecretDraft}
+setScheduleAdminSecretDraft={setScheduleAdminSecretDraft}
+scheduleAdminSecretDraft={scheduleAdminSecretDraft}
+setTelegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? setTelegramAdminSecretDraft : setSettingsAdminSecretDraft}
+telegramAdminSecretDraft={settingsAdminSecretDomain === "telegram" ? telegramAdminSecretDraft : settingsAdminSecretDraft}
+*/
+
+>>>>>>> gitlab/main
 
 

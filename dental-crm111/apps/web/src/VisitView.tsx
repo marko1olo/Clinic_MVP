@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { Suspense, useState } from "react";
 import { createPortal } from "react-dom";
 import { showToast } from "./components/GlobalToast";
@@ -11,6 +12,14 @@ import { useVisitStore } from "./store/visitStore";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { VisiographAnalyzer } from "./components/imaging/VisiographAnalyzer";
 import "./styles/VisitView.css";
+=======
+// @ts-nocheck
+import React, { Suspense } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, Bot, Check, CheckCircle2, ClipboardCheck, Mic, ShieldCheck, Sparkles } from "lucide-react";
+import { getToothPath, getToothConfig } from "./utils/toothGeometry";
+
+>>>>>>> gitlab/main
 export interface VisitViewProps {
   AlertTriangle: any;
   Bot: any;
@@ -119,6 +128,7 @@ export interface VisitViewProps {
 }
 
 export function VisitView(props: VisitViewProps) {
+<<<<<<< HEAD
   const { AlertTriangle, Bot, Check, CheckCircle2, ClinicalRulePanel, ClipboardCheck, Mic, Sparkles, acceptDraftToVisit, activeAppointment, activeChair, activeDoctor, activeImagingStudies, activePatient, activePatientInsight, activeUsableDocuments, activeVisitClinicalRuleEvaluations, activeVisitClinicalRuleSummary, appendToTranscript, applyProtocolTemplate, buildDraft, buildOfflineDraft, clearTranscriptWithUndo, clearedTranscriptSnapshot, clinicalRuleActionLabels, clinicalRuleSeverityLabels, dashboard, dictationQuickPhrases, draft, emptyDictationVoiceActionLabel, flushPendingSpeechChunks, flushPendingVisitSaves, formatTime, hasVisitTranscriptText, imagingKindLabels, isDraftAccepting, isDraftLoading, isOnline, isPendingVisitSyncing, isServerVoiceRecording, isTranscriptPolishing, isVisitDictating, isVisitNoteDirty, lastLocalSavedAt, lastPendingVisitSaveAt, lastServerDraftSavedAt, lastVisitSaveReceipt, localDraftWasRestored, openVisitWarningAction, pendingSpeechChunkCount, pendingSpeechFlushActionLabel, pendingSpeechFlushActionTitle, pendingVisitSaveCount, polishTranscript, polishingField, polishSingleField, primaryVisitWarning, scrollToVisitArea, selectedProtocolTemplate, selectedSpecialty, selectedWorkspaceRole, serverDraftSyncState, serviceTitle, setClearedTranscriptSnapshot, setSelectedProtocolId, setSelectedSpecialty, setTranscript, specialtiesWithTemplates, specialtyLabels, specialtyProtocolTemplates, speechGatewayActiveProviderIsLocal, speechGatewayStatus, speechRecognitionReady, speechStatusNote, speechTranscriptionBusy, staffRoleLabels, startServerVoiceRecording, startVisitDictation, stopServerVoiceRecording, toothRows, toothStateByCode, setToothState, transcript, undoTranscriptClear, updateVisitNoteField, visibleVisitSpecialtyFocusOptions, visitCloseChecklist, visitDraftBuildMissingSteps, visitDraftMissingFieldLabel, visitDraftQualityLabels, visitDraftReadyToBuild, visitDraftSignalLabel, visitDraftUserEditedRef, visitNoteAcceptMissingSteps, visitNoteActionLabel, visitNoteFieldDefinitions, visitNoteForm, visitNoteReadyToAccept, visitNoteStatusLabel, visitPrimaryAction, visitSafetyCards, visitSaveReceiptText, visitWarnings, visitWorkflowSteps } = props;
 
   const [activeEmkTab, setActiveEmkTab] = useState("all");
@@ -131,6 +141,13 @@ export function VisitView(props: VisitViewProps) {
   const [activeStamp, setActiveStamp] = React.useState<string | null>(null);
   const activeStampRef = React.useRef<string | null>(null);
   activeStampRef.current = activeStamp;
+=======
+  const { AlertTriangle, Bot, Check, CheckCircle2, ClinicalRulePanel, ClipboardCheck, Mic, Sparkles, acceptDraftToVisit, activeAppointment, activeChair, activeDoctor, activeImagingStudies, activePatient, activePatientInsight, activeUsableDocuments, activeVisitClinicalRuleEvaluations, activeVisitClinicalRuleSummary, appendToTranscript, applyProtocolTemplate, buildDraft, buildOfflineDraft, clearTranscriptWithUndo, clearedTranscriptSnapshot, clinicalRuleActionLabels, clinicalRuleSeverityLabels, dashboard, dictationQuickPhrases, draft, emptyDictationVoiceActionLabel, flushPendingSpeechChunks, flushPendingVisitSaves, formatTime, hasVisitTranscriptText, imagingKindLabels, isDraftAccepting, isDraftLoading, isOnline, isPendingVisitSyncing, isServerVoiceRecording, isTranscriptPolishing, isVisitDictating, isVisitNoteDirty, lastLocalSavedAt, lastPendingVisitSaveAt, lastServerDraftSavedAt, lastVisitSaveReceipt, localDraftWasRestored, openVisitWarningAction, pendingSpeechChunkCount, pendingSpeechFlushActionLabel, pendingSpeechFlushActionTitle, pendingVisitSaveCount, polishTranscript, polishingField, polishSingleField, primaryVisitWarning, scrollToVisitArea, selectedProtocolTemplate, selectedSpecialty, selectedWorkspaceRole, serverDraftSyncState, serviceTitle, setClearedTranscriptSnapshot, setSelectedProtocolId, setSelectedSpecialty, setTranscript, specialtiesWithTemplates, specialtyLabels, specialtyProtocolTemplates, speechGatewayActiveProviderIsLocal, speechGatewayStatus, speechRecognitionReady, speechStatusNote, staffRoleLabels, startServerVoiceRecording, startVisitDictation, stopServerVoiceRecording, toothRows, toothStateByCode, setToothState, transcript, undoTranscriptClear, updateVisitNoteField, visibleVisitSpecialtyFocusOptions, visitCloseChecklist, visitDraftBuildMissingSteps, visitDraftMissingFieldLabel, visitDraftQualityLabels, visitDraftReadyToBuild, visitDraftSignalLabel, visitDraftUserEditedRef, visitNoteAcceptMissingSteps, visitNoteActionLabel, visitNoteFieldDefinitions, visitNoteForm, visitNoteReadyToAccept, visitNoteStatusLabel, visitPrimaryAction, visitSafetyCards, visitSaveReceiptText, visitWarnings, visitWorkflowSteps } = props;
+
+  const [activeEmkTab, setActiveEmkTab] = React.useState("all");
+  const [activeQuadrant, setActiveQuadrant] = React.useState(null);
+  const [activeStamp, setActiveStamp] = React.useState(null);
+>>>>>>> gitlab/main
 
   // ── Clinical Context Modal state ─────────────────────────────
   const [selectedToothForMenu, setSelectedToothForMenu] = React.useState<{ code: string; state: string } | null>(null);
@@ -195,15 +212,22 @@ export function VisitView(props: VisitViewProps) {
     : visitNoteFieldDefinitions.filter((f) => f.key === activeEmkTab);
 
   const handleToothClick = (code: string, currentState: string) => {
+<<<<<<< HEAD
     if (activeStampRef.current !== null) {
       // Quick stamp mode: apply instantly, no popup
       setToothState(code, activeStampRef.current);
+=======
+    if (activeStamp !== null) {
+      // Quick stamp mode: apply instantly, no popup
+      setToothState(code, activeStamp);
+>>>>>>> gitlab/main
     } else {
       // Default mode: open clinical context modal
       setSelectedToothForMenu({ code, state: currentState });
     }
   };
 
+<<<<<<< HEAD
   if (!activePatient) {
     return (
       <>
@@ -221,6 +245,8 @@ export function VisitView(props: VisitViewProps) {
     );
   }
 
+=======
+>>>>>>> gitlab/main
   return <>
           <div className="panel visit-panel" id="visit">
             <div className="panel-heading">
@@ -566,12 +592,16 @@ export function VisitView(props: VisitViewProps) {
               </div>
             </div>
 
+<<<<<<< HEAD
             <VisiographAnalyzer />
 
             <div className="tooth-map" aria-label="Зубная карта">
               <div className="tooth-map-selected" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}>
                 <button type="button" onClick={() => { setActiveStamp("watch"); activeStampRef.current = "watch"; }}>Наблюдение</button>
               </div>
+=======
+            <div className="tooth-map" aria-label="Зубная карта">
+>>>>>>> gitlab/main
               <div className="tooth-map-head">
                 <div>
                   <h3>Зубная карта</h3>
@@ -688,9 +718,18 @@ export function VisitView(props: VisitViewProps) {
                   <div className="tooth-jaw upper-jaw">
                     {/* Правая половина верхней: Q1 — 18→11 */}
                     {(activeQuadrant === null || activeQuadrant === 1) && (
+<<<<<<< HEAD
                       <div className="tooth-half tooth-row">
                         {(toothRows[0] || []).slice(0, 8).map((code) => {
                           const state = toothStateByCode[code] ?? "idle";
+=======
+                      <div className="tooth-half">
+                        {(toothRows[0] || []).slice(0, 8).map((code) => {
+                          const state = toothStateByCode[code] ?? "idle";
+                          if (code === "15") {
+                            console.log("RENDER TOOTH 15 state:", state);
+                          }
+>>>>>>> gitlab/main
                           const geom = getToothPath(Number(code));
                           const cfg = getToothConfig(Number(code));
                           const isDetected = (draft?.quality?.detectedToothCodes || []).includes(code);
@@ -698,7 +737,11 @@ export function VisitView(props: VisitViewProps) {
                             <button
                               key={code}
                               type="button"
+<<<<<<< HEAD
                               className={`tooth tooth-${state}${state !== "idle" ? " selected" : ""}${isDetected ? " tooth-ai-detected" : ""}`}
+=======
+                              className={`tooth tooth-${state}${isDetected ? " tooth-ai-detected" : ""}`}
+>>>>>>> gitlab/main
                               onClick={() => handleToothClick(code, state)}
                               aria-label={`Зуб ${code}`}
                             >
@@ -730,7 +773,11 @@ export function VisitView(props: VisitViewProps) {
                     {activeQuadrant === null && <div className="tooth-center-line" aria-hidden="true" />}
                     {/* Левая половина верхней: Q2 — 21→28 */}
                     {(activeQuadrant === null || activeQuadrant === 2) && (
+<<<<<<< HEAD
                       <div className="tooth-half tooth-row">
+=======
+                      <div className="tooth-half">
+>>>>>>> gitlab/main
                         {(toothRows[0] || []).slice(8).map((code) => {
                           const state = toothStateByCode[code] ?? "idle";
                           const geom = getToothPath(Number(code));
@@ -740,7 +787,11 @@ export function VisitView(props: VisitViewProps) {
                             <button
                               key={code}
                               type="button"
+<<<<<<< HEAD
                               className={`tooth tooth-${state}${state !== "idle" ? " selected" : ""}${isDetected ? " tooth-ai-detected" : ""}`}
+=======
+                              className={`tooth tooth-${state}${isDetected ? " tooth-ai-detected" : ""}`}
+>>>>>>> gitlab/main
                               onClick={() => handleToothClick(code, state)}
                               aria-label={`Зуб ${code}`}
                             >
@@ -783,7 +834,11 @@ export function VisitView(props: VisitViewProps) {
                   <div className="tooth-jaw lower-jaw">
                     {/* Правая нижняя Q4 — 48→41 */}
                     {(activeQuadrant === null || activeQuadrant === 4) && (
+<<<<<<< HEAD
                       <div className="tooth-half tooth-row">
+=======
+                      <div className="tooth-half">
+>>>>>>> gitlab/main
                         {(toothRows[1] || []).slice(0, 8).map((code) => {
                           const state = toothStateByCode[code] ?? "idle";
                           const geom = getToothPath(Number(code));
@@ -793,7 +848,11 @@ export function VisitView(props: VisitViewProps) {
                             <button
                               key={code}
                               type="button"
+<<<<<<< HEAD
                               className={`tooth tooth-${state}${state !== "idle" ? " selected" : ""}${isDetected ? " tooth-ai-detected" : ""} tooth-lower`}
+=======
+                              className={`tooth tooth-${state}${isDetected ? " tooth-ai-detected" : ""} tooth-lower`}
+>>>>>>> gitlab/main
                               onClick={() => handleToothClick(code, state)}
                               aria-label={`Зуб ${code}`}
                             >
@@ -825,7 +884,11 @@ export function VisitView(props: VisitViewProps) {
                     {activeQuadrant === null && <div className="tooth-center-line" aria-hidden="true" />}
                     {/* Левая нижняя Q3 — 31→38 */}
                     {(activeQuadrant === null || activeQuadrant === 3) && (
+<<<<<<< HEAD
                       <div className="tooth-half tooth-row">
+=======
+                      <div className="tooth-half">
+>>>>>>> gitlab/main
                         {(toothRows[1] || []).slice(8).map((code) => {
                           const state = toothStateByCode[code] ?? "idle";
                           const geom = getToothPath(Number(code));
@@ -835,7 +898,11 @@ export function VisitView(props: VisitViewProps) {
                             <button
                               key={code}
                               type="button"
+<<<<<<< HEAD
                               className={`tooth tooth-${state}${state !== "idle" ? " selected" : ""}${isDetected ? " tooth-ai-detected" : ""} tooth-lower`}
+=======
+                              className={`tooth tooth-${state}${isDetected ? " tooth-ai-detected" : ""} tooth-lower`}
+>>>>>>> gitlab/main
                               onClick={() => handleToothClick(code, state)}
                               aria-label={`Зуб ${code}`}
                             >
@@ -907,6 +974,7 @@ export function VisitView(props: VisitViewProps) {
               </div>
 
               <div className={`visit-fields ${activeEmkTab !== "all" ? "single-tab-mode" : ""}`}>
+<<<<<<< HEAD
                 {visibleFields.map((field) => {
                   const QUICK_CHIPS: Record<string, string[]> = {
                     complaint: ["Жалоб нет", "Ноющие боли", "Острая боль", "Боль при накусывании", "Реакция на холод/горячее", "Застревание пищи", "Эстетический дефект", "Проф. осмотр"],
@@ -949,6 +1017,14 @@ export function VisitView(props: VisitViewProps) {
                     </div>
                   );
                 })}
+=======
+                {visibleFields.map((field) => (
+                  <label key={field.key}>
+                    {field.label}
+                    <textarea value={visitNoteForm[field.key]} onChange={(event) => updateVisitNoteField(field.key, event.target.value)} />
+                  </label>
+                ))}
+>>>>>>> gitlab/main
               </div>
 
               {draft?.quality ? (
@@ -1090,8 +1166,12 @@ export function VisitView(props: VisitViewProps) {
                 <ClinicalRulePanel
                   actionLabels={clinicalRuleActionLabels}
                   context="visit"
+<<<<<<< HEAD
                   // evaluations={activeVisitClinicalRuleEvaluations}
                   evaluations={dashboard?.clinicSettings?.profile?.mode === "solo_doctor" ? activeVisitClinicalRuleEvaluations.filter((e: any) => e.ownerRole !== "assistant") : activeVisitClinicalRuleEvaluations}
+=======
+                  evaluations={activeVisitClinicalRuleEvaluations}
+>>>>>>> gitlab/main
                   serviceTitle={serviceTitle}
                   severityLabels={clinicalRuleSeverityLabels}
                   staffRoleLabels={staffRoleLabels}
@@ -1137,7 +1217,122 @@ export function VisitView(props: VisitViewProps) {
           {/* ═══════════════════════════════════════════════════════════════
               Clinical Context Modal — открывается по клику на зуб (без штампа)
           ═══════════════════════════════════════════════════════════════ */}
+<<<<<<< HEAD
           
+=======
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes _ccm-fade { from { opacity:0 } to { opacity:1 } }
+            @keyframes _ccm-up {
+              from { transform: translate(-50%,-45%) scale(.95); opacity:0 }
+              to   { transform: translate(-50%,-50%) scale(1);   opacity:1 }
+            }
+            ._ccm-overlay {
+              position:fixed; inset:0; z-index:3000;
+              background:rgba(15,23,42,.52);
+              backdrop-filter:blur(14px);
+              animation:_ccm-fade .18s ease-out;
+            }
+            ._ccm-content {
+              position:fixed; top:50%; left:50%;
+              transform:translate(-50%,-50%);
+              display:flex; align-items:stretch; gap:1.25rem;
+              z-index:3001;
+              width:96%; max-width:900px;
+              height:82vh; max-height:580px;
+              animation:_ccm-up .22s cubic-bezier(.16,1,.3,1) forwards;
+            }
+            ._ccm-panel {
+              flex:1; min-width:0;
+              background:rgba(255,255,255,.92);
+              backdrop-filter:blur(20px);
+              border:1px solid rgba(255,255,255,.6);
+              box-shadow:0 24px 48px -12px rgba(15,23,42,.22);
+              border-radius:22px;
+              padding:1.25rem 1rem;
+              display:flex; flex-direction:column; gap:.55rem;
+              overflow-y:auto;
+            }
+            ._ccm-center {
+              width:220px; flex-shrink:0;
+              display:flex; flex-direction:column;
+              align-items:center; justify-content:space-between;
+              background:rgba(255,255,255,.55);
+              backdrop-filter:blur(16px);
+              border:1px solid rgba(255,255,255,.4);
+              border-radius:22px;
+              padding:1.25rem .75rem;
+            }
+            ._ccm-tooth-stage {
+              flex:1; display:flex; align-items:center; justify-content:center;
+              transform:scale(2.5);
+              filter:drop-shadow(0 12px 24px rgba(15,23,42,.18));
+            }
+            ._ccm-h {
+              margin:0 0 .15rem;
+              font-size:.9rem; font-weight:700; color:#1e293b;
+              border-bottom:1px solid #e2e8f0; padding-bottom:.55rem;
+            }
+            ._ccm-label {
+              font-size:.65rem; font-weight:800; letter-spacing:.06em;
+              text-transform:uppercase; color:#64748b;
+              margin:.6rem 0 .15rem;
+            }
+            ._ccm-label:first-of-type { margin-top:0 }
+            ._ccm-btn {
+              width:100%; padding:.6rem .8rem;
+              border-radius:10px;
+              border:1px solid #e2e8f0;
+              background:#fff; color:#334155;
+              font-size:.82rem; font-weight:600;
+              text-align:left; cursor:pointer;
+              display:flex; align-items:center; justify-content:space-between;
+              transition:background .13s, border-color .13s, box-shadow .13s;
+            }
+            ._ccm-btn:hover { background:#f8fafc; border-color:#cbd5e1; box-shadow:0 2px 8px rgba(15,23,42,.07); }
+            ._ccm-btn.active { background:var(--ab,#f0f9ff); color:var(--af,#0369a1); border-color:var(--abr,#bae6fd); }
+            ._ccm-btn[data-color="green"] { border-left:3px solid #4ade80 }
+            ._ccm-btn[data-color="slate"] { border-left:3px solid #94a3b8 }
+            ._ccm-btn[data-color="amber"] { border-left:3px solid #f59e0b }
+            ._ccm-btn[data-color="red"]   { border-left:3px solid #f87171 }
+            ._ccm-btn[data-color="rose"]  { border-left:3px solid #fb7185 }
+            ._ccm-btn[data-color="blue"]  { border-left:3px solid #60a5fa }
+            ._ccm-btn[data-color="cyan"]  { border-left:3px solid #22d3ee }
+            ._ccm-btn[data-color="violet"]{ border-left:3px solid #a78bfa }
+            ._ccm-btn[data-color="pink"]  { border-left:3px solid #f472b6 }
+            ._ccm-warn {
+              padding:.6rem .75rem; border-radius:10px;
+              background:#fffbeb; border:1px solid #fde68a;
+              font-size:.73rem; color:#78350f;
+            }
+            ._ccm-code-badge {
+              font-size:.7rem; font-weight:800; letter-spacing:.1em;
+              color:#64748b; margin-bottom:.5rem;
+            }
+            ._ccm-close-btn {
+              width:100%; border-radius:12px; padding:.55rem;
+              font-size:.8rem; font-weight:700;
+              border:1px solid #cbd5e1; background:#f8fafc; color:#475569;
+              cursor:pointer; transition:background .13s;
+            }
+            ._ccm-close-btn:hover { background:#e2e8f0; }
+            .clinical-rules-toggle {
+              margin: .75rem 0;
+              border-radius: 12px;
+              border: 1px solid #e2e8f0;
+              overflow: hidden;
+            }
+            .clinical-rules-toggle > summary {
+              padding: .75rem 1rem;
+              background: #f8fafc;
+              font-size: .85rem; font-weight: 700; color: #475569;
+              cursor: pointer; user-select: none; outline: none;
+              list-style: none;
+              transition: background .15s;
+            }
+            .clinical-rules-toggle > summary:hover { background: #f1f5f9; }
+            .clinical-rules-toggle > summary::-webkit-details-marker { display: none; }
+          ` }} />
+>>>>>>> gitlab/main
 
           {selectedToothForMenu && (() => {
             const { code } = selectedToothForMenu;
@@ -1335,7 +1530,11 @@ export function VisitView(props: VisitViewProps) {
                           onClick={() => {
                             if (visitWarnings && visitWarnings.some((w: any) =>
                               /бисфосф|bisph/i.test(w.title + w.detail))) {
+<<<<<<< HEAD
                               showToast(`⚠️ ПРЕДУПРЕЖДЕНИЕ: У пациента обнаружены бисфосфонаты в анамнезе. Имплантация противопоказана — риск остеонекроза. Проконсультируйтесь с хирургом-ортопедом.`, 'error');
+=======
+                              alert(`⚠️ ПРЕДУПРЕЖДЕНИЕ: У пациента обнаружены бисфосфонаты в анамнезе. Имплантация противопоказана — риск остеонекроза. Проконсультируйтесь с хирургом-ортопедом.`);
+>>>>>>> gitlab/main
                               return;
                             }
                             setMaterialCategory("implant");

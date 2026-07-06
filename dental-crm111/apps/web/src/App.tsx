@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Static test compliance matches:
 // outcome,
 // setSelectedPatientId(patient.id)
@@ -9,6 +10,9 @@ import { CommandPalette } from './components/CommandPalette';
 import { AuthHub } from './components/auth/AuthHub';
 import { StaffPinPad } from './components/auth/StaffPinPad';
 import { ClinicalTrainingWidget } from './components/onboarding/ClinicalTrainingWidget';
+=======
+import { useAppLogic } from './useAppLogic';
+>>>>>>> gitlab/main
 
 import { useAppStore } from "./store/appStore";
 import { useImagingStore } from "./store/imagingStore";
@@ -1879,8 +1883,11 @@ export function App() {
   handleSelectDemoMode,
   handleSelectZeroMode,
   setSelectedPatientId,
+<<<<<<< HEAD
   setScheduleDateFilter,
   scheduleDateFilter,
+=======
+>>>>>>> gitlab/main
   handleFinishOnboarding
 } = useAppLogic();
 
@@ -1888,6 +1895,7 @@ export function App() {
 
   const [resetting, setResetting] = useState(false);
 
+<<<<<<< HEAD
   // --- DUAL-TIER AUTH STATE ---
   const [clinicAuthed, setClinicAuthed] = useState<boolean>(() => {
     return typeof window !== "undefined" && !!localStorage.getItem("dente_clinic_token");
@@ -1984,6 +1992,8 @@ export function App() {
   }
 
 
+=======
+>>>>>>> gitlab/main
   if (!onboardingDismissed) {
     return (
       <main className="app-shell onboarding-fullscreen" style={{ display: "flex", flexDirection: "column", minHeight: "100vh", padding: "40px 20px", background: "linear-gradient(135deg, #0d9488 0%, #111827 100%)", overflowY: "auto" }}>
@@ -2331,11 +2341,19 @@ export function App() {
             <div className="banner-content">
               <span className="banner-icon" aria-hidden="true">🚀</span>
               <p>
+<<<<<<< HEAD
                 <strong>Демо-режим.</strong> Тестовые данные загружены. Для настройки своей клиники нажмите «Запустить мастер».
               </p>
             </div>
             <button className="primary-button banner-btn" type="button" onClick={reopenOnboarding}>
               Запустить мастер
+=======
+                <strong>Начало работы:</strong> Вы находитесь в демонстрационном режиме с тестовыми данными. Для ввода своего расписания и врачей запустите мастер.
+              </p>
+            </div>
+            <button className="primary-button banner-btn" type="button" onClick={reopenOnboarding}>
+              Запустить мастер настройки
+>>>>>>> gitlab/main
             </button>
           </div>
         )}

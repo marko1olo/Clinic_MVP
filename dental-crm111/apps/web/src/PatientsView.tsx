@@ -379,6 +379,7 @@ export function PatientsView(props: PatientsViewProps) {
                   {patientCoreSaveGuidance}
                 </p>
               ) : null}
+<<<<<<< HEAD
 
               {/* Odontogram Section */}
                 <div style={{ marginTop: '24px', marginBottom: '16px' }}>
@@ -388,6 +389,8 @@ export function PatientsView(props: PatientsViewProps) {
               {/* ShadowAnalyst — AI 2D X-Ray Analyzer */}
               <VisiographAnalyzer />
 
+=======
+>>>>>>> gitlab/main
             <details className="settings-advanced-block patient-docs-collapsible">
               <summary className="settings-advanced-toggle">
                 <span className="settings-advanced-label">
@@ -398,9 +401,16 @@ export function PatientsView(props: PatientsViewProps) {
                 <span className="settings-advanced-chevron">▼</span>
               </summary>
               <div className="settings-advanced-form">
+<<<<<<< HEAD
                 <div className="panel-heading compact-heading patient-doc-heading" style={{ borderBottom: 'none', paddingBottom: '0', marginBottom: '8px' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Реквизиты для документов</span>
+=======
+                <div className="panel-heading compact-heading patient-doc-heading">
+                  <div>
+                    <p className="eyebrow">Реквизиты для документов</p>
+                    <h3>{selectedPatient?.fullName ?? "Пациент не выбран"}</h3>
+>>>>>>> gitlab/main
                   </div>
                   <span className={`status-pill status-${patientAdministrativeProfileSaveState === "error" || patientAdministrativeProfileValidationMessage ? "cancelled" : "confirmed"}`}>
                     {patientAdministrativeProfileSaveState === "saving"
@@ -417,9 +427,12 @@ export function PatientsView(props: PatientsViewProps) {
                 {patientAdministrativeProfileValidationMessage ? (
                   <p className="save-error patient-admin-validation">{patientAdministrativeProfileValidationMessage}</p>
                 ) : null}
+<<<<<<< HEAD
                 <details className="patient-admin-details" style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--slate-700)' }}>Дополнительные документы и адреса (развернуть)</summary>
                   <div style={{ marginTop: '12px' }}>
+=======
+>>>>>>> gitlab/main
                 <div className="clinic-profile-form-grid patient-admin-form-grid">
                 <label>
                   Документ пациента

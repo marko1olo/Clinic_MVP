@@ -1,6 +1,38 @@
+<<<<<<< HEAD
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { requireClinicalReadAccess } from "../../accessGuard.js";
 
+=======
+import type { FastifyInstance } from "fastify";
+import { requireClinicalReadAccess } from "../../accessGuard.js";
+import {
+  createDocumentSchema,
+  issueDocumentSchema,
+  publicGeneratedDocumentSchema,
+  voidDocumentSchema
+} from "@dental/shared";
+import {
+  clinicProfile,
+  createGeneratedDocument,
+  documents,
+  findVisitById,
+  issueGeneratedDocument,
+  patients,
+  payments,
+  readIssuedDocumentSnapshot,
+  storeTaxXmlSnapshot,
+  treatmentPlanItems,
+  voidGeneratedDocument
+} from "../../sampleData.js";
+import {
+  paidAmountRubForDocument,
+  plannedAmountRubForDocument,
+  paymentRefundCorrectionSelectionErrorForDocument,
+  paymentReceiptSelectionErrorForDocument,
+  taxPaymentSelectionErrorForDocument,
+  validateDocumentCreation
+} from "../../documents/guards.js";
+>>>>>>> gitlab/main
 
 import {
   buildTaxPaymentSnapshotForIssue,

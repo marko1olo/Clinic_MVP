@@ -949,8 +949,12 @@ export function loadDocumentPaymentSelectionStore(organizationId: string | null 
       if (organizationId) window.localStorage.removeItem(documentPaymentSelectionStorageKey);
     }
     return { version: 1, selections };
+<<<<<<< HEAD
   } catch (error) {
     console.error("Failed to load signature draft", error);
+=======
+  } catch {
+>>>>>>> gitlab/main
     // Document payment selection is local operator convenience; read failures are safe to ignore.
     return emptyDocumentPaymentSelectionStore();
   }

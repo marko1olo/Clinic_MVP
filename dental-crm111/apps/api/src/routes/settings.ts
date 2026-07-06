@@ -28,7 +28,23 @@ import {
   updateChairWorkingHoursSchema,
   updateStaffWorkingHoursSchema
 } from "@dental/shared";
+<<<<<<< HEAD
 
+=======
+import {
+  buildClinicSettings,
+  createChair,
+  createStaffMember,
+  getUiPreferences,
+  saveUiPreferences,
+  updateClinicMode,
+  updateClinicProfile,
+  updateChairWorkingHours,
+  updateStaffWorkingHours,
+  resetToDemo,
+  resetToZeroMode
+} from "../sampleData.js";
+>>>>>>> gitlab/main
 import { repairMojibakeDeep } from "../text/repairMojibake.js";
 
 type SettingsPayloadSchema<T> = {
@@ -162,7 +178,11 @@ function settingsUnguardedMutationsAllowed(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1";
 }
 
+<<<<<<< HEAD
 async function requireSettingsAccess(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
+=======
+async function requireSettingsAccess(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
+>>>>>>> gitlab/main
   const adminSecret = configuredSettingsAdminSecret();
   let hasAccess = false;
   
@@ -357,10 +377,24 @@ export async function registerSettingsRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/settings/reset-demo", async (request, reply) => {
+<<<<<<< HEAD
     return { success: true, message: "Демонстрационный режим больше не поддерживается (используется Postgres)." };
   });
 
   app.post("/api/settings/reset-zero", async (request, reply) => {
     return { success: true, message: "Очистка базы больше не поддерживается (используется Postgres)." };
+=======
+    resetToDemo();
+    return { success: true, message: "Демонстрационный режим успешно запущен." };
+  });
+
+  app.post("/api/settings/reset-zero", async (request, reply) => {
+    const body = request.body as { role?: string } | null;
+    const role = (body?.role === "doctor" || body?.role === "administrator" || body?.role === "owner" || body?.role === "assistant" || body?.role === "manager")
+      ? body.role
+      : "doctor";
+    resetToZeroMode(role);
+    return { success: true, message: "База данных успешно очищена. Запущен нулевой режим." };
+>>>>>>> gitlab/main
   });
 }

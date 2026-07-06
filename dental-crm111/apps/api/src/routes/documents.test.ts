@@ -1,5 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+<<<<<<< HEAD
 import fsPromises from 'node:fs/promises';
 import { medicalRecordCopyRequestDatesAreValid, renderIssuedHtmlToPdf } from './documents.js';
 import type { MedicalRecordCopyRequestPayload } from '@dental/shared';
@@ -27,6 +28,11 @@ describe('renderIssuedHtmlToPdf try-catch fall-through error handling', () => {
   });
 });
 
+=======
+import { medicalRecordCopyRequestDatesAreValid } from './documents.js';
+import type { MedicalRecordCopyRequestPayload } from '@dental/shared';
+
+>>>>>>> gitlab/main
 describe('medicalRecordCopyRequestDatesAreValid', () => {
   test('returns true when all dates are valid and chronological', () => {
     const payload = {
@@ -102,6 +108,7 @@ describe('medicalRecordCopyRequestDatesAreValid', () => {
     } as unknown as MedicalRecordCopyRequestPayload;
 
     assert.strictEqual(medicalRecordCopyRequestDatesAreValid(payload), false);
+<<<<<<< HEAD
 import { frozenTaxXmlClinicProfile } from './documents.js';
 import type { GeneratedDocument, ClinicProfile } from '@dental/shared';
 
@@ -497,5 +504,7 @@ describe('releaseSourceSnapshotSha256', () => {
 
     // Because the function does `issuedAt: document.issuedAt ?? null`, both should map to the same JSON and same hash
     assert.strictEqual(hashFromUndefined, hashFromNull);
+=======
+>>>>>>> gitlab/main
   });
 });

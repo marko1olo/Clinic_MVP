@@ -4404,6 +4404,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                 ) : null}
               </section>
 
+<<<<<<< HEAD
               <div className="document-factory-selected-kind" style={{ marginTop: "16px" }}>
                 <button
                   className="primary-button"
@@ -4417,6 +4418,8 @@ export function DocumentsView(props: DocumentsViewProps) {
                 </button>
               </div>
 
+=======
+>>>>>>> gitlab/main
               <details className="settings-advanced-block document-templates-collapsible">
                 <summary className="settings-advanced-toggle">
                   <span className="settings-advanced-label">
@@ -4424,7 +4427,11 @@ export function DocumentsView(props: DocumentsViewProps) {
                     Каталог шаблонов документов ({documentFactoryGroups.length} разделов, 30+ форм)
                   </span>
                   <span className="settings-advanced-hint">Нажмите, чтобы развернуть все шаблоны</span>
+<<<<<<< HEAD
                   <span className="settings-advanced-chevron">{"\u25BC"}</span>
+=======
+                  <span className="settings-advanced-chevron">▼</span>
+>>>>>>> gitlab/main
                 </summary>
                 <div className="settings-advanced-form">
                   {documentFactoryGroups.map((group) => (

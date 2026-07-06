@@ -4,6 +4,7 @@ import {
   documentRequiresPaidRecord,
   documentAmountSource,
   documentKindSchema,
+<<<<<<< HEAD
   documentPayloadDisallowedKeys,
   buildRuleBasedVisitDraftFromTranscript,
 } from "../index.js";
@@ -163,6 +164,10 @@ describe('documentAmountSource', () => {
     }
   });
 });
+=======
+  buildRuleBasedVisitDraftFromTranscript,
+} from "../index.js";
+>>>>>>> gitlab/main
 
 describe("documentAmountSource", () => {
   test("returns expected amount source for different document kinds", () => {
@@ -248,6 +253,7 @@ describe("documentRequiresPaidRecord", () => {
       assert.strictEqual(typeof result, "boolean");
     }
   });
+<<<<<<< HEAD
 
   test("edge cases: handles invalid or missing document kinds gracefully", () => {
     assert.strictEqual(documentRequiresPaidRecord("" as any), false);
@@ -255,6 +261,8 @@ describe("documentRequiresPaidRecord", () => {
     assert.strictEqual(documentRequiresPaidRecord(undefined as any), false);
     assert.strictEqual(documentRequiresPaidRecord(null as any), false);
   });
+=======
+>>>>>>> gitlab/main
 });
 
 describe("buildRuleBasedVisitDraftFromTranscript", () => {
@@ -351,6 +359,7 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
     assert.ok(implantologistDraft.objectiveStatus?.includes("уточнить зону адентии"));
   });
 });
+<<<<<<< HEAD
 
 describe("documentPayloadDisallowedKeys", () => {
   test("returns empty array for null or undefined payload", () => {
@@ -407,3 +416,5 @@ describe('documentPayloadAllowedKeys', () => {
   test('handles all valid document kinds without throwing and returns an array', () => {
       const result = documentPayloadAllowedKeys(kind);
       assert.ok(Array.isArray(result));
+=======
+>>>>>>> gitlab/main

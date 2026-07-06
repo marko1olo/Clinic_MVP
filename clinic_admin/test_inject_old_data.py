@@ -1,7 +1,7 @@
 import unittest
 import os
 import tempfile
-import clinic_admin.inject_old_data
+from clinic_admin import database, inject_old_data
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -9,20 +9,20 @@ class TestInjectOldData(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp()
 
         # Save original DB_FILE values
-        self.original_db_file_database = clinic_admin.database.DB_FILE
-        self.original_db_file_inject = clinic_admin.inject_old_data.DB_FILE
+        self.original_db_file_database = database.DB_FILE
+        self.original_db_file_inject = inject_old_data.DB_FILE
 
         # Point the database to the temporary file
-        clinic_admin.database.DB_FILE = self.db_path
-        clinic_admin.inject_old_data.DB_FILE = self.db_path
+        database.DB_FILE = self.db_path
+        inject_old_data.DB_FILE = self.db_path
 
         # Initialize the database to create tables
-        clinic_admin.database.init_db()
+        database.init_db()
 
     def tearDown(self):
         # Restore original DB_FILE values
-        clinic_admin.database.DB_FILE = self.original_db_file_database
-        clinic_admin.inject_old_data.DB_FILE = self.original_db_file_inject
+        database.DB_FILE = self.original_db_file_database
+        inject_old_data.DB_FILE = self.original_db_file_inject
 
         # Close and remove the temporary file
         os.close(self.db_fd)
@@ -30,9 +30,9 @@ class TestInjectOldData(unittest.TestCase):
 
     def test_inject_dummy_data(self):
         # 1. Inject data
-        clinic_admin.inject_old_data.inject_dummy_data()
+        inject_old_data.inject_dummy_data()
 
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
         c = conn.cursor()
 
         # Verify patients were added
@@ -64,12 +64,12 @@ class TestInjectOldData(unittest.TestCase):
 
     def test_inject_dummy_data_idempotent(self):
         # Inject data first time
-        clinic_admin.inject_old_data.inject_dummy_data()
+        inject_old_data.inject_dummy_data()
 
         # Inject data second time
-        clinic_admin.inject_old_data.inject_dummy_data()
+        inject_old_data.inject_dummy_data()
 
-        conn = clinic_admin.database.get_connection()
+        conn = database.get_connection()
         c = conn.cursor()
 
         # Check if rows are duplicated (should still be 3)

@@ -1,6 +1,7 @@
 import os
 import sys
 import sqlite3
+import logging
 
 def find_project_root():
     start_dirs = []
@@ -74,8 +75,8 @@ def init_db():
     # Migration for older databases
     try:
         cursor.execute("ALTER TABLE scans ADD COLUMN ai_image TEXT")
-    except sqlite3.OperationalError:
-        pass
+    except sqlite3.OperationalError as e:
+        logging.info("ai_image column might already exist: %s", e)
         
     conn.commit()
     conn.close()

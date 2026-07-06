@@ -1146,8 +1146,8 @@ export function buildBillingSummary(): BillingSummary {
     totalDueRub: Math.max(0, totalPlannedRub - totalPaidRub),
     taxDeductionEligibleRub,
     draftDocumentAmountRub,
-    openTreatmentItems,
-    unpaidDocuments
+    openTreatmentItems: 0,
+    unpaidDocuments: 0
   };
 }
 

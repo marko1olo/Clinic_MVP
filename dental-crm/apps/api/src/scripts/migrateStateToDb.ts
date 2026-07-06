@@ -89,36 +89,40 @@ async function migrate() {
   });
 
   console.log(`👥 Migrating ${state.staffMembers.length} Staff Members (Users)...`);
-  for (const staff of state.staffMembers) {
-    const isAdmin = staff.role === "owner" || staff.role === "administrator";
-    const pin = isAdmin ? adminPin : staffPin;
-    await db.insert(schema.users).values({
-      id: staff.id,
-      organizationId: orgId,
-      fullName: staff.fullName,
-      role: staff.role,
-      phone: staff.phone,
-      email: staff.email,
-      pinCodeHash: hashCredential(pin),
-      isActive: staff.active,
-      createdAt: new Date(staff.createdAt),
+  if (state.staffMembers.length > 0) {
+    const usersToInsert = state.staffMembers.map((staff) => {
+      const isAdmin = staff.role === "owner" || staff.role === "administrator";
+      const pin = isAdmin ? adminPin : staffPin;
+      return {
+        id: staff.id,
+        organizationId: orgId,
+        fullName: staff.fullName,
+        role: staff.role,
+        phone: staff.phone,
+        email: staff.email,
+        pinCodeHash: hashCredential(pin),
+        isActive: staff.active,
+        createdAt: new Date(staff.createdAt),
+      };
     });
+    await db.insert(schema.users).values(usersToInsert);
   }
 
   console.log(`🪑 Migrating ${state.chairs.length} Chairs...`);
-  for (const chair of state.chairs) {
-    await db.insert(schema.chairs).values({
+  if (state.chairs.length > 0) {
+    const chairsToInsert = state.chairs.map((chair) => ({
       id: chair.id,
       organizationId: orgId,
       clinicId: "e50337ad-f762-4f3b-8255-a2267576be78",
       name: chair.name,
       isActive: chair.active
-    });
+    }));
+    await db.insert(schema.chairs).values(chairsToInsert);
   }
 
   console.log(`🧑‍⚕️ Migrating ${state.patients.length} Patients...`);
-  for (const patient of state.patients) {
-    await db.insert(schema.patients).values({
+  if (state.patients.length > 0) {
+    const patientsToInsert = state.patients.map((patient) => ({
       id: patient.id,
       organizationId: orgId,
       status: patient.status as any,
@@ -130,12 +134,13 @@ async function migrate() {
       administrativeProfile: patient.administrativeProfile,
       createdAt: new Date(patient.createdAt),
       updatedAt: new Date(patient.updatedAt),
-    });
+    }));
+    await db.insert(schema.patients).values(patientsToInsert);
   }
 
   console.log(`📅 Migrating ${state.appointments.length} Appointments...`);
-  for (const appt of state.appointments) {
-    await db.insert(schema.appointments).values({
+  if (state.appointments.length > 0) {
+    const appointmentsToInsert = state.appointments.map((appt) => ({
       id: appt.id,
       organizationId: orgId,
       patientId: appt.patientId,
@@ -147,7 +152,8 @@ async function migrate() {
       endsAt: new Date(appt.endsAt),
       reason: appt.reason,
       comment: appt.comment
-    });
+    }));
+    await db.insert(schema.appointments).values(appointmentsToInsert);
   }
   
   if (state.activeVisit) {
@@ -172,8 +178,8 @@ async function migrate() {
   }
 
   console.log(`📄 Migrating ${state.documents.length} Documents...`);
-  for (const doc of state.documents) {
-    await db.insert(schema.generatedDocuments).values({
+  if (state.documents.length > 0) {
+    const documentsToInsert = state.documents.map((doc) => ({
       id: doc.id,
       organizationId: orgId,
       patientId: doc.patientId,
@@ -181,12 +187,13 @@ async function migrate() {
       status: doc.status as any,
       payloadJson: JSON.stringify(doc.payload),
       createdAt: new Date(doc.createdAt)
-    } as any);
+    } as any));
+    await db.insert(schema.generatedDocuments).values(documentsToInsert);
   }
 
   console.log(`⚖️ Migrating ${state.clinicalRules.length} Clinical Rules...`);
-  for (const rule of state.clinicalRules) {
-    await db.insert(schema.clinicalRules).values({
+  if (state.clinicalRules.length > 0) {
+    const clinicalRulesToInsert = state.clinicalRules.map((rule) => ({
       id: rule.id,
       organizationId: orgId,
       title: rule.title,
@@ -205,12 +212,13 @@ async function migrate() {
       isActive: rule.active,
       createdAt: new Date(rule.createdAt),
       updatedAt: new Date(rule.updatedAt),
-    });
+    }));
+    await db.insert(schema.clinicalRules).values(clinicalRulesToInsert);
   }
 
   console.log(`💳 Migrating ${state.payments.length} Payments...`);
-  for (const p of state.payments) {
-    await db.insert(schema.payments).values({
+  if (state.payments.length > 0) {
+    const paymentsToInsert = state.payments.map((p) => ({
       id: p.id,
       organizationId: orgId,
       patientId: p.patientId,
@@ -231,7 +239,8 @@ async function migrate() {
       payerRelationship: p.payerRelationship,
       taxDeductionCode: p.taxDeductionCode,
       note: p.note
-    });
+    }));
+    await db.insert(schema.payments).values(paymentsToInsert);
   }
 
   console.log("\n🎉 Migration completed successfully!");

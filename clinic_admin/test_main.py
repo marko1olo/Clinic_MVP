@@ -1,7 +1,6 @@
 import os
 import sys
 import unittest
-import unittest.mock
 import tempfile
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -75,7 +74,7 @@ class TestMain(unittest.TestCase):
         response = self.client.get("/", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
 
-    @unittest.mock.patch('clinic_admin.main.get_connection')
+    @patch('clinic_admin.main.get_connection')
     def test_get_dashboard_data_db_error(self, mock_get_connection):
         # Simulate a database error
         mock_get_connection.side_effect = Exception("Simulated DB Error")

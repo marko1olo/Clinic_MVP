@@ -34,6 +34,10 @@ class TestDatabase(unittest.TestCase):
 
         # Verify it returns the mocked connection object
         self.assertEqual(conn, mock_connect.return_value)
+    def test_get_connection(self):
+
+        # Verify it returns a connection object
+        self.assertIsInstance(conn, sqlite3.Connection)
 
         # Verify the row factory is set
         self.assertEqual(conn.row_factory, sqlite3.Row)
@@ -46,6 +50,7 @@ class TestDatabase(unittest.TestCase):
         # Verify that the exception is raised when get_connection is called
         with self.assertRaises(sqlite3.Error):
             clinic_admin.database.get_connection()
+        conn.close()
 
     def test_init_db(self):
         # Initialize the database

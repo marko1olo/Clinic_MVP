@@ -1518,8 +1518,8 @@ class XRayHandler(FileSystemEventHandler):
             if 'global_window' in globals() and global_window:
                 global_window.restore()
                 global_window.show()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error restoring window: {e}")
         
         # Add to queue instead of spinning up parallel threads
         file_queue.put(event.src_path)

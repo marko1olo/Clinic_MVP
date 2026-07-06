@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 import clinic_admin.inject_old_data
+import clinic_admin.database
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -59,6 +60,46 @@ class TestInjectOldData(unittest.TestCase):
         for a in appointments:
             self.assertEqual(a["doctor"], "Др. Хаус")
             self.assertEqual(a["status"], "completed")
+
+        conn.close()
+
+    def test_inject_dummy_data_partial_existing(self):
+        import sqlite3
+        conn = sqlite3.connect(clinic_admin.inject_old_data.DB_FILE)
+        c = conn.cursor()
+
+        # Insert one of the patients manually
+        c.execute(
+            "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
+            ("Смирнов Алексей", "+79991234567", "2023-01-01T00:00:00")
+        )
+        conn.commit()
+
+        # Inject data
+        clinic_admin.inject_old_data.inject_dummy_data()
+
+        # Check total patients is still 3
+        c.execute("SELECT COUNT(*) FROM patients")
+        self.assertEqual(c.fetchone()[0], 3)
+
+        # Appointments should only be created for the 2 newly inserted patients
+        c.execute("SELECT COUNT(*) FROM appointments")
+        self.assertEqual(c.fetchone()[0], 2)
+
+        conn.close()
+
+    def test_get_existing_names_empty(self):
+        import sqlite3
+        conn = sqlite3.connect(clinic_admin.inject_old_data.DB_FILE)
+        c = conn.cursor()
+
+        # Test with empty list
+        existing_names = clinic_admin.inject_old_data._get_existing_names(c, [])
+        self.assertEqual(existing_names, set())
+
+        # Test with None (though not expected from inject_dummy_data, good for coverage)
+        existing_names = clinic_admin.inject_old_data._get_existing_names(c, None)
+        self.assertEqual(existing_names, set())
 
         conn.close()
 

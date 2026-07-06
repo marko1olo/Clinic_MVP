@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 # Add clinic_admin directory to sys.path to resolve database import
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import clinic_admin.database
 from clinic_admin.main import app
 
 class TestMain(unittest.TestCase):

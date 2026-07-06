@@ -139,7 +139,9 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
     .map((origin) => origin.trim())
     .filter(Boolean)
     .map((origin) => {
-      if (origin === "*" || origin === "null") return origin;
+      if (origin === "*" || origin === "null") {
+        throw new Error(`Wildcard or null CORS origins are not allowed for security reasons: "${origin}"`);
+      }
       try {
         return new URL(origin).origin;
       } catch {

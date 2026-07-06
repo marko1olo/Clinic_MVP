@@ -74,6 +74,23 @@ class TestMain(unittest.TestCase):
         os.environ["ADMIN_PASSWORD"] = "admin"
         response = self.client.get("/", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
+        self.assertIn("appointments", response.context)
+        self.assertIn("patients", response.context)
+
+    @patch('clinic_admin.main.get_dashboard_data')
+    def test_read_root_template_context(self, mock_get_dashboard_data):
+        mock_appointments = [{"id": 1, "appointment_date": "2024-01-01T10:00:00", "doctor": "Dr. Smith", "status": "scheduled", "patient_name": "John", "phone": "123"}]
+        mock_patients = [{"id": 1, "name": "John", "phone": "123"}]
+        mock_get_dashboard_data.return_value = (mock_appointments, mock_patients)
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+
+        response = self.client.get("/", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.template.name, "dashboard.html")
+        self.assertEqual(response.context["appointments"], mock_appointments)
+        self.assertEqual(response.context["patients"], mock_patients)
 
     @unittest.mock.patch('clinic_admin.main.get_connection')
     def test_get_dashboard_data_db_error(self, mock_get_connection):

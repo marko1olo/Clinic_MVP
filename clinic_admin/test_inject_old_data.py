@@ -1,3 +1,4 @@
+import clinic_admin.database
 import unittest
 import os
 import tempfile

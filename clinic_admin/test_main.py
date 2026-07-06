@@ -35,7 +35,6 @@ class TestMain(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
-        import clinic_admin.database
         clinic_admin.main.get_connection = self.original_get_connection
         clinic_admin.database.DB_FILE = self.original_db_file
         os.close(self.db_fd)

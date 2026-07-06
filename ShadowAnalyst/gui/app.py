@@ -634,7 +634,7 @@ async def get_tts(text: str, provider: str = None):
             content = await f.read()
         return Response(content=content, media_type="audio/mpeg")
     except FileNotFoundError:
-        pass
+        print(f"Audio cache miss for {cache_path}, generating new audio...")
     except Exception as e:
         print(f"Error reading audio cache: {e}")
 

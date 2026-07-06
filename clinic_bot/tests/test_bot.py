@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, handle_marketing_send
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -85,6 +85,55 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         mock_db.add_user.assert_not_called()
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
+
+
+class TestHandleMarketingSend(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_marketing_send(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/marketing/send"
+        payload = {
+            "patient": "John Doe",
+            "draft": "Special discount for teeth cleaning!"
+        }
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_marketing_send(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"📣 *Маркетинг — задание*\n\n"
+            f"Пациент: John Doe\n"
+            f"Черновик: _Special discount for teeth cleaning!_"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_marketing_send_missing_fields(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/marketing/send"
+        payload = {}
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_marketing_send(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"📣 *Маркетинг — задание*\n\n"
+            f"Пациент: ?\n"
+            f"Черновик: __"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
 
 
 if __name__ == '__main__':

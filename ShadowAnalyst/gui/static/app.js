@@ -710,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusBadge.textContent = "Analysis Complete";
             statusBadge.classList.add('active');
             
-            fullReportText.innerHTML = marked.parse(reportText);
+            fullReportText.innerHTML = DOMPurify.sanitize(marked.parse(reportText));
             
             btnSpeak.style.display = 'flex';
             btnAnalyze.style.display = 'none';

@@ -3,6 +3,7 @@ from unittest.mock import patch
 import sqlite3
 import os
 import tempfile
+import clinic_admin.database
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -23,19 +24,28 @@ class TestDatabase(unittest.TestCase):
         os.close(self.db_fd)
         os.unlink(self.db_path)
 
-    @patch('sqlite3.connect')
-    def test_get_connection(self, mock_connect):
-        # Call the function
+    def test_get_connection(self):
+        # Call the function which connects to the temp db created in setUp
         conn = clinic_admin.database.get_connection()
 
-        # Verify sqlite3.connect was called with the correct argument
-        mock_connect.assert_called_once_with(clinic_admin.database.DB_FILE)
+        # Verify it returns a real sqlite3 Connection
+        self.assertIsInstance(conn, sqlite3.Connection)
 
-        # Verify it returns the mocked connection object
-        self.assertEqual(conn, mock_connect.return_value)
-
-        # Verify the row factory is set
+        # Verify the row factory is set and works
         self.assertEqual(conn.row_factory, sqlite3.Row)
+        c = conn.cursor()
+        c.execute("SELECT 1 AS val")
+        row = c.fetchone()
+        self.assertEqual(row['val'], 1)
+
+        conn.close()
+
+    def test_get_connection_invalid_path(self):
+        # Temporarily point to an invalid directory
+        clinic_admin.database.DB_FILE = "/dev/null/invalid.db"
+
+        with self.assertRaises(sqlite3.OperationalError):
+            clinic_admin.database.get_connection()
 
     @patch('sqlite3.connect')
     def test_get_connection_error(self, mock_connect):

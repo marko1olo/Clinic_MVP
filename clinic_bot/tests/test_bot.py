@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start
+from bot import on_mqtt_message, cmd_start, handle_review_neg
 from aiogram.types import Message, Chat, User
 
 class TestBotMqtt(unittest.TestCase):
@@ -41,6 +41,46 @@ class TestBotMqtt(unittest.TestCase):
 
         # This should return cleanly
         on_mqtt_message(client, userdata, msg)
+
+    @patch('bot.broadcast')
+    def test_handle_review_neg_with_data(self, mock_broadcast):
+        """Test handle_review_neg formats message correctly and broadcasts to admin."""
+        loop = MagicMock()
+        payload = {'patient': 'Ivanov Ivan', 'text': 'Very bad service'}
+
+        with patch('bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine:
+            handle_review_neg('some/topic', payload, loop)
+
+            mock_broadcast.assert_called_once_with(
+                "⚠️ *Негативный отзыв*\n\nПациент: Ivanov Ivan\nСообщение: _Very bad service_\n\nТребует обратной связи!",
+                role='admin'
+            )
+            self.assertEqual(mock_run_coroutine.call_count, 1)
+            # The first argument should be a coroutine created by mock_broadcast
+            coroutine = mock_run_coroutine.call_args[0][0]
+            # Since broadcast is an async function, calling it returns a coroutine.
+            # We don't try to assert exact equality with mock_broadcast.return_value because mock_broadcast returns a coroutine object which changes its id.
+            # Instead we just verify it was called with loop
+            self.assertEqual(mock_run_coroutine.call_args[0][1], loop)
+            coroutine.close() # close the unawaited coroutine to avoid warning
+
+    @patch('bot.broadcast')
+    def test_handle_review_neg_missing_fields(self, mock_broadcast):
+        """Test handle_review_neg uses default values if payload is missing fields."""
+        loop = MagicMock()
+        payload = {}
+
+        with patch('bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine:
+            handle_review_neg('some/topic', payload, loop)
+
+            mock_broadcast.assert_called_once_with(
+                "⚠️ *Негативный отзыв*\n\nПациент: неизвестен\nСообщение: __\n\nТребует обратной связи!",
+                role='admin'
+            )
+            self.assertEqual(mock_run_coroutine.call_count, 1)
+            coroutine = mock_run_coroutine.call_args[0][0]
+            self.assertEqual(mock_run_coroutine.call_args[0][1], loop)
+            coroutine.close() # close the unawaited coroutine to avoid warning
 
 
 class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):

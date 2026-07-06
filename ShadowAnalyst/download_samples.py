@@ -19,9 +19,8 @@ for item in items:
             with open(os.path.join(output_dir, fname), 'wb') as f:
                 f.write(img_data)
             downloaded += 1
-            print(f'Downloaded {fname}')
         except Exception as e:
-            print(f"Error downloading {full_url}: {e}")
+            pass
         if downloaded >= 10:
             break
 

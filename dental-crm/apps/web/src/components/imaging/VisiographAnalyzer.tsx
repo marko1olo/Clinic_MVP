@@ -15,6 +15,7 @@
  */
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import {
   UploadCloud,
   Bot,
@@ -660,7 +661,7 @@ export function VisiographAnalyzer() {
                             lineHeight: 1.65,
                             color: 'var(--text)',
                           }}
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(section.content)) }}
                         />
                       )}
                     </div>

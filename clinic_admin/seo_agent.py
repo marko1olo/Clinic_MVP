@@ -2,7 +2,6 @@ import os
 import json
 import requests
 import random
-import os
 
 CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
 

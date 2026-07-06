@@ -213,6 +213,29 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_insert_appointment(self):
+        from clinic_admin.main import insert_appointment
+        from clinic_admin.database import get_connection
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Appointment Test Patient", "123-4567"))
+        patient_id = c.lastrowid
+        conn.commit()
+        conn.close()
+
+        # Call the function directly
+        insert_appointment(patient_id, "Dr. Who", "2023-12-25T14:00")
+
+        # Verify it was added to the test database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM appointments WHERE patient_id = ? AND doctor = ?", (patient_id, "Dr. Who"))
+        appointment = c.fetchone()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["appointment_date"], "2023-12-25T14:00")
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()
 

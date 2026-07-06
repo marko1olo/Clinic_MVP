@@ -29,6 +29,5 @@ try:
     d.text((xs, ys), sub_text, font=font_sub, fill=(180, 210, 255, 255))
     out = Image.alpha_composite(img, txt)
     out.convert('RGB').save('splash.png') # overwrite
-    print('Added text to splash.png')
 except Exception as e:
     print('Error:', e)

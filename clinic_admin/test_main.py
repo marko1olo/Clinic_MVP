@@ -213,6 +213,40 @@ class TestMain(unittest.TestCase):
         self.assertEqual(patient["phone"], "555-5555")
         conn.close()
 
+    def test_insert_patient_none_phone(self):
+        from clinic_admin.main import insert_patient
+        from clinic_admin.database import get_connection
+
+        # Call the function directly with None phone
+        insert_patient("Direct Insert No Phone", None)
+
+        # Verify it was added to the test database
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM patients WHERE name = 'Direct Insert No Phone'")
+        patient = c.fetchone()
+        self.assertIsNotNone(patient)
+        self.assertIsNone(patient["phone"])
+        conn.close()
+
+    def test_insert_patient_none_name(self):
+        from clinic_admin.main import insert_patient
+        import sqlite3
+
+        # Call the function directly with None name, expecting error due to NOT NULL constraint
+        with self.assertRaises(sqlite3.IntegrityError):
+            insert_patient(None, "555-5555")
+
+    @unittest.mock.patch('clinic_admin.main.get_connection')
+    def test_insert_patient_db_error(self, mock_get_connection):
+        from clinic_admin.main import insert_patient
+        import sqlite3
+
+        mock_get_connection.side_effect = sqlite3.Error("Mocked DB error during insert")
+
+        with self.assertRaises(sqlite3.Error):
+            insert_patient("Direct Insert Error", "555-5555")
+
 if __name__ == '__main__':
     unittest.main()
 

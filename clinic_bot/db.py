@@ -40,6 +40,13 @@ def add_user(chat_id: int, role: str, name: str = ""):
     c.execute('INSERT OR REPLACE INTO users (chat_id, role, name) VALUES (?, ?, ?)', (chat_id, role, name))
     conn.commit()
 
+def add_users(users: list):
+    """Batch insert or replace users. 'users' is a list of tuples (chat_id, role, name)"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.executemany('INSERT OR REPLACE INTO users (chat_id, role, name) VALUES (?, ?, ?)', users)
+    conn.commit()
+
 def get_users_by_role(role: str):
     conn = get_connection()
     c = conn.cursor()
@@ -60,12 +67,18 @@ init_db()
 # Дефолтные админы и врачи из переменных окружения
 initial_admins = os.environ.get("INITIAL_ADMINS", "")
 if initial_admins:
+    admin_users = []
     for admin_id in initial_admins.split(','):
         if admin_id.strip().isdigit():
-            add_user(int(admin_id.strip()), 'admin', f'Admin {admin_id.strip()}')
+            admin_users.append((int(admin_id.strip()), 'admin', f'Admin {admin_id.strip()}'))
+    if admin_users:
+        add_users(admin_users)
 
 initial_doctors = os.environ.get("INITIAL_DOCTORS", "")
 if initial_doctors:
+    doctor_users = []
     for doctor_id in initial_doctors.split(','):
         if doctor_id.strip().isdigit():
-            add_user(int(doctor_id.strip()), 'doctor', f'Doctor {doctor_id.strip()}')
+            doctor_users.append((int(doctor_id.strip()), 'doctor', f'Doctor {doctor_id.strip()}'))
+    if doctor_users:
+        add_users(doctor_users)

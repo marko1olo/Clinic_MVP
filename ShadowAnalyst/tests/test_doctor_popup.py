@@ -45,3 +45,24 @@ def test_parse_findings_mixed():
     body, alert = parse_findings(findings)
     assert body == ["Зуб 11: Норма", "Зуб 13: пломба"]
     assert alert == ["Зуб 12: глубокий кариес", "Зуб 14: воспаление корня"]
+
+def test_parse_findings_empty_lines():
+    # Test strings with empty lines
+    findings = "Зуб 11: Норма\n\n\nЗуб 12: кариес\n "
+    body, alert = parse_findings(findings)
+    assert body == ["Зуб 11: Норма", "", "", " "]
+    assert alert == ["Зуб 12: кариес"]
+
+def test_parse_findings_mixed_case():
+    # Test mixed case for keywords
+    findings = "Зуб 11: кАрИеС\nЗуб 12: вОсПаЛеНиЕ"
+    body, alert = parse_findings(findings)
+    assert body == []
+    assert alert == ["Зуб 11: кАрИеС", "Зуб 12: вОсПаЛеНиЕ"]
+
+def test_parse_findings_punctuation():
+    # Test keywords with punctuation
+    findings = "Зуб 11: кариес!\nЗуб 12: (воспаление)"
+    body, alert = parse_findings(findings)
+    assert body == []
+    assert alert == ["Зуб 11: кариес!", "Зуб 12: (воспаление)"]

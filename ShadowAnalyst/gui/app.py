@@ -1611,8 +1611,8 @@ def wait_for_server(url, timeout=10):
             r = requests.get(url, timeout=1)
             if r.status_code == 200:
                 return True
-        except requests.RequestException:
-            pass
+        except requests.RequestException as e:
+            print(f"Server not ready yet: {e}")
         time.sleep(0.5)
     return False
 

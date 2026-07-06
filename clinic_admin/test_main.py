@@ -103,6 +103,61 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json(), {"detail": "Not authenticated"})
 
+    def test_fetch_current_appointment_none(self):
+        from clinic_admin.main import fetch_current_appointment
+        # Assuming DB is empty for today
+        appointment = fetch_current_appointment()
+        self.assertIsNone(appointment)
+
+    def test_fetch_current_appointment_finds_closest(self):
+        from clinic_admin.main import fetch_current_appointment
+        from clinic_admin.database import get_connection
+        import datetime
+
+        # Insert a patient first
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Closest Patient", "555-0000"))
+        patient_id = c.lastrowid
+        conn.commit()
+
+        # Insert appointments for today
+        now = datetime.datetime.now()
+        ago = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        closest = (now + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (now + datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        yesterday = (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+
+        c.execute('''
+            INSERT INTO appointments (patient_id, doctor, appointment_date)
+            VALUES (?, ?, ?)
+        ''', (patient_id, "Dr. Ago", ago))
+
+        c.execute('''
+            INSERT INTO appointments (patient_id, doctor, appointment_date)
+            VALUES (?, ?, ?)
+        ''', (patient_id, "Dr. Closest", closest))
+
+        c.execute('''
+            INSERT INTO appointments (patient_id, doctor, appointment_date)
+            VALUES (?, ?, ?)
+        ''', (patient_id, "Dr. Future", future))
+
+        c.execute('''
+            INSERT INTO appointments (patient_id, doctor, appointment_date)
+            VALUES (?, ?, ?)
+        ''', (patient_id, "Dr. Yesterday", yesterday))
+
+        conn.commit()
+        conn.close()
+
+        # Fetch closest
+        appointment = fetch_current_appointment()
+        self.assertIsNotNone(appointment)
+        self.assertEqual(appointment["doctor"], "Dr. Closest")
+        self.assertEqual(appointment["patient_name"], "Closest Patient")
+
+
     def test_api_current_appointment_authenticated(self):
         os.environ["ADMIN_USERNAME"] = "admin"
         os.environ["ADMIN_PASSWORD"] = "admin"
@@ -110,6 +165,22 @@ class TestMain(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue("error" in data or "appointment_id" in data)
+
+    def test_get_current_appointment_api_no_appointments(self):
+        # Empty DB simulation for today by clearing appointments
+        from clinic_admin.database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM appointments")
+        conn.commit()
+        conn.close()
+
+        os.environ["ADMIN_USERNAME"] = "admin"
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        response = self.client.get("/api/current_appointment", auth=("admin", "admin"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data, {"error": "No appointments today"})
 
 
     def test_add_patient_unauthenticated(self):

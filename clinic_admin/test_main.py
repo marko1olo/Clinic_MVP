@@ -41,6 +41,13 @@ class TestMain(unittest.TestCase):
         os.close(self.db_fd)
         os.unlink(self.db_path)
 
+    def test_startup_event(self):
+        # Using the TestClient as a context manager triggers the startup event
+        with patch('clinic_admin.main.init_db') as mock_init_db:
+            with TestClient(app):
+                pass
+            mock_init_db.assert_called_once()
+
     def test_startup_event_error(self):
         # Using the TestClient as a context manager triggers the startup event
         with patch('clinic_admin.main.init_db', side_effect=Exception("Database initialization failed")):

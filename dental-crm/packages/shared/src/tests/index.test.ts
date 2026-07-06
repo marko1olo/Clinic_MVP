@@ -84,6 +84,25 @@ describe("documentRequiresPaidRecord", () => {
       false,
     );
     assert.strictEqual(documentRequiresPaidRecord("lab_work_order"), false);
+    assert.strictEqual(documentRequiresPaidRecord("treatment_plan_acceptance"), false);
+    assert.strictEqual(documentRequiresPaidRecord("procedure_specific_consent_packet"), false);
+    assert.strictEqual(documentRequiresPaidRecord("anesthesia_consent_log"), false);
+    assert.strictEqual(documentRequiresPaidRecord("personal_data_processing_consent"), false);
+    assert.strictEqual(documentRequiresPaidRecord("minor_legal_representative_consent"), false);
+    assert.strictEqual(documentRequiresPaidRecord("photo_video_consent"), false);
+    assert.strictEqual(documentRequiresPaidRecord("medical_intervention_refusal"), false);
+    assert.strictEqual(documentRequiresPaidRecord("treatment_cost_estimate"), false);
+    assert.strictEqual(documentRequiresPaidRecord("installment_payment_schedule"), false);
+    assert.strictEqual(documentRequiresPaidRecord("post_visit_recommendations"), false);
+    assert.strictEqual(documentRequiresPaidRecord("outpatient_medical_card_025u"), false);
+    assert.strictEqual(documentRequiresPaidRecord("medical_record_extract"), false);
+    assert.strictEqual(documentRequiresPaidRecord("medical_record_copy_request"), false);
+    assert.strictEqual(documentRequiresPaidRecord("medical_document_release_receipt"), false);
+    assert.strictEqual(documentRequiresPaidRecord("xray_cbct_referral"), false);
+    assert.strictEqual(documentRequiresPaidRecord("visit_attendance_certificate"), false);
+    assert.strictEqual(documentRequiresPaidRecord("warranty_service_memo"), false);
+    assert.strictEqual(documentRequiresPaidRecord("tax_deduction_application"), false);
+    assert.strictEqual(documentRequiresPaidRecord("patient_intake_questionnaire"), false);
   });
 
   test("handles all valid document kinds without throwing", () => {

@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import clinic_admin.database
 from clinic_admin.main import app
+from clinic_admin.main import get_dashboard_data
 
 class TestMain(unittest.TestCase):
     def setUp(self):
@@ -75,6 +76,31 @@ class TestMain(unittest.TestCase):
         response = self.client.get("/", auth=("admin", "admin"))
         self.assertEqual(response.status_code, 200)
 
+
+
+    def test_get_dashboard_data_empty(self):
+        appointments, patients = get_dashboard_data()
+        self.assertEqual(appointments, [])
+        self.assertEqual(patients, [])
+
+    def test_get_dashboard_data_with_data(self):
+        conn = clinic_admin.main.get_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Patient A", "123"))
+        patient_id = c.lastrowid
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, ?, ?)", (patient_id, "Dr X", "2023-11-01", "scheduled"))
+        c.execute("INSERT INTO appointments (patient_id, doctor, appointment_date, status) VALUES (?, ?, ?, ?)", (patient_id, "Dr Y", "2023-11-02", "completed"))
+        conn.commit()
+
+        appointments, patients = get_dashboard_data()
+
+        self.assertEqual(len(appointments), 1)
+        self.assertEqual(appointments[0]["patient_name"], "Patient A")
+        self.assertEqual(appointments[0]["status"], "scheduled")
+        self.assertEqual(appointments[0]["doctor"], "Dr X")
+
+        self.assertEqual(len(patients), 1)
+        self.assertEqual(patients[0]["name"], "Patient A")
     @unittest.mock.patch('clinic_admin.main.get_connection')
     def test_get_dashboard_data_db_error(self, mock_get_connection):
         # Simulate a database error

@@ -15,7 +15,6 @@ try:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    print(f"Connecting to {user}@{host}...")
     client.connect(hostname=host, username=user, password=password, timeout=10)
     
     commands = [

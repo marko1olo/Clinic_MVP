@@ -1,5 +1,6 @@
 import os
 import json
+from dataclasses import dataclass
 import base64
 import asyncio
 import random
@@ -137,9 +138,18 @@ async def call_groq(prompt, b64):
         await asyncio.sleep(15)
 
 
+
+@dataclass
+class BoundingBox:
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
 # --- 10 СТИЛЕЙ ОТРИСОВКИ ---
-def style_1_neon(draw, img, x1, y1, x2, y2, name):
+def style_1_neon(draw, img, bbox, name):
     """Стиль 1: Киберпанк / Неоновое свечение"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     for i in range(5, 0, -1):
         draw.rectangle(
             [x1 - i, y1 - i, x2 + i, y2 + i], outline=(0, 255, 255, 50), width=1
@@ -148,8 +158,9 @@ def style_1_neon(draw, img, x1, y1, x2, y2, name):
     draw_text_with_bg(draw, f" 1. Неон: {name} ", x1, max(0, y1 - 45), (0, 255, 255))
 
 
-def style_2_sci_fi(draw, img, x1, y1, x2, y2, name):
+def style_2_sci_fi(draw, img, bbox, name):
     """Стиль 2: Научная фантастика (уголки)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     length = 15
     color = (255, 50, 50)
     width = 3
@@ -168,22 +179,25 @@ def style_2_sci_fi(draw, img, x1, y1, x2, y2, name):
     draw_text_with_bg(draw, f"2. Sci-Fi: {name}", x1 + 5, max(0, y1 - 45), color)
 
 
-def style_3_rounded(draw, img, x1, y1, x2, y2, name):
+def style_3_rounded(draw, img, bbox, name):
     """Стиль 3: Скругленные углы (Apple style)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     draw.rounded_rectangle([x1, y1, x2, y2], radius=15, outline=(255, 165, 0), width=4)
     draw_text_with_bg(
         draw, f"3. Apple: {name}", x1 + 10, max(0, y1 - 45), (255, 165, 0)
     )
 
 
-def style_4_ellipse(draw, img, x1, y1, x2, y2, name):
+def style_4_ellipse(draw, img, bbox, name):
     """Стиль 4: Медицинский овал"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     draw.ellipse([x1, y1, x2, y2], outline=(50, 255, 50), width=4)
     draw_text_with_bg(draw, f"4. Овал: {name}", x1, max(0, y1 - 45), (50, 255, 50))
 
 
-def style_5_dashed(draw, img, x1, y1, x2, y2, name):
+def style_5_dashed(draw, img, bbox, name):
     """Стиль 5: Пунктирная линия (поиск/подозрение)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     step = 15
     color = (255, 255, 0)
     for x in range(x1, x2, step * 2):
@@ -197,8 +211,9 @@ def style_5_dashed(draw, img, x1, y1, x2, y2, name):
     draw_text_with_bg(draw, f"5. Пунктир: {name}", x1, max(0, y1 - 45), color)
 
 
-def style_6_overlay(draw, img, x1, y1, x2, y2, name):
+def style_6_overlay(draw, img, bbox, name):
     """Стиль 6: Заливка полупрозрачным цветом"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
     d.rectangle(
@@ -209,8 +224,9 @@ def style_6_overlay(draw, img, x1, y1, x2, y2, name):
     draw_text_with_bg(draw, f"6. Overlay: {name}", x1, max(0, y1 - 45), "white")
 
 
-def style_7_police(draw, img, x1, y1, x2, y2, name):
+def style_7_police(draw, img, bbox, name):
     """Стиль 7: Двойная рамка (Полицейская лента)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     draw.rectangle([x1, y1, x2, y2], outline="black", width=6)
     draw.rectangle([x1 + 1, y1 + 1, x2 - 1, y2 - 1], outline="yellow", width=4)
     draw_text_with_bg(
@@ -223,14 +239,16 @@ def style_7_police(draw, img, x1, y1, x2, y2, name):
     )
 
 
-def style_8_minimal(draw, img, x1, y1, x2, y2, name):
+def style_8_minimal(draw, img, bbox, name):
     """Стиль 8: Минимализм (Тонкая белая линия)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     draw.rectangle([x1, y1, x2, y2], outline="white", width=2)
     draw_text_with_bg(draw, f"8. Min: {name}", x1, y2 + 5, "white")
 
 
-def style_9_target(draw, img, x1, y1, x2, y2, name):
+def style_9_target(draw, img, bbox, name):
     """Стиль 9: Прицел (Центр и перекрестие)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     color = (255, 0, 255)
     draw.line([(cx - 30, cy), (cx + 30, cy)], fill=color, width=3)
@@ -239,8 +257,9 @@ def style_9_target(draw, img, x1, y1, x2, y2, name):
     draw_text_with_bg(draw, f"9. Target: {name}", cx + 20, cy - 20, color)
 
 
-def style_10_glass(draw, img, x1, y1, x2, y2, name):
+def style_10_glass(draw, img, bbox, name):
     """Стиль 10: Glassmorphism (Блюр внутри)"""
+    x1, y1, x2, y2 = bbox.x1, bbox.y1, bbox.x2, bbox.y2
     box = (x1, y1, x2, y2)
     ic = img.crop(box).filter(ImageFilter.GaussianBlur(5))
     img.paste(ic, box)
@@ -298,7 +317,7 @@ async def process_prompt(i, prompt, b64):
                 y1, y2 = min(by1, by2), max(by1, by2)
 
                 if x2 > x1 and y2 > y1:
-                    STYLES[i](draw, img, x1, y1, x2, y2, name)
+                    STYLES[i](draw, img, BoundingBox(x1, y1, x2, y2), name)
         
         out_path = os.path.join(OUTPUT_DIR, f"Style_{i+1}.png")
         img.save(out_path, "PNG")
@@ -312,26 +331,6 @@ async def run_tests():
         tasks.append(process_prompt(i, PROMPTS[i], b64))
 
     await asyncio.gather(*tasks)
-
-def run_tests():
-
-        prompt = PROMPTS[i]
-
-        json_resp = call_groq(prompt, b64)
-
-
-            if img.mode != "RGBA":
-                img = img.convert("RGBA")
-
-                box = obj.get("box", [0, 0, 0, 0])
-
-                    bx1 = int((box[0] / 1000) * w)
-                    by1 = int((box[1] / 1000) * h)
-                    bx2 = int((box[2] / 1000) * w)
-                    by2 = int((box[3] / 1000) * h)
-
-
-
 
 
 if __name__ == "__main__":

@@ -1987,6 +1987,7 @@ export function SettingsView(props: SettingsViewProps) {
                       autoComplete="current-password"
                       value={telegramAdminSecretDraft}
                       onChange={(event: TextInputChangeEvent) => {
+                        console.log("SMOKE TEST DEBUG: SettingsView password input onChange called with value length =", event.target.value.length);
                         if (propsSetTelegramAdminSecretDraft) {
                           propsSetTelegramAdminSecretDraft(event.target.value);
                         } else {

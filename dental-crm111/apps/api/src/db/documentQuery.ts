@@ -93,7 +93,7 @@ export async function getDocumentsByPatientId(organizationId: string, patientId:
   return records.map(mapDocument);
 }
 
-async function getDocumentRecord(organizationId: string, id: string) {
+export async function getDocumentById(organizationId: string, id: string): Promise<GeneratedDocument | null> {
   const [record] = await db
     .select()
     .from(schema.generatedDocuments)
@@ -101,11 +101,6 @@ async function getDocumentRecord(organizationId: string, id: string) {
       eq(schema.generatedDocuments.organizationId, organizationId),
       eq(schema.generatedDocuments.id, id)
     ));
-  return record;
-}
-
-export async function getDocumentById(organizationId: string, id: string): Promise<GeneratedDocument | null> {
-  const record = await getDocumentRecord(organizationId, id);
   return record ? mapDocument(record) : null;
 }
 
@@ -176,7 +171,10 @@ export async function issueGeneratedDocumentInDb(
     totalAmountRub?: number | null;
   } = {}
 ): Promise<GeneratedDocument | null> {
-  const existing = await getDocumentRecord(organizationId, documentId);
+  const [existing] = await db
+    .select()
+    .from(schema.generatedDocuments)
+    .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)));
 
   if (!existing || existing.status === "voided") return null;
   if (existing.status === "issued") return mapDocument(existing);
@@ -221,7 +219,10 @@ export async function voidGeneratedDocumentInDb(
   documentId: string,
   options: { voidedAt?: string; voidAttestation?: DocumentVoidAttestation } = {}
 ): Promise<GeneratedDocument | null> {
-  const existing = await getDocumentRecord(organizationId, documentId);
+  const [existing] = await db
+    .select()
+    .from(schema.generatedDocuments)
+    .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)));
 
   if (!existing) return null;
   if (existing.status === "voided") return mapDocument(existing);

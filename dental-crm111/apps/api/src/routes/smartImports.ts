@@ -898,32 +898,16 @@ function buildManualClinicPublicLookupSuggestion(fields: UpdateClinicProfileInpu
 function uniqueClinicPublicLookupSuggestions(suggestions: ClinicPublicLookupSuggestion[]) {
   const seen = new Set<string>();
   const result: ClinicPublicLookupSuggestion[] = [];
-
-  let lastKeysJoined = "";
-  let lastSortedKeys: string[] = [];
-
   for (const suggestion of suggestions) {
     let key = "";
-    const rawKeys = Object.keys(suggestion.fields);
-    const currentKeysJoined = rawKeys.join(",");
-
-    let sortedKeys;
-    if (currentKeysJoined === lastKeysJoined) {
-      sortedKeys = lastSortedKeys;
-    } else {
-      sortedKeys = rawKeys.sort();
-      lastSortedKeys = sortedKeys;
-      lastKeysJoined = currentKeysJoined;
-    }
-
-    for (let i = 0; i < sortedKeys.length; i++) {
-      const k = sortedKeys[i] as keyof typeof suggestion.fields;
+    const keys = Object.keys(suggestion.fields).sort();
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i] as keyof typeof suggestion.fields;
       const v = suggestion.fields[k];
       if (v !== undefined) {
         key += `${JSON.stringify(k)}:${JSON.stringify(v)}|`;
       }
     }
-
     if (seen.has(key)) continue;
     seen.add(key);
     result.push(suggestion);

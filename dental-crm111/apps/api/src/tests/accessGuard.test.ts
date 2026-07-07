@@ -1,11 +1,16 @@
 import { test, describe, afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert';
 import { requireClinicalMutationAccess, requireClinicalReadAccess, configuredClinicalAccessSecret, configuredClinicalMutationSecret, denteAdminSecretHeader } from '../accessGuard.js';
+import { requireClinicalMutationAccess, requireClinicalReadAccess, denteAdminSecretHeader, configuredClinicalAccessSecret, configuredClinicalMutationSecret } from '../accessGuard.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 describe('accessGuard', () => {
   const MOCK_SECRET = process.env.TEST_ADMIN_SECRET || `mock-admin-secret-${Date.now()}`;
   const WRONG_SECRET = process.env.TEST_WRONG_SECRET || `wrong-admin-secret-${Date.now()}`;
+  const MOCK_SECRET = process.env.MOCK_ADMIN_SECRET || `mock-admin-secret-${Date.now()}`;
+  const WRONG_SECRET = process.env.WRONG_ADMIN_SECRET || `wrong-admin-secret-${Date.now()}`;
+  const MOCK_SECRET = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
+  const WRONG_SECRET = process.env.WRONG_TEST_SECRET || `wrong-test-secret-${Date.now()}`;
 
   let mockRequest: Partial<FastifyRequest>;
   let mockReply: Partial<FastifyReply>;
@@ -37,11 +42,13 @@ describe('accessGuard', () => {
       assert.strictEqual(configuredClinicalAccessSecret(), 'my-secret');
     });
 
+    test('returns null when not set', () => {
     test('returns null when env is not set', () => {
       delete process.env.DENTE_CLINICAL_ADMIN_SECRET;
       assert.strictEqual(configuredClinicalAccessSecret(), null);
     });
 
+    test('returns null when empty', () => {
     test('returns trimmed secret when env is set', () => {
       process.env.DENTE_CLINICAL_ADMIN_SECRET = '  my-secret  ';
       assert.strictEqual(configuredClinicalAccessSecret(), 'my-secret');
@@ -59,11 +66,13 @@ describe('accessGuard', () => {
       assert.strictEqual(configuredClinicalMutationSecret(), 'my-secret');
     });
 
+    test('returns null when not set', () => {
     test('returns null when env is not set', () => {
       delete process.env.DENTE_CLINICAL_ADMIN_SECRET;
       assert.strictEqual(configuredClinicalMutationSecret(), null);
     });
 
+    test('returns null when empty', () => {
     test('returns trimmed secret when env is set', () => {
       process.env.DENTE_CLINICAL_ADMIN_SECRET = '  my-mutation-secret  ';
       assert.strictEqual(configuredClinicalMutationSecret(), 'my-mutation-secret');

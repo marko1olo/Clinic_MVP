@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from datetime import datetime, timedelta
 
 DB_FILE = "C:/Clinic_MVP/clinic_admin/clinic.db"
@@ -8,10 +9,9 @@ def _get_existing_names(c, names):
     if not names:
         return set()
 
-    placeholders = ",".join("?" * len(names))
     c.execute(
-        f"SELECT name FROM patients WHERE name IN ({placeholders})",
-        tuple(names)
+        "SELECT name FROM patients WHERE name IN (SELECT value FROM json_each(?))",
+        (json.dumps(names),)
     )
     return set(row[0] for row in c.fetchall())
 

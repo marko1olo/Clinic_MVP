@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 0ebbd3e157c4d09da78b395967b205aabf61c986 Петушков А. <ihinib81@gmail.com> 1782688134 +0400	fetch origin optimize-zip-parsing-15870177466701180745:optimize-zip-parsing-15870177466701180745: storing head
-0ebbd3e157c4d09da78b395967b205aabf61c986 e7e9e26e3f7d8c34b88d9cd81aad76c4ca735e0f Петушков А. <ihinib81@gmail.com> 1782689049 +0400	reset: moving to origin/main
-e7e9e26e3f7d8c34b88d9cd81aad76c4ca735e0f 86fc1737e165bf99e3cbc3a7d69dd921cd995fee Петушков А. <ihinib81@gmail.com> 1782689049 +0400	commit: perf(api): convert ZIP manifest parsing to async node:fs/promises

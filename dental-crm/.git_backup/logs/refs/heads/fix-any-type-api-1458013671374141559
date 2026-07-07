@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 6fe935d83dedb20eafeb0eb650d9101b41e2a9cc Петушков А. <ihinib81@gmail.com> 1782688122 +0400	fetch origin fix-any-type-api-1458013671374141559:fix-any-type-api-1458013671374141559: storing head
-6fe935d83dedb20eafeb0eb650d9101b41e2a9cc e7e9e26e3f7d8c34b88d9cd81aad76c4ca735e0f Петушков А. <ihinib81@gmail.com> 1782688205 +0400	reset: moving to origin/main
-e7e9e26e3f7d8c34b88d9cd81aad76c4ca735e0f e8068ca84ee4b064fc3b8ee26c1a95ab1b0f9425 Петушков А. <ihinib81@gmail.com> 1782688205 +0400	commit: fix(types): replace any[] with DenteTelegramOutboxSendDueResponse[results] in telegram.ts

@@ -1,60 +1,78 @@
 @import './auth.css';
 
-:root {
 
-  color: #25211d;
+:root {
+  /* LIGHT THEME (Premium Aesthetics) */
+  color: #111827;
   background: #fdfdfd;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --paper: #ffffff;
-  --paper-strong: #ffffff;
-  --paper-soft: #f9fbfb;
-  --ink: #25211d;
-  --muted: #808b86;
-  --line: rgba(208, 226, 217, 0.3);
-  --line-strong: #a9c6b8;
-  --teal: #0f766e;
-  --teal-dark: #094b45;
-  --teal-soft: #dcefeb;
-  --rust: #a34f32;
-  --rust-soft: #f4e1da;
-  --amber: #b8781f;
-  --red: #b3261e;
-  --green: #2f7340;
-  --nav: #1f2a26;
-  --shadow: 0 16px 36px rgba(22, 53, 46, 0.1);
 
-
-  /* PREMIUM AESTHETICS OVERRIDE */
   --paper: #ffffff;
   --paper-strong: #fafcfa;
   --paper-soft: #f4f7f6;
-  --ink: #1a1e20;
+  --ink: #111827;
   --muted: #6b7280;
-  --line: rgba(15, 118, 110, 0.12);
+  --line: rgba(15, 118, 110, 0.15);
   --line-strong: rgba(15, 118, 110, 0.25);
   
-  /* Vibrant Colors */
   --teal: #0d9488;
-  --teal-dark: #115e59;
+  --teal-dark: #0f766e;
   --teal-soft: #ccfbf1;
-  --teal-glow: rgba(13, 148, 136, 0.35);
-  --teal-surface: rgba(204, 251, 241, 0.4);
+  --teal-glow: rgba(13, 148, 136, 0.25);
+  --teal-surface: rgba(204, 251, 241, 0.5);
   
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-blur: blur(12px);
-  --shadow-premium: 0 10px 40px -10px rgba(15, 118, 110, 0.15), 0 1px 3px rgba(15, 118, 110, 0.05);
+  --rust: #b91c1c;
+  --rust-soft: #fee2e2;
+  --amber: #d97706;
+  --amber-soft: #fef3c7;
+  --red: #ef4444;
+  --green: #15803d;
   
-  /* Smooth transitions */
+  --nav: #0f172a; /* Slate 900 for sidebar in light mode */
+  --nav-active: #1e293b;
+  
+  --shadow-premium: 0 10px 40px -10px rgba(15, 118, 110, 0.12), 0 1px 3px rgba(15, 118, 110, 0.05);
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f8fafc;
+    background: #020617;
+  
+    /* DARK THEME (Sleek Off-Black) */
+    --paper: #0f172a; /* Slate 900 */
+    --paper-strong: #1e293b; /* Slate 800 */
+    --paper-soft: #020617; /* Slate 950 */
+    --ink: #f8fafc; /* Slate 50 */
+    --muted: #94a3b8; /* Slate 400 */
+    --line: rgba(204, 251, 241, 0.15); /* Soft teal line */
+    --line-strong: rgba(204, 251, 241, 0.3);
+    
+    --teal: #2dd4bf; /* Lighter teal for dark mode */
+    --teal-dark: #14b8a6;
+    --teal-soft: rgba(45, 212, 191, 0.15);
+    --teal-glow: rgba(45, 212, 191, 0.2);
+    --teal-surface: rgba(45, 212, 191, 0.1);
+    
+    --rust: #ef4444;
+    --rust-soft: rgba(239, 68, 68, 0.15);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245, 158, 11, 0.15);
+    --red: #f87171;
+    --green: #4ade80;
+    
+    --nav: #020617; /* Very dark slate for sidebar */
+    --nav-active: #0f172a;
+    
+    --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+}
+
 
 * {
   box-sizing: border-box;

@@ -89,5 +89,25 @@ class TestDB(unittest.TestCase):
         patients = db.get_users_by_role('patient')
         self.assertEqual(patients, [])
 
+    def test_close_connections(self):
+        from unittest.mock import MagicMock
+
+        # Create mock connections
+        mock_conn1 = MagicMock()
+        mock_conn2 = MagicMock()
+
+        # Assign them to the thread-local storage
+        db._local.conns = {'mock_db_1': mock_conn1, 'mock_db_2': mock_conn2}
+
+        # Call the function being tested
+        db.close_connections()
+
+        # Assert that close was called on each mock connection
+        mock_conn1.close.assert_called_once()
+        mock_conn2.close.assert_called_once()
+
+        # Assert that the conns dictionary was cleared
+        self.assertEqual(len(db._local.conns), 0)
+
 if __name__ == '__main__':
     unittest.main()

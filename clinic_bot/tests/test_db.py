@@ -24,6 +24,7 @@ class TestDB(unittest.TestCase):
         os.close(self.fd)
         os.unlink(self.temp_db)
 
+<<<<<<< HEAD
     def test_add_user_insert(self):
         db.add_user(111, 'doctor', 'Doc One')
         conn = db.get_connection()
@@ -55,6 +56,8 @@ class TestDB(unittest.TestCase):
         self.assertEqual(row['role'], 'patient')
         self.assertEqual(row['name'], '')
 
+=======
+>>>>>>> gitlab/main
     def test_get_user_role_existing(self):
         # Add a user to the temporary database
         db.add_user(12345, 'doctor', 'Test Doctor')
@@ -68,6 +71,7 @@ class TestDB(unittest.TestCase):
         role = db.get_user_role(99999)
         self.assertIsNone(role)
 
+<<<<<<< HEAD
     def test_get_users_by_role_existing(self):
         # Add multiple users to the temporary database
         db.add_user(1001, 'doctor', 'Dr. Smith')
@@ -132,5 +136,7 @@ class TestDB(unittest.TestCase):
         self.assertIsNotNone(thread_conn)
         self.assertIsNot(main_conn1, thread_conn)
 
+=======
+>>>>>>> gitlab/main
 if __name__ == '__main__':
     unittest.main()

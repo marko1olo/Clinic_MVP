@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import os
 import sys
 import paramiko
@@ -14,6 +15,17 @@ try:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
+=======
+import paramiko
+
+host = '62.84.100.97'
+user = 'root'
+password = 'W15n8zf781%nV25BGZ+2'
+
+try:
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+>>>>>>> gitlab/main
     client.connect(hostname=host, username=user, password=password, timeout=10)
 
     commands = [

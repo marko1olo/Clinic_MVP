@@ -1,5 +1,9 @@
 import pytest
+<<<<<<< HEAD
 from doctor_popup import parse_findings
+=======
+from ShadowAnalyst.doctor_popup import parse_findings
+>>>>>>> gitlab/main
 
 def test_parse_findings_empty_or_none():
     # Test None
@@ -45,6 +49,7 @@ def test_parse_findings_mixed():
     body, alert = parse_findings(findings)
     assert body == ["Зуб 11: Норма", "Зуб 13: пломба"]
     assert alert == ["Зуб 12: глубокий кариес", "Зуб 14: воспаление корня"]
+<<<<<<< HEAD
 
 def test_parse_findings_empty_lines():
     # Test strings with empty lines
@@ -66,3 +71,5 @@ def test_parse_findings_punctuation():
     body, alert = parse_findings(findings)
     assert body == []
     assert alert == ["Зуб 11: кариес!", "Зуб 12: (воспаление)"]
+=======
+>>>>>>> gitlab/main

@@ -1,10 +1,16 @@
 import unittest
+<<<<<<< HEAD
 from unittest.mock import patch
+=======
+>>>>>>> gitlab/main
 import sqlite3
 import os
 import tempfile
 import clinic_admin.database
+<<<<<<< HEAD
 import database
+=======
+>>>>>>> gitlab/main
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -12,6 +18,7 @@ class TestDatabase(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp()
 
         # Save the original DB_FILE
+<<<<<<< HEAD
         self.original_db_file = database.DB_FILE
 
         # Point the database to the temporary file
@@ -20,11 +27,22 @@ class TestDatabase(unittest.TestCase):
     def tearDown(self):
         # Restore the original DB_FILE
         database.DB_FILE = self.original_db_file
+=======
+        self.original_db_file = clinic_admin.database.DB_FILE
+
+        # Point the database to the temporary file
+        clinic_admin.database.DB_FILE = self.db_path
+
+    def tearDown(self):
+        # Restore the original DB_FILE
+        clinic_admin.database.DB_FILE = self.original_db_file
+>>>>>>> gitlab/main
 
         # Close and remove the temporary file
         os.close(self.db_fd)
         os.unlink(self.db_path)
 
+<<<<<<< HEAD
     @patch('sqlite3.connect')
     def test_get_connection(self, mock_connect):
         # Call the function
@@ -36,6 +54,11 @@ class TestDatabase(unittest.TestCase):
         # Verify it returns the mocked connection object
         self.assertEqual(conn, mock_connect.return_value)
     def test_get_connection(self):
+=======
+    def test_get_connection(self):
+        # Call the function
+        conn = clinic_admin.database.get_connection()
+>>>>>>> gitlab/main
 
         # Verify it returns a connection object
         self.assertIsInstance(conn, sqlite3.Connection)
@@ -43,6 +66,7 @@ class TestDatabase(unittest.TestCase):
         # Verify the row factory is set
         self.assertEqual(conn.row_factory, sqlite3.Row)
 
+<<<<<<< HEAD
     @patch('sqlite3.connect')
     def test_get_connection_error(self, mock_connect):
         # Setup mock to raise an exception
@@ -60,6 +84,16 @@ class TestDatabase(unittest.TestCase):
 
         # Connect to verify tables were created
         conn = database.get_connection()
+=======
+        conn.close()
+
+    def test_init_db(self):
+        # Initialize the database
+        clinic_admin.database.init_db()
+
+        # Connect to verify tables were created
+        conn = clinic_admin.database.get_connection()
+>>>>>>> gitlab/main
         c = conn.cursor()
 
         # Check if patients table exists
@@ -91,6 +125,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         conn.close()
+<<<<<<< HEAD
 from unittest.mock import patch, MagicMock
 
 from clinic_admin.database import get_connection, DB_FILE
@@ -103,6 +138,8 @@ from clinic_admin.database import get_connection, DB_FILE
 
         mock_connect.assert_called_once_with(DB_FILE)
         self.assertEqual(conn, mock_conn)
+=======
+>>>>>>> gitlab/main
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,8 +1,16 @@
 import unittest
+<<<<<<< HEAD
 import os
 import tempfile
 import clinic_admin.inject_old_data
 import clinic_admin.database
+=======
+import sqlite3
+import os
+import tempfile
+import clinic_admin.database
+import clinic_admin.inject_old_data
+>>>>>>> gitlab/main
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -63,6 +71,7 @@ class TestInjectOldData(unittest.TestCase):
 
         conn.close()
 
+<<<<<<< HEAD
     def test_insert_appointments(self):
         from datetime import datetime, timedelta
         from unittest.mock import MagicMock
@@ -102,6 +111,8 @@ class TestInjectOldData(unittest.TestCase):
         )
         c_mock.executemany.assert_called_once_with(expected_query, [])
 
+=======
+>>>>>>> gitlab/main
     def test_inject_dummy_data_idempotent(self):
         # Inject data first time
         clinic_admin.inject_old_data.inject_dummy_data()
@@ -121,6 +132,7 @@ class TestInjectOldData(unittest.TestCase):
 
         conn.close()
 
+<<<<<<< HEAD
     def test_insert_patients(self):
         conn = clinic_admin.database.get_connection()
         c = conn.cursor()
@@ -147,5 +159,7 @@ class TestInjectOldData(unittest.TestCase):
 
         conn.close()
 
+=======
+>>>>>>> gitlab/main
 if __name__ == "__main__":
     unittest.main()

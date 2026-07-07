@@ -66,6 +66,7 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
 
+<<<<<<< HEAD
     @patch('sys.stdout')
     def test_ssh_timeout(self, mock_stdout):
         mock_client = Mock()
@@ -125,5 +126,7 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(mock_ssh.call_count, 4)
         mock_client.close.assert_called_once()
 
+=======
+>>>>>>> gitlab/main
 if __name__ == '__main__':
     unittest.main()

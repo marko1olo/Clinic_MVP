@@ -482,6 +482,7 @@ export const documents: GeneratedDocument[] = [
   }
 ];
 
+<<<<<<<< HEAD:dental-crm111/apps/api/src/telegram/legacyMocks.ts
 
 export function getServiceCatalogItem(serviceId: string): ServiceCatalogItem | undefined {
   let service = serviceCatalogMap.get(serviceId);
@@ -494,6 +495,8 @@ export function getServiceCatalogItem(serviceId: string): ServiceCatalogItem | u
   return service;
 }
 
+========
+>>>>>>>> gitlab/main:dental-crm/apps/api/src/telegram/legacyMocks.ts
 export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
 export const serviceCatalog: ServiceCatalogItem[] = [
   {
@@ -1125,6 +1128,7 @@ function treatmentLineTotal(item: TreatmentPlanItem): number {
 }
 
 export function buildBillingSummary(): BillingSummary {
+<<<<<<<< HEAD:dental-crm111/apps/api/src/telegram/legacyMocks.ts
   const activePlanItems = treatmentPlanItems.filter((item) => item.status !== "cancelled");
   const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
   const totalDiscountRub = activePlanItems.reduce((total, item) => total + item.discountRub, 0);
@@ -1138,6 +1142,60 @@ export function buildBillingSummary(): BillingSummary {
   const draftDocumentAmountRub = documents
     .filter((document) => document.status === "draft")
     .reduce((total, document) => total + (document.totalAmountRub ?? 0), 0);
+========
+  let totalPlannedRub = 0;
+  let totalDiscountRub = 0;
+  let taxDeductionEligibleRub = 0;
+  let openTreatmentItems = 0;
+
+  for (let i = 0; i < treatmentPlanItems.length; i++) {
+    const item = treatmentPlanItems[i];
+    if (!item || item.status === "cancelled") continue;
+
+    const lineTotal = treatmentLineTotal(item);
+    totalPlannedRub += lineTotal;
+    totalDiscountRub += item.discountRub;
+
+    const service = serviceCatalogMap.get(item.serviceId) || serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+    if (service?.taxDeductible) {
+      taxDeductionEligibleRub += lineTotal;
+    }
+
+    if (item.status !== "completed") {
+      openTreatmentItems += 1;
+    }
+  }
+
+  let totalPaidRub = 0;
+  const paidDocumentIds = new Set<string>();
+  for (let i = 0; i < payments.length; i++) {
+    const payment = payments[i];
+    if (!payment) continue;
+
+    if (payment.status === "paid") {
+      totalPaidRub += payment.amountRub;
+      if (payment.documentId) {
+        paidDocumentIds.add(payment.documentId);
+      }
+    }
+  }
+
+  let draftDocumentAmountRub = 0;
+  let unpaidDocuments = 0;
+  for (let i = 0; i < documents.length; i++) {
+    const document = documents[i];
+    if (!document) continue;
+
+    if (document.status === "draft") {
+      const amount = document.totalAmountRub ?? 0;
+      draftDocumentAmountRub += amount;
+
+      if (amount > 0 && !paidDocumentIds.has(document.id)) {
+        unpaidDocuments += 1;
+      }
+    }
+  }
+>>>>>>>> gitlab/main:dental-crm/apps/api/src/telegram/legacyMocks.ts
 
   return {
     totalPlannedRub,
@@ -1146,8 +1204,13 @@ export function buildBillingSummary(): BillingSummary {
     totalDueRub: Math.max(0, totalPlannedRub - totalPaidRub),
     taxDeductionEligibleRub,
     draftDocumentAmountRub,
+<<<<<<<< HEAD:dental-crm111/apps/api/src/telegram/legacyMocks.ts
     openTreatmentItems: 0,
     unpaidDocuments: 0
+========
+    openTreatmentItems,
+    unpaidDocuments
+>>>>>>>> gitlab/main:dental-crm/apps/api/src/telegram/legacyMocks.ts
   };
 }
 
@@ -6678,7 +6741,11 @@ function buildDenteTelegramRecallItems(runtimeScope?: DenteTelegramOutboxRuntime
     if (item.organizationId !== organizationScope) return [];
     if (item.status !== "completed") return [];
 
+<<<<<<<< HEAD:dental-crm111/apps/api/src/telegram/legacyMocks.ts
     const service = getServiceCatalogItem(item.serviceId);
+========
+    const service = serviceCatalogMap.get(item.serviceId);
+>>>>>>>> gitlab/main:dental-crm/apps/api/src/telegram/legacyMocks.ts
     if (service?.category !== "hygiene") return [];
 
     const patient = activePatientsMap.get(item.patientId);

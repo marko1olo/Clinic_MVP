@@ -47,6 +47,26 @@ def parse_findings(findings):
     return body_lines, alert_lines
 
 
+def parse_findings(findings):
+    """
+    Parses the findings string and separates it into normal findings (body_lines)
+    and alert findings (alert_lines).
+    """
+    body_lines = []
+    alert_lines = []
+
+    if not findings or findings == "Норма":
+        body_lines.append("Патологий не обнаружено. Норма.")
+    else:
+        for line in findings.split('\n'):
+            if 'кариес' in line.lower() or 'воспаление' in line.lower():
+                alert_lines.append(line)
+            else:
+                body_lines.append(line)
+
+    return body_lines, alert_lines
+
+
 class DoctorPopupApp:
     def __init__(self):
         self.root = tk.Tk()

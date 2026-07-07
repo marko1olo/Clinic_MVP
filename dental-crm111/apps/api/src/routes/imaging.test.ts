@@ -1,5 +1,6 @@
 import { test, describe, mock, afterEach } from 'node:test';
 import assert from 'node:assert';
+<<<<<<< HEAD
 import fs from 'node:fs';
 import { parseDicomSeriesManifest, hasDicomMagic } from './imaging.js';
 import { parseDicomSeriesManifest, readFilePrefix } from './imaging.js';
@@ -50,19 +51,32 @@ describe('readFilePrefix', () => {
   });
 });
 
+=======
+import { parseDicomSeriesManifest } from './imaging.js';
+import type { ImagingSourceKind } from '@dental/shared';
+
+>>>>>>> gitlab/main
 describe('parseDicomSeriesManifest', () => {
   afterEach(() => {
     mock.restoreAll();
   });
 
+<<<<<<< HEAD
   test('returns default preview response when rawText yields no lines', async () => {
+=======
+  test('returns default preview response when rawText yields no lines', () => {
+>>>>>>> gitlab/main
     const input = {
       sourceName: 'test-source.zip',
       sourceKind: 'dicom_file' as ImagingSourceKind,
       rawText: '   \n\r\n   '
     };
 
+<<<<<<< HEAD
     const result = await parseDicomSeriesManifest("mock-org", input);
+=======
+    const result = parseDicomSeriesManifest(input);
+>>>>>>> gitlab/main
 
     assert.strictEqual(result.sourceName, 'test-source.zip');
     assert.strictEqual(result.sourceKind, 'dicom_file');
@@ -76,6 +90,7 @@ describe('parseDicomSeriesManifest', () => {
     assert.deepStrictEqual(result.parserNotes, ['Нет строк списка снимков для разбора.']);
   });
 });
+<<<<<<< HEAD
 
 describe('hasDicomMagic', () => {
   afterEach(() => {
@@ -95,3 +110,5 @@ describe('hasDicomMagic', () => {
     assert.strictEqual(mockStatSync.mock.callCount(), 1);
   });
 });
+=======
+>>>>>>> gitlab/main

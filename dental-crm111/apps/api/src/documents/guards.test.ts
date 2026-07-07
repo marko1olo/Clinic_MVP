@@ -1,7 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+<<<<<<< HEAD
 import { taxPaymentSelectionErrorForDocument, paidAmountRubForDocument } from './guards.js';
 import { taxPaymentSelectionErrorForDocument, paymentRefundCorrectionSelectionErrorForDocument } from './guards.js';
+=======
+import { taxPaymentSelectionErrorForDocument } from './guards.js';
+>>>>>>> gitlab/main
 import type { Payment, CreateDocumentInput, TaxDeductionApplicationPayload } from '@dental/shared';
 
 describe('taxPaymentSelectionErrorForDocument', () => {
@@ -35,6 +39,7 @@ describe('taxPaymentSelectionErrorForDocument', () => {
     assert.strictEqual(error, 'Для налогового заявления, справки или реестра нужно явно выбрать фискальные чеки. Автоматический захват всех оплат за год отключен.');
   });
 
+<<<<<<< HEAD
   test('returns null if tax document does not require payment selection and none selected', () => {
     const error = taxPaymentSelectionErrorForDocument({
       ...baseInput,
@@ -44,6 +49,8 @@ describe('taxPaymentSelectionErrorForDocument', () => {
     assert.strictEqual(error, null);
   });
 
+=======
+>>>>>>> gitlab/main
   test('returns error if there are duplicates in selected ids', () => {
     const input = { ...baseInput, payload: { taxPaymentSelection: { selectedPaymentIds: ['payment-1', 'payment-1'] } } };
     const error = taxPaymentSelectionErrorForDocument(input, basePayments);
@@ -94,12 +101,15 @@ describe('taxPaymentSelectionErrorForDocument', () => {
     assert.strictEqual(error, 'Выбранный фискальный чек не относится к выбранному налоговому году.');
   });
 
+<<<<<<< HEAD
   test('returns error if taxYear is not provided but payments are selected', () => {
     const input = { ...baseInput, taxYear: undefined };
     const error = taxPaymentSelectionErrorForDocument(input, basePayments);
     assert.strictEqual(error, 'Выбранный фискальный чек не относится к выбранному налоговому году.');
   });
 
+=======
+>>>>>>> gitlab/main
   test('returns error if selected payment does not match payer INN', () => {
     const payments = [
       ...basePayments,
@@ -134,6 +144,7 @@ describe('taxDocumentSelectionScope - edge cases', () => {
     assert.strictEqual(error, null);
   });
 });
+<<<<<<< HEAD
 
 
 describe('paidAmountRubForDocument', () => {
@@ -335,3 +346,5 @@ describe('paymentRefundCorrectionSelectionErrorForDocument', () => {
     assert.strictEqual(error, 'Исходный фискальный чек в заявлении не совпадает с выбранным платежом.');
   });
 });
+=======
+>>>>>>> gitlab/main

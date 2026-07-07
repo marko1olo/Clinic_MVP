@@ -1,4 +1,5 @@
 import os
+<<<<<<< HEAD
 import sys
 import paramiko
 
@@ -6,6 +7,11 @@ host = os.environ.get('VPS_HOST')
 if not host:
     sys.exit('ERROR: VPS_HOST environment variable is not set.')
 
+=======
+import paramiko
+
+host = '62.84.100.97'
+>>>>>>> gitlab/main
 user = 'root'
 password = os.environ.get('VPS_PASSWORD')
 if not password:
@@ -13,8 +19,13 @@ if not password:
 
 try:
     client = paramiko.SSHClient()
+<<<<<<< HEAD
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
+=======
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    print(f"Connecting to {user}@{host}...")
+>>>>>>> gitlab/main
     client.connect(hostname=host, username=user, password=password, timeout=10)
     
     commands = [

@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 from unittest.mock import MagicMock, patch
 from utils import scp_file, ssh
+=======
+import sys
+from unittest.mock import MagicMock, patch
+from utils import scp_file
+>>>>>>> gitlab/main
 
 def test_scp_file():
     # Arrange
@@ -22,6 +28,7 @@ def test_scp_file():
 
         mock_write.assert_called_once_with(b"SCP: local_file.txt -> /remote/dir/file.txt\n")
         mock_flush.assert_called_once()
+<<<<<<< HEAD
 
 
 def test_ssh_with_output_and_desc():
@@ -87,3 +94,5 @@ def test_ssh_empty_output_and_no_desc():
         assert mock_write.call_count == 1
 
         assert mock_flush.call_count == 2
+=======
+>>>>>>> gitlab/main

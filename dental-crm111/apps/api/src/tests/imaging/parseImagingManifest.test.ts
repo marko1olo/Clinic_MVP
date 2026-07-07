@@ -1,10 +1,19 @@
+<<<<<<< HEAD
 ﻿import test from "node:test";
+=======
+import test from "node:test";
+>>>>>>> gitlab/main
 import assert from "node:assert";
 import { parseImagingManifest } from "../../routes/imaging.js";
 import { imagingImportPreviewResponseSchema } from "@dental/shared";
 
+<<<<<<< HEAD
 test("parseImagingManifest - handles empty text", async () => {
   const result = await parseImagingManifest("test-org-id", {
+=======
+test("parseImagingManifest - handles empty text", () => {
+  const result = parseImagingManifest({
+>>>>>>> gitlab/main
     sourceName: "empty.csv",
     sourceKind: "manual_upload",
     rawText: ""
@@ -21,8 +30,13 @@ test("parseImagingManifest - handles empty text", async () => {
   assert.ok(imagingImportPreviewResponseSchema.safeParse(result).success);
 });
 
+<<<<<<< HEAD
 test("parseImagingManifest - handles text with only empty lines", async () => {
   const result = await parseImagingManifest("test-org-id", {
+=======
+test("parseImagingManifest - handles text with only empty lines", () => {
+  const result = parseImagingManifest({
+>>>>>>> gitlab/main
     sourceName: "empty.csv",
     sourceKind: "manual_upload",
     rawText: "\n\r\n  \n\t\n"

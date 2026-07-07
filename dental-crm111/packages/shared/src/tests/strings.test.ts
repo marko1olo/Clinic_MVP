@@ -20,11 +20,14 @@ describe('splitLine', () => {
     assert.deepStrictEqual(splitLine(' a , "b, c" , d ', ','), ['a', 'b, c', 'd']);
   });
 
+<<<<<<< HEAD
   test('handles empty string delimiter', () => {
     assert.deepStrictEqual(splitLine('abc', ''), ['abc']);
     assert.deepStrictEqual(splitLine('', ''), ['']);
   });
 
+=======
+>>>>>>> gitlab/main
   test('handles empty string', () => {
     assert.deepStrictEqual(splitLine('', ','), ['']);
   });
@@ -66,6 +69,7 @@ describe('splitLine', () => {
     assert.deepStrictEqual(splitLine('   ', ','), ['']);
   });
 
+<<<<<<< HEAD
   test('handles strings with no delimiters', () => {
     assert.deepStrictEqual(splitLine('hello', ','), ['hello']);
     assert.deepStrictEqual(splitLine('hello world', ','), ['hello world']);
@@ -84,6 +88,8 @@ describe('splitLine', () => {
     assert.deepStrictEqual(splitLine('  " a b "  ,  c  ', ','), ['a b', 'c']);
   });
 
+=======
+>>>>>>> gitlab/main
   test('handles whitespace around empty elements', () => {
     assert.deepStrictEqual(splitLine('a, ,c', ','), ['a', '', 'c']);
   });
@@ -95,6 +101,9 @@ describe('splitLine', () => {
   test('handles quotes adjacent to characters without delimiters', () => {
     assert.deepStrictEqual(splitLine('a,"b""c",d', ','), ['a', 'bc', 'd']);
   });
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> gitlab/main
 });

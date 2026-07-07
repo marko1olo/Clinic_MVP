@@ -4,7 +4,10 @@ import tempfile
 import shutil
 import unittest
 from io import BytesIO
+<<<<<<< HEAD
 import pytest
+=======
+>>>>>>> gitlab/main
 from PIL import Image
 from unittest.mock import patch, MagicMock
 
@@ -21,6 +24,7 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
+<<<<<<< HEAD
     def test_setup_dirs_success(self):
         watch_dir = os.path.join(self.tmp_dir, "mock_watch")
         processed_dir = os.path.join(self.tmp_dir, "mock_processed")
@@ -51,6 +55,19 @@ class TestWatcher(unittest.TestCase):
             # Verify they still exist
             self.assertTrue(os.path.exists(watch_dir))
             self.assertTrue(os.path.exists(processed_dir))
+=======
+    @patch('ShadowAnalyst.watcher.os.makedirs')
+    def test_setup_dirs_success(self, mock_makedirs):
+        # Patching WATCH_DIR and PROCESSED_DIR just to be sure we check the right values
+        with patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'), \
+             patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher.setup_dirs()
+
+            # Check if os.makedirs was called correctly
+            self.assertEqual(mock_makedirs.call_count, 2)
+            mock_makedirs.assert_any_call('/tmp/mock_watch', exist_ok=True)
+            mock_makedirs.assert_any_call('/tmp/mock_processed', exist_ok=True)
+>>>>>>> gitlab/main
 
     @patch('ShadowAnalyst.watcher.os.makedirs')
     def test_setup_dirs_error(self, mock_makedirs):
@@ -66,6 +83,7 @@ class TestWatcher(unittest.TestCase):
             self.assertIn("Permission denied", str(context.exception))
 
     def test_prepare_image_normal(self):
+<<<<<<< HEAD
         # Create a small RGB image in memory
         img = Image.new('RGB', (100, 100), color = 'red')
 
@@ -73,6 +91,15 @@ class TestWatcher(unittest.TestCase):
             mock_open.return_value.__enter__.return_value = img
             # Call prepare_image
             result = watcher.prepare_image("dummy_path.jpg")
+=======
+        # Create a small RGB image
+        img = Image.new('RGB', (100, 100), color = 'red')
+        img_path = os.path.join(self.tmp_dir, "normal.jpg")
+        img.save(img_path)
+
+        # Call prepare_image
+        result = watcher.prepare_image(img_path)
+>>>>>>> gitlab/main
 
         # Assert return value starts with the right prefix
         self.assertIsNotNone(result)
@@ -85,6 +112,7 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.size, (100, 100))
 
     def test_prepare_image_resize(self):
+<<<<<<< HEAD
         # Create a large image that needs resizing in memory
         img = Image.new('RGB', (2000, 1500), color = 'blue')
 
@@ -92,6 +120,15 @@ class TestWatcher(unittest.TestCase):
             mock_open.return_value.__enter__.return_value = img
             # Call prepare_image
             result = watcher.prepare_image("dummy_path.jpg")
+=======
+        # Create a large image that needs resizing
+        img = Image.new('RGB', (2000, 1500), color = 'blue')
+        img_path = os.path.join(self.tmp_dir, "large.jpg")
+        img.save(img_path)
+
+        # Call prepare_image
+        result = watcher.prepare_image(img_path)
+>>>>>>> gitlab/main
 
         # Assert
         self.assertIsNotNone(result)
@@ -104,6 +141,7 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.size, (1000, 750))
 
     def test_prepare_image_non_rgb(self):
+<<<<<<< HEAD
         # Create an RGBA image in memory
         img = Image.new('RGBA', (200, 200), color = (255, 0, 0, 128))
 
@@ -111,6 +149,15 @@ class TestWatcher(unittest.TestCase):
             mock_open.return_value.__enter__.return_value = img
             # Call prepare_image
             result = watcher.prepare_image("dummy_path.jpg")
+=======
+        # Create an RGBA image
+        img = Image.new('RGBA', (200, 200), color = (255, 0, 0, 128))
+        img_path = os.path.join(self.tmp_dir, "rgba.png")
+        img.save(img_path)
+
+        # Call prepare_image
+        result = watcher.prepare_image(img_path)
+>>>>>>> gitlab/main
 
         # Assert
         self.assertIsNotNone(result)
@@ -123,6 +170,7 @@ class TestWatcher(unittest.TestCase):
             self.assertEqual(decoded_img.mode, 'RGB')
 
     def test_prepare_image_error(self):
+<<<<<<< HEAD
         with patch('PIL.Image.open') as mock_open:
             # Make the open raise an error
             mock_open.side_effect = Exception("Mocked error")
@@ -159,6 +207,12 @@ class TestWatcher(unittest.TestCase):
         with open(img_path, 'w') as f:
             f.write("This is not a valid image file")
 
+=======
+        # Pass a non-existent file
+        img_path = os.path.join(self.tmp_dir, "does_not_exist.jpg")
+
+        # Call prepare_image
+>>>>>>> gitlab/main
         result = watcher.prepare_image(img_path)
 
         # Assert
@@ -369,6 +423,7 @@ class TestWatcher(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
+<<<<<<< HEAD
 from unittest.mock import patch, MagicMock, mock_open
 
 # Import functions to test
@@ -561,3 +616,5 @@ def test_analyze_image_prepare_failed(mock_openai_class, mock_prepare_image):
     assert marked_path is None
     assert report == "Ошибка обработки файла"
 
+=======
+>>>>>>> gitlab/main

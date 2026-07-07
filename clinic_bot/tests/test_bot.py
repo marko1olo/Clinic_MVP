@@ -2,6 +2,7 @@ import unittest
 import sys
 import os
 from unittest.mock import MagicMock, AsyncMock, patch
+<<<<<<< HEAD
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from bot import on_mqtt_message, cmd_start, handle_alert_admin
@@ -60,6 +61,15 @@ class TestBotMqtt(unittest.TestCase):
         self.assertEqual(mock_run_coroutine_threadsafe.call_count, 1)
         self.assertEqual(mock_run_coroutine_threadsafe.call_args[0][1], loop)
 
+=======
+import asyncio
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from bot import on_mqtt_message, cmd_start
+from aiogram.types import Message, Chat, User
+
+class TestBotMqtt(unittest.TestCase):
+>>>>>>> gitlab/main
     def test_on_mqtt_message_exception_handling(self):
         """
         Test that if an unexpected exception occurs while processing an MQTT message,
@@ -94,6 +104,7 @@ class TestBotMqtt(unittest.TestCase):
         # This should return cleanly
         on_mqtt_message(client, userdata, msg)
 
+<<<<<<< HEAD
     @patch('bot.broadcast')
     def test_handle_review_neg_with_data(self, mock_broadcast):
         """Test handle_review_neg formats message correctly and broadcasts to admin."""
@@ -134,6 +145,8 @@ class TestBotMqtt(unittest.TestCase):
             self.assertEqual(mock_run_coroutine.call_args[0][1], loop)
             coroutine.close() # close the unawaited coroutine to avoid warning
 
+=======
+>>>>>>> gitlab/main
 
 class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
     @patch('bot.db')
@@ -178,6 +191,7 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
 
+<<<<<<< HEAD
 from unittest.mock import AsyncMock, patch, MagicMock
 
 # Ensure clinic_bot module is in sys.path
@@ -382,3 +396,8 @@ def test_on_mqtt_message_exception_handling(caplog):
 
 def test_on_mqtt_message_missing_loop(caplog):
 
+=======
+
+if __name__ == '__main__':
+    unittest.main()
+>>>>>>> gitlab/main

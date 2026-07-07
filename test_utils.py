@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 from utils import scp_file, ssh
+import pytest
 
 def test_scp_file():
     # Arrange
@@ -87,3 +88,40 @@ def test_ssh_empty_output_and_no_desc():
         assert mock_write.call_count == 1
 
         assert mock_flush.call_count == 2
+
+def test_ssh_command_exception():
+    # Arrange
+    client = MagicMock()
+    client.exec_command.side_effect = Exception("SSH connection failed")
+
+    cmd = "echo test"
+
+    with patch("sys.stdout.buffer.write") as mock_write, \
+         patch("sys.stdout.flush") as mock_flush:
+        with pytest.raises(Exception, match="SSH connection failed"):
+            ssh(client, cmd)
+
+def test_ssh_invalid_utf8():
+    # Arrange
+    client = MagicMock()
+    stdin_mock = MagicMock()
+    stdout_mock = MagicMock()
+    stderr_mock = MagicMock()
+
+    # Invalid utf-8 bytes
+    stdout_mock.read.return_value = b"\xff\xfe\xfd output"
+    stderr_mock.read.return_value = b"\xff\xfe\xfd error"
+
+    client.exec_command.return_value = (stdin_mock, stdout_mock, stderr_mock)
+
+    cmd = "echo test"
+
+    with patch("sys.stdout.buffer.write") as mock_write, \
+         patch("sys.stdout.flush") as mock_flush:
+
+        # Act
+        out, err = ssh(client, cmd)
+
+        # Assert
+        assert out.endswith("output")
+        assert err.endswith("error")

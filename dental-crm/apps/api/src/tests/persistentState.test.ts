@@ -271,4 +271,61 @@ describe("persistentState", () => {
       assert.strictEqual(meta.enabled, false);
       assert.strictEqual(meta.exists, false);
   });
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+
+    let stateFile: string;
+    let backupDir: string;
+
+    const originalEnv = process.env;
+
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dental-state-test-'));
+        stateFile = path.join(tmpDir, 'state.json');
+        backupDir = path.join(tmpDir, 'backups');
+
+        process.env.DENTAL_STATE_FILE = stateFile;
+        process.env.DENTAL_STATE_BACKUP_DIR = backupDir;
+
+
+    test('reports missing state file correctly', () => {
+        assert.ok(report.warnings.some((w: string) => w.includes('Файл состояния еще не создан')));
+
+    test('reports disabled persistence correctly', () => {
+        assert.ok(report.warnings.some((w: string) => w.includes('выключено')));
+
+    test('reports valid state correctly', async () => {
+        // use savePersistentState twice to generate a valid state file and one backup
+        savePersistentState({ staffMembers: [{ id: '1', name: 'John Doe', position: 'doctor' }] } as any);
+        // Wait a small amount to make sure modified times are different if precision is low
+        await new Promise(resolve => setTimeout(resolve, 50));
+        savePersistentState({ staffMembers: [{ id: '1', name: 'John Doe', position: 'doctor' }, { id: '2', name: 'Jane Doe', position: 'nurse' }] } as any);
+
+        assert.strictEqual(report.backups.length, 1);
+        assert.strictEqual(report.stateCounts.staffMembers, 2);
+
+    test('reports unreadable state file', () => {
+        fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+        fs.writeFileSync(stateFile, 'invalid json');
+        assert.ok(report.warnings.some((w: string) => w.includes('не читается')));
+
+    test('reports checksum mismatch', () => {
+        savePersistentState({ staffMembers: [] } as any);
+        const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        data.state.staffMembers = [{ id: 'fake' }]; // mutate state to break checksum
+        fs.writeFileSync(stateFile, JSON.stringify(data));
+
+        assert.ok(report.warnings.some((w: string) => w.includes('Контрольная сумма')));
+
+    test('reports backup integrity warnings', () => {
+        savePersistentState({ staffMembers: [] } as any);
+        // Save again to trigger backup
+        savePersistentState({ staffMembers: [] } as any);
+
+        // Corrupt the backup
+        const backups = fs.readdirSync(backupDir);
+        assert.ok(backups.length > 0);
+        const backupFile = backups[0]; if (backupFile) fs.writeFileSync(path.join(backupDir, backupFile), 'invalid json');
+
+        assert.ok(report.warnings.some((w: string) => w.includes('не прошла проверку')));
 });

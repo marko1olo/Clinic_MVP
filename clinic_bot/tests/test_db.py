@@ -89,5 +89,29 @@ class TestDB(unittest.TestCase):
         patients = db.get_users_by_role('patient')
         self.assertEqual(patients, [])
 
+    def test_get_connection_thread_local(self):
+        """Test that get_connection returns a thread-local SQLite connection."""
+        import threading
+
+        # Get connection in the main thread
+        main_conn1 = db.get_connection()
+        main_conn2 = db.get_connection()
+
+        # Connections in the same thread should be the exact same object
+        self.assertIs(main_conn1, main_conn2)
+
+        thread_conn = None
+        def thread_task():
+            nonlocal thread_conn
+            thread_conn = db.get_connection()
+
+        t = threading.Thread(target=thread_task)
+        t.start()
+        t.join()
+
+        # The connection from the spawned thread must be different from the main thread's connection
+        self.assertIsNotNone(thread_conn)
+        self.assertIsNot(main_conn1, thread_conn)
+
 if __name__ == '__main__':
     unittest.main()

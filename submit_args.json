@@ -1,0 +1,6 @@
+{
+  "branch_name": "fix-app-socks5-tests",
+  "commit_message": "🧪 [testing improvement] Add tests for check_tcp_socks5",
+  "pr_title": "🧪 [testing improvement] Add tests for check_tcp_socks5",
+  "pr_body": "🎯 **What:** The testing gap addressed: Added comprehensive unit tests for `check_tcp_socks5` function in `ShadowAnalyst/gui/app.py` which checks SOCKS5 connectivity using raw sockets.\n📊 **Coverage:** What scenarios are now tested: Happy path handshake, handshake failures (short reads, incorrect responses), connect request failures, and standard exceptions (like timeouts).\n✨ **Result:** The improvement in test coverage: We now have deterministic tests isolating the socket component via `unittest.mock.patch`, preventing future regressions when proxy or connectivity behavior is modified."
+}

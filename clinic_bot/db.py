@@ -8,19 +8,29 @@ DB_FILE = str(Path(__file__).parent / 'bot_users.db')
 _local = threading.local()
 
 def get_connection():
-    if not hasattr(_local, 'conns'):
-        _local.conns = {}
-    if DB_FILE not in _local.conns:
+    try:
+        conns = _local.conns
+    except AttributeError:
+        conns = _local.conns = {}
+
+    try:
+        return conns[DB_FILE]
+    except KeyError:
         conn = sqlite3.connect(DB_FILE)
         conn.row_factory = sqlite3.Row
-        _local.conns[DB_FILE] = conn
-    return _local.conns[DB_FILE]
+        conns[DB_FILE] = conn
+        return conn
 
 def close_connections():
-    if hasattr(_local, 'conns'):
-        for conn in _local.conns.values():
-            conn.close()
-        _local.conns.clear()
+    try:
+        conns = _local.conns
+    except AttributeError:
+        return
+
+    # Convert to list to ensure thread safety while iterating, avoiding dict mutation issues
+    for conn in list(conns.values()):
+        conn.close()
+    conns.clear()
 
 def init_db():
     conn = get_connection()

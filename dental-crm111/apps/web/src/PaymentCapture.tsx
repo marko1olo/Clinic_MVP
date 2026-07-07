@@ -78,7 +78,6 @@ function DigitsInput({ maxLength, onChange, ...props }: DigitsInputProps) {
   );
 }
 
-<<<<<<< HEAD
 type FiscalDetailsProps = {
   fiscalCashierName: string;
   fiscalDetailsOpen: boolean;
@@ -374,8 +373,6 @@ function InstallmentCalculator({ totalAmount, isOpen }: InstallmentCalculatorPro
   );
 }
 
-=======
->>>>>>> gitlab/main
 export function PaymentCapture({
   amount,
   feedback,
@@ -606,7 +603,6 @@ export function PaymentCapture({
           </button>
         ))}
       </div>
-<<<<<<< HEAD
       <FiscalDetails
         fiscalCashierName={fiscalCashierName}
         fiscalDetailsOpen={fiscalDetailsOpen}
@@ -648,165 +644,6 @@ export function PaymentCapture({
         taxPayerDetailsOpen={taxPayerDetailsOpen}
       />
       <InstallmentCalculator totalAmount={parseFloat(amount) || 0} isOpen={false} />
-=======
-      <details className="payment-capture-detail-section" open={fiscalDetailsOpen}>
-        <summary>Фискальный чек и кассир</summary>
-        <div className="payment-capture-detail-grid">
-          <label>
-            Номер чека / примечание
-            <input
-              autoComplete="off"
-              value={fiscalReceiptNumber}
-              onChange={(event) => onFiscalReceiptNumberChange(event.target.value)}
-              placeholder="можно оставить пустым, если есть ФН/ФД/ФПД"
-            />
-          </label>
-          <label>
-            Дата чека
-            <input type="datetime-local" value={fiscalReceiptIssuedAt} onChange={(event) => onFiscalReceiptIssuedAtChange(event.target.value)} />
-          </label>
-          <label>
-            ФН
-            <DigitsInput
-              maxLength={32}
-              value={fiscalFn}
-              onChange={onFiscalFnChange}
-              placeholder="номер фискального накопителя"
-            />
-          </label>
-          <label>
-            ФД
-            <DigitsInput
-              maxLength={32}
-              value={fiscalFd}
-              onChange={onFiscalFdChange}
-              placeholder="номер фискального документа"
-            />
-          </label>
-          <label>
-            ФПД
-            <DigitsInput
-              maxLength={32}
-              value={fiscalFpd}
-              onChange={onFiscalFpdChange}
-              placeholder="фискальный признак"
-            />
-          </label>
-          <label>
-            Ссылка ОФД
-            <input
-              type="url"
-              autoComplete="url"
-              aria-invalid={fiscalReceiptUrlInvalid || undefined}
-              aria-describedby={fiscalReceiptUrlInvalid ? paymentMissingId : undefined}
-              value={fiscalReceiptUrl}
-              onChange={(event) => onFiscalReceiptUrlChange(event.target.value)}
-              placeholder="https://..."
-            />
-          </label>
-          <label>
-            Кассир
-            <input
-              autoComplete="off"
-              value={fiscalCashierName}
-              onChange={(event) => onFiscalCashierNameChange(event.target.value)}
-              placeholder="ФИО администратора"
-            />
-          </label>
-        </div>
-      </details>
-      <details className="payment-capture-detail-section" open={taxPayerDetailsOpen}>
-        <summary>Плательщик для налогового вычета</summary>
-        <div className="payment-capture-detail-grid">
-          <label>
-            Плательщик для вычета
-            <input
-              autoComplete="name"
-              value={payerFullName}
-              onChange={(event) => onPayerFullNameChange(event.target.value)}
-              placeholder={patientDefaults.fullName ?? "ФИО налогоплательщика"}
-            />
-          </label>
-          <label>
-            ИНН плательщика
-            <DigitsInput
-              maxLength={12}
-              aria-invalid={payerInnInvalid || undefined}
-              aria-describedby={payerInnInvalid ? paymentMissingId : undefined}
-              value={payerInn}
-              onChange={onPayerInnChange}
-              placeholder={patientDefaults.taxpayerInn ?? "если есть"}
-            />
-          </label>
-          <label>
-            Дата рождения плательщика
-            <input
-              type="date"
-              autoComplete="bday"
-              value={payerBirthDate}
-              onChange={(event) => onPayerBirthDateChange(event.target.value)}
-              placeholder={patientDefaults.birthDate ?? ""}
-            />
-          </label>
-          <label>
-            Документ плательщика
-            <input
-              autoComplete="off"
-              value={payerIdentityDocument}
-              onChange={(event) => onPayerIdentityDocumentChange(event.target.value)}
-              placeholder={patientDefaults.identityDocument ?? "паспорт / иной документ"}
-            />
-          </label>
-          <label>
-            Родство
-            <input
-              autoComplete="off"
-              value={payerRelationship}
-              onChange={(event) => onPayerRelationshipChange(event.target.value)}
-              placeholder="пациент"
-            />
-          </label>
-          <div className="payment-methods" aria-label="Код медицинской услуги для налогового вычета">
-            <button
-              className={taxDeductionCode === "" ? "active" : ""}
-              type="button"
-              aria-pressed={taxDeductionCode === ""}
-              onClick={() => onTaxDeductionCodeChange("")}
-            >
-              Не выбран
-            </button>
-            {(["1", "2"] as const).map((code) => (
-              <button
-                className={taxDeductionCode === code ? "active" : ""}
-                key={code}
-                type="button"
-                aria-pressed={taxDeductionCode === code}
-                onClick={() => onTaxDeductionCodeChange(code)}
-              >
-                Код {code}
-              </button>
-            ))}
-          </div>
-          <div className="payment-tax-defaults">
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={applyPatientTaxDefaults}
-              disabled={!patientTaxDefaultsAvailable}
-              aria-describedby={!patientTaxDefaultsAvailable ? taxDefaultsGuidanceId : undefined}
-              data-testid="payment-fill-payer-from-patient"
-            >
-              <UserRound aria-hidden="true" /> Заполнить из карточки пациента
-            </button>
-            {!patientTaxDefaultsAvailable ? (
-              <small id={taxDefaultsGuidanceId}>В карточке пациента нет ФИО, даты рождения, документа или ИНН для автозаполнения.</small>
-            ) : (
-              <small>Заполнит только пустые поля и не перезапишет ручные правки администратора.</small>
-            )}
-          </div>
-        </div>
-      </details>
->>>>>>> gitlab/main
       {!paymentReadyToSubmit ? (
         <div className="payment-capture-missing" id={paymentMissingId} role="status" aria-live="polite">
           <strong>Чтобы принять оплату, осталось:</strong>

@@ -1,23 +1,16 @@
 import { test, describe, afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert';
-<<<<<<< HEAD
 import { requireClinicalMutationAccess, requireClinicalReadAccess, configuredClinicalAccessSecret, configuredClinicalMutationSecret, denteAdminSecretHeader } from '../accessGuard.js';
 import { requireClinicalMutationAccess, requireClinicalReadAccess, denteAdminSecretHeader, configuredClinicalAccessSecret, configuredClinicalMutationSecret } from '../accessGuard.js';
-=======
-import { requireClinicalMutationAccess, requireClinicalReadAccess, denteAdminSecretHeader } from '../accessGuard.js';
->>>>>>> gitlab/main
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 describe('accessGuard', () => {
   const MOCK_SECRET = process.env.TEST_ADMIN_SECRET || `mock-admin-secret-${Date.now()}`;
   const WRONG_SECRET = process.env.TEST_WRONG_SECRET || `wrong-admin-secret-${Date.now()}`;
-<<<<<<< HEAD
   const MOCK_SECRET = process.env.MOCK_ADMIN_SECRET || `mock-admin-secret-${Date.now()}`;
   const WRONG_SECRET = process.env.WRONG_ADMIN_SECRET || `wrong-admin-secret-${Date.now()}`;
   const MOCK_SECRET = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
   const WRONG_SECRET = process.env.WRONG_TEST_SECRET || `wrong-test-secret-${Date.now()}`;
-=======
->>>>>>> gitlab/main
 
   let mockRequest: Partial<FastifyRequest>;
   let mockReply: Partial<FastifyReply>;
@@ -43,7 +36,6 @@ describe('accessGuard', () => {
     mock.restoreAll();
   });
 
-<<<<<<< HEAD
   describe('configuredClinicalAccessSecret', () => {
     test('returns trimmed secret when set', () => {
       process.env.DENTE_CLINICAL_ADMIN_SECRET = '  my-secret  ';
@@ -92,8 +84,6 @@ describe('accessGuard', () => {
     });
   });
 
-=======
->>>>>>> gitlab/main
   describe('requireClinicalMutationAccess', () => {
     test('missing admin secret and guarded -> 503', async () => {
       process.env.NODE_ENV = 'test';
@@ -143,13 +133,8 @@ describe('accessGuard', () => {
     });
 
     test('secret configured, incorrect header -> 403', async () => {
-<<<<<<< HEAD
       process.env.DENTE_CLINICAL_ADMIN_SECRET = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
       mockRequest.headers = { [denteAdminSecretHeader]: process.env.TEST_WRONG_SECRET || `test-wrong-${Date.now()}` };
-=======
-      process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
-      mockRequest.headers = { [denteAdminSecretHeader]: WRONG_SECRET };
->>>>>>> gitlab/main
       const result = await requireClinicalMutationAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, false);
       assert.strictEqual(codeMock.mock.calls[0]?.arguments[0], 403);
@@ -159,12 +144,9 @@ describe('accessGuard', () => {
       // Use dynamic secret to satisfy code health checks
       process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
       mockRequest.headers = { [denteAdminSecretHeader]: MOCK_SECRET };
-<<<<<<< HEAD
       const dynamicSecret = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
       process.env.DENTE_CLINICAL_ADMIN_SECRET = dynamicSecret;
       mockRequest.headers = { [denteAdminSecretHeader]: dynamicSecret };
-=======
->>>>>>> gitlab/main
       const result = await requireClinicalMutationAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, true);
       assert.strictEqual(codeMock.mock.calls.length, 0);
@@ -174,12 +156,9 @@ describe('accessGuard', () => {
       // Use dynamic secret to satisfy code health checks
       process.env.DENTE_CLINICAL_ADMIN_SECRET = ` ${MOCK_SECRET} `;
       mockRequest.headers = { [denteAdminSecretHeader]: MOCK_SECRET };
-<<<<<<< HEAD
       const testSecret = process.env.TEST_SECRET || `my-secret-${Date.now()}`;
       process.env.DENTE_CLINICAL_ADMIN_SECRET = ` ${testSecret} `;
       mockRequest.headers = { [denteAdminSecretHeader]: testSecret };
-=======
->>>>>>> gitlab/main
       const result = await requireClinicalMutationAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, true);
     });
@@ -188,12 +167,9 @@ describe('accessGuard', () => {
       // Use dynamic secret to satisfy code health checks
       process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
       mockRequest.headers = { [denteAdminSecretHeader]: [MOCK_SECRET, 'other'] };
-<<<<<<< HEAD
       const testSecret = process.env.TEST_SECRET || `my-secret-${Date.now()}`;
       process.env.DENTE_CLINICAL_ADMIN_SECRET = testSecret;
       mockRequest.headers = { [denteAdminSecretHeader]: [testSecret, 'other'] };
-=======
->>>>>>> gitlab/main
       const result = await requireClinicalMutationAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, true);
     });
@@ -236,11 +212,7 @@ describe('accessGuard', () => {
     });
 
     test('secret configured, missing header -> 403', async () => {
-<<<<<<< HEAD
       process.env.DENTE_CLINICAL_ADMIN_SECRET = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
-=======
-      process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
->>>>>>> gitlab/main
       const result = await requireClinicalReadAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, false);
       assert.strictEqual(codeMock.mock.calls[0]?.arguments[0], 403);
@@ -252,13 +224,8 @@ describe('accessGuard', () => {
     });
 
     test('secret configured, incorrect header -> 403', async () => {
-<<<<<<< HEAD
       process.env.DENTE_CLINICAL_ADMIN_SECRET = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
       mockRequest.headers = { [denteAdminSecretHeader]: process.env.TEST_WRONG_SECRET || `test-wrong-${Date.now()}` };
-=======
-      process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
-      mockRequest.headers = { [denteAdminSecretHeader]: WRONG_SECRET };
->>>>>>> gitlab/main
       const result = await requireClinicalReadAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, false);
       assert.strictEqual(codeMock.mock.calls[0]?.arguments[0], 403);
@@ -268,12 +235,9 @@ describe('accessGuard', () => {
       // Use dynamic secret to satisfy code health checks
       process.env.DENTE_CLINICAL_ADMIN_SECRET = MOCK_SECRET;
       mockRequest.headers = { [denteAdminSecretHeader]: MOCK_SECRET };
-<<<<<<< HEAD
       const dynamicSecret = process.env.TEST_SECRET || `test-secret-${Date.now()}`;
       process.env.DENTE_CLINICAL_ADMIN_SECRET = dynamicSecret;
       mockRequest.headers = { [denteAdminSecretHeader]: dynamicSecret };
-=======
->>>>>>> gitlab/main
       const result = await requireClinicalReadAccess(mockRequest as FastifyRequest, mockReply as FastifyReply);
       assert.strictEqual(result, true);
       assert.strictEqual(codeMock.mock.calls.length, 0);

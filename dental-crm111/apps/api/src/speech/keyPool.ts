@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { SpeechGatewayProvider } from "@dental/shared";
 import { fetch as undiciFetch, ProxyAgent, Agent, Dispatcher } from "undici";
-<<<<<<< HEAD
 import type { RequestInfo, RequestInit } from "undici";
 import { SocksClient } from "socks";
 import tls from "node:tls";
@@ -13,14 +12,6 @@ let cachedProxyAgent: Dispatcher | null = null;
 export function getProxyAgent(): Dispatcher | null {
   const proxyUrl =
     process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-=======
-import { SocksClient } from "socks";
-import tls from "node:tls";
-
-let cachedProxyAgent: Dispatcher | null = null;
-function getProxyAgent(): Dispatcher | null {
-  const proxyUrl = process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
->>>>>>> gitlab/main
   if (!proxyUrl) return null;
   if (!cachedProxyAgent) {
     try {
@@ -29,7 +20,6 @@ function getProxyAgent(): Dispatcher | null {
         const proxyHost = parsed.hostname;
         const proxyPort = Number(parsed.port || 1080);
         const proxyType = proxyUrl.includes("socks4") ? 4 : 5;
-<<<<<<< HEAD
 
         cachedProxyAgent = new Agent({
           connect: (opts, callback) => {
@@ -96,60 +86,6 @@ function getProxyAgent(): Dispatcher | null {
         `[Proxy Agent] Failed to initialize ProxyAgent for ${proxyUrl}:`,
         err,
       );
-=======
-        
-        cachedProxyAgent = new Agent({
-          connect: (opts, callback) => {
-            const destPort = opts.port ? Number(opts.port) : (opts.protocol === "https:" ? 443 : 80);
-            const destHost = opts.host || "";
-            
-            SocksClient.createConnection({
-              proxy: {
-                host: proxyHost,
-                port: proxyPort,
-                type: proxyType as 4 | 5
-              },
-              command: "connect",
-              destination: {
-                host: destHost,
-                port: destPort
-              }
-            }, (err, info) => {
-              if (err) {
-                callback(err, null);
-                return;
-              }
-              
-              if (!info) {
-                callback(new Error("SOCKS connection returned no info"), null);
-                return;
-              }
-              
-              if (opts.protocol === "https:") {
-                const tlsSocket = tls.connect({
-                  socket: info.socket,
-                  servername: opts.servername || opts.host
-                }, () => {
-                  callback(null, tlsSocket);
-                });
-                
-                tlsSocket.on("error", (tlsErr) => {
-                  callback(tlsErr, null);
-                });
-              } else {
-                callback(null, info.socket);
-              }
-            });
-          }
-        });
-        console.log(`[Proxy Agent] Created undici SOCKS Agent routing to SOCKS proxy: ${proxyUrl}`);
-      } else {
-        cachedProxyAgent = new ProxyAgent({ uri: proxyUrl });
-        console.log(`[Proxy Agent] Created undici ProxyAgent routing to HTTP/HTTPS proxy: ${proxyUrl}`);
-      }
-    } catch (err) {
-      console.error(`[Proxy Agent] Failed to initialize ProxyAgent for ${proxyUrl}:`, err);
->>>>>>> gitlab/main
     }
   }
   return cachedProxyAgent;
@@ -689,7 +625,6 @@ export async function fetchWithProviderTimeout(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const dispatcher = getProxyAgent();
   try {
-<<<<<<< HEAD
     if (!dispatcher) {
       return await fetch(input, {
         ...init,
@@ -701,13 +636,6 @@ export async function fetchWithProviderTimeout(
       signal: controller.signal,
       dispatcher
     }) as unknown as Response;
-=======
-    return await undiciFetch(input as any, {
-      ...init,
-      signal: controller.signal,
-      dispatcher: dispatcher || undefined
-    } as any) as any;
->>>>>>> gitlab/main
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new SpeechProviderRequestError(

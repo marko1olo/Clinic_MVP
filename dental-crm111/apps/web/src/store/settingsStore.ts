@@ -31,11 +31,8 @@ import {
 } from "@dental/shared";
 
 import { create } from "zustand";
-<<<<<<< HEAD
 
 export type ClinicMode = "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
-=======
->>>>>>> gitlab/main
 
 export interface SettingsState {
   clinicMode: ClinicMode;

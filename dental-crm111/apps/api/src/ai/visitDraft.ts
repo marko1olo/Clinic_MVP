@@ -276,10 +276,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
   }
 
   // Попытка 2: Идем по каскаду моделей
-<<<<<<< HEAD
-=======
-  console.log("[AI Draft Cascade] Запуск цепочки фоллбеков...");
->>>>>>> gitlab/main
   for (const fallback of DENTAL_AI_CASCADING_MODELS) {
     // Пропускаем, если эта же модель только что упала в Попытке 1
     if (fallback.provider === input.config.provider && fallback.model === input.config.modelName) {
@@ -298,10 +294,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
         continue;
       }
 
-<<<<<<< HEAD
-=======
-      console.log(`[AI Draft Cascade] Пробуем ${fallback.provider} (${fallback.model})...`);
->>>>>>> gitlab/main
       const fallbackConfig: VisitDraftNeuralConfig = {
         neuralEnabled: true,
         provider: fallback.provider,
@@ -320,10 +312,6 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input: {
       });
 
       recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
-<<<<<<< HEAD
-=======
-      console.log(`[AI Draft Cascade] УСПЕХ на модели ${fallback.model} (${fallback.provider})`);
->>>>>>> gitlab/main
       return result;
     } catch (fallbackError) {
       console.warn(`[AI Draft Cascade] Модель ${fallback.model} (${fallback.provider}) завершилась ошибкой: ${fallbackError instanceof Error ? fallbackError.message : fallbackError}`);
@@ -337,6 +325,9 @@ function isToothState(state: unknown): state is ToothState {
   return typeof state === "string" && ["idle", "watch", "planned", "done", "missing", "treatment"].includes(state);
 }
 
+function isToothState(state: unknown): state is ToothState {
+  return typeof state === "string" && ["idle", "watch", "planned", "done", "missing", "treatment"].includes(state);
+}
 
 export async function buildVisitDraftFromTranscript(
   transcript: string,
@@ -369,13 +360,8 @@ export async function buildVisitDraftFromTranscript(
     if (neural._rawToothStates && finalQuality) {
       const parsedStates: Record<string, ToothState> = {};
       for (const [code, state] of Object.entries(neural._rawToothStates)) {
-<<<<<<< HEAD
         if (isToothState(state)) {
           parsedStates[code] = state;
-=======
-        if (typeof state === "string" && validStates.has(state)) {
-          parsedStates[code] = state as ToothState;
->>>>>>> gitlab/main
         }
       }
       if (Object.keys(parsedStates).length > 0) {

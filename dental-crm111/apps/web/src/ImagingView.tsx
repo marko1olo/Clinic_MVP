@@ -472,16 +472,19 @@ export function ImagingView(props: ImagingViewProps) {
                                 type="button"
                                 className="secondary-button"
                                 onClick={() => {
-                                  unifiedPdfGenerator.generateSurgicalGuidePdf({
+                                  unifiedPdfGenerator.generateSurgicalReport({
                                     patientName: "Тестовый Пациент",
+                                    patientAge: "35 лет",
                                     doctorName: "Д-р Иванов",
-                                    boneDensity: { d1: 10, d2: 50, d3: 30, d4: 10, d5: 0 },
-                                    sleeveDiameter: 5.0,
-                                    sleeveHeight: 5.0,
-                                    offset: 9.0,
-                                    divergenceWarning: false,
-                                    collisionWarning: false
-                                  }, ["dicom-canvas-axial", "dicom-canvas-coronal"]);
+                                    axialViewId: "dicom-canvas-axial",
+                                    coronalViewId: "dicom-canvas-coronal",
+                                    sagittalViewId: "dicom-canvas-sagittal",
+                                    crossSectionId: "dicom-canvas-3d",
+                                    boneDensity: "D2 (850 HU)",
+                                    implantSystem: "Nobel Biocare 4.3x10",
+                                    sleeveDiameter: "5.0",
+                                    aiSafetyVerdict: "SAFE"
+                                  });
                                 }}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', maxWidth: 'fit-content' }}
                               >

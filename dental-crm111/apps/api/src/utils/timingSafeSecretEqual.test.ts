@@ -23,7 +23,6 @@ describe('timingSafeSecretEqual', () => {
   test('returns false when secrets have the same length but differ', () => {
     assert.strictEqual(timingSafeSecretEqual('secretA', 'secretB'), false);
   });
-<<<<<<< HEAD
 
   test('returns false when expected secret is undefined (prevents "undefined" string cast attacks)', () => {
     // Before fix, String(undefined) -> "undefined", so providing "undefined" would match
@@ -39,6 +38,4 @@ describe('timingSafeSecretEqual', () => {
     const unicodeSecret = '🔒-super-secret-🔑-🔐';
     assert.strictEqual(timingSafeSecretEqual(unicodeSecret, unicodeSecret), true);
   });
-=======
->>>>>>> gitlab/main
 });

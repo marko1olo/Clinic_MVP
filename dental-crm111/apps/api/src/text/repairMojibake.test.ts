@@ -7,55 +7,6 @@ describe('repairMojibakeDeep', () => {
     assert.strictEqual(repairMojibakeDeep(null), null);
     assert.strictEqual(repairMojibakeDeep(undefined), undefined);
     assert.strictEqual(repairMojibakeDeep(42), 42);
-<<<<<<< HEAD
-import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
-
-  test('handles plain strings correctly', () => {
-    assert.strictEqual(repairMojibakeDeep('hello'), 'hello');
-  });
-
-  test('fixes simple string mojibake', () => {
-    // "РџСЂРёРІРµС‚" is "Привет" in cp1252 encoded utf8
-    assert.strictEqual(repairMojibakeDeep('РџСЂРёРІРµС‚'), repairMojibakeText('РџСЂРёРІРµС‚'));
-  });
-
-  test('fixes nested object', () => {
-    const input = { a: 'hello', b: { c: 'РџСЂРёРІРµС‚' } };
-    const expected = { a: 'hello', b: { c: repairMojibakeText('РџСЂРёРІРµС‚') } };
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
-  });
-
-  test('fixes array', () => {
-    const input = ['hello', 'РџСЂРёРІРµС‚'];
-    const expected = ['hello', repairMojibakeText('РџСЂРёРІРµС‚')];
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
-  });
-
-  test('fixes array in object', () => {
-    const input = { a: ['hello', 'РџСЂРёРІРµС‚'] };
-    const expected = { a: ['hello', repairMojibakeText('РџСЂРёРІРµС‚')] };
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
-  });
-
-  test('fixes object in array', () => {
-    const input = [{ a: 'hello' }, { b: 'РџСЂРёРІРµС‚' }];
-    const expected = [{ a: 'hello' }, { b: repairMojibakeText('РџСЂРёРІРµС‚') }];
-    assert.deepStrictEqual(repairMojibakeDeep(input), expected);
-  });
-
-  test('leaves numbers alone', () => {
-    assert.strictEqual(repairMojibakeDeep(123), 123);
-  });
-
-  test('leaves null alone', () => {
-  });
-
-  test('leaves undefined alone', () => {
-  });
-
-  test('leaves boolean alone', () => {
-=======
->>>>>>> gitlab/main
     assert.strictEqual(repairMojibakeDeep(true), true);
     assert.strictEqual(repairMojibakeDeep(false), false);
   });
@@ -108,32 +59,6 @@ import { repairMojibakeDeep, repairMojibakeText } from './repairMojibake.js';
       ],
       meta: 'Описание'
     };
-<<<<<<< HEAD
-  test('handles complex deeply nested structure', () => {
-      id: 1,
-      metadata: {
-        isValid: true,
-        empty: null,
-      },
-      tags: ['test', 'РџСЂРёРІРµС‚', 42],
-      details: [
-        { key: 'name', value: 'hello' },
-        { key: 'ru_name', value: 'РџСЂРёРІРµС‚' }
-      ]
-
-      id: 1,
-      metadata: {
-        isValid: true,
-        empty: null,
-      },
-      tags: ['test', repairMojibakeText('РџСЂРёРІРµС‚'), 42],
-      details: [
-        { key: 'name', value: 'hello' },
-        { key: 'ru_name', value: repairMojibakeText('РџСЂРёРІРµС‚') }
-      ]
-
-=======
->>>>>>> gitlab/main
     assert.deepStrictEqual(repairMojibakeDeep(input), expected);
   });
 });

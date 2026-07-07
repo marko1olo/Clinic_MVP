@@ -9,15 +9,12 @@ import { findFreePort } from "./lib/findFreePort.mjs";
 import { waitFor, evaluate, setFileInputFiles } from "./lib/cdp.mjs";
 import path from "node:path";
 import { inputHelpersExpression } from "./lib/inputHelpersExpression.mjs";
-<<<<<<< HEAD
 
 const watchdog = setTimeout(() => {
   console.error("SMOKE TEST TIMEOUT: Process terminated by watchdog");
   process.exit(1);
 }, 90000);
 watchdog.unref();
-=======
->>>>>>> gitlab/main
 
 const width = Number(process.env.SMOKE_WIDTH ?? 1440);
 const height = Number(process.env.SMOKE_HEIGHT ?? 1100);

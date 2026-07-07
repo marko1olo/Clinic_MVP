@@ -2,14 +2,9 @@ import { NewAppointmentForm } from "./components/schedule/NewAppointmentForm";
 import { AppointmentCard } from "./components/schedule/AppointmentCard";
 import { useSettingsStore } from "./store/settingsStore";
 import { useScheduleStore } from "./store/scheduleStore";
-<<<<<<< HEAD
 import { Plus, ShieldCheck, Bot, Mic } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { showToast } from "./components/GlobalToast";
-=======
-import { Plus, ShieldCheck } from "lucide-react";
-import { useState } from "react";
->>>>>>> gitlab/main
 import type { ChangeEvent, KeyboardEvent } from "react";
 import type { Appointment, AppointmentReadiness, Dashboard, ResourceLoad, ScheduleSuggestion, StaffRole } from "@dental/shared";
 import { motionSafeScrollIntoView } from "./motionPreference";
@@ -151,12 +146,9 @@ export function ScheduleView(props: ScheduleViewProps) {
   const { setScheduleAdminSecretDraft, scheduleAdminSecretDraft, scheduleAdminSecretSession } = useSettingsStore();
   const [showShiftAnalytics, setShowShiftAnalytics] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-<<<<<<< HEAD
   const [useManualSelects, setUseManualSelects] = useState(false);
 
 
-=======
->>>>>>> gitlab/main
 
   const adminSecretReady = scheduleAdminSecretDraft.trim().length > 0;
 
@@ -248,7 +240,6 @@ export function ScheduleView(props: ScheduleViewProps) {
           <div className="panel schedule-panel" id="schedule">
             <button style={{ display: 'none' }} type="button">Создать запись</button>
             <div className="panel-heading">
-<<<<<<< HEAD
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                 <h2>Расписание приемов</h2>
                 {sortedAppointments.length > 0 ? (
@@ -265,9 +256,6 @@ export function ScheduleView(props: ScheduleViewProps) {
                   <span className="status-pill status-completed">Ок</span>
                 )}
               </div>
-=======
-              <h2>Очередь смены</h2>
->>>>>>> gitlab/main
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button
                   className="secondary-button"
@@ -293,11 +281,7 @@ export function ScheduleView(props: ScheduleViewProps) {
                   <strong>{dashboard.shiftIntelligence.doctorLoads.length}</strong>
                   <p>
                     {dashboard.shiftIntelligence.doctorLoads
-<<<<<<< HEAD
                       .map((load: ResourceLoad) => `${load.title?.split(" ")[0] || "Врач"} ${load.utilizationPercent}%`)
-=======
-                      .map((load: ResourceLoad) => `${load.title.split(" ")[0]} ${load.utilizationPercent}%`)
->>>>>>> gitlab/main
                       .join(" · ")}
                   </p>
                 </article>
@@ -306,11 +290,7 @@ export function ScheduleView(props: ScheduleViewProps) {
                   <strong>{dashboard.shiftIntelligence.assistantLoads.length}</strong>
                   <p>
                     {dashboard.shiftIntelligence.assistantLoads
-<<<<<<< HEAD
                       .map((load: ResourceLoad) => `${load.title?.split(" ")[0] || "Ассистент"} ${load.utilizationPercent}%`)
-=======
-                      .map((load: ResourceLoad) => `${load.title.split(" ")[0]} ${load.utilizationPercent}%`)
->>>>>>> gitlab/main
                       .join(" · ") || "не назначены"}
                   </p>
                 </article>
@@ -330,7 +310,6 @@ export function ScheduleView(props: ScheduleViewProps) {
                 </article>
               </div>
             )}
-<<<<<<< HEAD
             {showShiftAnalytics && (
               <section
                 className="schedule-shift-summary"
@@ -339,17 +318,6 @@ export function ScheduleView(props: ScheduleViewProps) {
                 aria-live="polite"
               >
                 <div className="schedule-shift-summary-grid" style={{ width: "100%" }}>
-=======
-            <section
-              className="schedule-shift-summary"
-              data-testid="schedule-shift-summary"
-              aria-label="Короткая сводка смены"
-              aria-live="polite"
-            >
-              <strong>{scheduleFilteredSummary}</strong>
-              {showShiftAnalytics && (
-                <div className="schedule-shift-summary-grid">
->>>>>>> gitlab/main
                   {scheduleLoadSummaryCards.map((card) => (
                     <article key={card.id}>
                       <span>{card.title}</span>
@@ -358,18 +326,10 @@ export function ScheduleView(props: ScheduleViewProps) {
                     </article>
                   ))}
                 </div>
-<<<<<<< HEAD
               </section>
             )}
             <div className="schedule-filter-strip" aria-label="Сохраненные фильтры расписания" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--slate-100)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderRight: '1px solid var(--slate-200)', paddingRight: '12px', marginRight: '4px' }}>
-=======
-              )}
-            </section>
-            <div className="schedule-filter-strip" aria-label="Сохраненные фильтры расписания">
-              <label>
-                День
->>>>>>> gitlab/main
                 <input
                   type="date"
                   value={scheduleDateFilter}
@@ -417,11 +377,7 @@ export function ScheduleView(props: ScheduleViewProps) {
             </div>
             <details className="schedule-secret-collapsible">
               <summary>🔐 Разблокировать сохранение расписания</summary>
-<<<<<<< HEAD
               <div className="schedule-admin-unlock" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} aria-label="Доступ к сохранению расписания">
-=======
-              <div className="appointment-editor schedule-admin-unlock" aria-label="Доступ к сохранению расписания">
->>>>>>> gitlab/main
               {!scheduleAdminSecretSession ? (
                 <>
                   <label className="form-span-2">
@@ -472,7 +428,6 @@ export function ScheduleView(props: ScheduleViewProps) {
               </div>
             </details>
 
-<<<<<<< HEAD
             <NewAppointmentForm
               dashboard={dashboard}
               appointmentLabels={appointmentLabels}
@@ -488,164 +443,6 @@ export function ScheduleView(props: ScheduleViewProps) {
               setUseManualSelects={setUseManualSelects}
             />
             <div className="schedule-timeline timeline">
-=======
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-              <button
-                className="primary-button"
-                type="button"
-                aria-expanded={showCreateForm}
-                onClick={() => setShowCreateForm((v) => !v)}
-              >
-                {showCreateForm ? "➖ Скрыть форму создания записи" : "➕ Создать запись в расписание"}
-              </button>
-            </div>
-
-            {showCreateForm && (
-              <div className="appointment-editor appointment-create-editor" aria-label="Создание записи">
-                <label>
-                  Начало
-                  <input
-                    type="datetime-local"
-                    value={toDateTimeLocalValue(newAppointmentDraft.startsAt, dashboard.clinicSettings.profile.timezone)}
-                    onChange={(event: TextFieldChangeEvent) =>
-                      updateNewAppointmentDraft("startsAt", fromDateTimeLocalValue(event.target.value, dashboard.clinicSettings.profile.timezone))
-                    }
-                  />
-                </label>
-                <label>
-                  Окончание
-                  <input
-                    type="datetime-local"
-                    value={toDateTimeLocalValue(newAppointmentDraft.endsAt, dashboard.clinicSettings.profile.timezone)}
-                    onChange={(event: TextFieldChangeEvent) =>
-                      updateNewAppointmentDraft("endsAt", fromDateTimeLocalValue(event.target.value, dashboard.clinicSettings.profile.timezone))
-                    }
-                  />
-                </label>
-                <label>
-                  Пациент
-                  <select value={newAppointmentDraft.patientId} onChange={(event: SelectChangeEvent) => updateNewAppointmentDraft("patientId", event.target.value)}>
-                    <option value="">Выберите пациента</option>
-                    {dashboard.patients
-                      .filter((patient) => patient.status === "active")
-                      .map((patient) => (
-                        <option key={patient.id} value={patient.id}>
-                          {patient.fullName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Врач
-                  <select value={newAppointmentDraft.doctorUserId} onChange={(event: SelectChangeEvent) => updateNewAppointmentDraft("doctorUserId", event.target.value)}>
-                    <option value="">Выберите врача</option>
-                    {dashboard.clinicSettings.staff
-                      .filter((member) => member.active && (member.role === "doctor" || member.role === "owner"))
-                      .map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.fullName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Ассистент
-                  <select value={newAppointmentDraft.assistantUserId} onChange={(event: SelectChangeEvent) => updateNewAppointmentDraft("assistantUserId", event.target.value)}>
-                    <option value="">{dashboard.clinicSettings.profile.mode === "solo_doctor" ? "Не нужен в режиме соло" : "Выберите ассистента"}</option>
-                    {dashboard.clinicSettings.staff
-                      .filter((member) => member.active && member.role === "assistant")
-                      .map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.fullName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Кресло
-                  <select value={newAppointmentDraft.chairId} onChange={(event: SelectChangeEvent) => updateNewAppointmentDraft("chairId", event.target.value)}>
-                    <option value="">Выберите кресло</option>
-                    {dashboard.clinicSettings.chairs
-                      .filter((chair) => chair.active)
-                      .map((chair) => (
-                        <option key={chair.id} value={chair.id}>
-                          {chair.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Статус
-                  <select value={newAppointmentDraft.status} onChange={(event: SelectChangeEvent) => updateNewAppointmentDraft("status", normalizedAppointmentStatus(event.target.value))}>
-                    {(Object.keys(appointmentLabels) as Appointment["status"][]).map((status) => (
-                      <option key={status} value={status}>
-                        {appointmentLabels[status]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="form-span-2">
-                  Причина записи
-                  <input value={newAppointmentDraft.reason} onChange={(event: TextFieldChangeEvent) => updateNewAppointmentDraft("reason", event.target.value)} />
-                </label>
-                <label className="form-span-2">
-                  Комментарий
-                  <textarea value={newAppointmentDraft.comment} onChange={(event: TextFieldChangeEvent) => updateNewAppointmentDraft("comment", event.target.value)} rows={2} />
-                </label>
-                {!newAppointmentReadyToCreate ? (
-                  <div className="schedule-create-missing" id="new-appointment-create-missing" role="status" aria-live="polite">
-                    <strong>Чтобы создать запись, осталось:</strong>
-                    <ul>
-                      {newAppointmentMissingSteps.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                <div className="appointment-editor-actions">
-                  {newAppointmentError ? <span className="save-error">{newAppointmentError}</span> : null}
-                  <span className={`save-state save-state-${newAppointmentSaveState}`}>
-                    {newAppointmentSaveState === "saving"
-                      ? "Создаю"
-                      : newAppointmentSaveState === "saved"
-                        ? "Запись создана"
-                        : newAppointmentSaveState === "error"
-                          ? "Ошибка создания"
-                          : "Готово к созданию"}
-                  </span>
-                  <button className="secondary-button" type="button" onClick={resetNewAppointmentDraft} disabled={newAppointmentSaveState === "saving"} aria-busy={newAppointmentSaveState === "saving" || undefined}>
-                    Сбросить
-                  </button>
-                  <button
-                    className="primary-button"
-                    type="button"
-                    onClick={() => void createAppointmentFromDraft()}
-                    disabled={newAppointmentSaveState === "saving" || !newAppointmentReadyToCreate}
-                    aria-busy={newAppointmentSaveState === "saving" || undefined}
-                    aria-describedby={!newAppointmentReadyToCreate ? "new-appointment-create-missing" : undefined}
-                  >
-                    <Plus aria-hidden="true" /> Создать запись
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="schedule-suggestion-strip" aria-label="Подсказки расписания">
-              {visibleScheduleSuggestions.map((suggestion) => (
-                <button
-                  className={`schedule-suggestion priority-${suggestion.priority}`}
-                  key={suggestion.id}
-                  type="button"
-                  onClick={() => openScheduleSuggestion(suggestion.section)}
-                >
-                  <span>{recommendedActionPriorityLabels[suggestion.priority]}</span>
-                  <strong>{suggestion.title}</strong>
-                  <p>{suggestion.detail}</p>
-                  <small>{staffRoleLabels[suggestion.ownerRole]} · {suggestion.reason}</small>
-                </button>
-              ))}
-            </div>
-            <div className="timeline">
->>>>>>> gitlab/main
               {sortedAppointments.map((appointment) => {
                 const draft = appointmentScheduleDrafts[appointment.id] || appointmentScheduleDraftFromAppointment(appointment);
                 const saveState = appointmentScheduleSaveStates[appointment.id] || 'idle';

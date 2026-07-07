@@ -123,17 +123,10 @@ function fileNameOf(filePath: string): string {
   return path.basename(filePath);
 }
 
-<<<<<<< HEAD
 async function rawFileHash(filePath: string): Promise<string | null> {
   if (!fs.existsSync(filePath)) return null;
   try {
     return createHash("sha256").update(await fs.promises.readFile(filePath)).digest("hex");
-=======
-function rawFileHash(filePath: string): string | null {
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
->>>>>>> gitlab/main
   } catch {
     return null;
   }

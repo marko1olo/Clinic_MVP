@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 ﻿import { createHash } from "node:crypto";
-=======
-import { createHash } from "node:crypto";
->>>>>>> gitlab/main
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -796,11 +792,7 @@ export async function executeDenteTelegramOutboxDueBatch(
   const dueItems = outbox.items
     .filter((item) => item.deliveryStatus === "ready" && isDenteTelegramOutboxItemDue(item, nowMs))
     .slice(0, input.limit);
-<<<<<<< HEAD
   const results: DenteTelegramOutboxSendDueResponse["results"] = await Promise.all(
-=======
-  const results: any[] = await Promise.all(
->>>>>>> gitlab/main
     dueItems.map(async (item) => {
       const sendResult = await executeTelegramOutboxSend(
         item.id,

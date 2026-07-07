@@ -18,12 +18,5 @@ const puppeteer = require('puppeteer');
   await new Promise(r => setTimeout(r, 1000));
   await page.screenshot({ path: 'screenshot_mobile.png', fullPage: true });
 
-  await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' });
-
-  // Give the React app some extra time to render
-  await setTimeout(2000);
-
-  await page.screenshot({ path: 'screenshot_current.png', fullPage: true });
-
   await browser.close();
 })();

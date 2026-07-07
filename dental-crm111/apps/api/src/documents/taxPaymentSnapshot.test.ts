@@ -1,16 +1,9 @@
-<<<<<<< HEAD
 ﻿import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { taxDocumentDuplicateSensitive, taxPaymentYear, taxPaymentsForIssueSnapshot } from './taxPaymentSnapshot.js';
 import type { Payment, GeneratedDocument } from '@dental/shared';
 import { test, describe } from 'node:test';
 import { taxDocumentDuplicateSensitive } from './taxPaymentSnapshot.js';
-=======
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
-import { taxDocumentDuplicateSensitive, taxPaymentYear } from './taxPaymentSnapshot.js';
-import type { Payment } from '@dental/shared';
->>>>>>> gitlab/main
 
 describe('taxDocumentDuplicateSensitive', () => {
   test('returns true for tax_deduction_certificate', () => {
@@ -64,7 +57,6 @@ describe('taxPaymentYear', () => {
     assert.strictEqual(taxPaymentYear({ ...basePayment, paidAt: 'not a date' }), null);
     assert.strictEqual(taxPaymentYear({ ...basePayment, paidAt: '----' }), null);
   });
-<<<<<<< HEAD
 
   test('returns null for empty strings (and falls back if one is empty)', () => {
     assert.strictEqual(taxPaymentYear({ ...basePayment, fiscalReceiptIssuedAt: '', paidAt: '' }), null);
@@ -747,6 +739,3 @@ import { documentKindSchema } from '@dental/shared';
     assert.strictEqual(taxPaymentYear(payment), 1995);
 
     const payment = { ...basePayment, fiscalReceiptIssuedAt: 'invalid date' };
-=======
-});
->>>>>>> gitlab/main

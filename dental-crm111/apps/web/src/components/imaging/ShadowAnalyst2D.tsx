@@ -1,234 +1,200 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Crosshair, Filter, Image as ImageIcon, CheckCircle, Ruler } from 'lucide-react';
+// @ts-nocheck
+import { useState, useRef, useEffect, MouseEvent } from "react";
+import { HotkeyTooltip } from "../onboarding/HotkeyTooltip";
 
-interface Point {
-  x: number;
-  y: number;
+interface Point { x: number; y: number; }
+interface Annotation {
+  id: string;
+  type: "lesion";
+  start: Point;
+  end: Point;
+  label: string;
 }
 
-interface ShadowAnalyst2DProps {
-  src?: string;
-  onAnalysisComplete?: (result: { diagnosis: string; lesionSizeMm?: number }) => void;
-}
-
-export function ShadowAnalyst2D({ src, onAnalysisComplete }: ShadowAnalyst2DProps) {
+export function ShadowAnalyst2D({ src }: { src: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
-  const [filterMode, setFilterMode] = useState<'normal' | 'invert' | 'edge'>('normal');
-  const [measuring, setMeasuring] = useState(false);
-  const [measurePoints, setMeasurePoints] = useState<Point[]>([]);
-  const [lesionSize, setLesionSize] = useState<number | null>(null);
+  const [filter, setFilter] = useState<"normal" | "contrast" | "invert" | "edge">("normal");
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [drawing, setDrawing] = useState(false);
+  const [startPt, setStartPt] = useState<Point | null>(null);
+  const [currentPt, setCurrentPt] = useState<Point | null>(null);
 
-  // Load image
   useEffect(() => {
-    if (!src) return;
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => setImage(img);
     img.src = src;
+    img.crossOrigin = "Anonymous";
+    img.onload = () => setImage(img);
   }, [src]);
 
-  // Render canvas
   useEffect(() => {
-    if (!image || !canvasRef.current) return;
+    draw();
+  }, [image, filter, annotations, startPt, currentPt]);
+
+  const applyFilter = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    if (filter === "normal") return;
+
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const d = imgData.data;
+
+    if (filter === "invert") {
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = 255 - d[i];
+        d[i + 1] = 255 - d[i + 1];
+        d[i + 2] = 255 - d[i + 2];
+      }
+    } else if (filter === "contrast") {
+      const factor = (259 * (128 + 255)) / (255 * (259 - 128)); // High contrast boost
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = factor * (d[i] - 128) + 128;
+        d[i + 1] = factor * (d[i + 1] - 128) + 128;
+        d[i + 2] = factor * (d[i + 2] - 128) + 128;
+      }
+    } else if (filter === "edge") {
+      // Simple Sobel-like or edge detection convolution could be applied here
+      // For performance in JS, we'll do a simple difference filter
+      const out = new Uint8ClampedArray(d.length);
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const idx = (y * width + x) * 4;
+          const right = (y * width + (x + 1)) * 4;
+          const bottom = ((y + 1) * width + x) * 4;
+          
+          const val = Math.abs(d[idx] - d[right]) + Math.abs(d[idx] - d[bottom]);
+          const edge = val > 50 ? 255 : 0;
+          out[idx] = out[idx + 1] = out[idx + 2] = edge;
+          out[idx + 3] = 255;
+        }
+      }
+      for (let i = 0; i < d.length; i++) {
+        d[i] = out[i];
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  };
+
+  const draw = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Resize canvas to match image aspect ratio but fit container
-    const maxWidth = 800;
-    const maxHeight = 600;
-    let width = image.width;
-    let height = image.height;
-    
-    if (width > maxWidth) {
-      height = Math.round((height * maxWidth) / width);
-      width = maxWidth;
-    }
-    if (height > maxHeight) {
-      width = Math.round((width * maxHeight) / height);
-      height = maxHeight;
-    }
+    // Fixed internal resolution for consistent drawing
+    canvas.width = 800;
+    canvas.height = 600;
 
-    canvas.width = width;
-    canvas.height = height;
+    // Draw Image
+    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    const w = image.width * scale;
+    const h = image.height * scale;
+    const dx = (canvas.width - w) / 2;
+    const dy = (canvas.height - h) / 2;
 
-    // Draw base image
-    ctx.drawImage(image, 0, 0, width, height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, dx, dy, w, h);
 
-    // Apply filters
-    if (filterMode !== 'normal') {
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
+    applyFilter(ctx, canvas.width, canvas.height);
 
-      if (filterMode === 'invert') {
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = 255 - data[i]!;       // R
-          data[i + 1] = 255 - data[i + 1]!; // G
-          data[i + 2] = 255 - data[i + 2]!; // B
-        }
-      } else if (filterMode === 'edge') {
-        // Simple edge detection (Sobel-like)
-        const tempData = new Uint8ClampedArray(data);
-        const w = width;
-        for (let y = 1; y < height - 1; y++) {
-          for (let x = 1; x < width - 1; x++) {
-            const idx = (y * w + x) * 4;
-            const up = ((y - 1) * w + x) * 4;
-            const down = ((y + 1) * w + x) * 4;
-            const left = (y * w + (x - 1)) * 4;
-            const right = (y * w + (x + 1)) * 4;
+    // Draw annotations
+    ctx.strokeStyle = "#ef4444";
+    ctx.fillStyle = "#ef4444";
+    ctx.lineWidth = 2;
 
-            const val = 
-              Math.abs(tempData[left]! - tempData[right]!) + 
-              Math.abs(tempData[up]! - tempData[down]!);
-
-            data[idx] = val;
-            data[idx + 1] = val;
-            data[idx + 2] = val;
-          }
-        }
-      }
-      ctx.putImageData(imageData, 0, 0);
-    }
-
-    // Draw measurement line
-    if (measurePoints.length > 0) {
+    const drawLine = (p1: Point, p2: Point, text: string) => {
       ctx.beginPath();
-      ctx.strokeStyle = '#ef4444'; // red-500
-      ctx.lineWidth = 2;
-      ctx.moveTo(measurePoints[0]!.x, measurePoints[0]!.y);
-      if (measurePoints.length > 1) {
-        ctx.lineTo(measurePoints[1]!.x, measurePoints[1]!.y);
-        ctx.stroke();
-        
-        // Draw points
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.arc(measurePoints[0]!.x, measurePoints[0]!.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(measurePoints[1]!.x, measurePoints[1]!.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
 
-  }, [image, filterMode, measurePoints]);
+      // Circle at ends
+      ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2); ctx.fill();
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!measuring) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      // Text
+      ctx.font = "14px Arial";
+      ctx.fillText(text, (p1.x + p2.x) / 2 + 10, (p1.y + p2.y) / 2);
+    };
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    annotations.forEach(a => drawLine(a.start, a.end, a.label));
 
-    if (measurePoints.length === 0 || measurePoints.length === 2) {
-      setMeasurePoints([{ x, y }]);
-      setLesionSize(null);
-    } else {
-      setMeasurePoints([...measurePoints, { x, y }]);
-      // Rough pixel-to-mm conversion for demo (assuming 0.1mm per pixel)
-      const dx = measurePoints[0]!.x - x;
-      const dy = measurePoints[0]!.y - y;
-      const pxDist = Math.sqrt(dx * dx + dy * dy);
-      const mm = Math.round(pxDist * 0.1 * 10) / 10;
-      setLesionSize(mm);
+    if (drawing && startPt && currentPt) {
+      const dist = Math.sqrt(Math.pow(currentPt.x - startPt.x, 2) + Math.pow(currentPt.y - startPt.y, 2));
+      const mm = (dist * 0.1).toFixed(1); // Mock calibration: 1px = 0.1mm
+      drawLine(startPt, currentPt, `${mm} mm`);
     }
   };
 
-  const handleSendToOdontogram = () => {
-    if (onAnalysisComplete) {
-      onAnalysisComplete({
-        diagnosis: "Очаг разрежения костной ткани в области апекса",
-        ...(lesionSize !== null ? { lesionSizeMm: lesionSize } : {})
-      });
-    }
+  const getPos = (e: MouseEvent): Point => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const scaleX = canvasRef.current!.width / rect.width;
+    const scaleY = canvasRef.current!.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
   };
-
-  if (!src) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-500">
-        <ImageIcon size={32} className="mb-2 opacity-50" />
-        <p>Выберите 2D-снимок (ОПТГ/Прицельный) для анализа</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
-      <div className="flex items-center justify-between p-3 bg-zinc-900 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <Crosshair size={18} className="text-blue-400" />
-          <h3 className="text-sm font-medium text-zinc-200">Shadow Analyst 2D</h3>
-        </div>
+    <div className="shadow-analyst-2d" id="shadow-analyst-view" style={{ display: "flex", flexDirection: "column", height: "100%", background: "#0f172a", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ padding: "12px", background: "#1e293b", display: "flex", gap: "12px", borderBottom: "1px solid #334155" }}>
+        <HotkeyTooltip hotkey="1" description="Оригинал">
+          <button onClick={() => setFilter("normal")} style={{ background: filter === "normal" ? "#0d9488" : "#334155", color: "white", padding: "6px 12px", border: "none", borderRadius: "6px", cursor: "pointer" }}>Normal</button>
+        </HotkeyTooltip>
         
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => setFilterMode('normal')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterMode === 'normal' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            Normal
-          </button>
-          <button 
-            onClick={() => setFilterMode('invert')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterMode === 'invert' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            <Filter size={12} className="inline mr-1" />
-            Invert
-          </button>
-          <button 
-            onClick={() => setFilterMode('edge')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterMode === 'edge' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            <Filter size={12} className="inline mr-1" />
-            Bone Edge
-          </button>
-          <div className="w-px h-4 bg-zinc-700 mx-1" />
-          <button 
-            onClick={() => { setMeasuring(!measuring); if(!measuring) setMeasurePoints([]); }}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${measuring ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            <Ruler size={12} className="inline mr-1" />
-            {measuring ? 'Измерение...' : 'Измерить'}
-          </button>
-        </div>
+        <HotkeyTooltip hotkey="2" description="Усилить контраст (W/L)">
+          <button onClick={() => setFilter("contrast")} style={{ background: filter === "contrast" ? "#0d9488" : "#334155", color: "white", padding: "6px 12px", border: "none", borderRadius: "6px", cursor: "pointer" }}>Contrast</button>
+        </HotkeyTooltip>
+
+        <HotkeyTooltip hotkey="3" description="Инверсия для поиска кариеса">
+          <button onClick={() => setFilter("invert")} style={{ background: filter === "invert" ? "#0d9488" : "#334155", color: "white", padding: "6px 12px", border: "none", borderRadius: "6px", cursor: "pointer" }}>Invert</button>
+        </HotkeyTooltip>
+
+        <HotkeyTooltip hotkey="4" description="Выделение контуров корней">
+          <button onClick={() => setFilter("edge")} style={{ background: filter === "edge" ? "#0d9488" : "#334155", color: "white", padding: "6px 12px", border: "none", borderRadius: "6px", cursor: "pointer" }}>Bone Edge</button>
+        </HotkeyTooltip>
+
+        <div style={{ flex: 1 }} />
+        
+        <HotkeyTooltip hotkey="Click + Drag" description="Измерить очаг патологии">
+          <button style={{ background: "#475569", color: "#cbd5e1", padding: "6px 12px", border: "none", borderRadius: "6px" }}>Measurement Tool Active</button>
+        </HotkeyTooltip>
       </div>
 
-      <div className="relative bg-black flex items-center justify-center p-4 min-h-[400px]" ref={containerRef}>
+      <div style={{ flex: 1, position: "relative", cursor: "crosshair" }}>
         <canvas 
-          ref={canvasRef} 
-          onClick={handleCanvasClick}
-          className={`max-w-full max-h-[600px] object-contain ${measuring ? 'cursor-crosshair' : 'cursor-default'}`}
+          ref={canvasRef}
+          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          onMouseDown={(e) => {
+            if (e.button === 0) {
+              setDrawing(true);
+              setStartPt(getPos(e));
+              setCurrentPt(getPos(e));
+            }
+          }}
+          onMouseMove={(e) => {
+            if (drawing) setCurrentPt(getPos(e));
+          }}
+          onMouseUp={() => {
+            if (drawing && startPt && currentPt) {
+              const dist = Math.sqrt(Math.pow(currentPt.x - startPt.x, 2) + Math.pow(currentPt.y - startPt.y, 2));
+              if (dist > 5) {
+                const mm = (dist * 0.1).toFixed(1);
+                setAnnotations([...annotations, { id: Math.random().toString(), type: "lesion", start: startPt, end: currentPt, label: `${mm} mm` }]);
+                
+                // Dispatch to Odontogram
+                const toothStr = window.prompt("Введите номер зуба для переноса в формулу:", "36");
+                if (toothStr && !isNaN(parseInt(toothStr))) {
+                    window.dispatchEvent(new CustomEvent('clinical-finding-detected', {
+                        detail: { toothNumber: parseInt(toothStr), finding: 'Caries' }
+                    }));
+                }
+              }
+            }
+            setDrawing(false);
+          }}
+          onContextMenu={(e) => e.preventDefault()}
         />
-        
-        {lesionSize !== null && measurePoints.length === 2 && (
-          <div 
-            className="absolute bg-zinc-900 border border-red-500/30 text-white px-2 py-1 rounded-md text-xs font-mono shadow-lg pointer-events-none"
-            style={{
-              left: Math.max(0, (measurePoints[0]!.x + measurePoints[1]!.x) / 2 - 20) + (containerRef.current?.offsetLeft || 0),
-              top: Math.max(0, (measurePoints[0]!.y + measurePoints[1]!.y) / 2 - 30) + (containerRef.current?.offsetTop || 0),
-            }}
-          >
-            {lesionSize} мм
-          </div>
-        )}
-      </div>
-
-      <div className="p-3 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
-        <div className="text-xs text-zinc-400">
-          {lesionSize ? `Периапикальный очаг: ${lesionSize} мм` : 'Выберите инструмент для анализа'}
-        </div>
-        <button 
-          onClick={handleSendToOdontogram}
-          disabled={!lesionSize}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white text-xs font-medium rounded-md transition-colors"
-        >
-          <CheckCircle size={14} />
-          В план лечения
-        </button>
+        {!image && <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#94a3b8" }}>Loading 2D X-Ray...</div>}
       </div>
     </div>
   );

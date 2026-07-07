@@ -10,12 +10,7 @@ def benchmark_current(n):
     start = time.time()
     for _ in range(n):
         for api_key in GROQ_API_KEYS:
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.groq.com/openai/v1",
-                timeout=30.0,
-                max_retries=0
-            )
+            client = get_client(api_key)
     return time.time() - start
 
 CLIENT_CACHE = {}

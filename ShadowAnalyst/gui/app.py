@@ -1,6 +1,5 @@
 import os
 import logging
-import asyncio
 import sys
 import time
 import shutil

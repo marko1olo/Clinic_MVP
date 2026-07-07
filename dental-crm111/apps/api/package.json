@@ -22,11 +22,8 @@
     "fastify": "^5.3.3",
     "fuse.js": "^7.4.2",
     "pg": "^8.15.6",
-<<<<<<< HEAD
     "qrcode": "^1.5.4",
     "sharp": "^0.35.3",
-=======
->>>>>>> gitlab/main
     "socks-proxy-agent": "^10.1.0",
     "undici": "^8.5.0",
     "zod": "^3.24.4"

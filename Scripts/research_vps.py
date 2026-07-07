@@ -4,17 +4,17 @@ import paramiko
 
 host = os.environ.get('VPS_HOST')
 user = os.environ.get('VPS_USER', 'root')
-password = os.environ.get('VPS_PASSWORD')
+key_path = os.environ.get('VPS_KEY_PATH')
 
-if not host or not password:
-    print("Error: VPS_HOST and VPS_PASSWORD environment variables must be set.", file=sys.stderr)
+if not host or not key_path:
+    print("Error: VPS_HOST and VPS_KEY_PATH environment variables must be set.", file=sys.stderr)
     sys.exit(1)
 
 try:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    client.connect(hostname=host, username=user, password=password, timeout=10)
+    client.connect(hostname=host, username=user, key_filename=key_path, timeout=10)
 
     commands = [
         "docker --version",

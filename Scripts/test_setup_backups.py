@@ -99,7 +99,7 @@ class TestSetupBackups(unittest.TestCase):
         env_vars = {
             'VPS_HOST': '127.0.0.1',
             'VPS_USER': 'testuser',
-            'VPS_PASSWORD': 'testpassword'
+            'VPS_KEY_PATH': '/path/to/key'
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -113,7 +113,7 @@ class TestSetupBackups(unittest.TestCase):
         mock_client.connect.assert_called_once_with(
             hostname='127.0.0.1',
             username='testuser',
-            password='testpassword',
+            key_filename='/path/to/key',
             timeout=10
         )
 

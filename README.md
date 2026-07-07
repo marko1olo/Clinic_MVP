@@ -70,7 +70,7 @@ The root folder contains preconfigured Windows batch scripts to easily link loca
    ```env
    BOT_TOKEN=your_telegram_bot_token
    MQTT_HOST=your_mqtt_broker_ip
-   VPS_PASSWORD=your_secure_ssh_password
+   VPS_KEY_PATH=/path/to/your/private_key
    ```
 
 4. Run the local watchdog analyzer:

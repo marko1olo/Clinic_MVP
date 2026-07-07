@@ -8,15 +8,15 @@ ssh = functools.partial(base_ssh, timeout=90)
 
 host = '62.84.100.97'
 user = 'root'
-password = os.environ.get('VPS_PASSWORD')
-if not password:
-    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
+key_path = os.environ.get('VPS_KEY_PATH')
+if not key_path:
+    sys.exit('ERROR: VPS_KEY_PATH environment variable is not set.')
 
 
 client = paramiko.SSHClient()
 client.load_system_host_keys()
 client.set_missing_host_key_policy(paramiko.RejectPolicy())
-client.connect(hostname=host, username=user, password=password, timeout=10)
+client.connect(hostname=host, username=user, key_filename=key_path, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
 
 # в”Ђв”Ђ 1. Save iptables rules without installing iptables-persistent interactively в”Ђв”Ђ

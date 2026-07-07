@@ -1,5 +1,5 @@
 import pytest
-from ShadowAnalyst.doctor_popup import parse_findings
+from doctor_popup import parse_findings
 
 def test_parse_findings_empty_or_none():
     # Test None

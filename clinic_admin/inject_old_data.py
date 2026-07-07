@@ -16,21 +16,14 @@ def _get_existing_names(c, names):
     return set(row[0] for row in c.fetchall())
 
 def _insert_patients(c, new_patients_data):
-    c.executemany(
-        "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
-        new_patients_data
-    )
-
-    inserted_names = [p[0] for p in new_patients_data]
-    if not inserted_names:
-        return []
-
-    placeholders = ",".join("?" * len(inserted_names))
-    c.execute(
-        f"SELECT id FROM patients WHERE name IN ({placeholders})",
-        tuple(inserted_names)
-    )
-    return [row[0] for row in c.fetchall()]
+    inserted_ids = []
+    for data in new_patients_data:
+        c.execute(
+            "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
+            data
+        )
+        inserted_ids.append(c.lastrowid)
+    return inserted_ids
 
 def _insert_appointments(c, inserted_ids, now):
     old_date = (now - timedelta(days=210)).isoformat()

@@ -45,7 +45,7 @@ MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 OUTPUT_DIR = r"C:\Clinic_MVP\Prompt_Tests"
 
 GROQ_CLIENTS = {
-    api_key: OpenAI(
+    api_key: AsyncOpenAI(
         api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
         max_retries=0
@@ -107,11 +107,7 @@ async def call_groq(prompt, b64):
     while True:
         random.shuffle(keys)
         for key in keys:
-            client = _GROQ_CLIENTS[key]
             client = GROQ_CLIENTS[key]
-            client = OpenAI(
-                api_key=key, base_url="https://api.groq.com/openai/v1", max_retries=0
-            )
             try:
                 resp = await client.chat.completions.create(
                     model=MODEL,

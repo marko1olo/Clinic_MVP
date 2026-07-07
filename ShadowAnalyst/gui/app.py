@@ -859,8 +859,8 @@ def _load_prompt(filename, default_text):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: Failed to load prompt from {path}: {e}")
     return default_text
 
 def _get_models_for_tier(model_tier):

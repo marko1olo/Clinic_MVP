@@ -1,0 +1,5 @@
+🎯 **What:** The testing gap addressed is the lack of tests for `getPersistentStateMeta` function in `dental-crm/apps/api/src/persistentState.ts` which performs file system reads and uses environment variables.
+
+📊 **Coverage:** The tests now cover scenarios where no state file exists, where the state file and backups have been created, and where the persistence feature is explicitly turned off via the `DENTAL_STATE_PERSISTENCE` environment variable. It sets up temporary files/folders using `fs.mkdtempSync` for total test isolation.
+
+✨ **Result:** Enhanced test coverage ensures stability and robustness in reading backup files and metadata without altering the real filesystem, reducing flakiness.

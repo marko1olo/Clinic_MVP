@@ -141,6 +141,7 @@ class TestApp(unittest.TestCase):
         os.unlink(database.DB_FILE)
 
     def test_read_root(self):
+        pass
 
     def test_add_patient(self):
         response = self.client.post(
@@ -272,6 +273,39 @@ class TestApp(unittest.TestCase):
         conn.close()
 
 
+    def test_verify_password(self):
+        from clinic_admin.main import _verify_password
+        from fastapi.security import HTTPBasicCredentials
+        from fastapi import HTTPException
+
+        expected_username = "admin"
+        expected_password = "password"
+
+        # Correct username and password - should not raise
+        creds_correct = HTTPBasicCredentials(username="admin", password="password")
+        _verify_password(creds_correct, expected_username, expected_password)
+
+        # Incorrect password
+        creds_wrong_pass = HTTPBasicCredentials(username="admin", password="wrong")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(creds_wrong_pass, expected_username, expected_password)
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
+        # Incorrect username
+        creds_wrong_user = HTTPBasicCredentials(username="wrong", password="password")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(creds_wrong_user, expected_username, expected_password)
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
+        # Both incorrect
+        creds_both_wrong = HTTPBasicCredentials(username="wrong", password="wrong")
+        with self.assertRaises(HTTPException) as context:
+            _verify_password(creds_both_wrong, expected_username, expected_password)
+        self.assertEqual(context.exception.status_code, 401)
+        self.assertEqual(context.exception.detail, "Incorrect username or password")
+
     def test_get_current_username(self):
         from clinic_admin.main import get_current_username
         from fastapi.security import HTTPBasicCredentials
@@ -320,6 +354,7 @@ if __name__ == '__main__':
 import pytest
 from datetime import datetime, timedelta
 import uuid
+import sqlite3
 
 import main
 import database
@@ -333,6 +368,7 @@ def db_name():
 @pytest.fixture
 def db_conn(db_name):
     conn = sqlite3.connect(db_name, uri=True)
+    c = conn.cursor()
     c.execute('''
         CREATE TABLE patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

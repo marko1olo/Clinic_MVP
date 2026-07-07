@@ -66,5 +66,64 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
 
+    @patch('sys.stdout')
+    def test_ssh_timeout(self, mock_stdout):
+        mock_client = Mock()
+        mock_stdin = Mock()
+        mock_stdout_ssh = Mock()
+        mock_stderr_ssh = Mock()
+
+        mock_stdout_ssh.read.return_value = b"timeout test\n"
+        mock_stderr_ssh.read.return_value = b""
+
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+
+        out, err = ssh(mock_client, "sleep 1", desc="timeout desc", timeout=120)
+
+        self.assertEqual(out, "timeout test")
+        self.assertEqual(err, "")
+        mock_client.exec_command.assert_called_once_with("sleep 1", timeout=120)
+
+        mock_stdout.buffer.write.assert_has_calls([
+            call(b'\n>>> timeout desc\n'),
+            call(b'timeout test\n')
+        ])
+
+    @patch('sys.stdout')
+    @patch('paramiko.SSHClient')
+    @patch('Scripts.setup_backups.ssh')
+    def test_main_execution(self, mock_ssh, MockSSHClient, mock_stdout):
+        mock_client = Mock()
+        MockSSHClient.return_value = mock_client
+
+        env_vars = {
+            'VPS_HOST': '127.0.0.1',
+            'VPS_USER': 'testuser',
+            'VPS_PASSWORD': 'testpassword'
+        }
+
+        with patch.dict('os.environ', env_vars, clear=True):
+            from Scripts.setup_backups import main
+            main()
+
+        MockSSHClient.assert_called_once()
+        mock_client.load_system_host_keys.assert_called_once()
+        mock_client.set_missing_host_key_policy.assert_called_once()
+
+        mock_client.connect.assert_called_once_with(
+            hostname='127.0.0.1',
+            username='testuser',
+            password='testpassword',
+            timeout=10
+        )
+
+        mock_stdout.buffer.write.assert_has_calls([
+            call(b"Connected.\n"),
+            call(b"\nDone.\n")
+        ])
+
+        self.assertEqual(mock_ssh.call_count, 4)
+        mock_client.close.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()

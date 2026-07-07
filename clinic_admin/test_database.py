@@ -35,14 +35,6 @@ class TestDatabase(unittest.TestCase):
 
         # Verify it returns the mocked connection object
         self.assertEqual(conn, mock_connect.return_value)
-    def test_get_connection(self):
-
-        # Verify it returns a connection object
-        self.assertIsInstance(conn, sqlite3.Connection)
-
-        # Verify the row factory is set
-        self.assertEqual(conn.row_factory, sqlite3.Row)
-
     @patch('sqlite3.connect')
     def test_get_connection_error(self, mock_connect):
         # Setup mock to raise an exception
@@ -51,8 +43,7 @@ class TestDatabase(unittest.TestCase):
         # Verify that the exception is raised when get_connection is called
         with self.assertRaises(sqlite3.Error):
             clinic_admin.database.get_connection()
-        conn.close()
-            database.get_connection()
+
 
     def test_init_db(self):
         # Initialize the database
@@ -91,18 +82,5 @@ class TestDatabase(unittest.TestCase):
         self.assertIn('created_at', columns)
 
         conn.close()
-from unittest.mock import patch, MagicMock
-
-from clinic_admin.database import get_connection, DB_FILE
-
-    @patch('clinic_admin.database.sqlite3.connect')
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-
-        conn = get_connection()
-
-        mock_connect.assert_called_once_with(DB_FILE)
-        self.assertEqual(conn, mock_conn)
-
 if __name__ == '__main__':
     unittest.main()

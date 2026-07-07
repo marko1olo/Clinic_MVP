@@ -141,6 +141,7 @@ class TestApp(unittest.TestCase):
         os.unlink(database.DB_FILE)
 
     def test_read_root(self):
+        pass
 
     def test_add_patient(self):
         response = self.client.post(

@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import datetime, timedelta
 
-DB_FILE = "C:/Clinic_MVP/clinic_admin/clinic.db"
+import os
+
+DB_FILE = os.environ.get("DB_FILE", "clinic.db")
 
 
 def _get_existing_names(c, names):

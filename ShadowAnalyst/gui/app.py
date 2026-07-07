@@ -401,6 +401,7 @@ def set_autorun(enable: bool):
                 try:
                     winreg.DeleteValue(key, app_name)
                 except FileNotFoundError:
+                    # If the registry value doesn't exist, autorun is already disabled
                     pass
     except Exception as e:
         print(f"Autorun error: {e}")

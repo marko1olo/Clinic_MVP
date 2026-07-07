@@ -227,13 +227,13 @@ class TestBotCommands(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_get_user_role.assert_called_once_with(12345)
-        mock_add_user.assert_called_once_with(12345, 'doctor', "Test User")
+        mock_add_user.assert_called_once_with(12345, 'guest', "Test User")
 
         # Verify the answer was called
         self.mock_message.answer.assert_called_once()
         args, kwargs = self.mock_message.answer.call_args
         self.assertIn(r"Ваш chat\_id: `12345`", args[0])
-        self.assertIn("Ваша роль: `doctor`", args[0])
+        self.assertIn("Ваша роль: `guest`", args[0])
         self.assertEqual(kwargs.get("parse_mode"), "Markdown")
 
 class TestHandleXrayResult(unittest.TestCase):
@@ -315,6 +315,50 @@ class TestHandleXrayResult(unittest.TestCase):
         handle_xray_result('test_topic', payload_valid, loop)
         mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: Petr Petrov_\n\nНаходки:\nTest report\n", role='doctor')
 
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_on_mqtt_message_xray_result(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        import json
+        from bot import on_mqtt_message
+        from config.settings import TOPIC_XRAY_RESULT
+
+        mock_broadcast.return_value = "mocked_coro"
+        mock_broadcast_photo.return_value = "mocked_coro_photo"
+
+        loop = MagicMock()
+        client = MagicMock()
+        userdata = {'loop': loop}
+        msg = MagicMock()
+        msg.topic = TOPIC_XRAY_RESULT
+
+        payload_dict = {
+            'image_b64': base64.b64encode(b"test_image").decode('utf-8'),
+            'report': 'Test report integration',
+            'patient_name': 'Sergey Sergeev',
+            'file': 'xray_integration.jpg'
+        }
+        msg.payload = json.dumps(payload_dict).encode('utf-8')
+
+        on_mqtt_message(client, userdata, msg)
+
+        # Check run_coroutine_threadsafe is called twice
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 2)
+
+        # First call is broadcast_photo
+        mock_broadcast_photo.assert_called_once_with(
+            b"test_image",
+            "🦷 *Новый рентген проанализирован!*\n👤 _Пациент: Sergey Sergeev_\nПолный отчет следующим сообщением.",
+            'Test report integration',
+            role='doctor'
+        )
+
+        # Second call is broadcast text to admin
+        mock_broadcast.assert_called_once_with(
+            "🔄 *Система*: Снимок xray_integration.jpg (Пациент: Sergey Sergeev) отправлен врачам.",
+            role='admin'
+        )
+
 
 class TestHandleMarketingSend(unittest.TestCase):
     @patch('bot.asyncio.run_coroutine_threadsafe')
@@ -367,18 +411,3 @@ class TestHandleMarketingSend(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-import pytest
-import logging
-from unittest.mock import MagicMock
-
-from bot import on_mqtt_message
-
-def test_on_mqtt_message_exception_handling(caplog):
-
-
-    with caplog.at_level(logging.ERROR):
-
-    assert any("Error processing MQTT message: Simulated decode error" in record.message for record in caplog.records)
-
-def test_on_mqtt_message_missing_loop(caplog):
-

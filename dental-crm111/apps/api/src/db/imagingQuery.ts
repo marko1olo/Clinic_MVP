@@ -121,9 +121,27 @@ import type {
   ImagingViewerSession, SaveImagingViewerSessionRequest,
   DicomWorkbenchBundle, SaveDicomWorkbenchBundleRequest
 } from "@dental/shared";
+
 import { imagingViewerSessions, dicomWorkbenchBundles } from "./schema.js";
 import { randomUUID } from "crypto";
 import { desc } from "drizzle-orm";
+
+function mapImagingViewerSession(session: typeof imagingViewerSessions.$inferSelect): ImagingViewerSession {
+  return {
+    id: session.id,
+    organizationId: session.organizationId,
+    studyId: session.studyId,
+    patientId: session.patientId,
+    visitId: session.visitId,
+    state: session.state as any,
+    annotations: session.annotations as any,
+    clientSavedAt: session.clientSavedAt?.toISOString() ?? null,
+    serverSavedAt: session.serverSavedAt.toISOString(),
+    createdAt: session.createdAt.toISOString(),
+    updatedAt: session.updatedAt.toISOString(),
+    warnings: session.warnings as any
+  };
+}
 
 export async function getOrCreateImagingViewerSession(organizationId: string, study: ImagingStudy): Promise<ImagingViewerSession> {
   const [session] = await db
@@ -133,20 +151,7 @@ export async function getOrCreateImagingViewerSession(organizationId: string, st
     .limit(1);
 
   if (session) {
-    return {
-      id: session.id,
-      organizationId: session.organizationId,
-      studyId: session.studyId,
-      patientId: session.patientId,
-      visitId: session.visitId,
-      state: session.state as any,
-      annotations: session.annotations as any,
-      clientSavedAt: session.clientSavedAt?.toISOString() ?? null,
-      serverSavedAt: session.serverSavedAt.toISOString(),
-      createdAt: session.createdAt.toISOString(),
-      updatedAt: session.updatedAt.toISOString(),
-      warnings: session.warnings as any
-    };
+    return mapImagingViewerSession(session);
   }
 
   const [newSession] = await db.insert(imagingViewerSessions).values({
@@ -160,20 +165,7 @@ export async function getOrCreateImagingViewerSession(organizationId: string, st
   }).returning();
   if (!newSession) throw new Error("Failed to insert session");
 
-  return {
-    id: newSession.id,
-    organizationId: newSession.organizationId,
-    studyId: newSession.studyId,
-    patientId: newSession.patientId,
-    visitId: newSession.visitId,
-    state: newSession.state as any,
-    annotations: newSession.annotations as any,
-    clientSavedAt: newSession.clientSavedAt?.toISOString() ?? null,
-    serverSavedAt: newSession.serverSavedAt.toISOString(),
-    createdAt: newSession.createdAt.toISOString(),
-    updatedAt: newSession.updatedAt.toISOString(),
-    warnings: newSession.warnings as any
-  };
+  return mapImagingViewerSession(newSession);
 }
 
 export async function saveImagingViewerSession(organizationId: string, studyId: string, input: SaveImagingViewerSessionRequest): Promise<ImagingViewerSession> {
@@ -198,20 +190,7 @@ export async function saveImagingViewerSession(organizationId: string, studyId: 
     }).where(eq(imagingViewerSessions.id, existing.id)).returning();
     if (!updated) throw new Error("Failed to update session");
 
-    return {
-      id: updated.id,
-      organizationId: updated.organizationId,
-      studyId: updated.studyId,
-      patientId: updated.patientId,
-      visitId: updated.visitId,
-      state: updated.state as any,
-      annotations: updated.annotations as any,
-      clientSavedAt: updated.clientSavedAt?.toISOString() ?? null,
-      serverSavedAt: updated.serverSavedAt.toISOString(),
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-      warnings: updated.warnings as any
-    };
+    return mapImagingViewerSession(updated);
   }
 
   const [newSession] = await db.insert(imagingViewerSessions).values({
@@ -228,20 +207,7 @@ export async function saveImagingViewerSession(organizationId: string, studyId: 
   }).returning();
   if (!newSession) throw new Error("Failed to insert session");
 
-  return {
-    id: newSession.id,
-    organizationId: newSession.organizationId,
-    studyId: newSession.studyId,
-    patientId: newSession.patientId,
-    visitId: newSession.visitId,
-    state: newSession.state as any,
-    annotations: newSession.annotations as any,
-    clientSavedAt: newSession.clientSavedAt?.toISOString() ?? null,
-    serverSavedAt: newSession.serverSavedAt.toISOString(),
-    createdAt: newSession.createdAt.toISOString(),
-    updatedAt: newSession.updatedAt.toISOString(),
-    warnings: newSession.warnings as any
-  };
+  return mapImagingViewerSession(newSession);
 }
 
 export async function listDicomWorkbenchBundles(organizationId: string, limit: number): Promise<DicomWorkbenchBundle[]> {

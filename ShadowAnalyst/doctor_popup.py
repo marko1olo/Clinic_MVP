@@ -25,7 +25,7 @@ if os.path.exists(CONFIG_FILE):
             MQTT_PASS = config.get("mqtt_pass", MQTT_PASS)
             TOPIC_XRAY_RESULT = config.get("mqtt_topic_xray", TOPIC_XRAY_RESULT)
     except Exception as e:
-        print(f"Error loading config.json: {e}")
+        pass
 
 def parse_findings(findings):
     """

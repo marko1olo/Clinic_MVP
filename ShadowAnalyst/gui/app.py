@@ -1,4 +1,5 @@
 import os
+import logging
 import asyncio
 import sys
 import time
@@ -32,13 +33,19 @@ log_buffer = collections.deque(maxlen=200)
 class LogInterceptor:
     def __init__(self, original_stdout):
         self.original_stdout = original_stdout
+        self._logging = False
 
     def write(self, message):
         if self.original_stdout is not None:
             try:
                 self.original_stdout.write(message)
-            except Exception:
-                pass
+            except Exception as e:
+                if not getattr(self, '_logging', False):
+                    self._logging = True
+                    try:
+                        logging.error(f"Failed to write to original stream: {e}")
+                    finally:
+                        self._logging = False
         if message.strip():
             log_buffer.append(message.strip())
 
@@ -46,8 +53,13 @@ class LogInterceptor:
         if self.original_stdout is not None:
             try:
                 self.original_stdout.flush()
-            except Exception:
-                pass
+            except Exception as e:
+                if not getattr(self, '_logging', False):
+                    self._logging = True
+                    try:
+                        logging.error(f"Failed to flush original stream: {e}")
+                    finally:
+                        self._logging = False
 
     def isatty(self):
         return False

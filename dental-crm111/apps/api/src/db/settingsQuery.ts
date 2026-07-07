@@ -144,8 +144,12 @@ export async function createStaffMemberInDb(organizationId: string, input: Creat
   });
 }
 
+async function updateWorkingHours(table: any, organizationId: string, id: string, workingHours: any) {
+  await db.update(table).set({ workingHours }).where(and(eq(table.id, id), eq(table.organizationId, organizationId)));
+}
+
 export async function updateStaffWorkingHoursInDb(organizationId: string, staffId: string, workingHours: any) {
-  await db.update(schema.users).set({ workingHours }).where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
+  await updateWorkingHours(schema.users, organizationId, staffId, workingHours);
 }
 
 export async function updateStaffCredentialsInDb(
@@ -170,5 +174,5 @@ export async function createChairInDb(organizationId: string, input: CreateChair
 }
 
 export async function updateChairWorkingHoursInDb(organizationId: string, chairId: string, workingHours: any) {
-  await db.update(schema.chairs).set({ workingHours }).where(and(eq(schema.chairs.id, chairId), eq(schema.chairs.organizationId, organizationId)));
+  await updateWorkingHours(schema.chairs, organizationId, chairId, workingHours);
 }

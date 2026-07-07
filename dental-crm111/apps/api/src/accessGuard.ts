@@ -21,6 +21,13 @@ function clinicalReadsUnguardedAllowed(): boolean {
 }
 
 
+
+function verifySecretHeader(request: FastifyRequest, expectedSecret: string): boolean {
+  const providedSecret = request.headers[denteAdminSecretHeader];
+  const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
+  return timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, expectedSecret);
+}
+
 export async function requireClinicalMutationAccess(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -37,9 +44,7 @@ export async function requireClinicalMutationAccess(
     return false;
   }
 
-  const providedSecret = request.headers[denteAdminSecretHeader];
-  const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-  if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+  if (verifySecretHeader(request, adminSecret)) {
     return true;
   }
 
@@ -67,9 +72,7 @@ export async function requireClinicalReadAccess(
     return false;
   }
 
-  const providedSecret = request.headers[denteAdminSecretHeader];
-  const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-  if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+  if (verifySecretHeader(request, adminSecret)) {
     return true;
   }
 

@@ -1,6 +1,10 @@
-🧹 [code health] Remove unused `get_scan_by_id` function
+🎯 **What:** Extracted duplicated header secret verification logic into a utility function `verifySecretHeader` in `accessGuard.ts`. Also fixed syntax errors and duplicate declarations in `accessGuard.test.ts`.
 
-🎯 What: Removed the `get_scan_by_id` function from `ShadowAnalyst/gui/database.py`.
-💡 Why: The function was identified as unused dead code and its removal improves maintainability and readability of the codebase by eliminating unneeded code paths.
-✅ Verification: Confirmed via search that the function is not referenced anywhere else in the codebase and executed python test script to ensure that the module can still be imported successfully.
-✨ Result: Reduced dead code, improving overall code health without affecting functionality.
+💡 **Why:** By extracting the duplication, we improve code maintainability and ensure that updates to header verification rules only need to be made in one location. This resolves the code health issue flagged on line 36 of `accessGuard.ts`.
+
+✅ **Verification:**
+- Validated via `vitest run apps/api/src/tests/accessGuard.test.ts` (tests now pass successfully).
+- Passed typechecking.
+- Received a `Correct` rating from `request_code_review`.
+
+✨ **Result:** Improved maintainability while preserving the original functional logic exactly.

@@ -28,6 +28,26 @@ import aiofiles
 
 # --- LOGGING INTERCEPTOR ---
 import collections
+
+class LRUCache:
+    def __init__(self, capacity: int):
+        self.cache = collections.OrderedDict()
+        self.capacity = capacity
+
+    def get(self, key):
+        if key not in self.cache:
+            return None
+        self.cache.move_to_end(key)
+        return self.cache[key]
+
+    def put(self, key, value):
+        self.cache[key] = value
+        self.cache.move_to_end(key)
+        if len(self.cache) > self.capacity:
+            self.cache.popitem(last=False)
+
+tts_memory_cache = LRUCache(100)
+
 log_buffer = collections.deque(maxlen=200)
 
 class LogInterceptor:
@@ -643,12 +663,19 @@ async def get_tts(text: str, provider: str = None):
 
     # Local audio cache check
     text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+
+    # Check in-memory cache first
+    cached_audio = tts_memory_cache.get(text_hash)
+    if cached_audio is not None:
+        return Response(content=cached_audio, media_type="audio/mpeg")
+
     cache_filename = f"audio_{text_hash}.mp3"
     cache_path = os.path.join(STATIC_DIR, "uploads", cache_filename)
     
     try:
         async with aiofiles.open(cache_path, "rb") as f:
             content = await f.read()
+        tts_memory_cache.put(text_hash, content)
         return Response(content=content, media_type="audio/mpeg")
     except FileNotFoundError:
         # Cache miss, proceed to generate audio
@@ -726,6 +753,7 @@ async def get_tts(text: str, provider: str = None):
         try:
             with open(cache_path, "wb") as f:
                 f.write(audio_bytes)
+            tts_memory_cache.put(text_hash, audio_bytes)
         except Exception as e:
             print(f"Failed to write audio cache: {e}")
         return Response(content=audio_bytes, media_type="audio/mpeg")

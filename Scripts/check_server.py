@@ -3,14 +3,14 @@ import os
 
 host = '62.84.100.97'
 user = 'root'
-password = os.environ.get('VPS_PASSWORD')
+key_file = os.environ.get('VPS_KEY_FILE', os.path.expanduser('~/.ssh/id_rsa'))
 
 try:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    print(f"Connecting to {user}@{host}...")
-    client.connect(hostname=host, username=user, password=password, timeout=10)
+    print(f"Connecting to {user}@{host} using key {key_file}...")
+    client.connect(hostname=host, username=user, key_filename=key_file, timeout=10)
     
     commands = [
         "lsb_release -a",

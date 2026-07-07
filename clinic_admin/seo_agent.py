@@ -1,10 +1,12 @@
-import os
 import json
 import requests
 import random
 import os
 
-CONFIG_PATH = "C:/Clinic_MVP/ShadowAnalyst/gui/config.json"
+DEFAULT_CONFIG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "ShadowAnalyst", "gui", "config.json")
+)
+CONFIG_PATH = os.environ.get("SEO_CONFIG_PATH", DEFAULT_CONFIG_PATH)
 
 _cached_groq_keys = None
 

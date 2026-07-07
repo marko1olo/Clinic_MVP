@@ -1,0 +1,9 @@
+🎯 **What:** The previous `telegramQr.test.ts` file had syntax errors and did not cover all edge cases for `createTelegramQrSvg`. This PR fixes those tests and implements comprehensive edge case tests to verify handling of boundaries, empty payloads, and multibyte strings.
+📊 **Coverage:** The test suite now explicitly covers:
+- `null` and empty string payloads
+- Payload lengths exceeding `MAX_QR_BYTES` (78 bytes)
+- Exact boundary payloads (78 bytes)
+- Valid payloads properly generating SVGs
+- Emojis and Cyrillic characters handling correctly within and exceeding byte limits
+- Verification that generated SVG components are deterministic
+✨ **Result:** Test coverage for `createTelegramQrSvg` is greatly improved, ensuring no silent failures on empty/null inputs, robust handling of byte boundaries, and proper SVG construction for diverse multibyte content without throwing errors.

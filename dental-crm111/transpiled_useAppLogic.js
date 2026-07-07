@@ -4549,8 +4549,14 @@ export function useAppLogic() {
     const totalPlannedRub = activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0);
     const totalDiscountRub = activePlanItems.reduce((total, item) => total + item.discountRub, 0);
     const totalPaidRub = activePayments.filter((payment) => payment.status === "paid").reduce((total, payment) => total + payment.amountRub, 0);
+    const serviceMap = new Map();
+    if (dashboard?.serviceCatalog) {
+      for (const service of dashboard.serviceCatalog) {
+        serviceMap.set(service.id, service);
+      }
+    }
     const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-      const service = dashboard.serviceCatalog.find((candidate) => candidate.id === item.serviceId);
+      const service = serviceMap.get(item.serviceId);
       return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
     }, 0);
     const draftDocumentAmountRub = activeUsableDocuments.filter((document2) => document2.status === "draft").reduce((total, document2) => total + (document2.totalAmountRub ?? 0), 0);

@@ -115,11 +115,15 @@ def ensure_tunnel() -> bool:
 def stop_tunnel():
     global _tunnel_proc, _tunnel_active
     with _tunnel_lock:
-        if _tunnel_proc and _tunnel_proc.poll() is None:
-            _tunnel_proc.terminate()
-            print("[VPN] Туннель остановлен")
-        _tunnel_proc = None
-        _tunnel_active = False
+        try:
+            if _tunnel_proc and _tunnel_proc.poll() is None:
+                _tunnel_proc.terminate()
+                print("[VPN] Туннель остановлен")
+        except Exception as e:
+            print(f"[VPN] Ошибка остановки туннеля: {e}")
+        finally:
+            _tunnel_proc = None
+            _tunnel_active = False
 
 def make_groq_client(api_key: str, use_proxy: bool = False) -> OpenAI:
     """Создаёт OpenAI-совместимый Groq-клиент, опционально через SOCKS5."""

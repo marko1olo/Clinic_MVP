@@ -22,8 +22,8 @@ def get_groq_api_key():
             _cached_groq_keys = config.get("groq_api_keys", [])
             if _cached_groq_keys:
                 return random.choice(_cached_groq_keys)
-    except Exception as e:
-        print(f"Error loading config: {e}")
+    except Exception:
+        pass
     return None
 
 def generate_seo_response(review_text: str) -> str:

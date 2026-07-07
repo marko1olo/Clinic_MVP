@@ -25,7 +25,7 @@ class TestDatabase(unittest.TestCase):
         os.close(self.db_fd)
         os.unlink(self.db_path)
 
-    @patch('sqlite3.connect')
+@patch('sqlite3.connect')
     def test_get_connection(self, mock_connect):
         # Call the function
         conn = database.get_connection()
@@ -43,7 +43,7 @@ class TestDatabase(unittest.TestCase):
         # Verify the row factory is set
         self.assertEqual(conn.row_factory, sqlite3.Row)
 
-    @patch('sqlite3.connect')
+@patch('sqlite3.connect')
     def test_get_connection_error(self, mock_connect):
         # Setup mock to raise an exception
         mock_connect.side_effect = sqlite3.Error("Mocked database error")
@@ -52,7 +52,7 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(sqlite3.Error):
             clinic_admin.database.get_connection()
         conn.close()
-            database.get_connection()
+#            database.get_connection()
 
     def test_init_db(self):
         # Initialize the database
@@ -95,7 +95,7 @@ from unittest.mock import patch, MagicMock
 
 from clinic_admin.database import get_connection, DB_FILE
 
-    @patch('clinic_admin.database.sqlite3.connect')
+@patch('clinic_admin.database.sqlite3.connect')
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
 

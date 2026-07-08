@@ -95,3 +95,8 @@ logs/
 shot_*.png
 screenshot_*.png
 auth_screen.png
+
+# ---- State backups ----
+dental-crm/.data/
+**/backups/
+

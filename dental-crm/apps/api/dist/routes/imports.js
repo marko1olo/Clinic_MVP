@@ -2,7 +2,7 @@ import { importCommitRequestSchema, importCommitResponseSchema, importIntakeRequ
 import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { patients, importBatches, auditEvents, organizations } from "../db/schema.js";
-import { requireClinicalMutationAccess, requireClinicalReadAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
 const headerAliases = {
     fio: "fullName",
     "full name": "fullName",
@@ -254,7 +254,10 @@ export async function registerImportRoutes(app) {
     app.post("/api/imports/patients/intake", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "patient import intake")))
             return;
-        const [org] = await db.select().from(organizations).limit(1);
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return reply.code(403).send({ error: 'OrganizationRequired' });
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
         if (!org)
             return reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
         const parsed = parseImportPayload(importIntakeRequestSchema, request.body, "Импорт пациентов не проверен: передайте текст, таблицу или распознанную диктовку с названием источника.");
@@ -266,7 +269,10 @@ export async function registerImportRoutes(app) {
     app.post("/api/imports/patients/preview", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "patient import preview")))
             return;
-        const [org] = await db.select().from(organizations).limit(1);
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return reply.code(403).send({ error: 'OrganizationRequired' });
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
         if (!org)
             return reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
         const parsed = parseImportPayload(importPreviewRequestSchema, request.body, "Предпросмотр импорта пациентов не построен: передайте непустой текст или табличную выгрузку до 120000 символов.");
@@ -278,7 +284,10 @@ export async function registerImportRoutes(app) {
     app.post("/api/imports/patients/commit", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "patient import commit")))
             return;
-        const [org] = await db.select().from(organizations).limit(1);
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return reply.code(403).send({ error: 'OrganizationRequired' });
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
         if (!org)
             return reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
         const parsed = parseImportPayload(importCommitRequestSchema, request.body, "Импорт пациентов не выполнен: повторно передайте ту же непустую выгрузку перед записью.");

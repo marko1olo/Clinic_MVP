@@ -1,6 +1,8 @@
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
+import { resolveOrganizationId } from "../accessGuard.js";
 import { getClinicSettingsFromDb, getUiPreferencesFromDb, saveUiPreferencesInDb, updateClinicModeInDb, updateClinicProfileInDb, createStaffMemberInDb, updateStaffWorkingHoursInDb, updateStaffCredentialsInDb, createChairInDb, updateChairWorkingHoursInDb } from "../db/settingsQuery.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
 import { chairSchema, clinicSettingsSchema, createChairSchema, createStaffMemberSchema, staffMemberSchema, uiPreferencesInputSchema, uiPreferencesSchema, updateClinicModeSchema, updateClinicProfileSchema, updateChairWorkingHoursSchema, updateStaffWorkingHoursSchema } from "@dental/shared";
@@ -40,7 +42,7 @@ function settingsDomainMessage(error) {
 function hasActiveScheduleConflict(message) {
     return message.includes("активная запись") || message.includes("активные записи");
 }
-export function clinicProfileMutationRejection(reply, error) {
+function clinicProfileMutationRejection(reply, error) {
     const message = settingsDomainMessage(error);
     if (message.includes("часовой пояс")) {
         return reply.code(409).send({
@@ -140,8 +142,13 @@ async function requireSettingsAccess(request, reply) {
             return null;
         }
     }
-    // Find default organization (MVP assumes single org)
-    const [org] = await db.select().from(schema.organizations).limit(1);
+    // Find organization by token or fallback to MVP default
+    const organizationId = await resolveOrganizationId(request);
+    if (!organizationId) {
+        reply.code(403).send({ error: "OrganizationRequired", message: "Organization could not be resolved" });
+        return null;
+    }
+    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
     if (!org) {
         reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
         return null;

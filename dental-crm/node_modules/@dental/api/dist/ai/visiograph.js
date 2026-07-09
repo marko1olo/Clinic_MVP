@@ -14,8 +14,8 @@ export async function analyzeVisiographImage(imageBase64) {
         const candidates = getProviderKeyCandidates(provider);
         if (!candidates.length)
             continue;
-        // Shuffle candidates for load balancing
-        candidates.sort(() => Math.random() - 0.5);
+        // Shuffle candidates for load balancing securely
+        candidates.sort(() => ((crypto.getRandomValues(new Uint32Array(1))[0] || 0) / 4294967295) - 0.5);
         for (const candidate of candidates) {
             try {
                 let endpoint = "";

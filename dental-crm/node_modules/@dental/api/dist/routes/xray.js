@@ -10,7 +10,7 @@
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { xrayScans } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { requireClinicalReadAccess, requireClinicalMutationAccess } from "../accessGuard.js";
 // ────────────────────────────────────────────────
@@ -124,10 +124,11 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "analyze xray scan")))
             return;
         const { id } = request.params;
+        const orgId = resolveOrganizationId(request);
         const [scan] = await db
             .select()
             .from(xrayScans)
-            .where(eq(xrayScans.id, id))
+            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)))
             .limit(1);
         if (!scan) {
             return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
@@ -142,7 +143,7 @@ export async function registerXrayRoutes(app) {
         await db
             .update(xrayScans)
             .set({ status: "analyzing", aiError: null })
-            .where(eq(xrayScans.id, id));
+            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
         // Run analysis async — respond immediately with 202 so the UI can poll
         reply.code(202).send({ status: "analyzing", id });
         // Background AI call
@@ -159,14 +160,14 @@ export async function registerXrayRoutes(app) {
                     aiAnalyzedAt: new Date(),
                     aiError: result.warnings.length > 0 ? result.warnings.join("; ") : null,
                 })
-                    .where(eq(xrayScans.id, id));
+                    .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
             }
             catch (err) {
                 console.error("[XRay AI] Analysis failed for scan", id, err?.message);
                 await db
                     .update(xrayScans)
                     .set({ status: "error", aiError: err?.message ?? "Неизвестная ошибка AI-анализа." })
-                    .where(eq(xrayScans.id, id));
+                    .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
             }
         });
     });
@@ -190,10 +191,11 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "get xray scan")))
             return;
         const { id } = request.params;
+        const orgId = resolveOrganizationId(request);
         const [scan] = await db
             .select()
             .from(xrayScans)
-            .where(eq(xrayScans.id, id))
+            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)))
             .limit(1);
         if (!scan) {
             return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
@@ -205,7 +207,7 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalMutationAccess(request, reply, "delete xray scan")))
             return;
         const { id } = request.params;
-        const result = await db.delete(xrayScans).where(eq(xrayScans.id, id)).returning({ id: xrayScans.id });
+        const result = await db.delete(xrayScans).where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, request.user.organizationId))).returning({ id: xrayScans.id });
         if (!result.length) {
             return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
         }

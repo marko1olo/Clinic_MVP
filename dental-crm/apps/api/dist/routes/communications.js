@@ -2,7 +2,7 @@ import { communicationTaskSchema, completeCommunicationTaskSchema } from "@denta
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { communicationTasks, communicationEvents, organizations } from "../db/schema.js";
-import { requireClinicalMutationAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, resolveOrganizationId } from "../accessGuard.js";
 const communicationTaskValidationMessage = "Задача связи не закрыта: выберите задачу, сотрудника и корректный исход действия.";
 const communicationTaskNotFoundMessage = "Задача связи не закрыта: задача не найдена или уже недоступна.";
 export async function registerCommunicationRoutes(app) {
@@ -16,7 +16,10 @@ export async function registerCommunicationRoutes(app) {
                 message: communicationTaskValidationMessage
             });
         }
-        const [org] = await db.select().from(organizations).limit(1);
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return reply.code(403).send({ error: 'OrganizationRequired' });
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
         if (!org)
             return reply.code(500).send({ error: "NoOrganizationFound", message: "Организация не найдена." });
         try {

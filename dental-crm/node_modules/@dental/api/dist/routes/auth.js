@@ -10,16 +10,11 @@ export async function requireClinicToken(request, reply) {
     const header = request.headers["x-dente-clinic-token"];
     const token = Array.isArray(header) ? header[0] : header;
     if (!token) {
-        return void reply.code(401).send({ error: "AuthRequired", message: "Токен не предоставлен." });
-    }
-    // Audit script bypass
-    if (token === "audit-bypass-token" && process.env.NODE_ENV !== "production") {
-        request.clinicOrganizationId = "4a3420d1-6ffb-4459-bd8f-7f7087f5e191";
-        return;
+        return void reply.code(401).send({ error: "AuthRequired", message: "Необходима авторизация рабочего кабинета клиники." });
     }
     const payload = verifyToken(token, TOKEN_SECRET());
     if (!payload || !payload.organizationId) {
-        return void reply.code(401).send({ error: "TokenExpired", message: "Токен недействителен." });
+        return void reply.code(401).send({ error: "TokenExpired", message: "Сессия истекла. Войдите в кабинет заново." });
     }
     request.clinicOrganizationId = payload.organizationId;
 }
@@ -43,7 +38,7 @@ export async function registerAuthRoutes(app) {
         }
         if (!org) {
             // Timing-safe: delay even on missing to prevent enumeration
-            await new Promise((r) => setTimeout(r, 200 + Math.random() * 100));
+            await new Promise((r) => setTimeout(r, 200 + ((crypto.getRandomValues(new Uint32Array(1))[0] || 0) / 429496729.5)));
             return reply.code(401).send({ error: "AuthError", message: "Неверный логин или пароль клиники." });
         }
         const storedHash = org.passwordHash;
@@ -86,7 +81,7 @@ export async function registerAuthRoutes(app) {
             .where(and(eq(users.id, userId), eq(users.organizationId, orgId), eq(users.isActive, true)))
             .limit(1);
         if (!user) {
-            await new Promise((r) => setTimeout(r, 150 + Math.random() * 100));
+            await new Promise((r) => setTimeout(r, 250));
             return reply.code(404).send({ error: "UserNotFound", message: "Сотрудник не найден или заблокирован." });
         }
         const storedPinHash = user.pinCodeHash;
@@ -242,7 +237,7 @@ export async function registerAuthRoutes(app) {
         const loginEmail = email.toLowerCase().trim();
         const [user] = await db.select().from(users).where(and(eq(users.email, loginEmail), eq(users.isActive, true))).limit(1);
         if (!user || !user.passwordHash) {
-            await new Promise((r) => setTimeout(r, 200 + Math.random() * 100));
+            await new Promise((r) => setTimeout(r, 200 + ((crypto.getRandomValues(new Uint32Array(1))[0] || 0) / 429496729.5)));
             return reply.code(401).send({ error: 'AuthError', message: 'Неверный email или пароль.' });
         }
         if (!verifyCredential(password, user.passwordHash))
@@ -309,9 +304,6 @@ export async function registerAuthRoutes(app) {
         const payload = staffToken ? verifyToken(staffToken, TOKEN_SECRET()) : null;
         if (!payload?.userId)
             return reply.code(401).send({ error: 'AuthRequired', message: 'Требуется авторизация.' });
-        if (payload.userId === "user1") {
-            return reply.send({ id: "user1", fullName: "Dr. Demo", role: "owner", email: "demo@dente.ru", organizationId: "00000000-0000-0000-0000-000000000000", isActive: true });
-        }
         const [user] = await db
             .select({
             id: users.id,

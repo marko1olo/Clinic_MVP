@@ -186,6 +186,8 @@ export const organizations = pgTable("organizations", {
     signatoryTitle: text("signatory_title"),
     clinicMode: text("clinic_mode").notNull().default("demo"), // demo, single, network
     clinicSchedule: jsonb("clinic_schedule"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -196,6 +198,8 @@ export const clinics = pgTable("clinics", {
     address: text("address"),
     phone: text("phone"),
     timezone: text("timezone").notNull().default("Europe/Samara"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 export const users = pgTable("users", {
@@ -210,6 +214,8 @@ export const users = pgTable("users", {
     isActive: boolean("is_active").notNull().default(true),
     uiPreferences: jsonb("ui_preferences"),
     workingHours: jsonb("working_hours"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 export const userInvitations = pgTable("user_invitations", {
@@ -242,6 +248,8 @@ export const patients = pgTable("patients", {
     email: text("email"),
     notes: text("notes"),
     administrativeProfile: jsonb("administrative_profile").$type(),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -265,7 +273,9 @@ export const appointments = pgTable("appointments", {
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     reason: text("reason"),
-    comment: text("comment")
+    comment: text("comment"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1)
 });
 export const visits = pgTable("visits", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -283,6 +293,8 @@ export const visits = pgTable("visits", {
     transcript: text("transcript"), // Store the raw voice/text transcript for AI processing
     draftAutosave: jsonb("draft_autosave"), // Store the transient UI VisitDraftAutosave payload
     signedAt: timestamp("signed_at", { withTimezone: true }),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
@@ -319,7 +331,9 @@ export const treatmentItems = pgTable("treatment_items", {
     status: treatmentPlanItemStatus("status").notNull().default("proposed"),
     plannedDoctorUserId: uuid("planned_doctor_user_id").references(() => users.id),
     plannedChairId: uuid("planned_chair_id").references(() => chairs.id),
-    notes: text("notes")
+    notes: text("notes"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1)
 });
 export const treatmentScenarios = pgTable("treatment_scenarios", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -337,6 +351,8 @@ export const treatmentScenarios = pgTable("treatment_scenarios", {
     tradeoffsJson: text("tradeoffs_json").notNull().default("[]"),
     clinicalWarningsJson: text("clinical_warnings_json").notNull().default("[]"),
     isActive: boolean("is_active").notNull().default(true),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -382,6 +398,8 @@ export const payments = pgTable("payments", {
     payerRelationship: text("payer_relationship"),
     taxDeductionCode: text("tax_deduction_code"),
     note: text("note"),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -410,6 +428,8 @@ export const generatedDocuments = pgTable("generated_documents", {
     issuedByUserId: uuid("issued_by_user_id").references(() => users.id),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     voidedByUserId: uuid("voided_by_user_id").references(() => users.id),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
     return {
@@ -870,6 +890,7 @@ export const treatmentPlans = pgTable('treatment_plans', {
     name: text('name').notNull(),
     status: treatmentPlanStatusEnum('status').notNull().default('Draft'),
     totalPrice: numeric('total_price', { precision: 12, scale: 2 }).notNull().default('0'),
+    patientSignature: text('patient_signature'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
@@ -1083,6 +1104,9 @@ export const visitDiaries = pgTable('visit_diaries', {
     isLocked: boolean('is_locked').notNull().default(false),
     lockedAt: timestamp('locked_at', { withTimezone: true }),
     lockedByUserId: uuid('locked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    draftAuthorId: uuid('draft_author_id').references(() => users.id, { onDelete: 'set null' }),
+    coSignedByUserId: uuid('co_signed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    diaryHash: text('diary_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
@@ -1098,6 +1122,7 @@ export const visitDiaryRevisions = pgTable('visit_diary_revisions', {
 });
 export const visitTemplates = pgTable('visit_templates', {
     id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id').notNull().references(() => organizations.id),
     title: varchar('title', { length: 255 }).notNull(),
     category: varchar('category', { length: 255 }),
     prefilledAnamnesis: text('prefilled_anamnesis'),

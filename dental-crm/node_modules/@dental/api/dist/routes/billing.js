@@ -1,5 +1,5 @@
 import { createPaymentSchema, documentKindMetadata, paymentSchema } from "@dental/shared";
-import { requireClinicalMutationAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, resolveOrganizationId } from "../accessGuard.js";
 import { getDefaultOrganizationId, findPaymentByClientMutationIdInDb, getPatientForBilling, getVisitForBilling, getDocumentForBilling, createPaymentInDb } from "../db/billingQuery.js";
 function documentCanReceivePayment(documentKind) {
     const metadata = documentKindMetadata[documentKind];
@@ -170,7 +170,7 @@ export async function registerBillingRoutes(app) {
 }
 import { db } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 // New routes for Invoice and Split Payments
 export async function registerAdvancedBillingRoutes(app) {
     app.post('/api/billing/invoice', async (request, reply) => {
@@ -191,6 +191,9 @@ export async function registerAdvancedBillingRoutes(app) {
     });
     app.post('/api/billing/split-pay', async (request, reply) => {
         const { invoiceId, payments, operatorId } = request.body;
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(401).send({ error: "Unauthorized" });
         // Begin transaction
         const result = await db.transaction(async (tx) => {
             let totalPaid = 0;
@@ -203,7 +206,7 @@ export async function registerAdvancedBillingRoutes(app) {
                 });
                 totalPaid += p.amount;
             }
-            const [invoice] = await tx.select().from(schema.patientInvoices).where(eq(schema.patientInvoices.id, invoiceId));
+            const [invoice] = await tx.select().from(schema.patientInvoices).where(and(eq(schema.patientInvoices.id, invoiceId), eq(schema.patientInvoices.organizationId, orgId)));
             if (!invoice)
                 throw new Error('Invoice not found');
             const currentTotal = parseFloat(invoice.totalAmountRub);
@@ -212,7 +215,7 @@ export async function registerAdvancedBillingRoutes(app) {
                 newStatus = 'paid';
             await tx.update(schema.patientInvoices)
                 .set({ status: newStatus })
-                .where(eq(schema.patientInvoices.id, invoiceId));
+                .where(and(eq(schema.patientInvoices.id, invoiceId), eq(schema.patientInvoices.organizationId, orgId)));
             return { success: true, status: newStatus, totalPaid };
         });
         return reply.code(200).send(result);
@@ -222,7 +225,7 @@ export async function registerAdvancedBillingRoutes(app) {
         const orgId = await getDefaultOrganizationId();
         if (!orgId)
             return reply.code(500).send({ error: 'No org' });
-        const invoices = await db.select().from(schema.patientInvoices).where(eq(schema.patientInvoices.status, 'paid'));
+        const invoices = await db.select().from(schema.patientInvoices).where(and(eq(schema.patientInvoices.status, 'paid'), eq(schema.patientInvoices.organizationId, orgId)));
         const payouts = [];
         // Mocking real calculation for speed since full relational mapping takes time
         // In production we'd map itemsJson to services -> procedureMaterialRules -> inventoryItems

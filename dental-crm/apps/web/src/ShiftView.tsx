@@ -95,14 +95,14 @@ export function ShiftView({
                   </div>
                   
                   {/* Compact Status Tracker */}
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px', background: 'var(--slate-50)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--slate-200)', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--slate-500)' }}>Статус:</span>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px', padding: '8px 12px', alignItems: 'center' }} className="glass-panel">
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)' }}>Статус:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
                       <span style={{ color: 'var(--teal)', fontWeight: 600 }}>1. Запись</span>
-                      <span style={{ color: 'var(--slate-300)' }}>→</span>
-                      <span style={{ color: dashboard.activeVisit ? 'var(--teal)' : 'var(--slate-400)', fontWeight: dashboard.activeVisit ? 600 : 400 }}>2. ЭМК</span>
-                      <span style={{ color: 'var(--slate-300)' }}>→</span>
-                      <span style={{ color: 'var(--slate-400)' }}>3. Оплата</span>
+                      <span style={{ color: 'var(--muted)' }}>→</span>
+                      <span style={{ color: dashboard.activeVisit ? 'var(--teal)' : 'var(--muted)', fontWeight: dashboard.activeVisit ? 600 : 400 }}>2. ЭМК</span>
+                      <span style={{ color: 'var(--muted)' }}>→</span>
+                      <span style={{ color: 'var(--muted)' }}>3. Оплата</span>
                     </div>
                   </div>
 
@@ -151,10 +151,7 @@ export function ShiftView({
                           display: "flex", 
                           justifyContent: "space-between", 
                           alignItems: "flex-start", 
-                          padding: "12px", 
-                          background: isCurrent ? "var(--teal-50, #f0fdfa)" : "var(--white, #fff)", 
-                          border: isCurrent ? "1px solid var(--teal-200, #99f6e4)" : "1px solid var(--slate-200, #e2e8f0)", 
-                          borderRadius: "8px",
+                          padding: "16px", 
                           cursor: "pointer",
                           transition: "all 0.2s ease"
                         }}
@@ -166,13 +163,13 @@ export function ShiftView({
                         }}
                       >
                         <div className="today-schedule-item-info" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          <span className="today-schedule-time" style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate-500, #64748b)" }}>
+                          <span className="today-schedule-time" style={{ fontSize: "12px", fontWeight: 600, color: "var(--teal)" }}>
                             {timeStart} – {timeEnd}
                           </span>
-                          <strong className="today-schedule-name" style={{ fontSize: "14px", color: "var(--slate-900, #0f172a)" }}>
+                          <strong className="today-schedule-name" style={{ fontSize: "14px", color: "var(--ink)" }}>
                             {patient ? patient.fullName : "Неизвестный пациент"}
                           </strong>
-                          <span className="today-schedule-reason" style={{ fontSize: "13px", color: "var(--slate-600, #475569)" }}>
+                          <span className="today-schedule-reason" style={{ fontSize: "13px", color: "var(--muted)" }}>
                             {app.reason || "плановый осмотр"}
                           </span>
                         </div>
@@ -182,8 +179,8 @@ export function ShiftView({
                           textTransform: "uppercase",
                           padding: "4px 8px",
                           borderRadius: "4px",
-                          background: app.status === "in_treatment" ? "#dcfce7" : app.status === "planned" ? "#f1f5f9" : "#fef3c7",
-                          color: app.status === "in_treatment" ? "#166534" : app.status === "planned" ? "#475569" : "#b45309"
+                          background: app.status === "in_treatment" ? "var(--green-soft)" : app.status === "planned" ? "var(--paper-strong)" : "var(--amber-soft)",
+                          color: app.status === "in_treatment" ? "var(--green)" : app.status === "planned" ? "var(--muted)" : "var(--amber)"
                         }}>
                           {statusLabels[app.status] || app.status}
                         </span>
@@ -209,16 +206,16 @@ export function ShiftView({
                 <div>
                   <p className="eyebrow">Фокус: {staffRoleLabels[selectedWorkspaceRole]}</p>
                   <h2>{activeRoleQueue?.title ?? activeRolePolicy?.title ?? "Рабочая очередь"}</h2>
-                  <p>{activeRoleQueue?.nextAction ?? activeRolePolicy?.requiresApprovalFor[0] ?? "Открыть смену и проверить очередь"}</p>
+                  <p>{activeRoleQueue?.nextAction ?? activeRolePolicy?.requiresApprovalFor?.[0] ?? "Анализ задач завершен"}</p>
                 </div>
               </div>
               <div className="role-focus-meta flex flex-wrap gap-2 justify-start mt-2" aria-label="Доступы текущей роли">
-                <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold border border-slate-200">{activeRoleQueue?.openItems ?? 0} открыто</span>
-                {activeRolePolicy ? <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold border border-slate-200">Старт: {viewLabels[activeRolePolicy.defaultSection]}</span> : null}
+                <span className="bg-[var(--paper)] text-[var(--ink)] px-2 py-1 rounded-full text-xs font-bold border border-[var(--line-strong)]">{activeRoleQueue?.openItems ?? 0} открыто</span>
+                {activeRolePolicy ? <span className="bg-[var(--paper)] text-[var(--ink)] px-2 py-1 rounded-full text-xs font-bold border border-[var(--line-strong)]">Старт: {viewLabels[activeRolePolicy.defaultSection]}</span> : null}
                 {activeRoleWritableSections.slice(0, 3).map((section: any) => (
-                  <span key={section} className="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold border border-slate-200">пишет: {viewLabels[section]}</span>
+                  <span key={section} className="bg-[var(--paper)] text-[var(--ink)] px-2 py-1 rounded-full text-xs font-bold border border-[var(--line-strong)]">пишет: {viewLabels[section]}</span>
                 ))}
-                {activeRoleRestrictedSections[0] ? <span className="bg-rose-50 text-rose-700 px-2 py-1 rounded-full text-xs font-bold border border-rose-200">ограничено: {viewLabels[activeRoleRestrictedSections[0]]}</span> : null}
+                {activeRoleRestrictedSections?.[0] ? <span className="bg-red-500/20 text-red-500 px-2 py-1 rounded-md text-xs">{activeRoleRestrictedSections[0]} недоступна</span> : <span className="bg-green-500/20 text-green-500 px-2 py-1 rounded-md text-xs">Доступ открыт</span>}
               </div>
             </section>
 
@@ -313,7 +310,7 @@ export function ShiftView({
                       <h3>{queue.title}</h3>
                       <p>{queue.nextAction}</p>
                       <strong>{queue.openItems}</strong>
-                      <small>{queue.blockedBy[0] ?? queue.automationHint}</small>
+                      <small>{queue.blockedBy?.[0] ?? queue.automationHint}</small>
                     </article>
                   ))}
               </div>
@@ -371,52 +368,52 @@ export function PatientCockpit({
               )}
             </div>
             {activePatientInsight ? (
-              <div className={`patient-insight-panel risk-${activePatientInsight.riskLevel}`} style={{ padding: '12px', borderRadius: '8px', background: activePatientInsight.riskLevel === 'high' ? '#fee2e2' : activePatientInsight.riskLevel === 'medium' ? '#fef3c7' : '#f1f5f9', border: '1px solid ' + (activePatientInsight.riskLevel === 'high' ? '#f87171' : activePatientInsight.riskLevel === 'medium' ? '#fbbf24' : '#e2e8f0') }}>
+              <div className={`patient-insight-panel risk-${activePatientInsight.riskLevel}`} style={{ padding: '16px', borderRadius: '8px', background: activePatientInsight.riskLevel === 'high' ? 'var(--red-soft)' : activePatientInsight.riskLevel === 'medium' ? 'var(--amber-soft)' : 'var(--paper-strong)', border: '1px solid ' + (activePatientInsight.riskLevel === 'high' ? 'var(--red)' : activePatientInsight.riskLevel === 'medium' ? 'var(--amber)' : 'var(--line)') }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: activePatientInsight.riskLevel === 'high' ? '#b91c1c' : activePatientInsight.riskLevel === 'medium' ? '#b45309' : '#475569' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: activePatientInsight.riskLevel === 'high' ? 'var(--red)' : activePatientInsight.riskLevel === 'medium' ? 'var(--amber)' : 'var(--muted)' }}>
                     {patientInsightRiskLabels[activePatientInsight.riskLevel as keyof typeof patientInsightRiskLabels]}
                   </span>
                   <strong style={{ fontSize: '13px', color: '#1e293b' }}>{activePatientInsight.nextBestAction}</strong>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '12px', fontWeight: 500 }}>
-                  {activePatientInsight.balanceDueRub ? <span style={{ background: '#fff', padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', color: '#0f172a' }}>💰 Долг {money(activePatientInsight.balanceDueRub)}</span> : null}
-                  {activePatientInsight.openTasks > 0 ? <span style={{ background: '#fff', padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', color: '#0f172a' }}>📞 {activePatientInsight.openTasks} задач</span> : null}
-                  {activePatientInsight.missingDocumentKinds.length > 0 ? <span style={{ background: '#fff', padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', color: '#0f172a' }}>📄 {activePatientInsight.missingDocumentKinds.length} док-тов нет</span> : null}
-                  {activePatientInsight.recallDueAt ? <span style={{ background: '#fff', padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', color: '#0f172a' }}>повторный визит {formatShortDate(activePatientInsight.recallDueAt)}</span> : null}
+                  {activePatientInsight.balanceDueRub ? <span style={{ background: 'var(--paper)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink)' }}>💰 Долг {money(activePatientInsight.balanceDueRub)}</span> : null}
+                  {activePatientInsight.openTasks > 0 ? <span style={{ background: 'var(--paper)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink)' }}>📞 {activePatientInsight.openTasks} задач</span> : null}
+                  {activePatientInsight.missingDocumentKinds.length > 0 ? <span style={{ background: 'var(--paper)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink)' }}>📄 {activePatientInsight.missingDocumentKinds.length} док-тов нет</span> : null}
+                  {activePatientInsight.recallDueAt ? <span style={{ background: 'var(--paper)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink)' }}>повторный визит {formatShortDate(activePatientInsight.recallDueAt)}</span> : null}
                 </div>
               </div>
             ) : null}
           </div>
           <div className="patient-feature-grid">
-            <article className="clickable-card" onClick={() => { window.location.hash = "visit"; }} style={{ cursor: "pointer" }}>
+            <article className="clickable-card glass-panel" onClick={() => { window.location.hash = "visit"; }} style={{ cursor: "pointer", padding: "24px" }}>
               <History aria-hidden="true" />
               <div>
                 <h3>ЭМК / История</h3>
                 <p className="tile-meta">Приёмы · диагнозы · зубная карта</p>
               </div>
             </article>
-            <article className="clickable-card" onClick={() => { window.location.hash = "documents"; }} style={{ cursor: "pointer" }}>
+            <article className="clickable-card glass-panel" onClick={() => { window.location.hash = "documents"; }} style={{ cursor: "pointer", padding: "24px" }}>
               <FileText aria-hidden="true" />
               <div>
                 <h3>Документы</h3>
                 <p className="tile-meta">{activeUsableDocuments.length > 0 ? `${activeUsableDocuments.length} шт.` : "нет"} по визиту</p>
               </div>
             </article>
-            <article className="clickable-card" onClick={() => { window.location.hash = "finance"; }} style={{ cursor: "pointer" }}>
+            <article className="clickable-card glass-panel" onClick={() => { window.location.hash = "finance"; }} style={{ cursor: "pointer", padding: "24px" }}>
               <CreditCard aria-hidden="true" />
               <div>
                 <h3>Оплаты</h3>
                 <p className="tile-meta">{money(dashboard.billingSummary.totalPaidRub)} · долг {money(dashboard.billingSummary.totalDueRub)}</p>
               </div>
             </article>
-            <article className="clickable-card" onClick={() => { window.location.hash = "communications"; }} style={{ cursor: "pointer" }}>
+            <article className="clickable-card glass-panel" onClick={() => { window.location.hash = "communications"; }} style={{ cursor: "pointer", padding: "24px" }}>
               <MessageSquare aria-hidden="true" />
               <div>
                 <h3>Связь</h3>
                 <p className="tile-meta">{activeCommunicationTasks.length > 0 ? `${activeCommunicationTasks.length} задач` : "задач нет"}</p>
               </div>
             </article>
-            <article className="clickable-card" onClick={() => { window.location.hash = "imaging"; }} style={{ cursor: "pointer" }}>
+            <article className="clickable-card glass-panel" onClick={() => { window.location.hash = "imaging"; }} style={{ cursor: "pointer", padding: "24px" }}>
               <ImageIcon aria-hidden="true" />
               <div>
                 <h3>Снимки</h3>

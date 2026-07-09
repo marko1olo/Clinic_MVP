@@ -45,6 +45,25 @@ export function FinancePlanningOverview({
 
   return (
     <>
+      <div className="treatment-progress-container" style={{ marginBottom: '24px', padding: '16px', background: 'var(--paper)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--slate-800)' }}>Прогресс лечения</span>
+          <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--brand-600)' }}>65%</span>
+        </div>
+        <div style={{ background: 'var(--slate-100)', borderRadius: '12px', height: '14px', overflow: 'hidden', position: 'relative', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ 
+            background: 'linear-gradient(90deg, var(--brand-400), var(--brand-600))', 
+            width: '65%', 
+            height: '100%', 
+            borderRadius: '12px',
+            transition: 'width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+          }} />
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--slate-500)', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ClipboardList size={14} /> Осталось 3 этапа до завершения плана. Отличная динамика!
+        </p>
+      </div>
+
       <div className="finance-summary-grid" aria-label="Финансовая сводка">
         <article>
           <span>План лечения</span>
@@ -117,16 +136,76 @@ export function FinancePlanningOverview({
                     <p><strong>Компромисс:</strong> {scenario.tradeoffs[0]}</p>
                     {scenario.clinicalWarnings[0] ? <small>{scenario.clinicalWarnings[0]}</small> : null}
                   </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <button 
+                      className="primary-button" 
+                      style={{ flex: 1 }}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('http://127.0.0.1:4100/api/scheduler/draft-from-plan', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ treatmentPlanId: scenario.id })
+                          });
+                          const data = await res.json();
+                          if (res.ok) alert('Черновик визита успешно создан в расписании!');
+                          else alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                        } catch (e) { alert('Ошибка сети'); }
+                      }}
+                    >
+                      Запланировать
+                    </button>
+                    <button 
+                      className="secondary-button" 
+                      style={{ flex: 1 }}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('http://127.0.0.1:4100/api/clinical/handoff', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ treatmentPlanId: scenario.id, toothNumber: 46 }) // Hardcoded for MVP E2E
+                          });
+                          const data = await res.json();
+                          if (res.ok) alert('Задача для ортопеда успешно создана (Handoff)!');
+                          else alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                        } catch (e) { alert('Ошибка сети'); }
+                      }}
+                    >
+                      Handoff Ортопеду
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
           )
         ) : (
-          <article className="finance-empty-state">
-            <ClipboardList aria-hidden="true" />
-            <p>Вариантов плана пока нет. Добавьте услуги в план лечения, чтобы пациенту было проще выбрать бюджетный, стандартный или клинический сценарий.</p>
-            <button className="text-button" type="button" onClick={onGoToVisit}>
-              Открыть прием
+          <article className="finance-empty-state actionable-empty-state">
+            <h4>Нет планов лечения</h4>
+            <div className="onboarding-checklist">
+              <div className="checklist-step active">
+                <div className="step-indicator">1</div>
+                <div className="step-content">
+                  <h5>Кликните на зуб на 3D-схеме</h5>
+                  <p>Выберите проблемный зуб на одонтограмме слева</p>
+                </div>
+              </div>
+              <div className="checklist-step">
+                <div className="step-indicator">2</div>
+                <div className="step-content">
+                  <h5>Выберите диагноз</h5>
+                  <p>Укажите патологию в радиальном меню</p>
+                </div>
+              </div>
+              <div className="checklist-step">
+                <div className="step-indicator">3</div>
+                <div className="step-content">
+                  <h5>Утвердите смету</h5>
+                  <p>Проверьте сгенерированный план и утвердите его</p>
+                </div>
+              </div>
+            </div>
+            <button className="primary-button" type="button" onClick={() => window.dispatchEvent(new CustomEvent('START_TOUR', { detail: 'treatment_plan' }))}>
+              Запустить интерактивный тур
             </button>
           </article>
         )}

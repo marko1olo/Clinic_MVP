@@ -4,12 +4,14 @@ import Fastify from "fastify";
 import { pathToFileURL } from "node:url";
 import { ZodError } from "zod";
 import { registerAiRoutes } from "./routes/ai.js";
-import { registerBillingRoutes } from "./routes/billing.js";
+import { registerBillingRoutes, registerAdvancedBillingRoutes } from "./routes/billing.js";
 import { registerClinicalRoutes } from "./routes/clinical.js";
 import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
+import { registerAnalyticsRoutes } from "./routes/analytics.js";
 import { registerDocumentRoutes } from "./routes/documents.js";
 import { registerImagingRoutes } from "./routes/imaging.js";
+import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
 import { registerIngestionRoutes } from "./routes/ingestion.js";
 import { registerImportRoutes } from "./routes/imports.js";
 import { registerPatientRoutes } from "./routes/patients.js";
@@ -24,6 +26,17 @@ import { registerVisitRoutes } from "./routes/visits.js";
 import { registerDicomwebRoutes } from "./routes/dicomweb.js";
 import { registerXrayRoutes } from "./routes/xray.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerOdontogramRoutes } from "./routes/odontogram.js";
+import registerSchedulerSync from "./routes/schedulerSync.js";
+import registerHandoff from "./routes/handoff.js";
+import registerSurgicalRoutes from "./routes/surgical.js";
+import registerEgiszRoutes from "./routes/egisz.js";
+import registerDiaryRoutes from "./routes/diary.js";
+import registerTemplateRoutes from "./routes/templates.js";
+import { startRecallWorker } from "./services/recallWorker.js";
+import { startNotificationWorker } from "./services/notificationWorker.js";
+import { startBiAnalyticsWorker } from "./services/biAnalyticsWorker.js";
+import { setupWebsockets } from "./websocket.js";
 import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { repairMojibakeText } from "./text/repairMojibake.js";
 import net from "node:net";
@@ -33,6 +46,7 @@ import { startWatchdog } from "./watchdog.js";
 
 loadAdditionalServerEnv();
 startWatchdog();
+// startNotificationWorker();
 
 async function checkProxyPortDirectly(proxyUrlString: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -159,6 +173,8 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
     origin: webOrigins
   });
 
+  await setupWebsockets(app);
+
   app.setErrorHandler((error, _request, reply) => {
     import("node:fs").then(m => m.appendFileSync("C:/Clinic_MVP/error.log", ((error as any)?.stack || (error as any)?.message || String(error)) + "\nCAUSE: " + ((error as any)?.cause || "") + "\n"));
     if (isZodValidationError(error)) {
@@ -198,11 +214,14 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
 
   await registerAiRoutes(app);
   await registerBillingRoutes(app);
+  await registerAdvancedBillingRoutes(app);
   await registerClinicalRoutes(app);
   await registerCommunicationRoutes(app);
   await registerDashboardRoutes(app);
+  registerAnalyticsRoutes(app);
   await registerDocumentRoutes(app);
   await registerImagingRoutes(app);
+  await registerImagingPlanningRoutes(app);
   await registerIngestionRoutes(app);
   await registerImportRoutes(app);
   await registerPatientRoutes(app);
@@ -218,11 +237,20 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
   await registerDicomwebRoutes(app);
   await registerXrayRoutes(app);
   await registerAuthRoutes(app);
+  await registerOdontogramRoutes(app);
+  await registerSchedulerSync(app);
+  await registerHandoff(app);
+  await registerEgiszRoutes(app);
+  await registerDiaryRoutes(app);
+  await registerTemplateRoutes(app);
 
   if (options.startTelegramWorker !== false) {
-    const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
+    // const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
+    startBiAnalyticsWorker();
+    // const recallWorkerTimer = startRecallWorker();
     app.addHook("onClose", async () => {
-      telegramOutboxDueWorker.stop();
+      // telegramOutboxDueWorker.stop();
+      // clearInterval(recallWorkerTimer);
     });
   }
 

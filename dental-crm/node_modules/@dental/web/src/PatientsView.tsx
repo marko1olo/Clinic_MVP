@@ -7,9 +7,9 @@ import type { Dashboard, Patient, PatientAdministrativeProfile } from "@dental/s
 import { DictationHints } from "./DictationHints";
 import { SmartParsePreview } from "./SmartParsePreview";
 import { parsePatientDictationLocal } from "./lib/smartPatientParser";
-import { Odontogram } from "./components/Odontogram";
+import { OdontogramModule } from "./components/odontogram/OdontogramModule";
 import { VisiographAnalyzer } from "./components/imaging/VisiographAnalyzer";
-
+import { formatPhoneNumber } from "./utils/inputSanitation";
 type PatientInsight = Dashboard["patientInsights"][number];
 type PatientCoreSaveState = "idle" | "saving" | "saved" | "error";
 type PatientAdministrativeProfileSaveState = "idle" | "saving" | "saved" | "error";
@@ -197,7 +197,7 @@ export function PatientsView(props: PatientsViewProps) {
               onApply={(data: Record<string, string | undefined>) => {
                 if (data) {
                   setNewPatientName(data.fullName || smartInputText);
-                  if (data.phone) setNewPatientPhone(data.phone);
+                  if (data.phone) setNewPatientPhone(formatPhoneNumber(data.phone));
                   if (data.birthDate) setNewPatientBirthDate(data.birthDate);
                   if (data.notes) updatePatientCoreDraft("notes", data.notes);
                 }
@@ -310,7 +310,7 @@ export function PatientsView(props: PatientsViewProps) {
                     inputMode="tel"
                     autoComplete="tel"
                     value={patientCoreDraft.phone}
-                    onChange={(event: TextFieldChangeEvent) => updatePatientCoreDraft("phone", event.target.value)}
+                    onChange={(event: TextFieldChangeEvent) => updatePatientCoreDraft("phone", formatPhoneNumber(event.target.value))}
                     placeholder="+7..."
                   />
                 </label>
@@ -379,15 +379,17 @@ export function PatientsView(props: PatientsViewProps) {
                   {patientCoreSaveGuidance}
                 </p>
               ) : null}
+            </section>
 
               {/* Odontogram Section */}
-              <div style={{ marginTop: '24px', marginBottom: '16px' }}>
-                 <Odontogram />
-              </div>
+                <div style={{ marginTop: '24px', marginBottom: '16px' }}>
+                  {selectedPatient && <OdontogramModule patientId={selectedPatient.id} />}
+                </div>
 
               {/* ShadowAnalyst — AI 2D X-Ray Analyzer */}
               <VisiographAnalyzer />
 
+            <section className="patient-admin-panel" aria-label="Дополнительные настройки">
             <details className="settings-advanced-block patient-docs-collapsible">
               <summary className="settings-advanced-toggle">
                 <span className="settings-advanced-label">
@@ -513,7 +515,7 @@ export function PatientsView(props: PatientsViewProps) {
                     inputMode="tel"
                     autoComplete="tel"
                     value={patientAdministrativeProfileDraft.legalRepresentativePhone}
-                    onChange={(event: TextFieldChangeEvent) => updatePatientAdministrativeProfileDraft("legalRepresentativePhone", event.target.value)}
+                    onChange={(event: TextFieldChangeEvent) => updatePatientAdministrativeProfileDraft("legalRepresentativePhone", formatPhoneNumber(event.target.value))}
                     placeholder="+7..."
                   />
                 </label>

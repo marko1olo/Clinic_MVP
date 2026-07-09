@@ -16,10 +16,17 @@ import {
   Sparkles,
   Stethoscope,
   Users,
-  Lock
+  Lock,
+  Sun,
+  Moon,
+  HelpCircle,
+  BarChart3
 } from "lucide-react";
 
-export const appViews = ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "communications", "settings", "marketing"] as const;
+import { useState, useEffect } from "react";
+import { useThemeStore } from "./store/themeStore";
+
+export const appViews = ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "analytics", "communications", "settings", "marketing"] as const;
 export type AppView = (typeof appViews)[number];
 
 export const viewLabels: Record<AppView, string> = {
@@ -29,7 +36,8 @@ export const viewLabels: Record<AppView, string> = {
   imaging: "Снимки",
   visit: "Прием",
   documents: "Документы",
-  finance: "Оплаты",
+  finance: "������ � �����",
+  analytics: "BI ���������",
   communications: "Связь",
   settings: "Настройки",
   marketing: "Маркетинг/SEO"
@@ -42,7 +50,8 @@ export const viewHints: Record<AppView, string> = {
   imaging: "рентген, КЛКТ и КТ",
   visit: "прием и диктовка",
   documents: "договоры и справки",
-  finance: "оплаты и долги",
+  finance: "������ � �����",
+  analytics: "BI ���������",
   communications: "сообщения и задачи",
   settings: "клиника, импорт и доступы",
   marketing: "продвижение и отзывы"
@@ -57,6 +66,7 @@ function SidebarIcon({ section }: { section: AppView }) {
   if (section === "visit") return <ClipboardList aria-hidden="true" />;
   if (section === "documents") return <FileText aria-hidden="true" />;
   if (section === "finance") return <CreditCard aria-hidden="true" />;
+  if (section === "analytics") return <BarChart3 aria-hidden="true" />;
   if (section === "communications") return <MessageSquare aria-hidden="true" />;
   if (section === "settings") return <Database aria-hidden="true" />;
   if (section === "marketing") return <Sparkles aria-hidden="true" />;
@@ -70,6 +80,7 @@ export function ActionIcon({ section }: { section: AppView }) {
   if (section === "visit") return <ClipboardCheck aria-hidden="true" />;
   if (section === "documents") return <FileCheck2 aria-hidden="true" />;
   if (section === "finance") return <ReceiptText aria-hidden="true" />;
+  if (section === "analytics") return <BarChart3 aria-hidden="true" />;
   if (section === "communications") return <MessageSquare aria-hidden="true" />;
   if (section === "settings") return <Database aria-hidden="true" />;
   return <Sparkles aria-hidden="true" />;
@@ -83,10 +94,10 @@ export function getFilteredAppViews(role: StaffRole): AppView[] {
     return ["shift", "schedule", "patients", "imaging", "documents", "communications"];
   }
   if (role === "administrator") {
-    return ["schedule", "patients", "documents", "finance", "communications", "settings"];
+    return ["schedule", "patients", "documents", "finance", "analytics", "communications", "settings"];
   }
   if (role === "manager") {
-    return ["schedule", "patients", "finance", "communications", "settings"];
+    return ["schedule", "patients", "finance", "analytics", "communications", "settings"];
   }
   if (role === "owner") {
     return Array.from(appViews);
@@ -138,7 +149,7 @@ export function WorkspaceSidebar({
   );
 }
 
-type WorkspaceTopbarProps = {
+interface WorkspaceTopbarProps {
   clinicName: string;
   onGoToDictation: () => void;
   onGoToSchedule: () => void;
@@ -153,7 +164,7 @@ type WorkspaceTopbarProps = {
   staffRoleLabels: Record<StaffRole, string>;
   todayIso: string;
   onLockSession?: () => void;
-};
+}
 
 export function WorkspaceTopbar({
   clinicName,
@@ -171,10 +182,43 @@ export function WorkspaceTopbar({
   todayIso,
   onLockSession
 }: WorkspaceTopbarProps) {
+  const themeMode = useThemeStore(s => s.themeMode);
+  const setThemeMode = useThemeStore(s => s.setThemeMode);
+  
+  const [actualTheme, setActualTheme] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    let active = "dark";
+    if (themeMode === "auto") {
+      const hour = new Date().getHours();
+      active = (hour >= 7 && hour < 19) ? "light" : "dark";
+    } else {
+      active = themeMode;
+    }
+    setActualTheme(active as "light" | "dark");
+  }, [themeMode]);
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", actualTheme);
+    if (actualTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("theme-dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("theme-dark");
+    }
+    localStorage.setItem("dente_theme", actualTheme);
+  }, [actualTheme]);
+
+  const toggleTheme = () => {
+    const next = actualTheme === "dark" ? "light" : "dark";
+    setThemeMode(next);
+  };
+
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">{todayIso}</p>
+        <p className="eyebrow">{new Date(todayIso).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         <h1>{clinicName}</h1>
         <details className="workspace-role-switcher" aria-label="Рабочий режим">
           <summary>
@@ -233,6 +277,29 @@ export function WorkspaceTopbar({
         >
           <Mic aria-hidden="true" />
         </button>
+        <button
+          aria-label="Справка / Обучение"
+          className="icon-button"
+          type="button"
+          title="Справка / Обучение"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            // We dispatch an event so that TourEngine/HelpHUD or some generic handler can pick it up
+            // Or we just open HelpHUD:
+            window.dispatchEvent(new CustomEvent('TOGGLE_HELP_HUD'));
+          }}
+        >
+          <HelpCircle aria-hidden="true" size={20} />
+        </button>
+        <button
+          aria-label="Переключить тему"
+          className="icon-button"
+          type="button"
+          title="Переключить тему"
+          onClick={toggleTheme}
+        >
+          {actualTheme === "dark" ? <Sun aria-hidden="true" size={20} /> : <Moon aria-hidden="true" size={20} />}
+        </button>
         {onLockSession ? (
           <button
             aria-label="Заблокировать сессию"
@@ -259,3 +326,4 @@ export function WorkspaceTopbar({
     </header>
   );
 }
+

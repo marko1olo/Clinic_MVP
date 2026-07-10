@@ -20,7 +20,7 @@ export async function getClinicSettingsFromDb(organizationId) {
         throw new Error("Organization not found");
     const [clinic] = await db.select().from(schema.clinics).where(eq(schema.clinics.organizationId, organizationId)).limit(1);
     const staff = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId));
-    const chairs = await db.select().from(schema.chairs).where(eq(schema.chairs.organizationId, organizationId));
+    const chairs = await db.select().from(schema.clinicChairs).where(eq(schema.clinicChairs.organizationId, organizationId));
     const profile = {
         organizationId: org.id,
         clinicName: clinic?.name || org.name,
@@ -159,7 +159,7 @@ export async function createChairInDb(organizationId, input) {
     const [clinic] = await db.select().from(schema.clinics).where(eq(schema.clinics.organizationId, organizationId)).limit(1);
     if (!clinic)
         throw new Error("Clinic not found");
-    await db.insert(schema.chairs).values({
+    await db.insert(schema.clinicChairs).values({
         organizationId,
         clinicId: clinic.id,
         name: input.name,
@@ -168,5 +168,5 @@ export async function createChairInDb(organizationId, input) {
     });
 }
 export async function updateChairWorkingHoursInDb(organizationId, chairId, workingHours) {
-    await db.update(schema.chairs).set({ workingHours }).where(and(eq(schema.chairs.id, chairId), eq(schema.chairs.organizationId, organizationId)));
+    await db.update(schema.clinicChairs).set({ workingHours }).where(and(eq(schema.clinicChairs.id, chairId), eq(schema.clinicChairs.organizationId, organizationId)));
 }

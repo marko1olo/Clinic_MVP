@@ -188,6 +188,16 @@ export const organizations = pgTable("organizations", {
     clinicSchedule: jsonb("clinic_schedule"),
     isSynced: boolean("is_synced").notNull().default(false),
     version: integer("version").notNull().default(1),
+    // --- Feature Toggle Engine ---
+    hasAssistants: boolean("has_assistants").notNull().default(true),
+    hasMultipleChairs: boolean("has_multiple_chairs").notNull().default(true),
+    hasDentalLab: boolean("has_dental_lab").notNull().default(true),
+    hasInsuranceCoPay: boolean("has_insurance_co_pay").notNull().default(true),
+    hasInstallments: boolean("has_installments").notNull().default(true),
+    workspacePreset: text("workspace_preset").notNull().default("enterprise"), // solo_therapist | prosthodontist | pediatric | orthodontic | surgery_center | implant_center | family_clinic | multi_specialty | enterprise | custom
+    onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+    hasPediatricMode: boolean("has_pediatric_mode").notNull().default(false),
+    isOmniRole: boolean("is_omni_role").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -200,6 +210,18 @@ export const clinics = pgTable("clinics", {
     timezone: text("timezone").notNull().default("Europe/Samara"),
     isSynced: boolean("is_synced").notNull().default(false),
     version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+export const clinicChairs = pgTable("clinic_chairs", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+    clinicId: uuid("clinic_id").references(() => clinics.id),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("active"),
+    isActive: boolean("is_active").notNull().default(true),
+    equipment: text("equipment"),
+    specializations: text("specializations"),
+    workingHours: jsonb("working_hours"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 export const users = pgTable("users", {
@@ -227,16 +249,6 @@ export const userInvitations = pgTable("user_invitations", {
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
-export const chairs = pgTable("chairs", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-    clinicId: uuid("clinic_id").notNull().references(() => clinics.id),
-    name: text("name").notNull(),
-    isActive: boolean("is_active").notNull().default(true),
-    equipment: text("equipment"),
-    specializations: text("specializations"),
-    workingHours: jsonb("working_hours")
 });
 export const patients = pgTable("patients", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -268,7 +280,7 @@ export const appointments = pgTable("appointments", {
     patientId: uuid("patient_id").references(() => patients.id),
     doctorUserId: uuid("doctor_user_id").references(() => users.id),
     assistantUserId: uuid("assistant_user_id").references(() => users.id),
-    chairId: uuid("chair_id").references(() => chairs.id),
+    chairId: uuid("chair_id").references(() => clinicChairs.id),
     status: appointmentStatus("status").notNull().default("planned"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
@@ -330,7 +342,7 @@ export const treatmentItems = pgTable("treatment_items", {
     discountRub: integer("discount_rub").notNull().default(0),
     status: treatmentPlanItemStatus("status").notNull().default("proposed"),
     plannedDoctorUserId: uuid("planned_doctor_user_id").references(() => users.id),
-    plannedChairId: uuid("planned_chair_id").references(() => chairs.id),
+    plannedChairId: uuid("planned_chair_id").references(() => clinicChairs.id),
     notes: text("notes"),
     isSynced: boolean("is_synced").notNull().default(false),
     version: integer("version").notNull().default(1)
@@ -420,6 +432,7 @@ export const generatedDocuments = pgTable("generated_documents", {
     taxXmlSourceSnapshot: jsonb("tax_xml_source_snapshot").$type(),
     taxXmlSnapshot: jsonb("tax_xml_snapshot").$type(),
     signatureAttestation: jsonb("signature_attestation").$type(),
+    signatureSvg: text("signature_svg"),
     voidAttestation: jsonb("void_attestation").$type(),
     releaseJournalEntry: jsonb("release_journal_entry").$type(),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
@@ -875,6 +888,8 @@ export const toothStates = pgTable('tooth_states', {
     patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
     toothNumber: integer('tooth_number').notNull(),
     state: toothStateEnum('state').notNull().default('Healthy'),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
     return {
@@ -891,6 +906,8 @@ export const treatmentPlans = pgTable('treatment_plans', {
     status: treatmentPlanStatusEnum('status').notNull().default('Draft'),
     totalPrice: numeric('total_price', { precision: 12, scale: 2 }).notNull().default('0'),
     patientSignature: text('patient_signature'),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
@@ -1107,6 +1124,8 @@ export const visitDiaries = pgTable('visit_diaries', {
     draftAuthorId: uuid('draft_author_id').references(() => users.id, { onDelete: 'set null' }),
     coSignedByUserId: uuid('co_signed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     diaryHash: text('diary_hash'),
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
@@ -1151,7 +1170,10 @@ export const patientInvoices = pgTable('patient_invoices', {
     itemsJson: jsonb('items_json').notNull().default('[]'),
     totalAmountRub: numeric('total_amount_rub', { precision: 12, scale: 2 }).notNull().default('0'),
     status: invoiceStatus('status').notNull().default('unpaid'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+    isSynced: boolean("is_synced").notNull().default(false),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
 export const cashLedger = pgTable('cash_ledger', {
     id: uuid('id').primaryKey().defaultRandom(),

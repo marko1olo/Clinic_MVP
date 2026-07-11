@@ -287,6 +287,20 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
     return reply.send(org);
   });
 
+  // GET /api/workspace/chairs
+  fastify.get("/api/workspace/chairs", async (req, reply) => {
+    const organizationId = await resolveOrganizationId(req);
+    if (!organizationId) return reply.code(401).send({ error: "Unauthorized" });
+
+    const chairs = await db
+      .select({ id: schema.clinicChairs.id, name: schema.clinicChairs.name })
+      .from(schema.clinicChairs)
+      .where(eq(schema.clinicChairs.organizationId, organizationId))
+      .orderBy(schema.clinicChairs.name);
+      
+    return reply.send({ success: true, data: chairs });
+  });
+
   // POST /api/workspace/profile — save arbitrary flags
   fastify.post<{ Body: Partial<WorkspaceFeatureFlags> }>("/api/workspace/profile", async (req, reply) => {
     const organizationId = await resolveOrganizationId(req);
@@ -347,6 +361,68 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
       .update(schema.organizations)
       .set({ onboardingCompleted: true, updatedAt: new Date() })
       .where(eq(schema.organizations.id, organizationId));
+
+    // Simulate 1.5 - 2 second delay for a beautiful loading screen
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Async Seeding of templates and price list
+    try {
+      const existingItems = await db.select({ id: schema.serviceCatalogItems.id }).from(schema.serviceCatalogItems).where(eq(schema.serviceCatalogItems.organizationId, organizationId)).limit(1);
+      if (existingItems.length === 0) {
+        // Seed price list
+        const insertedServices = await db.insert(schema.serviceCatalogItems).values([
+          { organizationId, code: "A16.07.000", title: "Установка имплантата Osstem", basePriceRub: 45000, priceRub: 45000, category: "surgery" },
+          { organizationId, code: "A16.07.002", title: "Лечение кариеса (поверхностный)", basePriceRub: 3500, priceRub: 3500, category: "therapy" },
+          { organizationId, code: "A16.07.008", title: "Лечение пульпита (3 канала)", basePriceRub: 12000, priceRub: 12000, category: "therapy" },
+          { organizationId, code: "A16.07.051", title: "Профессиональная гигиена", basePriceRub: 5000, priceRub: 5000, category: "therapy" },
+          { organizationId, code: "A16.07.001", title: "Удаление зуба (простое)", basePriceRub: 2500, priceRub: 2500, category: "surgery" }
+        ]).returning({ id: schema.serviceCatalogItems.id, title: schema.serviceCatalogItems.title });
+
+        const serviceMap = Object.fromEntries(insertedServices.map(s => [s.title, s.id]));
+
+        // Seed templates
+        await db.insert(schema.visitTemplates).values([
+          {
+            organizationId,
+            title: "Установка имплантата Osstem",
+            category: "surgery",
+            prefilledAnamnesis: "Отсутствие зуба, нарушение жевательной функции.",
+            prefilledObjective: "В области отсутствующего зуба слизистая оболочка без видимых патологических изменений. Костная ткань в достаточном объеме.",
+            prefilledTreatment: "Анестезия инфильтрационная, разрез, отслаивание лоскута, формирование ложа, установка имплантата Osstem, наложение швов.",
+            defaultIcd10: "K08.1",
+            defaultIcd10Label: "Потеря зубов вследствие удаления",
+            isBuiltIn: true,
+            suggestedProcedureIds: [serviceMap["Установка имплантата Osstem"]].filter(Boolean)
+          },
+          {
+            organizationId,
+            title: "Лечение пульпита (3 канала)",
+            category: "therapy",
+            prefilledAnamnesis: "Самопроизвольные ноющие боли, усиливающиеся в ночное время.",
+            prefilledObjective: "Глубокая кариозная полость, сообщающаяся с полостью зуба. Зондирование резко болезненно, перкуссия безболезненна.",
+            prefilledTreatment: "Анестезия, препарирование кариозной полости, экстирпация пульпы, механическая и медикаментозная обработка 3-х корневых каналов, пломбирование каналов гуттаперчей, постановка постоянной пломбы.",
+            defaultIcd10: "K04.0",
+            defaultIcd10Label: "Пульпит",
+            isBuiltIn: true,
+            suggestedProcedureIds: [serviceMap["Лечение пульпита (3 канала)"]].filter(Boolean)
+          },
+          {
+            organizationId,
+            title: "Лечение кариеса",
+            category: "therapy",
+            prefilledAnamnesis: "Жалобы на кратковременную боль от сладкого и холодного.",
+            prefilledObjective: "Кариозная полость в пределах плащевого дентина. Зондирование чувствительно по эмалево-дентинной границе.",
+            prefilledTreatment: "Анестезия, препарирование кариозной полости, медикаментозная обработка, адгезивный протокол, постановка светоотверждаемой пломбы, шлифовка, полировка.",
+            defaultIcd10: "K02.1",
+            defaultIcd10Label: "Кариес дентина",
+            isBuiltIn: true,
+            suggestedProcedureIds: [serviceMap["Лечение кариеса (поверхностный)"]].filter(Boolean)
+          }
+        ]);
+      }
+    } catch (err) {
+      console.error("[workspace profile] Onboarding seed failed:", err);
+    }
 
     return reply.send({ ok: true });
   });

@@ -208,7 +208,7 @@ export function WorkspaceTopbar({
   }, [themeMode]);
 
   useEffect(() => {
-    document.body.setAttribute("data-theme", actualTheme);
+    document.documentElement.setAttribute("data-theme", actualTheme);
     if (actualTheme === "dark") {
       document.documentElement.classList.add("dark");
       document.body.classList.add("theme-dark");
@@ -260,9 +260,17 @@ export function WorkspaceTopbar({
     <header className="topbar">
       <div className="topbar-left">
         <p className="eyebrow">
-          {todayIso && !isNaN(Date.parse(todayIso)) 
-            ? new Date(todayIso).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-            : new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {(() => {
+            try {
+              if (todayIso) {
+                const parsed = Date.parse(todayIso);
+                if (!isNaN(parsed)) {
+                  return new Date(todayIso).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                }
+              }
+            } catch (e) {}
+            return new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+          })()}
         </p>
         <h1>{clinicName}</h1>
         {!isOmniRoleMode && (

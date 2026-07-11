@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { sql } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 // We will read the actual saved state, or fallback to the sample data
 import { loadPersistentState } from "../persistentState.js";
@@ -11,28 +12,7 @@ const pool = new pg.Pool({
 const db = drizzle(pool, { schema });
 async function clearDatabase() {
     console.log("🧹 Clearing existing data...");
-    // Clear in reverse dependency order
-    await db.delete(schema.denteTelegramOutboxDeliveryReceipts);
-    await db.delete(schema.denteTelegramWebhookEvents);
-    await db.delete(schema.denteTelegramChatLinks);
-    await db.delete(schema.denteTelegramLinkCodes);
-    await db.delete(schema.denteTelegramBotConfigs);
-    await db.delete(schema.communicationEvents);
-    await db.delete(schema.communicationTasks);
-    await db.delete(schema.communicationTemplates);
-    await db.delete(schema.payments);
-    await db.delete(schema.clinicalRules);
-    await db.delete(schema.treatmentScenarios);
-    await db.delete(schema.treatmentItems);
-    await db.delete(schema.serviceCatalogItems);
-    await db.delete(schema.visits);
-    await db.delete(schema.appointments);
-    await db.delete(schema.patientConsents);
-    await db.delete(schema.patients);
-    await db.delete(schema.clinicChairs);
-    await db.delete(schema.users);
-    await db.delete(schema.clinics);
-    await db.delete(schema.organizations);
+    await db.execute(sql `TRUNCATE TABLE organizations CASCADE;`);
     console.log("✔ Database cleared.");
 }
 async function migrate() {
@@ -160,16 +140,22 @@ async function migrate() {
             id: doc.id,
             organizationId: orgId,
             patientId: doc.patientId,
+            visitId: doc.visitId,
             kind: doc.kind,
             status: doc.status,
-            payloadJson: JSON.stringify(doc.payload),
-            createdAt: new Date(doc.createdAt)
+            title: doc.title || "Документ",
+            totalAmountRub: doc.totalAmountRub || null,
+            payloadJson: doc.payload ? JSON.stringify(doc.payload) : null,
+            issuedAt: doc.issuedAt ? new Date(doc.issuedAt) : null,
+            createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date()
         });
     }
     console.log(`⚖️ Migrating ${state.clinicalRules.length} Clinical Rules...`);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const rule of state.clinicalRules) {
+        const isUuid = typeof rule.id === "string" && uuidRegex.test(rule.id);
         await db.insert(schema.clinicalRules).values({
-            id: rule.id,
+            ...(isUuid ? { id: rule.id } : {}),
             organizationId: orgId,
             title: rule.title,
             category: rule.category,
@@ -185,8 +171,8 @@ async function migrate() {
             warningText: rule.warningText,
             patientText: rule.patientText,
             isActive: rule.active,
-            createdAt: new Date(rule.createdAt),
-            updatedAt: new Date(rule.updatedAt),
+            createdAt: rule.createdAt ? new Date(rule.createdAt) : new Date(),
+            updatedAt: rule.updatedAt ? new Date(rule.updatedAt) : new Date(),
         });
     }
     console.log(`💳 Migrating ${state.payments.length} Payments...`);

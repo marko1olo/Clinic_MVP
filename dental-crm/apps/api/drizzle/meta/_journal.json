@@ -232,6 +232,13 @@
       "when": 1783646438914,
       "tag": "0032_wonderful_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1783795393985,
+      "tag": "0033_legal_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ export interface ToothData {
 interface ToothChartProps {
   teethData: ToothData[];
   pediatricMode?: boolean | undefined;
+  selectedTeeth?: number[];
   onToothClick: (toothNumber: number, rect: DOMRect) => void;
 }
 
@@ -36,10 +37,11 @@ const getToothColors = (state: ToothState) => {
   }
 };
 
-const ToothSVG = ({ number, state, scale, onClick }: {
+const ToothSVG = ({ number, state, scale, isSelected, onClick }: {
   number: number;
   state: ToothState;
   scale: number;
+  isSelected?: boolean;
   onClick: (e: React.MouseEvent, num: number) => void;
 }) => {
   const isTop = number < 30;
@@ -80,9 +82,10 @@ const ToothSVG = ({ number, state, scale, onClick }: {
 
   return (
     <div
-      className={`tooth-svg-wrapper ${isTop ? "top" : "bottom"}`}
+      className={`tooth-svg-wrapper ${isTop ? "top" : "bottom"} ${isSelected ? "selected" : ""}`}
       data-tooth-id={number}
       onClick={(e) => onClick(e, number)}
+      style={isSelected ? { outline: "2px solid #10b981", outlineOffset: "2px", borderRadius: "8px", background: "rgba(16, 185, 129, 0.1)" } : {}}
     >
       {isTop && <span className="tooth-number" style={{ fontSize: scale < 0.85 ? '10px' : undefined }}>{number}</span>}
       {state === 'Implant' || state === 'Planned_Implant' ? renderImplant() : renderStandard()}
@@ -91,7 +94,7 @@ const ToothSVG = ({ number, state, scale, onClick }: {
   );
 };
 
-export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode, onToothClick }) => {
+export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode, selectedTeeth = [], onToothClick }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const archContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -119,7 +122,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode
       }
 
       if (effectiveWidth < trueWidth && trueWidth > 0) {
-        setScale(Math.max(0.65, effectiveWidth / trueWidth));
+        setScale(Math.max(0.3, effectiveWidth / trueWidth));
       } else {
         setScale(1);
       }
@@ -179,7 +182,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode
           }}>
             <div className="teeth-row top-row">
               {topTeeth.map(num => (
-                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} onClick={handleToothClick} />
+                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
               ))}
             </div>
             
@@ -190,7 +193,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode
 
             <div className="teeth-row bottom-row">
               {bottomTeeth.map(num => (
-                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} onClick={handleToothClick} />
+                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
               ))}
             </div>
           </div>

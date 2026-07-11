@@ -26,8 +26,8 @@ export function ConsentBuilder({ documentHtml, documentTitle, onSignComplete, on
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+      <div className="bg-zinc-50/40 dark:bg-zinc-950/80 backdrop-blur-xl w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-zinc-200/50 dark:border-zinc-800/50">
+        <div className="p-4 border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center justify-between bg-zinc-100/30 dark:bg-zinc-900/40">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <FileText className="w-5 h-5" />
@@ -49,11 +49,11 @@ export function ConsentBuilder({ documentHtml, documentTitle, onSignComplete, on
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-slate-900">
+        <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/40 dark:bg-transparent">
           {step === "read" ? (
             <div className="prose dark:prose-invert max-w-none">
               <div 
-                className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[50vh] text-slate-800 dark:text-slate-200 text-sm leading-relaxed"
+                className="bg-zinc-100/30 dark:bg-slate-800/30 p-6 rounded-xl border border-zinc-200/50 dark:border-slate-700 min-h-[50vh] text-slate-800 dark:text-slate-200 text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: documentHtml }} 
               />
             </div>
@@ -70,7 +70,7 @@ export function ConsentBuilder({ documentHtml, documentTitle, onSignComplete, on
           )}
         </div>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between bg-slate-50 dark:bg-slate-800/50">
+        <div className="p-4 border-t border-zinc-200/50 dark:border-slate-800 flex justify-between bg-zinc-100/30 dark:bg-slate-800/50">
           {step === "sign" ? (
             <button 
               onClick={() => setStep("read")}

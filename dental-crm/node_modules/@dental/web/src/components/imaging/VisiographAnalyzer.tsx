@@ -228,7 +228,7 @@ export function VisiographAnalyzer() {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas context failed');
       ctx.drawImage(img, 0, 0, width, height);
-      const compressed = canvas.toDataURL('image/jpeg', 0.82);
+      const compressed = canvas.toDataURL('image/webp', 0.75);
       setCurrentImageUrl(compressed);
 
       // 3. Synchronous AI analysis

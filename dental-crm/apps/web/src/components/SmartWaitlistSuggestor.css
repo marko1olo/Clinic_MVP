@@ -217,11 +217,16 @@
     gap: 16px;
   }
   .candidate-actions {
-    justify-content: stretch;
+    flex-direction: column;
+    gap: 8px;
   }
   .assign-btn {
     width: 100%;
     min-height: 44px;
+    white-space: normal;
+    padding: 8px 12px;
+    line-height: 1.2;
+    height: auto;
   }
   .candidate-header {
     flex-direction: column;

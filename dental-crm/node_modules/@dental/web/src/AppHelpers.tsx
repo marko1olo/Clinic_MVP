@@ -4628,16 +4628,16 @@ export function clinicProfileDraftFromProfile(profile: ClinicProfile | null | un
     kpp: profile?.kpp ?? "",
     ogrn: profile?.ogrn ?? "",
     address: profile?.address ?? "",
-    phone: profile.phone ?? "",
-    email: profile.email ?? "",
-    website: profile.website ?? "",
-    medicalLicenseNumber: profile.medicalLicenseNumber ?? "",
-    medicalLicenseIssuedAt: profile.medicalLicenseIssuedAt ?? "",
-    medicalLicenseIssuer: profile.medicalLicenseIssuer ?? "",
-    bankDetails: profile.bankDetails ?? "",
-    signatoryName: profile.signatoryName ?? "",
-    signatoryTitle: profile.signatoryTitle ?? "",
-    timezone: profile.timezone ?? "Europe/Samara",
+    phone: profile?.phone ?? "",
+    email: profile?.email ?? "",
+    website: profile?.website ?? "",
+    medicalLicenseNumber: profile?.medicalLicenseNumber ?? "",
+    medicalLicenseIssuedAt: profile?.medicalLicenseIssuedAt ?? "",
+    medicalLicenseIssuer: profile?.medicalLicenseIssuer ?? "",
+    bankDetails: profile?.bankDetails ?? "",
+    signatoryName: profile?.signatoryName ?? "",
+    signatoryTitle: profile?.signatoryTitle ?? "",
+    timezone: profile?.timezone ?? "Europe/Samara",
     defaultVisitMinutes: String(profile?.defaultVisitMinutes ?? 45),
     workdayStart: schedule.workdayStart ?? "09:00",
     workdayEnd: schedule.workdayEnd ?? "18:00",
@@ -5945,13 +5945,16 @@ export function viewFromHash(): AppView {
   const telegramHandoffTarget = readDenteTelegramHandoffTarget();
   if (telegramHandoffTarget) return telegramHandoffTarget.view;
   const hash = window.location.hash.replace("#", "");
-  const view = hash.split("/")[0];
+  const cleanHash = hash.startsWith("/") ? hash.substring(1) : hash;
+  const view = cleanHash.split("/")[0];
   return appViews.includes(view as AppView) ? (view as AppView) : "shift";
 }
 
 export function settingsTabFromHash(): SettingsTab {
   if (typeof window === "undefined") return "clinic";
-  const [, tab] = window.location.hash.replace("#", "").split("/");
+  const hash = window.location.hash.replace("#", "");
+  const cleanHash = hash.startsWith("/") ? hash.substring(1) : hash;
+  const [, tab] = cleanHash.split("/");
   return settingsTabs.some((item) => item.id === tab) ? (tab as SettingsTab) : "clinic";
 }
 

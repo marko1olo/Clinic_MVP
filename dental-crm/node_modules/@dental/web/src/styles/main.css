@@ -54,7 +54,7 @@
 }
 
 [data-theme="light"] {
-  --paper: #ffffff;
+  --paper: theme('colors.zinc.50');
   --paper-strong: rgba(255, 255, 255, 0.9);
   --paper-soft: #f4f4f5;
   --ink: #09090b;
@@ -81,7 +81,7 @@
   --green: #059669;
   --green-soft: rgba(5, 150, 105, 0.15);
   
-  --nav: #ffffff;
+  --nav: theme('colors.zinc.50');
   
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(0, 0, 0, 0.08);
@@ -14163,7 +14163,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .settings-advanced-block {
-  border: 1px solid var(--border-color, #e2e8f0);
+  border: 1px solid var(--line, #e2e8f0);
   border-radius: 10px;
   margin: 0.75rem 0 0.5rem;
   overflow: hidden;
@@ -14180,7 +14180,7 @@ input:focus, select:focus, textarea:focus {
   flex-wrap: wrap;
   cursor: pointer;
   list-style: none;
-  background: var(--surface-alt, #f8fafc);
+  background: var(--paper-soft, #f8fafc);
   user-select: none;
   transition: background 0.15s ease;
   border: none;
@@ -14188,14 +14188,14 @@ input:focus, select:focus, textarea:focus {
 }
 .settings-advanced-toggle::-webkit-details-marker { display: none; }
 .settings-advanced-toggle::marker { display: none; }
-.settings-advanced-toggle:hover { background: var(--surface-hover, #f0f4f8); }
+.settings-advanced-toggle:hover { background: var(--paper-strong, #f0f4f8); }
 .settings-advanced-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--text-primary, #1a202c);
+  color: var(--ink, #1a202c);
   flex: 1;
   min-width: 0;
   flex-wrap: wrap;
@@ -14203,19 +14203,19 @@ input:focus, select:focus, textarea:focus {
 .settings-advanced-icon { font-size: 1rem; }
 .settings-advanced-hint {
   font-size: 0.78rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   margin-left: auto;
   white-space: nowrap;
 }
 .settings-advanced-chevron {
   font-size: 0.65rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   transition: transform 0.25s ease;
   display: inline-block;
 }
 .settings-advanced-block[open] .settings-advanced-chevron { transform: rotate(180deg); }
 .settings-advanced-block[open] .settings-advanced-toggle {
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid var(--line, #e2e8f0);
 }
 .settings-advanced-form {
   padding: 1.25rem 1.1rem 1rem;
@@ -14229,7 +14229,7 @@ input:focus, select:focus, textarea:focus {
 .field-note {
   display: block;
   font-size: 0.73rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   margin-top: 0.2rem;
   line-height: 1.4;
 }
@@ -14248,7 +14248,7 @@ input:focus, select:focus, textarea:focus {
 }
 .legal-readiness-badge span {
   font-size: 0.72rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   max-width: 160px;
   text-align: right;
 }
@@ -14266,28 +14266,28 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   padding: 0.35rem 0.75rem;
   border-radius: 20px;
-  border: 1px solid var(--border-color, #e2e8f0);
+  border: 1px solid var(--line, #e2e8f0);
   background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .shift-details-btn:hover {
-  background: var(--surface-alt, #f8fafc);
-  color: var(--text-primary, #1a202c);
-  border-color: var(--border-hover, #cbd5e0);
+  background: var(--paper-soft, #f8fafc);
+  color: var(--ink, #1a202c);
+  border-color: var(--line-strong, #cbd5e0);
 }
 
 /* ================================================================
    SCHEDULE ADMIN SECRET COLLAPSIBLE
    ================================================================ */
 .schedule-secret-collapsible {
-  border: 1px solid var(--border-color, #e2e8f0);
+  border: 1px solid var(--line, #e2e8f0);
   border-radius: 8px;
   margin: 0.5rem 0;
-  background: var(--surface-alt, #f8fafc);
+  background: var(--paper-soft, #f8fafc);
 }
 .schedule-secret-collapsible summary {
   display: flex;
@@ -14296,7 +14296,7 @@ input:focus, select:focus, textarea:focus {
   padding: 0.7rem 1rem;
   cursor: pointer;
   font-size: 0.82rem;
-  color: var(--text-muted, #718096);
+  color: var(--muted, #718096);
   list-style: none;
   user-select: none;
 }
@@ -14304,8 +14304,8 @@ input:focus, select:focus, textarea:focus {
 .schedule-secret-collapsible summary::marker { display: none; }
 .schedule-secret-collapsible .schedule-admin-unlock {
   padding: 0.75rem 1rem 1rem;
-  border-top: 1px solid var(--border-color, #e2e8f0);
-  background: var(--surface, #fff);
+  border-top: 1px solid var(--line, #e2e8f0);
+  background: var(--paper);
   border-radius: 0 0 8px 8px;
   animation: accordion-open 0.2s ease both;
 }
@@ -15364,17 +15364,17 @@ input:focus, select:focus, textarea:focus {
 .settings-grid label,
 .form-grid, .clinic-profile-form-grid label,
 .rule-form-grid label {
-  background: var(--slate-50, #f8fafc);
+  background: var(--paper-soft);
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid var(--slate-100, #f1f5f9);
+  border: 1px solid var(--line);
 }
 
 .weekday-toggle-row {
-  background: var(--slate-50, #f8fafc);
+  background: var(--paper-soft);
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid var(--slate-100, #f1f5f9);
+  border: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -16775,7 +16775,7 @@ input:focus, select:focus, textarea:focus {
 
 /* 7. Light-mode appointment card polish */
 [data-theme="light"] .appointment-card-node {
-  background: #ffffff !important;
+  background: var(--paper) !important;
   /* Side-specific to preserve left status-color accent */
   border-top-color: rgba(0, 0, 0, 0.07) !important;
   border-right-color: rgba(0, 0, 0, 0.07) !important;
@@ -16952,4 +16952,5 @@ body, .panel, .sidebar, .topbar, .glass-panel, .chip, .nav-item, input, button, 
 .theme-dark .today-schedule-empty {
   background: rgba(0, 0, 0, 0.2);
 }
+
 

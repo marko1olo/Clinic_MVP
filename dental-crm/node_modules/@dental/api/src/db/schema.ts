@@ -243,7 +243,7 @@ export const clinics = pgTable("clinics", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 
-export const clinicChairs = pgTable("clinic_chairs", {
+export const clinicChairs = pgTable("chairs", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   clinicId: uuid("clinic_id").references(() => clinics.id),
@@ -1273,11 +1273,15 @@ export const visitTemplates = pgTable('visit_templates', {
   organizationId: uuid('organization_id').notNull().references(() => organizations.id),
   title: varchar('title', { length: 255 }).notNull(),
   category: varchar('category', { length: 255 }),
+  specialty: varchar('specialty', { length: 100 }),
   prefilledAnamnesis: text('prefilled_anamnesis'),
   prefilledObjective: text('prefilled_objective'),
   prefilledTreatment: text('prefilled_treatment'),
   defaultIcd10: varchar('default_icd10', { length: 50 }),
-  suggestedProcedureIds: jsonb('suggested_procedure_ids')
+  defaultIcd10Label: varchar('default_icd10_label', { length: 255 }),
+  suggestedProcedureIds: jsonb('suggested_procedure_ids'),
+  isBuiltIn: boolean('is_built_in').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });
 
 

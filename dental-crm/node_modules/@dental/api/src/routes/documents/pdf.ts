@@ -70,13 +70,13 @@ export async function register(app: FastifyInstance) {
     const orgId = payload?.organizationId as string || "mock-org";
     const document = await getDocumentById(orgId, id);
     if (!document) {
-      return reply.code(404).send(apiError("Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ"));
+      return reply.code(404).send(apiError("Документ не найден"));
     }
     if (!documentRequiresIssuedArchive(document)) {
-      return reply.code(409).send(apiError("PDF РЅРµРґРѕСЃС‚СѓРїРµРЅ: РґРѕРєСѓРјРµРЅС‚ РЅРµ С‚СЂРµР±СѓРµС‚ Р°СЂС…РёРІР° РІС‹РґР°РЅРЅРѕРіРѕ HTML."));
+      return reply.code(409).send(apiError("PDF недоступен: документ не требует архива выданного HTML."));
     }
     if (!document.signatureAttestation) {
-      return reply.code(409).send(apiError("PDF РЅРµРґРѕСЃС‚СѓРїРµРЅ: С‚СЂРµР±СѓРµС‚СЃСЏ РѕС‚РјРµС‚РєР° Рѕ РїРѕРґРїРёСЃР°РЅРёРё РїСЂРё РІС‹РґР°С‡Рµ РґРѕРєСѓРјРµРЅС‚Р°."));
+      return reply.code(409).send(apiError("PDF недоступен: требуется отметка о подписании при выдаче документа."));
     }
 
     if (!documentHasIssuedArchiveMetadata(document)) {
@@ -85,7 +85,7 @@ export async function register(app: FastifyInstance) {
 
     const issuedSnapshot = readIssuedDocumentSnapshot(document);
     if (!issuedSnapshot) {
-      return reply.code(409).send(apiError("РђСЂС…РёРІ РІС‹РґР°РЅРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р° РЅРµ РїСЂРѕС€С‘Р» РїСЂРѕРІРµСЂРєСѓ С†РµР»РѕСЃС‚РЅРѕСЃС‚Рё."));
+      return reply.code(409).send(apiError("Архив выданного документа не прошёл проверку целостности."));
     }
 
     const result = await renderIssuedHtmlToPdf(issuedSnapshot);
@@ -114,15 +114,15 @@ export async function register(app: FastifyInstance) {
     const { id } = request.params;
     const document = await getDocumentById(orgId, id);
     if (!document) {
-      return reply.code(404).send(apiError("Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ"));
+      return reply.code(404).send(apiError("Документ не найден"));
     }
     if (document.kind !== "treatment_plan") {
-      return reply.code(409).send(apiError("Р­С‚РѕС‚ РјР°СЂС€СЂСѓС‚ РїСЂРµРґРЅР°Р·РЅР°С‡РµРЅ С‚РѕР»СЊРєРѕ РґР»СЏ РґРѕРєСѓРјРµРЅС‚РѕРІ С‚РёРїР° treatment_plan."));
+      return reply.code(409).send(apiError("Этот маршрут предназначен только для документов типа treatment_plan."));
     }
 
     const patient = await import("../../db/patientsQuery.js").then(m => m.getPatientByIdFromDb(orgId, document.patientId));
     if (!patient) {
-      return reply.code(404).send(apiError("РџР°С†РёРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ"));
+      return reply.code(404).send(apiError("Пациент не найден"));
     }
 
     const context = documentRenderContext();
@@ -135,7 +135,7 @@ export async function register(app: FastifyInstance) {
 
     const patientNameSlug = (patient.fullName ?? "patient")
       .toLowerCase()
-      .replace(/[^a-zР°-СЏС‘0-9]+/gi, "-")
+      .replace(/[^a-zа-яё0-9]+/gi, "-")
       .slice(0, 40);
     const dateSlug = new Date().toISOString().slice(0, 10);
     const filename = `plan-${patientNameSlug}-${dateSlug}.pdf`;

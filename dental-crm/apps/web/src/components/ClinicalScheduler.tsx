@@ -59,8 +59,11 @@ export const ClinicalScheduler: React.FC<any> = ({ appointments, dashboard, onSl
     setPopoverSlot({ time, chair });
   }, []);
 
-  const activeChairs = dashboard?.clinicSettings?.chairs?.filter((c: any) => c.active) || [];
-  const chairsCount = activeChairs.length || 1;
+  let activeChairs = dashboard?.clinicSettings?.chairs?.filter((c: any) => c.active) || [];
+  if (activeChairs.length === 0) {
+    activeChairs = [{ id: 'mock-1', name: 'Главный кабинет', active: true }];
+  }
+  const chairsCount = activeChairs.length;
   const isSingleChair = chairsCount === 1;
   const rowStyle = { gridTemplateColumns: `60px repeat(${chairsCount}, 1fr)` };
 

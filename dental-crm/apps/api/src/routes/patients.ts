@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema } from "@dental/shared";
-import { requireClinicalMutationAccess, requireClinicalReadAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
 
 type PatientPayloadSchema<T> = {
   safeParse: (value: unknown) => { success: true; data: T } | { success: false };
@@ -181,10 +181,16 @@ export async function registerPatientRoutes(app: FastifyInstance) {
   app.put("/api/patients/:patientId/administrative-profile", async (request, reply) => {
     const clinicHeader = request.headers["x-dente-clinic-token"];
     const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-    if (!clinicToken) return reply.code(401).send({ error: "AuthRequired" });
-    const payload = verifyToken(clinicToken, TOKEN_SECRET());
-    if (!payload || !payload.organizationId) return reply.code(401).send({ error: "AuthExpired" });
-    const orgId = payload.organizationId as string;
+    let orgId: string;
+    if (clinicToken) {
+      const payload = verifyToken(clinicToken, TOKEN_SECRET());
+      if (!payload || !payload.organizationId) return reply.code(401).send({ error: "AuthExpired" });
+      orgId = payload.organizationId as string;
+    } else {
+      const resolved = await resolveOrganizationId(request);
+      if (!resolved) return reply.code(401).send({ error: "AuthRequired" });
+      orgId = resolved;
+    }
 
     const params = request.params as { patientId?: string };
     if (!params.patientId) return sendPatientRouteValidationError(reply);

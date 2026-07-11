@@ -3,6 +3,7 @@ import pg from "pg";
 import * as schema from "./schema.js";
 import "dotenv/config";
 const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm"
+    connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm",
+    max: 3 // Limit connection pool for low-memory environments
 });
 export const db = drizzle(pool, { schema });

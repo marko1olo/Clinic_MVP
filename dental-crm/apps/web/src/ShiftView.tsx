@@ -68,7 +68,7 @@ export function ShiftView({
                       <p>{activePatient.phone ?? "телефон не указан"}</p>
                     </div>
                   </div>
-                  <div className="hero-actions">
+                  <div className="hero-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     <button className="primary-button" type="button" onClick={() => { window.location.hash = "visit"; }}>
                       <ClipboardCheck aria-hidden="true" /> Открыть прием
                     </button>

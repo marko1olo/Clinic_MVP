@@ -4171,7 +4171,7 @@ export function App() {
                 <div className="panel analytics-panel" id="analytics" aria-busy="true">
                   <div className="panel-heading">
                     <h2>Executive BI Analytics</h2>
-                    <span className="status-pill status-planned">��������</span>
+                    <span className="status-pill status-planned">Запланировано</span>
                   </div>
                 </div>
               }

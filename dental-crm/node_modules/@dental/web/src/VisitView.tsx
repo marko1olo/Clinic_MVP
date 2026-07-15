@@ -1009,7 +1009,7 @@ export function VisitView(props: VisitViewProps) {
                         ? "Локальное сохранение есть. Серверная синхронизация ожидает подключения или повторной попытки."
                         : lastVisitSaveReceipt
                           ? visitSaveReceiptText(lastVisitSaveReceipt)
-                          : dashboard.activeVisit.doctorSummary}
+                          : dashboard.activeVisit?.doctorSummary}
                 </p>
                 {pendingVisitSaveCount ? (
                   <button className="secondary-button" type="button" onClick={() => void flushPendingVisitSaves({ silent: false })} disabled={isPendingVisitSyncing}>

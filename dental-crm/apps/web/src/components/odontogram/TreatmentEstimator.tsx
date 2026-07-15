@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ToothData, ToothState } from './ToothChart';
 import { FileText, Save, Calculator, Trash2, PenTool } from 'lucide-react';
 import { SignaturePad } from '../SignaturePad';
+import { denteAdminSecretRequestHeaders } from '../../AppHelpers';
 
 interface EstimatorProps {
   patientId: string;
@@ -21,6 +22,14 @@ interface PlanItem {
   isAuto?: boolean;
 }
 
+interface SavedTreatmentPlan {
+  id: string;
+  name: string;
+  totalPrice: number;
+  patientSignature?: string | null;
+  items: PlanItem[];
+}
+
 export const TreatmentEstimator: React.FC<EstimatorProps> = ({ patientId, currentTeeth }) => {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -28,6 +37,30 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({ patientId, curren
   const [planId, setPlanId] = useState<string | null>(null);
   const [showSignModal, setShowSignModal] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPlanId(null);
+    setItems([]);
+    setSignatureUrl(null);
+
+    fetch(`/api/patients/${patientId}/treatment-plans`, {
+      headers: denteAdminSecretRequestHeaders()
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const latestPlan = data?.plans?.[0] as SavedTreatmentPlan | undefined;
+        if (!active || !latestPlan) return;
+        setPlanId(latestPlan.id);
+        setItems(Array.isArray(latestPlan.items) ? latestPlan.items : []);
+        setSignatureUrl(latestPlan.patientSignature ?? null);
+      })
+      .catch((error) => {
+        console.error("Treatment plan load failed", error);
+      });
+
+    return () => { active = false; };
+  }, [patientId]);
 
   // Auto-suggestions based on currentTeeth - fully synchronized
   useEffect(() => {
@@ -99,16 +132,19 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({ patientId, curren
     try {
       const res = await fetch(`/api/patients/${patientId}/treatment-plans`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: denteAdminSecretRequestHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           id: planId,
           name: "Комплексный план лечения (КТ)",
+          patientSignature: signatureUrl,
           items: items.map(i => ({ ...i }))
         })
       });
       const data = await res.json();
       if (data.success) {
         setPlanId(data.planId);
+        if (data.plan?.items) setItems(data.plan.items);
+        if (data.plan?.patientSignature !== undefined) setSignatureUrl(data.plan.patientSignature);
       }
     } catch (e) {
       console.error(e);

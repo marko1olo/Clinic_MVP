@@ -1,21 +1,22 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import { eq, sql } from "drizzle-orm";
+import { db } from "../db/client.js";
+import { sql } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 
 // We will read the actual saved state, or fallback to the sample data
 import { loadPersistentState } from "../persistentState.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm"
-});
-const db = drizzle(pool, { schema });
+function destructiveResetAllowed(): boolean {
+  return process.env.DENTAL_ALLOW_DESTRUCTIVE_DB_RESET === "YES";
+}
 
 async function clearDatabase() {
+  if (!destructiveResetAllowed()) {
+    throw new Error("Refusing to truncate database. Set DENTAL_ALLOW_DESTRUCTIVE_DB_RESET=YES and use a local/dev DATABASE_URL.");
+  }
   console.log("🧹 Clearing existing data...");
   await db.execute(sql`TRUNCATE TABLE organizations CASCADE;`);
   console.log("✔ Database cleared.");
@@ -55,6 +56,7 @@ async function migrate() {
     medicalLicenseNumber: state.clinicProfile.medicalLicenseNumber,
     medicalLicenseIssuedAt: state.clinicProfile.medicalLicenseIssuedAt,
     medicalLicenseIssuer: state.clinicProfile.medicalLicenseIssuer,
+    onboardingCompleted: true,
   });
 
   console.log("🏥 Migrating Clinics (Default)");

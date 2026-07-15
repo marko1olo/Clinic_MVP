@@ -13,7 +13,7 @@ export async function getUiPreferencesFromDb(organizationId: string): Promise<Ui
 export async function saveUiPreferencesInDb(organizationId: string, prefs: UiPreferences): Promise<void> {
   const [user] = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId)).limit(1);
   if (!user) throw new Error("No users found to save preferences to.");
-  await db.update(schema.users).set({ uiPreferences: prefs }).where(eq(schema.users.id, user.id));
+  await db.update(schema.users).set({ uiPreferences: prefs }).where(and(eq(schema.users.id, user.id), eq(schema.users.organizationId, organizationId)));
 }
 
 export async function getClinicSettingsFromDb(organizationId: string): Promise<ClinicSettings> {
@@ -69,7 +69,13 @@ export async function getClinicSettingsFromDb(organizationId: string): Promise<C
     },
     networkEnabled: false,
     egiszEnabled: false,
-    updatedAt: org.updatedAt.toISOString()
+    updatedAt: org.updatedAt.toISOString(),
+    specializations: (org.specializations as any) || [],
+    workingHours: (org.workingHours as any) || null,
+    currency: org.currency || "₽",
+    themeColor: org.themeColor || "teal",
+    logoUrl: org.logoUrl || null,
+    stampUrl: org.stampUrl || null
   };
 
   return {

@@ -19,6 +19,8 @@ export function Omnibar() {
     { id: 'nav-finance', title: 'Финансы', icon: <Banknote />, category: 'Навигация', action: () => setCurrentView('finance') },
     { id: 'nav-communications', title: 'Связь', icon: <MessageSquare />, category: 'Навигация', action: () => setCurrentView('communications') },
     { id: 'nav-settings', title: 'Настройки', icon: <Settings />, category: 'Навигация', action: () => setCurrentView('settings') },
+    { id: 'nav-kanban', title: 'Воронка Лидов', icon: <Users />, category: 'Навигация', action: () => setCurrentView('kanban') },
+    { id: 'nav-marketing', title: 'Маркетинг', icon: <MessageSquare />, category: 'Навигация', action: () => setCurrentView('marketing') },
     
     { id: 'action-new-patient', title: 'Создать карточку пациента', icon: <Users />, category: 'Быстрые действия', action: () => { setCurrentView('patients'); } },
     { id: 'action-new-appointment', title: 'Новая запись на прием', icon: <Calendar />, category: 'Быстрые действия', action: () => { setCurrentView('schedule'); } },

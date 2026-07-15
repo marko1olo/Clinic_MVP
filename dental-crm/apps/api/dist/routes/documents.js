@@ -9,7 +9,7 @@ import { documentAuditFactsSchema, documentKindMetadata } from "@dental/shared";
 import { getAppointmentByIdInDb } from "../db/appointmentsQuery.js";
 import { getVisitByIdInDb } from "../db/visitsQuery.js";
 import { getDocumentRenderContextFromDb, readIssuedDocumentSnapshot } from "../db/documentQuery.js";
-import { getDefaultOrganizationId, getDocumentsByPatientId } from "../db/documentQuery.js";
+import { getDocumentsByPatientId } from "../db/documentQuery.js";
 import { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason } from "../documents/renderDocument.js";
 import { paymentIdsForTaxDocument, receiptKeysForTaxDocument, taxDocumentDuplicateSensitive, taxPaymentSnapshotTotalRub, taxPaymentsForDocumentScope } from "../documents/taxPaymentSnapshot.js";
 import { repairMojibakeText } from "../text/repairMojibake.js";
@@ -582,8 +582,7 @@ export function releaseReceiptMatchesCopyRequest(release, request) {
         releasePeriodCoveredByRequest(release, request));
 }
 export async function findIssuedMedicalCopyRequestForRelease(document) {
-    const orgId = await getDefaultOrganizationId();
-    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
+    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
     const release = document.payload?.medicalDocumentReleaseReceipt;
     if (!release)
         return null;
@@ -695,8 +694,7 @@ export function configuredTaxOfficeCode() {
     return process.env.DENTE_FNS_TAX_OFFICE_CODE?.trim() || process.env.FNS_TAX_OFFICE_CODE?.trim() || null;
 }
 export async function documentIssueChainBlockReason(document) {
-    const orgId = await getDefaultOrganizationId();
-    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
+    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
     if (taxCertificateExpectedApplicationForm(document) && !(await hasIssuedTaxApplicationForCertificate(document))) {
         return "Перед выдачей налогового документа нужно выпустить заявление налогоплательщика с тем же годом, формой, ИНН, реквизитами плательщика и точным набором выбранных фискальных чеков.";
     }

@@ -8,21 +8,6 @@ export async function registerLabRoutes(app: FastifyInstance) {
     const { token } = request.params as { token: string };
     if (!token) return reply.code(400).send({ error: "TokenRequired" });
 
-    // Mock data for E2E tests
-    if (token === "MOCK_TOKEN") {
-      return {
-        id: "mock-order-1234",
-        patientFullName: "Иванов Иван Иванович",
-        toothFdi: "46",
-        material: "Диоксид циркония (Prettau)",
-        colorVita: "A2",
-        status: "in_progress",
-        clinicalNotes: "Уступ 0.5мм, отпрепарировано под полную анатомию. Просьба сделать чуть плотнее контакты.",
-        attachedImageUrl: null,
-        createdAt: new Date().toISOString()
-      };
-    }
-
     try {
       const order = await getLabOrderByToken(token);
       if (!order) return reply.code(404).send({ error: "OrderNotFound" });
@@ -53,19 +38,6 @@ export async function registerLabRoutes(app: FastifyInstance) {
 
     if (!token || !status) return reply.code(400).send({ error: "InvalidRequest" });
 
-    // Mock data for E2E tests
-    if (token === "MOCK_TOKEN") {
-      wsBroker.broadcast({
-        type: "LAB_ORDER_UPDATED",
-        payload: {
-          patientId: "eb87fb35-46eb-4a11-b286-9a259c6326ea", // 1st patient from mock
-          orderId: "mock-order-1234",
-          status: status
-        }
-      });
-      return { success: true, status: status };
-    }
-
     try {
       const order = await getLabOrderByToken(token);
       if (!order) return reply.code(404).send({ error: "OrderNotFound" });
@@ -73,7 +45,7 @@ export async function registerLabRoutes(app: FastifyInstance) {
       const updated = await updateLabOrderStatus(token, status);
       if (updated) {
         // Уведомляем клиентов в клинике через WebSocket
-        wsBroker.broadcast({
+        wsBroker.broadcastToOrganization(updated.organizationId, {
           type: "LAB_ORDER_UPDATED",
           payload: {
             patientId: updated.patientId,

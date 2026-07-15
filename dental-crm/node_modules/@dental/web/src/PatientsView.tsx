@@ -12,6 +12,7 @@ import { OdontogramModule } from "./components/odontogram/OdontogramModule";
 import { VisiographAnalyzer } from "./components/imaging/VisiographAnalyzer";
 import { PatientJourneyTimeline } from "./components/PatientJourneyTimeline";
 import { formatPhoneNumber } from "./utils/inputSanitation";
+import { denteAdminSecretRequestHeaders } from "./AppHelpers";
 type PatientInsight = Dashboard["patientInsights"][number];
 type PatientCoreSaveState = "idle" | "saving" | "saved" | "error";
 type PatientAdministrativeProfileSaveState = "idle" | "saving" | "saved" | "error";
@@ -88,6 +89,21 @@ export function PatientsView(props: PatientsViewProps) {
   const [showSmartPreview, setShowSmartPreview] = useState(false);
   const [smartParsedData, setSmartParsedData] = useState<any>(null);
   const [showHints, setShowHints] = useState(false);
+  const [familyData, setFamilyData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!selectedPatientId) {
+      setFamilyData(null);
+      return;
+    }
+    fetch(`/api/finance/family/patient/${selectedPatientId}`, { headers: denteAdminSecretRequestHeaders() })
+      .then(res => {
+        if (!res.ok) throw new Error("No family");
+        return res.json();
+      })
+      .then(data => setFamilyData(data))
+      .catch(() => setFamilyData(null));
+  }, [selectedPatientId]);
 
   useEffect(() => {
     // Memory Optimization: Flush heavy patient states on unmount
@@ -251,7 +267,7 @@ export function PatientsView(props: PatientsViewProps) {
           {patientCreateGuidance}
         </p>
       ) : null}
-      <div className="patients-content-area">
+      <div className={`patients-content-area ${selectedPatientId ? 'patient-selected' : 'no-patient-selected'}`}>
         <aside className="patients-sidebar-column">
           <div className="patient-list">
               {filteredPatients.map((patient) => {
@@ -296,6 +312,15 @@ export function PatientsView(props: PatientsViewProps) {
         </aside>
 
         <main className="patient-details-column">
+            {selectedPatient && (
+              <button 
+                className="mobile-back-to-list-btn" 
+                onClick={() => setSelectedPatientId(null)}
+                style={{ display: 'none', marginBottom: '16px', background: 'var(--paper)', border: '1px solid var(--line)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                ← Назад к списку пациентов
+              </button>
+            )}
             <section className="patient-admin-panel" aria-label="Административные данные активного пациента">
               <div className="panel-heading compact-heading" style={{ borderBottom: 'none', paddingBottom: '0', marginBottom: '8px' }}>
                 <div>
@@ -424,6 +449,28 @@ export function PatientsView(props: PatientsViewProps) {
                     <VisiographAnalyzer />
                   </div>
                   <div className="clinical-col-right">
+                    {familyData && (
+                      <div className="panel family-wallet-panel" style={{ background: "rgba(24, 24, 27, 0.6)", backdropFilter: "blur(12px)", borderRadius: "12px", border: "1px solid rgba(63, 63, 70, 0.4)", padding: "16px", marginBottom: "20px" }}>
+                        <h3 style={{ fontSize: "14px", fontWeight: "bold", color: "#fff", display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                          👨‍👩‍👧‍👦 {familyData.name || "Семейная группа"}
+                        </h3>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(9, 9, 11, 0.4)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(63, 63, 70, 0.2)", marginBottom: "12px" }}>
+                          <span style={{ fontSize: "12px", color: "#a1a1aa" }}>Семейный баланс:</span>
+                          <span style={{ fontSize: "18px", fontWeight: "bold", color: "#0ea5e9" }}>{parseFloat(familyData.balance).toLocaleString("ru-RU")} ₽</span>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#71717a", textTransform: "uppercase" }}>Члены семьи:</span>
+                          {familyData.members?.map((m: any) => (
+                            <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                              <span style={{ color: m.id === selectedPatientId ? "#0ea5e9" : "#e4e4e7", fontWeight: m.id === selectedPatientId ? "bold" : "normal" }}>
+                                {m.fullName} {m.id === selectedPatientId && " (текущий)"}
+                              </span>
+                              <span style={{ color: "#71717a" }}>{m.phone || "нет телефона"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {selectedPatientId && (
                       <PatientJourneyTimeline patientId={selectedPatientId} dashboard={props.dashboard} />
                     )}

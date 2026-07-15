@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db/client.js";
-import { visitTemplates, organizations } from "../db/schema.js";
+import { visitTemplates } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { requireClinicalReadAccess, requireClinicalMutationAccess, resolveOrganizationId } from "../accessGuard.js";
 import { ensureClinicalTemplatesSeeded } from "../scripts/seedTemplates.js";
@@ -101,7 +101,7 @@ export default async function registerTemplateRoutes(app: FastifyInstance) {
     if (!template) return reply.code(404).send({ error: "NotFound" });
     if (template.isBuiltIn) return reply.code(403).send({ error: "CannotDeleteBuiltIn" });
 
-    await db.delete(visitTemplates).where(eq(visitTemplates.id, id));
+    await db.delete(visitTemplates).where(and(eq(visitTemplates.id, id), eq(visitTemplates.organizationId, orgId)));
     return reply.send({ success: true });
   });
 

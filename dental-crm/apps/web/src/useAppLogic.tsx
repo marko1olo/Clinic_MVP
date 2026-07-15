@@ -2596,9 +2596,9 @@ const {
         setAccessUnlockMessage(message);
         setDashboard(null);
       }
-      throw new Error(message);
+      throw new WorkflowResponseError(message, response.status);
     }
-    const payload = await response.json(); console.log("MISSING_KEYS:", Object.keys(payload).filter(k => !payload[k]));
+    const payload = await response.json();
     setDashboard(payload as any);
     setAccessUnlockRequired(false);
     setAccessUnlockMessage("");
@@ -2856,7 +2856,7 @@ const {
     const payload = buildClinicProfileUpdatePayload(clinicProfileDraft);
     const expectedSignature = clinicProfileDraftSignature(clinicProfileDraft);
     if (!payload.clinicName?.trim()) {
-      setError("Укажите рабочее название клиники.");
+      setError("Укажите рабочее назИвание клиники.");
       setClinicProfileSaveState("error");
       return false;
     }
@@ -2913,7 +2913,7 @@ const {
     const expectedSignature = patientCoreDraftSignature(patientCoreDraft);
     if (!payload.fullName?.trim()) {
       setPatientCoreSaveState("error");
-      setError("ФРО пациента обязательно для расписания, документов и связи.");
+      setError("ФИО пациента обязательно для расписания, документов и связи.");
       return false;
     }
     setPatientCoreSaveState("saving");
@@ -3002,7 +3002,7 @@ const {
     if (!clinicProfileDraft) return [];
     const issues: string[] = [];
     const requiredClinicDraftFields: Array<[string, string]> = [
-      ["название клиники", clinicProfileDraft.clinicName],
+      ["назИвание клиники", clinicProfileDraft.clinicName],
       ["телефон клиники", clinicProfileDraft.phone],
       ["часовой пояс", clinicProfileDraft.timezone]
     ];
@@ -3034,8 +3034,8 @@ const {
     if (!clinicProfileDraft) return [];
     const issues: string[] = [];
     const requiredDocumentDraftFields: Array<[string, string]> = [
-      ["юридическое наименование", clinicProfileDraft.legalName],
-      ["РНН", clinicProfileDraft.inn],
+      ["юридическое наименоИвание", clinicProfileDraft.legalName],
+      ["ИИНН", clinicProfileDraft.inn],
       ["адрес", clinicProfileDraft.address],
       ["номер медицинской лицензии", clinicProfileDraft.medicalLicenseNumber],
       ["дата медицинской лицензии", clinicProfileDraft.medicalLicenseIssuedAt],
@@ -3066,11 +3066,11 @@ const {
       setOnboardingStep("team");
       return;
     }
-    if (issues.some((issue) => ["название клиники", "телефон клиники", "часовой пояс"].includes(issue))) {
+    if (issues.some((issue) => ["назИвание клиники", "телефон клиники", "часовой пояс"].includes(issue))) {
       setOnboardingStep("clinic");
       return;
     }
-    if (issues.some((issue) => ["юридическое наименование", "РНН", "адрес", "номер медицинской лицензии", "дата медицинской лицензии", "орган, выдавший лицензию"].includes(issue))) {
+    if (issues.some((issue) => ["юридическое наименоИвание", "ИИНН", "адрес", "номер медицинской лицензии", "дата медицинской лицензии", "орган, выдавший лицензию"].includes(issue))) {
       setOnboardingStep("legal");
       return;
     }
@@ -3426,13 +3426,13 @@ const {
   async function loadSpeechGatewayStatus(options: { silent?: boolean } = {}): Promise<SpeechGatewayStatus | null> {
     try {
       const response = await fetch("/api/speech/status", { cache: "no-store", headers: denteClinicalReadHeaders() });
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Состояние распознавания недоступно"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Состояние распознаИвания недоступно"));
       const status = (await response.json()) as SpeechGatewayStatus;
       setSpeechGatewayStatus(status);
       return status;
     } catch (speechError) {
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Шлюз распознавания речи недоступен", speechError));
+        setError(operatorWorkflowFailureMessage("Шлюз распознаИвания речи недоступен", speechError));
       }
       return null;
     }
@@ -3441,11 +3441,11 @@ const {
   async function loadSpeechGatewayHealthReport(options: { silent?: boolean } = {}) {
     try {
       const response = await fetch("/api/speech/gateway-health", { cache: "no-store", headers: denteClinicalReadHeaders() });
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Проверка распознавания недоступна"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Проверка распознаИвания недоступна"));
       setSpeechGatewayHealthReport((await response.json()) as SpeechGatewayHealthReport);
     } catch (speechHealthError) {
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Проверка распознавания недоступна", speechHealthError));
+        setError(operatorWorkflowFailureMessage("Проверка распознаИвания недоступна", speechHealthError));
       }
     }
   }
@@ -3453,11 +3453,11 @@ const {
   async function loadSpeechProviderRuntimeStatuses(options: { silent?: boolean } = {}) {
     try {
       const response = await fetch("/api/speech/providers/runtime", { cache: "no-store", headers: denteClinicalReadHeaders() });
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Провайдеры распознавания недоступны"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Провайдеры распознаИвания недоступны"));
       setSpeechProviderRuntimeStatuses((await response.json()) as SpeechProviderRuntimeStatus[]);
     } catch (speechRuntimeError) {
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Провайдер распознавания недоступен", speechRuntimeError));
+        setError(operatorWorkflowFailureMessage("Провайдер распознаИвания недоступен", speechRuntimeError));
       }
     }
   }
@@ -3475,11 +3475,11 @@ const {
           source: "visit"
         })
       });
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Стратегия распознавания недоступна"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Стратегия распознаИвания недоступна"));
       setSpeechRecordingStrategy((await response.json()) as SpeechRecordingStrategy);
     } catch (speechStrategyError) {
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Стратегия распознавания недоступна", speechStrategyError));
+        setError(operatorWorkflowFailureMessage("Стратегия распознаИвания недоступна", speechStrategyError));
       }
     }
   }
@@ -3545,11 +3545,12 @@ const {
   }
 
   async function submitAcceptedVisitDraft(
-    visitId: string,
+    visitId: string | null | undefined,
     draftToAccept: VisitNoteDraft,
     doctorSummary: string | null,
     options: { clientMutationId?: string | null; baseRevision?: number | null; clientSavedAt?: string | null } = {}
   ) {
+    if (!visitId) throw new WorkflowResponseError("Откройте или создайте прием перед сохранением ЭМК.", 409);
     const response = await fetch(`/api/visits/${visitId}/draft/accept`, {
       method: "POST",
       headers: denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
@@ -3571,7 +3572,8 @@ const {
     return JSON.stringify([nextTranscript, nextSpecialty, nextForm]);
   }
 
-  async function loadServerVisitDraft(visitId: string): Promise<VisitDraftAutosaveResponse> {
+  async function loadServerVisitDraft(visitId: string | null | undefined): Promise<VisitDraftAutosaveResponse> {
+    if (!visitId) return { serverDraft: null };
     const response = await fetch(`/api/visits/${visitId}/draft/autosave`, {
       cache: "no-store",
       headers: denteClinicalReadHeaders()
@@ -3581,7 +3583,7 @@ const {
   }
 
   async function syncVisitDraftAutosave(clientSavedAt: string, options: { silent?: boolean } = {}) {
-    if (!dashboard) return;
+    if (!dashboard?.activeVisit?.id) return;
     const signature = visitDraftSignature(transcript, selectedSpecialty, visitNoteForm);
     if (lastServerDraftSignatureRef.current === signature) return;
     if (!transcript.trim() && !hasVisitNoteFormText) return;
@@ -3682,12 +3684,12 @@ const {
     });
     const payload = (await response.json()) as SpeechTranscriptionResponse & { error?: unknown; message?: unknown };
     if (payload.chunk?.status === "needs_provider_key" && !payload.chunk.transcript.trim()) {
-      throw new Error("Серверное распознавание сейчас недоступно; аудио осталось в локальной очереди.");
+      throw new Error("Серверное распознаИвание сейчас недоступно; аудио осталось в локальной очереди.");
     }
     if (!response.ok) {
       const rawDetail = typeof payload.message === "string" ? payload.message : typeof payload.error === "string" ? payload.error : null;
       const detail = operatorReadableErrorDetail(rawDetail) ?? responseStatusFailureLabel(response);
-      throw new Error(`Распознавание речи не выполнено: ${detail}`);
+      throw new Error(`РаспознаИвание речи не выполнено: ${detail}`);
     }
     return payload;
   }
@@ -3710,7 +3712,7 @@ const {
       return;
     }
     if (!speechTranscriptionMatchesActiveVisit(result)) {
-      setSpeechStatusNote("Фрагмент распознавания относится к другому приему и не добавлен в текущую карту.");
+      setSpeechStatusNote("Фрагмент распознаИвания относится к другому приему и не добавлен в текущую карту.");
       return;
     }
     const text = result.chunk.transcript.trim();
@@ -3743,7 +3745,7 @@ const {
         headers: denteClinicalReadHeaders()
         }
       );
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Запись распознавания не собрана"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Запись распознаИвания не собрана"));
       const assembly = (await response.json()) as SpeechRecordingAssembly;
       const assembledTranscript = assembly.transcript.trim();
       if (assembledTranscript) {
@@ -3763,7 +3765,7 @@ const {
       return assembly;
     } catch (assemblyError) {
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Не удалось собрать запись распознавания", assemblyError));
+        setError(operatorWorkflowFailureMessage("Не удалось собрать запись распознаИвания", assemblyError));
       }
       return null;
     }
@@ -3797,7 +3799,7 @@ const {
     if (!isOnline) {
       await refreshPendingSpeechChunkState();
       if (!options.silent) {
-        setSpeechStatusNote(`Очередь распознавания сохранена локально: ${queue.length} фрагм., отправка после подключения.`);
+        setSpeechStatusNote(`Очередь распознаИвания сохранена локально: ${queue.length} фрагм., отправка после подключения.`);
       }
       return;
     }
@@ -3807,7 +3809,7 @@ const {
     if (hasAudioWaitingForServer && !speechGatewayCanUpload(currentGateway)) {
       await refreshPendingSpeechChunkState();
       if (!options.silent) {
-        setSpeechStatusNote(`Очередь распознавания сохранена: ${queue.length} фрагм. Серверное распознавание еще не готово, аудио не удалено.`);
+        setSpeechStatusNote(`Очередь распознаИвания сохранена: ${queue.length} фрагм. Серверное распознаИвание еще не готово, аудио не удалено.`);
       }
       return;
     }
@@ -3827,7 +3829,7 @@ const {
     } catch (syncError) {
       await refreshPendingSpeechChunkState();
       if (!options.silent) {
-        setError(operatorWorkflowFailureMessage("Очередь распознавания пока не отправлена", syncError));
+        setError(operatorWorkflowFailureMessage("Очередь распознаИвания пока не отправлена", syncError));
       }
     }
   }
@@ -4067,13 +4069,7 @@ const {
     };
   }, []);
 
-  useEffect(() => {
-    loadDashboard().catch((loadError: unknown) => {
-      setError(operatorWorkflowFailureMessage("Не удалось загрузить данные", loadError));
-    });
-  }, []);
-
-  const imagingPreviewWorkset = useMemo(() => { console.log("eval imagingPreviewWorkset", JSON.stringify(dashboard?.clinicSettings));
+  const imagingPreviewWorkset = useMemo(() => {
     if (currentView !== "imaging" || !dashboard?.imagingStudies?.length) return [];
     const activeStudies = (dashboard.imagingStudies || []).filter((study) => study.patientId === dashboard?.activeVisit?.patientId)
       .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt));
@@ -4995,7 +4991,7 @@ const {
     return (dashboard.treatmentPlanScenarios || []).filter((scenario) => scenario.patientId === documentPatient.id);
   }, [dashboard, documentPatient?.id]);
 
-  const activeVisitClinicalRuleEvaluations = useMemo(() => { console.log("eval activeVisitClinicalRuleEvaluations", !!dashboard?.clinicalRuleEvaluations);
+  const activeVisitClinicalRuleEvaluations = useMemo(() => {
     if (!dashboard) return [];
     const severityRank = { blocker: 0, warning: 1, info: 2 } as const;
     return (dashboard.clinicalRuleEvaluations || []).filter((evaluation) => evaluation.patientId === dashboard?.activeVisit?.patientId)
@@ -5087,8 +5083,8 @@ const {
         key: payerKey,
         inn: payerInn,
         label: payerInn
-          ? `${payerName} В· РНН ${payerInn}${payerRelationship ? ` В· ${payerRelationship}` : ""}`
-          : `${payerName} В· документ ${payerIdentity || "без РНН"}${payerRelationship ? ` В· ${payerRelationship}` : ""}`,
+          ? `${payerName} В· ИИНН ${payerInn}${payerRelationship ? ` В· ${payerRelationship}` : ""}`
+          : `${payerName} В· документ ${payerIdentity || "без ИИНН"}${payerRelationship ? ` В· ${payerRelationship}` : ""}`,
         amountRub: payment.amountRub,
         paymentCount: 1
       });
@@ -5557,7 +5553,7 @@ const {
     }
   }, [anesthesiaZone, inferredTreatmentArea, labTeethOrArea]);
 
-  const activeCommunicationTasks = useMemo(() => { console.log("eval activeCommunicationTasks", !!dashboard?.communicationTasks);
+  const activeCommunicationTasks = useMemo(() => {
     if (!dashboard) return [];
     return (dashboard.communicationTasks || []).filter((task) => task.patientId === dashboard?.activeVisit?.patientId);
   }, [dashboard]);
@@ -5570,7 +5566,7 @@ const {
     });
   }, [dashboard]);
 
-  const activeImagingStudies = useMemo(() => { console.log("eval activeImagingStudies", !!dashboard?.imagingStudies);
+  const activeImagingStudies = useMemo(() => {
     if (!dashboard) return [];
     return (dashboard.imagingStudies || []).filter((study) => study.patientId === dashboard?.activeVisit?.patientId)
       .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt));
@@ -5850,7 +5846,7 @@ const {
       return;
     }
     if (command.requiresImplant && !ctPlanningImplantPlan) {
-      setError("Сначала выберите имплант из библиотеки, затем создайте ось или шаблон.");
+      setError("Сначала выберите иИмплант из библиотеки, затем создайте ось или шаблон.");
       return;
     }
     const matchingQuickAction = findCtPlanningQuickActionForArtifactCommand(command);
@@ -5877,7 +5873,7 @@ const {
         `Плоскость: ${mprProjectionLabels[projection] ?? projection}`,
         `Срез: ${mprSafeSliceIndex + 1}/${mprSliceMaxIndex + 1}`,
         `Слой: ${mprSlabMm} мм`,
-        ctPlanningImplantPlan ? `Рмплант: ${ctPlanningImplantPlan.diameterMm} x ${ctPlanningImplantPlan.lengthMm} мм` : ""
+        ctPlanningImplantPlan ? `ИИмплант: ${ctPlanningImplantPlan.diameterMm} x ${ctPlanningImplantPlan.lengthMm} мм` : ""
       ]
         .filter(Boolean)
         .join(" В· "),
@@ -6404,8 +6400,8 @@ const {
   const pendingSpeechFlushActionLabel = speechRecognitionReady ? "Отправить звук" : "Проверить очередь";
   const pendingSpeechFlushActionTitle =
     speechRecognitionReady
-      ? "Отправить сохраненные аудиофрагменты на распознавание."
-      : "Проверить готовность распознавания. Аудио останется в локальной очереди, пока источник недоступен.";
+      ? "Отправить сохраненные аудиофрагменты на распознаИвание."
+      : "Проверить готовность распознаИвания. Аудио останется в локальной очереди, пока иИсточник недоступен.";
   const speechSafetyValue = pendingSpeechChunkCount
     ? `${pendingSpeechChunkCount} аудио`
     : currentSpeechQualityIssue
@@ -6413,7 +6409,7 @@ const {
       : speechRecognitionReady
         ? speechGatewayActiveProviderIsLocal
           ? "локальный модуль готов"
-          : "распознавание готово"
+          : "распознаИвание готово"
         : "очередь локально";
   const speechSafetyDetail = pendingSpeechChunkCount
     ? "аудио сохранено и уйдет позже"
@@ -6422,8 +6418,8 @@ const {
       : speechRecognitionReady
         ? speechGatewayActiveProviderIsLocal
           ? `${speechGatewayStatus?.providerLabel ?? "локальный модуль"}, фрагменты уходят в локальный модуль`
-          : `${speechGatewayStatus?.providerLabel ?? "распознавание"}, звук отправляется частями`
-        : "аудио хранится локально до готового источника";
+          : `${speechGatewayStatus?.providerLabel ?? "распознаИвание"}, звук отправляется частями`
+        : "аудио хранится локально до готового иИсточника";
   const speechSafetyState =
     pendingSpeechChunkCount || currentSpeechQualityIssue || !isOnline || !speechUploadReady
       ? "warn"
@@ -6559,7 +6555,7 @@ const {
       label: "Восстановление",
       value: speechRecoveryIssueCount ? "проверить" : speechRecordingRecovery ? "чисто" : "скоро",
       detail: speechRecoveryQualityIssueCount
-        ? `${speechRecoveryQualityIssueCount} фрагм. распознавания на проверку`
+        ? `${speechRecoveryQualityIssueCount} фрагм. распознаИвания на проверку`
         : speechRecoveryIssueCount
           ? `${speechRecoveryIssueCount} запись требует внимания`
           : "потерь диктовки не видно",
@@ -6655,7 +6651,7 @@ const {
     }
     const fullName = newPatientName.trim();
     if (!fullName) {
-      setError("Укажите ФРО пациента перед созданием карточки.");
+      setError("Укажите ФИО пациента перед созданием карточки.");
       return;
     }
     const payload = {
@@ -6733,7 +6729,7 @@ const {
   async function addStaffMember(role: StaffRole) {
     const fullName = newStaffName.trim();
     if (!fullName) {
-      setError("Введите ФРО сотрудника перед добавлением в команду.");
+      setError("Введите ФИО сотрудника перед добавлением в команду.");
       return;
     }
     if (!(await saveClinicProfileIfDirty())) return;
@@ -6876,7 +6872,7 @@ const {
         body: JSON.stringify(appointmentUpdateInputFromDraft(draft))
       });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Запись не сохранена"));
-      const payload = await response.json(); console.log("MISSING_KEYS:", Object.keys(payload).filter(k => !payload[k]));
+      const payload = await response.json();
       const nextDashboard = payload as any;
       setDashboard(nextDashboard);
       const savedAppointment = nextDashboard.appointments?.find((appointment) => appointment.id === appointmentId);
@@ -6940,7 +6936,7 @@ const {
         body: JSON.stringify(appointmentCreateInputFromDraft(newAppointmentDraft))
       });
       if (!response.ok) throw new Error(await responseErrorMessage(response, "Запись не создана"));
-      const payload = await response.json(); console.log("MISSING_KEYS:", Object.keys(payload).filter(k => !payload[k]));
+      const payload = await response.json();
       const nextDashboard = payload as any;
       const createdAppointment = nextDashboard.appointments?.find((appointment) => !previousIds.has(appointment.id)) ?? null;
       const nextDraftPreferences = {
@@ -6979,7 +6975,7 @@ const {
   async function addChair() {
     const name = newChairName.trim();
     if (!name) {
-      setError("Введите название кресла или кабинета перед добавлением.");
+      setError("Введите назИвание кресла или кабинета перед добавлением.");
       return;
     }
     if (!(await saveClinicProfileIfDirty())) return;
@@ -7024,7 +7020,7 @@ const {
 
   async function runRecognitionJob() {
     if (!recognitionText.trim()) {
-      setError("Вставьте текст, OCR или диктовку перед распознаванием.");
+      setError("Вставьте текст, OCR или диктовку перед распознаИванием.");
       return;
     }
     setIsRecognitionLoading(true);
@@ -7041,13 +7037,13 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Распознавание не подготовлено"));
+        throw new Error(await responseErrorMessage(response, "РаспознаИвание не подготовлено"));
       }
       const result = (await response.json()) as AiRecognitionJobResponse;
       setRecognitionJob(result.job);
       await loadDashboard();
     } catch (recognitionError) {
-      setError(operatorWorkflowFailureMessage("Распознавание не подготовлено", recognitionError));
+      setError(operatorWorkflowFailureMessage("РаспознаИвание не подготовлено", recognitionError));
     } finally {
       setIsRecognitionLoading(false);
     }
@@ -7113,7 +7109,7 @@ const {
   async function ingestImportFile(file: File | undefined) {
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
-      setError("Файл больше 8 МБ. Для больших архивов нужен пакетный импорт на сервере или распознавание через локальный модуль клиники.");
+      setError("Файл больше 8 МБ. Для больших архивов нужен пакетный иИмпорт на сервере или распознаИвание через локальный модуль клиники.");
       return;
     }
     setIsDocumentIngesting(true);
@@ -7158,7 +7154,7 @@ const {
           setPricelistImageBase64(prepared.base64);
           setPricelistImageMimeType(prepared.mimeType);
           setPricelistImageName(file.name);
-          setPricelistImageNote(`${prepared.note} Получено через общий импорт файлов.`);
+          setPricelistImageNote(`${prepared.note} Получено через общий иИмпорт файлов.`);
           setPricelistSourceKind("photo_ocr");
           setUsePricelistAi(true);
         } else {
@@ -7234,7 +7230,7 @@ const {
       setVisitNoteForm(visitNoteFormFromDraft(result.draft));
       const polishLabel =
         result.polishMode === "deterministic_neural"
-          ? `РР-полировка ${result.modelName ?? ""}`.trim()
+          ? `ИИ-полировка ${result.modelName ?? ""}`.trim()
           : "локальная проверка правил";
       setSpeechStatusNote(
         result.changedPhrases.length
@@ -7251,7 +7247,7 @@ const {
       setVisitNoteForm(visitNoteFormFromDraft(localDraft));
       setSpeechStatusNote("Текст очищен локальным разбором без сервера.");
       if (polishError instanceof Error) {
-        setError(`${operatorWorkflowFailureMessage("Серверная очистка недоступна", polishError)} Рспользован локальный разбор.`);
+        setError(`${operatorWorkflowFailureMessage("Серверная очистка недоступна", polishError)} ИспользоИван локальный разбор.`);
       }
     } finally {
       setIsTranscriptPolishing(false);
@@ -7307,8 +7303,8 @@ const {
   }
 
   async function acceptDraftToVisit() {
-    if (!dashboard) {
-      setError("Данные приема еще не загружены. Повторите сохранение после загрузки рабочего экрана.");
+    if (!dashboard?.activeVisit?.id) {
+      setError("Откройте или создайте прием перед сохранением ЭМК.");
       return;
     }
     if (!visitNoteReadyToAccept) {
@@ -7368,7 +7364,7 @@ const {
 
   async function previewImport() {
     if (!importText.trim()) {
-      setError("Вставьте список пациентов, OCR журнала или надиктуйте импорт перед проверкой.");
+      setError("Вставьте список пациентов, OCR журнала или надиктуйте иИмпорт перед проверкой.");
       return;
     }
     setIsImportLoading(true);
@@ -7383,7 +7379,7 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Рмпорт не проверен"));
+        throw new Error(await responseErrorMessage(response, "ИИмпорт не проверен"));
       }
       const result = (await response.json()) as ImportIntakeResponse;
       setImportIntake(result);
@@ -7391,7 +7387,7 @@ const {
       setImportText(result.normalizedText);
       setImportCommit(null);
     } catch (importError) {
-      setError(operatorWorkflowFailureMessage("Рмпорт не проверен", importError));
+      setError(operatorWorkflowFailureMessage("ИИмпорт не проверен", importError));
     } finally {
       setIsImportLoading(false);
     }
@@ -7399,19 +7395,19 @@ const {
 
   async function commitImport() {
     if (isImportCommitting) {
-      setError("Дождитесь завершения текущей записи импорта пациентов.");
+      setError("Дождитесь завершения текущей записи иИмпорта пациентов.");
       return;
     }
     if (!importText.trim()) {
-      setError("Вставьте список пациентов, OCR журнала или надиктуйте импорт перед записью.");
+      setError("Вставьте список пациентов, OCR журнала или надиктуйте иИмпорт перед записью.");
       return;
     }
     if (!importPreview) {
-      setError("Сначала проверьте импорт пациентов, чтобы увидеть готовые и проблемные строки.");
+      setError("Сначала проверьте иИмпорт пациентов, чтобы увидеть готовые и проблемные строки.");
       return;
     }
     if (importPreview.readyRows === 0) {
-      setError("В импорте пациентов нет готовых строк. Рсправьте предупреждения и повторите проверку.");
+      setError("В иИмпорте пациентов нет готовых строк. ИИсправьте предупреждения и повторите проверку.");
       return;
     }
     setIsImportCommitting(true);
@@ -7426,14 +7422,14 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Рмпорт не записан"));
+        throw new Error(await responseErrorMessage(response, "ИИмпорт не записан"));
       }
       const result = (await response.json()) as ImportCommitResponse;
       setImportCommit(result);
       setImportPreview(result.preview);
       await loadDashboard();
     } catch (importError) {
-      setError(operatorWorkflowFailureMessage("Рмпорт не записан", importError));
+      setError(operatorWorkflowFailureMessage("ИИмпорт не записан", importError));
     } finally {
       setIsImportCommitting(false);
     }
@@ -7442,7 +7438,7 @@ const {
   async function previewSmartImportText(rawText: string, mode: SmartImportMode) {
     const cleanText = rawText.trim();
     if (!cleanText) {
-      setError("Вставьте выгрузку из старой МРС, таблицу, OCR или диктовку перед разбором.");
+      setError("Вставьте выгрузку из старой МИС, таблицу, OCR или диктовку перед разбором.");
       return;
     }
     setIsSmartImportLoading(true);
@@ -7457,12 +7453,12 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Умный импорт не проверен"));
+        throw new Error(await responseErrorMessage(response, "Умный иИмпорт не проверен"));
       }
       setSmartImportPreview((await response.json()) as SmartImportPreviewResponse);
       setSmartImportCommit(null);
     } catch (importError) {
-      setError(operatorWorkflowFailureMessage("Умный импорт не проверен", importError));
+      setError(operatorWorkflowFailureMessage("Умный иИмпорт не проверен", importError));
     } finally {
       setIsSmartImportLoading(false);
     }
@@ -7474,19 +7470,19 @@ const {
 
   async function commitSmartImport() {
     if (isSmartImportCommitting) {
-      setError("Дождитесь завершения текущей записи умного импорта.");
+      setError("Дождитесь завершения текущей записи умного иИмпорта.");
       return;
     }
     if (!smartImportText.trim()) {
-      setError("Вставьте выгрузку из старой МРС, таблицу, OCR или диктовку перед записью.");
+      setError("Вставьте выгрузку из старой МИС, таблицу, OCR или диктовку перед записью.");
       return;
     }
     if (!smartImportPreview) {
-      setError("Сначала разберите умный импорт, чтобы увидеть готовые строки и пропуски.");
+      setError("Сначала разберите умный иИмпорт, чтобы увидеть готовые строки и пропуски.");
       return;
     }
     if (smartImportPreview.patientPreview.readyRows === 0 && smartImportPreview.imagingPreview.readyRows === 0) {
-      setError("В умном импорте нет готовых пациентов или снимков. Рсправьте строки и повторите разбор.");
+      setError("В умном иИмпорте нет готовых пациентов или снимков. ИИсправьте строки и повторите разбор.");
       return;
     }
     setIsSmartImportCommitting(true);
@@ -7501,14 +7497,14 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Умный импорт не записан"));
+        throw new Error(await responseErrorMessage(response, "Умный иИмпорт не записан"));
       }
       const result = (await response.json()) as SmartImportCommitResponse;
       setSmartImportCommit(result);
       setSmartImportPreview(result.preview);
       await loadDashboard();
     } catch (importError) {
-      setError(operatorWorkflowFailureMessage("Умный импорт не записан", importError));
+      setError(operatorWorkflowFailureMessage("Умный иИмпорт не записан", importError));
     } finally {
       setIsSmartImportCommitting(false);
     }
@@ -7516,7 +7512,7 @@ const {
 
   async function downloadSmartImportReport() {
     if (!smartImportText.trim()) {
-      setError("Вставьте выгрузку из старой МРС, таблицу, OCR или диктовку перед отчетом проверки.");
+      setError("Вставьте выгрузку из старой МИС, таблицу, OCR или диктовку перед отчетом проверки.");
       return;
     }
     setIsSmartReportLoading(true);
@@ -7531,7 +7527,7 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Отчет импорта не создан"));
+        throw new Error(await responseErrorMessage(response, "Отчет иИмпорта не создан"));
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -7543,7 +7539,7 @@ const {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (reportError) {
-      setError(operatorWorkflowFailureMessage("Отчет импорта не создан", reportError));
+      setError(operatorWorkflowFailureMessage("Отчет иИмпорта не создан", reportError));
     } finally {
       setIsSmartReportLoading(false);
     }
@@ -7551,7 +7547,7 @@ const {
 
   async function downloadSmartImportSafeHandoffReport() {
     if (!smartImportText.trim()) {
-      setError("Вставьте выгрузку из старой МРС, таблицу, OCR или диктовку перед отчетом переноса.");
+      setError("Вставьте выгрузку из старой МИС, таблицу, OCR или диктовку перед отчетом переноса.");
       return;
     }
     setIsSmartSafeReportLoading(true);
@@ -7566,7 +7562,7 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Отчет переноса по импорту не создан"));
+        throw new Error(await responseErrorMessage(response, "Отчет переноса по иИмпорту не создан"));
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -7578,7 +7574,7 @@ const {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (reportError) {
-      setError(operatorWorkflowFailureMessage("Отчет переноса по импорту не создан", reportError));
+      setError(operatorWorkflowFailureMessage("Отчет переноса по иИмпорту не создан", reportError));
     } finally {
       setIsSmartSafeReportLoading(false);
     }
@@ -7708,13 +7704,13 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Поиск старых источников не выполнен"));
+        throw new Error(await responseErrorMessage(response, "Поиск старых иИсточников не выполнен"));
       }
       const result = (await response.json()) as MigrationLocalSourceDiscoveryResponse;
       setMigrationSourceDiscovery(result);
       await runMigrationAutopilot(result);
     } catch (discoveryError) {
-      setError(operatorWorkflowFailureMessage("Поиск старых источников не выполнен", discoveryError));
+      setError(operatorWorkflowFailureMessage("Поиск старых иИсточников не выполнен", discoveryError));
     } finally {
       setIsMigrationSourceDiscovering(false);
     }
@@ -7741,11 +7737,11 @@ const {
 
   async function previewMigrationDiscoveryCandidate(candidate: MigrationLocalSourceDiscoveryResponse["candidates"][number]) {
     if (!migrationCandidateCanPreview(candidate)) {
-      setError("У найденного источника пока нет файлов для предпросмотра. Откройте план переноса или проверку источника.");
+      setError("У найденного иИсточника пока нет файлов для предпросмотра. Откройте план переноса или проверку иИсточника.");
       return;
     }
     if (!candidate.smartImportLine.trim()) {
-      setError("У найденного источника нет строки для умного предпросмотра. Откройте план или повторите поиск.");
+      setError("У найденного иИсточника нет строки для умного предпросмотра. Откройте план или повторите поиск.");
       return;
     }
     setSmartImportMode("auto");
@@ -7758,14 +7754,14 @@ const {
     const sources = migrationAutopilot?.sources ?? [];
     const selectedSources = sourceFingerprint ? sources.filter((source) => source.candidate.sourceFingerprint === sourceFingerprint) : [];
     if (sourceFingerprint && !selectedSources.length) {
-      setError("Рсточник из автоплана уже не найден. Обновите автоплан или выберите источник из текущего списка.");
+      setError("ИИсточник из автоплана уже не найден. Обновите автоплан или выберите иИсточник из текущего списка.");
       return;
     }
     const previewSources = selectedSources.length
       ? selectedSources.filter((source) => migrationCandidateCanPreview(source.candidate))
       : sources.filter((source) => source.readiness.level === "ready_for_preview" || migrationCandidateCanPreview(source.candidate));
     if (selectedSources.length && !previewSources.length) {
-      setError("У выбранного источника пока нет файлов для предпросмотра. Откройте план переноса или проверку источника.");
+      setError("У выбранного иИсточника пока нет файлов для предпросмотра. Откройте план переноса или проверку иИсточника.");
       return;
     }
     const sourceLines = Array.from(
@@ -7797,11 +7793,11 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "План переноса источника не построен"));
+        throw new Error(await responseErrorMessage(response, "План переноса иИсточника не построен"));
       }
       setMigrationSourceWorkup((await response.json()) as MigrationLocalSourceWorkupResponse);
     } catch (workupError) {
-      setError(operatorWorkflowFailureMessage("План переноса источника не построен", workupError));
+      setError(operatorWorkflowFailureMessage("План переноса иИсточника не построен", workupError));
     } finally {
       setIsMigrationSourceWorkupLoading(false);
     }
@@ -7825,11 +7821,11 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Проверка источника не выполнена"));
+        throw new Error(await responseErrorMessage(response, "Проверка иИсточника не выполнена"));
       }
       setMigrationSourceProbe((await response.json()) as MigrationLocalSourceProbeResponse);
     } catch (probeError) {
-      setError(operatorWorkflowFailureMessage("Проверка источника не выполнена", probeError));
+      setError(operatorWorkflowFailureMessage("Проверка иИсточника не выполнена", probeError));
     } finally {
       setIsMigrationSourceProbeLoading(false);
     }
@@ -7846,7 +7842,7 @@ const {
       medicalLicenseNumber: clinicProfileDraft.medicalLicenseNumber
     };
     if (!Object.values(payload).some((value) => typeof value === "string" && value.trim())) {
-      setError("Для поиска реквизитов клиники укажите РНН, ОГРН, название, адрес или номер лицензии.");
+      setError("Для поиска реквизитов клиники укажите ИИНН, ОГРН, назИвание, адрес или номер лицензии.");
       return;
     }
     setIsClinicPublicLookupLoading(true);
@@ -7884,13 +7880,13 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Рмпорт снимков не проверен"));
+        throw new Error(await responseErrorMessage(response, "ИИмпорт снимков не проверен"));
       }
       setImagingImportPreview((await response.json()) as ImagingImportPreviewResponse);
       setImagingImportCommit(null);
       setDicomSeriesPreview(null);
     } catch (importError) {
-      setError(operatorWorkflowFailureMessage("Рмпорт снимков не проверен", importError));
+      setError(operatorWorkflowFailureMessage("ИИмпорт снимков не проверен", importError));
     } finally {
       setIsImagingImportLoading(false);
     }
@@ -8440,7 +8436,7 @@ const {
           throwIfBrowserImagingScanAborted(options.signal);
           inspectedDirectoryEntries += 1;
           if (inspectedDirectoryEntries > browserImagingScanDirectoryEntryLimit) {
-            stats.warnings.push(`Браузерное сканирование ограничило одну папку ${browserImagingScanDirectoryEntryLimit} элементами для отзывчивости интерфейса.`);
+            stats.warnings.push(`Браузерное сканироИвание ограничило одну папку ${browserImagingScanDirectoryEntryLimit} элементами для отзывчивости интерфейса.`);
             break;
           }
           if (handle.kind === "directory") {
@@ -8472,10 +8468,10 @@ const {
     }
 
     if (stats.scannedFiles >= browserImagingScanFileLimit) {
-      stats.warnings.push(`Браузерное сканирование ограничено ${browserImagingScanFileLimit} файлами для отзывчивости интерфейса.`);
+      stats.warnings.push(`Браузерное сканироИвание ограничено ${browserImagingScanFileLimit} файлами для отзывчивости интерфейса.`);
     }
     if (stats.scannedFolders >= browserImagingScanFolderLimit) {
-      stats.warnings.push(`Браузерное сканирование ограничено ${browserImagingScanFolderLimit} папками для отзывчивости интерфейса.`);
+      stats.warnings.push(`Браузерное сканироИвание ограничено ${browserImagingScanFolderLimit} папками для отзывчивости интерфейса.`);
     }
     stats.warnings.push("Браузер проверил выбранную папку без передачи полного пути. Для полноценного открытия тяжелой КТ выберите эту же папку в локальном модуле клиники или укажите путь на рабочем ПК.");
     publishBrowserImagingScanProgress(stats, options, runtime, null, "done", true);
@@ -8532,7 +8528,7 @@ const {
     }
 
     if (selectedFileCount > browserImagingScanFileLimit) {
-      stats.warnings.push(`Браузерное сканирование ограничено ${browserImagingScanFileLimit} файлами для отзывчивости интерфейса.`);
+      stats.warnings.push(`Браузерное сканироИвание ограничено ${browserImagingScanFileLimit} файлами для отзывчивости интерфейса.`);
     }
     stats.warnings.push("Файлы выбраны через запасной режим браузера. После обновления страницы их нужно выбрать заново; для постоянной привязки лучше выбрать папку или локальный модуль клиники.");
     publishBrowserImagingScanProgress(stats, options, runtime, null, "done", true);
@@ -8661,7 +8657,7 @@ const {
   async function scanImagingFolder() {
     const folderPath = imagingFolderPath.trim();
     if (!folderPath) {
-      setError("Укажите путь к папке снимков перед сканированием.");
+      setError("Укажите путь к папке снимков перед сканироИванием.");
       return;
     }
     rememberLocalImagingFolder(folderPath, { origin: "manual" });
@@ -8679,7 +8675,7 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Папка снимков не просканирована"));
+        throw new Error(await responseErrorMessage(response, "Папка снимков не просканироИвана"));
       }
       const result = (await response.json()) as ImagingFolderScanResponse;
       setImagingFolderScan(result);
@@ -8692,7 +8688,7 @@ const {
       setDicomSeriesPreview(null);
     } catch (scanError) {
       if (isLocalDicomOperationAbortError(scanError)) return;
-      setError(operatorWorkflowFailureMessage("Папка снимков не просканирована", scanError));
+      setError(operatorWorkflowFailureMessage("Папка снимков не просканироИвана", scanError));
     } finally {
       finishLocalDicomOperation(controller);
       setIsImagingFolderScanning(false);
@@ -9281,7 +9277,7 @@ const {
         })
       });
       if (!workupResponse.ok) {
-        throw new Error(await responseErrorMessage(workupResponse, "Рсточник снимков не переподключен"));
+        throw new Error(await responseErrorMessage(workupResponse, "ИИсточник снимков не переподключен"));
       }
       const workup = (await workupResponse.json()) as DicomFolderWorkupPlanResponse;
       const matchedPlan =
@@ -9329,7 +9325,7 @@ const {
       await saveDicomWorkbenchBundleToServer(manifest, clientSavedAt, { silent: true, signal: controller.signal });
     } catch (reconnectError) {
       if (isLocalDicomOperationAbortError(reconnectError)) return;
-      setError(operatorWorkflowFailureMessage("Рсточник снимков не переподключен", reconnectError));
+      setError(operatorWorkflowFailureMessage("ИИсточник снимков не переподключен", reconnectError));
     } finally {
       finishLocalDicomOperation(controller);
       setIsDicomWorkbenchReconnecting(false);
@@ -9418,11 +9414,11 @@ const {
       return;
     }
     if (!imagingImportPreview) {
-      setError("Сначала проверьте импорт снимков, чтобы увидеть готовые и проблемные строки.");
+      setError("Сначала проверьте иИмпорт снимков, чтобы увидеть готовые и проблемные строки.");
       return;
     }
     if (imagingImportPreview.readyRows === 0) {
-      setError("В импорте снимков нет готовых строк. Рсправьте предупреждения и повторите проверку.");
+      setError("В иИмпорте снимков нет готовых строк. ИИсправьте предупреждения и повторите проверку.");
       return;
     }
     setIsImagingImportCommitting(true);
@@ -9437,7 +9433,7 @@ const {
         })
       });
       if (!response.ok) {
-        throw new Error(await responseErrorMessage(response, "Рмпорт снимков не записан"));
+        throw new Error(await responseErrorMessage(response, "ИИмпорт снимков не записан"));
       }
       const result = (await response.json()) as ImagingImportCommitResponse;
       setImagingImportCommit(result);
@@ -9531,7 +9527,7 @@ const {
     const maxChunkBytes = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
     if (blob.size > maxChunkBytes) {
       setSpeechStatusNote(
-        `Распознавание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
+        `РаспознаИвание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
           maxChunkBytes / 1024 / 1024
         )} МБ; запись продолжается, уменьшите длительность чанка или используйте локальный модуль.`
       );
@@ -9561,7 +9557,7 @@ const {
     if (!isOnline || !speechGatewayCanUpload(speechGatewayStatus)) {
       setSpeechStatusNote(
         queuedBeforeUpload
-          ? `Фрагмент ${chunkIndex + 1} сохранен локально; распознавание отправится, когда источник будет готов.`
+          ? `Фрагмент ${chunkIndex + 1} сохранен локально; распознаИвание отправится, когда иИсточник будет готов.`
           : `Фрагмент ${chunkIndex + 1} не сохранен: локальная очередь недоступна.`
       );
       return;
@@ -9736,7 +9732,7 @@ const {
       if (!isOnline || !speechGatewayCanUpload(speechGatewayStatus)) {
         setSpeechStatusNote(
           isOnline
-            ? "Запись идет в локальную очередь: серверное распознавание пока не готово, аудио не отправляется."
+            ? "Запись идет в локальную очередь: серверное распознаИвание пока не готово, аудио не отправляется."
             : "Запись идет в локальную очередь: офлайн, аудио отправится после подключения."
         );
       }
@@ -9772,7 +9768,7 @@ const {
 
   function startImportDictation() {
     if (isImportDictating) {
-      setError("Дождитесь завершения текущей диктовки импорта.");
+      setError("Дождитесь завершения текущей диктовки иИмпорта.");
       return;
     }
     const speechWindow = window as BrowserWindowWithSpeech;
@@ -9780,9 +9776,9 @@ const {
     if (!Recognition) {
       setImportSourceKind("voice_dictation");
       setImportText((current) =>
-        `${current}\n\nДиктовка недоступна в этом браузере. Вставь распознанный текст сюда: Рванов Рван, телефон +7 900 000-00-00, дата рождения 01.01.1980.`
+        `${current}\n\nДиктовка недоступна в этом браузере. Вставь распознанный текст сюда: ИИИванов ИИван, телефон +7 900 000-00-00, дата рождения 01.01.1980.`
       );
-      setError("Браузерная диктовка импорта недоступна. Вставьте список пациентов вручную или загрузите OCR.");
+      setError("Браузерная диктовка иИмпорта недоступна. Вставьте список пациентов вручную или загрузите OCR.");
       return;
     }
     const recognition = new Recognition();
@@ -9801,7 +9797,7 @@ const {
     recognition.onerror = () => {
       setImportSourceKind("voice_dictation");
       setIsImportDictating(false);
-      setError("Диктовка импорта не распознана. Вставьте список вручную или загрузите OCR.");
+      setError("Диктовка иИмпорта не распознана. Вставьте список вручную или загрузите OCR.");
     };
     recognition.onend = () => setIsImportDictating(false);
     setError(null);
@@ -9810,7 +9806,7 @@ const {
       recognition.start();
     } catch {
       setIsImportDictating(false);
-      setError("Браузер не смог запустить микрофон для импорта. Вставьте список пациентов вручную или загрузите файл.");
+      setError("Браузер не смог запустить микрофон для иИмпорта. Вставьте список пациентов вручную или загрузите файл.");
     }
   }
 
@@ -9824,7 +9820,7 @@ const {
       return;
     }
     if (!newRuleTitle.trim() || !newRuleWarningText.trim() || !newRulePatientText.trim()) {
-      setError("Клиническое правило должно иметь название, предупреждение и объяснение для пациента.");
+      setError("Клиническое правило должно иметь назИвание, предупреждение и объяснение для пациента.");
       return;
     }
 
@@ -10004,7 +10000,7 @@ const {
     const fallbackIndication =
       treatmentPlanClinicalReasonValue() || recordExtractComplaintAndAnamnesisValue() || "медицинское показание к лечению";
     const fallbackAction =
-      dashboard?.activeVisit?.treatmentPlan?.trim() || procedureConsentProcedureName.trim() || treatmentAcceptanceClinicalGoal.trim() || "согласованное стоматологическое лечение";
+      dashboard?.activeVisit?.treatmentPlan?.trim() || procedureConsentProcedureName.trim() || treatmentAcceptanceClinicalGoal.trim() || "согласоИванное стоматологическое лечение";
 
     return documentTextLines(clinicalToothRowsText).map((line, index) => {
       const [
@@ -10259,7 +10255,7 @@ const {
   }
 
   function minorConsentInterventionScopeValue(): string {
-    return minorConsentInterventionScope.trim() || dashboard?.activeVisit?.treatmentPlan?.trim() || "стоматологическое вмешательство по согласованному плану";
+    return minorConsentInterventionScope.trim() || dashboard?.activeVisit?.treatmentPlan?.trim() || "стоматологическое вмешательство по согласоИванному плану";
   }
 
   function minorConsentDiagnosisOrIndicationValue(): string {
@@ -10524,7 +10520,7 @@ const {
         requiredDocumentField(paidContractServiceStart, "договор, начало оказания услуг") ??
         requiredDocumentField(paidContractServiceEnd, "договор, окончание или условие завершения") ??
         requiredDocumentField(paidContractCustomerFullNameValue(), "договор, заказчик") ??
-        requiredDocumentField(paidContractCareReasonValue(), "договор, основание обращения") ??
+        requiredDocumentField(paidContractCareReasonValue(), "договор, осноИвание обращения") ??
         requiredDocumentField(paidContractServiceScopeValue(), "договор, состав услуг") ??
         (paidContractTotalRubValue() > 0 ? null : "Укажите ориентировочную стоимость договора.") ??
         requiredDocumentField(paidContractPaymentTerms, "договор, порядок оплаты") ??
@@ -10566,7 +10562,7 @@ const {
         requiredDocumentField(treatmentEstimateNumber, "смета, номер") ??
         requiredDocumentField(treatmentEstimateDate, "смета, дата") ??
         requiredDocumentField(treatmentEstimatePatientOrPayerFullNameValue(), "смета, пациент или плательщик") ??
-        requiredDocumentField(treatmentEstimateTreatmentBasisValue(), "смета, основание лечения") ??
+        requiredDocumentField(treatmentEstimateTreatmentBasisValue(), "смета, осноИвание лечения") ??
         (serviceLines.length ? null : "Для сметы нужен состав услуг из плана лечения.") ??
         (treatmentEstimateTotalRubValue() > 0 ? null : "Укажите итоговую сумму сметы.") ??
         requiredDocumentField(treatmentEstimateValidUntil, "смета, срок действия") ??
@@ -10605,13 +10601,13 @@ const {
         requiredDocumentField(paymentReceiptDate, "квитанция, дата") ??
         (selectedPaymentReceiptPayments.length ? null : "Выберите оплаченные платежи для квитанции.") ??
         (selectedPaymentReceiptTotalRub > 0 ? null : "Сумма выбранных платежей должна быть больше нуля.") ??
-        requiredDocumentField(paymentReceiptPayerFullNameValue(), "квитанция, ФРО плательщика") ??
+        requiredDocumentField(paymentReceiptPayerFullNameValue(), "квитанция, ФИО плательщика") ??
         (paymentReceiptTaxSupportRequested
           ? requiredDocumentField(paymentReceiptPayerBirthDateValue(), "квитанция, дата рождения плательщика") ??
             requiredDocumentField(paymentReceiptPayerRelationshipValue(), "квитанция, связь плательщика с пациентом") ??
             (paymentReceiptPayerInnValue().replace(/\D+/g, "").length === 12 || paymentReceiptPayerIdentityDocumentValue().trim()
               ? null
-              : "Для налоговой квитанции укажите 12-значный РНН плательщика или документ плательщика.")
+              : "Для налоговой квитанции укажите 12-значный ИИНН плательщика или документ плательщика.")
           : null) ??
         requiredDocumentField(paymentReceiptPurpose, "квитанция, назначение оплаты") ??
         (paymentReceiptFiscalReceiptLines().length === selectedPaymentReceiptPayments.length
@@ -10631,7 +10627,7 @@ const {
       return (
         requiredDocumentField(installmentScheduleNumber, "график, номер") ??
         requiredDocumentField(installmentScheduleDate, "график, дата") ??
-        requiredDocumentField(installmentScheduleBaseDocumentTitleValue(), "график, основание") ??
+        requiredDocumentField(installmentScheduleBaseDocumentTitleValue(), "график, осноИвание") ??
         requiredDocumentField(installmentSchedulePayerFullNameValue(), "график, плательщик") ??
         (installmentScheduleTotalRubValue() > 0 ? null : "Укажите общую сумму графика.") ??
         (installmentScheduleRemainingRubValue() >= 0 ? null : "Остаток по графику не может быть отрицательным.") ??
@@ -10646,11 +10642,11 @@ const {
     }
     if (kind === "minor_legal_representative_consent") {
       return (
-        requiredDocumentField(minorRepresentativeFullNameValue(), "представитель, ФРО") ??
+        requiredDocumentField(minorRepresentativeFullNameValue(), "представитель, ФИО") ??
         requiredDocumentField(minorRepresentativeRelationshipValue(), "представитель, родство или статус") ??
         requiredDocumentField(minorRepresentativeIdentityDocumentValue(), "представитель, документ личности") ??
-        requiredDocumentField(minorRepresentativeAuthorityDocument, "представитель, основание полномочий") ??
-        requiredDocumentField(minorConsentPatientFullNameValue(), "несовершеннолетний, ФРО") ??
+        requiredDocumentField(minorRepresentativeAuthorityDocument, "представитель, осноИвание полномочий") ??
+        requiredDocumentField(minorConsentPatientFullNameValue(), "несовершеннолетний, ФИО") ??
         requiredDocumentField(minorConsentPatientBirthDateValue(), "несовершеннолетний, дата рождения") ??
         requiredDocumentField(minorConsentInterventionScopeValue(), "согласие, вмешательство") ??
         requiredDocumentField(minorConsentDiagnosisOrIndicationValue(), "согласие, диагноз или показание") ??
@@ -10689,7 +10685,7 @@ const {
         requiredDocumentField(intakeChiefComplaint, "анкета, жалоба или цель визита") ??
         requiredDocumentField(intakeAllergyStatus, "анкета, аллергии") ??
         requiredDocumentField(intakeCurrentMedications, "анкета, постоянные препараты") ??
-        requiredDocumentField(intakeChronicConditions, "анкета, хронические заболевания") ??
+        requiredDocumentField(intakeChronicConditions, "анкета, хронические заболеИвания") ??
         requiredDocumentField(intakeAnticoagulants, "анкета, антикоагулянты") ??
         requiredDocumentField(intakeInfectiousRiskNotes, "анкета, инфекционные риски") ??
         requiredDocumentField(intakeCardioEndocrineNotes, "анкета, системные риски") ??
@@ -10701,13 +10697,13 @@ const {
       return (
         requiredDocumentField(taxApplicationTaxpayerFullName, "налоговое заявление, заявитель") ??
         (taxApplicationForm === "legacy_2021_2023" && normalizedInn.length !== 10 && normalizedInn.length !== 12
-          ? "Для старой налоговой справки укажите 10- или 12-значный РНН заявителя."
+          ? "Для старой налоговой справки укажите 10- или 12-значный ИИНН заявителя."
           : null) ??
         (normalizedInn && normalizedInn.length !== 10 && normalizedInn.length !== 12
-          ? "РНН заявителя должен содержать 10 или 12 цифр."
+          ? "ИИНН заявителя должен содержать 10 или 12 цифр."
           : null) ??
         (taxApplicationForm === "knd_1151156" && normalizedInn && normalizedInn.length !== 12
-          ? "Для КНД 1151156 РНН физического лица должен быть 12-значным. Если РНН нет, оставьте поле пустым и заполните документ заявителя."
+          ? "Для КНД 1151156 ИИНН физического лица должен быть 12-значным. Если ИИНН нет, оставьте поле пустым и заполните документ заявителя."
           : null) ??
         (isDateInputValue(taxApplicationTaxpayerBirthDate)
           ? null
@@ -10728,15 +10724,15 @@ const {
       const effectiveIndication = informedConsentDiagnosisOrIndication.trim() || dashboard?.activeVisit?.complaint || "";
       const effectiveDoctor = informedConsentDoctorFullName.trim() || activeDoctor?.fullName || "";
       return (
-        requiredDocumentField(informedConsentIntervention, "информированное согласие, вмешательство") ??
-        requiredDocumentField(effectiveArea, "информированное согласие, область или зубы") ??
-        requiredDocumentField(effectiveIndication, "информированное согласие, диагноз или показание") ??
-        requiredDocumentField(informedConsentExpectedBenefit, "информированное согласие, ожидаемая польза") ??
-        (documentTextLines(informedConsentRisks).length ? null : "Добавьте разъясненные риски для информированного согласия.") ??
-        (documentTextLines(informedConsentAlternatives).length ? null : "Добавьте альтернативы лечения для информированного согласия.") ??
-        (documentTextLines(informedConsentAftercare).length ? null : "Добавьте рекомендации после вмешательства для информированного согласия.") ??
-        requiredDocumentField(effectiveDoctor, "информированное согласие, врач") ??
-        requiredDocumentField(informedConsentConfirmedAt, "информированное согласие, дата подтверждения") ??
+        requiredDocumentField(informedConsentIntervention, "информироИванное согласие, вмешательство") ??
+        requiredDocumentField(effectiveArea, "информироИванное согласие, область или зубы") ??
+        requiredDocumentField(effectiveIndication, "информироИванное согласие, диагноз или показание") ??
+        requiredDocumentField(informedConsentExpectedBenefit, "информироИванное согласие, ожидаемая польза") ??
+        (documentTextLines(informedConsentRisks).length ? null : "Добавьте разъясненные риски для информироИванного согласия.") ??
+        (documentTextLines(informedConsentAlternatives).length ? null : "Добавьте альтернативы лечения для информироИванного согласия.") ??
+        (documentTextLines(informedConsentAftercare).length ? null : "Добавьте рекомендации после вмешательства для информироИванного согласия.") ??
+        requiredDocumentField(effectiveDoctor, "информироИванное согласие, врач") ??
+        requiredDocumentField(informedConsentConfirmedAt, "информироИванное согласие, дата подтверждения") ??
         (informedConsentQuestionsAnswered ? null : "Подтвердите, что пациент получил ответы на вопросы перед согласием.") ??
         (informedConsentRisksUnderstood ? null : "Подтвердите, что пациент понял риски, ограничения и прогноз.") ??
         (informedConsentWithdrawUnderstood ? null : "Подтвердите, что пациенту объяснено право отказаться до вмешательства.")
@@ -10766,14 +10762,14 @@ const {
         requiredDocumentField(effectiveDoctor, "процедурное согласие, врач") ??
         requiredDocumentField(procedureConsentConfirmedAt, "процедурное согласие, дата подтверждения") ??
         (procedureConsentQuestionsAnswered ? null : "Подтвердите, что пациент получил ответы на вопросы по процедуре.") ??
-        (procedureConsentExactProcedureConfirmed ? null : "Подтвердите, что пациенту названа конкретная процедура, зона и объем.") ??
+        (procedureConsentExactProcedureConfirmed ? null : "Подтвердите, что пациенту назИвана конкретная процедура, зона и объем.") ??
         (procedureConsentRisksUnderstood ? null : "Подтвердите, что пациент понял процедурные риски и ограничения.")
       );
     }
     if (kind === "treatment_plan") {
       return (
         requiredDocumentField(treatmentPlanClinicalReasonValue(), "план лечения, повод обращения") ??
-        requiredDocumentField(treatmentPlanDiagnosisSummaryValue(), "план лечения, диагноз или клиническое основание") ??
+        requiredDocumentField(treatmentPlanDiagnosisSummaryValue(), "план лечения, диагноз или клиническое осноИвание") ??
         requiredDocumentField(treatmentPlanTeethOrAreaValue(), "план лечения, зубы или область") ??
         (clinicalToothRowsValue().length ? null : "Добавьте клинические строки по зубам или сегментам.") ??
         (documentTextLines(treatmentPlanGoals).length ? null : "Добавьте цели лечения.") ??
@@ -10787,28 +10783,28 @@ const {
         requiredDocumentField(treatmentPlanPlannedAt, "план лечения, дата") ??
         (treatmentPlanQuestionsAnswered ? null : "Подтвердите, что пациент получил ответы на вопросы.") ??
         (treatmentPlanSeparateConsentAcknowledged ? null : "Подтвердите, что план не заменяет отдельное согласие.") ??
-        (treatmentPlanNewApprovalAcknowledged ? null : "Подтвердите, что изменение плана требует нового согласования.")
+        (treatmentPlanNewApprovalAcknowledged ? null : "Подтвердите, что изменение плана требует нового согласоИвания.")
       );
     }
     if (kind === "treatment_plan_acceptance") {
       return (
-        requiredDocumentField(treatmentAcceptanceClinicalGoal, "согласование плана, клиническая цель") ??
-        requiredDocumentField(treatmentAcceptanceDiagnosisSummary.trim() || dashboard?.activeVisit?.diagnosis || dashboard?.activeVisit?.complaint || "", "согласование плана, диагноз или основание") ??
-        requiredDocumentField(treatmentAcceptanceTeethOrArea.trim() || inferredTreatmentArea || "", "согласование плана, зубы или область") ??
+        requiredDocumentField(treatmentAcceptanceClinicalGoal, "согласоИвание плана, клиническая цель") ??
+        requiredDocumentField(treatmentAcceptanceDiagnosisSummary.trim() || dashboard?.activeVisit?.diagnosis || dashboard?.activeVisit?.complaint || "", "согласоИвание плана, диагноз или осноИвание") ??
+        requiredDocumentField(treatmentAcceptanceTeethOrArea.trim() || inferredTreatmentArea || "", "согласоИвание плана, зубы или область") ??
         (clinicalToothRowsValue().length ? null : "Добавьте клинические строки по зубам или сегментам.") ??
-        (treatmentAcceptanceStageRows().length ? null : "Добавьте этапы согласованного плана лечения.") ??
-        (treatmentAcceptanceTotalRubValue() > 0 ? null : "Укажите ориентировочную стоимость согласованного плана.") ??
-        requiredDocumentField(treatmentAcceptanceEstimateValidUntil, "согласование плана, срок действия сметы") ??
-        requiredDocumentField(treatmentAcceptancePaymentTerms, "согласование плана, условия оплаты") ??
+        (treatmentAcceptanceStageRows().length ? null : "Добавьте этапы согласоИванного плана лечения.") ??
+        (treatmentAcceptanceTotalRubValue() > 0 ? null : "Укажите ориентировочную стоимость согласоИванного плана.") ??
+        requiredDocumentField(treatmentAcceptanceEstimateValidUntil, "согласоИвание плана, срок действия сметы") ??
+        requiredDocumentField(treatmentAcceptancePaymentTerms, "согласоИвание плана, условия оплаты") ??
         (documentTextLines(treatmentAcceptanceRejectedAlternatives).length ? null : "Добавьте отклоненные или отложенные альтернативы.") ??
         (documentTextLines(treatmentAcceptanceRisks).length ? null : "Добавьте риски и ограничения плана.") ??
-        requiredDocumentField(treatmentAcceptanceWarrantyTerms, "согласование плана, гарантия и контроль") ??
-        requiredDocumentField(treatmentAcceptanceDoctorFullName.trim() || activeDoctor?.fullName || "", "согласование плана, врач") ??
-        requiredDocumentField(treatmentAcceptanceAcceptedAt, "согласование плана, дата") ??
+        requiredDocumentField(treatmentAcceptanceWarrantyTerms, "согласоИвание плана, гарантия и контроль") ??
+        requiredDocumentField(treatmentAcceptanceDoctorFullName.trim() || activeDoctor?.fullName || "", "согласоИвание плана, врач") ??
+        requiredDocumentField(treatmentAcceptanceAcceptedAt, "согласоИвание плана, дата") ??
         (treatmentAcceptanceQuestionsAnswered ? null : "Подтвердите, что пациент получил ответы на вопросы.") ??
         (treatmentAcceptanceAlternativesUnderstood ? null : "Подтвердите, что пациент понимает альтернативы.") ??
         (treatmentAcceptanceCostChangeUnderstood ? null : "Подтвердите, что пациент понимает возможность изменения стоимости.") ??
-        (treatmentAcceptanceRevisionAcknowledged ? null : "Подтвердите, что существенное изменение плана требует нового согласования.")
+        (treatmentAcceptanceRevisionAcknowledged ? null : "Подтвердите, что существенное изменение плана требует нового согласоИвания.")
       );
     }
     if (kind === "post_visit_recommendations") {
@@ -10861,7 +10857,7 @@ const {
         requiredDocumentField(labTeethOrArea, "лаборатория, зубы или зона") ??
         requiredDocumentField(labMaterial, "лаборатория, материал") ??
         requiredDocumentField(labShade, "лаборатория, цвет") ??
-        requiredDocumentField(labSource, "лаборатория, источник данных") ??
+        requiredDocumentField(labSource, "лаборатория, иИсточник данных") ??
         requiredDocumentField(labDeadline, "лаборатория, срок")
       );
     }
@@ -10869,7 +10865,7 @@ const {
       return (
         (photoVideoMaterials.length ? null : "Отметьте хотя бы один тип фото, видео или снимков.") ??
         (photoVideoClinicalRecordUseConfirmed ? null : "Подтвердите, что фото, видео и снимки вносятся в медицинскую карту пациента.") ??
-        (photoVideoAnonymizationConfirmed ? null : "Подтвердите, что внешнее использование возможно только после обезличивания, кроме отдельно разрешенной узнаваемой публикации.") ??
+        (photoVideoAnonymizationConfirmed ? null : "Подтвердите, что внешнее использоИвание возможно только после обезличиИвания, кроме отдельно разрешенной узнаваемой публикации.") ??
         requiredDocumentField(photoVideoRevocationChannel, "фото/видео, порядок отзыва согласия") ??
         (photoVideoRecognizablePublicationAllowed && !photoVideoMarketingUseAllowed && !photoVideoEducationUseAllowed
           ? "Публикация узнаваемых материалов возможна только вместе с отдельным разрешением на обучение или маркетинг."
@@ -10893,7 +10889,7 @@ const {
         requiredDocumentField(outpatient025uOpenedAt, "карта 025/у, дата открытия") ??
         requiredDocumentField(recordExtractPeriodStart, "карта 025/у, период с") ??
         requiredDocumentField(recordExtractPeriodEnd, "карта 025/у, период по") ??
-        (outpatient025uSourceVisitIdsValue().length ? null : "Добавьте источник подписанной медицинской записи для карты 025/у.") ??
+        (outpatient025uSourceVisitIdsValue().length ? null : "Добавьте иИсточник подписанной медицинской записи для карты 025/у.") ??
         requiredDocumentField(documentPatient?.fullName ?? "", "карта 025/у, пациент") ??
         requiredDocumentField(recordExtractComplaintAndAnamnesisValue(), "карта 025/у, жалобы и анамнез") ??
         requiredDocumentField(recordExtractObjectiveStatusValue(), "карта 025/у, объективный статус") ??
@@ -10912,7 +10908,7 @@ const {
       return (
         requiredDocumentField(recordExtractPeriodStart, "выписка, период с") ??
         requiredDocumentField(recordExtractPeriodEnd, "выписка, период по") ??
-        (sourceVisitIds.length || dashboard?.activeVisit?.id ? null : "Добавьте источник медицинской записи для выписки.") ??
+        (sourceVisitIds.length || dashboard?.activeVisit?.id ? null : "Добавьте иИсточник медицинской записи для выписки.") ??
         requiredDocumentField(recordExtractComplaintAndAnamnesisValue(), "выписка, жалобы и анамнез") ??
         requiredDocumentField(recordExtractObjectiveStatusValue(), "выписка, объективный статус") ??
         requiredDocumentField(recordExtractDiagnosisValue(), "выписка, диагноз") ??
@@ -10921,7 +10917,7 @@ const {
         requiredDocumentField(recordExtractRecommendations, "выписка, рекомендации") ??
         requiredDocumentField(recordExtractDoctorFullName.trim() || activeDoctor?.fullName || "", "выписка, врач") ??
         requiredDocumentField(recordExtractRecipientFullName.trim() || documentPatient?.fullName || "", "выписка, получатель") ??
-        requiredDocumentField(recordExtractRecipientAuthority, "выписка, основание выдачи") ??
+        requiredDocumentField(recordExtractRecipientAuthority, "выписка, осноИвание выдачи") ??
         requiredDocumentField(recordExtractIssuedAt, "выписка, дата") ??
         (recordExtractPreparedFromSignedRecords ? null : "Подтвердите, что выписка собрана из подписанных медицинских записей.") ??
         (recordExtractThirdPartyDataChecked ? null : "Подтвердите, что лишние данные третьих лиц исключены.")
@@ -10932,7 +10928,7 @@ const {
         (documentTextLines(copyRequestDocumentTypes).length ? null : "Добавьте состав запрошенных медицинских документов.") ??
         requiredDocumentField(copyRequestRecipientFullName.trim() || documentPatient?.fullName || "", "запрос копий, получатель") ??
         requiredDocumentField(copyRequestRecipientIdentityDocument, "запрос копий, документ получателя") ??
-        requiredDocumentField(copyRequestRecipientAuthority, "запрос копий, основание полномочий") ??
+        requiredDocumentField(copyRequestRecipientAuthority, "запрос копий, осноИвание полномочий") ??
         requiredDocumentField(copyRequestRequestedAt, "запрос копий, дата запроса") ??
         requiredDocumentField(copyRequestContactForDelivery, "запрос копий, контакт и канал выдачи") ??
         (copyRequestIdentityVerified ? null : "Подтвердите проверку личности получателя.") ??
@@ -10956,7 +10952,7 @@ const {
         requiredDocumentField(selectedReleaseSourceRequestDocumentId, "выдача документов, выданный запрос на копии") ??
         requiredDocumentField(releaseRecipientFullName, "выдача документов, получатель") ??
         requiredDocumentField(releaseRecipientIdentityDocument, "выдача документов, документ получателя") ??
-        requiredDocumentField(releaseRecipientAuthority, "выдача документов, основание полномочий") ??
+        requiredDocumentField(releaseRecipientAuthority, "выдача документов, осноИвание полномочий") ??
         (documentTextLines(releaseDocumentTypes).length ? null : "Добавьте состав выдаваемых медицинских документов.") ??
         requiredDocumentField(releaseDeliveredAt, "выдача документов, дата и время") ??
         requiredDocumentField(releaseProtectionNote, "выдача документов, защита передачи") ??
@@ -10974,7 +10970,7 @@ const {
               "Укажите сумму возврата или коррекции больше нуля.",
               "Укажите сумму возврата или коррекции целыми рублями без копеек."
             )) ??
-        requiredDocumentField(refundReason, "возврат/коррекция, основание") ??
+        requiredDocumentField(refundReason, "возврат/коррекция, осноИвание") ??
         requiredDocumentField(refundRecipientFullName, "возврат/коррекция, получатель") ??
         requiredDocumentField(refundRecipientIdentityDocument, "возврат/коррекция, документ получателя") ??
         requiredDocumentField(refundOriginalFiscalReceiptNumber, "возврат/коррекция, исходный фискальный чек") ??
@@ -10986,7 +10982,7 @@ const {
       const operatorInn = clinicProfileDraft.inn.replace(/[^\d]/g, "");
       return (
         requiredDocumentField(operatorName, "ПДн, оператор клиники") ??
-        (operatorInn.length === 10 || operatorInn.length === 12 ? null : "РНН оператора ПДн должен содержать 10 или 12 цифр.") ??
+        (operatorInn.length === 10 || operatorInn.length === 12 ? null : "ИИНН оператора ПДн должен содержать 10 или 12 цифр.") ??
         requiredDocumentField(clinicProfileDraft.address, "ПДн, адрес оператора") ??
         (documentTextLines(personalDataPurposes).length ? null : "Добавьте цели обработки персональных данных.") ??
         (documentTextLines(personalDataCategories).length ? null : "Добавьте категории персональных данных.") ??
@@ -11172,7 +11168,7 @@ const {
           signedAt: minorConsentSignedAt.trim(),
           representativeIdentityVerified: confirmedDocumentLiteral(minorConsentIdentityVerified, "личность представителя проверена"),
           representativeAuthorityVerified: confirmedDocumentLiteral(minorConsentAuthorityVerified, "полномочия представителя проверены"),
-          informedConsentExplained: confirmedDocumentLiteral(minorConsentExplained, "информированное согласие разъяснено"),
+          informedConsentExplained: confirmedDocumentLiteral(minorConsentExplained, "информироИванное согласие разъяснено"),
           medicalRecordConsentStored: confirmedDocumentLiteral(minorConsentStored, "согласие сохранено в медкарте"),
           ageAppropriateExplanationGiven: confirmedDocumentLiteral(minorConsentAgeExplanation, "ребенку дано объяснение по возрасту")
         }
@@ -11250,8 +11246,8 @@ const {
           aftercareRequirements: documentTextLines(informedConsentAftercare),
           doctorFullName: informedConsentDoctorFullName.trim() || activeDoctor?.fullName || "",
           consentConfirmedAt: informedConsentConfirmedAt.trim(),
-          patientQuestionsAnswered: confirmedDocumentLiteral(informedConsentQuestionsAnswered, "вопросы пациента по информированному согласию закрыты"),
-          patientUnderstandsRisks: confirmedDocumentLiteral(informedConsentRisksUnderstood, "риски информированного согласия понятны"),
+          patientQuestionsAnswered: confirmedDocumentLiteral(informedConsentQuestionsAnswered, "вопросы пациента по информироИванному согласию закрыты"),
+          patientUnderstandsRisks: confirmedDocumentLiteral(informedConsentRisksUnderstood, "риски информироИванного согласия понятны"),
           patientMayWithdrawBeforeIntervention: confirmedDocumentLiteral(informedConsentWithdrawUnderstood, "право отказаться до вмешательства объяснено")
         }
       };
@@ -11297,7 +11293,7 @@ const {
           plannedAt: treatmentPlanPlannedAt.trim(),
           patientQuestionsAnswered: confirmedDocumentLiteral(treatmentPlanQuestionsAnswered, "вопросы пациента по плану лечения закрыты"),
           planRequiresSeparateConsent: confirmedDocumentLiteral(treatmentPlanSeparateConsentAcknowledged, "план не заменяет отдельное согласие"),
-          planRequiresNewApprovalOnChange: confirmedDocumentLiteral(treatmentPlanNewApprovalAcknowledged, "изменение плана требует нового согласования")
+          planRequiresNewApprovalOnChange: confirmedDocumentLiteral(treatmentPlanNewApprovalAcknowledged, "изменение плана требует нового согласоИвания")
         }
       };
     }
@@ -11318,10 +11314,10 @@ const {
           warrantyAndControlTerms: treatmentAcceptanceWarrantyTerms.trim(),
           doctorFullName: treatmentAcceptanceDoctorFullName.trim() || activeDoctor?.fullName || "",
           acceptedAt: treatmentAcceptanceAcceptedAt.trim(),
-          patientQuestionsAnswered: confirmedDocumentLiteral(treatmentAcceptanceQuestionsAnswered, "вопросы пациента по согласованию плана закрыты"),
+          patientQuestionsAnswered: confirmedDocumentLiteral(treatmentAcceptanceQuestionsAnswered, "вопросы пациента по согласоИванию плана закрыты"),
           patientUnderstandsAlternatives: confirmedDocumentLiteral(treatmentAcceptanceAlternativesUnderstood, "альтернативы плана понятны"),
           patientUnderstandsCostMayChange: confirmedDocumentLiteral(treatmentAcceptanceCostChangeUnderstood, "изменение стоимости понятно"),
-          revisionRequiresNewApproval: confirmedDocumentLiteral(treatmentAcceptanceRevisionAcknowledged, "пересмотр плана требует нового согласования")
+          revisionRequiresNewApproval: confirmedDocumentLiteral(treatmentAcceptanceRevisionAcknowledged, "пересмотр плана требует нового согласоИвания")
         }
       };
     }
@@ -11406,14 +11402,14 @@ const {
     if (kind === "photo_video_consent") {
       return {
         photoVideoConsent: {
-          clinicalRecordUse: confirmedDocumentLiteral(photoVideoClinicalRecordUseConfirmed, "использование фото, видео и снимков в медицинской карте подтверждено"),
+          clinicalRecordUse: confirmedDocumentLiteral(photoVideoClinicalRecordUseConfirmed, "использоИвание фото, видео и снимков в медицинской карте подтверждено"),
           labTransferAllowed: photoVideoLabTransferAllowed,
           colleagueConsultationAllowed: photoVideoColleagueConsultationAllowed,
           educationUseAllowed: photoVideoEducationUseAllowed,
           marketingUseAllowed: photoVideoMarketingUseAllowed,
           recognizablePublicationAllowed: photoVideoRecognizablePublicationAllowed,
           materials: photoVideoMaterials,
-          anonymizationRequired: confirmedDocumentLiteral(photoVideoAnonymizationConfirmed, "обезличивание внешнего использования подтверждено"),
+          anonymizationRequired: confirmedDocumentLiteral(photoVideoAnonymizationConfirmed, "обезличиИвание внешнего использоИвания подтверждено"),
           revocationChannel: photoVideoRevocationChannel.trim(),
           scopeNotes: photoVideoScopeNotes.trim() || null
         }
@@ -11581,7 +11577,7 @@ const {
         Клинические строки по зубам и сегментам
         <textarea value={clinicalToothRowsText} onChange={(event) => setClinicalToothRowsText(event.target.value)} rows={5} />
         <small>
-          Формат строки: зуб/сегмент | поверхности | статус | диагноз/находка | показание | действие | прогноз | пародонт | имплант/ортопедия |
+          Формат строки: зуб/сегмент | поверхности | статус | диагноз/находка | показание | действие | прогноз | пародонт | иИмплант/ортопедия |
           ортодонтия
         </small>
       </label>
@@ -11822,7 +11818,7 @@ const {
 
   function requestDocumentVoid(document: GeneratedDocument) {
     if (document.status === "voided") {
-      setError("Документ уже аннулирован.");
+      setError("Документ уже аннулироИван.");
       return;
     }
     setDocumentVoidReasonCode(document.status === "issued" ? "issued_in_error" : "draft_error");
@@ -11844,11 +11840,11 @@ const {
   async function confirmDocumentVoid() {
     const documentId = documentVoidConfirmation?.id;
     if (!documentId) {
-      setError("Выберите документ для аннулирования.");
+      setError("Выберите документ для аннулироИвания.");
       return;
     }
     if (!documentVoidReady) {
-      setError("Перед аннулированием укажите причину, ответственного сотрудника, сохранение архива и проверку статуса.");
+      setError("Перед аннулироИванием укажите причину, ответственного сотрудника, сохранение архива и проверку статуса.");
       return;
     }
     const payload = {
@@ -11953,7 +11949,7 @@ const {
       const previewUrl = issuedDocumentHtmlPreviewUrl(documentId);
       if (clinicalAdminSecretSession.trim()) {
         setError(
-          "HTML-предпросмотр в новом окне не может передать секрет администратора клиники. CRM запускает защищенное скачивание архивного HTML."
+          "HTML-предпросмотр в новом окне не может передать секрет администратора клиники. CRM запускает защищенное скачиИвание архивного HTML."
         );
         await downloadIssuedDocumentHtml(documentId, { preserveError: true });
         return;
@@ -11966,7 +11962,7 @@ const {
       }
 
       setError(
-        "Браузер заблокировал новое окно документа. CRM запускает скачивание архивного HTML; если мобильный браузер его отклонит, нажмите \"Скачать HTML\" в строке документа."
+        "Браузер заблокировал новое окно документа. CRM запускает скачиИвание архивного HTML; если мобильный браузер его отклонит, нажмите \"Скачать HTML\" в строке документа."
       );
       await downloadIssuedDocumentHtml(documentId, { preserveError: true });
     } catch (error) {
@@ -11978,7 +11974,7 @@ const {
     try {
       const response = await fetch(`/api/documents/${documentId}/pdf`, { cache: "no-store", headers: denteClinicalReadHeaders() });
       if (!response.ok) {
-        setError(await responseErrorMessage(response, "PDF не сформирован"));
+        setError(await responseErrorMessage(response, "PDF не сформироИван"));
         return;
       }
 
@@ -11996,7 +11992,7 @@ const {
       URL.revokeObjectURL(url);
       setError(null);
     } catch (error) {
-      setError(requestFailureMessage("PDF не сформирован", error));
+      setError(requestFailureMessage("PDF не сформироИван", error));
     }
   }
 
@@ -12036,7 +12032,7 @@ const {
         [explicitFiscalFn, "ФН"],
         [explicitFiscalFd, "ФД"],
         [explicitFiscalFpd, "ФПД"],
-        [paymentPayerName, "ФРО плательщика"],
+        [paymentPayerName, "ФИО плательщика"],
         [explicitPayerBirthDate, "дата рождения плательщика"],
         [explicitPayerIdentityDocument, "документ плательщика"],
         [paymentPayerRelation, "родство плательщика"]
@@ -12059,7 +12055,7 @@ const {
     const administrativePayerDocument = patientIsPayer ? documentPatient.administrativeProfile?.identityDocument?.trim() ?? "" : "";
     const normalizedPayerInn = taxReadyPaymentRequested ? explicitPayerInn : explicitPayerInn || administrativePayerInn;
     if (normalizedPayerInn && !/^\d{10}$|^\d{12}$/.test(normalizedPayerInn)) {
-      setError("РНН плательщика должен содержать 10 или 12 цифр");
+      setError("ИИНН плательщика должен содержать 10 или 12 цифр");
       return;
     }
     setIsPaymentSaving(true);
@@ -12072,39 +12068,64 @@ const {
             document.visitId === dashboard?.activeVisit?.id &&
             (document.totalAmountRub ?? 0) > 0
         ) ?? null;
-      const paymentClientMutationId = browserGeneratedId("payment");
-      const response = await fetch("/api/billing/payments", {
-        method: "POST",
-        headers: denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          patientId: documentPatient.id,
-          visitId: dashboard?.activeVisit?.id,
-          documentId: documentForPayment?.id ?? null,
-          clientMutationId: paymentClientMutationId,
-          amountRub,
-          method: paymentMethod,
-          fiscalReceiptNumber: paymentFiscalReceiptNumber.trim() || null,
-          fiscalReceiptIssuedAt: paymentFiscalReceiptIssuedAt.trim() || null,
-          fiscalReceiptUrl: explicitFiscalReceiptUrl || null,
-          fiscalReceipt: {
-            fn: explicitFiscalFn || null,
-            fd: explicitFiscalFd || null,
-            fpd: explicitFiscalFpd || null,
-            cashierName: paymentFiscalCashierName.trim() || null,
-            receiptUrl: explicitFiscalReceiptUrl || null,
-            operationType: "income"
-          },
-          payerFullName: taxReadyPaymentRequested ? paymentPayerName : paymentPayerName || documentPatient.fullName,
-          payerInn: normalizedPayerInn || null,
-          payerBirthDate: taxReadyPaymentRequested ? explicitPayerBirthDate : explicitPayerBirthDate || documentPatient.birthDate,
-          payerIdentityDocument: taxReadyPaymentRequested
-            ? explicitPayerIdentityDocument
-            : explicitPayerIdentityDocument || administrativePayerDocument || null,
-          payerRelationship: taxReadyPaymentRequested ? paymentPayerRelation : paymentPayerRelation || "пациент",
-          taxDeductionCode: paymentTaxDeductionCode || null,
-          note: "Оплата из рабочего экрана CRM"
-        })
-      });
+      let response;
+      if (paymentMethod === "family_wallet") {
+        // Family wallet payment
+        const famRes = await fetch(`/api/finance/family/patient/${documentPatient.id}`, { headers: denteClinicalReadHeaders() });
+        if (!famRes.ok) {
+          setError("У пациента не настроен семейный аккаунт для оплаты.");
+          setIsPaymentSaving(false);
+          return;
+        }
+        const famData = await famRes.json();
+        response = await fetch("/api/finance/family/pay", {
+          method: "POST",
+          headers: denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            organizationId: dashboard?.clinicSettings?.profile?.id || dashboard?.activeVisit?.organizationId || "00000000-0000-0000-0000-000000000000",
+            patientId: documentPatient.id,
+            familyGroupId: famData.id,
+            amountRub,
+            visitId: dashboard?.activeVisit?.id || undefined,
+            documentId: documentForPayment?.id || undefined
+          })
+        });
+      } else {
+        // Normal payment
+        const paymentClientMutationId = browserGeneratedId("payment");
+        response = await fetch("/api/billing/payments", {
+          method: "POST",
+          headers: denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            patientId: documentPatient.id,
+            visitId: dashboard?.activeVisit?.id,
+            documentId: documentForPayment?.id ?? null,
+            clientMutationId: paymentClientMutationId,
+            amountRub,
+            method: paymentMethod,
+            fiscalReceiptNumber: paymentFiscalReceiptNumber.trim() || null,
+            fiscalReceiptIssuedAt: paymentFiscalReceiptIssuedAt.trim() || null,
+            fiscalReceiptUrl: explicitFiscalReceiptUrl || null,
+            fiscalReceipt: {
+              fn: explicitFiscalFn || null,
+              fd: explicitFiscalFd || null,
+              fpd: explicitFiscalFpd || null,
+              cashierName: paymentFiscalCashierName.trim() || null,
+              receiptUrl: explicitFiscalReceiptUrl || null,
+              operationType: "income"
+            },
+            payerFullName: taxReadyPaymentRequested ? paymentPayerName : paymentPayerName || documentPatient.fullName,
+            payerInn: normalizedPayerInn || null,
+            payerBirthDate: taxReadyPaymentRequested ? explicitPayerBirthDate : explicitPayerBirthDate || documentPatient.birthDate,
+            payerIdentityDocument: taxReadyPaymentRequested
+              ? explicitPayerIdentityDocument
+              : explicitPayerIdentityDocument || administrativePayerDocument || null,
+            payerRelationship: taxReadyPaymentRequested ? paymentPayerRelation : paymentPayerRelation || "пациент",
+            taxDeductionCode: paymentTaxDeductionCode || null,
+            note: "Оплата из рабочего экрана CRM"
+          })
+        });
+      }
       if (!response.ok) {
         setError(await responseErrorMessage(response, "Оплата не записана"));
         return;
@@ -12417,17 +12438,17 @@ const {
         document.execCommand("copy");
         document.body.removeChild(area);
       }
-      setTelegramLinkActionState(`${label} скопирован`);
+      setTelegramLinkActionState(`${label} скопироИван`);
       setError(null);
     } catch {
       setTelegramLinkActionState(null);
-      setError(`${label} не скопирован. Откройте ссылку или выделите код вручную.`);
+      setError(`${label} не скопироИван. Откройте ссылку или выделите код вручную.`);
     }
   }
 
   function downloadTelegramQrSvg() {
     if (!telegramLinkCode?.qrSvg) {
-      const message = "QR-код недоступен. Рспользуйте текстовый код или создайте новый Telegram-код.";
+      const message = "QR-код недоступен. Используйте текстовый код или создайте новый Telegram-код.";
       setTelegramLinkActionState(message);
       setError(message);
       return;
@@ -12456,11 +12477,11 @@ const {
         method: "POST",
         headers: telegramControlPlaneHeaders()
       });
-      if (!response.ok) throw new Error(await responseErrorMessage(response, "Связка Telegram не отозвана"));
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Связка Telegram не отозИвана"));
       await loadTelegramControlPlane({ silent: true });
       setError(null);
     } catch (telegramError) {
-      setError(operatorWorkflowFailureMessage("Связка Telegram не отозвана", telegramError));
+      setError(operatorWorkflowFailureMessage("Связка Telegram не отозИвана", telegramError));
     } finally {
       setTelegramRevokingLinkId(null);
     }
@@ -12502,7 +12523,7 @@ const {
 
   async function saveTelegramSettings(options: { silent?: boolean } = {}): Promise<boolean> {
     if (telegramPrivacyModeDraft === "consented_phi_templates") {
-      const message = "Чувствительные Telegram-шаблоны заблокированы до отдельного согласия пациента, аудита и серверной политики PHI.";
+      const message = "Чувствительные Telegram-шаблоны заблокироИваны до отдельного согласия пациента, аудита и серверной политики PHI.";
       setTelegramSettingsSaveState("error");
       setTelegramSettingsSaveError(message);
       if (!options.silent) setError(message);
@@ -12629,7 +12650,7 @@ const {
       if (result.status === "blocked" || result.status === "failed") {
         const warning = result.warnings?.[0] ? telegramHumanMessage(result.warnings?.[0]) : "";
         const reason = telegramHumanMessage(result.blockedReason) || warning;
-        setError(`Отправка Telegram заблокирована${reason ? `: ${reason}` : ""}`);
+        setError(`Отправка Telegram заблокироИвана${reason ? `: ${reason}` : ""}`);
         await loadTelegramControlPlane({ silent: true });
         return;
       }
@@ -12682,7 +12703,7 @@ const {
     }
     const titles: Record<ImagingStudyKind, string> = {
       periapical: "Прицельный 36",
-      bitewing: "Рнтерпроксимальный контроль",
+      bitewing: "ИИнтерпроксимальный контроль",
       opg: "ОПТГ",
       ceph: "ТРГ боковая",
       cbct: "КЛКТ / КТ",
@@ -12702,7 +12723,7 @@ const {
           toothCode: kind === "periapical" ? "36" : null,
           region: kind === "opg" || kind === "cbct" ? "обе челюсти" : kind === "ceph" ? "профиль черепа" : "текущий прием",
           sourceKind: kind === "cbct" || kind === "opg" || kind === "ceph" ? "dicom_file" : "sensor_bridge",
-          sourceName: kind === "cbct" || kind === "opg" || kind === "ceph" ? "Рмпорт КТ/снимков" : "Локальный RVG-датчик",
+          sourceName: kind === "cbct" || kind === "opg" || kind === "ceph" ? "ИИмпорт КТ/снимков" : "Локальный RVG-датчик",
           aiSummary: "Черновик: снимок добавлен в карту. Описание требует проверки врача."
         })
       });
@@ -12795,7 +12816,7 @@ const {
     selectedWorkspaceRole === "owner";
   const showDoctorVisitShortcut = selectedWorkspaceRole === "doctor" && currentView !== "visit";
 
-  const serviceTitle = (serviceId: string) => dashboard.serviceCatalog?.find((service) => service.id === serviceId)?.title ?? serviceId;
+  const serviceTitle = (serviceId: string) => dashboard?.serviceCatalog?.find((service) => service.id === serviceId)?.title ?? serviceId;
   const goToVisitDictation = () => {
     window.location.hash = "visit";
     const openDictation = () => {

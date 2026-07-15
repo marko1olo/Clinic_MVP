@@ -1,18 +1,15 @@
-import { requireClinicalMutationAccess } from "../../accessGuard.js";
+import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId } from "../../accessGuard.js";
 import { publicGeneratedDocumentSchema, voidDocumentSchema } from "@dental/shared";
 import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
 import { apiError, documentVoidValidationMessage } from "../documents.js";
 import { getDocumentById, voidGeneratedDocumentInDb } from "../../db/documentQuery.js";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
 export async function register(app) {
     app.post("/api/documents/:id/void", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document void")))
             return;
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org";
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "document void tenant");
+        if (!orgId)
+            return;
         const { id } = request.params;
         const existing = await getDocumentById(orgId, id);
         if (!existing) {

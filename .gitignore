@@ -100,3 +100,9 @@ auth_screen.png
 dental-crm/.data/
 **/backups/
 
+
+.env*
+
+secrets.json
+
+keys.json

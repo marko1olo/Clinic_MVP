@@ -12,7 +12,7 @@ export async function saveUiPreferencesInDb(organizationId, prefs) {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId)).limit(1);
     if (!user)
         throw new Error("No users found to save preferences to.");
-    await db.update(schema.users).set({ uiPreferences: prefs }).where(eq(schema.users.id, user.id));
+    await db.update(schema.users).set({ uiPreferences: prefs }).where(and(eq(schema.users.id, user.id), eq(schema.users.organizationId, organizationId)));
 }
 export async function getClinicSettingsFromDb(organizationId) {
     const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
@@ -71,7 +71,13 @@ export async function getClinicSettingsFromDb(organizationId) {
         },
         networkEnabled: false,
         egiszEnabled: false,
-        updatedAt: org.updatedAt.toISOString()
+        updatedAt: org.updatedAt.toISOString(),
+        specializations: org.specializations || [],
+        workingHours: org.workingHours || null,
+        currency: org.currency || "₽",
+        themeColor: org.themeColor || "teal",
+        logoUrl: org.logoUrl || null,
+        stampUrl: org.stampUrl || null
     };
     return {
         profile,

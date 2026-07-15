@@ -158,7 +158,7 @@ export function FinancePlanningOverview({
 }
 
 export function ServiceCatalogStrip({ categoryLabels, money, onGoToPrices, services }: ServiceCatalogStripProps) {
-  const visibleServices = services.slice(0, 6);
+  const visibleServices = (services || []).slice(0, 6);
 
   return (
     <div className="service-catalog-strip" aria-label="Каталог услуг">

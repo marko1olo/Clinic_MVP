@@ -35,7 +35,7 @@ export async function registerCommunicationRoutes(app) {
                     status: parsedInput.data.outcome,
                     lastEventAt: new Date()
                 })
-                    .where(eq(communicationTasks.id, task.id))
+                    .where(and(eq(communicationTasks.id, task.id), eq(communicationTasks.organizationId, org.id)))
                     .returning();
                 await tx.insert(communicationEvents).values({
                     organizationId: org.id,

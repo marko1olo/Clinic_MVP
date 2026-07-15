@@ -1,22 +1,17 @@
 import { readIssuedDocumentSnapshot } from "../../db/documentQuery.js";
-import { requireClinicalReadAccess } from "../../accessGuard.js";
+import { requireResolvedOrganizationId } from "../../accessGuard.js";
 import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentRequiresIssuedArchive, issuedArchiveIntegrityError, renderIssuedHtmlToPdf, documentRenderContext } from "../documents.js";
 import { getDocumentById } from "../../db/documentQuery.js";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
 import { renderDocumentHtml } from "../../documents/renderDocument.js";
 export async function register(app) {
     // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-    // GET /api/documents/:id/pdf  вЂ” issued documents (signed archive)
+    // GET /api/documents/:id/pdf  2 issued documents (signed archive)
     // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     app.get("/api/documents/:id/pdf", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "document pdf")))
+        const orgId = await requireResolvedOrganizationId(request, reply, "document pdf");
+        if (!orgId)
             return;
         const { id } = request.params;
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org";
         const document = await getDocumentById(orgId, id);
         if (!document) {
             return reply.code(404).send(apiError("Документ не найден"));
@@ -46,16 +41,13 @@ export async function register(app) {
     // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     // GET /api/documents/:id/treatment-plan-pdf
     // On-the-fly PDF for treatment_plan documents (draft or issued).
-    // Does NOT require signatureAttestation вЂ” used for immediate
+    // Does NOT require signatureAttestation 2 used for immediate
     // patient hand-out directly from the visit screen.
     // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     app.get("/api/documents/:id/treatment-plan-pdf", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "treatment plan pdf")))
+        const orgId = await requireResolvedOrganizationId(request, reply, "treatment plan pdf");
+        if (!orgId)
             return;
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org";
         const { id } = request.params;
         const document = await getDocumentById(orgId, id);
         if (!document) {

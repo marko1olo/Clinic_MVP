@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   Lock, FileText, CheckCircle2, Printer, Search,
   Activity, Stethoscope, AlertTriangle, X, Clock,
-  ChevronDown, ShieldCheck, Clipboard
+  ChevronDown, ShieldCheck, Clipboard, Camera, Paperclip
 } from "lucide-react";
 import { showToast } from "./GlobalToast";
 import { useVisitStore } from "../store/visitStore";
@@ -12,55 +12,55 @@ import { emptyVisitNoteForm } from "../AppHelpers";
 // ─── ICD-10 Стоматологический справочник ────────────────────────────────────
 const ICD10_DICTIONARY = [
   // Кариес K02
-  { code: "K02.0", label: "Кариес эмали", group: "Кариес" },
-  { code: "K02.1", label: "Кариес дентина", group: "Кариес" },
-  { code: "K02.2", label: "Кариес цемента", group: "Кариес" },
-  { code: "K02.3", label: "Приостановившийся кариес", group: "Кариес" },
-  { code: "K02.8", label: "Другой уточнённый кариес", group: "Кариес" },
+  { code: "K02.0",  label: "Кариес эмали",                            group: "Кариес" },
+  { code: "K02.1",  label: "Кариес дентина",                          group: "Кариес" },
+  { code: "K02.2",  label: "Кариес цемента",                          group: "Кариес" },
+  { code: "K02.3",  label: "Приостановившийся кариес",                group: "Кариес" },
+  { code: "K02.8",  label: "Другой уточнённый кариес",                group: "Кариес" },
   // Болезни пульпы K04
-  { code: "K04.0", label: "Пульпит", group: "Пульпа" },
-  { code: "K04.01", label: "Начальный (гиперемия) пульпит", group: "Пульпа" },
-  { code: "K04.1", label: "Некроз пульпы", group: "Пульпа" },
-  { code: "K04.2", label: "Дегенерация пульпы", group: "Пульпа" },
-  { code: "K04.3", label: "Патологическая резорбция корня", group: "Пульпа" },
-  { code: "K04.4", label: "Острый апикальный периодонтит", group: "Периапикал" },
-  { code: "K04.5", label: "Хронический апикальный периодонтит", group: "Периапикал" },
-  { code: "K04.6", label: "Периапикальный абсцесс со свищом", group: "Периапикал" },
-  { code: "K04.7", label: "Периапикальный абсцесс без свища", group: "Периапикал" },
-  { code: "K04.8", label: "Корневая киста", group: "Периапикал" },
+  { code: "K04.0",  label: "Пульпит",                                  group: "Пульпа" },
+  { code: "K04.01", label: "Начальный (гиперемия) пульпит",            group: "Пульпа" },
+  { code: "K04.1",  label: "Некроз пульпы",                            group: "Пульпа" },
+  { code: "K04.2",  label: "Дегенерация пульпы",                       group: "Пульпа" },
+  { code: "K04.3",  label: "Патологическая резорбция корня",           group: "Пульпа" },
+  { code: "K04.4",  label: "Острый апикальный периодонтит",            group: "Периапикал" },
+  { code: "K04.5",  label: "Хронический апикальный периодонтит",       group: "Периапикал" },
+  { code: "K04.6",  label: "Периапикальный абсцесс со свищом",         group: "Периапикал" },
+  { code: "K04.7",  label: "Периапикальный абсцесс без свища",         group: "Периапикал" },
+  { code: "K04.8",  label: "Корневая киста",                           group: "Периапикал" },
   // Гингивит / Пародонт K05
-  { code: "K05.0", label: "Острый гингивит", group: "Пародонт" },
-  { code: "K05.1", label: "Хронический гингивит", group: "Пародонт" },
-  { code: "K05.2", label: "Острый пародонтит", group: "Пародонт" },
-  { code: "K05.3", label: "Хронический пародонтит", group: "Пародонт" },
-  { code: "K05.4", label: "Пародонтоз", group: "Пародонт" },
+  { code: "K05.0",  label: "Острый гингивит",                          group: "Пародонт" },
+  { code: "K05.1",  label: "Хронический гингивит",                     group: "Пародонт" },
+  { code: "K05.2",  label: "Острый пародонтит",                        group: "Пародонт" },
+  { code: "K05.3",  label: "Хронический пародонтит",                   group: "Пародонт" },
+  { code: "K05.4",  label: "Пародонтоз",                               group: "Пародонт" },
   // Болезни зубов K03
-  { code: "K03.0", label: "Повышенное стирание зубов", group: "Другое" },
-  { code: "K03.2", label: "Эрозия зубов", group: "Другое" },
-  { code: "K03.3", label: "Патологическая резорбция", group: "Другое" },
+  { code: "K03.0",  label: "Повышенное стирание зубов",                group: "Другое" },
+  { code: "K03.2",  label: "Эрозия зубов",                             group: "Другое" },
+  { code: "K03.3",  label: "Патологическая резорбция",                 group: "Другое" },
   // Аномалии K07
-  { code: "K07.3", label: "Аномалии положения зубов", group: "Ортодонтия" },
-  { code: "K07.4", label: "Аномалии прикуса неуточнённые", group: "Ортодонтия" },
+  { code: "K07.3",  label: "Аномалии положения зубов",                 group: "Ортодонтия" },
+  { code: "K07.4",  label: "Аномалии прикуса неуточнённые",            group: "Ортодонтия" },
   // Ретинированный зуб
-  { code: "K01.1", label: "Ретинированный зуб", group: "Хирургия" },
+  { code: "K01.1",  label: "Ретинированный зуб",                       group: "Хирургия" },
   // Потеря зубов K08
-  { code: "K08.1", label: "Потеря зуба / Удаление зуба", group: "Хирургия" },
-  { code: "K08.2", label: "Атрофия альвеолярного отростка", group: "Хирургия" },
+  { code: "K08.1",  label: "Потеря зуба / Удаление зуба",             group: "Хирургия" },
+  { code: "K08.2",  label: "Атрофия альвеолярного отростка",           group: "Хирургия" },
   // Профилактика / Консультация Z
-  { code: "Z01.2", label: "Стоматологическое обследование", group: "Консультация" },
-  { code: "Z29.8", label: "Профилактика кариеса (герметики, фторирование)", group: "Консультация" },
-  { code: "Z51.8", label: "Ортопедическое/плановое лечение", group: "Консультация" }
+  { code: "Z01.2",  label: "Стоматологическое обследование",           group: "Консультация" },
+  { code: "Z29.8",  label: "Профилактика кариеса (герметики, фторирование)", group: "Консультация" },
+  { code: "Z51.8",  label: "Ортопедическое/плановое лечение",          group: "Консультация" },
 ];
 
 const ICD_GROUP_COLORS: Record<string, string> = {
-  "Кариес": "bg-red-500/10 text-red-400 border-red-500/25",
-  "Пульпа": "bg-amber-500/10 text-amber-400 border-amber-500/25",
-  "Периапикал": "bg-orange-500/10 text-orange-400 border-orange-500/25",
-  "Пародонт": "bg-purple-500/10 text-purple-400 border-purple-500/25",
-  "Ортодонтия": "bg-blue-500/10 text-blue-400 border-blue-500/25",
-  "Хирургия": "bg-rose-500/10 text-rose-400 border-rose-500/25",
-  "Другое": "bg-zinc-500/10 text-zinc-400 border-zinc-500/25",
-  "Консультация": "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+  "Кариес":      "bg-red-500/10 text-red-400 border-red-500/25",
+  "Пульпа":      "bg-amber-500/10 text-amber-400 border-amber-500/25",
+  "Периапикал":  "bg-orange-500/10 text-orange-400 border-orange-500/25",
+  "Пародонт":    "bg-purple-500/10 text-purple-400 border-purple-500/25",
+  "Ортодонтия":  "bg-blue-500/10 text-blue-400 border-blue-500/25",
+  "Хирургия":    "bg-rose-500/10 text-rose-400 border-rose-500/25",
+  "Другое":      "bg-zinc-500/10 text-zinc-400 border-zinc-500/25",
+  "Консультация":"bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
 };
 
 function getIcdColor(code: string): string {
@@ -81,7 +81,7 @@ const EMPTY_DIARY: DiaryState = {
   statusLocalis: "",
   diagnosisIcd10: "",
   diagnosisTooth: "",
-  treatmentDescription: ""
+  treatmentDescription: "",
 };
 
 interface Template {
@@ -111,6 +111,8 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
   const [lockedAt, setLockedAt] = useState<string | null>(null);
   const [diaryHash, setDiaryHash] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [trayBarcode, setTrayBarcode] = useState<string | null>(null);
   const [showIcdDropdown, setShowIcdDropdown] = useState(false);
   const [icdSearch, setIcdSearch] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -118,6 +120,8 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
   const [pinCode, setPinCode] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [revisionCount, setRevisionCount] = useState(0);
+  const [attachments, setAttachments] = useState<{ id: string; url: string; name: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const icdRef = useRef<HTMLDivElement>(null);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -146,31 +150,37 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
 
     Promise.all([
       fetch("/api/templates").then(r => r.json()),
-      fetch(`/api/diaries/visit/${visitId}`).then(r => r.json())
+      fetch(`/api/diaries/visit/${visitId}`).then(r => r.json()),
     ]).then(([tmplData, diaryData]) => {
       if (!alive) return;
       setTemplates(tmplData.templates ?? []);
       if (diaryData.diary) {
         const d = diaryData.diary;
         setDiary({
-          anamnesis: d.anamnesis ?? "",
-          statusLocalis: d.statusLocalis ?? "",
-          diagnosisIcd10: d.diagnosisIcd10 ?? "",
-          diagnosisTooth: d.diagnosisTooth ?? "",
-          treatmentDescription: d.treatmentDescription ?? ""
+          anamnesis:           d.anamnesis ?? "",
+          statusLocalis:       d.statusLocalis ?? "",
+          diagnosisIcd10:      d.diagnosisIcd10 ?? "",
+          diagnosisTooth:      d.diagnosisTooth ?? "",
+          treatmentDescription:d.treatmentDescription ?? "",
         });
+        if (d.instrumentTrayBarcode) setTrayBarcode(d.instrumentTrayBarcode);
         setIsLocked(d.isLocked ?? false);
         setDiaryId(d.id ?? null);
         setLockedAt(d.lockedAt ?? null);
         setDiaryHash(d.diaryHash ?? null);
         if (d.diagnosisIcd10) setIcdSearch(d.diagnosisIcd10);
-        // Fetch revision count
         if (d.id) {
           fetch(`/api/diaries/${d.id}/revisions`)
             .then(r => r.json())
             .then(rd => { if (alive) setRevisionCount(rd.revisions?.length ?? 0); })
             .catch(() => {});
         }
+        
+        // Fetch attachments if supported
+        fetch(`/api/files/diary/${d.id}`)
+          .then(r => r.json())
+          .then(res => { if (alive && res.files) setAttachments(res.files); })
+          .catch(() => {});
       }
     }).catch(console.error);
 
@@ -208,7 +218,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
       const res = await fetch("/api/diaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitId, patientId, ...diary })
+        body: JSON.stringify({ visitId, patientId, instrumentTrayBarcode: trayBarcode, ...diary }),
       });
       const json = await res.json();
       if (json.id && !diaryId) setDiaryId(json.id);
@@ -236,10 +246,10 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
     if (t && !isLocked) {
       setDiary(prev => ({
         ...prev,
-        anamnesis: t.prefilledAnamnesis ?? "",
-        statusLocalis: t.prefilledObjective ?? "",
-        diagnosisIcd10: t.defaultIcd10 ?? "",
-        treatmentDescription: t.prefilledTreatment ?? ""
+        anamnesis:           t.prefilledAnamnesis ?? "",
+        statusLocalis:       t.prefilledObjective ?? "",
+        diagnosisIcd10:      t.defaultIcd10 ?? "",
+        treatmentDescription:t.prefilledTreatment ?? "",
       }));
       if (t.defaultIcd10) setIcdSearch(t.defaultIcd10);
       showToast(`Шаблон «${t.title}» применён`, "success");
@@ -277,6 +287,24 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
     setPinCode("");
     await doSave(true);
 
+    if (trayBarcode) {
+      try {
+        const linkRes = await fetch("/api/sterilization/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitId, barcode: trayBarcode })
+        });
+        if (!linkRes.ok) {
+          const err = await linkRes.json();
+          showToast(`Ошибка стерилизации: ${err.error || "Неизвестный штрихкод"}`, "error");
+          return; // Stop lock if barcode is invalid
+        }
+      } catch (e) {
+        showToast("Сетевая ошибка проверки штрихкода", "error");
+        return;
+      }
+    }
+
     const target = diaryId ?? visitId;
     try {
       const res = await fetch(`/api/diaries/${target}/lock`, { method: "POST" });
@@ -294,6 +322,67 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
       }
     } catch {
       showToast("Ошибка сети при подписании", "error");
+    }
+  };
+
+  // ── WebP Compression & Upload
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !diaryId) return;
+    
+    setIsUploading(true);
+    try {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+      
+      const MAX_SIZE = 1200;
+      if (width > height && width > MAX_SIZE) {
+        height *= MAX_SIZE / width;
+        width = MAX_SIZE;
+      } else if (height > MAX_SIZE) {
+        width *= MAX_SIZE / height;
+        height = MAX_SIZE;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      const compressedBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/webp", 0.8));
+      URL.revokeObjectURL(objectUrl);
+      
+      if (!compressedBlob) throw new Error("Compression failed");
+
+      const formData = new FormData();
+      formData.append("file", compressedBlob, "photo.webp");
+      formData.append("entityType", "diary");
+      formData.append("entityId", diaryId);
+
+      const res = await fetch("/api/files/upload", {
+        method: "POST",
+        body: formData
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      
+      const data = await res.json();
+      setAttachments(prev => [...prev, data.file]);
+      showToast("Фото сжато в WebP и загружено", "success");
+    } catch (err: any) {
+      showToast(`Ошибка загрузки: ${err.message}`, "error");
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -324,9 +413,8 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
             <p className="text-sm text-gray-600">Форма № 043/у (Приказ МЗ РФ № 834н)</p>
           </div>
 
-          {/* Hash / seal block */}
           {isLocked && diaryHash && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-300 rounded text-xs text-green-800 font-mono break-all page-break-avoid">
+            <div className="mb-6 mt-4 p-4 bg-green-50 border border-green-300 rounded text-xs text-green-800 font-mono break-all page-break-avoid" style={{ clear: "both", display: "block", position: "relative" }}>
               <strong>ЭЦП (SHA-256):</strong> {diaryHash}<br />
               <strong>Подписан:</strong> {lockedAt ? new Date(lockedAt).toLocaleString("ru-RU") : "—"}
               {revisionCount > 0 && <span className="ml-3 text-orange-700"> ⚠ Ревизий: {revisionCount}</span>}
@@ -443,7 +531,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
       <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* S — Subjective (Жалобы) */}
-        <div className="space-y-1.5">
+        <div className="flex flex-col space-y-1.5 h-full">
           <label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5">
             <Stethoscope className="w-3 h-3 text-blue-400" />
             <span className="text-blue-400 font-mono font-bold">S</span> — Жалобы и анамнез
@@ -452,7 +540,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
             id="diary-anamnesis"
             disabled={isLocked}
             style={{ minHeight: "96px", overflowY: "hidden" }}
-            className="auto-resize-ta w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-blue-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+            className="auto-resize-ta flex-1 w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-blue-500/50 outline-none disabled:opacity-50 resize-none transition-all"
             value={diary.anamnesis}
             onChange={e => { handleAutoResize(e); setDiary(p => ({ ...p, anamnesis: e.target.value })); }}
             onFocus={handleAutoResize}
@@ -461,7 +549,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
         </div>
 
         {/* O — Objective (Status Localis) */}
-        <div className="space-y-1.5">
+        <div className="flex flex-col space-y-1.5 h-full">
           <label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5">
             <Search className="w-3 h-3 text-purple-400" />
             <span className="text-purple-400 font-mono font-bold">O</span> — Объективно (Status Localis)
@@ -470,7 +558,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
             id="diary-status-localis"
             disabled={isLocked}
             style={{ minHeight: "96px", overflowY: "hidden" }}
-            className="auto-resize-ta w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-purple-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+            className="auto-resize-ta flex-1 w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-purple-500/50 outline-none disabled:opacity-50 resize-none transition-all"
             value={diary.statusLocalis}
             onChange={e => { handleAutoResize(e); setDiary(p => ({ ...p, statusLocalis: e.target.value })); }}
             onFocus={handleAutoResize}
@@ -570,6 +658,38 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
             placeholder="Анестезия, проведённые манипуляции, рекомендации..."
           />
         </div>
+
+        {/* Attachments (Photos) */}
+        <div className="space-y-1.5 lg:col-span-2">
+          <label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Camera className="w-3 h-3 text-rose-400" /> Вложения (Фотографии)
+            </span>
+            {!isLocked && diaryId && (
+              <label className="cursor-pointer text-xs flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg transition-colors border border-zinc-700">
+                <Paperclip className="w-3 h-3" />
+                {isUploading ? "Сжатие..." : "Прикрепить фото"}
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={isUploading || isLocked} />
+              </label>
+            )}
+          </label>
+          {attachments.length > 0 ? (
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {attachments.map(att => (
+                <div key={att.id} className="relative group shrink-0">
+                  <img src={att.url} alt={att.name} className="h-20 w-20 object-cover rounded-lg border border-zinc-700 shadow-sm" />
+                  <a href={att.url} target="_blank" rel="noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <Search className="w-5 h-5 text-white" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="w-full bg-zinc-900/60 border border-zinc-800 border-dashed rounded-xl p-4 text-sm text-zinc-500 text-center">
+              {diaryId ? (isLocked ? "Нет прикрепленных фото." : "Нажмите «Прикрепить фото», чтобы добавить снимки лечения.") : "Сначала сохраните дневник, чтобы прикрепить фото."}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Actions Footer ── */}
@@ -578,6 +698,13 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
           <span className="text-xs text-zinc-600 flex items-center gap-1 mr-auto hidden sm:flex">
             <AlertTriangle className="w-3 h-3" /> Автосохранение каждые 30 сек
           </span>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="w-full sm:w-auto px-5 py-2 text-sm text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-600 border border-blue-500/30 rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            {trayBarcode ? `Лоток: ${trayBarcode}` : "Сканировать Лоток"}
+          </button>
           <button
             id="diary-save-btn"
             onClick={() => doSave(false)}
@@ -609,6 +736,49 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
         </div>
       )}
 
+      {showScanner && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-700 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* The laser line */}
+            <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_20px_10px_rgba(239,68,68,0.6)] z-50 pointer-events-none" style={{ animation: "visitScanLaser 2s linear infinite" }} />
+            
+            {/* Scanning area border */}
+            <div className="absolute inset-0 border-[3px] border-zinc-800 rounded-2xl pointer-events-none m-2" />
+            <div className="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-red-500/70 rounded-tl-xl pointer-events-none" />
+            <div className="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-red-500/70 rounded-tr-xl pointer-events-none" />
+            <div className="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-red-500/70 rounded-bl-xl pointer-events-none" />
+            <div className="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-red-500/70 rounded-br-xl pointer-events-none" />
+
+            <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-red-400" />
+              Сканер СанПиН
+            </h2>
+            <p className="text-sm text-zinc-300 mb-6 font-medium">
+              Наведите сканер на штрихкод стерильного лотка или введите вручную.
+            </p>
+            <input
+              autoFocus
+              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-mono"
+              placeholder="000000000000"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const val = e.currentTarget.value.trim();
+                  if (val) {
+                    setTrayBarcode(val);
+                    showToast("Лоток привязан", "success");
+                    setShowScanner(false);
+                  }
+                }
+              }}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ── Print CSS ── */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
@@ -619,6 +789,12 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({ visitId, pat
           .print-content { box-shadow: none !important; max-height: none !important; overflow: visible !important; border-radius: 0 !important; }
           #print-043 { overflow: visible !important; }
           .page-break-avoid { page-break-inside: avoid; }
+        }
+        @keyframes visitScanLaser {
+          0% { top: 10%; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 90%; opacity: 0; }
         }
       ` }} />
 

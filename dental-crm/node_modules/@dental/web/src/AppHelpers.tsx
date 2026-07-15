@@ -2615,7 +2615,7 @@ export function visitNoteDraftFromForm(form: VisitNoteForm, warnings: string[]):
 
 export type VisitLocalDraft = {
   version: 1;
-  visitId: string;
+  visitId: string | null;
   savedAt: string;
   transcript: string;
   selectedSpecialty: DentalSpecialty;
@@ -2678,8 +2678,8 @@ export type PersistenceIntegrityReport = {
   nextAction: string;
 };
 
-export function visitLocalDraftKey(visitId: string, organizationId: string | null | undefined = null) {
-  return organizationScopedLocalStorageKey(`dental-crm:visit-draft:${visitId}`, organizationId);
+export function visitLocalDraftKey(visitId: string | null | undefined, organizationId: string | null | undefined = null) {
+  return organizationScopedLocalStorageKey(`dental-crm:visit-draft:${visitId ?? "no-active-visit"}`, organizationId);
 }
 
 export const pendingVisitSaveQueueKey = "dental-crm:pending-visit-saves";
@@ -4016,8 +4016,12 @@ export function denteAdminSecretRequestHeaders(extra: Record<string, string> = {
     if (staffToken) {
       headers["x-dente-staff-token"] = staffToken;
     }
+    const organizationId = localStorage.getItem("dente_organization_id");
+    if (organizationId) {
+      headers["x-dente-organization-id"] = organizationId;
+    }
   }
-  
+
   return headers;
 }
 
@@ -4841,17 +4845,18 @@ export function isVisitNoteForm(value: unknown): value is VisitNoteForm {
   return visitNoteFieldDefinitions.every(({ key }) => typeof candidate[key] === "string");
 }
 
-export function loadVisitLocalDraft(visitId: string, organizationId: string | null | undefined = null): VisitLocalDraft | null {
+export function loadVisitLocalDraft(visitId: string | null | undefined, organizationId: string | null | undefined = null): VisitLocalDraft | null {
   if (typeof window === "undefined") return null;
+  const normalizedVisitId = visitId ?? null;
   try {
     const raw =
-      window.localStorage.getItem(visitLocalDraftKey(visitId, organizationId)) ??
-      (organizationId ? window.localStorage.getItem(visitLocalDraftKey(visitId)) : null);
+      window.localStorage.getItem(visitLocalDraftKey(normalizedVisitId, organizationId)) ??
+      (organizationId ? window.localStorage.getItem(visitLocalDraftKey(normalizedVisitId)) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<VisitLocalDraft>;
     if (
       parsed.version !== 1 ||
-      parsed.visitId !== visitId ||
+      (parsed.visitId ?? null) !== normalizedVisitId ||
       typeof parsed.savedAt !== "string" ||
       typeof parsed.transcript !== "string" ||
       !isDentalSpecialty(parsed.selectedSpecialty) ||
@@ -4860,8 +4865,8 @@ export function loadVisitLocalDraft(visitId: string, organizationId: string | nu
       return null;
     }
     if (!localSavedAtFresh(parsed.savedAt, sensitiveLocalDraftRetentionMs)) {
-      window.localStorage.removeItem(visitLocalDraftKey(visitId, organizationId));
-      if (organizationId) window.localStorage.removeItem(visitLocalDraftKey(visitId));
+      window.localStorage.removeItem(visitLocalDraftKey(normalizedVisitId, organizationId));
+      if (organizationId) window.localStorage.removeItem(visitLocalDraftKey(normalizedVisitId));
       return null;
     }
     return parsed as VisitLocalDraft;
@@ -5606,7 +5611,7 @@ export function createLocalQueueId(): string {
     }
   }
   // Fallback if crypto is completely unavailable (very rare in modern environments)
-  // We use Date.now() + some pseudo-randomness without Math.random() to avoid SAST scanners flagging it.
+  // We use Date.now() + some pseudo-randomness without crypto.randomUUID() to avoid SAST scanners flagging it.
   const timeStr = Date.now().toString(16);
   let hash = 0;
   for (let i = 0; i < timeStr.length; i++) {

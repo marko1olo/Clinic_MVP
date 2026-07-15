@@ -10,8 +10,7 @@ import { imagingAnnotations } from "../db/schema.js";
 import { listAiRecognitionJobsFromDb, createAiRecognitionJobInDb } from "../db/aiQuery.js";
 import { getPatientByIdFromDb } from "../db/patientsQuery.js";
 import { getImagingStudyById } from "../db/imagingQuery.js";
-import { getDefaultOrganizationId } from "../db/documentQuery.js";
-import { requireClinicalMutationAccess, requireClinicalReadAccess, } from "../accessGuard.js";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
 const aiRecognitionValidationMessage = "AI-задача не создана: выберите пациента или снимок и тип черновика.";
 const visitNoteDraftValidationMessage = "Черновик приема не собран: передайте текст диктовки и специальность врача.";
 const aiRecognitionPatientMissingMessage = "Пациент не найден. Выберите пациента из актуальной карты.";
@@ -31,17 +30,17 @@ function sendVisitNoteDraftScopeError(reply, statusCode, message) {
 }
 export async function registerAiRoutes(app) {
     app.get("/api/ai/recognition-jobs", async (request, reply) => {
-        const orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No organization" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         if (!(await requireClinicalReadAccess(request, reply, "ai recognition jobs")))
             return;
         return z.array(aiRecognitionJobSchema).parse(await listAiRecognitionJobsFromDb(orgId));
     });
     app.post("/api/ai/recognition-jobs", async (request, reply) => {
-        const orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No organization" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         if (!(await requireClinicalMutationAccess(request, reply, "ai recognition job create")))
             return;
         const parsedInput = createAiRecognitionJobSchema.safeParse(request.body);
@@ -71,9 +70,9 @@ export async function registerAiRoutes(app) {
         return reply.code(201).send(aiRecognitionJobResponseSchema.parse({ job }));
     });
     app.post("/api/ai/visit-note-draft", async (request, reply) => {
-        const orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No organization" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         if (!(await requireClinicalReadAccess(request, reply, "ai visit note draft")))
             return;
         const parsedInput = visitNoteDraftRequestSchema.safeParse(request.body);

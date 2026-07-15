@@ -1,31 +1,60 @@
 import type { FastifyInstance } from "fastify";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
+import { requireResolvedStaffOrAdminOrganizationId } from "../../accessGuard.js";
 import { db } from "../../db/client.js";
 import { generatedDocuments } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export async function register(app: FastifyInstance) {
   app.post("/api/documents/:id/sign", async (request, reply) => {
-    const clinicHeader = request.headers["x-dente-clinic-token"];
-    const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-    if (!clinicToken) return reply.code(401).send({ error: "AuthRequired" });
-
-    const payload = verifyToken(clinicToken, TOKEN_SECRET());
-    if (!payload || !payload.organizationId) return reply.code(401).send({ error: "AuthExpired" });
+    const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "document signature");
+    if (!orgId) return;
 
     const { id } = request.params as { id: string };
     const { signatureSvg } = request.body as { signatureSvg: string };
 
-    if (!id || !signatureSvg) {
+    if (!id || !signatureSvg || typeof signatureSvg !== "string") {
       return reply.code(400).send({ error: "ValidationError", message: "ID and signatureSvg are required" });
     }
 
+    if (!signatureSvg.startsWith("<svg") || !signatureSvg.endsWith("</svg>")) {
+      return reply.code(400).send({ error: "ValidationError", message: "Invalid signature format: must be an SVG element." });
+    }
+
+    if (/(<script|<\/?iframe|<\/?object|<\/?embed|on\w+\s*=)/i.test(signatureSvg)) {
+      return reply.code(400).send({ error: "ValidationError", message: "Unsafe signature content detected." });
+    }
+
     try {
+      // Prevent exact signature replay attacks
+      const [replayed] = await db
+        .select({ id: generatedDocuments.id })
+        .from(generatedDocuments)
+        .where(eq(generatedDocuments.signatureSvg, signatureSvg))
+        .limit(1);
+
+      if (replayed) {
+        return reply.code(409).send({ error: "SignatureReplay", message: "Эта подпись уже использована для другого документа. Повторное использование запрещено." });
+      }
+
+      // First verify the document exists and is in a state that allows signing
+      const [doc] = await db
+        .select({ status: generatedDocuments.status })
+        .from(generatedDocuments)
+        .where(and(eq(generatedDocuments.id, id), eq(generatedDocuments.organizationId, orgId)))
+        .limit(1);
+
+      if (!doc) {
+        return reply.code(404).send({ error: "DocumentNotFound" });
+      }
+
+      if (doc.status !== "draft") {
+        return reply.code(409).send({ error: "Conflict", message: "Подпись невозможна: документ уже финализирован или аннулирован." });
+      }
+
       const updated = await db
         .update(generatedDocuments)
         .set({ signatureSvg })
-        .where(eq(generatedDocuments.id, id))
+        .where(and(eq(generatedDocuments.id, id), eq(generatedDocuments.organizationId, orgId)))
         .returning();
 
       if (!updated.length) {

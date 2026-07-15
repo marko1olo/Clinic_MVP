@@ -1,4 +1,5 @@
 import { acceptVisitDraftResponseSchema, acceptVisitDraftSchema, visitDraftAutosaveRequestSchema, visitDraftAutosaveResponseSchema } from "@dental/shared";
+import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId } from "../accessGuard.js";
 const visitDraftAutosaveValidationMessage = "Черновик приема не сохранен: передайте пациента, специальность, текст приема или заполненные поля черновика.";
 const visitDraftAcceptValidationMessage = "Черновик приема не принят: передайте текст приема, заполненные поля черновика и данные сохранения врача.";
 const visitDraftNotFoundMessage = "Прием не найден. Обновите рабочий экран и выберите актуальный прием.";
@@ -43,19 +44,12 @@ function sendVisitDraftMutationError(error, reply, operation) {
         message: visitDraftMutationRejectedMessage
     });
 }
-import { verifyToken } from "../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "./auth.js";
 import { getVisitDraftAutosaveFromDb, upsertVisitDraftAutosaveInDb, acceptVisitDraftInDb } from "../db/visitsQuery.js";
 export async function registerVisitRoutes(app) {
     app.get("/api/visits/:visitId/draft/autosave", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedOrganizationId(request, reply, "visit draft autosave read");
+        if (!orgId)
+            return;
         const { visitId } = request.params;
         // Zero UUID = placeholder for "no active visit" — return empty 200, not 404
         if (!visitId || visitId === "00000000-0000-0000-0000-000000000000") {
@@ -67,14 +61,9 @@ export async function registerVisitRoutes(app) {
         return visitDraftAutosaveResponseSchema.parse({ serverDraft: draft });
     });
     app.put("/api/visits/:visitId/draft/autosave", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "visit draft autosave update");
+        if (!orgId)
+            return;
         const { visitId } = request.params;
         const input = parseVisitPayload(visitDraftAutosaveRequestSchema, { ...visitRequestBody(request.body), visitId }, visitDraftAutosaveValidationMessage, reply);
         if (!input)
@@ -88,20 +77,17 @@ export async function registerVisitRoutes(app) {
         }
     });
     app.post("/api/visits/:visitId/draft/accept", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "visit draft accept");
+        if (!orgId)
+            return;
         const { visitId } = request.params;
         const input = parseVisitPayload(acceptVisitDraftSchema, { ...visitRequestBody(request.body), visitId }, visitDraftAcceptValidationMessage, reply);
         if (!input)
             return;
         try {
-            const result = await acceptVisitDraftInDb(orgId, input);
+            const userContext = request.user;
+            const userId = userContext?.id ?? null;
+            const result = await acceptVisitDraftInDb(orgId, userId, input);
             return acceptVisitDraftResponseSchema.parse(result);
         }
         catch (error) {

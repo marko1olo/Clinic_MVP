@@ -1160,6 +1160,7 @@ function paymentMethodForDocument(payment) {
         bank_transfer: "банковский перевод",
         online: "онлайн-оплата",
         insurance: "страховая",
+        family_wallet: "семейный кошелек",
         other: "иной способ"
     };
     return labels[payment.method] ?? payment.method;

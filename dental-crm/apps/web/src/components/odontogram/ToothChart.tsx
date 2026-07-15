@@ -97,46 +97,6 @@ const ToothSVG = ({ number, state, scale, isSelected, onClick }: {
 export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode, selectedTeeth = [], onToothClick }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const archContainerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [contentWidth, setContentWidth] = useState(900);
-
-  useEffect(() => {
-    const updateLayout = () => {
-      const archEl = archContainerRef.current;
-      const contentEl = contentRef.current;
-      if (!archEl || !contentEl) return;
-      
-      const effectiveWidth = window.innerWidth < 640
-        ? window.innerWidth - 16
-        : archEl.clientWidth;
-        
-      // Temporarily remove transform to measure true intrinsic width
-      const oldTransform = contentEl.style.transform;
-      contentEl.style.transform = 'none';
-      const trueWidth = contentEl.scrollWidth;
-      contentEl.style.transform = oldTransform;
-      
-      if (trueWidth > 0 && trueWidth !== contentWidth) {
-        setContentWidth(trueWidth);
-      }
-
-      if (effectiveWidth < trueWidth && trueWidth > 0) {
-        setScale(Math.max(0.3, effectiveWidth / trueWidth));
-      } else {
-        setScale(1);
-      }
-    };
-
-    updateLayout();
-    const ro = new ResizeObserver(() => {
-      // Use requestAnimationFrame to avoid ResizeObserver loop limit errors
-      window.requestAnimationFrame(updateLayout);
-    });
-    if (archContainerRef.current) ro.observe(archContainerRef.current);
-    if (contentRef.current) ro.observe(contentRef.current);
-    return () => ro.disconnect();
-  }, [contentWidth]);
 
   const handleToothClick = (e: React.MouseEvent, num: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -165,37 +125,25 @@ export const ToothChart: React.FC<ToothChartProps> = ({ teethData, pediatricMode
 
       <div className="tooth-chart-arch-container" ref={archContainerRef}>
         <div style={{
-          width: `${contentWidth * scale}px`,
-          height: `${252 * scale}px`,
+          minWidth: 'max-content',
           margin: '0 auto',
-          position: 'relative',
-          overflow: 'visible'
+          position: 'relative'
         }}>
-          <div ref={contentRef} style={{
-            width: 'max-content',
-            height: '252px',
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            position: 'absolute',
-            top: 0,
-            left: 0
-          }}>
-            <div className="teeth-row top-row">
-              {topTeeth.map(num => (
-                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
-              ))}
-            </div>
-            
-            <div className="teeth-divider">
-              <div className="divider-line" />
-              <div className="divider-center" />
-            </div>
+          <div className="teeth-row top-row">
+            {topTeeth.map(num => (
+              <ToothSVG key={num} number={num} scale={1} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
+            ))}
+          </div>
+          
+          <div className="teeth-divider">
+            <div className="divider-line" />
+            <div className="divider-center" />
+          </div>
 
-            <div className="teeth-row bottom-row">
-              {bottomTeeth.map(num => (
-                <ToothSVG key={num} number={num} scale={scale} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
-              ))}
-            </div>
+          <div className="teeth-row bottom-row">
+            {bottomTeeth.map(num => (
+              <ToothSVG key={num} number={num} scale={1} state={getToothState(num)} isSelected={selectedTeeth.includes(num)} onClick={handleToothClick} />
+            ))}
           </div>
         </div>
       </div>

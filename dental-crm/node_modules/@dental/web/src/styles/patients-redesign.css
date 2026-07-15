@@ -827,33 +827,7 @@
 
 /* Shell & Sidebar Mobile Responsiveness Redesign */
 @media (max-width: 768px) {
-  .app-shell {
-    grid-template-columns: 64px minmax(0, 1fr) !important;
-  }
-  
-  .sidebar {
-    width: 64px !important;
-    padding: 22px 8px !important;
-    align-items: center;
-  }
-  
-  .sidebar .brand-mark span,
-  .sidebar .nav-copy {
-    display: none !important;
-  }
-  
-  .sidebar .brand-mark {
-    padding: 0 !important;
-    justify-content: center;
-  }
-  
-  .sidebar .nav-item {
-    justify-content: center;
-    padding: 10px !important;
-    width: 44px;
-    height: 44px;
-  }
-  
+
   /* Topbar Mobile Cleanup */
   .topbar {
     flex-direction: column !important;
@@ -882,3 +856,16 @@
 
 
 
+
+ @ m e d i a   ( m a x - w i d t h :   1 0 2 4 p x )   { 
+     . p a t i e n t s - c o n t e n t - a r e a . p a t i e n t - s e l e c t e d   . p a t i e n t s - s i d e b a r - c o l u m n   { 
+         d i s p l a y :   n o n e   ! i m p o r t a n t ; 
+     } 
+     . p a t i e n t s - c o n t e n t - a r e a . n o - p a t i e n t - s e l e c t e d   . p a t i e n t - d e t a i l s - c o l u m n   { 
+         d i s p l a y :   n o n e   ! i m p o r t a n t ; 
+     } 
+     . m o b i l e - b a c k - t o - l i s t - b t n   { 
+         d i s p l a y :   b l o c k   ! i m p o r t a n t ; 
+     } 
+ }  
+ 

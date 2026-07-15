@@ -1,5 +1,5 @@
 import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema } from "@dental/shared";
-import { resolveOrganizationId } from "../accessGuard.js";
+import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId } from "../accessGuard.js";
 const patientCreateValidationMessage = "Пациент не создан: заполните ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientUpdateValidationMessage = "Пациент не обновлен: проверьте ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientAdministrativeValidationMessage = "Административный профиль не сохранен: проверьте документы, согласия, страховку и данные представителя.";
@@ -66,19 +66,12 @@ function hasIncompleteRepresentativeIdentity(value) {
         return false;
     return !hasText(value.legalRepresentativeFullName) || !hasText(value.legalRepresentativeRelationship);
 }
-import { verifyToken } from "../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "./auth.js";
 import { getPatientsFromDb, createPatientInDb, updatePatientInDb, updatePatientAdministrativeProfileInDb } from "../db/patientsQuery.js";
 export async function registerPatientRoutes(app) {
     app.get("/api/patients", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedOrganizationId(request, reply, "patients read");
+        if (!orgId)
+            return;
         try {
             const dbPatients = await getPatientsFromDb(orgId);
             return dbPatients.map((patient) => patientSchema.parse(patient));
@@ -89,14 +82,9 @@ export async function registerPatientRoutes(app) {
         }
     });
     app.post("/api/patients", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "patient create");
+        if (!orgId)
+            return;
         const input = parsePatientPayload(createPatientSchema, request.body);
         if (!input) {
             return reply.code(400).send({ error: "PatientValidationError", message: patientCreateValidationMessage });
@@ -115,14 +103,9 @@ export async function registerPatientRoutes(app) {
         }
     });
     app.put("/api/patients/:patientId", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        if (!clinicToken)
-            return reply.code(401).send({ error: "AuthRequired" });
-        const payload = verifyToken(clinicToken, TOKEN_SECRET());
-        if (!payload || !payload.organizationId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const orgId = payload.organizationId;
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "patient update");
+        if (!orgId)
+            return;
         const params = request.params;
         if (!params.patientId)
             return sendPatientRouteValidationError(reply);
@@ -142,21 +125,9 @@ export async function registerPatientRoutes(app) {
         }
     });
     app.put("/api/patients/:patientId/administrative-profile", async (request, reply) => {
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        let orgId;
-        if (clinicToken) {
-            const payload = verifyToken(clinicToken, TOKEN_SECRET());
-            if (!payload || !payload.organizationId)
-                return reply.code(401).send({ error: "AuthExpired" });
-            orgId = payload.organizationId;
-        }
-        else {
-            const resolved = await resolveOrganizationId(request);
-            if (!resolved)
-                return reply.code(401).send({ error: "AuthRequired" });
-            orgId = resolved;
-        }
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "patient administrative profile update");
+        if (!orgId)
+            return;
         const params = request.params;
         if (!params.patientId)
             return sendPatientRouteValidationError(reply);

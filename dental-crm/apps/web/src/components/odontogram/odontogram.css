@@ -9,8 +9,8 @@
   --odontogram-ink-muted: #64748b;
   --odontogram-ink-subtle: #475569;
   --tooth-root-fill: #f1f5f9;
-  --tooth-root-stroke: #64748b;
-  --tooth-crown-fill: #ffffff;
+  --tooth-root-stroke: #334155;
+  --tooth-crown-fill: #fdfdfd;
 }
 
 [data-theme="dark"], .dark {
@@ -188,10 +188,13 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 4px;
+  padding: 8px 4px;
+  min-width: 44px;
+  min-height: 64px;
   transition: background-color 0.2s;
   border-radius: 8px;
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .tooth-svg-wrapper:hover {
@@ -213,10 +216,10 @@
 }
 
 .tooth-svg-wrapper.top .tooth-number {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .tooth-svg-wrapper.bottom .tooth-number {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .tooth-svg-wrapper:hover .tooth-number {
   color: #0f172a;
@@ -274,6 +277,10 @@
 @media (max-width: 768px) {
   .tooth-radial-menu {
     max-width: calc(100vw - 16px);
+    grid-template-columns: repeat(3, 1fr);
+    padding: 12px;
+    gap: 8px;
+    border-radius: 16px;
   }
   .tooth-radial-menu::after {
     display: none;

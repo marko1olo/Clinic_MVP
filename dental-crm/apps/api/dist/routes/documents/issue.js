@@ -1,21 +1,18 @@
-import { requireClinicalMutationAccess } from "../../accessGuard.js";
+import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId } from "../../accessGuard.js";
 import { issueDocumentSchema, publicGeneratedDocumentSchema } from "@dental/shared";
 import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot } from "../../documents/taxPaymentSnapshot.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
 import { apiError, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, taxSnapshotDocument, documentRenderContext, documentIssueValidationMessage, buildMedicalDocumentReleaseJournalEntry, taxXmlSourceSnapshotForIssue } from "../documents.js";
 import { getDocumentById, issueGeneratedDocumentInDb } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
 import { renderDocumentHtml } from "../../documents/renderDocument.js";
 export async function register(app) {
     app.post("/api/documents/:id/issue", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document issue")))
             return;
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org";
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "document issue tenant");
+        if (!orgId)
+            return;
         const { id } = request.params;
         const existing = await getDocumentById(orgId, id);
         if (!existing) {

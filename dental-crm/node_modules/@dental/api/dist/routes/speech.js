@@ -106,7 +106,7 @@ async function handleSpeechChunks(request, reply) {
         return [];
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "????< >??? > ??>? >?." });
+        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -123,7 +123,7 @@ async function handleSpeechRecordingsRecovery(request, reply) {
     const query = request.query;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "????< >??? > ??>? >?." });
+        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -143,7 +143,7 @@ async function handleSpeechRecordingAssemble(request, reply) {
     const query = request.query;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "????< >??? > ??>? >?." });
+        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -162,7 +162,7 @@ async function handleSpeechTranscribeChunk(request, reply) {
         return;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "????< >??? > ??>? >?." });
+        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
     const scopeValidation = await validateSpeechClinicalScope(input, organizationId);
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);

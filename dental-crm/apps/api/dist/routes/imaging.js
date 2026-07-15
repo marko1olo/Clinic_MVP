@@ -9,9 +9,9 @@ import os from "node:os";
 import path from "node:path";
 import { setImmediate as yieldImmediate } from "node:timers/promises";
 import { createInflateRaw, deflateSync } from "node:zlib";
-import { denteAdminSecretHeader, requireClinicalMutationAccess, requireClinicalReadAccess } from "../accessGuard.js";
+import { denteAdminSecretHeader, requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
 import { createImagingStudySchema, dicomFirstFramePreviewRequestSchema, dicomFirstFramePreviewResponseSchema, dicomFolderWorkupPlanRequestSchema, dicomFolderWorkupPlanResponseSchema, dicomFolderSeriesPreviewRequestSchema, dicomFolderSeriesPreviewResponseSchema, dicomLocalFolderDiscoveryRequestSchema, dicomLocalFolderDiscoveryResponseSchema, dicomRenderCachePlanRequestSchema, dicomRenderCachePlanResponseSchema, dicomWorkbenchBundleListResponseSchema, dicomWorkbenchBundleResponseSchema, dicomViewerLaunchManifestRequestSchema, dicomViewerLaunchManifestResponseSchema, dicomViewerToolStateBundleRequestSchema, dicomViewerToolStateBundleResponseSchema, dicomViewerWorkbenchManifestRequestSchema, dicomViewerWorkbenchManifestResponseSchema, dicomWebConnectorCheckRequestSchema, dicomWebConnectorCheckResponseSchema, dicomWorkstationReadinessRequestSchema, dicomWorkstationReadinessResponseSchema, dicomSeriesPreviewRequestSchema, dicomSeriesPreviewResponseSchema, localImagingOrganizerRequestSchema, localImagingOrganizerResponseSchema, imagingFolderScanRequestSchema, imagingFolderScanResponseSchema, imagingImportCommitResponseSchema, imagingImportPreviewRequestSchema, imagingImportPreviewResponseSchema, imagingViewerSessionResponseSchema, imagingStudySchema, saveDicomWorkbenchBundleRequestSchema, saveImagingViewerSessionRequestSchema, normalizeDate, splitLine } from "@dental/shared";
-import { getImagingStudiesForPatient, getAllImagingStudies, getImagingStudyById, createImagingStudyInDb, getDefaultOrganizationId, getOrCreateImagingViewerSession, listDicomWorkbenchBundles, saveDicomWorkbenchBundle, saveImagingViewerSession } from "../db/imagingQuery.js";
+import { getImagingStudiesForPatient, getAllImagingStudies, getImagingStudyById, createImagingStudyInDb, updateImagingStudyAiSummaryInDb, getOrCreateImagingViewerSession, listDicomWorkbenchBundles, saveDicomWorkbenchBundle, saveImagingViewerSession } from "../db/imagingQuery.js";
 import { getVisitByIdInDb } from "../db/visitsQuery.js";
 import { getPatientByIdFromDb, getPatientsFromDb } from "../db/patientsQuery.js";
 import { analyzeImagingStudy } from "../ai/visionAnalyzer.js";
@@ -120,12 +120,15 @@ function sendImagingScanCancelled(reply) {
         message: "Сканирование локальных снимков остановлено. Повторите действие с более узкой папкой или меньшим лимитом."
     });
 }
-async function runAbortableImagingScan(request, reply, operation) {
+async function runAbortableImagingScan(request, reply, operation, organizationId) {
     const requestSignal = createImagingRequestAbortSignal(request);
     const timeoutSignal = AbortSignal.timeout(300_000);
     const signal = AbortSignal.any([requestSignal, timeoutSignal]);
     try {
-        return await operation({ signal });
+        const opts = { signal };
+        if (organizationId !== undefined)
+            opts.organizationId = organizationId;
+        return await operation(opts);
     }
     catch (error) {
         if (isApiDicomScanAbortError(error))
@@ -5361,10 +5364,9 @@ async function buildDicomFolderSeriesPreview(input, options = {}) {
         sourceName: input.sourceName,
         maxHeaderBytes: input.maxHeaderBytes
     }, options);
-    var orgId = await getDefaultOrganizationId();
-    if (!orgId)
-        throw new Error("No org");
-    const preview = await parseDicomSeriesManifest(orgId, {
+    if (!options.organizationId)
+        throw new Error("OrganizationRequired");
+    const preview = await parseDicomSeriesManifest(options.organizationId, {
         sourceName: input.sourceName,
         sourceKind: "dicom_file",
         rawText: manifest.rawText
@@ -5484,9 +5486,9 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return parseImagingManifest(orgId, input);
     });
     app.post("/api/imaging/dicom/series-preview", async (request, reply) => {
@@ -5496,9 +5498,9 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return parseDicomSeriesManifest(orgId, input);
     });
     app.post("/api/imaging/dicomweb/check", async (request, reply) => {
@@ -5562,9 +5564,9 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const bundle = await saveDicomWorkbenchBundle(orgId, input);
         return reply.code(201).send(dicomWorkbenchBundleResponseSchema.parse({ bundle, warnings: bundle.warnings }));
     });
@@ -5573,9 +5575,9 @@ export async function registerImagingRoutes(app) {
             return;
         const query = request.query;
         const requestedLimit = Number(query.limit ?? 8);
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const bundles = await listDicomWorkbenchBundles(orgId, Number.isFinite(requestedLimit) ? requestedLimit : 8);
         return dicomWorkbenchBundleListResponseSchema.parse({
             bundles,
@@ -5612,7 +5614,10 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        return runAbortableImagingScan(request, reply, (options) => buildDicomFolderSeriesPreview(input, options));
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(403).send({ error: "OrganizationRequired" });
+        return runAbortableImagingScan(request, reply, (options) => buildDicomFolderSeriesPreview(input, options), orgId);
     });
     app.post("/api/imaging/dicom/first-frame-preview", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "dicom first frame preview")))
@@ -5630,7 +5635,10 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        return runAbortableImagingScan(request, reply, (options) => buildDicomFolderWorkupPlan(input, options));
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(403).send({ error: "OrganizationRequired" });
+        return runAbortableImagingScan(request, reply, (options) => buildDicomFolderWorkupPlan(input, options), orgId);
     });
     app.post("/api/imaging/imports/commit", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "imaging import commit")))
@@ -5639,9 +5647,9 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return commitImagingImport(orgId, input);
     });
     app.post("/api/imaging/folders/scan-preview", async (request, reply) => {
@@ -5651,15 +5659,15 @@ export async function registerImagingRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return runAbortableImagingScan(request, reply, async (options) => {
             const scan = await collectImagingFiles(input.folderPath, input.recursive, input.maxFiles, options, {
                 maxFolders: input.maxFolders,
                 maxEntriesPerFolder: input.maxEntriesPerFolder
             });
             const rawText = buildFolderScanManifest(scan.files);
-            var orgId = await getDefaultOrganizationId();
-            if (!orgId)
-                throw new Error("No org");
             const preview = await parseImagingManifest(orgId, { sourceName: input.sourceName, sourceKind: "folder_watch", rawText });
             return imagingFolderScanResponseSchema.parse({
                 folderPath: path.resolve(input.folderPath),
@@ -5676,9 +5684,9 @@ export async function registerImagingRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "imaging studies")))
             return;
         const { patientId } = request.query;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const studies = patientId ? await getImagingStudiesForPatient(orgId, patientId) : await getAllImagingStudies(orgId);
         return studies.map((study) => imagingStudySchema.parse(study));
     });
@@ -5686,9 +5694,9 @@ export async function registerImagingRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "imaging viewer session read")))
             return;
         const { id } = request.params;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const study = await getImagingStudyById(orgId, id);
         if (!study)
             return sendImagingStudyNotFound(reply);
@@ -5702,9 +5710,9 @@ export async function registerImagingRoutes(app) {
         if (!(await requireClinicalMutationAccess(request, reply, "imaging viewer session save")))
             return;
         const { id } = request.params;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const study = await getImagingStudyById(orgId, id);
         if (!study)
             return sendImagingStudyNotFound(reply);
@@ -5719,11 +5727,11 @@ export async function registerImagingRoutes(app) {
         }));
     });
     app.post("/api/imaging/studies", async (request, reply) => {
-        var orgId = await getDefaultOrganizationId();
-        if (!orgId)
-            return reply.code(500).send({ error: "No org" });
         if (!(await requireClinicalMutationAccess(request, reply, "imaging study create")))
             return;
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const parsed = parseImagingPayload(createImagingStudySchema, request.body, "Снимок не создан: выберите пациента, вид снимка и название.");
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
@@ -5765,9 +5773,9 @@ export async function registerImagingRoutes(app) {
         if (!(await requireClinicalMutationAccess(request, reply, "imaging study analyze")))
             return;
         const { id } = request.params;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const study = await getImagingStudyById(orgId, id);
         if (!study)
             return sendImagingStudyNotFound(reply);
@@ -5791,10 +5799,8 @@ export async function registerImagingRoutes(app) {
         }
         try {
             const analysisResult = await analyzeImagingStudy(imageBase64);
-            // Mutate in-memory study (persists for session)
-            study.aiSummary = analysisResult.summary;
-            study.aiToothUpdates = analysisResult.toothUpdates;
-            return reply.code(200).send({ ok: true, analysisResult });
+            const updatedStudy = await updateImagingStudyAiSummaryInDb(orgId, id, analysisResult.summary);
+            return reply.code(200).send({ ok: true, analysisResult, study: imagingStudySchema.parse(updatedStudy) });
         }
         catch (err) {
             const message = err?.message ?? "Анализ завершился ошибкой";
@@ -5805,9 +5811,9 @@ export async function registerImagingRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "imaging preview")))
             return;
         const { id } = request.params;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(500).send({ error: "No org" });
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const study = await getImagingStudyById(orgId, id);
         if (!study) {
             return sendImagingStudyNotFound(reply);

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { db } from "../db/client.js";
-import { visitDiaries, visitDiaryRevisions } from "../db/schema.js";
+import { visitDiaries, visitDiaryRevisions, clinicalAuditLogs, treatmentItems, procedureMaterialRules, inventoryItems, doctorCommissions } from "../db/schema.js";
 import { eq, and, desc } from "drizzle-orm";
 import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
 import crypto from "crypto";
@@ -15,7 +15,8 @@ const diaryUpsertSchema = z.object({
   diagnosisTooth: z.string().optional(),
   treatmentDescription: z.string().optional(),
   organizationId: z.string().uuid().optional(),
-  status: z.enum(["draft", "signed"]).optional()
+  status: z.enum(["draft", "signed"]).optional(),
+  instrumentTrayBarcode: z.string().optional()
 });
 
 function computeDiaryHash(
@@ -112,7 +113,8 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
         diaryHash: diaryHash ?? existing.diaryHash,
         isLocked: isSigning,
         lockedAt: isSigning ? new Date() : existing.lockedAt,
-        lockedByUserId: isSigning ? userId : existing.lockedByUserId
+        lockedByUserId: isSigning ? userId : existing.lockedByUserId,
+        instrumentTrayBarcode: data.instrumentTrayBarcode ?? existing.instrumentTrayBarcode
       }).where(and(eq(visitDiaries.id, existing.id), eq(visitDiaries.organizationId, orgId)));
 
       return reply.send({ success: true, id: existing.id, hash: diaryHash });
@@ -131,7 +133,8 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
         diaryHash: diaryHash,
         isLocked: isSigning,
         lockedAt: isSigning ? new Date() : null,
-        lockedByUserId: isSigning ? userId : null
+        lockedByUserId: isSigning ? userId : null,
+        instrumentTrayBarcode: data.instrumentTrayBarcode
       }).returning();
 
       return reply.send({ success: true, id: inserted[0]?.id, hash: diaryHash });
@@ -169,17 +172,69 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
       existing.treatmentDescription
     );
 
-    // Forensic lock
-    await db.update(visitDiaries).set({
-      isLocked: true,
-      lockedAt: new Date(),
-      lockedByUserId: userId,
-      coSignedByUserId: userId,
-      diaryHash: diaryHash,
-      updatedAt: new Date()
-    }).where(and(eq(visitDiaries.id, id), eq(visitDiaries.organizationId, orgId)));
+    // Forensic lock & Cascading Transaction
+    try {
+      await db.transaction(async (tx) => {
+        // 1. Lock the diary
+        await tx.update(visitDiaries).set({
+          isLocked: true,
+          lockedAt: new Date(),
+          lockedByUserId: userId,
+          coSignedByUserId: userId,
+          diaryHash: diaryHash,
+          updatedAt: new Date()
+        }).where(and(eq(visitDiaries.id, id), eq(visitDiaries.organizationId, orgId)));
 
-    return reply.send({ success: true, hash: diaryHash, lockedAt: new Date().toISOString() });
+        // 1.5 Mark treatments as completed and deduct inventory
+        if (existing.visitId) {
+          const tItems = await tx.select().from(treatmentItems).where(eq(treatmentItems.visitId, existing.visitId));
+          if (tItems.length > 0) {
+            await tx.update(treatmentItems).set({ status: "completed" as any }).where(eq(treatmentItems.visitId, existing.visitId));
+            
+            for (const item of tItems) {
+              if (!item.serviceId) continue;
+              const rules = await tx.select().from(procedureMaterialRules).where(eq(procedureMaterialRules.serviceId, item.serviceId));
+              for (const rule of rules) {
+                const [inv] = await tx.select().from(inventoryItems).where(eq(inventoryItems.id, rule.inventoryItemId)).for("update");
+                if (inv) {
+                  const qtyToDeduct = Number(rule.quantityToDeduct) * Number(item.quantity);
+                  if (inv.stockQuantity < qtyToDeduct) {
+                    throw new Error(`Недостаточно материалов: ${inv.name}`);
+                  }
+                  await tx.update(inventoryItems).set({ stockQuantity: inv.stockQuantity - qtyToDeduct }).where(eq(inventoryItems.id, inv.id));
+                }
+              }
+            }
+          }
+        }
+
+        // 2. Insert Commission (stub calculation)
+        if (userId) {
+          await tx.insert(doctorCommissions).values({
+            organizationId: orgId,
+            userId: userId,
+            specialty: "universal",
+            serviceCategory: "therapy",
+            commissionPct: 30.0,
+            materialCostDeductionPct: 100.0,
+            isActive: true
+          });
+        }
+
+        // 3. Clinical Audit Log
+        await tx.insert(clinicalAuditLogs).values({
+          organizationId: orgId,
+          patientId: existing.patientId,
+          action: "VISIT_SIGNED_AND_LOCKED",
+          userId: userId,
+          entityType: "visit_diary",
+          entityId: id
+        });
+      });
+      return reply.send({ success: true, hash: diaryHash, lockedAt: new Date().toISOString() });
+    } catch (err: any) {
+      return reply.code(400).send({ error: "TransactionFailed", message: err.message });
+    }
   });
 
   // POST /api/diaries/:id/revise — post-lock forced revision (audit court trail)

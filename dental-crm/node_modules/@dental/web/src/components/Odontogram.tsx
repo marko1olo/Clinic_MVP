@@ -139,7 +139,10 @@ export function Odontogram() {
           gap: '6px',
           position: 'relative',
           cursor: 'pointer',
-          padding: '2px',
+          padding: '4px',
+          minWidth: '44px',
+          minHeight: '44px',
+          touchAction: 'manipulation',
           borderRadius: '8px',
           transition: 'all 0.18s cubic-bezier(0.34,1.56,0.64,1)',
           background: isSelected

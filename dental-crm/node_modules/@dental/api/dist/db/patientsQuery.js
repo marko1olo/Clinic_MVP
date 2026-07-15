@@ -38,7 +38,7 @@ export async function getPatientsFromDb(organizationId) {
     }));
 }
 export async function createPatientInDb(organizationId, input) {
-    const [created] = await db.insert(schema.patients).values({
+    const result = await db.insert(schema.patients).values({
         organizationId,
         fullName: input.fullName,
         birthDate: input.birthDate,
@@ -46,6 +46,7 @@ export async function createPatientInDb(organizationId, input) {
         email: input.email,
         notes: input.notes
     }).returning();
+    const created = result[0];
     if (!created)
         throw new Error("Failed to create patient in DB");
     return {
@@ -74,7 +75,7 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         status: input.status,
         updatedAt: new Date()
     })
-        .where(eq(schema.patients.id, patientId))
+        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
         .returning();
     if (!updated)
         return null;
@@ -99,7 +100,7 @@ export async function updatePatientAdministrativeProfileInDb(organizationId, pat
         administrativeProfile: input,
         updatedAt: new Date()
     })
-        .where(eq(schema.patients.id, patientId))
+        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
         .returning();
     if (!updated)
         return null;

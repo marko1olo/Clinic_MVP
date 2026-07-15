@@ -44,6 +44,7 @@
     "smoke:finance-planning-source": "node scripts/smoke-finance-planning-source.mjs",
     "smoke:finance-ledger-source": "node scripts/smoke-finance-ledger-source.mjs",
     "smoke:payment-capture-source": "node scripts/smoke-payment-capture-source.mjs",
+    "smoke:dental-persistence-routes-source": "node scripts/smoke-dental-persistence-routes-source.mjs",
     "smoke:payment-idempotency": "node scripts/smoke-payment-idempotency.mjs",
     "smoke:browser-file-input-dicom": "node scripts/smoke-browser-file-input-dicom.mjs",
     "smoke:browser-imaging-scan-progress-source": "node scripts/smoke-browser-imaging-scan-progress-source.mjs",

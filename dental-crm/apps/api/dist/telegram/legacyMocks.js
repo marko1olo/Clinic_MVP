@@ -115,7 +115,13 @@ export const clinicProfile = {
     scheduleDefaults: defaultClinicScheduleDefaults,
     networkEnabled: false,
     egiszEnabled: false,
-    updatedAt: nowIso
+    updatedAt: nowIso,
+    specializations: [],
+    workingHours: null,
+    currency: "₽",
+    themeColor: "teal",
+    logoUrl: null,
+    stampUrl: null
 };
 export const staffMembers = [
     {
@@ -6859,7 +6865,7 @@ function normalizePatientAdministrativeProfile(input) {
         preferredAppointmentStart,
         preferredAppointmentEnd,
         preferredAppointmentNote: nullableTrimmed(input?.preferredAppointmentNote),
-        dataProcessingBasisNote: nullableTrimmed(input?.dataProcessingBasisNote)
+        dataProcessingBasisNote: nullableTrimmed(input?.dataProcessingBasisNote),
     };
     const hasValue = Object.values(profile).some((value) => (Array.isArray(value) ? value.length > 0 : Boolean(value)));
     return hasValue ? profile : null;

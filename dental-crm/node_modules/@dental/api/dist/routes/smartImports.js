@@ -7,9 +7,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { clinicPublicLookupRequestSchema, clinicPublicLookupResponseSchema, migrationAutopilotRequestSchema, migrationAutopilotResponseSchema, migrationLocalSourceDiscoveryRequestSchema, migrationLocalSourceDiscoveryResponseSchema, migrationLocalSourceProbeRequestSchema, migrationLocalSourceProbeResponseSchema, migrationLocalSourceWorkupRequestSchema, migrationLocalSourceWorkupResponseSchema, smartImportCommitResponseSchema, smartImportPreviewResponseSchema, smartImportRequestSchema } from "@dental/shared";
 import { commitImagingImport, parseImagingManifest } from "./imaging.js";
-import { getDefaultOrganizationId } from "../db/imagingQuery.js";
 import { buildPatientImportPreview, commitPatientImport } from "./imports.js";
-import { requireClinicalMutationAccess, requireClinicalReadAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
 const execFileAsync = promisify(execFile);
 const emptyPatientText = "ФИО;Телефон;Дата рождения;Комментарий";
 const imagePathPattern = /(?:[A-Za-zА-Яа-яЁё]:[\\/][^\s;|,]+|\\\\[^\s;|,]+|\/[^\s;|,]+|\b[^\s;|,]+\.(?:dcm|dicom|ima|dc3|acr|jpg|jpeg|png|tif|tiff|bmp|webp|stl|obj|ply|glb|gltf|3mf)\b)/i;
@@ -5196,9 +5195,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return buildSmartImportPreview(orgId, input);
     });
     app.post("/api/imports/smart/local-source-discovery", async (request, reply) => {
@@ -5235,9 +5234,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         return buildMigrationAutopilot(orgId, input);
     });
     app.post("/api/imports/smart/migration-autopilot/report.csv", async (request, reply) => {
@@ -5247,9 +5246,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const plan = await buildMigrationAutopilot(orgId, input);
         const csv = buildMigrationAutopilotReportCsv(plan);
         return reply
@@ -5273,12 +5272,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
-        var orgId = await getDefaultOrganizationId();
-        if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const preview = await buildSmartImportPreview(orgId, input);
         const csv = buildSmartImportReportCsv(preview);
         return reply
@@ -5293,9 +5289,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const preview = await buildSmartImportPreview(orgId, input);
         const csv = buildSmartImportSafeHandoffReportCsv(preview);
         return reply
@@ -5310,12 +5306,9 @@ export async function registerSmartImportRoutes(app) {
         if (!parsed.ok)
             return reply.code(400).send(parsed.response);
         const input = parsed.data;
-        var orgId = await getDefaultOrganizationId();
+        const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            throw new Error("No org");
-        var orgId = await getDefaultOrganizationId();
-        if (!orgId)
-            throw new Error("No org");
+            return reply.code(403).send({ error: "OrganizationRequired" });
         const preview = await buildSmartImportPreview(orgId, input);
         const patientCommit = preview.patientPreview.totalRows > 0
             ? commitPatientImport(orgId, {

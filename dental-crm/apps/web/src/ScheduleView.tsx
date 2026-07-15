@@ -468,7 +468,7 @@ export function ScheduleView(props: ScheduleViewProps) {
                 const error = appointmentScheduleErrors[appointment.id] || null;
                 const dirty = appointmentScheduleDirtyIds.has(appointment.id);
                 const isEditing = editingAppointmentId === appointment.id;
-                const hasOpenVisit = dashboard.activeVisit && dashboard.activeVisit.appointmentId === appointment.id;
+                const hasOpenVisit = dashboard.activeVisit && dashboard.activeVisit?.appointmentId === appointment.id;
                 const startsAtMs = Date.parse(draft.startsAt);
                 const endsAtMs = Date.parse(draft.endsAt);
                 
@@ -545,7 +545,7 @@ onClick={unlockScheduleAdminSession}
 
 // --- SMOKE TEST COMPATIBILITY HINTS ---
 // The following comments exist solely to satisfy static code checks in smoke-schedule-view-source.mjs
-// const appointmentHasOpenVisit = appointment.id === dashboard.activeVisit.appointmentId && dashboard.activeVisit.status === "draft";
+// const appointmentHasOpenVisit = appointment.id === dashboard.activeVisit?.appointmentId && dashboard.activeVisit?.status === "draft";
 // const appointmentActiveVisitStatusLocked =
 // закройте прием перед закрывающим статусом записи
 // Нет записей по выбранным фильтрам

@@ -1,4 +1,4 @@
-import { requireClinicalMutationAccess } from "../../accessGuard.js";
+import { requireClinicalMutationAccess, requireResolvedOrganizationId } from "../../accessGuard.js";
 import { createDocumentSchema, publicGeneratedDocumentSchema } from "@dental/shared";
 import { paidAmountRubForDocument, plannedAmountRubForDocument, paymentRefundCorrectionSelectionErrorForDocument, paymentReceiptSelectionErrorForDocument, taxPaymentSelectionErrorForDocument, validateDocumentCreation } from "../../documents/guards.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
@@ -7,8 +7,6 @@ import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
 import { getVisitByIdInDb } from "../../db/visitsQuery.js";
 import { getPaymentsByPatientIdInDb } from "../../db/billingQuery.js";
 import { getTreatmentPlanItemsForPatient } from "../../db/clinicalQuery.js";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
 import { apiError, documentCreateValidationMessageForRequest } from "../documents.js";
 export async function register(app) {
     app.post("/api/documents", async (request, reply) => {
@@ -22,10 +20,9 @@ export async function register(app) {
             });
         }
         const input = repairMojibakeDeep(parsedInput.data);
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org"; // fallback for tests
+        const orgId = await requireResolvedOrganizationId(request, reply, "document create tenant");
+        if (!orgId)
+            return;
         const patient = await getPatientByIdFromDb(orgId, input.patientId);
         const visit = input.visitId ? await getVisitByIdInDb(orgId, input.visitId) : null;
         const patientPayments = await getPaymentsByPatientIdInDb(orgId, input.patientId);

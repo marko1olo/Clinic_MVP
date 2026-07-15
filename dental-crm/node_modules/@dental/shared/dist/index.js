@@ -730,7 +730,7 @@ export const clinicalRuleActionSchema = z.enum([
     "show_warning",
     "schedule_followup"
 ]);
-export const paymentMethodSchema = z.enum(["cash", "card", "bank_transfer", "online", "insurance", "other"]);
+export const paymentMethodSchema = z.enum(["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]);
 export const paymentStatusSchema = z.enum(["planned", "paid", "refunded", "voided"]);
 export const communicationChannelSchema = z.enum(["phone", "sms", "whatsapp", "telegram", "email", "in_person"]);
 export const communicationIntentSchema = z.enum([
@@ -1200,7 +1200,13 @@ export const clinicProfileSchema = z.object({
     scheduleDefaults: clinicScheduleDefaultsSchema,
     networkEnabled: z.boolean(),
     egiszEnabled: z.boolean(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
+    specializations: z.array(dentalSpecialtySchema).default([]),
+    workingHours: staffWorkingHoursSchema.nullable().optional(),
+    currency: z.string().default('₽'),
+    themeColor: z.string().default('teal'),
+    logoUrl: z.string().nullable().optional(),
+    stampUrl: z.string().nullable().optional()
 });
 export const staffMemberSchema = z.object({
     id: z.string().uuid(),
@@ -2168,7 +2174,8 @@ export const appointmentSchema = z.object({
     startsAt: z.string(),
     endsAt: z.string(),
     reason: z.string().nullable(),
-    comment: z.string().nullable()
+    comment: z.string().nullable(),
+    version: z.number().int().optional()
 });
 function parseStrictAppointmentDateTimeMs(value) {
     const trimmed = value.trim();
@@ -2236,7 +2243,8 @@ export const updateAppointmentSchema = z
     startsAt: z.string().trim().min(1).optional(),
     endsAt: z.string().trim().min(1).optional(),
     reason: z.string().trim().max(500).nullable().optional(),
-    comment: z.string().trim().max(1000).nullable().optional()
+    comment: z.string().trim().max(1000).nullable().optional(),
+    version: z.number().int().nonnegative().optional()
 })
     .superRefine((value, context) => {
     const startsAt = value.startsAt !== undefined ? parseStrictAppointmentDateTimeMs(value.startsAt) : null;
@@ -3579,8 +3587,8 @@ export const dashboardSchema = z.object({
     appointments: z.array(appointmentSchema),
     appointmentReadiness: z.array(appointmentReadinessSchema),
     scheduleSuggestions: z.array(scheduleSuggestionSchema),
-    activeVisit: visitSchema,
-    visitCloseChecklist: visitCloseChecklistSchema,
+    activeVisit: visitSchema.nullable(),
+    visitCloseChecklist: visitCloseChecklistSchema.nullable(),
     documents: z.array(publicGeneratedDocumentSchema),
     imagingStudies: z.array(imagingStudySchema),
     protocolTemplates: z.array(protocolTemplateSchema),
@@ -3671,7 +3679,13 @@ export const updateClinicProfileSchema = z.object({
     timezone: timeZoneSchema.optional(),
     defaultVisitMinutes: z.number().int().positive().max(480).optional(),
     scheduleDefaults: clinicScheduleDefaultsSchema.optional(),
-    egiszEnabled: z.boolean().optional()
+    egiszEnabled: z.boolean().optional(),
+    specializations: z.array(dentalSpecialtySchema).optional(),
+    workingHours: staffWorkingHoursSchema.nullable().optional(),
+    currency: z.string().max(10).optional(),
+    themeColor: z.string().max(100).optional(),
+    logoUrl: z.string().url().nullable().optional(),
+    stampUrl: z.string().url().nullable().optional()
 });
 export const createStaffMemberSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
@@ -6201,7 +6215,8 @@ export const acceptVisitDraftSchema = z.object({
     doctorSummary: z.string().nullable().optional(),
     clientMutationId: z.string().min(1).max(120).nullable().optional(),
     baseRevision: z.number().int().nonnegative().nullable().optional(),
-    clientSavedAt: z.string().nullable().optional()
+    clientSavedAt: z.string().nullable().optional(),
+    instrumentTrayBarcode: z.string().nullable().optional()
 });
 export const visitSaveReceiptSchema = z.object({
     visitId: z.string().uuid(),
@@ -6943,3 +6958,27 @@ export const migrationAutopilotResponseSchema = z.object({
 });
 export * from "./utils/strings.js";
 export * from "./utils/dates.js";
+export const doctorCommissionSchema = z.object({
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    userId: z.string().uuid(),
+    specialization: dentalSpecialtySchema,
+    percentage: z.number().int().min(0).max(100).nullable(),
+    fixedRate: z.number().int().min(0).nullable(),
+});
+export const cashShiftSchema = z.object({
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    openedByUserId: z.string().uuid(),
+    openedAt: z.string(),
+    closedAt: z.string().nullable(),
+    startingBalance: z.number().int(),
+    expectedClosingBalance: z.number().int().nullable(),
+    actualClosingBalance: z.number().int().nullable(),
+    status: z.enum(["Open", "Closed", "Discrepancy"]),
+    discrepancyReason: z.string().nullable()
+});
+export const doctorAssistantSchema = z.object({
+    doctorId: z.string().uuid(),
+    assistantId: z.string().uuid()
+});

@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import { ToothChart, ToothData, ToothState } from './ToothChart';
 import { TreatmentEstimator } from './TreatmentEstimator';
 import { ToothHistoryChronicle } from './ToothHistoryChronicle';
-import { Check, X, Stethoscope, AlertTriangle, History } from 'lucide-react';
+import { Check, X, Stethoscope, AlertTriangle, History, Mic } from 'lucide-react';
+import { VoiceDictationOverlay } from './VoiceDictationOverlay';
+import { denteAdminSecretRequestHeaders } from '../../AppHelpers';
+import { useWebsocket } from "../../hooks/useWebsocket";
 import './odontogram.css';
 
 export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: string, pediatricMode?: boolean | undefined }) => {
@@ -15,8 +18,16 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
   const [isPediatricMode, setIsPediatricMode] = useState(pediatricMode || false);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const { lastMessage } = useWebsocket(import.meta.env.VITE_WS_URL || "ws://localhost:4100/api/ws/schedule");
+  useEffect(() => {
+    if (lastMessage?.type === "UPDATE_ODONTOGRAM" && lastMessage.payload.patientId === patientId) {
+      setTeethData(lastMessage.payload.states);
+    }
+  }, [lastMessage, patientId]);
 
   useEffect(() => {
     setIsPediatricMode(pediatricMode || false);
@@ -24,10 +35,12 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
 
   // Load states from API
   useEffect(() => {
-    fetch(`/api/patients/${patientId}/tooth-states`)
-      .then(r => r.json())
+    fetch(`/api/patients/${patientId}/tooth-states`, {
+      headers: denteAdminSecretRequestHeaders()
+    })
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data.success && data.states) {
+        if (data?.success && data.states) {
           setTeethData(data.states);
         }
       });
@@ -40,6 +53,13 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
        }
     };
     window.addEventListener('clinical-implant-placed', handleClinicalCollision);
+    
+    const handleWsUpdate = (e: any) => {
+      if (e.detail?.patientId === patientId && e.detail?.states) {
+        setTeethData(e.detail.states);
+      }
+    };
+    window.addEventListener('dente-odontogram-update', handleWsUpdate);
     
     const handleFinding = (e: any) => {
         if (e.detail?.toothNumber && e.detail?.finding) {
@@ -60,7 +80,8 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
 
     return () => {
         window.removeEventListener('clinical-implant-placed', handleClinicalCollision);
-        window.removeEventListener('clinical-finding-detected', handleFinding);
+      window.removeEventListener('dente-odontogram-update', handleWsUpdate);
+      window.removeEventListener('clinical-finding-detected', handleFinding);
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
     };
@@ -87,7 +108,7 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
     // Save to API
     await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: denteAdminSecretRequestHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ toothNumbers, state })
     });
   };
@@ -225,9 +246,59 @@ export const OdontogramModule = ({ patientId, pediatricMode }: { patientId: stri
         )}
       </div>
 
-      <div className="flex-1 min-w-[320px] max-w-[480px] flex flex-col w-full">
+      <div className="flex-1 min-w-[320px] max-w-[480px] flex flex-col w-full relative">
         <TreatmentEstimator patientId={patientId} currentTeeth={teethData} />
+        
+        {/* Floating Voice Dictation Button */}
+        <button
+          onClick={() => setIsVoiceOpen(true)}
+          style={{
+            position: 'absolute', bottom: 24, right: 24,
+            width: 72, height: 72, borderRadius: 36,
+            background: 'var(--primary-color, rgba(160, 130, 255, 0.2))',
+            backdropFilter: 'blur(12px)',
+            border: '2px solid var(--primary-color, #a082ff)',
+            boxShadow: '0 8px 32px var(--primary-color, rgba(160, 130, 255, 0.4))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 100, transition: 'all 0.3s'
+          }}
+          className="hover:scale-110 active:scale-95"
+        >
+          <Mic size={32} color="var(--primary-color, #a082ff)" />
+        </button>
       </div>
+
+      <VoiceDictationOverlay 
+        isOpen={isVoiceOpen} 
+        onClose={() => setIsVoiceOpen(false)} 
+        onDictationSubmit={async (text) => {
+           setIsVoiceOpen(false);
+           try {
+             const res = await fetch("/api/ai/parse-dictation", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ text, type: "visit" })
+             });
+             if (res.ok) {
+               const data = await res.json();
+               if (data && data.action === "update_tooth" && data.payload) {
+                 const { code, state } = data.payload;
+                 updateToothState([parseInt(code)], state || "caries");
+                 alert(`AI: Зуб ${code} обновлен (${state})`);
+               } else if (data && data.toothUpdates && Array.isArray(data.toothUpdates)) {
+                 data.toothUpdates.forEach((tu: any) => {
+                    updateToothState([parseInt(tu.code)], tu.state);
+                 });
+                 alert(`AI: Зубы обновлены: ${data.toothUpdates.map((t:any)=>t.code).join(", ")}`);
+               } else {
+                 console.log("No specific action from AI:", data);
+               }
+             }
+           } catch (e) {
+             console.error("Dictation parse failed", e);
+           }
+        }}
+      />
     </div>
   );
 };

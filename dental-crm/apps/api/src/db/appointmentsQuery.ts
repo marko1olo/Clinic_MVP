@@ -1,111 +1,131 @@
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput } from "@dental/shared";
 
-export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput): Promise<Appointment> {
-  const candidate = {
-    patientId: input.patientId,
-    doctorUserId: input.doctorUserId,
-    assistantUserId: input.assistantUserId ?? null,
-    chairId: input.chairId,
-    status: input.status,
-    startsAt: new Date(input.startsAt),
-    endsAt: new Date(input.endsAt)
-  };
-  await assertAppointmentCanBeScheduled(organizationId, candidate);
+export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput, txContext: any = db): Promise<Appointment> {
+  return await txContext.transaction(async (tx: any) => {
+    // Pessimistic lock on the chair to prevent race conditions
+    await tx.execute(sql`SELECT 1 FROM ${schema.clinicChairs} WHERE id = ${input.chairId} FOR UPDATE`);
 
-  const [created] = await db.insert(schema.appointments).values({
-    organizationId,
-    patientId: input.patientId,
-    doctorUserId: input.doctorUserId,
-    assistantUserId: input.assistantUserId ?? null,
-    chairId: input.chairId,
-    status: input.status,
-    startsAt: new Date(input.startsAt),
-    endsAt: new Date(input.endsAt),
-    reason: input.reason || null,
-    comment: input.comment || null
-  }).returning();
+    const candidate = {
+      patientId: input.patientId,
+      doctorUserId: input.doctorUserId,
+      assistantUserId: input.assistantUserId ?? null,
+      chairId: input.chairId,
+      status: input.status,
+      startsAt: new Date(input.startsAt),
+      endsAt: new Date(input.endsAt)
+    };
+    await assertAppointmentCanBeScheduled(organizationId, candidate, tx);
 
-  if (!created) throw new Error("Failed to insert appointment");
+    const [created] = await tx.insert(schema.appointments).values({
+      organizationId,
+      patientId: input.patientId,
+      doctorUserId: input.doctorUserId,
+      assistantUserId: input.assistantUserId ?? null,
+      chairId: input.chairId,
+      status: input.status,
+      startsAt: new Date(input.startsAt),
+      endsAt: new Date(input.endsAt),
+      reason: input.reason || null,
+      comment: input.comment || null
+    }).returning();
 
-  return {
-    id: created.id,
-    organizationId: created.organizationId,
-    patientId: created.patientId,
-    doctorUserId: created.doctorUserId,
-    assistantUserId: created.assistantUserId,
-    chairId: created.chairId,
-    status: created.status as any,
-    startsAt: created.startsAt.toISOString(),
-    endsAt: created.endsAt.toISOString(),
-    reason: created.reason,
-    comment: created.comment
-  } as unknown as Appointment;
+    if (!created) throw new Error("Failed to insert appointment");
+
+    return {
+      id: created.id,
+      organizationId: created.organizationId,
+      patientId: created.patientId,
+      doctorUserId: created.doctorUserId,
+      assistantUserId: created.assistantUserId,
+      chairId: created.chairId,
+      status: created.status as any,
+      startsAt: created.startsAt.toISOString(),
+      endsAt: created.endsAt.toISOString(),
+      reason: created.reason,
+      comment: created.comment,
+      version: created.version
+    } as unknown as Appointment;
+  });
 }
 
-export async function updateAppointmentInDb(organizationId: string, appointmentId: string, input: UpdateAppointmentInput): Promise<Appointment> {
-  const [existing] = await db.select().from(schema.appointments).where(and(eq(schema.appointments.id, appointmentId), eq(schema.appointments.organizationId, organizationId))).limit(1);
-  if (!existing) throw new Error("Запись не найдена");
-
-  const [activeVisit] = await db
-    .select()
-    .from(schema.visits)
-    .where(and(eq(schema.visits.appointmentId, appointmentId), eq(schema.visits.status, "draft")))
-    .limit(1);
-
-  if (activeVisit) {
-    if (input.patientId !== undefined && input.patientId !== existing.patientId) {
-      throw new Error("Нельзя менять пациента: открыт прием");
+export async function updateAppointmentInDb(organizationId: string, appointmentId: string, input: UpdateAppointmentInput, txContext: any = db): Promise<Appointment> {
+  return await txContext.transaction(async (tx: any) => {
+    const [existing] = await tx.select().from(schema.appointments).where(and(eq(schema.appointments.id, appointmentId), eq(schema.appointments.organizationId, organizationId))).limit(1);
+    if (!existing) throw new Error("Запись не найдена");
+    
+    if (input.version !== undefined && existing.version !== input.version) {
+      throw new Error("Конфликт версий: запись была изменена другим пользователем. Обновите расписание.");
     }
-    if (input.status === "completed" || input.status === "cancelled" || input.status === "no_show") {
-      throw new Error("Нельзя закрыть запись: открыт прием");
+
+    // Lock the chair
+    const targetChairId = input.chairId !== undefined ? input.chairId : existing.chairId;
+    if (targetChairId) {
+       await tx.execute(sql`SELECT 1 FROM ${schema.clinicChairs} WHERE id = ${targetChairId} FOR UPDATE`);
     }
-  }
 
-  const startsAtRaw = input.startsAt ?? existing.startsAt.toISOString();
-  const endsAtRaw = input.endsAt ?? existing.endsAt.toISOString();
+    const [activeVisit] = await tx
+      .select()
+      .from(schema.visits)
+      .where(and(eq(schema.visits.appointmentId, appointmentId), eq(schema.visits.status, "draft")))
+      .limit(1);
 
-  const candidate = {
-    id: appointmentId,
-    patientId: input.patientId !== undefined ? input.patientId : existing.patientId,
-    doctorUserId: input.doctorUserId !== undefined ? input.doctorUserId : existing.doctorUserId,
-    assistantUserId: input.assistantUserId !== undefined ? input.assistantUserId : existing.assistantUserId,
-    chairId: input.chairId !== undefined ? input.chairId : existing.chairId,
-    status: input.status !== undefined ? input.status : existing.status,
-    startsAt: new Date(startsAtRaw),
-    endsAt: new Date(endsAtRaw)
-  };
-  await assertAppointmentCanBeScheduled(organizationId, candidate);
+    if (activeVisit) {
+      if (input.patientId !== undefined && input.patientId !== existing.patientId) {
+        throw new Error("Нельзя менять пациента: открыт прием");
+      }
+      if (input.status === "completed" || input.status === "cancelled" || input.status === "no_show") {
+        throw new Error("Нельзя закрыть запись: открыт прием");
+      }
+    }
 
-  const [updated] = await db.update(schema.appointments).set({
-    patientId: input.patientId ?? existing.patientId,
-    doctorUserId: input.doctorUserId ?? existing.doctorUserId,
-    assistantUserId: input.assistantUserId !== undefined ? input.assistantUserId : existing.assistantUserId,
-    chairId: input.chairId ?? existing.chairId,
-    status: input.status ?? existing.status,
-    startsAt: new Date(startsAtRaw),
-    endsAt: new Date(endsAtRaw),
-    reason: input.reason !== undefined ? input.reason : existing.reason,
-    comment: input.comment !== undefined ? input.comment : existing.comment
-  }).where(eq(schema.appointments.id, appointmentId)).returning();
+    const startsAtRaw = input.startsAt ?? existing.startsAt.toISOString();
+    const endsAtRaw = input.endsAt ?? existing.endsAt.toISOString();
 
-  if (!updated) throw new Error("Failed to update appointment");
+    const candidate = {
+      id: appointmentId,
+      patientId: input.patientId !== undefined ? input.patientId : existing.patientId,
+      doctorUserId: input.doctorUserId !== undefined ? input.doctorUserId : existing.doctorUserId,
+      assistantUserId: input.assistantUserId !== undefined ? input.assistantUserId : existing.assistantUserId,
+      chairId: targetChairId,
+      status: input.status !== undefined ? input.status : existing.status,
+      startsAt: new Date(startsAtRaw),
+      endsAt: new Date(endsAtRaw)
+    };
+    await assertAppointmentCanBeScheduled(organizationId, candidate, tx);
 
-  return {
-    id: updated.id,
-    organizationId: updated.organizationId,
-    patientId: updated.patientId,
-    doctorUserId: updated.doctorUserId,
-    assistantUserId: updated.assistantUserId,
-    chairId: updated.chairId,
-    status: updated.status as any,
-    startsAt: updated.startsAt.toISOString(),
-    endsAt: updated.endsAt.toISOString(),
-    reason: updated.reason,
-    comment: updated.comment
-  } as unknown as Appointment;
+    const [updated] = await tx.update(schema.appointments).set({
+      patientId: input.patientId ?? existing.patientId,
+      doctorUserId: input.doctorUserId ?? existing.doctorUserId,
+      assistantUserId: input.assistantUserId !== undefined ? input.assistantUserId : existing.assistantUserId,
+      chairId: targetChairId,
+      status: input.status ?? existing.status,
+      startsAt: new Date(startsAtRaw),
+      endsAt: new Date(endsAtRaw),
+      reason: input.reason !== undefined ? input.reason : existing.reason,
+      comment: input.comment !== undefined ? input.comment : existing.comment,
+      version: existing.version + 1
+    }).where(and(eq(schema.appointments.id, appointmentId), eq(schema.appointments.organizationId, organizationId))).returning();
+
+    if (!updated) throw new Error("Failed to update appointment");
+
+    return {
+      id: updated.id,
+      organizationId: updated.organizationId,
+      patientId: updated.patientId,
+      doctorUserId: updated.doctorUserId,
+      assistantUserId: updated.assistantUserId,
+      chairId: updated.chairId,
+      status: updated.status as any,
+      startsAt: updated.startsAt.toISOString(),
+      endsAt: updated.endsAt.toISOString(),
+      reason: updated.reason,
+      comment: updated.comment,
+      version: updated.version
+    } as unknown as Appointment;
+  });
 }
 
 export async function getAppointmentByIdInDb(organizationId: string, id: string) {
@@ -185,8 +205,8 @@ function normalizeStaffWorkingHours(input?: any[] | null): any[] {
   return defaults.map((fallback) => byWeekday.get(fallback.weekday) ?? fallback);
 }
 
-async function getActiveAppointments(organizationId: string) {
-  const activeApps = await db
+async function getActiveAppointments(organizationId: string, txContext: any = db) {
+  const activeApps = await txContext
     .select()
     .from(schema.appointments)
     .where(eq(schema.appointments.organizationId, organizationId));
@@ -221,17 +241,17 @@ async function getActiveAppointments(organizationId: string) {
   return activeApps;
 }
 
-async function getPatientById(patientId: string) {
-  const [patient] = await db
+async function getPatientById(organizationId: string, patientId: string, txContext: any = db) {
+  const [patient] = await txContext
     .select()
     .from(schema.patients)
-    .where(eq(schema.patients.id, patientId))
+    .where(and(eq(schema.patients.id, patientId), eq(schema.patients.organizationId, organizationId)))
     .limit(1);
 
   if (!patient && process.env.DENTAL_STATE_PERSISTENCE === "off") {
     try {
       const { patients } = await import("../sampleData.js");
-      const found = patients.find((p) => p.id === patientId);
+      const found = patients.find((p) => p.id === patientId && p.organizationId === organizationId);
       if (found) return found;
     } catch (e) {
       // Ignore
@@ -240,17 +260,17 @@ async function getPatientById(patientId: string) {
   return patient;
 }
 
-async function getStaffMemberById(staffId: string) {
-  const [user] = await db
+async function getStaffMemberById(organizationId: string, staffId: string, txContext: any = db) {
+  const [user] = await txContext
     .select()
     .from(schema.users)
-    .where(eq(schema.users.id, staffId))
+    .where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)))
     .limit(1);
 
   if (!user && process.env.DENTAL_STATE_PERSISTENCE === "off") {
     try {
       const { staffMembers } = await import("../sampleData.js");
-      const found = staffMembers.find((s) => s.id === staffId);
+      const found = staffMembers.find((s) => s.id === staffId && s.organizationId === organizationId);
       if (found) return found;
     } catch (e) {
       // Ignore
@@ -259,17 +279,17 @@ async function getStaffMemberById(staffId: string) {
   return user;
 }
 
-async function getChairById(chairId: string) {
-  const [chair] = await db
+async function getChairById(organizationId: string, chairId: string, txContext: any = db) {
+  const [chair] = await txContext
     .select()
     .from(schema.clinicChairs)
-    .where(eq(schema.clinicChairs.id, chairId))
+    .where(and(eq(schema.clinicChairs.id, chairId), eq(schema.clinicChairs.organizationId, organizationId)))
     .limit(1);
 
   if (!chair && process.env.DENTAL_STATE_PERSISTENCE === "off") {
     try {
       const { chairs } = await import("../sampleData.js");
-      const found = chairs.find((c) => c.id === chairId);
+      const found = chairs.find((c) => c.id === chairId && c.organizationId === organizationId);
       if (found) return found;
     } catch (e) {
       // Ignore
@@ -279,8 +299,8 @@ async function getChairById(chairId: string) {
 }
 
 async function assertAppointmentCanBeScheduled(
-  organizationId: string,
-  candidate: {
+    organizationId: string,
+    candidate: {
     id?: string;
     patientId: string | null;
     doctorUserId: string | null;
@@ -289,8 +309,9 @@ async function assertAppointmentCanBeScheduled(
     status: string;
     startsAt: Date;
     endsAt: Date;
-  }
-) {
+    },
+    tx: any = db
+  ) {
   const startsAtMs = candidate.startsAt.getTime();
   const endsAtMs = candidate.endsAt.getTime();
   if (endsAtMs <= startsAtMs) {
@@ -312,15 +333,13 @@ async function assertAppointmentCanBeScheduled(
     throw new Error("Для активной будущей записи нужно выбрать кресло");
   }
 
-  const [org] = await db
-    .select()
+  const [org] = await tx.select()
     .from(schema.organizations)
     .where(eq(schema.organizations.id, organizationId))
     .limit(1);
   if (!org) throw new Error("Organization not found");
 
-  const [clinic] = await db
-    .select()
+  const [clinic] = await tx.select()
     .from(schema.clinics)
     .where(eq(schema.clinics.organizationId, organizationId))
     .limit(1);
@@ -332,7 +351,7 @@ async function assertAppointmentCanBeScheduled(
     throw new Error("Для активной будущей записи нужно выбрать ассистента");
   }
 
-  const patient = await getPatientById(candidate.patientId);
+  const patient = await getPatientById(organizationId, candidate.patientId, tx);
   if (!patient || patient.status !== "active") {
     throw new Error("Для активной будущей записи нужен активный пациент");
   }
@@ -354,7 +373,7 @@ async function assertAppointmentCanBeScheduled(
     throw new Error(`Запись вне расписания клиники: прием вне окна клиники ${workdayStart}-${workdayEnd} (${timezone})`);
   }
 
-  const doctor = await getStaffMemberById(candidate.doctorUserId);
+  const doctor = await getStaffMemberById(organizationId, candidate.doctorUserId, tx);
   if (doctor) {
     const workingHours = normalizeStaffWorkingHours(
       (() => {
@@ -377,7 +396,7 @@ async function assertAppointmentCanBeScheduled(
   }
 
   if (candidate.assistantUserId) {
-    const assistant = await getStaffMemberById(candidate.assistantUserId);
+    const assistant = await getStaffMemberById(organizationId, candidate.assistantUserId, tx);
     if (assistant) {
       const workingHours = normalizeStaffWorkingHours(
         (() => {
@@ -400,7 +419,7 @@ async function assertAppointmentCanBeScheduled(
     }
   }
 
-  const chair = await getChairById(candidate.chairId);
+  const chair = await getChairById(organizationId, candidate.chairId, tx);
   if (chair) {
     const workingHours = normalizeStaffWorkingHours(
       (() => {
@@ -422,7 +441,7 @@ async function assertAppointmentCanBeScheduled(
     }
   }
 
-  const activeApps = await getActiveAppointments(organizationId);
+  const activeApps = await getActiveAppointments(organizationId, tx);
   const overlapping = activeApps.find((app) => {
     if (app.id === candidate.id) return false;
     if (!scheduleBlockingStatuses.includes(app.status) || app.endsAt.getTime() < Date.now()) return false;

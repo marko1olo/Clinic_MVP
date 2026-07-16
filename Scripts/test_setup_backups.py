@@ -66,7 +66,6 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
 
-<<<<<<< HEAD
     @patch('sys.stdout')
     def test_ssh_timeout(self, mock_stdout):
         mock_client = Mock()
@@ -126,7 +125,21 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(mock_ssh.call_count, 4)
         mock_client.close.assert_called_once()
 
-=======
->>>>>>> gitlab/main
+    @patch('sys.stderr')
+    def test_main_execution_no_password(self, mock_stderr):
+        env_vars = {
+            'VPS_HOST': '127.0.0.1',
+            'VPS_USER': 'testuser',
+        }
+
+        with patch.dict('os.environ', env_vars, clear=True):
+            from Scripts.setup_backups import main
+            with self.assertRaises(SystemExit) as cm:
+                main()
+            self.assertEqual(cm.exception.code, 1)
+
+        mock_stderr.write.assert_called_once_with("VPS_PASSWORD environment variable is required\n")
+
+
 if __name__ == '__main__':
     unittest.main()

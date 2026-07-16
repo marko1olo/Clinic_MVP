@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, patch, call
 from Scripts.setup_backups import ssh
 
+
 class TestSetupBackups(unittest.TestCase):
     @patch('sys.stdout')
     def test_ssh_success(self, mock_stdout):
@@ -13,18 +14,23 @@ class TestSetupBackups(unittest.TestCase):
         mock_stdout_ssh.read.return_value = b"success output\n"
         mock_stderr_ssh.read.return_value = b""
 
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+        mock_client.exec_command.return_value = (
+            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
 
         out, err = ssh(mock_client, "echo test", desc="test desc")
 
         self.assertEqual(out, "success output")
         self.assertEqual(err, "")
-        mock_client.exec_command.assert_called_once_with("echo test", timeout=60)
+        mock_client.exec_command.assert_called_once_with(
+            "echo test", timeout=60)
 
         mock_stdout.buffer.write.assert_has_calls([
             call(b'\n>>> test desc\n'),
             call(b'success output\n')
         ])
+        mock_stdin.close.assert_called_once()
+        mock_stdout_ssh.close.assert_called_once()
+        mock_stderr_ssh.close.assert_called_once()
 
     @patch('sys.stdout')
     def test_ssh_error(self, mock_stdout):
@@ -36,7 +42,8 @@ class TestSetupBackups(unittest.TestCase):
         mock_stdout_ssh.read.return_value = b""
         mock_stderr_ssh.read.return_value = b"error output\n"
 
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+        mock_client.exec_command.return_value = (
+            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
 
         out, err = ssh(mock_client, "false", desc="")
 
@@ -48,6 +55,9 @@ class TestSetupBackups(unittest.TestCase):
             call(b'\n>>> false\n'),
             call(b'STDERR: error output\n')
         ])
+        mock_stdin.close.assert_called_once()
+        mock_stdout_ssh.close.assert_called_once()
+        mock_stderr_ssh.close.assert_called_once()
 
     @patch('sys.stdout')
     def test_ssh_decode_error(self, mock_stdout):
@@ -59,14 +69,17 @@ class TestSetupBackups(unittest.TestCase):
         mock_stdout_ssh.read.return_value = b"bad \xff data"
         mock_stderr_ssh.read.return_value = b"bad \xff err"
 
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+        mock_client.exec_command.return_value = (
+            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
 
         out, err = ssh(mock_client, "echo bad", desc="")
 
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
+        mock_stdin.close.assert_called_once()
+        mock_stdout_ssh.close.assert_called_once()
+        mock_stderr_ssh.close.assert_called_once()
 
-<<<<<<< HEAD
     @patch('sys.stdout')
     def test_ssh_timeout(self, mock_stdout):
         mock_client = Mock()
@@ -77,18 +90,24 @@ class TestSetupBackups(unittest.TestCase):
         mock_stdout_ssh.read.return_value = b"timeout test\n"
         mock_stderr_ssh.read.return_value = b""
 
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+        mock_client.exec_command.return_value = (
+            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
 
-        out, err = ssh(mock_client, "sleep 1", desc="timeout desc", timeout=120)
+        out, err = ssh(mock_client, "sleep 1",
+                       desc="timeout desc", timeout=120)
 
         self.assertEqual(out, "timeout test")
         self.assertEqual(err, "")
-        mock_client.exec_command.assert_called_once_with("sleep 1", timeout=120)
+        mock_client.exec_command.assert_called_once_with(
+            "sleep 1", timeout=120)
 
         mock_stdout.buffer.write.assert_has_calls([
             call(b'\n>>> timeout desc\n'),
             call(b'timeout test\n')
         ])
+        mock_stdin.close.assert_called_once()
+        mock_stdout_ssh.close.assert_called_once()
+        mock_stderr_ssh.close.assert_called_once()
 
     @patch('sys.stdout')
     @patch('paramiko.SSHClient')
@@ -126,7 +145,6 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(mock_ssh.call_count, 4)
         mock_client.close.assert_called_once()
 
-=======
->>>>>>> gitlab/main
+
 if __name__ == '__main__':
     unittest.main()

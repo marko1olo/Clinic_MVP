@@ -182,56 +182,91 @@ def publish_result(filename, findings):
 
 processing_files = set()
 processing_lock = threading.Lock()
+pending_files = {} # file_path -> (last_size, stable_start_time)
+
+def _worker_loop():
+    import time
+    while True:
+        time.sleep(0.1)
+        now = time.time()
+
+        with processing_lock:
+            for file_path in list(pending_files.keys()):
+                if file_path in processing_files:
+                    del pending_files[file_path]
+                    continue
+
+                if not os.path.exists(file_path):
+                    del pending_files[file_path]
+                    continue
+
+                try:
+                    current_size = os.path.getsize(file_path)
+                    last_size, stable_start = pending_files[file_path]
+
+                    if current_size == last_size and current_size > 0:
+                        if now - stable_start >= 1.0:
+                            # File is stable for 1 second, it's fully written!
+                            processing_files.add(file_path)
+                            del pending_files[file_path]
+
+                            # Process it in a background thread so we don't block the worker loop
+                            threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
+                    else:
+                        # Size changed, reset stability timer
+                        pending_files[file_path] = (current_size, now)
+                except OSError:
+                    pass
+
+# Start the background worker loop
+threading.Thread(target=_worker_loop, daemon=True).start()
 
 def process_single_file(file_path):
+    # This function is now just a non-blocking enqueue operation
     with processing_lock:
         if file_path in processing_files:
             return
-        processing_files.add(file_path)
+        if file_path not in pending_files:
+            try:
+                pending_files[file_path] = (os.path.getsize(file_path), __import__("time").time())
+            except OSError:
+                pass
 
+def _do_process(file_path):
     try:
         filename = os.path.basename(file_path)
+        print(f"\n[+] Найден новый снимок: {filename}")
+        print("    Отправка в ИИ...")
 
-        # Проверка что файл полностью записался
-        size1 = os.path.getsize(file_path)
-        time.sleep(1)
-        if not os.path.exists(file_path):
-            return
-        size2 = os.path.getsize(file_path)
+        start_time = time.time()
+        # Анализ ИИ и отрисовка рамок
+        marked_path, findings = analyze_image(file_path)
+        elapsed = time.time() - start_time
+        print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
 
-        if size1 == size2 and size1 > 0:
-            print(f"\n[+] Найден новый снимок: {filename}")
-            print("    Отправка в ИИ...")
+        # Отправка результатов
+        # Если размеченный файл создан, отправляем его имя
+        final_file_for_popup = marked_path if marked_path else file_path
+        publish_result(os.path.basename(final_file_for_popup), findings)
 
-            start_time = time.time()
-            # Анализ ИИ и отрисовка рамок
-            marked_path, findings = analyze_image(file_path)
-            elapsed = time.time() - start_time
-            print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
+        # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
+        processed_path = os.path.join(PROCESSED_DIR, filename)
+        try:
+            os.replace(file_path, processed_path)
+        except PermissionError:
+            print("    [!] Файл занят, повторная попытка через 2 сек...")
+            time.sleep(2)
+            os.replace(file_path, processed_path)
 
-            # Отправка результатов
-            # Если размеченный файл создан, отправляем его имя
-            final_file_for_popup = marked_path if marked_path else file_path
-            publish_result(os.path.basename(final_file_for_popup), findings)
-
-            # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
-            processed_path = os.path.join(PROCESSED_DIR, filename)
+        # Если есть размеченный, тоже переносим
+        if marked_path and os.path.exists(marked_path):
+            marked_filename = os.path.basename(marked_path)
             try:
-                os.replace(file_path, processed_path)
-            except PermissionError:
-                print("    [!] Файл занят, повторная попытка через 2 сек...")
-                time.sleep(2)
-                os.replace(file_path, processed_path)
+                os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+            except Exception as e:
+                print(f"    [!] Ошибка перемещения размеченного файла: {e}")
 
-            # Если есть размеченный, тоже переносим
-            if marked_path and os.path.exists(marked_path):
-                marked_filename = os.path.basename(marked_path)
-                try:
-                    os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-                except Exception as e:
-                    print(f"    [!] Ошибка перемещения размеченного файла: {e}")
-
-            print(f"    Файлы перемещены в {PROCESSED_DIR}")
+        print(f"    Файлы перемещены в {PROCESSED_DIR}")
     except FileNotFoundError:
         pass # File was already processed or moved
     except Exception as e:

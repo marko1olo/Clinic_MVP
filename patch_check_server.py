@@ -1,4 +1,9 @@
-import os
+import sys
+
+with open('Scripts/check_server.py', 'r') as f:
+    content = f.read()
+
+new_content = """import os
 import sys
 import paramiko
 
@@ -15,7 +20,7 @@ try:
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
     print(f"Connecting to {user}@{host}...")
     client.connect(hostname=host, username=user, password=password, timeout=10)
-    
+
     commands = [
         "lsb_release -a",
         "uptime",
@@ -23,16 +28,20 @@ try:
         "df -h /",
         "top -b -n 1 | head -n 12"
     ]
-    
+
     for cmd in commands:
-        print(f"\n[Run] {cmd}")
+        print(f"\\n[Run] {cmd}")
         stdin, stdout, stderr = client.exec_command(cmd)
         print(stdout.read().decode('utf-8', errors='replace').strip())
         err = stderr.read().decode('utf-8', errors='replace').strip()
         if err:
             print(f"Stderr: {err}")
-            
+
     client.close()
-    print("\nConnection closed.")
+    print("\\nConnection closed.")
 except Exception as e:
     print(f"Failed to connect or execute: {e}")
+"""
+
+with open('Scripts/check_server.py', 'w') as f:
+    f.write(new_content)

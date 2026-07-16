@@ -7,6 +7,7 @@ import json
 import base64
 import random
 import threading
+import functools
 from io import BytesIO
 from PIL import Image
 from openai import OpenAI
@@ -79,18 +80,14 @@ except Exception as e:
     print(f"Не удалось загрузить dentalimage.md: {e}")
     SYSTEM_PROMPT = "Опиши снимок зубов как стоматолог."
 
-_clients_cache = {}
-
+@functools.lru_cache(maxsize=128)
 def get_openai_client(api_key, base_url, timeout=30.0):
-    cache_key = (api_key, base_url)
-    if cache_key not in _clients_cache:
-        _clients_cache[cache_key] = OpenAI(
-            api_key=api_key if api_key else "dummy_key",
-            base_url=base_url,
-            timeout=timeout,
-            max_retries=0
-        )
-    return _clients_cache[cache_key]
+    return OpenAI(
+        api_key=api_key if api_key else "dummy_key",
+        base_url=base_url,
+        timeout=timeout,
+        max_retries=0
+    )
 
 def make_groq_client(api_key: str) -> OpenAI:
     return get_openai_client(api_key, "https://api.groq.com/openai/v1")

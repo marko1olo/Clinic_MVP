@@ -1,16 +1,9 @@
 import unittest
-<<<<<<< HEAD
-import os
-import tempfile
-import clinic_admin.inject_old_data
-import clinic_admin.database
-=======
 import sqlite3
 import os
 import tempfile
 import clinic_admin.database
 import clinic_admin.inject_old_data
->>>>>>> gitlab/main
 
 class TestInjectOldData(unittest.TestCase):
     def setUp(self):
@@ -71,7 +64,51 @@ class TestInjectOldData(unittest.TestCase):
 
         conn.close()
 
-<<<<<<< HEAD
+    def test_inject_dummy_data_idempotent(self):
+        # Inject data first time
+        clinic_admin.inject_old_data.inject_dummy_data()
+
+        # Inject data second time
+        clinic_admin.inject_old_data.inject_dummy_data()
+
+        conn = clinic_admin.database.get_connection()
+        c = conn.cursor()
+
+        # Check if rows are duplicated (should still be 3)
+        c.execute("SELECT COUNT(*) as count FROM patients")
+        self.assertEqual(c.fetchone()["count"], 3)
+
+        c.execute("SELECT COUNT(*) as count FROM appointments")
+        self.assertEqual(c.fetchone()["count"], 3)
+
+        conn.close()
+
+    def test_insert_patients(self):
+        conn = clinic_admin.database.get_connection()
+        c = conn.cursor()
+
+        now = "2023-10-27T10:00:00"
+        new_patients_data = [
+            ("New Patient 1", "+79000000001", now),
+            ("New Patient 2", "+79000000002", now)
+        ]
+
+        inserted_ids = clinic_admin.inject_old_data._insert_patients(c, new_patients_data)
+
+        self.assertEqual(len(inserted_ids), 2)
+        self.assertIsInstance(inserted_ids[0], int)
+        self.assertIsInstance(inserted_ids[1], int)
+
+        c.execute("SELECT name, phone, created_at FROM patients WHERE id IN (?, ?)", (inserted_ids[0], inserted_ids[1]))
+        patients = c.fetchall()
+        self.assertEqual(len(patients), 2)
+
+        fetched_data = [(p["name"], p["phone"], p["created_at"]) for p in patients]
+        for data in new_patients_data:
+            self.assertIn(data, fetched_data)
+
+        conn.close()
+
     def test_insert_appointments(self):
         from datetime import datetime, timedelta
         from unittest.mock import MagicMock
@@ -105,61 +142,7 @@ class TestInjectOldData(unittest.TestCase):
 
         _insert_appointments(c_mock, [], now)
 
-        expected_query = (
-            "INSERT INTO appointments (patient_id, doctor, "
-            "appointment_date, status, created_at) VALUES (?, ?, ?, ?, ?)"
-        )
-        c_mock.executemany.assert_called_once_with(expected_query, [])
+        c_mock.executemany.assert_not_called()
 
-=======
->>>>>>> gitlab/main
-    def test_inject_dummy_data_idempotent(self):
-        # Inject data first time
-        clinic_admin.inject_old_data.inject_dummy_data()
-
-        # Inject data second time
-        clinic_admin.inject_old_data.inject_dummy_data()
-
-        conn = clinic_admin.database.get_connection()
-        c = conn.cursor()
-
-        # Check if rows are duplicated (should still be 3)
-        c.execute("SELECT COUNT(*) as count FROM patients")
-        self.assertEqual(c.fetchone()["count"], 3)
-
-        c.execute("SELECT COUNT(*) as count FROM appointments")
-        self.assertEqual(c.fetchone()["count"], 3)
-
-        conn.close()
-
-<<<<<<< HEAD
-    def test_insert_patients(self):
-        conn = clinic_admin.database.get_connection()
-        c = conn.cursor()
-
-        now = "2023-10-27T10:00:00"
-        new_patients_data = [
-            ("New Patient 1", "+79000000001", now),
-            ("New Patient 2", "+79000000002", now)
-        ]
-
-        inserted_ids = clinic_admin.inject_old_data._insert_patients(c, new_patients_data)
-
-        self.assertEqual(len(inserted_ids), 2)
-        self.assertIsInstance(inserted_ids[0], int)
-        self.assertIsInstance(inserted_ids[1], int)
-
-        c.execute("SELECT name, phone, created_at FROM patients WHERE id IN (?, ?)", (inserted_ids[0], inserted_ids[1]))
-        patients = c.fetchall()
-        self.assertEqual(len(patients), 2)
-
-        fetched_data = [(p["name"], p["phone"], p["created_at"]) for p in patients]
-        for data in new_patients_data:
-            self.assertIn(data, fetched_data)
-
-        conn.close()
-
-=======
->>>>>>> gitlab/main
 if __name__ == "__main__":
     unittest.main()

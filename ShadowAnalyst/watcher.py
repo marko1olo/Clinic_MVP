@@ -98,6 +98,7 @@ def make_groq_client(api_key: str) -> OpenAI:
 def make_gemini_client(api_key: str) -> OpenAI:
     return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
 
+
 def analyze_image(file_path):
     """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
     image_b64 = prepare_image(file_path)

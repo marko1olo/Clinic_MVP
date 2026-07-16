@@ -1,17 +1,7 @@
-<<<<<<< HEAD
 import os
 import paramiko
 import sys
 
-=======
-import paramiko
-import sys
-
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
-
->>>>>>> gitlab/main
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
     sys.stdout.flush()
@@ -23,20 +13,18 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.flush()
     return out, err
 
-<<<<<<< HEAD
 def main():
-    host = os.environ.get('VPS_HOST', '62.84.100.97')
+    host = os.environ.get('VPS_HOST')
     user = os.environ.get('VPS_USER', 'root')
     password = os.environ.get('VPS_PASSWORD')
+
+    if not host or not password:
+        print("Error: VPS_HOST and VPS_PASSWORD environment variables must be set.", file=sys.stderr)
+        sys.exit(1)
 
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-=======
-if __name__ == "__main__":
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
->>>>>>> gitlab/main
     client.connect(hostname=host, username=user, password=password, timeout=10)
     sys.stdout.buffer.write(b"Connected.\n")
 
@@ -61,9 +49,6 @@ fi
 
     client.close()
     sys.stdout.buffer.write(b"\nDone.\n")
-<<<<<<< HEAD
 
 if __name__ == "__main__":
     main()
-=======
->>>>>>> gitlab/main

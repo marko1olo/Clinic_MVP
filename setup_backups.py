@@ -11,24 +11,23 @@ if not password:
 
 
 client = paramiko.SSHClient()
-<<<<<<< HEAD
 client.load_system_host_keys()
 client.set_missing_host_key_policy(paramiko.RejectPolicy())
-=======
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
->>>>>>> gitlab/main
 client.connect(hostname=host, username=user, password=password, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
 
 # Create backup script
 backup_script = """#!/bin/bash
+umask 077
 BACKUP_DIR="/opt/backups/clinic"
 DB_FILE="/opt/clinic_admin/clinic.db"
 DATE=$(date +%Y-%m-%d_%H-%M)
 
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 if [ -f "$DB_FILE" ]; then
     cp "$DB_FILE" "$BACKUP_DIR/clinic_${DATE}.db"
+    chmod 600 "$BACKUP_DIR/clinic_${DATE}.db"
     # Keep only last 30 backups
     find "$BACKUP_DIR" -name "clinic_*.db" -type f -mtime +30 -delete
 fi

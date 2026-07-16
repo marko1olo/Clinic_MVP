@@ -1,17 +1,7 @@
-<<<<<<< HEAD
 import os
 import paramiko
 import sys
 
-=======
-import paramiko
-import sys
-
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
-
->>>>>>> gitlab/main
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
     sys.stdout.flush()
@@ -23,7 +13,6 @@ def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.flush()
     return out, err
 
-<<<<<<< HEAD
 def main():
     host = os.environ.get('VPS_HOST', '62.84.100.97')
     user = os.environ.get('VPS_USER', 'root')
@@ -32,23 +21,21 @@ def main():
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-=======
-if __name__ == "__main__":
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
->>>>>>> gitlab/main
     client.connect(hostname=host, username=user, password=password, timeout=10)
     sys.stdout.buffer.write(b"Connected.\n")
 
     # Create backup script
     backup_script = """#!/bin/bash
+umask 077
 BACKUP_DIR="/opt/backups/clinic"
 DB_FILE="/opt/clinic_admin/clinic.db"
 DATE=$(date +%Y-%m-%d_%H-%M)
 
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 if [ -f "$DB_FILE" ]; then
     cp "$DB_FILE" "$BACKUP_DIR/clinic_${DATE}.db"
+    chmod 600 "$BACKUP_DIR/clinic_${DATE}.db"
     # Keep only last 30 backups
     find "$BACKUP_DIR" -name "clinic_*.db" -type f -mtime +30 -delete
 fi
@@ -61,9 +48,6 @@ fi
 
     client.close()
     sys.stdout.buffer.write(b"\nDone.\n")
-<<<<<<< HEAD
 
 if __name__ == "__main__":
     main()
-=======
->>>>>>> gitlab/main

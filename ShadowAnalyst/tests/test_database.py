@@ -102,9 +102,37 @@ class TestDatabase(unittest.TestCase):
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='scans'")
         table = cursor.fetchone()
-        conn.close()
         self.assertIsNotNone(table)
         self.assertEqual(table['name'], 'scans')
+
+        # Verify columns
+        cursor.execute("PRAGMA table_info(scans)")
+        columns = {row['name']: row['type'] for row in cursor.fetchall()}
+        conn.close()
+
+        expected_columns = {
+            'id': 'INTEGER',
+            'patient_name': 'TEXT',
+            'patient_age': 'INTEGER',
+            'patient_gender': 'TEXT',
+            'original_image': 'TEXT',
+            'enhanced_image': 'TEXT',
+            'ai_image': 'TEXT',
+            'brightness': 'INTEGER',
+            'contrast': 'INTEGER',
+            'inverted': 'BOOLEAN',
+            'scale': 'REAL',
+            'translate_x': 'REAL',
+            'translate_y': 'REAL',
+            'slider_position': 'REAL',
+            'summary': 'TEXT',
+            'report': 'TEXT',
+            'audio_url': 'TEXT',
+            'created_at': 'TIMESTAMP'
+        }
+        for col, col_type in expected_columns.items():
+            self.assertIn(col, columns)
+            self.assertEqual(columns[col], col_type)
 
     def test_save_and_get_all_scans(self):
         data = {
@@ -161,6 +189,58 @@ class TestDatabase(unittest.TestCase):
 
         scans_after = get_all_scans()
         self.assertEqual(len(scans_after), 0)
+
+    def test_init_db_migration(self):
+        # Create a new temp DB for this test
+        db_fd, db_path = tempfile.mkstemp()
+
+        try:
+            with patch('gui.database.DB_PATH', db_path):
+                # Create old schema manually (without ai_image column)
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE scans (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        patient_name TEXT,
+                        patient_age INTEGER,
+                        patient_gender TEXT,
+                        original_image TEXT,
+                        enhanced_image TEXT,
+                        brightness INTEGER DEFAULT 100,
+                        contrast INTEGER DEFAULT 100,
+                        inverted BOOLEAN DEFAULT 0,
+                        scale REAL DEFAULT 1.0,
+                        translate_x REAL DEFAULT 0.0,
+                        translate_y REAL DEFAULT 0.0,
+                        slider_position REAL DEFAULT 50.0,
+                        summary TEXT,
+                        report TEXT,
+                        audio_url TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+                conn.close()
+
+                # Run init_db which should trigger the migration
+                init_db()
+
+                # Verify that the column ai_image was added
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(scans)")
+                columns = {row['name']: row['type'] for row in cursor.fetchall()}
+                conn.close()
+
+                self.assertIn('ai_image', columns)
+                self.assertEqual(columns['ai_image'], 'TEXT')
+        finally:
+            os.close(db_fd)
+            try:
+                os.unlink(db_path)
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -15,7 +15,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            phone TEXT,
+            phone TEXT CHECK (phone IS NULL OR (length(phone) >= 5 AND length(phone) <= 20 AND phone NOT GLOB '*[^0-9+() -]*')),
             last_visit TEXT,
             notes TEXT,
             created_at TEXT

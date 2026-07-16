@@ -1,8 +1,17 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
 function useSampleBillingState() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTAL_STATE_PERSISTENCE === "off";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTAL_STATE_PERSISTENCE === "off");
+}
+// PostgreSQL / PGlite unique-constraint violation SQLSTATE.
+const PG_UNIQUE_VIOLATION = "23505";
+function isUniqueViolation(error) {
+    return (typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === PG_UNIQUE_VIOLATION);
 }
 export async function getDefaultOrganizationId() {
     const [org] = await db.select().from(schema.organizations).limit(1);
@@ -16,7 +25,11 @@ export async function findPaymentByClientMutationIdInDb(organizationId, clientMu
         const payment = findPaymentByClientMutationId(clientMutationId);
         return payment?.organizationId === organizationId ? payment : null;
     }
-    const [payment] = await db.select().from(schema.payments).where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.clientMutationId, clientMutationId))).limit(1);
+    const [payment] = await db
+        .select()
+        .from(schema.payments)
+        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.clientMutationId, clientMutationId)))
+        .limit(1);
     if (!payment)
         return null;
     return {
@@ -41,15 +54,19 @@ export async function findPaymentByClientMutationIdInDb(organizationId, clientMu
         note: payment.note,
         createdAt: payment.createdAt.toISOString(),
         paidAt: payment.paidAt.toISOString(),
-        status: payment.status
+        status: payment.status,
     };
 }
 export async function getPatientForBilling(organizationId, patientId) {
     if (useSampleBillingState()) {
         const { patients } = await import("../sampleData.js");
-        return patients.find((patient) => patient.organizationId === organizationId && patient.id === patientId) ?? null;
+        return (patients.find((patient) => patient.organizationId === organizationId && patient.id === patientId) ?? null);
     }
-    const [patient] = await db.select().from(schema.patients).where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId))).limit(1);
+    const [patient] = await db
+        .select()
+        .from(schema.patients)
+        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
+        .limit(1);
     return patient || null;
 }
 export async function getVisitForBilling(organizationId, visitId) {
@@ -58,15 +75,24 @@ export async function getVisitForBilling(organizationId, visitId) {
         const visit = findVisitById(visitId);
         return visit?.organizationId === organizationId ? visit : null;
     }
-    const [visit] = await db.select().from(schema.visits).where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, visitId))).limit(1);
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, visitId)))
+        .limit(1);
     return visit || null;
 }
 export async function getDocumentForBilling(organizationId, documentId) {
     if (useSampleBillingState()) {
         const { documents } = await import("../sampleData.js");
-        return documents.find((document) => document.organizationId === organizationId && document.id === documentId) ?? null;
+        return (documents.find((document) => document.organizationId === organizationId &&
+            document.id === documentId) ?? null);
     }
-    const [doc] = await db.select().from(schema.generatedDocuments).where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId))).limit(1);
+    const [doc] = await db
+        .select()
+        .from(schema.generatedDocuments)
+        .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)))
+        .limit(1);
     return doc || null;
 }
 export async function createPaymentInDb(organizationId, input) {
@@ -75,27 +101,45 @@ export async function createPaymentInDb(organizationId, input) {
         const payment = createPayment(input);
         return { ...payment, organizationId };
     }
-    const [newPayment] = await db.insert(schema.payments).values({
-        organizationId,
-        patientId: input.patientId,
-        visitId: input.visitId || null,
-        documentId: input.documentId || null,
-        amountRub: input.amountRub,
-        method: input.method,
-        fiscalReceiptNumber: input.fiscalReceiptNumber || null,
-        fiscalReceiptIssuedAt: input.fiscalReceiptIssuedAt || null,
-        fiscalReceiptUrl: input.fiscalReceiptUrl || null,
-        fiscalReceipt: input.fiscalReceipt || null,
-        clientMutationId: input.clientMutationId || null,
-        payerFullName: input.payerFullName || null,
-        payerInn: input.payerInn || null,
-        payerBirthDate: input.payerBirthDate || null,
-        payerIdentityDocument: input.payerIdentityDocument || null,
-        payerRelationship: input.payerRelationship || null,
-        taxDeductionCode: input.taxDeductionCode || null,
-        note: input.note || null,
-        status: "paid"
-    }).returning();
+    let newPayment;
+    try {
+        [newPayment] = await db
+            .insert(schema.payments)
+            .values({
+            organizationId,
+            patientId: input.patientId,
+            visitId: input.visitId || null,
+            documentId: input.documentId || null,
+            amountRub: input.amountRub,
+            method: input.method,
+            fiscalReceiptNumber: input.fiscalReceiptNumber || null,
+            fiscalReceiptIssuedAt: input.fiscalReceiptIssuedAt || null,
+            fiscalReceiptUrl: input.fiscalReceiptUrl || null,
+            fiscalReceipt: input.fiscalReceipt || null,
+            clientMutationId: input.clientMutationId || null,
+            payerFullName: input.payerFullName || null,
+            payerInn: input.payerInn || null,
+            payerBirthDate: input.payerBirthDate || null,
+            payerIdentityDocument: input.payerIdentityDocument || null,
+            payerRelationship: input.payerRelationship || null,
+            taxDeductionCode: input.taxDeductionCode || null,
+            note: input.note || null,
+            status: "paid",
+        })
+            .returning();
+    }
+    catch (error) {
+        // Concurrent request with the same clientMutationId won the race and the
+        // (organization_id, client_mutation_id) unique index rejected this insert.
+        // Resolve idempotently by returning the row the winner already committed
+        // instead of surfacing a 500 (double-billing guard, see BILLING_AND_FINANCE.md).
+        if (isUniqueViolation(error) && input.clientMutationId) {
+            const existing = await findPaymentByClientMutationIdInDb(organizationId, input.clientMutationId);
+            if (existing)
+                return existing;
+        }
+        throw error;
+    }
     if (!newPayment) {
         throw new Error("Failed to create payment");
     }
@@ -121,10 +165,17 @@ export async function createPaymentInDb(organizationId, input) {
         note: newPayment.note,
         createdAt: newPayment.createdAt.toISOString(),
         paidAt: newPayment.paidAt.toISOString(),
-        status: newPayment.status
+        status: newPayment.status,
     };
 }
 export async function getPaymentsByPatientIdInDb(organizationId, patientId) {
-    const res = await db.select().from(schema.payments).where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.patientId, patientId)));
-    return res.map(p => ({ ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() }));
+    const res = await db
+        .select()
+        .from(schema.payments)
+        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.patientId, patientId)));
+    return res.map((p) => ({
+        ...p,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+    }));
 }

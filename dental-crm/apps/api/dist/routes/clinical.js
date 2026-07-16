@@ -1,6 +1,6 @@
-import { clinicalRuleEvaluationInputSchema, clinicalRuleEvaluationResponseSchema, clinicalRuleSchema, createClinicalRuleSchema, updateClinicalRuleSchema } from "@dental/shared";
-import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
-import { evaluateClinicalRulesInDb, createClinicalRuleInDb, updateClinicalRuleInDb } from "../db/clinicalQuery.js";
+import { clinicalRuleEvaluationInputSchema, clinicalRuleEvaluationResponseSchema, clinicalRuleSchema, createClinicalRuleSchema, updateClinicalRuleSchema, } from "@dental/shared";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
+import { createClinicalRuleInDb, evaluateClinicalRulesInDb, updateClinicalRuleInDb, } from "../db/clinicalQuery.js";
 const clinicalRuleEvaluationValidationMessage = "Ошибка валидации: запрос не соответствует формату.";
 const clinicalRuleMutationValidationMessage = "Ошибка валидации: данные правила некорректны.";
 function parseClinicalPayload(schema, value) {
@@ -15,11 +15,17 @@ export async function registerClinicalRoutes(app) {
             return;
         const input = parseClinicalPayload(clinicalRuleEvaluationInputSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "ClinicalRuleValidationError", message: clinicalRuleEvaluationValidationMessage });
+            return reply.code(400).send({
+                error: "ClinicalRuleValidationError",
+                message: clinicalRuleEvaluationValidationMessage,
+            });
         }
         const orgId = await resolveOrganizationId(request);
         if (!orgId) {
-            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+            return reply.code(403).send({
+                error: "OrganizationRequired",
+                message: "Организация не определена",
+            });
         }
         return clinicalRuleEvaluationResponseSchema.parse(await evaluateClinicalRulesInDb(orgId, input));
     });
@@ -28,11 +34,17 @@ export async function registerClinicalRoutes(app) {
             return;
         const input = parseClinicalPayload(createClinicalRuleSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "ClinicalRuleValidationError", message: clinicalRuleMutationValidationMessage });
+            return reply.code(400).send({
+                error: "ClinicalRuleValidationError",
+                message: clinicalRuleMutationValidationMessage,
+            });
         }
         const orgId = await resolveOrganizationId(request);
         if (!orgId) {
-            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+            return reply.code(403).send({
+                error: "OrganizationRequired",
+                message: "Организация не определена",
+            });
         }
         return clinicalRuleSchema.parse(await createClinicalRuleInDb(orgId, input));
     });
@@ -41,13 +53,22 @@ export async function registerClinicalRoutes(app) {
             return;
         const params = request.params;
         const body = request.body && typeof request.body === "object" ? request.body : {};
-        const input = parseClinicalPayload(updateClinicalRuleSchema, { ...body, id: params.ruleId });
+        const input = parseClinicalPayload(updateClinicalRuleSchema, {
+            ...body,
+            id: params.ruleId,
+        });
         if (!input) {
-            return reply.code(400).send({ error: "ClinicalRuleValidationError", message: clinicalRuleMutationValidationMessage });
+            return reply.code(400).send({
+                error: "ClinicalRuleValidationError",
+                message: clinicalRuleMutationValidationMessage,
+            });
         }
         const orgId = await resolveOrganizationId(request);
         if (!orgId) {
-            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+            return reply.code(403).send({
+                error: "OrganizationRequired",
+                message: "Организация не определена",
+            });
         }
         return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
     });
@@ -56,11 +77,28 @@ export async function registerClinicalRoutes(app) {
             return;
         const body = request.body;
         if (!body.patientId || !body.itemTitle) {
-            return reply.code(400).send({ error: "ValidationError", message: "patientId and itemTitle are required" });
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "patientId and itemTitle are required",
+            });
         }
         const orgId = await resolveOrganizationId(request);
         if (!orgId)
             return reply.code(403).send({ error: "OrganizationRequired" });
+        // Verify patient belongs to org
+        const { db } = await import("../db/client.js");
+        const { patients } = await import("../db/schema.js");
+        const { eq, and } = await import("drizzle-orm");
+        const [patient] = await db
+            .select({ id: patients.id })
+            .from(patients)
+            .where(and(eq(patients.id, body.patientId), eq(patients.organizationId, orgId)))
+            .limit(1);
+        if (!patient)
+            return reply.code(403).send({
+                error: "Forbidden",
+                message: "Patient not found in this organization",
+            });
         // Dynamically import the service to avoid circular deps if any
         const { triggerPostOpCare } = await import("../services/postOpCareTrigger.js");
         await triggerPostOpCare(orgId, body.patientId, body.itemTitle);

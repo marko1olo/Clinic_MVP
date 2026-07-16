@@ -1,8 +1,8 @@
-import { recordSpeechTranscriptionChunk } from "./storage.js";
-import { speechProviders } from "./providers.js";
-import { buildDentalSttPrompt, getDentalSttPromptPolicy } from "./dentalPrompt.js";
-import { fetchWithProviderTimeout, getProviderAcceptedKeyEnvVars, getProviderKeyHealthSnapshots, getProviderKeyPoolSummary, keyRetryLimit, numberFromEnv, providerHttpError, providerKeyCount, recordProviderKeyFailure, recordProviderKeySuccess, sanitizeProviderErrorMessage, selectProviderKey, SpeechProviderRequestError, shouldTryNextProviderKey } from "./keyPool.js";
+import { buildDentalSttPrompt, getDentalSttPromptPolicy, } from "./dentalPrompt.js";
+import { fetchWithProviderTimeout, getProviderAcceptedKeyEnvVars, getProviderKeyHealthSnapshots, getProviderKeyPoolSummary, keyRetryLimit, numberFromEnv, providerHttpError, providerKeyCount, recordProviderKeyFailure, recordProviderKeySuccess, SpeechProviderRequestError, sanitizeProviderErrorMessage, selectProviderKey, shouldTryNextProviderKey, } from "./keyPool.js";
 import { getSpeechPolishPolicy } from "./polish.js";
+import { speechProviders } from "./providers.js";
+import { recordSpeechTranscriptionChunk } from "./storage.js";
 /**
  * Known hallucination strings that Whisper-class models produce on silence or non-speech audio.
  * This list is populated from empirical testing (10 samples of varying duration/noise).
@@ -46,7 +46,10 @@ function isHallucinatedTranscript(text) {
         }
         else {
             if (entry.test(trimmed)) {
-                return { hallucinated: true, reason: `Repetition loop detected (regex: ${entry.source})` };
+                return {
+                    hallucinated: true,
+                    reason: `Repetition loop detected (regex: ${entry.source})`,
+                };
             }
         }
     }
@@ -58,7 +61,10 @@ function isHallucinatedTranscript(text) {
             if (words[i].toLowerCase() === words[i - 1].toLowerCase()) {
                 runLen++;
                 if (runLen >= 5) {
-                    return { hallucinated: true, reason: `Word repetition loop: "${words[i - 1]}" x${runLen}` };
+                    return {
+                        hallucinated: true,
+                        reason: `Word repetition loop: "${words[i - 1]}" x${runLen}`,
+                    };
                 }
             }
             else {
@@ -81,9 +87,12 @@ const wiredServerProviders = [
     "deepgram_streaming",
     "assemblyai_async",
     "cloudflare_whisper",
-    "google_speech"
+    "google_speech",
 ];
-const localSpeechProviders = ["local_whisper", "vosk_local"];
+const localSpeechProviders = [
+    "local_whisper",
+    "vosk_local",
+];
 const providerLabels = {
     none: "Не настроен",
     browser_speech: "Браузерная диктовка",
@@ -97,7 +106,7 @@ const providerLabels = {
     huggingface_asr: "Hugging Face распознавание",
     mobile_native_speech: "Мобильная диктовка",
     local_whisper: "Локальный Whisper.cpp",
-    vosk_local: "Vosk Local"
+    vosk_local: "Vosk Local",
 };
 const providerAliases = {
     browser: "browser_speech",
@@ -114,17 +123,24 @@ const providerAliases = {
     native: "mobile_native_speech",
     local: "local_whisper",
     whisper: "local_whisper",
-    vosk: "vosk_local"
+    vosk: "vosk_local",
 };
 function selectedProvider() {
-    const rawProvider = (process.env.DENTAL_SPEECH_PROVIDER ?? "").trim().toLowerCase();
-    return providerAliases[rawProvider] ?? (rawProvider in providerLabels ? rawProvider : "none");
+    const rawProvider = (process.env.DENTAL_SPEECH_PROVIDER ?? "")
+        .trim()
+        .toLowerCase();
+    return (providerAliases[rawProvider] ??
+        (rawProvider in providerLabels
+            ? rawProvider
+            : "none"));
 }
 function isWiredServerProvider(providerId) {
-    return providerId !== "none" && wiredServerProviders.includes(providerId);
+    return (providerId !== "none" &&
+        wiredServerProviders.includes(providerId));
 }
 function isLocalSpeechProvider(providerId) {
-    return providerId !== "none" && localSpeechProviders.includes(providerId);
+    return (providerId !== "none" &&
+        localSpeechProviders.includes(providerId));
 }
 function speechProviderFailureReason(error) {
     if (error instanceof SpeechProviderRequestError) {
@@ -161,7 +177,9 @@ function providerConnector(providerId) {
     return "server_cataloged";
 }
 function cloudflareAccountId() {
-    return (process.env.CLOUDFLARE_ACCOUNT_ID ?? process.env.CF_ACCOUNT_ID ?? "").trim();
+    return (process.env.CLOUDFLARE_ACCOUNT_ID ??
+        process.env.CF_ACCOUNT_ID ??
+        "").trim();
 }
 function envString(names) {
     for (const name of names) {
@@ -172,7 +190,9 @@ function envString(names) {
     return "";
 }
 function localBridgeRemoteAllowed() {
-    return (process.env.DENTAL_ALLOW_REMOTE_LOCAL_BRIDGES ?? "").trim().toLowerCase() === "true";
+    return ((process.env.DENTAL_ALLOW_REMOTE_LOCAL_BRIDGES ?? "")
+        .trim()
+        .toLowerCase() === "true");
 }
 function isPrivateBridgeHost(hostname) {
     const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
@@ -186,7 +206,8 @@ function isPrivateBridgeHost(hostname) {
 function localBridgeUrlAllowed(value) {
     try {
         const url = new URL(value);
-        return (url.protocol === "http:" || url.protocol === "https:") && (localBridgeRemoteAllowed() || isPrivateBridgeHost(url.hostname));
+        return ((url.protocol === "http:" || url.protocol === "https:") &&
+            (localBridgeRemoteAllowed() || isPrivateBridgeHost(url.hostname)));
     }
     catch {
         return false;
@@ -210,7 +231,9 @@ function localWhisperTranscribeUrlFromBase(value) {
     const cleanPath = url.pathname.replace(/\/+$/g, "");
     if (cleanPath.endsWith("/v1/audio/transcriptions"))
         return url.toString();
-    if (cleanPath.endsWith("/health") || cleanPath.endsWith("/healthz") || cleanPath.endsWith("/status")) {
+    if (cleanPath.endsWith("/health") ||
+        cleanPath.endsWith("/healthz") ||
+        cleanPath.endsWith("/status")) {
         url.pathname = `${cleanPath.replace(/\/(health|healthz|status)$/i, "")}/v1/audio/transcriptions`;
         return url.toString();
     }
@@ -219,20 +242,36 @@ function localWhisperTranscribeUrlFromBase(value) {
 }
 function localSpeechTranscribeUrl(providerId) {
     const explicit = providerId === "local_whisper"
-        ? envString(["DENTAL_LOCAL_WHISPER_TRANSCRIBE_URL", "WHISPER_CPP_TRANSCRIBE_URL", "LOCAL_WHISPER_TRANSCRIBE_URL"])
+        ? envString([
+            "DENTAL_LOCAL_WHISPER_TRANSCRIBE_URL",
+            "WHISPER_CPP_TRANSCRIBE_URL",
+            "LOCAL_WHISPER_TRANSCRIBE_URL",
+        ])
         : providerId === "vosk_local"
-            ? envString(["DENTAL_VOSK_TRANSCRIBE_URL", "VOSK_TRANSCRIBE_URL", "LOCAL_VOSK_TRANSCRIBE_URL"])
+            ? envString([
+                "DENTAL_VOSK_TRANSCRIBE_URL",
+                "VOSK_TRANSCRIBE_URL",
+                "LOCAL_VOSK_TRANSCRIBE_URL",
+            ])
             : "";
     if (explicit)
         return localBridgeUrlAllowed(explicit) ? explicit : null;
     if (providerId === "local_whisper") {
-        const base = envString(["DENTAL_LOCAL_WHISPER_URL", "WHISPER_CPP_URL", "LOCAL_WHISPER_URL"]);
+        const base = envString([
+            "DENTAL_LOCAL_WHISPER_URL",
+            "WHISPER_CPP_URL",
+            "LOCAL_WHISPER_URL",
+        ]);
         if (!base || !localBridgeUrlAllowed(base))
             return null;
         return localWhisperTranscribeUrlFromBase(base);
     }
     if (providerId === "vosk_local") {
-        const base = envString(["DENTAL_VOSK_URL", "VOSK_SERVER_URL", "LOCAL_VOSK_URL"]);
+        const base = envString([
+            "DENTAL_VOSK_URL",
+            "VOSK_SERVER_URL",
+            "LOCAL_VOSK_URL",
+        ]);
         if (!base || !localBridgeUrlAllowed(base))
             return null;
         return base;
@@ -242,7 +281,9 @@ function localSpeechTranscribeUrl(providerId) {
 function localSpeechHealthUrlFromBase(value) {
     const url = new URL(value);
     const cleanPath = url.pathname.replace(/\/+$/g, "");
-    if (cleanPath.endsWith("/health") || cleanPath.endsWith("/healthz") || cleanPath.endsWith("/status")) {
+    if (cleanPath.endsWith("/health") ||
+        cleanPath.endsWith("/healthz") ||
+        cleanPath.endsWith("/status")) {
         return url.toString();
     }
     if (cleanPath.endsWith("/v1/audio/transcriptions")) {
@@ -254,14 +295,26 @@ function localSpeechHealthUrlFromBase(value) {
 }
 function localSpeechHealthUrl(providerId) {
     const explicit = providerId === "local_whisper"
-        ? envString(["DENTAL_LOCAL_WHISPER_HEALTH_URL", "WHISPER_CPP_HEALTH_URL", "LOCAL_WHISPER_HEALTH_URL"])
+        ? envString([
+            "DENTAL_LOCAL_WHISPER_HEALTH_URL",
+            "WHISPER_CPP_HEALTH_URL",
+            "LOCAL_WHISPER_HEALTH_URL",
+        ])
         : providerId === "vosk_local"
-            ? envString(["DENTAL_VOSK_HEALTH_URL", "VOSK_HEALTH_URL", "LOCAL_VOSK_HEALTH_URL"])
+            ? envString([
+                "DENTAL_VOSK_HEALTH_URL",
+                "VOSK_HEALTH_URL",
+                "LOCAL_VOSK_HEALTH_URL",
+            ])
             : "";
     if (explicit)
         return localBridgeUrlAllowed(explicit) ? explicit : null;
     const base = providerId === "local_whisper"
-        ? envString(["DENTAL_LOCAL_WHISPER_URL", "WHISPER_CPP_URL", "LOCAL_WHISPER_URL"])
+        ? envString([
+            "DENTAL_LOCAL_WHISPER_URL",
+            "WHISPER_CPP_URL",
+            "LOCAL_WHISPER_URL",
+        ])
         : providerId === "vosk_local"
             ? envString(["DENTAL_VOSK_URL", "VOSK_SERVER_URL", "LOCAL_VOSK_URL"])
             : "";
@@ -291,7 +344,7 @@ function defaultLocalSpeechBridgeProbeState() {
         latencyMs: null,
         urlRedacted: null,
         warning: null,
-        pending: null
+        pending: null,
     };
 }
 function providerMinimumChunkMs(providerId) {
@@ -304,10 +357,13 @@ function normalizeSpeechChunkTimings(input) {
     const minChunkMs = Math.max(rawMin, providerFloor);
     const maxChunkMs = Math.max(rawMax, minChunkMs);
     const recommendedChunkMs = Math.min(Math.max(input.recommendedChunkMs, minChunkMs), maxChunkMs);
-    if (input.providerId === "groq_whisper" && (rawMin < providerFloor || input.recommendedChunkMs < providerFloor)) {
+    if (input.providerId === "groq_whisper" &&
+        (rawMin < providerFloor || input.recommendedChunkMs < providerFloor)) {
         input.warnings.push("Для Groq распознавания включен минимум 10 секунд на фрагмент, чтобы не тратить короткие запросы впустую.");
     }
-    if (input.recommendedChunkMs !== recommendedChunkMs || rawMin !== minChunkMs || rawMax !== maxChunkMs) {
+    if (input.recommendedChunkMs !== recommendedChunkMs ||
+        rawMin !== minChunkMs ||
+        rawMax !== maxChunkMs) {
         input.warnings.push(`Длительность аудиофрагментов нормализована до ${Math.round(minChunkMs / 1000)}-${Math.round(maxChunkMs / 1000)} сек.; рекомендовано ${Math.round(recommendedChunkMs / 1000)} сек.`);
     }
     return { recommendedChunkMs, minChunkMs, maxChunkMs };
@@ -321,13 +377,16 @@ function localSpeechBridgeProbeState(providerId) {
     return state;
 }
 function localSpeechBridgeProbeFresh(state) {
-    return state.checkedAt !== null && Date.now() - state.checkedAt < localSpeechProbeTtlMs();
+    return (state.checkedAt !== null &&
+        Date.now() - state.checkedAt < localSpeechProbeTtlMs());
 }
 async function runLocalSpeechBridgeProbe(providerId) {
     const state = localSpeechBridgeProbeState(providerId);
     const url = localSpeechHealthUrl(providerId);
     if (!url) {
-        state.status = providerConfigReady(providerId) ? "blocked" : "misconfigured";
+        state.status = providerConfigReady(providerId)
+            ? "blocked"
+            : "misconfigured";
         state.checkedAt = Date.now();
         state.latencyMs = null;
         state.urlRedacted = null;
@@ -342,7 +401,7 @@ async function runLocalSpeechBridgeProbe(providerId) {
         const response = await fetch(url, {
             method: "GET",
             headers: { Accept: "application/json,text/plain,*/*" },
-            signal: controller.signal
+            signal: controller.signal,
         });
         state.checkedAt = Date.now();
         state.latencyMs = state.checkedAt - startedAt;
@@ -412,9 +471,17 @@ function localSpeechBridgeProbeWarning(providerId) {
 }
 function localSpeechApiKey(providerId) {
     const value = providerId === "local_whisper"
-        ? envString(["DENTAL_LOCAL_WHISPER_API_KEY", "WHISPER_CPP_API_KEY", "LOCAL_WHISPER_API_KEY"])
+        ? envString([
+            "DENTAL_LOCAL_WHISPER_API_KEY",
+            "WHISPER_CPP_API_KEY",
+            "LOCAL_WHISPER_API_KEY",
+        ])
         : providerId === "vosk_local"
-            ? envString(["DENTAL_VOSK_API_KEY", "VOSK_API_KEY", "LOCAL_VOSK_API_KEY"])
+            ? envString([
+                "DENTAL_VOSK_API_KEY",
+                "VOSK_API_KEY",
+                "LOCAL_VOSK_API_KEY",
+            ])
             : "";
     return value || null;
 }
@@ -432,19 +499,22 @@ function providerConfigMissingEnvVars(providerId) {
 }
 function providerConfigReady(providerId) {
     if (isWiredServerProvider(providerId)) {
-        return providerKeyCount(providerId) > 0 && providerConfigMissingEnvVars(providerId).length === 0;
+        return (providerKeyCount(providerId) > 0 &&
+            providerConfigMissingEnvVars(providerId).length === 0);
     }
     if (isLocalSpeechProvider(providerId)) {
-        return Boolean(localSpeechTranscribeUrl(providerId)) && providerConfigMissingEnvVars(providerId).length === 0;
+        return (Boolean(localSpeechTranscribeUrl(providerId)) &&
+            providerConfigMissingEnvVars(providerId).length === 0);
     }
     return false;
 }
 function providerTranscriptionCurrentlyAvailable(providerId) {
     if (isWiredServerProvider(providerId)) {
-        return providerConfigReady(providerId) && getProviderKeyPoolSummary(providerId).availableKeyCount > 0;
+        return (providerConfigReady(providerId) &&
+            getProviderKeyPoolSummary(providerId).availableKeyCount > 0);
     }
     if (isLocalSpeechProvider(providerId)) {
-        return providerConfigReady(providerId) && localSpeechBridgeReady(providerId);
+        return (providerConfigReady(providerId) && localSpeechBridgeReady(providerId));
     }
     return false;
 }
@@ -463,10 +533,12 @@ function resolveSpeechProvider() {
     const warnings = [];
     const requestedKeyPresent = providerKeyCount(requestedProviderId) > 0;
     const requestedConfigured = providerConfigReady(requestedProviderId);
-    if ((isWiredServerProvider(requestedProviderId) || isLocalSpeechProvider(requestedProviderId)) && requestedConfigured) {
+    if ((isWiredServerProvider(requestedProviderId) ||
+        isLocalSpeechProvider(requestedProviderId)) &&
+        requestedConfigured) {
         const fallbackProviderIds = [
             requestedProviderId,
-            ...configuredProviderIds.filter((providerId) => providerId !== requestedProviderId)
+            ...configuredProviderIds.filter((providerId) => providerId !== requestedProviderId),
         ].slice(0, fallbackLimit());
         return {
             providerId: requestedProviderId,
@@ -477,7 +549,7 @@ function resolveSpeechProvider() {
             warnings,
             nextSetupStep: isLocalSpeechProvider(requestedProviderId)
                 ? `${providerLabels[requestedProviderId]}: локальный модуль указан в серверных настройках; перед отправкой аудио из очереди проверка доступности должна показать готовность.`
-                : `${providerLabels[requestedProviderId]} готов: источник распознавания подключен, резервная цепочка ${fallbackProviderIds.map((providerId) => providerLabels[providerId]).join(" -> ")}.`
+                : `${providerLabels[requestedProviderId]} готов: источник распознавания подключен, резервная цепочка ${fallbackProviderIds.map((providerId) => providerLabels[providerId]).join(" -> ")}.`,
         };
     }
     if (configuredProviderIds.length) {
@@ -497,12 +569,14 @@ function resolveSpeechProvider() {
             configuredProviderIds,
             fallbackProviderIds,
             warnings,
-            nextSetupStep: `Активен ${providerLabels[providerId]}. Для ручного выбора откройте серверные настройки распознавания; для первого пилота достаточно одного подключенного облачного источника.`
+            nextSetupStep: `Активен ${providerLabels[providerId]}. Для ручного выбора откройте серверные настройки распознавания; для первого пилота достаточно одного подключенного облачного источника.`,
         };
     }
     const nextSetupStep = requestedProviderId === "none"
         ? "Для серверного распознавания подключите один облачный источник в серверных настройках. Пока врач может печатать, использовать браузерную диктовку и офлайн-парсер."
-        : isWiredServerProvider(requestedProviderId) && requestedKeyPresent && providerConfigMissingEnvVars(requestedProviderId).length
+        : isWiredServerProvider(requestedProviderId) &&
+            requestedKeyPresent &&
+            providerConfigMissingEnvVars(requestedProviderId).length
             ? `${providerLabels[requestedProviderId]}: источник найден, но не хватает серверных настроек: ${providerConfigMissingEnvVars(requestedProviderId).length}.`
             : isLocalSpeechProvider(requestedProviderId)
                 ? `${providerLabels[requestedProviderId]} требует адрес локального модуля в серверных настройках: ${Math.max(1, providerConfigMissingEnvVars(requestedProviderId).length)} пункт.`
@@ -516,7 +590,7 @@ function resolveSpeechProvider() {
         configuredProviderIds,
         fallbackProviderIds: [],
         warnings,
-        nextSetupStep
+        nextSetupStep,
     };
 }
 export function getSpeechGatewayStatus() {
@@ -525,8 +599,11 @@ export function getSpeechGatewayStatus() {
     const keyPool = getProviderKeyPoolSummary(providerId);
     const missingConfigEnvVars = providerConfigMissingEnvVars(providerId);
     const providerReady = providerConfigReady(providerId);
-    const keyConfigured = keyPool.configuredKeyCount > 0 || (isLocalSpeechProvider(providerId) && providerReady);
-    const serverTranscriptionCurrentlyAvailable = anyProviderTranscriptionCurrentlyAvailable(resolvedProvider.fallbackProviderIds.length ? resolvedProvider.fallbackProviderIds : [providerId]);
+    const keyConfigured = keyPool.configuredKeyCount > 0 ||
+        (isLocalSpeechProvider(providerId) && providerReady);
+    const serverTranscriptionCurrentlyAvailable = anyProviderTranscriptionCurrentlyAvailable(resolvedProvider.fallbackProviderIds.length
+        ? resolvedProvider.fallbackProviderIds
+        : [providerId]);
     const maxChunkBytes = numberFromEnv("DENTAL_SPEECH_MAX_CHUNK_BYTES", 6_000_000);
     const recommendedChunkMs = numberFromEnv("DENTAL_SPEECH_RECOMMENDED_CHUNK_MS", 15_000);
     const minChunkMs = numberFromEnv("DENTAL_SPEECH_MIN_CHUNK_MS", 10_000);
@@ -542,7 +619,7 @@ export function getSpeechGatewayStatus() {
         recommendedChunkMs,
         minChunkMs,
         maxChunkMs,
-        warnings
+        warnings,
     });
     if (providerId === "none") {
         warnings.push("Серверное распознавание не настроено: врач может печатать, использовать браузерную диктовку и офлайн-парсер.");
@@ -570,10 +647,17 @@ export function getSpeechGatewayStatus() {
     if (keyConfigured && keyPool.rotationEnabled) {
         warnings.push(`Резервное переключение распознавания активно: доступно ${keyPool.availableKeyCount}/${keyPool.configuredKeyCount}, лимит повторов ${keyPool.maxAttemptsPerProvider}.`);
     }
-    else if (keyConfigured && !isLocalSpeechProvider(providerId) && keyPool.availableKeyCount === 0) {
+    else if (keyConfigured &&
+        !isLocalSpeechProvider(providerId) &&
+        keyPool.availableKeyCount === 0) {
         warnings.push("Выбранный источник распознавания временно на паузе из-за лимитов; локальный черновик остается доступен.");
     }
-    if (["azure_speech", "google_speech", "huggingface_asr", "mobile_native_speech"].includes(providerId)) {
+    if ([
+        "azure_speech",
+        "google_speech",
+        "huggingface_asr",
+        "mobile_native_speech",
+    ].includes(providerId)) {
         warnings.push(`${providerLabels[providerId]} добавлен в каталог выбора, но прямое серверное распознавание пока не включено в текущий шлюз.`);
     }
     return {
@@ -594,16 +678,18 @@ export function getSpeechGatewayStatus() {
             minChunkMs: chunkTimings.minChunkMs,
             maxChunkMs: chunkTimings.maxChunkMs,
             silenceMs,
-            rmsThreshold: Number.isFinite(rmsThreshold) && rmsThreshold > 0 ? rmsThreshold : 0.015,
+            rmsThreshold: Number.isFinite(rmsThreshold) && rmsThreshold > 0
+                ? rmsThreshold
+                : 0.015,
             monitorIntervalMs,
             overlapMs,
-            dedupeWindowChars
+            dedupeWindowChars,
         },
         polishPolicy: getSpeechPolishPolicy(),
         promptPolicy: getDentalSttPromptPolicy(),
         audioRetention: "discard_after_transcription",
         nextSetupStep: resolvedProvider.nextSetupStep,
-        warnings
+        warnings,
     };
 }
 export function getSpeechProviderRuntimeStatuses() {
@@ -617,24 +703,31 @@ export function getSpeechProviderRuntimeStatuses() {
         const configured = provider.status === "usable_without_key" ||
             (connector === "local_bridge" && providerConfigReady(providerId)) ||
             (keyPool.configuredKeyCount > 0 && missingConfigEnvVars.length === 0);
-        const localBridgeCurrentlyReady = connector === "local_bridge" && providerTranscriptionCurrentlyAvailable(providerId);
+        const localBridgeCurrentlyReady = connector === "local_bridge" &&
+            providerTranscriptionCurrentlyAvailable(providerId);
         const canTranscribeChunks = provider.status === "usable_without_key" ||
             (connector === "server_wired" && configured) ||
             localBridgeCurrentlyReady;
         const missingEnvVars = provider.status === "usable_without_key"
             ? []
             : [
-                ...(keyPool.configuredKeyCount > 0 || connector === "local_bridge" ? [] : acceptedEnvVars),
-                ...missingConfigEnvVars
+                ...(keyPool.configuredKeyCount > 0 || connector === "local_bridge"
+                    ? []
+                    : acceptedEnvVars),
+                ...missingConfigEnvVars,
             ].filter((envName, index, envNames) => envNames.indexOf(envName) === index);
         const warnings = [];
         if (connector === "server_wired" && keyPool.configuredKeyCount > 1) {
             warnings.push(`Резервное переключение включено: ${keyPool.availableKeyCount}/${keyPool.configuredKeyCount} доступно.`);
         }
-        if (connector === "server_wired" && keyPool.configuredKeyCount > 0 && keyPool.availableKeyCount === 0) {
+        if (connector === "server_wired" &&
+            keyPool.configuredKeyCount > 0 &&
+            keyPool.availableKeyCount === 0) {
             warnings.push("Все ключи источника распознавания на временной паузе из-за лимитов; врач продолжит через локальный текст и очередь.");
         }
-        if (connector === "server_wired" && keyPool.configuredKeyCount > 0 && missingConfigEnvVars.length) {
+        if (connector === "server_wired" &&
+            keyPool.configuredKeyCount > 0 &&
+            missingConfigEnvVars.length) {
             warnings.push(`Серверные настройки распознавания неполные: не хватает пунктов (${missingConfigEnvVars.length}) до приема аудиофрагментов этим маршрутом.`);
         }
         if (connector === "server_cataloged" && keyPool.configuredKeyCount > 0) {
@@ -677,7 +770,7 @@ export function getSpeechProviderRuntimeStatuses() {
             missingSettingsCount: missingEnvVars.length,
             recommendedUse: provider.recommendedFor[0] ?? "админский выбор источника распознавания",
             nextStep,
-            warnings
+            warnings,
         };
     });
 }
@@ -689,7 +782,8 @@ export function getSpeechGatewayHealthReport() {
         const connector = runtime.connector;
         const fallbackIndex = gateway.fallbackProviderIds.indexOf(runtime.providerId);
         const fallbackRank = fallbackIndex >= 0 ? fallbackIndex : null;
-        const hasAvailableServerKey = runtime.keyPool.configuredKeyCount > 0 && runtime.keyPool.availableKeyCount > 0;
+        const hasAvailableServerKey = runtime.keyPool.configuredKeyCount > 0 &&
+            runtime.keyPool.availableKeyCount > 0;
         const localBridgeReady = connector === "local_bridge" && runtime.canTranscribeChunks;
         const healthLevel = connector === "client_only"
             ? "ready"
@@ -706,9 +800,13 @@ export function getSpeechGatewayHealthReport() {
                             : "degraded";
         const safeToUseInVisit = runtime.providerId === "browser_speech" ||
             localBridgeReady ||
-            (connector === "server_wired" && runtime.canTranscribeChunks && runtime.keyPool.availableKeyCount > 0);
+            (connector === "server_wired" &&
+                runtime.canTranscribeChunks &&
+                runtime.keyPool.availableKeyCount > 0);
         const warnings = [...runtime.warnings];
-        if (connector === "server_wired" && runtime.configured && runtime.keyPool.availableKeyCount === 0) {
+        if (connector === "server_wired" &&
+            runtime.configured &&
+            runtime.keyPool.availableKeyCount === 0) {
             warnings.push("Все настроенные ключи на временной паузе из-за лимитов; прием сохраняет локальный черновик и очередь повтора без блокировки врача.");
         }
         if (fallbackRank !== null && fallbackRank > 0) {
@@ -726,22 +824,27 @@ export function getSpeechGatewayHealthReport() {
             fallbackRank,
             safeToUseInVisit,
             warnings: uniqueNonEmpty(warnings),
-            nextStep: runtime.nextStep
+            nextStep: runtime.nextStep,
         };
     });
     const totals = providers.reduce((accumulator, provider) => ({
         configured: accumulator.configured + provider.keyPool.configuredKeyCount,
         available: accumulator.available + provider.keyPool.availableKeyCount,
-        coolingDown: accumulator.coolingDown + provider.keyPool.coolingDownKeyCount
+        coolingDown: accumulator.coolingDown + provider.keyPool.coolingDownKeyCount,
     }), { configured: 0, available: 0, coolingDown: 0 });
     const warnings = [...gateway.warnings];
-    if (gateway.serverTranscriptionEnabled && !gateway.serverTranscriptionCurrentlyAvailable) {
+    if (gateway.serverTranscriptionEnabled &&
+        !gateway.serverTranscriptionCurrentlyAvailable) {
         warnings.push("Сейчас нет доступного источника распознавания; фрагменты остаются восстанавливаемыми и не блокируют врача.");
     }
-    else if (gateway.serverTranscriptionEnabled && !isLocalSpeechProvider(gateway.providerId) && gateway.keyPool.availableKeyCount === 0) {
+    else if (gateway.serverTranscriptionEnabled &&
+        !isLocalSpeechProvider(gateway.providerId) &&
+        gateway.keyPool.availableKeyCount === 0) {
         warnings.push("Активный источник распознавания сейчас недоступен; перед повтором будут проверены резервные источники.");
     }
-    if (gateway.serverTranscriptionEnabled && !isLocalSpeechProvider(gateway.providerId) && gateway.fallbackProviderIds.length < 2) {
+    if (gateway.serverTranscriptionEnabled &&
+        !isLocalSpeechProvider(gateway.providerId) &&
+        gateway.fallbackProviderIds.length < 2) {
         warnings.push("Настроен только один источник распознавания; добавьте второй источник для устойчивого резервирования.");
     }
     if (!gateway.promptPolicy.enabled) {
@@ -750,7 +853,8 @@ export function getSpeechGatewayHealthReport() {
     if (!gateway.polishPolicy.deterministicEnabled) {
         warnings.push("Детерминированный стоматологический парсер отключен; для работы без интернета его лучше держать включенным.");
     }
-    const activeLocalBridgeReady = isLocalSpeechProvider(gateway.providerId) && gateway.serverTranscriptionCurrentlyAvailable;
+    const activeLocalBridgeReady = isLocalSpeechProvider(gateway.providerId) &&
+        gateway.serverTranscriptionCurrentlyAvailable;
     const nextAction = activeLocalBridgeReady
         ? `${gateway.providerLabel}: локальный модуль готов; фрагменты остаются на localhost/private LAN, облачное распознавание не нужно.`
         : gateway.serverTranscriptionCurrentlyAvailable
@@ -773,7 +877,7 @@ export function getSpeechGatewayHealthReport() {
         deterministicParserEnabled: gateway.polishPolicy.deterministicEnabled,
         providers,
         warnings: uniqueNonEmpty(warnings).slice(0, 10),
-        nextAction
+        nextAction,
     };
 }
 export function buildSpeechRecordingStrategy(input) {
@@ -787,7 +891,7 @@ export function buildSpeechRecordingStrategy(input) {
         minChunkMs: gateway.chunkingPolicy.minChunkMs,
         maxChunkMs: gateway.chunkingPolicy.maxChunkMs,
         estimatedChunkCount,
-        maxChunkBytes: gateway.maxChunkBytes
+        maxChunkBytes: gateway.maxChunkBytes,
     };
     const steps = [];
     const warnings = [];
@@ -807,9 +911,11 @@ export function buildSpeechRecordingStrategy(input) {
                 "Используйте браузерную или мобильную диктовку, когда она доступна.",
                 "Автосохраняйте текст локально после каждого изменения.",
                 "Запускайте детерминированный профильный парсер до создания черновика ЭМК.",
-                "Синхронизируйте только проверенный текст, когда клиника разрешает серверное хранение."
+                "Синхронизируйте только проверенный текст, когда клиника разрешает серверное хранение.",
             ],
-            warnings: ["Облачное распознавание и нейронная полировка отключены в локальном режиме."]
+            warnings: [
+                "Облачное распознавание и нейронная полировка отключены в локальном режиме.",
+            ],
         };
     }
     if (input.networkState === "offline") {
@@ -827,9 +933,11 @@ export function buildSpeechRecordingStrategy(input) {
                 "Сохраняйте аудиофрагменты в IndexedDB, если аудио есть.",
                 "Держите видимый текст в локальном черновике.",
                 "Используйте детерминированный парсер для немедленной очистки черновика.",
-                "После появления сети отправьте очередь и соберите серверный текст."
+                "После появления сети отправьте очередь и соберите серверный текст.",
             ],
-            warnings: ["Внешнее распознавание и нейронная полировка отложены до восстановления связи."]
+            warnings: [
+                "Внешнее распознавание и нейронная полировка отложены до восстановления связи.",
+            ],
         };
     }
     if (!gateway.serverTranscriptionEnabled) {
@@ -847,9 +955,9 @@ export function buildSpeechRecordingStrategy(input) {
                 "Добавляйте распознанный браузером текст в автосохраняемое поле диктовки.",
                 "Разрешайте ручной ввод в любой момент.",
                 "Запускайте детерминированную очистку до черновика ЭМК.",
-                "Показывайте выбор источника распознавания только в настройках, не на экране лечения."
+                "Показывайте выбор источника распознавания только в настройках, не на экране лечения.",
             ],
-            warnings: gateway.warnings
+            warnings: gateway.warnings,
         };
     }
     if (!gateway.serverTranscriptionCurrentlyAvailable) {
@@ -867,9 +975,9 @@ export function buildSpeechRecordingStrategy(input) {
                 "Сохраняйте каждый аудиофрагмент в IndexedDB до любой попытки отправки.",
                 "Не отправляйте аудиофрагменты, пока в резервной цепочке распознавания нет доступного источника.",
                 "Держите видимый текст редактируемым и автосохраненным локально.",
-                "Отправьте локальную очередь и соберите запись, когда появится ключ или локальный модуль."
+                "Отправьте локальную очередь и соберите запись, когда появится ключ или локальный модуль.",
             ],
-            warnings: gateway.warnings
+            warnings: gateway.warnings,
         };
     }
     if (longRecording) {
@@ -878,7 +986,8 @@ export function buildSpeechRecordingStrategy(input) {
     if (gateway.keyPool.coolingDownKeyCount > 0) {
         warnings.push(`${gateway.keyPool.coolingDownKeyCount} ключ(а) распознавания на временной паузе из-за лимитов; повтор возьмет доступные ключи по резервному переключению.`);
     }
-    if (gateway.providerId === "groq_whisper" && gateway.chunkingPolicy.minChunkMs < 10_000) {
+    if (gateway.providerId === "groq_whisper" &&
+        gateway.chunkingPolicy.minChunkMs < 10_000) {
         warnings.push("Groq распознавание не должно получать слишком короткие фрагменты: короткие запросы могут расходовать минимальную длительность впустую.");
     }
     steps.push(`Записывайте фрагменты около ${Math.round(gateway.recommendedChunkMs / 1000)} секунд с отсечкой тишины и жестким максимумом ${Math.round(gateway.chunkingPolicy.maxChunkMs / 1000)} секунд.`, `Убирайте дубли текста на границе фрагментов в последних ${gateway.chunkingPolicy.dedupeWindowChars} символах; ${gateway.chunkingPolicy.overlapMs} мс зарезервированы как будущий предзахват для мобильных и настольных рекордеров.`, "Сохраняйте каждый ожидающий аудиофрагмент в IndexedDB до отправки.", "Отправляйте фрагменты только через сервер приложения; никогда не раскрывайте ключи источников распознавания в браузере.", "Собирайте сохраненные фрагменты по recordingId после остановки или повтора очереди.", "Сначала запускайте детерминированный стоматологический парсер; нейронная полировка может менять только формулировки и не должна добавлять факты.");
@@ -895,7 +1004,7 @@ export function buildSpeechRecordingStrategy(input) {
             ? "Серверное распознавание настроено, но длинное аудио требует асинхронного потока."
             : "Серверное распознавание настроено; фрагментированная загрузка балансирует качество, лимиты источника и локальное восстановление.",
         steps,
-        warnings
+        warnings,
     };
 }
 export function speechJsonBodyLimitBytes() {
@@ -934,10 +1043,13 @@ function normalizeLanguage(value) {
     return lower.slice(0, 8);
 }
 function uniqueNonEmpty(values) {
-    return Array.from(new Set(values.map((value) => sanitizeProviderErrorMessage(value).trim()).filter(Boolean)));
+    return Array.from(new Set(values
+        .map((value) => sanitizeProviderErrorMessage(value).trim())
+        .filter(Boolean)));
 }
 function countTranscriptWords(text) {
-    return text.match(/[A-Za-zА-Яа-яЁё0-9]+(?:[-'][A-Za-zА-Яа-яЁё0-9]+)*/g)?.length ?? 0;
+    return (text.match(/[A-Za-zА-Яа-яЁё0-9]+(?:[-'][A-Za-zА-Яа-яЁё0-9]+)*/g)?.length ??
+        0);
 }
 function roundMetric(value, digits = 2) {
     const factor = 10 ** digits;
@@ -955,7 +1067,9 @@ function buildSpeechTranscriptionQuality(input) {
     const wordCount = countTranscriptWords(normalizedTranscript);
     const charCount = normalizedTranscript.length;
     const durationMs = input.durationMs && input.durationMs > 0 ? input.durationMs : null;
-    const bytesPerSecond = durationMs ? roundMetric(input.byteLength / (durationMs / 1000), 1) : null;
+    const bytesPerSecond = durationMs
+        ? roundMetric(input.byteLength / (durationMs / 1000), 1)
+        : null;
     const providerWarnings = uniqueNonEmpty(input.warnings).slice(0, 8);
     const signals = [];
     if (input.status === "failed")
@@ -1009,7 +1123,7 @@ function buildSpeechTranscriptionQuality(input) {
         bytesPerSecond,
         providerWarnings,
         signals: uniqueSignals,
-        nextAction
+        nextAction,
     };
 }
 async function transcribeOpenAiCompatible(input) {
@@ -1027,7 +1141,7 @@ async function transcribeOpenAiCompatible(input) {
     const response = await fetchWithProviderTimeout(input.endpoint, {
         method: "POST",
         headers,
-        body: form
+        body: form,
     }, input.timeoutMs);
     const payload = (await response.json().catch(() => ({})));
     if (!response.ok) {
@@ -1037,9 +1151,10 @@ async function transcribeOpenAiCompatible(input) {
     const segmentAvgLogprobs = payload.segments
         ?.map((segment) => segment.avg_logprob)
         .filter((value) => typeof value === "number") ?? [];
-    const noSpeechSegments = payload.segments?.filter((segment) => typeof segment.no_speech_prob === "number" && segment.no_speech_prob > 0.6)
-        .length ?? 0;
-    const compressedSegments = payload.segments?.filter((segment) => typeof segment.compression_ratio === "number" && segment.compression_ratio > 2.4).length ?? 0;
+    const noSpeechSegments = payload.segments?.filter((segment) => typeof segment.no_speech_prob === "number" &&
+        segment.no_speech_prob > 0.6).length ?? 0;
+    const compressedSegments = payload.segments?.filter((segment) => typeof segment.compression_ratio === "number" &&
+        segment.compression_ratio > 2.4).length ?? 0;
     if (noSpeechSegments) {
         segmentWarnings.push(`${noSpeechSegments} фрагмент(ов) похожи на тишину; проверьте, не попал ли в запись пустой участок.`);
     }
@@ -1049,7 +1164,7 @@ async function transcribeOpenAiCompatible(input) {
     return {
         text: typeof payload.text === "string" ? payload.text.trim() : "",
         confidence: confidenceFromWhisperLogprob(segmentAvgLogprobs),
-        warnings: segmentWarnings
+        warnings: segmentWarnings,
     };
 }
 function stringFromRecord(record, keys) {
@@ -1070,18 +1185,27 @@ function averageConfidence(values) {
     return Math.max(0, Math.min(1, filtered.reduce((sum, value) => sum + value, 0) / filtered.length));
 }
 function textFromVoskPayload(payload) {
-    const directText = stringFromRecord(payload, ["text", "transcript", "partial"]);
+    const directText = stringFromRecord(payload, [
+        "text",
+        "transcript",
+        "partial",
+    ]);
     if (directText)
         return directText;
     const result = payload.result;
     if (result && typeof result === "object" && !Array.isArray(result)) {
-        const resultText = stringFromRecord(result, ["text", "transcript"]);
+        const resultText = stringFromRecord(result, [
+            "text",
+            "transcript",
+        ]);
         if (resultText)
             return resultText;
     }
     if (Array.isArray(result)) {
         const words = result
-            .map((item) => (item && typeof item === "object" ? stringFromRecord(item, ["word", "text"]) : ""))
+            .map((item) => item && typeof item === "object"
+            ? stringFromRecord(item, ["word", "text"])
+            : "")
             .filter(Boolean);
         if (words.length)
             return words.join(" ");
@@ -1101,13 +1225,17 @@ function confidenceFromVoskPayload(payload) {
     const result = payload.result;
     if (Array.isArray(result)) {
         return averageConfidence(result
-            .map((item) => (item && typeof item === "object" ? numberFromUnknown(item.conf) : null))
+            .map((item) => item && typeof item === "object"
+            ? numberFromUnknown(item.conf)
+            : null)
             .filter((value) => value !== null));
     }
     const alternatives = payload.alternatives;
     if (Array.isArray(alternatives)) {
         return averageConfidence(alternatives
-            .map((item) => item && typeof item === "object" ? numberFromUnknown(item.confidence) : null)
+            .map((item) => item && typeof item === "object"
+            ? numberFromUnknown(item.confidence)
+            : null)
             .filter((value) => value !== null));
     }
     return null;
@@ -1132,12 +1260,14 @@ async function transcribeLocalWhisperBridge(input) {
     const result = await transcribeOpenAiCompatible({
         endpoint,
         apiKey: localSpeechApiKey("local_whisper"),
-        model: process.env.DENTAL_LOCAL_WHISPER_MODEL ?? process.env.WHISPER_CPP_MODEL ?? "whisper.cpp",
+        model: process.env.DENTAL_LOCAL_WHISPER_MODEL ??
+            process.env.WHISPER_CPP_MODEL ??
+            "whisper.cpp",
         audio: input.audio,
         mimeType: input.mimeType,
         language: input.language,
         responseFormat: "verbose_json",
-        timeoutMs: localSpeechTimeoutMs()
+        timeoutMs: localSpeechTimeoutMs(),
     });
     result.warnings.push("Использован локальный модуль Whisper.cpp; текст нужно проверить, потому что точность зависит от размера и настроек локальной модели.");
     return result;
@@ -1161,7 +1291,7 @@ async function transcribeLocalVoskBridge(input) {
     const response = await fetchWithProviderTimeout(endpoint, {
         method: "POST",
         headers,
-        body: form
+        body: form,
     }, localSpeechTimeoutMs());
     const payload = (await response.json().catch(() => ({})));
     if (!response.ok) {
@@ -1172,8 +1302,12 @@ async function transcribeLocalVoskBridge(input) {
         text,
         confidence: confidenceFromVoskPayload(payload),
         warnings: text
-            ? ["Использован локальный модуль Vosk; пунктуацию и стоматологические термины нужно проверить перед подписанием."]
-            : ["Локальный модуль Vosk не вернул текст; оставьте печатный локальный черновик как восстановление."]
+            ? [
+                "Использован локальный модуль Vosk; пунктуацию и стоматологические термины нужно проверить перед подписанием.",
+            ]
+            : [
+                "Локальный модуль Vosk не вернул текст; оставьте печатный локальный черновик как восстановление.",
+            ],
     };
 }
 async function transcribeDeepgram(input) {
@@ -1187,9 +1321,9 @@ async function transcribeDeepgram(input) {
         method: "POST",
         headers: {
             Authorization: `Token ${input.apiKey}`,
-            "Content-Type": input.mimeType
+            "Content-Type": input.mimeType,
         },
-        body: input.audio
+        body: input.audio,
     });
     const payload = (await response.json().catch(() => ({})));
     if (!response.ok) {
@@ -1198,8 +1332,10 @@ async function transcribeDeepgram(input) {
     const alternative = payload.results?.channels?.[0]?.alternatives?.[0];
     return {
         text: alternative?.transcript?.trim() ?? "",
-        confidence: typeof alternative?.confidence === "number" ? alternative.confidence : null,
-        warnings: []
+        confidence: typeof alternative?.confidence === "number"
+            ? alternative.confidence
+            : null,
+        warnings: [],
     };
 }
 async function transcribeAssemblyAi(input) {
@@ -1207,9 +1343,9 @@ async function transcribeAssemblyAi(input) {
         method: "POST",
         headers: {
             Authorization: input.apiKey,
-            "Content-Type": input.mimeType
+            "Content-Type": input.mimeType,
         },
-        body: input.audio
+        body: input.audio,
     });
     const uploadPayload = (await uploadResponse.json().catch(() => ({})));
     if (!uploadResponse.ok || !uploadPayload.upload_url) {
@@ -1219,16 +1355,18 @@ async function transcribeAssemblyAi(input) {
         method: "POST",
         headers: {
             Authorization: input.apiKey,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
         body: JSON.stringify({
             audio_url: uploadPayload.upload_url,
             language_code: normalizeLanguage(input.language),
             punctuate: true,
-            format_text: true
-        })
+            format_text: true,
+        }),
     });
-    const transcriptPayload = (await transcriptResponse.json().catch(() => ({})));
+    const transcriptPayload = (await transcriptResponse
+        .json()
+        .catch(() => ({})));
     if (!transcriptResponse.ok || !transcriptPayload.id) {
         throw providerHttpError(transcriptResponse.status, transcriptResponse.statusText, transcriptPayload.error);
     }
@@ -1236,7 +1374,7 @@ async function transcribeAssemblyAi(input) {
     for (let attempt = 0; attempt < pollAttempts; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const pollResponse = await fetchWithProviderTimeout(`https://api.assemblyai.com/v2/transcript/${transcriptPayload.id}`, {
-            headers: { Authorization: input.apiKey }
+            headers: { Authorization: input.apiKey },
         });
         const pollPayload = (await pollResponse.json().catch(() => ({})));
         if (!pollResponse.ok) {
@@ -1245,8 +1383,10 @@ async function transcribeAssemblyAi(input) {
         if (pollPayload.status === "completed") {
             return {
                 text: pollPayload.text?.trim() ?? "",
-                confidence: typeof pollPayload.confidence === "number" ? pollPayload.confidence : null,
-                warnings: []
+                confidence: typeof pollPayload.confidence === "number"
+                    ? pollPayload.confidence
+                    : null,
+                warnings: [],
             };
         }
         if (pollPayload.status === "error") {
@@ -1266,9 +1406,9 @@ async function transcribeCloudflareWhisper(input) {
         method: "POST",
         headers: {
             Authorization: `Bearer ${input.apiKey}`,
-            "Content-Type": input.mimeType || "application/octet-stream"
+            "Content-Type": input.mimeType || "application/octet-stream",
         },
-        body: input.audio
+        body: input.audio,
     });
     const payload = (await response.json().catch(() => ({})));
     if (!response.ok || payload.success === false) {
@@ -1278,14 +1418,14 @@ async function transcribeCloudflareWhisper(input) {
     return {
         text: typeof result.text === "string" ? result.text.trim() : "",
         confidence: null,
-        warnings: []
+        warnings: [],
     };
 }
 async function transcribeGeminiMultimodal(input) {
     const model = process.env.GOOGLE_SPEECH_MODEL ?? "gemini-2.5-flash";
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${input.apiKey}`;
-    const baseMimeType = input.mimeType.split(';')[0] || "audio/webm";
-    const base64Audio = input.audio.toString('base64');
+    const baseMimeType = input.mimeType.split(";")[0] || "audio/webm";
+    const base64Audio = input.audio.toString("base64");
     const textPrompt = `Transcribe the following audio accurately in ${input.language}. Do not add any conversational filler. ${input.prompt ?? ""}`;
     const response = await fetchWithProviderTimeout(endpoint, {
         method: "POST",
@@ -1295,14 +1435,14 @@ async function transcribeGeminiMultimodal(input) {
                 {
                     parts: [
                         { text: textPrompt },
-                        { inline_data: { mime_type: baseMimeType, data: base64Audio } }
-                    ]
-                }
+                        { inline_data: { mime_type: baseMimeType, data: base64Audio } },
+                    ],
+                },
             ],
             generationConfig: {
-                temperature: 0.1
-            }
-        })
+                temperature: 0.1,
+            },
+        }),
     });
     const payload = (await response.json().catch(() => ({})));
     if (!response.ok) {
@@ -1316,7 +1456,7 @@ async function transcribeGeminiMultimodal(input) {
     return {
         text: cleanText,
         confidence: null,
-        warnings: []
+        warnings: [],
     };
 }
 async function transcribeWithProvider(input) {
@@ -1324,7 +1464,7 @@ async function transcribeWithProvider(input) {
         return transcribeLocalWhisperBridge({
             audio: input.audio,
             mimeType: input.mimeType,
-            language: input.language
+            language: input.language,
         });
     }
     if (input.providerId === "vosk_local") {
@@ -1333,7 +1473,7 @@ async function transcribeWithProvider(input) {
             mimeType: input.mimeType,
             language: input.language,
             specialty: input.specialty ?? null,
-            ...(input.source ? { source: input.source } : {})
+            ...(input.source ? { source: input.source } : {}),
         });
     }
     if (!providerKeyCount(input.providerId)) {
@@ -1357,7 +1497,7 @@ async function transcribeWithProvider(input) {
                 const prompt = buildDentalSttPrompt({
                     providerId: "groq_whisper",
                     specialty: input.specialty ?? null,
-                    source: input.source ?? "visit"
+                    source: input.source ?? "visit",
                 });
                 result = await transcribeOpenAiCompatible({
                     endpoint: "https://api.groq.com/openai/v1/audio/transcriptions",
@@ -1367,14 +1507,14 @@ async function transcribeWithProvider(input) {
                     mimeType: input.mimeType,
                     language: input.language,
                     responseFormat: "verbose_json",
-                    prompt
+                    prompt,
                 });
             }
             else if (input.providerId === "openai_transcribe") {
                 const prompt = buildDentalSttPrompt({
                     providerId: "openai_transcribe",
                     specialty: input.specialty ?? null,
-                    source: input.source ?? "visit"
+                    source: input.source ?? "visit",
                 });
                 result = await transcribeOpenAiCompatible({
                     endpoint: "https://api.openai.com/v1/audio/transcriptions",
@@ -1383,7 +1523,7 @@ async function transcribeWithProvider(input) {
                     audio: input.audio,
                     mimeType: input.mimeType,
                     language: input.language,
-                    prompt
+                    prompt,
                 });
             }
             else if (input.providerId === "deepgram_streaming") {
@@ -1391,7 +1531,7 @@ async function transcribeWithProvider(input) {
                     apiKey: keyCandidate.value,
                     audio: input.audio,
                     mimeType: input.mimeType,
-                    language: input.language
+                    language: input.language,
                 });
             }
             else if (input.providerId === "assemblyai_async") {
@@ -1399,28 +1539,28 @@ async function transcribeWithProvider(input) {
                     apiKey: keyCandidate.value,
                     audio: input.audio,
                     mimeType: input.mimeType,
-                    language: input.language
+                    language: input.language,
                 });
             }
             else if (input.providerId === "cloudflare_whisper") {
                 result = await transcribeCloudflareWhisper({
                     apiKey: keyCandidate.value,
                     audio: input.audio,
-                    mimeType: input.mimeType
+                    mimeType: input.mimeType,
                 });
             }
             else if (input.providerId === "google_speech") {
                 const prompt = buildDentalSttPrompt({
                     providerId: "google_speech",
                     specialty: input.specialty ?? null,
-                    source: input.source ?? "visit"
+                    source: input.source ?? "visit",
                 });
                 result = await transcribeGeminiMultimodal({
                     apiKey: keyCandidate.value,
                     audio: input.audio,
                     mimeType: input.mimeType,
                     language: input.language,
-                    prompt
+                    prompt,
                 });
             }
             else {
@@ -1475,9 +1615,12 @@ export async function transcribeSpeechChunk(input) {
         warnings.push("Аудио не отправлено: сейчас нет доступного источника распознавания или локального модуля; сохраните клиентскую очередь аудио и повторите позже.");
     }
     else {
-        const providerAttempts = gateway.fallbackProviderIds.length ? gateway.fallbackProviderIds : [gateway.providerId];
+        const providerAttempts = gateway.fallbackProviderIds.length
+            ? gateway.fallbackProviderIds
+            : [gateway.providerId];
         for (const providerId of providerAttempts) {
-            if (!isWiredServerProvider(providerId) && !isLocalSpeechProvider(providerId))
+            if (!isWiredServerProvider(providerId) &&
+                !isLocalSpeechProvider(providerId))
                 continue;
             try {
                 const providerResult = await transcribeWithProvider({
@@ -1486,7 +1629,7 @@ export async function transcribeSpeechChunk(input) {
                     mimeType: input.mimeType,
                     language: input.language,
                     specialty: input.specialty ?? null,
-                    source: input.source
+                    source: input.source,
                 });
                 usedProviderId = providerId;
                 usedProviderLabel = providerLabels[providerId];
@@ -1536,7 +1679,7 @@ export async function transcribeSpeechChunk(input) {
         warnings,
         byteLength: audio.byteLength,
         durationMs: input.durationMs ?? null,
-        providerLabel: usedProviderLabel
+        providerLabel: usedProviderLabel,
     });
     const chunk = await recordSpeechTranscriptionChunk({
         recordingId: input.recordingId,
@@ -1555,7 +1698,7 @@ export async function transcribeSpeechChunk(input) {
         status: responseStatus,
         quality,
         warnings,
-        clientRecordedAt: input.clientRecordedAt ?? null
+        clientRecordedAt: input.clientRecordedAt ?? null,
     });
     return { chunk, gateway };
 }

@@ -1,7 +1,7 @@
-import { requireClinicalReadAccess, requireResolvedOrganizationId } from "../../accessGuard.js";
-import { apiError, buildDocumentAuditFacts } from "../documents.js";
-import { getDocumentById } from "../../db/documentQuery.js";
+import { requireClinicalReadAccess, requireResolvedOrganizationId, } from "../../accessGuard.js";
+import { getDocumentById, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
+import { apiError, buildDocumentAuditFacts, } from "../documents.js";
 export async function register(app) {
     app.get("/api/documents/:id/audit-facts", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "document audit facts")))

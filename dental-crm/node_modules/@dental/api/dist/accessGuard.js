@@ -1,10 +1,10 @@
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
-import { timingSafeSecretEqual } from "./utils/timingSafeSecretEqual.js";
-import { verifyToken } from "./utils/cryptoHelper.js";
 import { eq } from "drizzle-orm";
 import { db } from "./db/client.js";
 import { organizations, users } from "./db/schema.js";
+import { verifyToken } from "./utils/cryptoHelper.js";
+import { timingSafeSecretEqual } from "./utils/timingSafeSecretEqual.js";
 export const denteAdminSecretHeader = "x-dente-admin-secret";
 export function configuredClinicalAccessSecret() {
     return process.env.DENTE_CLINICAL_ADMIN_SECRET?.trim() || null;
@@ -37,7 +37,12 @@ async function verifyRequestToken(token) {
         return null;
     if (process.env.NODE_ENV !== "production") {
         if (token === "fake-clinic-token" || token === "fake-staff-token") {
-            return { organizationId: "00000000-0000-0000-0000-000000000001", id: "u-dev", role: "admin", name: "Dev E2E" };
+            return {
+                organizationId: "00000000-0000-0000-0000-000000000001",
+                id: "u-dev",
+                role: "admin",
+                name: "Dev E2E",
+            };
         }
     }
     const secret = configuredAuthTokenSecret();
@@ -47,7 +52,11 @@ async function verifyRequestToken(token) {
     if (!payload)
         return null;
     if (payload.userId) {
-        const [user] = await db.select({ isActive: users.isActive }).from(users).where(eq(users.id, payload.userId)).limit(1);
+        const [user] = await db
+            .select({ isActive: users.isActive })
+            .from(users)
+            .where(eq(users.id, payload.userId))
+            .limit(1);
         if (!user || !user.isActive) {
             return null;
         }
@@ -55,18 +64,23 @@ async function verifyRequestToken(token) {
     return payload;
 }
 function clinicalMutationsUnguardedAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS === "1";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS === "1");
 }
 function clinicalReadsUnguardedAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_CLINICAL_ALLOW_UNGUARDED_READS === "1";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTE_CLINICAL_ALLOW_UNGUARDED_READS === "1");
 }
 function headerValue(request, name) {
     const value = request.headers[name];
     const normalized = Array.isArray(value) ? value[0] : value;
-    return typeof normalized === "string" && normalized.trim() ? normalized.trim() : null;
+    return typeof normalized === "string" && normalized.trim()
+        ? normalized.trim()
+        : null;
 }
 function requestOrganizationHint(request) {
-    const headerHint = headerValue(request, "x-dente-organization-id") ?? headerValue(request, "x-dente-org-id");
+    const headerHint = headerValue(request, "x-dente-organization-id") ??
+        headerValue(request, "x-dente-org-id");
     if (headerHint)
         return headerHint;
     const body = request.body;
@@ -78,14 +92,23 @@ function requestOrganizationHint(request) {
     return null;
 }
 async function organizationExists(organizationId) {
-    const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+    const [org] = await db
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.id, organizationId))
+        .limit(1);
     return Boolean(org);
 }
 async function resolveAdminSecretOrganizationId(request) {
     const adminSecret = configuredClinicalMutationSecret();
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-    if (!adminSecret || !timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (!adminSecret ||
+        !timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+            ? normalizedProvidedSecret
+            : null, adminSecret)) {
         return null;
     }
     const organizationId = requestOrganizationHint(request);
@@ -96,7 +119,10 @@ async function resolveAdminSecretOrganizationId(request) {
 async function resolveDevelopmentDefaultOrganizationId() {
     if (!clinicalMutationsUnguardedAllowed() && !clinicalReadsUnguardedAllowed())
         return null;
-    const [org] = await db.select({ id: organizations.id }).from(organizations).limit(1);
+    const [org] = await db
+        .select({ id: organizations.id })
+        .from(organizations)
+        .limit(1);
     return org?.id ?? null;
 }
 export async function resolveExplicitOrganizationId(request) {
@@ -107,8 +133,11 @@ export async function resolveExplicitOrganizationId(request) {
 }
 export async function resolveOrganizationId(request) {
     const clinicHeader = request.headers["x-dente-clinic-token"];
-    const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-    if (process.env.NODE_ENV !== "production" && clinicToken === "fake-clinic-token") {
+    const clinicToken = Array.isArray(clinicHeader)
+        ? clinicHeader[0]
+        : clinicHeader;
+    if (process.env.NODE_ENV !== "production" &&
+        clinicToken === "fake-clinic-token") {
         return resolveDevelopmentDefaultOrganizationId();
     }
     if (clinicToken) {
@@ -118,7 +147,8 @@ export async function resolveOrganizationId(request) {
     }
     const staffHeader = request.headers["x-dente-staff-token"];
     const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
-    if (process.env.NODE_ENV !== "production" && staffToken === "fake-staff-token") {
+    if (process.env.NODE_ENV !== "production" &&
+        staffToken === "fake-staff-token") {
         return resolveDevelopmentDefaultOrganizationId();
     }
     if (staffToken) {
@@ -133,8 +163,11 @@ export async function resolveOrganizationId(request) {
 }
 export async function resolveAuthenticatedOrganizationId(request) {
     const clinicHeader = request.headers["x-dente-clinic-token"];
-    const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-    if (process.env.NODE_ENV !== "production" && clinicToken === "fake-clinic-token") {
+    const clinicToken = Array.isArray(clinicHeader)
+        ? clinicHeader[0]
+        : clinicHeader;
+    if (process.env.NODE_ENV !== "production" &&
+        clinicToken === "fake-clinic-token") {
         return resolveDevelopmentDefaultOrganizationId();
     }
     if (clinicToken) {
@@ -144,7 +177,8 @@ export async function resolveAuthenticatedOrganizationId(request) {
     }
     const staffHeader = request.headers["x-dente-staff-token"];
     const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
-    if (process.env.NODE_ENV !== "production" && staffToken === "fake-staff-token") {
+    if (process.env.NODE_ENV !== "production" &&
+        staffToken === "fake-staff-token") {
         return resolveDevelopmentDefaultOrganizationId();
     }
     if (staffToken) {
@@ -161,7 +195,7 @@ export async function requireResolvedOrganizationId(request, reply, protectedAre
     reply.code(401).send({
         error: "AuthRequired",
         message: "Нужна действующая сессия клиники или сотрудника; при доступе по секрету администратора передайте x-dente-organization-id.",
-        protectedArea
+        protectedArea,
     });
     return null;
 }
@@ -182,7 +216,7 @@ export async function requireResolvedStaffOrAdminOrganizationId(request, reply, 
     reply.code(403).send({
         error: "StaffAuthRequired",
         message: "Для изменения защищенных данных нужна действующая сессия сотрудника; при доступе по секрету администратора передайте x-dente-organization-id.",
-        protectedArea
+        protectedArea,
     });
     return null;
 }
@@ -194,19 +228,23 @@ export async function requireClinicalMutationAccess(request, reply, protectedAre
         reply.code(503).send({
             error: "ClinicalAdminSecretMissing",
             message: "На сервере не задан секрет администратора клиники для изменения защищенных данных.",
-            protectedArea
+            protectedArea,
         });
         return false;
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
         return true;
     }
     reply.code(403).send({
         error: "ClinicalAdminSecretRequired",
         message: "Нужен действующий секрет администратора клиники для изменения защищенных данных.",
-        protectedArea
+        protectedArea,
     });
     return false;
 }
@@ -218,19 +256,38 @@ export async function requireClinicalReadAccess(request, reply, protectedArea = 
         reply.code(503).send({
             error: "ClinicalReadSecretMissing",
             message: "На сервере не задан секрет администратора клиники для просмотра защищенных данных.",
-            protectedArea
+            protectedArea,
         });
         return false;
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
         return true;
     }
     reply.code(403).send({
         error: "ClinicalReadSecretRequired",
         message: "Нужен действующий секрет администратора клиники для просмотра защищенных данных.",
-        protectedArea
+        protectedArea,
     });
     return false;
+}
+export async function requireNonDoctorAccess(request, reply) {
+    const staffHeader = request.headers["x-dente-staff-token"];
+    const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
+    if (staffToken) {
+        const payload = await verifyRequestToken(staffToken);
+        if (payload?.role === "doctor") {
+            reply.code(403).send({
+                error: "Forbidden",
+                message: "Доступ к разделу мессенджеров запрещен для роли 'Врач'.",
+            });
+            return false;
+        }
+    }
+    return true;
 }

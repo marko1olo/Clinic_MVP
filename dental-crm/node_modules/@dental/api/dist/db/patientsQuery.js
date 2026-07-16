@@ -1,8 +1,11 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
 export async function getPatientByIdFromDb(organizationId, id) {
-    const [p] = await db.select().from(schema.patients).where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, id)));
+    const [p] = await db
+        .select()
+        .from(schema.patients)
+        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, id)));
     if (!p)
         return null;
     return {
@@ -17,12 +20,15 @@ export async function getPatientByIdFromDb(organizationId, id) {
         administrativeProfile: p.administrativeProfile,
         balanceRub: 0,
         createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString()
+        updatedAt: p.updatedAt.toISOString(),
     };
 }
 export async function getPatientsFromDb(organizationId) {
-    const pts = await db.select().from(schema.patients).where(eq(schema.patients.organizationId, organizationId));
-    return pts.map(p => ({
+    const pts = await db
+        .select()
+        .from(schema.patients)
+        .where(eq(schema.patients.organizationId, organizationId));
+    return pts.map((p) => ({
         id: p.id,
         organizationId: p.organizationId,
         status: p.status,
@@ -34,18 +40,21 @@ export async function getPatientsFromDb(organizationId) {
         administrativeProfile: p.administrativeProfile,
         balanceRub: 0,
         createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString()
+        updatedAt: p.updatedAt.toISOString(),
     }));
 }
 export async function createPatientInDb(organizationId, input) {
-    const result = await db.insert(schema.patients).values({
+    const result = (await db
+        .insert(schema.patients)
+        .values({
         organizationId,
         fullName: input.fullName,
         birthDate: input.birthDate,
         phone: input.phone,
         email: input.email,
-        notes: input.notes
-    }).returning();
+        notes: input.notes,
+    })
+        .returning());
     const created = result[0];
     if (!created)
         throw new Error("Failed to create patient in DB");
@@ -61,11 +70,12 @@ export async function createPatientInDb(organizationId, input) {
         administrativeProfile: created.administrativeProfile,
         balanceRub: 0,
         createdAt: created.createdAt.toISOString(),
-        updatedAt: created.updatedAt.toISOString()
+        updatedAt: created.updatedAt.toISOString(),
     };
 }
 export async function updatePatientInDb(organizationId, patientId, input) {
-    const [updated] = await db.update(schema.patients)
+    const [updated] = await db
+        .update(schema.patients)
         .set({
         fullName: input.fullName,
         birthDate: input.birthDate,
@@ -73,7 +83,7 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         email: input.email,
         notes: input.notes,
         status: input.status,
-        updatedAt: new Date()
+        updatedAt: new Date(),
     })
         .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
         .returning();
@@ -91,14 +101,15 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         administrativeProfile: updated.administrativeProfile,
         balanceRub: 0,
         createdAt: updated.createdAt.toISOString(),
-        updatedAt: updated.updatedAt.toISOString()
+        updatedAt: updated.updatedAt.toISOString(),
     };
 }
 export async function updatePatientAdministrativeProfileInDb(organizationId, patientId, input) {
-    const [updated] = await db.update(schema.patients)
+    const [updated] = await db
+        .update(schema.patients)
         .set({
         administrativeProfile: input,
-        updatedAt: new Date()
+        updatedAt: new Date(),
     })
         .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
         .returning();
@@ -116,6 +127,6 @@ export async function updatePatientAdministrativeProfileInDb(organizationId, pat
         administrativeProfile: updated.administrativeProfile,
         balanceRub: 0,
         createdAt: updated.createdAt.toISOString(),
-        updatedAt: updated.updatedAt.toISOString()
+        updatedAt: updated.updatedAt.toISOString(),
     };
 }

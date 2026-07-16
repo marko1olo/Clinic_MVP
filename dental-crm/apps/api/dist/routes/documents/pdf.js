@@ -1,8 +1,7 @@
-import { readIssuedDocumentSnapshot } from "../../db/documentQuery.js";
-import { requireResolvedOrganizationId } from "../../accessGuard.js";
-import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentRequiresIssuedArchive, issuedArchiveIntegrityError, renderIssuedHtmlToPdf, documentRenderContext } from "../documents.js";
-import { getDocumentById } from "../../db/documentQuery.js";
-import { renderDocumentHtml } from "../../documents/renderDocument.js";
+import { requireResolvedOrganizationId, } from "../../accessGuard.js";
+import { getDocumentById, readIssuedDocumentSnapshot, } from "../../db/documentQuery.js";
+import { renderDocumentHtml, } from "../../documents/renderDocument.js";
+import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentRenderContext, documentRequiresIssuedArchive, issuedArchiveIntegrityError, renderIssuedHtmlToPdf, } from "../documents.js";
 export async function register(app) {
     // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     // GET /api/documents/:id/pdf  2 issued documents (signed archive)
@@ -17,17 +16,23 @@ export async function register(app) {
             return reply.code(404).send(apiError("Документ не найден"));
         }
         if (!documentRequiresIssuedArchive(document)) {
-            return reply.code(409).send(apiError("PDF недоступен: документ не требует архива выданного HTML."));
+            return reply
+                .code(409)
+                .send(apiError("PDF недоступен: документ не требует архива выданного HTML."));
         }
         if (!document.signatureAttestation) {
-            return reply.code(409).send(apiError("PDF недоступен: требуется отметка о подписании при выдаче документа."));
+            return reply
+                .code(409)
+                .send(apiError("PDF недоступен: требуется отметка о подписании при выдаче документа."));
         }
         if (!documentHasIssuedArchiveMetadata(document)) {
             return reply.code(409).send(apiError(issuedArchiveIntegrityError));
         }
         const issuedSnapshot = readIssuedDocumentSnapshot(document);
         if (!issuedSnapshot) {
-            return reply.code(409).send(apiError("Архив выданного документа не прошёл проверку целостности."));
+            return reply
+                .code(409)
+                .send(apiError("Архив выданного документа не прошёл проверку целостности."));
         }
         const result = await renderIssuedHtmlToPdf(issuedSnapshot);
         if (!result.ok) {
@@ -54,9 +59,11 @@ export async function register(app) {
             return reply.code(404).send(apiError("Документ не найден"));
         }
         if (document.kind !== "treatment_plan") {
-            return reply.code(409).send(apiError("Этот маршрут предназначен только для документов типа treatment_plan."));
+            return reply
+                .code(409)
+                .send(apiError("Этот маршрут предназначен только для документов типа treatment_plan."));
         }
-        const patient = await import("../../db/patientsQuery.js").then(m => m.getPatientByIdFromDb(orgId, document.patientId));
+        const patient = await import("../../db/patientsQuery.js").then((m) => m.getPatientByIdFromDb(orgId, document.patientId));
         if (!patient) {
             return reply.code(404).send(apiError("Пациент не найден"));
         }

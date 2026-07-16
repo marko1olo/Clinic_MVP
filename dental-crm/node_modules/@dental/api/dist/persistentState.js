@@ -6,10 +6,12 @@ function persistenceEnabled() {
     return process.env.DENTAL_STATE_PERSISTENCE !== "off";
 }
 function getStateFilePath() {
-    return process.env.DENTAL_STATE_FILE ?? path.resolve(process.cwd(), ".data", "dental-crm-state.json");
+    return (process.env.DENTAL_STATE_FILE ??
+        path.resolve(process.cwd(), ".data", "dental-crm-state.json"));
 }
 function getBackupDirectoryPath() {
-    return process.env.DENTAL_STATE_BACKUP_DIR ?? path.join(path.dirname(getStateFilePath()), "backups");
+    return (process.env.DENTAL_STATE_BACKUP_DIR ??
+        path.join(path.dirname(getStateFilePath()), "backups"));
 }
 function getMaxBackupCount() {
     return Number(process.env.DENTAL_STATE_BACKUPS ?? 30);
@@ -24,7 +26,8 @@ function listBackupFiles() {
     const backupDirectoryPath = getBackupDirectoryPath();
     if (!fs.existsSync(backupDirectoryPath))
         return [];
-    return fs.readdirSync(backupDirectoryPath, { withFileTypes: true })
+    return fs
+        .readdirSync(backupDirectoryPath, { withFileTypes: true })
         .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
         .map((entry) => {
         const filePath = path.join(backupDirectoryPath, entry.name);
@@ -32,7 +35,7 @@ function listBackupFiles() {
         return {
             filePath,
             savedAt: stats.mtime.toISOString(),
-            sizeBytes: stats.size
+            sizeBytes: stats.size,
         };
     })
         .sort((left, right) => right.savedAt.localeCompare(left.savedAt));
@@ -44,7 +47,9 @@ async function rawFileHash(filePath) {
     if (!fs.existsSync(filePath))
         return null;
     try {
-        return createHash("sha256").update(await fs.promises.readFile(filePath)).digest("hex");
+        return createHash("sha256")
+            .update(await fs.promises.readFile(filePath))
+            .digest("hex");
     }
     catch {
         return null;
@@ -75,7 +80,7 @@ function stateCollectionCounts(state) {
         denteTelegramLinkCodes: state.denteTelegramLinkCodes?.length ?? 0,
         denteTelegramChatLinks: state.denteTelegramChatLinks?.length ?? 0,
         denteTelegramWebhookEvents: state.denteTelegramWebhookEvents?.length ?? 0,
-        denteTelegramOutboxDeliveryReceipts: state.denteTelegramOutboxDeliveryReceipts?.length ?? 0
+        denteTelegramOutboxDeliveryReceipts: state.denteTelegramOutboxDeliveryReceipts?.length ?? 0,
     };
 }
 function checksumVerified(payload) {
@@ -85,7 +90,7 @@ function checksumVerified(payload) {
         checksumPersistentState({
             version: stateVersion,
             savedAt: payload.savedAt ?? "",
-            state: payload.state
+            state: payload.state,
         }));
 }
 function persistenceWarningText(warning) {
@@ -106,7 +111,10 @@ function readPersistedPayload(filePath) {
     if (!fs.existsSync(filePath))
         return { payload: null, error: "state_file_missing" };
     try {
-        return { payload: JSON.parse(fs.readFileSync(filePath, "utf8")), error: null };
+        return {
+            payload: JSON.parse(fs.readFileSync(filePath, "utf8")),
+            error: null,
+        };
     }
     catch {
         return { payload: null, error: "state_file_unreadable" };
@@ -121,7 +129,9 @@ function rotateStateBackup() {
     const backupPath = path.join(backupDirectoryPath, `dental-crm-state-${timestampForFileName()}.json`);
     fs.copyFileSync(stateFilePath, backupPath);
     const maxBackupCount = getMaxBackupCount();
-    const backupLimit = Number.isFinite(maxBackupCount) && maxBackupCount > 0 ? Math.floor(maxBackupCount) : 30;
+    const backupLimit = Number.isFinite(maxBackupCount) && maxBackupCount > 0
+        ? Math.floor(maxBackupCount)
+        : 30;
     const staleBackups = listBackupFiles().slice(backupLimit);
     for (const backup of staleBackups) {
         fs.unlinkSync(backup.filePath);
@@ -139,7 +149,7 @@ function readPersistedState() {
             const expectedChecksum = checksumPersistentState({
                 version: parsed.version,
                 savedAt: parsed.savedAt ?? "",
-                state: parsed.state
+                state: parsed.state,
             });
             if (parsed.checksum !== expectedChecksum) {
                 console.warn("Dental state file ignored: checksum mismatch");
@@ -163,11 +173,11 @@ export function savePersistentState(state) {
     const payloadCore = {
         version: stateVersion,
         savedAt: new Date().toISOString(),
-        state
+        state,
     };
     const payload = {
         ...payloadCore,
-        checksum: checksumPersistentState(payloadCore)
+        checksum: checksumPersistentState(payloadCore),
     };
     try {
         fs.mkdirSync(path.dirname(stateFilePath), { recursive: true });
@@ -197,7 +207,9 @@ export function getPersistentStateMeta() {
         backupCount: backups.length,
         latestBackupAt: backups[0]?.savedAt ?? null,
         latestBackupSizeBytes: backups[0]?.sizeBytes ?? null,
-        maxBackupCount: Number.isFinite(maxBackupCount) && maxBackupCount > 0 ? Math.floor(maxBackupCount) : 30
+        maxBackupCount: Number.isFinite(maxBackupCount) && maxBackupCount > 0
+            ? Math.floor(maxBackupCount)
+            : 30,
     };
 }
 export async function getPersistentStateIntegrityReport(limit = 8) {
@@ -215,7 +227,9 @@ export async function getPersistentStateIntegrityReport(limit = 8) {
             fileHash: await rawFileHash(backup.filePath),
             checksumVerified: checksumVerified(backupPayload.payload),
             readable: !backupPayload.error,
-            warning: backupPayload.error ? persistenceWarningText(backupPayload.error) : null
+            warning: backupPayload.error
+                ? persistenceWarningText(backupPayload.error)
+                : null,
         };
     }));
     const warningCodes = [
@@ -223,11 +237,16 @@ export async function getPersistentStateIntegrityReport(limit = 8) {
         !meta.exists ? "state_file_missing" : null,
         error,
         checksumOk === false ? "state_checksum_mismatch" : null,
-        backups.some((backup) => backup.readable === false || backup.checksumVerified === false) ? "backup_integrity_warning" : null
+        backups.some((backup) => backup.readable === false || backup.checksumVerified === false)
+            ? "backup_integrity_warning"
+            : null,
     ];
-    const warnings = compactPersistenceWarnings(warningCodes.map((warning) => (warning ? persistenceWarningText(warning) : null)));
+    const warnings = compactPersistenceWarnings(warningCodes.map((warning) => warning ? persistenceWarningText(warning) : null));
     return {
-        ok: meta.enabled && meta.exists && checksumOk !== false && warnings.length === 0,
+        ok: meta.enabled &&
+            meta.exists &&
+            checksumOk !== false &&
+            warnings.length === 0,
         checkedAt: new Date().toISOString(),
         meta,
         stateFileHash: await rawFileHash(stateFilePath),
@@ -237,7 +256,7 @@ export async function getPersistentStateIntegrityReport(limit = 8) {
         warnings,
         nextAction: warnings.length === 0
             ? "Файл состояния и последние резервные копии читаются. Перед миграцией скачайте контрольный экспорт."
-            : "Проверьте предупреждения перед импортом, миграцией или обновлением. Не удаляйте резервные копии, пока нет читаемого экспорта."
+            : "Проверьте предупреждения перед импортом, миграцией или обновлением. Не удаляйте резервные копии, пока нет читаемого экспорта.",
     };
 }
 export async function buildPersistentStateExport() {
@@ -249,6 +268,6 @@ export async function buildPersistentStateExport() {
         exportVersion: 1,
         integrity: await getPersistentStateIntegrityReport(12),
         error: error ? persistenceWarningText(error) : null,
-        payload
+        payload,
     };
 }

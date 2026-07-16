@@ -13,15 +13,24 @@ function classifyTelegramError(status) {
 }
 function retryAfterSecondsFromPayload(payload) {
     const retryAfter = payload && typeof payload === "object" && "parameters" in payload
-        ? payload.parameters?.retry_after
+        ? payload.parameters
+            ?.retry_after
         : null;
-    return typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : null;
+    return typeof retryAfter === "number" &&
+        Number.isFinite(retryAfter) &&
+        retryAfter >= 0
+        ? retryAfter
+        : null;
 }
 function telegramMessageIdFromPayload(payload) {
     const messageId = payload && typeof payload === "object" && "result" in payload
         ? payload.result?.message_id
         : null;
-    return typeof messageId === "number" && Number.isInteger(messageId) && messageId >= 0 ? messageId : null;
+    return typeof messageId === "number" &&
+        Number.isInteger(messageId) &&
+        messageId >= 0
+        ? messageId
+        : null;
 }
 export async function sendTelegramTextMessage(input) {
     const timeoutMs = Math.max(1000, Math.min(60_000, input.timeoutMs ?? 12_000));
@@ -31,7 +40,7 @@ export async function sendTelegramTextMessage(input) {
         chat_id: input.chatId,
         text: input.text,
         link_preview_options: { is_disabled: true },
-        protect_content: true
+        protect_content: true,
     };
     if (input.replyMarkup)
         body.reply_markup = input.replyMarkup;
@@ -40,7 +49,7 @@ export async function sendTelegramTextMessage(input) {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(body),
-            signal: controller.signal
+            signal: controller.signal,
         });
         const payload = (await response.json().catch(() => ({})));
         if (!response.ok) {
@@ -49,7 +58,7 @@ export async function sendTelegramTextMessage(input) {
                 telegramMessageId: null,
                 retryAfterSeconds: retryAfterSecondsFromPayload(payload),
                 errorCode: response.status,
-                errorClass: classifyTelegramError(response.status)
+                errorClass: classifyTelegramError(response.status),
             };
         }
         return {
@@ -57,7 +66,7 @@ export async function sendTelegramTextMessage(input) {
             telegramMessageId: telegramMessageIdFromPayload(payload),
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: null
+            errorClass: null,
         };
     }
     catch (error) {
@@ -66,7 +75,9 @@ export async function sendTelegramTextMessage(input) {
             telegramMessageId: null,
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: error instanceof DOMException && error.name === "AbortError" ? "timeout" : "network"
+            errorClass: error instanceof DOMException && error.name === "AbortError"
+                ? "timeout"
+                : "network",
         };
     }
     finally {
@@ -81,7 +92,7 @@ export async function sendTelegramPhotoMessage(input) {
         chat_id: input.chatId,
         photo: input.photoUrl,
         caption: input.caption,
-        protect_content: true
+        protect_content: true,
     };
     if (input.replyMarkup)
         body.reply_markup = input.replyMarkup;
@@ -90,7 +101,7 @@ export async function sendTelegramPhotoMessage(input) {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(body),
-            signal: controller.signal
+            signal: controller.signal,
         });
         const payload = (await response.json().catch(() => ({})));
         if (!response.ok) {
@@ -99,7 +110,7 @@ export async function sendTelegramPhotoMessage(input) {
                 telegramMessageId: null,
                 retryAfterSeconds: retryAfterSecondsFromPayload(payload),
                 errorCode: response.status,
-                errorClass: classifyTelegramError(response.status)
+                errorClass: classifyTelegramError(response.status),
             };
         }
         return {
@@ -107,7 +118,7 @@ export async function sendTelegramPhotoMessage(input) {
             telegramMessageId: telegramMessageIdFromPayload(payload),
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: null
+            errorClass: null,
         };
     }
     catch (error) {
@@ -116,7 +127,9 @@ export async function sendTelegramPhotoMessage(input) {
             telegramMessageId: null,
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: error instanceof DOMException && error.name === "AbortError" ? "timeout" : "network"
+            errorClass: error instanceof DOMException && error.name === "AbortError"
+                ? "timeout"
+                : "network",
         };
     }
     finally {
@@ -128,7 +141,7 @@ export async function answerTelegramCallbackQuery(input) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const body = {
-        callback_query_id: input.callbackQueryId
+        callback_query_id: input.callbackQueryId,
     };
     if (input.text?.trim())
         body.text = input.text.trim().slice(0, 200);
@@ -137,7 +150,7 @@ export async function answerTelegramCallbackQuery(input) {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(body),
-            signal: controller.signal
+            signal: controller.signal,
         });
         const payload = (await response.json().catch(() => ({})));
         if (!response.ok) {
@@ -146,7 +159,7 @@ export async function answerTelegramCallbackQuery(input) {
                 telegramMessageId: null,
                 retryAfterSeconds: retryAfterSecondsFromPayload(payload),
                 errorCode: response.status,
-                errorClass: classifyTelegramError(response.status)
+                errorClass: classifyTelegramError(response.status),
             };
         }
         return {
@@ -154,7 +167,7 @@ export async function answerTelegramCallbackQuery(input) {
             telegramMessageId: null,
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: null
+            errorClass: null,
         };
     }
     catch (error) {
@@ -163,7 +176,9 @@ export async function answerTelegramCallbackQuery(input) {
             telegramMessageId: null,
             retryAfterSeconds: null,
             errorCode: null,
-            errorClass: error instanceof DOMException && error.name === "AbortError" ? "timeout" : "network"
+            errorClass: error instanceof DOMException && error.name === "AbortError"
+                ? "timeout"
+                : "network",
         };
     }
     finally {

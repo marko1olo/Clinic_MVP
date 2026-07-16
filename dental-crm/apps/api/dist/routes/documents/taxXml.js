@@ -1,10 +1,10 @@
 import { requireResolvedOrganizationId } from "../../accessGuard.js";
-import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot } from "../../documents/taxPaymentSnapshot.js";
-import { buildKnd1151156Xml } from "../../documents/taxXml.js";
-import { apiError, configuredTaxOfficeCode, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, frozenTaxXmlClinicProfile, frozenTaxXmlPatient, frozenTaxXmlPayments, taxSnapshotDocument, taxXmlSourceSnapshotSha256, documentRenderContext } from "../documents.js";
-import { getDocumentById, storeTaxXmlSnapshotInDb } from "../../db/documentQuery.js";
+import { getDocumentById, storeTaxXmlSnapshotInDb, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
 import { taxFiscalDocumentBlockReason } from "../../documents/renderDocument.js";
+import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot, } from "../../documents/taxPaymentSnapshot.js";
+import { buildKnd1151156Xml } from "../../documents/taxXml.js";
+import { apiError, configuredTaxOfficeCode, documentIssueBlockReason, documentIssueChainBlockReason, documentRenderContext, findIssuedDuplicateTaxCertificate, frozenTaxXmlClinicProfile, frozenTaxXmlPatient, frozenTaxXmlPayments, taxSnapshotDocument, taxXmlSourceSnapshotSha256, } from "../documents.js";
 export async function register(app) {
     app.get("/api/documents/:id/tax-xml", handleGetTaxXml);
 }
@@ -18,13 +18,19 @@ async function handleGetTaxXml(request, reply) {
         return reply.code(404).send(apiError("Документ не найден"));
     }
     if (document.status === "voided") {
-        return reply.code(409).send(apiError("Аннулированный документ нельзя выгрузить в XML ФНС."));
+        return reply
+            .code(409)
+            .send(apiError("Аннулированный документ нельзя выгрузить в XML ФНС."));
     }
     if (document.status !== "issued") {
-        return reply.code(409).send(apiError("XML ФНС можно выгрузить только после выдачи налоговой справки. Сначала выпустите справку и заморозьте состав оплат."));
+        return reply
+            .code(409)
+            .send(apiError("XML ФНС можно выгрузить только после выдачи налоговой справки. Сначала выпустите справку и заморозьте состав оплат."));
     }
     if (!document.signatureAttestation) {
-        return reply.code(409).send(apiError("XML ФНС нельзя выгрузить без отметки подписания и получения выданного документа."));
+        return reply
+            .code(409)
+            .send(apiError("XML ФНС нельзя выгрузить без отметки подписания и получения выданного документа."));
     }
     if (document.taxXmlSnapshot) {
         return reply
@@ -37,7 +43,9 @@ async function handleGetTaxXml(request, reply) {
         return reply.code(404).send(apiError("Пациент не найден"));
     }
     const taxPaymentSnapshot = document.taxPaymentSnapshot ??
-        (taxDocumentUsesPaymentSnapshot(document.kind) ? buildTaxPaymentSnapshotForIssue(document, await import("../../db/billingQuery.js").then(m => m.getPaymentsByPatientIdInDb(orgId, document.patientId)), await import("../../db/documentQuery.js").then(m => m.getDocumentsByPatientId(orgId, document.patientId))) : null);
+        (taxDocumentUsesPaymentSnapshot(document.kind)
+            ? buildTaxPaymentSnapshotForIssue(document, await import("../../db/billingQuery.js").then((m) => m.getPaymentsByPatientIdInDb(orgId, document.patientId)), await import("../../db/documentQuery.js").then((m) => m.getDocumentsByPatientId(orgId, document.patientId)))
+            : null);
     if (taxDocumentUsesPaymentSnapshot(document.kind) && !taxPaymentSnapshot) {
         const duplicateTaxCertificate = await findIssuedDuplicateTaxCertificate(document, []);
         if (duplicateTaxCertificate) {
@@ -58,9 +66,13 @@ async function handleGetTaxXml(request, reply) {
     }
     const renderContext = documentRenderContext();
     const xmlPatient = frozenTaxXmlPatient(xmlDocument, patient);
-    const xmlClinicProfile = frozenTaxXmlClinicProfile(xmlDocument, await import("../../db/settingsQuery.js").then(m => m.getClinicSettingsFromDb(orgId).then(s => s.profile)));
-    const xmlPayments = frozenTaxXmlPayments(xmlDocument, await import("../../db/billingQuery.js").then(m => m.getPaymentsByPatientIdInDb(orgId, xmlDocument.patientId)));
-    const xmlRenderContext = { ...renderContext, clinicProfile: xmlClinicProfile, payments: xmlPayments };
+    const xmlClinicProfile = frozenTaxXmlClinicProfile(xmlDocument, await import("../../db/settingsQuery.js").then((m) => m.getClinicSettingsFromDb(orgId).then((s) => s.profile)));
+    const xmlPayments = frozenTaxXmlPayments(xmlDocument, await import("../../db/billingQuery.js").then((m) => m.getPaymentsByPatientIdInDb(orgId, xmlDocument.patientId)));
+    const xmlRenderContext = {
+        ...renderContext,
+        clinicProfile: xmlClinicProfile,
+        payments: xmlPayments,
+    };
     const blockReason = documentIssueBlockReason(xmlDocument, xmlPatient, xmlRenderContext);
     if (blockReason) {
         return reply.code(409).send(apiError(blockReason));
@@ -83,7 +95,7 @@ async function handleGetTaxXml(request, reply) {
     const result = buildKnd1151156Xml(xmlDocument, xmlPatient, {
         clinicProfile: xmlClinicProfile,
         payments: xmlPayments,
-        taxOfficeCode
+        taxOfficeCode,
     });
     if (!result.ok) {
         return reply.code(result.statusCode).send(apiError(result.error));
@@ -92,11 +104,13 @@ async function handleGetTaxXml(request, reply) {
         fileName: result.fileName,
         xml: result.xml,
         taxOfficeCode: (taxOfficeCode ?? "").replace(/\D+/g, ""),
-        sourceSnapshotSha256: xmlSourceSnapshotSha256
+        sourceSnapshotSha256: xmlSourceSnapshotSha256,
     });
     const snapshot = storedDocument?.taxXmlSnapshot;
     if (!snapshot) {
-        return reply.code(409).send(apiError("XML ФНС собран, но не сохранен как архивный снимок."));
+        return reply
+            .code(409)
+            .send(apiError("XML ФНС собран, но не сохранен как архивный снимок."));
     }
     return reply
         .header("Content-Disposition", `attachment; filename="${snapshot.fileName}.xml"`)

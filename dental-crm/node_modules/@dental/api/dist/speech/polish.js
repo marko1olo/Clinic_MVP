@@ -1,11 +1,11 @@
-import { buildRuleBasedVisitDraftFromTranscript, normalizeDentalSpeechTranscript } from "@dental/shared";
-import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, sanitizeProviderErrorMessage, selectProviderKey, SpeechProviderRequestError, shouldTryNextProviderKey } from "./keyPool.js";
+import { buildRuleBasedVisitDraftFromTranscript, normalizeDentalSpeechTranscript, } from "@dental/shared";
+import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, SpeechProviderRequestError, sanitizeProviderErrorMessage, selectProviderKey, shouldTryNextProviderKey, } from "./keyPool.js";
 const polishProviderLabels = {
     none: "Только локальный парсер правил",
     openai: "серверная очистка диктовки",
     groq: "быстрая серверная очистка диктовки",
     gemini: "очистка диктовки через Google Gemini",
-    custom: "очистка диктовки через сервер клиники"
+    custom: "очистка диктовки через сервер клиники",
 };
 function booleanFromEnv(value) {
     return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
@@ -15,8 +15,13 @@ function numberFromEnv(name, fallback) {
     return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 function selectedPolishProvider() {
-    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "").trim().toLowerCase();
-    if (rawProvider === "openai" || rawProvider === "groq" || rawProvider === "gemini" || rawProvider === "custom")
+    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "")
+        .trim()
+        .toLowerCase();
+    if (rawProvider === "openai" ||
+        rawProvider === "groq" ||
+        rawProvider === "gemini" ||
+        rawProvider === "custom")
         return rawProvider;
     if (process.env.DENTAL_SPEECH_POLISH_BASE_URL?.trim())
         return "custom";
@@ -49,13 +54,16 @@ function keyProviderForPolishProvider(provider) {
 }
 function modelForProvider(provider) {
     if (provider === "gemini") {
-        return process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() || process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() || "gemini-2.5-flash";
+        return (process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() ||
+            process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() ||
+            "gemini-2.5-flash");
     }
     if (provider === "groq") {
-        return process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
+        return (process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() ||
+            "llama-3.3-70b-versatile");
     }
     if (provider === "openai") {
-        return process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini";
+        return (process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini");
     }
     const explicitModel = process.env.DENTAL_SPEECH_POLISH_MODEL?.trim();
     if (explicitModel)
@@ -89,7 +97,9 @@ function createSpeechPolishConfig() {
     const keyProviderId = keyProviderForPolishProvider(provider);
     const modelName = modelForProvider(provider);
     const maxTranscriptChars = numberFromEnv("DENTAL_SPEECH_POLISH_MAX_CHARS", 8_000);
-    const keyPool = keyProviderId ? getProviderKeyPoolSummary(keyProviderId) : null;
+    const keyPool = keyProviderId
+        ? getProviderKeyPoolSummary(keyProviderId)
+        : null;
     const hasKey = Boolean(explicitApiKey || (keyPool && keyPool.availableKeyCount > 0));
     const warnings = [];
     if (!requested) {
@@ -111,7 +121,9 @@ function createSpeechPolishConfig() {
     }
     return {
         deterministicEnabled: true,
-        neuralEnabled: requested && provider !== "none" && Boolean(baseUrl && modelName && hasKey),
+        neuralEnabled: requested &&
+            provider !== "none" &&
+            Boolean(baseUrl && modelName && hasKey),
         provider,
         providerLabel: polishProviderLabels[provider],
         baseUrl,
@@ -119,7 +131,7 @@ function createSpeechPolishConfig() {
         keyProviderId,
         modelName,
         maxTranscriptChars,
-        warnings
+        warnings,
     };
 }
 export function getSpeechPolishPolicy() {
@@ -130,7 +142,7 @@ export function getSpeechPolishPolicy() {
         providerLabel: config.providerLabel,
         modelName: config.modelName,
         maxTranscriptChars: config.maxTranscriptChars,
-        warnings: config.warnings
+        warnings: config.warnings,
     };
 }
 function contentToString(content) {
@@ -167,12 +179,16 @@ function safeParseJsonObject(text) {
     }
 }
 function uniqueStrings(values) {
-    return Array.from(new Set(values.map((value) => sanitizeProviderErrorMessage(value).trim()).filter(Boolean)));
+    return Array.from(new Set(values
+        .map((value) => sanitizeProviderErrorMessage(value).trim())
+        .filter(Boolean)));
 }
 function normalizeWarnings(value) {
     if (!Array.isArray(value))
         return [];
-    return value.filter((item) => typeof item === "string" && item.trim().length > 0).slice(0, 8);
+    return value
+        .filter((item) => typeof item === "string" && item.trim().length > 0)
+        .slice(0, 8);
 }
 function extractToothCodes(text) {
     return uniqueStrings(text.match(/\b(?:1[1-8]|2[1-8]|3[1-8]|4[1-8]|5[1-5]|6[1-5]|7[1-5]|8[1-5])\b/g) ?? []);
@@ -189,21 +205,44 @@ function safetyCheckNeuralPolish(source, result) {
     const sourceLength = source.trim().length;
     const resultLength = result.trim().length;
     if (!result.trim()) {
-        return { ok: false, warnings: ["Дополнительная очистка диктовки вернула пустой текст."] };
+        return {
+            ok: false,
+            warnings: ["Дополнительная очистка диктовки вернула пустой текст."],
+        };
     }
     if (sourceLength > 80 && resultLength < sourceLength * 0.45) {
-        return { ok: false, warnings: ["Дополнительная очистка диктовки удалила слишком много текста; сохранен локальный вариант."] };
+        return {
+            ok: false,
+            warnings: [
+                "Дополнительная очистка диктовки удалила слишком много текста; сохранен локальный вариант.",
+            ],
+        };
     }
     if (resultLength > Math.max(sourceLength * 1.7, sourceLength + 600)) {
-        return { ok: false, warnings: ["Дополнительная очистка диктовки слишком расширила текст; сохранен локальный вариант."] };
+        return {
+            ok: false,
+            warnings: [
+                "Дополнительная очистка диктовки слишком расширила текст; сохранен локальный вариант.",
+            ],
+        };
     }
     const addedTeeth = addedTokens(extractToothCodes(source), extractToothCodes(result));
     if (addedTeeth.length) {
-        return { ok: false, warnings: [`Дополнительная очистка диктовки добавила номера зубов ${addedTeeth.join(", ")}; сохранен локальный вариант.`] };
+        return {
+            ok: false,
+            warnings: [
+                `Дополнительная очистка диктовки добавила номера зубов ${addedTeeth.join(", ")}; сохранен локальный вариант.`,
+            ],
+        };
     }
     const addedDiagnoses = addedTokens(extractDiagnosisCodes(source), extractDiagnosisCodes(result));
     if (addedDiagnoses.length) {
-        return { ok: false, warnings: [`Дополнительная очистка диктовки добавила коды диагноза ${addedDiagnoses.join(", ")}; сохранен локальный вариант.`] };
+        return {
+            ok: false,
+            warnings: [
+                `Дополнительная очистка диктовки добавила коды диагноза ${addedDiagnoses.join(", ")}; сохранен локальный вариант.`,
+            ],
+        };
     }
     warnings.push("Дополнительная очистка диктовки принята после проверок длины, зубов и диагнозов; проверка врачом все равно обязательна.");
     return { ok: true, warnings };
@@ -231,8 +270,8 @@ async function callOpenAiCompatiblePolish(input) {
                     "- периодонтит, пульпит, кариес, зондирование, орально, вестибулярно, дистально, медиально.",
                     "- КЛКТ, ОПТГ, RVG, ЭОД.",
                     "Convert spoken Russian FDI tooth forms to digits when clear (e.g., 'три шесть' near tooth mentions becomes '36', 'зуб один один' becomes 'зуб 11').",
-                    "Ensure section headers like 'Жалобы:', 'Анамнез:', 'Объективно:', 'Диагноз:', 'Проведено:' or 'Лечение:', 'Рекомендации:' are on new lines if dictated."
-                ].join(" ")
+                    "Ensure section headers like 'Жалобы:', 'Анамнез:', 'Объективно:', 'Диагноз:', 'Проведено:' or 'Лечение:', 'Рекомендации:' are on new lines if dictated.",
+                ].join(" "),
             },
             {
                 role: "user",
@@ -240,20 +279,22 @@ async function callOpenAiCompatiblePolish(input) {
                     `Dental specialty: ${input.specialty}.`,
                     "Return JSON with keys normalizedTranscript and warnings.",
                     "Rewrite only the text below:",
-                    input.transcript
-                ].join("\n\n")
-            }
-        ]
+                    input.transcript,
+                ].join("\n\n"),
+            },
+        ],
     };
     const response = await fetchWithProviderTimeout(`${input.config.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${input.apiKey}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
     }, numberFromEnv("DENTAL_SPEECH_POLISH_TIMEOUT_MS", 30_000));
-    const payload = (await response.json().catch(() => ({})));
+    const payload = (await response
+        .json()
+        .catch(() => ({})));
     if (!response.ok) {
         throw providerHttpError(response.status, response.statusText, payload.error?.message);
     }
@@ -264,7 +305,7 @@ async function callOpenAiCompatiblePolish(input) {
     }
     return {
         normalizedTranscript: parsed.normalizedTranscript.trim(),
-        warnings: normalizeWarnings(parsed.warnings)
+        warnings: normalizeWarnings(parsed.warnings),
     };
 }
 // Список резервных моделей и провайдеров (каскадный фоллбек)
@@ -284,7 +325,10 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input) {
     try {
         if (input.config.neuralEnabled) {
             if (input.config.explicitApiKey) {
-                return await callOpenAiCompatiblePolish({ ...input, apiKey: input.config.explicitApiKey });
+                return await callOpenAiCompatiblePolish({
+                    ...input,
+                    apiKey: input.config.explicitApiKey,
+                });
             }
             const keyProviderId = input.config.keyProviderId;
             if (keyProviderId) {
@@ -298,7 +342,7 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input) {
                     try {
                         const result = await callOpenAiCompatiblePolish({
                             ...input,
-                            apiKey: keyCandidate.value
+                            apiKey: keyCandidate.value,
                         });
                         recordProviderKeySuccess(keyProviderId, keyCandidate);
                         if (attempt > 0) {
@@ -322,7 +366,8 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input) {
     // Попытка 2: Идем по каскаду моделей
     for (const fallback of DENTAL_AI_CASCADING_MODELS) {
         // Пропускаем, если эта же модель только что упала в Попытке 1
-        if (fallback.provider === input.config.provider && fallback.model === input.config.modelName) {
+        if (fallback.provider === input.config.provider &&
+            fallback.model === input.config.modelName) {
             continue;
         }
         try {
@@ -346,13 +391,13 @@ async function callOpenAiCompatiblePolishWithKeyRotation(input) {
                 keyProviderId: fallbackKeyProviderId,
                 modelName: fallback.model,
                 maxTranscriptChars: input.config.maxTranscriptChars,
-                warnings: []
+                warnings: [],
             };
             const result = await callOpenAiCompatiblePolish({
                 config: fallbackConfig,
                 transcript: input.transcript,
                 specialty: input.specialty,
-                apiKey: keyCandidate.value
+                apiKey: keyCandidate.value,
             });
             recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
             result.warnings.push(`Текст очищен через резервную модель ${fallback.model} (${fallback.provider}).`);
@@ -383,7 +428,7 @@ export async function polishSpeechTranscript(input) {
                 const neural = await callOpenAiCompatiblePolishWithKeyRotation({
                     config,
                     transcript: normalizedTranscript,
-                    specialty: input.specialty
+                    specialty: input.specialty,
                 });
                 const safety = safetyCheckNeuralPolish(normalizedTranscript, neural.normalizedTranscript);
                 neuralWarnings.push(...neural.warnings, ...safety.warnings);
@@ -401,16 +446,25 @@ export async function polishSpeechTranscript(input) {
     }
     const finalNormalization = normalizeDentalSpeechTranscript(normalizedTranscript, input.specialty);
     const draft = buildRuleBasedVisitDraftFromTranscript(finalNormalization.normalizedText, input.specialty, {
-        sourceLabel: polishMode === "deterministic_neural" ? "Полировка речи: нейросеть + локальные правила" : "Полировка речи: локальные правила"
+        sourceLabel: polishMode === "deterministic_neural"
+            ? "Полировка речи: нейросеть + локальные правила"
+            : "Полировка речи: локальные правила",
     });
     return {
         rawTranscript: deterministic.rawText,
         normalizedTranscript: finalNormalization.normalizedText,
-        changedPhrases: uniqueStrings([...deterministic.changedPhrases, ...finalNormalization.changedPhrases]),
-        warnings: uniqueStrings([...deterministic.warnings, ...finalNormalization.warnings, ...neuralWarnings]),
+        changedPhrases: uniqueStrings([
+            ...deterministic.changedPhrases,
+            ...finalNormalization.changedPhrases,
+        ]),
+        warnings: uniqueStrings([
+            ...deterministic.warnings,
+            ...finalNormalization.warnings,
+            ...neuralWarnings,
+        ]),
         polishMode,
         modelName,
         neuralWarnings: uniqueStrings(neuralWarnings),
-        draft
+        draft,
     };
 }

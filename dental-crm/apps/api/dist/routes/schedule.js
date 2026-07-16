@@ -1,6 +1,6 @@
-import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
-import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema } from "@dental/shared";
+import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema, } from "@dental/shared";
 import { repairMojibakeText } from "../text/repairMojibake.js";
+import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 const denteAdminSecretHeader = "x-dente-admin-secret";
 const appointmentCreateValidationMessage = "Запись не создана: выберите пациента, врача, кресло, дату и время приема.";
 const appointmentUpdateValidationMessage = "Запись не обновлена: проверьте статус, время, врача, кресло и пациента.";
@@ -38,9 +38,11 @@ function classifyAppointmentRejection(error) {
         return "reference_missing";
     if (message.includes("Время окончания записи должно быть позже времени начала"))
         return "time_invalid";
-    if (message.includes("Нельзя закрыть") || message.includes("Нельзя менять пациента"))
+    if (message.includes("Нельзя закрыть") ||
+        message.includes("Нельзя менять пациента"))
         return "active_visit_locked";
-    if (message.includes("нужно выбрать") || message.includes("нужен активный пациент"))
+    if (message.includes("нужно выбрать") ||
+        message.includes("нужен активный пациент"))
         return "resource_missing";
     if (message.includes("уже есть запись") || message.includes("уже занято"))
         return "resource_overlap";
@@ -52,22 +54,34 @@ function appointmentRejectionMessage(reason, operation) {
     if (reason === "appointment_not_found")
         return appointmentNotFoundMessage;
     if (reason === "reference_missing") {
-        return operation === "create" ? appointmentReferenceMissingCreateMessage : appointmentReferenceMissingUpdateMessage;
+        return operation === "create"
+            ? appointmentReferenceMissingCreateMessage
+            : appointmentReferenceMissingUpdateMessage;
     }
     if (reason === "time_invalid")
-        return operation === "create" ? appointmentTimeInvalidCreateMessage : appointmentTimeInvalidUpdateMessage;
+        return operation === "create"
+            ? appointmentTimeInvalidCreateMessage
+            : appointmentTimeInvalidUpdateMessage;
     if (reason === "active_visit_locked")
         return appointmentActiveVisitLockedMessage;
     if (reason === "resource_missing") {
-        return operation === "create" ? appointmentResourceMissingCreateMessage : appointmentResourceMissingUpdateMessage;
+        return operation === "create"
+            ? appointmentResourceMissingCreateMessage
+            : appointmentResourceMissingUpdateMessage;
     }
     if (reason === "resource_overlap") {
-        return operation === "create" ? appointmentResourceOverlapCreateMessage : appointmentResourceOverlapUpdateMessage;
+        return operation === "create"
+            ? appointmentResourceOverlapCreateMessage
+            : appointmentResourceOverlapUpdateMessage;
     }
     if (reason === "outside_operational_hours") {
-        return operation === "create" ? appointmentOutsideHoursCreateMessage : appointmentOutsideHoursUpdateMessage;
+        return operation === "create"
+            ? appointmentOutsideHoursCreateMessage
+            : appointmentOutsideHoursUpdateMessage;
     }
-    return operation === "create" ? appointmentCreateFallbackMessage : appointmentUpdateFallbackMessage;
+    return operation === "create"
+        ? appointmentCreateFallbackMessage
+        : appointmentUpdateFallbackMessage;
 }
 function appointmentRejectionResponse(operation, error) {
     const reason = classifyAppointmentRejection(error);
@@ -76,28 +90,31 @@ function appointmentRejectionResponse(operation, error) {
             statusCode: 404,
             code: "AppointmentNotFound",
             reason,
-            message: appointmentNotFoundMessage
+            message: appointmentNotFoundMessage,
         };
     }
     return {
         statusCode: 409,
-        code: operation === "create" ? "AppointmentCreateRejected" : "AppointmentUpdateRejected",
+        code: operation === "create"
+            ? "AppointmentCreateRejected"
+            : "AppointmentUpdateRejected",
         reason,
-        message: appointmentRejectionMessage(reason, operation)
+        message: appointmentRejectionMessage(reason, operation),
     };
 }
 function sendAppointmentRejection(reply, rejection) {
     return reply.code(rejection.statusCode).send({
         code: rejection.code,
         reason: rejection.reason,
-        message: rejection.message
+        message: rejection.message,
     });
 }
 function configuredScheduleAdminSecret() {
     return process.env.DENTE_SCHEDULE_ADMIN_SECRET?.trim() || null;
 }
 function scheduleUnguardedMutationsAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_SCHEDULE_ALLOW_UNGUARDED_MUTATIONS === "1";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTE_SCHEDULE_ALLOW_UNGUARDED_MUTATIONS === "1");
 }
 async function requireScheduleMutationAccess(request, reply) {
     const adminSecret = configuredScheduleAdminSecret();
@@ -106,24 +123,28 @@ async function requireScheduleMutationAccess(request, reply) {
             return true;
         reply.code(503).send({
             error: "ScheduleAdminSecretMissing",
-            message: "На сервере не задан секрет администратора клиники для изменения расписания."
+            message: "На сервере не задан секрет администратора клиники для изменения расписания.",
         });
         return false;
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
         return true;
     }
     reply.code(403).send({
         error: "ScheduleAdminSecretRequired",
-        message: "Для изменения расписания нужен действующий секрет администратора клиники."
+        message: "Для изменения расписания нужен действующий секрет администратора клиники.",
     });
     return false;
 }
-import { resolveExplicitOrganizationId, resolveOrganizationId } from "../accessGuard.js";
+import { resolveExplicitOrganizationId, resolveOrganizationId, } from "../accessGuard.js";
+import { createAppointmentInDb, updateAppointmentInDb, } from "../db/appointmentsQuery.js";
 import { getDashboardFromDb } from "../db/dashboardQuery.js";
-import { createAppointmentInDb, updateAppointmentInDb } from "../db/appointmentsQuery.js";
 import { wsBroker } from "../services/websocketBroker.js";
 export async function registerScheduleRoutes(app) {
     async function createAppointmentHandler(request, reply) {
@@ -135,13 +156,19 @@ export async function registerScheduleRoutes(app) {
             return reply.code(401).send({ error: "AuthExpired" });
         const input = parseSchedulePayload(createAppointmentSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ code: "AppointmentValidationError", message: appointmentCreateValidationMessage });
+            return reply.code(400).send({
+                code: "AppointmentValidationError",
+                message: appointmentCreateValidationMessage,
+            });
         }
         try {
             await createAppointmentInDb(orgId, input);
             const dashboard = await getDashboardFromDb(orgId);
             const payload = dashboardSchema.parse(dashboard);
-            wsBroker.broadcastToOrganization(orgId, { type: "UPDATE_CALENDAR", payload });
+            wsBroker.broadcastToOrganization(orgId, {
+                type: "UPDATE_CALENDAR",
+                payload,
+            });
             return reply.code(201).send(payload);
         }
         catch (error) {
@@ -159,17 +186,26 @@ export async function registerScheduleRoutes(app) {
             return reply.code(401).send({ error: "AuthExpired" });
         const params = request.params;
         if (!params.appointmentId) {
-            return reply.code(400).send({ code: "AppointmentRouteValidationError", message: appointmentMissingRouteMessage });
+            return reply.code(400).send({
+                code: "AppointmentRouteValidationError",
+                message: appointmentMissingRouteMessage,
+            });
         }
         const input = parseSchedulePayload(updateAppointmentSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ code: "AppointmentValidationError", message: appointmentUpdateValidationMessage });
+            return reply.code(400).send({
+                code: "AppointmentValidationError",
+                message: appointmentUpdateValidationMessage,
+            });
         }
         try {
             await updateAppointmentInDb(orgId, params.appointmentId, input);
             const dashboard = await getDashboardFromDb(orgId);
             const payload = dashboardSchema.parse(dashboard);
-            wsBroker.broadcastToOrganization(orgId, { type: "UPDATE_CALENDAR", payload });
+            wsBroker.broadcastToOrganization(orgId, {
+                type: "UPDATE_CALENDAR",
+                payload,
+            });
             return payload;
         }
         catch (error) {

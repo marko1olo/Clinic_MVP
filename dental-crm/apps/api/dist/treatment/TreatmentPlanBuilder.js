@@ -1,5 +1,5 @@
-import { Decimal } from "decimal.js";
 import { randomUUID } from "node:crypto";
+import { Decimal } from "decimal.js";
 export class TreatmentPlanBuilder {
     items = [];
     patient;
@@ -19,7 +19,8 @@ export class TreatmentPlanBuilder {
         }
         // 2. Wisdom tooth specific semantic adjustments (Защита от дурака / Семантика восьмерок)
         if (toothCode && ["18", "28", "38", "48"].includes(toothCode)) {
-            if (service.title.toLowerCase().includes("удаление") && !service.title.toLowerCase().includes("сложное")) {
+            if (service.title.toLowerCase().includes("удаление") &&
+                !service.title.toLowerCase().includes("сложное")) {
                 console.warn(`[CLINICAL WARNING] Удаление зуба мудрости (${toothCode}) обычно требует сложного удаления. Выбран обычный прайс: ${service.title}`);
                 // В реальном приложении здесь можно автоматически подменить serviceId на "сложное удаление", если известно, или выдать ошибку.
             }
@@ -48,7 +49,7 @@ export class TreatmentPlanBuilder {
             status: "proposed",
             plannedDoctorUserId: null,
             plannedChairId: null,
-            notes: null
+            notes: null,
         };
         this.items.push(item);
         return item;
@@ -60,13 +61,16 @@ export class TreatmentPlanBuilder {
         // Защита от дурака: Нельзя лечить (кариес, пульпит и т.д.) удаленный зуб
         if (tooth.status === "missing") {
             // Хирургия (имплантация) на отсутствующем зубе — это нормально
-            if (category === "surgery" && (serviceTitle.toLowerCase().includes("имплант") || serviceTitle.toLowerCase().includes("синус"))) {
+            if (category === "surgery" &&
+                (serviceTitle.toLowerCase().includes("имплант") ||
+                    serviceTitle.toLowerCase().includes("синус"))) {
                 return;
             }
             throw new Error(`ОШИБКА ЛОГИКИ: Зуб ${toothCode} отсутствует. Действие '${serviceTitle}' невозможно.`);
         }
         // Нельзя удалять уже удаленный зуб
-        if (tooth.status === "missing" && serviceTitle.toLowerCase().includes("удаление")) {
+        if (tooth.status === "missing" &&
+            serviceTitle.toLowerCase().includes("удаление")) {
             throw new Error(`ОШИБКА ЛОГИКИ: Зуб ${toothCode} уже удален.`);
         }
     }
@@ -95,7 +99,9 @@ export class TreatmentPlanBuilder {
         const itemsToConvert = this.items.filter((i) => itemIds.includes(i.id) && i.status !== "completed");
         let actTotal = new Decimal(0);
         for (const item of itemsToConvert) {
-            const itemTotal = new Decimal(item.unitPriceRub).minus(item.discountRub).times(item.quantity);
+            const itemTotal = new Decimal(item.unitPriceRub)
+                .minus(item.discountRub)
+                .times(item.quantity);
             actTotal = actTotal.plus(itemTotal);
             item.status = "completed";
         }
@@ -105,7 +111,7 @@ export class TreatmentPlanBuilder {
         return {
             updatedItems: itemsToConvert,
             actTotalRub: actTotal.toNumber(),
-            newBalanceRub: newBalance.toNumber()
+            newBalanceRub: newBalance.toNumber(),
         };
     }
 }

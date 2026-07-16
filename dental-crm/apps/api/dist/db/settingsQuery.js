@@ -1,26 +1,51 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
 // Dummy fallback for legacy UI preferences if multiple users exist
 export async function getUiPreferencesFromDb(organizationId) {
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId)).limit(1);
+    const [user] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.organizationId, organizationId))
+        .limit(1);
     if (!user || !user.uiPreferences)
         return null;
     return user.uiPreferences;
 }
 export async function saveUiPreferencesInDb(organizationId, prefs) {
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId)).limit(1);
+    const [user] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.organizationId, organizationId))
+        .limit(1);
     if (!user)
         throw new Error("No users found to save preferences to.");
-    await db.update(schema.users).set({ uiPreferences: prefs }).where(and(eq(schema.users.id, user.id), eq(schema.users.organizationId, organizationId)));
+    await db
+        .update(schema.users)
+        .set({ uiPreferences: prefs })
+        .where(and(eq(schema.users.id, user.id), eq(schema.users.organizationId, organizationId)));
 }
 export async function getClinicSettingsFromDb(organizationId) {
-    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
+    const [org] = await db
+        .select()
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, organizationId))
+        .limit(1);
     if (!org)
         throw new Error("Organization not found");
-    const [clinic] = await db.select().from(schema.clinics).where(eq(schema.clinics.organizationId, organizationId)).limit(1);
-    const staff = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId));
-    const chairs = await db.select().from(schema.clinicChairs).where(eq(schema.clinicChairs.organizationId, organizationId));
+    const [clinic] = await db
+        .select()
+        .from(schema.clinics)
+        .where(eq(schema.clinics.organizationId, organizationId))
+        .limit(1);
+    const staff = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.organizationId, organizationId));
+    const chairs = await db
+        .select()
+        .from(schema.clinicChairs)
+        .where(eq(schema.clinicChairs.organizationId, organizationId));
     const profile = {
         organizationId: org.id,
         clinicName: clinic?.name || org.name,
@@ -67,7 +92,7 @@ export async function getClinicSettingsFromDb(organizationId) {
             thursday: { isWorking: true, startsAt: "08:00", endsAt: "20:00" },
             friday: { isWorking: true, startsAt: "08:00", endsAt: "20:00" },
             saturday: { isWorking: true, startsAt: "08:00", endsAt: "20:00" },
-            sunday: { isWorking: false, startsAt: "08:00", endsAt: "20:00" }
+            sunday: { isWorking: false, startsAt: "08:00", endsAt: "20:00" },
         },
         networkEnabled: false,
         egiszEnabled: false,
@@ -77,11 +102,11 @@ export async function getClinicSettingsFromDb(organizationId) {
         currency: org.currency || "₽",
         themeColor: org.themeColor || "teal",
         logoUrl: org.logoUrl || null,
-        stampUrl: org.stampUrl || null
+        stampUrl: org.stampUrl || null,
     };
     return {
         profile,
-        staff: staff.map(s => ({
+        staff: staff.map((s) => ({
             id: s.id,
             organizationId: s.organizationId,
             fullName: s.fullName,
@@ -105,9 +130,9 @@ export async function getClinicSettingsFromDb(organizationId) {
                 return null;
             })(),
             createdAt: s.createdAt.toISOString(),
-            updatedAt: s.createdAt.toISOString()
+            updatedAt: s.createdAt.toISOString(),
         })),
-        chairs: chairs.map(c => ({
+        chairs: chairs.map((c) => ({
             id: c.id,
             organizationId: c.organizationId,
             name: c.name,
@@ -127,20 +152,20 @@ export async function getClinicSettingsFromDb(organizationId) {
                 if (wh && Array.isArray(wh.workingHours))
                     return wh.workingHours;
                 return null;
-            })()
+            })(),
         })),
         integrationPresets: [],
         workspaceProfiles: [],
         roleAccessPolicies: [],
         modeHints: [],
-        soloDoctorMode: false
+        soloDoctorMode: false,
     };
 }
 export async function updateClinicModeInDb(organizationId, mode) {
     const [org] = await db
         .select({
         clinicMode: schema.organizations.clinicMode,
-        clinicSchedule: schema.organizations.clinicSchedule
+        clinicSchedule: schema.organizations.clinicSchedule,
     })
         .from(schema.organizations)
         .where(eq(schema.organizations.id, organizationId))
@@ -149,20 +174,30 @@ export async function updateClinicModeInDb(organizationId, mode) {
         const currentMode = org.clinicMode;
         const currentSchedule = org.clinicSchedule || {};
         const savedDuration = currentSchedule.defaultVisitMinutes;
-        const currentModePreset = currentMode === "solo_doctor" ? 60 : currentMode === "network_clinic" ? 30 : 45;
+        const currentModePreset = currentMode === "solo_doctor"
+            ? 60
+            : currentMode === "network_clinic"
+                ? 30
+                : 45;
         const nextModePreset = mode === "solo_doctor" ? 60 : mode === "network_clinic" ? 30 : 45;
         const isUsingPreset = savedDuration === undefined || savedDuration === currentModePreset;
         const updateData = { clinicMode: mode };
         if (isUsingPreset) {
             updateData.clinicSchedule = {
                 ...currentSchedule,
-                defaultVisitMinutes: nextModePreset
+                defaultVisitMinutes: nextModePreset,
             };
         }
-        await db.update(schema.organizations).set(updateData).where(eq(schema.organizations.id, organizationId));
+        await db
+            .update(schema.organizations)
+            .set(updateData)
+            .where(eq(schema.organizations.id, organizationId));
     }
     else {
-        await db.update(schema.organizations).set({ clinicMode: mode }).where(eq(schema.organizations.id, organizationId));
+        await db
+            .update(schema.organizations)
+            .set({ clinicMode: mode })
+            .where(eq(schema.organizations.id, organizationId));
     }
 }
 export async function updateClinicProfileInDb(organizationId, input) {
@@ -181,7 +216,7 @@ export async function updateClinicProfileInDb(organizationId, input) {
     if (input.scheduleDefaults !== undefined) {
         const mergedSchedule = {
             ...currentSchedule,
-            ...input.scheduleDefaults
+            ...input.scheduleDefaults,
         };
         await assertClinicScheduleDefaultsCoverExistingAppointments(organizationId, mergedSchedule, timezone);
     }
@@ -212,14 +247,20 @@ export async function updateClinicProfileInDb(organizationId, input) {
         updateData.signatoryName = input.signatoryName;
     if (input.signatoryTitle !== undefined)
         updateData.signatoryTitle = input.signatoryTitle;
-    if (input.scheduleDefaults !== undefined || input.defaultVisitMinutes !== undefined) {
+    if (input.scheduleDefaults !== undefined ||
+        input.defaultVisitMinutes !== undefined) {
         updateData.clinicSchedule = {
             ...currentSchedule,
             ...(input.scheduleDefaults !== undefined ? input.scheduleDefaults : {}),
-            ...(input.defaultVisitMinutes !== undefined ? { defaultVisitMinutes: input.defaultVisitMinutes } : {})
+            ...(input.defaultVisitMinutes !== undefined
+                ? { defaultVisitMinutes: input.defaultVisitMinutes }
+                : {}),
         };
     }
-    await db.update(schema.organizations).set(updateData).where(eq(schema.organizations.id, organizationId));
+    await db
+        .update(schema.organizations)
+        .set(updateData)
+        .where(eq(schema.organizations.id, organizationId));
     const clinicUpdateData = {};
     if (input.clinicName !== undefined)
         clinicUpdateData.name = input.clinicName;
@@ -228,7 +269,10 @@ export async function updateClinicProfileInDb(organizationId, input) {
     if (input.timezone !== undefined)
         clinicUpdateData.timezone = input.timezone;
     if (Object.keys(clinicUpdateData).length > 0) {
-        await db.update(schema.clinics).set(clinicUpdateData).where(eq(schema.clinics.organizationId, organizationId));
+        await db
+            .update(schema.clinics)
+            .set(clinicUpdateData)
+            .where(eq(schema.clinics.organizationId, organizationId));
     }
 }
 export async function createStaffMemberInDb(organizationId, input) {
@@ -239,7 +283,7 @@ export async function createStaffMemberInDb(organizationId, input) {
         phone: input.phone || null,
         email: input.email || null,
         isActive: true,
-        workingHours: input.workingHours
+        workingHours: input.workingHours,
     });
 }
 export async function updateStaffWorkingHoursInDb(organizationId, staffId, workingHours) {
@@ -250,13 +294,23 @@ export async function updateStaffWorkingHoursInDb(organizationId, staffId, worki
         .limit(1);
     const timezone = clinic?.timezone || "Europe/Samara";
     await assertStaffScheduleCoversExistingAppointments(organizationId, staffId, workingHours, timezone);
-    await db.update(schema.users).set({ workingHours }).where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
+    await db
+        .update(schema.users)
+        .set({ workingHours })
+        .where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
 }
 export async function updateStaffCredentialsInDb(organizationId, staffId, updates) {
-    await db.update(schema.users).set(updates).where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
+    await db
+        .update(schema.users)
+        .set(updates)
+        .where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
 }
 export async function createChairInDb(organizationId, input) {
-    const [clinic] = await db.select().from(schema.clinics).where(eq(schema.clinics.organizationId, organizationId)).limit(1);
+    const [clinic] = await db
+        .select()
+        .from(schema.clinics)
+        .where(eq(schema.clinics.organizationId, organizationId))
+        .limit(1);
     if (!clinic)
         throw new Error("Clinic not found");
     await db.insert(schema.clinicChairs).values({
@@ -264,7 +318,7 @@ export async function createChairInDb(organizationId, input) {
         clinicId: clinic.id,
         name: input.name,
         isActive: true,
-        workingHours: input.workingHours
+        workingHours: input.workingHours,
     });
 }
 export async function updateChairWorkingHoursInDb(organizationId, chairId, workingHours) {
@@ -275,7 +329,10 @@ export async function updateChairWorkingHoursInDb(organizationId, chairId, worki
         .limit(1);
     const timezone = clinic?.timezone || "Europe/Samara";
     await assertChairScheduleCoversExistingAppointments(organizationId, chairId, workingHours, timezone);
-    await db.update(schema.clinicChairs).set({ workingHours }).where(and(eq(schema.clinicChairs.id, chairId), eq(schema.clinicChairs.organizationId, organizationId)));
+    await db
+        .update(schema.clinicChairs)
+        .set({ workingHours })
+        .where(and(eq(schema.clinicChairs.id, chairId), eq(schema.clinicChairs.organizationId, organizationId)));
 }
 // ============================================================================
 // SCHEDULE NARROWING CONFLICT VALIDATION HELPERS
@@ -292,7 +349,7 @@ function getAppointmentTimeFormatter(timeZone) {
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
-        hourCycle: "h23"
+        hourCycle: "h23",
     });
     appointmentTimeFormatters.set(timeZone, formatter);
     return formatter;
@@ -309,12 +366,12 @@ function appointmentClinicTimeParts(date, sourceTimeZone) {
     if (![year, month, day, hour, minute].every(Number.isFinite)) {
         return {
             weekday: date.getDay(),
-            minute: date.getHours() * 60 + date.getMinutes()
+            minute: date.getHours() * 60 + date.getMinutes(),
         };
     }
     return {
         weekday: new Date(Date.UTC(year, month - 1, day)).getUTCDay(),
-        minute: (hour % 24) * 60 + minute
+        minute: (hour % 24) * 60 + minute,
     };
 }
 function clockToMinutes(value) {
@@ -344,7 +401,7 @@ async function getActiveAppointments(organizationId) {
                         reason: app.reason || null,
                         comment: app.comment || null,
                         isSynced: app.isSynced ?? false,
-                        version: app.version ?? 1
+                        version: app.version ?? 1,
                     });
                 }
             }
@@ -356,7 +413,10 @@ async function getActiveAppointments(organizationId) {
     return activeApps;
 }
 async function assertClinicScheduleDefaultsCoverExistingAppointments(organizationId, schedule, timezone) {
-    if (!schedule || !schedule.workdayStart || !schedule.workdayEnd || !Array.isArray(schedule.workingDays)) {
+    if (!schedule ||
+        !schedule.workdayStart ||
+        !schedule.workdayEnd ||
+        !Array.isArray(schedule.workingDays)) {
         return;
     }
     const opensAt = clockToMinutes(schedule.workdayStart);

@@ -1,4 +1,4 @@
-import { fetchWithProviderTimeout, keyRetryLimit, selectProviderKey, recordProviderKeySuccess, recordProviderKeyFailure, shouldTryNextProviderKey } from "../speech/keyPool.js";
+import { fetchWithProviderTimeout, keyRetryLimit, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, } from "../speech/keyPool.js";
 export async function parseDictationWithLLM(transcript, context) {
     const modelName = "llama-3.3-70b-versatile";
     const baseUrl = "https://api.groq.com/openai/v1";
@@ -53,13 +53,13 @@ export async function parseDictationWithLLM(transcript, context) {
         messages: [
             {
                 role: "system",
-                content: systemPrompt
+                content: systemPrompt,
             },
             {
                 role: "user",
-                content: `Текст диктовки: "${transcript}"`
-            }
-        ]
+                content: `Текст диктовки: "${transcript}"`,
+            },
+        ],
     };
     const triedFingerprints = new Set();
     const maxAttempts = keyRetryLimit(keyProviderId);
@@ -73,9 +73,9 @@ export async function parseDictationWithLLM(transcript, context) {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${keyCandidate.value}`,
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
             }, 15000);
             const payload = await response.json().catch(() => ({}));
             if (!response.ok)

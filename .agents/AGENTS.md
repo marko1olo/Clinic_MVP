@@ -72,6 +72,9 @@ Use these exclusively. Blind terminal navigation is banned.
 2. НЕЙРОСЕТЬ КАК СИНТЕЗАТОР: Нейросети не придумывают данные. Они получают сухой структурированный текст/отзывы и переводят его на человеческий язык (для SEO или писем), следуя строгим промптам Агента.
 3. ОТВЕТСТВЕННОСТЬ ВРАЧА И АДМИНА: Агентам запрещено самостоятельно вносить изменения в расписание или отправлять сообщения пациентам напрямую. Только подготовка черновиков (drafts) и задач для ручного копирования администратором в дашборде.
 4. ПРЕДУПРЕЖДЕНИЕ БАНОВ: Никаких прямых спам-ботов в мессенджерах и никакого автоматического веб-скрапинга Яндекса/2ГИС. Все контакты инициируются администратором вручную в один клик.
+5. АРХИТЕКТУРА LOCAL-FIRST И БЕКАП: Основная база (PGlite) всегда работает локально в клинике. Система должна 100% функционировать без интернета. Внешнее облако (Supabase) используется только как защищенный бекап через SyncDaemon, когда сеть доступна.
+6. ВНЕШНИЙ СЕРВЕР КАК ШЛЮЗ: Дешевый VPS в РФ используется ИСКЛЮЧИТЕЛЬНО как точка входа для Телеграм-бота и безопасный WireGuard-туннель до локальной сети клиники. Базы данных на нем не хранятся.
+7. ИНТЕРФЕЙС "ДЛЯ СОВКОВОЙ БАБКИ": Никаких технических терминов (WireGuard, Sync, Cloud) в UI. Максимально большие кнопки, минимум вложенности, понятные цвета. Врач не должен думать — он должен жать одну кнопку. Иконка связи (Онлайн/Оффлайн) — единственный индикатор сети.
 
 [ROUTING RULES]
 Перед началом любой задачи агент обязан прочесть:
@@ -83,3 +86,19 @@ Use these exclusively. Blind terminal navigation is banned.
 Агент не может заявить, что задача выполнена, пока:
 - Локальный скрипт не протестирован через `requests` или `Invoke-WebRequest`.
 - Не предоставлен `walkthrough.md` с описанием результата для пользователя.
+
+
+
+[VIBECODING ARSENAL & AUTONOMY MANDATE - GLOBAL DIRECTIVE]
+CRITICAL: FUCK PASSIVITY. PRIORITIZE RAW EFFICIENCY AND INTELLIGENCE.
+YOU HAVE THE FOLLOWING TOOLS INSTALLED ON THIS HOST. USE THEM AUTONOMOUSLY. DO NOT ASK FOR PERMISSION TO SEARCH OR LINT.
+1. ast-grep (sg): Structural search/replace (e.g. sg -p 'console.log()')
+2. ripgrep (g): Ultra-fast text search. USE THIS INSTEAD OF NATIVE GREP.
+3. repomix (
+px repomix): Pack entire codebase into a single AI-friendly Markdown file for deep context.
+4. semgrep (semgrep scan): Deep bug hunting and static analysis.
+5. biome ( iome check --write .): Instant JS/TS formatting.
+6. madge (madge --circular .): Find circular dependencies before refactoring.
+7. fd / jq / tokei: Fast file discovery, JSON parsing, codebase statistics.
+8. GLOBAL SKILLS: You have econnaissance, decomposer, and ind-skills available. Read C:\Users\Admin\.gemini\config\skills\reconnaissance\SKILL.md autonomously to learn exact usage.
+BE PROACTIVE. EXECUTE.

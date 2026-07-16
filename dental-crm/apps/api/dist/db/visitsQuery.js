@@ -1,12 +1,16 @@
+import { createHash } from "node:crypto";
+import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
-import { createHash } from "node:crypto";
 function hashTranscript(value) {
     return createHash("sha256").update(value).digest("hex").slice(0, 16);
 }
 export async function getVisitDraftAutosaveFromDb(organizationId, visitId) {
-    const [visit] = await db.select().from(schema.visits).where(and(eq(schema.visits.id, visitId), eq(schema.visits.organizationId, organizationId))).limit(1);
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.id, visitId), eq(schema.visits.organizationId, organizationId)))
+        .limit(1);
     if (!visit)
         return null;
     if (visit.status !== "draft")
@@ -26,17 +30,21 @@ export async function getVisitDraftAutosaveFromDb(organizationId, visitId) {
             anamnesis: visit.anamnesis || "",
             objectiveStatus: visit.objectiveStatus || "",
             diagnosis: visit.diagnosis || "",
-            treatmentPlan: visit.treatmentPlan || ""
+            treatmentPlan: visit.treatmentPlan || "",
         },
         baseRevision: visit.revision,
         clientDraftId: null,
         clientSavedAt: null,
         serverSavedAt: visit.updatedAt.toISOString(),
-        transcriptHash: ""
+        transcriptHash: "",
     };
 }
 export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
-    const [visit] = await db.select().from(schema.visits).where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId))).limit(1);
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId)))
+        .limit(1);
     if (!visit)
         throw new Error("Визит не найден");
     if (visit.status !== "draft")
@@ -57,16 +65,17 @@ export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
             input.draft.anamnesis,
             input.draft.objectiveStatus,
             input.draft.diagnosis,
-            input.draft.treatmentPlan
+            input.draft.treatmentPlan,
         ]
             .filter(Boolean)
-            .join("|"))
+            .join("|")),
     };
-    await db.update(schema.visits)
+    await db
+        .update(schema.visits)
         .set({
         draftAutosave: serverDraft,
         transcript: input.transcript,
-        updatedAt: new Date()
+        updatedAt: new Date(),
     })
         .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId)));
     return serverDraft;
@@ -74,7 +83,9 @@ export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
 export async function acceptVisitDraftInDb(organizationId, userId, input) {
     return await db.transaction(async (tx) => {
         // 1. Lock the row using FOR UPDATE or just check the revision
-        const [visit] = await tx.select().from(schema.visits)
+        const [visit] = await tx
+            .select()
+            .from(schema.visits)
             .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId)))
             .limit(1)
             .for("update");
@@ -82,12 +93,14 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
             throw new Error("Визит не найден");
         if (visit.status !== "draft")
             throw new Error("Прием уже закрыт или аннулирован");
-        if (input.baseRevision !== undefined && visit.revision !== input.baseRevision) {
+        if (input.baseRevision !== undefined &&
+            visit.revision !== input.baseRevision) {
             throw new Error("Конфликт версий: черновик был изменен другим пользователем. Обновите страницу.");
         }
         const newRevision = visit.revision + 1;
         const now = new Date();
-        const [updatedVisit] = await tx.update(schema.visits)
+        const [updatedVisit] = await tx
+            .update(schema.visits)
             .set({
             status: "signed",
             revision: newRevision,
@@ -98,20 +111,25 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
             treatmentPlan: input.draft.treatmentPlan,
             doctorSummary: input.doctorSummary,
             signedAt: now,
-            updatedAt: now
+            updatedAt: now,
         })
-            .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId), eq(schema.visits.revision, visit.revision) // Double safety
-        ))
+            .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId), eq(schema.visits.revision, visit.revision)))
             .returning({ id: schema.visits.id });
         if (!updatedVisit) {
             throw new Error("Конфликт версий: не удалось сохранить изменения.");
         }
         // --- 1. Блокировка дневника (visitDiaries.isLocked = true) & 2. Крипто-хэш ---
         const diaryHash = hashTranscript(`${visit.id}|${visit.patientId}|${input.draft.anamnesis ?? ""}|${input.draft.objectiveStatus ?? ""}|${input.draft.treatmentPlan ?? ""}`);
-        const [existingDiary] = await tx.select().from(schema.visitDiaries).where(eq(schema.visitDiaries.visitId, visit.id)).limit(1);
+        const [existingDiary] = await tx
+            .select()
+            .from(schema.visitDiaries)
+            .where(eq(schema.visitDiaries.visitId, visit.id))
+            .limit(1);
         let diaryIdToLog = existingDiary?.id;
         if (existingDiary) {
-            await tx.update(schema.visitDiaries).set({
+            await tx
+                .update(schema.visitDiaries)
+                .set({
                 anamnesis: input.draft.anamnesis,
                 statusLocalis: input.draft.objectiveStatus,
                 treatmentDescription: input.draft.treatmentPlan,
@@ -121,11 +139,14 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 coSignedByUserId: userId,
                 diaryHash,
                 updatedAt: now,
-                instrumentTrayBarcode: input.instrumentTrayBarcode ?? existingDiary.instrumentTrayBarcode
-            }).where(eq(schema.visitDiaries.id, existingDiary.id));
+                instrumentTrayBarcode: input.instrumentTrayBarcode ?? existingDiary.instrumentTrayBarcode,
+            })
+                .where(eq(schema.visitDiaries.id, existingDiary.id));
         }
         else {
-            const [newDiary] = await tx.insert(schema.visitDiaries).values({
+            const [newDiary] = await tx
+                .insert(schema.visitDiaries)
+                .values({
                 organizationId,
                 visitId: visit.id,
                 patientId: visit.patientId,
@@ -138,28 +159,45 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 isLocked: true,
                 lockedAt: now,
                 lockedByUserId: userId,
-                instrumentTrayBarcode: input.instrumentTrayBarcode
-            }).returning();
+                instrumentTrayBarcode: input.instrumentTrayBarcode,
+            })
+                .returning();
             diaryIdToLog = newDiary?.id;
         }
         // --- 3. Статус услуг 'Выполнено' & 4. Списание материалов ---
-        const tItems = await tx.select().from(schema.treatmentItems).where(eq(schema.treatmentItems.visitId, visit.id));
+        const tItems = await tx
+            .select()
+            .from(schema.treatmentItems)
+            .where(eq(schema.treatmentItems.visitId, visit.id));
         let totalInvoiceAmount = 0;
         if (tItems.length > 0) {
-            await tx.update(schema.treatmentItems).set({ status: "completed" }).where(eq(schema.treatmentItems.visitId, visit.id));
+            await tx
+                .update(schema.treatmentItems)
+                .set({ status: "completed" })
+                .where(eq(schema.treatmentItems.visitId, visit.id));
             for (const item of tItems) {
                 totalInvoiceAmount += Number(item.priceRub) * Number(item.quantity);
                 if (!item.serviceId)
                     continue;
-                const rules = await tx.select().from(schema.procedureMaterialRules).where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
+                const rules = await tx
+                    .select()
+                    .from(schema.procedureMaterialRules)
+                    .where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
                 for (const rule of rules) {
-                    const [inv] = await tx.select().from(schema.inventoryItems).where(eq(schema.inventoryItems.id, rule.inventoryItemId)).for("update");
+                    const [inv] = await tx
+                        .select()
+                        .from(schema.inventoryItems)
+                        .where(eq(schema.inventoryItems.id, rule.inventoryItemId))
+                        .for("update");
                     if (inv) {
                         const qtyToDeduct = Number(rule.quantityToDeduct) * Number(item.quantity);
                         if (inv.stockQuantity < qtyToDeduct) {
                             throw new Error(`Недостаточно материалов: ${inv.name}`);
                         }
-                        await tx.update(schema.inventoryItems).set({ stockQuantity: inv.stockQuantity - qtyToDeduct }).where(eq(schema.inventoryItems.id, inv.id));
+                        await tx
+                            .update(schema.inventoryItems)
+                            .set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
+                            .where(eq(schema.inventoryItems.id, inv.id));
                     }
                 }
             }
@@ -171,13 +209,19 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                     visitId: visit.id,
                     totalAmountRub: totalInvoiceAmount.toFixed(2),
                     status: "unpaid",
-                    itemsJson: JSON.stringify(tItems.map(i => ({ title: i.title, quantity: i.quantity, priceRub: i.priceRub })))
+                    itemsJson: JSON.stringify(tItems.map((i) => ({
+                        title: i.title,
+                        quantity: i.quantity,
+                        priceRub: i.priceRub,
+                    }))),
                 });
             }
         }
         // --- 5. Начисление комиссии врачу ---
         if (userId && totalInvoiceAmount > 0) {
-            const [commissionRule] = await tx.select().from(schema.doctorCommissions)
+            const [commissionRule] = await tx
+                .select()
+                .from(schema.doctorCommissions)
                 .where(and(eq(schema.doctorCommissions.userId, userId), eq(schema.doctorCommissions.isActive, true)))
                 .limit(1);
             const pct = commissionRule?.commissionPct ?? 30.0;
@@ -187,7 +231,7 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 userId,
                 visitId: visit.id,
                 amountRub: commissionAmount,
-                description: `Комиссия за прием`
+                description: `Комиссия за прием`,
             });
         }
         // --- 6. HIPAA Audit Log ---
@@ -197,11 +241,13 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
             action: "VISIT_SIGNED_AND_LOCKED",
             userId: userId,
             entityType: "visit_diary",
-            entityId: diaryIdToLog ?? "UNKNOWN"
+            entityId: diaryIdToLog ?? "UNKNOWN",
         });
         // Smart Aftercare Generator
         const treatmentText = (input.draft.treatmentPlan || "").toLowerCase();
-        const isComplicated = treatmentText.includes("имплантат") || treatmentText.includes("удаление") || treatmentText.includes("хирургич");
+        const isComplicated = treatmentText.includes("имплантат") ||
+            treatmentText.includes("удаление") ||
+            treatmentText.includes("хирургич");
         if (isComplicated && visit.patientId) {
             const dueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours later
             await tx.insert(schema.communicationTasks).values({
@@ -215,14 +261,18 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 priority: "high",
                 dueAt,
                 title: "Контроль самочувствия (Post-Op Care)",
-                body: `Связаться с пациентом для контроля самочувствия после сложного лечения (${now.toLocaleDateString('ru-RU')}). Уточнить наличие боли, отека, температуры. Напомнить о приеме назначенных препаратов.`,
-                botConfigId: "default"
+                body: `Связаться с пациентом для контроля самочувствия после сложного лечения (${now.toLocaleDateString("ru-RU")}). Уточнить наличие боли, отека, температуры. Напомнить о приеме назначенных препаратов.`,
+                botConfigId: "default",
             });
         }
         return { acceptedVisitId: visit.id, newRevision };
     });
 }
 export async function getVisitByIdInDb(organizationId, id) {
-    const [res] = await db.select().from(schema.visits).where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, id))).limit(1);
+    const [res] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, id)))
+        .limit(1);
     return res || null;
 }

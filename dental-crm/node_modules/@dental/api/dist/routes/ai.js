@@ -1,16 +1,16 @@
+import { aiRecognitionJobResponseSchema, aiRecognitionJobSchema, createAiRecognitionJobSchema, treatmentPlanPayloadSchema, visitNoteDraftRequestSchema, visitNoteDraftSchema, } from "@dental/shared";
 import { z } from "zod";
-import { aiRecognitionJobResponseSchema, aiRecognitionJobSchema, createAiRecognitionJobSchema, visitNoteDraftRequestSchema, visitNoteDraftSchema, treatmentPlanPayloadSchema } from "@dental/shared";
-import { buildVisitDraftFromTranscript } from "../ai/visitDraft.js";
-import { personalizeTreatmentPlan } from "../ai/treatmentPlanPersonalize.js";
-import { personalizePostVisitRecommendations } from "../ai/postVisitPersonalize.js";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
 import { parseDictationWithLLM } from "../ai/dictationParser.js";
 import { parseDictationLocally } from "../ai/localDictationParser.js";
+import { personalizePostVisitRecommendations } from "../ai/postVisitPersonalize.js";
+import { personalizeTreatmentPlan } from "../ai/treatmentPlanPersonalize.js";
+import { buildVisitDraftFromTranscript } from "../ai/visitDraft.js";
+import { createAiRecognitionJobInDb, listAiRecognitionJobsFromDb, } from "../db/aiQuery.js";
 import { db } from "../db/client.js";
-import { imagingAnnotations } from "../db/schema.js";
-import { listAiRecognitionJobsFromDb, createAiRecognitionJobInDb } from "../db/aiQuery.js";
-import { getPatientByIdFromDb } from "../db/patientsQuery.js";
 import { getImagingStudyById } from "../db/imagingQuery.js";
-import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
+import { getPatientByIdFromDb } from "../db/patientsQuery.js";
+import { imagingAnnotations } from "../db/schema.js";
 const aiRecognitionValidationMessage = "AI-задача не создана: выберите пациента или снимок и тип черновика.";
 const visitNoteDraftValidationMessage = "Черновик приема не собран: передайте текст диктовки и специальность врача.";
 const aiRecognitionPatientMissingMessage = "Пациент не найден. Выберите пациента из актуальной карты.";
@@ -35,7 +35,9 @@ export async function registerAiRoutes(app) {
             return reply.code(403).send({ error: "OrganizationRequired" });
         if (!(await requireClinicalReadAccess(request, reply, "ai recognition jobs")))
             return;
-        return z.array(aiRecognitionJobSchema).parse(await listAiRecognitionJobsFromDb(orgId));
+        return z
+            .array(aiRecognitionJobSchema)
+            .parse(await listAiRecognitionJobsFromDb(orgId));
     });
     app.post("/api/ai/recognition-jobs", async (request, reply) => {
         const orgId = await resolveOrganizationId(request);
@@ -52,11 +54,15 @@ export async function registerAiRoutes(app) {
             });
         }
         const input = parsedInput.data;
-        const patient = input.patientId ? await getPatientByIdFromDb(orgId, input.patientId) : null;
+        const patient = input.patientId
+            ? await getPatientByIdFromDb(orgId, input.patientId)
+            : null;
         if (input.patientId && !patient) {
             return sendAiRecognitionScopeError(reply, 404, aiRecognitionPatientMissingMessage);
         }
-        const imagingStudy = input.imagingStudyId ? await getImagingStudyById(orgId, input.imagingStudyId) : null;
+        const imagingStudy = input.imagingStudyId
+            ? await getImagingStudyById(orgId, input.imagingStudyId)
+            : null;
         if (input.imagingStudyId && !imagingStudy) {
             return sendAiRecognitionScopeError(reply, 404, aiRecognitionStudyMissingMessage);
         }
@@ -96,7 +102,7 @@ export async function registerAiRoutes(app) {
         if (!parsedInput.success) {
             return reply.code(400).send({
                 error: "TreatmentPlanValidationError",
-                message: "Оекорректный план лечения для ИИ-персонализации."
+                message: "Оекорректный план лечения для ИИ-персонализации.",
             });
         }
         const result = await personalizeTreatmentPlan(parsedInput.data);
@@ -109,13 +115,13 @@ export async function registerAiRoutes(app) {
             careTopic: z.string(),
             procedureName: z.string(),
             toothOrArea: z.string(),
-            doctorFullName: z.string()
+            doctorFullName: z.string(),
         });
         const parsedInput = schema.safeParse(request.body);
         if (!parsedInput.success) {
             return reply.code(400).send({
                 error: "PostVisitPersonalizeValidationError",
-                message: "Оекорректные параметры для ИИ-рекомендаций после приема."
+                message: "Оекорректные параметры для ИИ-рекомендаций после приема.",
             });
         }
         const result = await personalizePostVisitRecommendations(parsedInput.data);
@@ -127,19 +133,21 @@ export async function registerAiRoutes(app) {
         const schema = z.object({
             text: z.string(),
             type: z.enum(["schedule", "patient", "visit"]),
-            volumeContext: z.object({
+            volumeContext: z
+                .object({
                 studyId: z.string(),
                 seriesId: z.string().optional(),
                 organizationId: z.string(),
                 patientId: z.string(),
-                coordinates: z.record(z.any()).optional()
-            }).optional()
+                coordinates: z.record(z.any()).optional(),
+            })
+                .optional(),
         });
         const parsedInput = schema.safeParse(request.body);
         if (!parsedInput.success) {
             return reply.code(400).send({
                 error: "ParseDictationValidationError",
-                message: "Оеверный формат для AI-разбора."
+                message: "Оеверный формат для AI-разбора.",
             });
         }
         try {
@@ -151,7 +159,9 @@ export async function registerAiRoutes(app) {
                 result = await parseDictationWithLLM(text, type);
             }
             // 3. Database Linkage (If 3D viewer context is provided and teeth were found)
-            if (volumeContext && result?.toothUpdates && result.toothUpdates.length > 0) {
+            if (volumeContext &&
+                result?.toothUpdates &&
+                result.toothUpdates.length > 0) {
                 // We link coordinates to the first mentioned tooth, or multiple if needed
                 for (const update of result.toothUpdates) {
                     await db.insert(imagingAnnotations).values({
@@ -161,7 +171,7 @@ export async function registerAiRoutes(app) {
                         annotationType: "tooth",
                         toothCode: update.code,
                         coordinates: volumeContext.coordinates || null,
-                        notes: result.emkUpdates?.complaint || update.state
+                        notes: result.emkUpdates?.complaint || update.state,
                     });
                 }
             }
@@ -170,7 +180,7 @@ export async function registerAiRoutes(app) {
         catch (err) {
             return reply.code(500).send({
                 error: "ParseDictationError",
-                message: err.message || "Ншибка парсинга диктовки"
+                message: err.message || "Ншибка парсинга диктовки",
             });
         }
     });

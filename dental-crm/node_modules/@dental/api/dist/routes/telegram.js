@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
+import { requireNonDoctorAccess } from "../accessGuard.js";
+import { createDenteTelegramLinkCodeSchema, denteTelegramBotStatusSchema, denteTelegramChatLinkPublicSchema, denteTelegramChatLinkStatusSchema, denteTelegramLinkCodeStatusSchema, denteTelegramMessagePreviewRequestSchema, denteTelegramOutboxDeliveryStatusSchema, denteTelegramOutboxSendDueResponseSchema, denteTelegramOutboxSendRequestSchema, denteTelegramOutboxSendResponseSchema, denteTelegramSubjectTypeSchema, denteTelegramTemplateKindSchema, denteTelegramWebhookResponseSchema, denteTelegramWebhookUpdateSchema, updateDenteTelegramBotSettingsSchema, } from "@dental/shared";
+import { buildDenteTelegramChatLinkList, buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, buildDenteTelegramOutbox, claimDenteTelegramOutboxDeliveryReceipt, claimDenteTelegramWebhookUpdate, consumeDenteTelegramLinkCode, createDenteTelegramCareRequest, createDenteTelegramContactRequest, createDenteTelegramDocumentRequest, createDenteTelegramLinkCode, denteTelegramVisualCardUrlFor, extractDenteTelegramLinkCode, findDenteTelegramOutboxDeliveryReceipt, getDenteTelegramBotSettings, handleDenteTelegramAppointmentCallback, hasDenteTelegramWebhookUpdate, listDenteTelegramChatLinks, listDenteTelegramLinkCodes, listDenteTelegramWebhookEvents, prepareDenteTelegramOutboxDelivery, recordDenteTelegramOutboxDelivery, recordDenteTelegramWebhookEvent, renderDenteTelegramMessagePreview, revokeDenteTelegramChatLink, safeDenteTelegramPublicHttpsUrl, updateDenteTelegramBotSettings, } from "../sampleData.js";
+import { answerTelegramCallbackQuery, sendTelegramPhotoMessage, sendTelegramTextMessage, } from "../telegramTransport.js";
+import { repairMojibakeDeep, repairMojibakeText, } from "../text/repairMojibake.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
-import { createDenteTelegramLinkCodeSchema, denteTelegramBotStatusSchema, denteTelegramChatLinkPublicSchema, denteTelegramChatLinkStatusSchema, denteTelegramLinkCodeStatusSchema, denteTelegramMessagePreviewRequestSchema, denteTelegramOutboxDeliveryStatusSchema, denteTelegramOutboxSendDueResponseSchema, denteTelegramOutboxSendRequestSchema, denteTelegramOutboxSendResponseSchema, denteTelegramSubjectTypeSchema, denteTelegramTemplateKindSchema, denteTelegramWebhookResponseSchema, denteTelegramWebhookUpdateSchema, updateDenteTelegramBotSettingsSchema } from "@dental/shared";
-import { buildDenteTelegramChatLinkList, buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, buildDenteTelegramOutbox, claimDenteTelegramOutboxDeliveryReceipt, claimDenteTelegramWebhookUpdate, consumeDenteTelegramLinkCode, createDenteTelegramContactRequest, createDenteTelegramCareRequest, createDenteTelegramDocumentRequest, createDenteTelegramLinkCode, denteTelegramVisualCardUrlFor, extractDenteTelegramLinkCode, findDenteTelegramOutboxDeliveryReceipt, getDenteTelegramBotSettings, handleDenteTelegramAppointmentCallback, hasDenteTelegramWebhookUpdate, listDenteTelegramChatLinks, listDenteTelegramLinkCodes, listDenteTelegramWebhookEvents, prepareDenteTelegramOutboxDelivery, recordDenteTelegramWebhookEvent, recordDenteTelegramOutboxDelivery, renderDenteTelegramMessagePreview, revokeDenteTelegramChatLink, safeDenteTelegramPublicHttpsUrl, updateDenteTelegramBotSettings } from "../sampleData.js";
-import { repairMojibakeDeep, repairMojibakeText } from "../text/repairMojibake.js";
-import { answerTelegramCallbackQuery, sendTelegramPhotoMessage, sendTelegramTextMessage } from "../telegramTransport.js";
 const telegramSecretHeader = "x-telegram-bot-api-secret-token";
 const denteAdminSecretHeader = "x-dente-admin-secret";
 const telegramOutboxDeliveryClaims = new Set();
@@ -34,14 +35,14 @@ function parseTelegramRouteBody(schema, body) {
     catch {
         return {
             ok: false,
-            message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений."
+            message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений.",
         };
     }
 }
 function sendTelegramValidationError(reply, error = "TelegramValidationFailed") {
     return reply.code(400).send({
         error,
-        message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений."
+        message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений.",
     });
 }
 const telegramSettingsFieldLabels = {
@@ -57,7 +58,7 @@ const telegramSettingsFieldLabels = {
     "visualCardUrls.tax": "Карточка налоговых документов",
     "visualCardUrls.billing": "Карточка оплаты",
     "visualCardUrls.care": "Карточка памятки",
-    "visualCardUrls.review": "Карточка отзыва"
+    "visualCardUrls.review": "Карточка отзыва",
 };
 const telegramSettingsReasonLabels = {
     invalid_url: "укажите полный адрес вида https://...",
@@ -67,17 +68,20 @@ const telegramSettingsReasonLabels = {
     patient_identifying_path_not_allowed: "ссылка должна вести на общую публичную страницу без пациента, приема, документа, оплаты или токена.",
     patient_identifying_path_value_not_allowed: "уберите из пути идентификаторы пациента, документа, телефона или личного номера.",
     patient_identifying_query_not_allowed: "уберите персональные параметры из ссылки.",
-    patient_identifying_query_value_not_allowed: "уберите телефон, ИНН, СНИЛС или другой личный номер из параметров."
+    patient_identifying_query_value_not_allowed: "уберите телефон, ИНН, СНИЛС или другой личный номер из параметров.",
 };
 function telegramSettingsFieldLabel(fieldName) {
     const normalized = fieldName.trim();
-    return telegramSettingsFieldLabels[normalized] ?? telegramSettingsFieldLabels[normalized.replace(/\[(\w+)\]/g, ".$1")] ?? "Поле Telegram";
+    return (telegramSettingsFieldLabels[normalized] ??
+        telegramSettingsFieldLabels[normalized.replace(/\[(\w+)\]/g, ".$1")] ??
+        "Поле Telegram");
 }
 function readableTelegramSettingsValidationMessage(error) {
     const rawMessage = error instanceof Error ? repairMojibakeText(error.message).trim() : "";
     if (!rawMessage)
         return "Настройки Telegram не сохранены. Проверьте поля формы.";
-    if (rawMessage.includes("DENTE_TELEGRAM_CALLBACK_SECRET") || rawMessage.includes("DENTE_TELEGRAM_WEBHOOK_SECRET")) {
+    if (rawMessage.includes("DENTE_TELEGRAM_CALLBACK_SECRET") ||
+        rawMessage.includes("DENTE_TELEGRAM_WEBHOOK_SECRET")) {
         return "Подписанные кнопки приема отключены; включите секрет подписанных кнопок в серверных настройках.";
     }
     const rawReason = telegramSettingsReasonLabels[rawMessage];
@@ -94,14 +98,19 @@ function readableTelegramSettingsValidationMessage(error) {
 }
 function readableTelegramSettingsSchemaMessage(error) {
     const issues = Array.isArray(error.issues)
-        ? (error.issues)
+        ? error
+            .issues
         : [];
     const firstIssue = issues[0];
     if (!firstIssue)
         return "Настройки Telegram не сохранены. Проверьте поля формы.";
-    const fieldName = Array.isArray(firstIssue.path) ? firstIssue.path.map((part) => String(part)).join(".") : "";
+    const fieldName = Array.isArray(firstIssue.path)
+        ? firstIssue.path.map((part) => String(part)).join(".")
+        : "";
     const fieldLabel = telegramSettingsFieldLabel(fieldName);
-    const message = typeof firstIssue.message === "string" ? repairMojibakeText(firstIssue.message).trim() : "";
+    const message = typeof firstIssue.message === "string"
+        ? repairMojibakeText(firstIssue.message).trim()
+        : "";
     const looksTechnical = /invalid|required|expected|string|number|boolean|uuid|literal|received/i.test(message);
     if (message && !looksTechnical)
         return `${fieldLabel}: ${message}`;
@@ -117,41 +126,58 @@ const telegramPreviewUnavailableMessage = "Предпросмотр Telegram н�
 const telegramChatLinkNotFoundMessage = "Привязка Telegram-чата не отозвана: связь не найдена или уже недоступна для выбранного бота.";
 function telegramLinkCodeRejection(error) {
     const message = error instanceof Error ? repairMojibakeText(error.message) : "";
-    if (message.includes("DENTE_TELEGRAM_CHAT_ENCRYPTION_KEY") || message.includes("Защищенная связка Telegram-чата")) {
+    if (message.includes("DENTE_TELEGRAM_CHAT_ENCRYPTION_KEY") ||
+        message.includes("Защищенная связка Telegram-чата")) {
         return {
             error: "TelegramChatEncryptionKeyMissing",
             reason: "chat_encryption_missing",
-            message: telegramLinkCodeEncryptionMissingMessage
+            message: telegramLinkCodeEncryptionMissingMessage,
         };
     }
-    if (message.includes("активному пациенту") || message.includes("активному сотруднику")) {
+    if (message.includes("активному пациенту") ||
+        message.includes("активному сотруднику")) {
         return {
             error: "TelegramLinkCodeScopeInvalid",
             reason: "link_code_scope_invalid",
-            message
+            message,
         };
     }
     return {
         error: "TelegramLinkCodeScopeInvalid",
         reason: "link_code_scope_invalid",
-        message: telegramLinkCodeScopeInvalidMessage
+        message: telegramLinkCodeScopeInvalidMessage,
     };
 }
 function telegramMessagePreviewRejection(error) {
     const message = error instanceof Error ? repairMojibakeText(error.message) : "";
     if (message.includes("Пациент для предпросмотра Telegram не найден")) {
-        return { reason: "patient_not_found", message: telegramPreviewPatientNotFoundMessage };
+        return {
+            reason: "patient_not_found",
+            message: telegramPreviewPatientNotFoundMessage,
+        };
     }
     if (message.includes("Запись для предпросмотра Telegram не найдена")) {
-        return { reason: "appointment_not_found", message: telegramPreviewAppointmentNotFoundMessage };
+        return {
+            reason: "appointment_not_found",
+            message: telegramPreviewAppointmentNotFoundMessage,
+        };
     }
     if (message.includes("Документ для предпросмотра Telegram не найден")) {
-        return { reason: "document_not_found", message: telegramPreviewDocumentNotFoundMessage };
+        return {
+            reason: "document_not_found",
+            message: telegramPreviewDocumentNotFoundMessage,
+        };
     }
     if (message.includes("Задача коммуникации для предпросмотра Telegram не найдена")) {
-        return { reason: "task_not_found", message: telegramPreviewTaskNotFoundMessage };
+        return {
+            reason: "task_not_found",
+            message: telegramPreviewTaskNotFoundMessage,
+        };
     }
-    return { reason: "preview_unavailable", message: telegramPreviewUnavailableMessage };
+    return {
+        reason: "preview_unavailable",
+        message: telegramPreviewUnavailableMessage,
+    };
 }
 const telegramTransportFailureLabels = {
     rate_limited: "Telegram временно ограничил частоту отправки",
@@ -161,16 +187,20 @@ const telegramTransportFailureLabels = {
     timeout: "Telegram не ответил за отведенное время",
     network: "нет устойчивого соединения с Telegram",
     server: "сервис Telegram временно недоступен",
-    unknown: "причина не определена"
+    unknown: "причина не определена",
 };
 function telegramRetryAfterSeconds(result) {
-    return typeof result.retryAfterSeconds === "number" && Number.isFinite(result.retryAfterSeconds) && result.retryAfterSeconds >= 0
+    return typeof result.retryAfterSeconds === "number" &&
+        Number.isFinite(result.retryAfterSeconds) &&
+        result.retryAfterSeconds >= 0
         ? Math.trunc(result.retryAfterSeconds)
         : null;
 }
 function telegramRetryAfterSuffix(result) {
     const retryAfterSeconds = telegramRetryAfterSeconds(result);
-    return retryAfterSeconds !== null ? ` Повторите отправку через ${retryAfterSeconds} с.` : "";
+    return retryAfterSeconds !== null
+        ? ` Повторите отправку через ${retryAfterSeconds} с.`
+        : "";
 }
 function telegramTransportFailureText(result, scope) {
     return `${scope}: ${telegramTransportFailureLabels[result.errorClass]}.${telegramRetryAfterSuffix(result)}`;
@@ -212,7 +242,9 @@ function parseTelegramOutboxStatusQuery(value) {
     if (!raw || raw === "all" || raw === "due")
         return raw === "due" ? "due" : "all";
     const parsed = denteTelegramOutboxDeliveryStatusSchema.safeParse(raw);
-    return parsed.success ? parsed.data : "all";
+    return parsed.success
+        ? parsed.data
+        : "all";
 }
 function parseTelegramOutboxTemplateQuery(value) {
     const raw = firstTelegramQueryValue(value);
@@ -227,7 +259,7 @@ function parseTelegramOutboxQuery(query) {
         limit: parseTelegramQueryPositiveInt(source.limit, 80, 300),
         cursor: firstTelegramQueryValue(source.cursor),
         status: parseTelegramOutboxStatusQuery(source.status),
-        templateKind: parseTelegramOutboxTemplateQuery(source.templateKind ?? source.template)
+        templateKind: parseTelegramOutboxTemplateQuery(source.templateKind ?? source.template),
     };
 }
 function parseTelegramOutboxRuntimeScopeQuery(query) {
@@ -235,8 +267,9 @@ function parseTelegramOutboxRuntimeScopeQuery(query) {
     const organizationId = firstTelegramQueryValue(source.organizationId ?? source.orgId);
     const botConfigId = firstTelegramQueryValue(source.botConfigId ?? source.telegramBotConfigId ?? source.configId);
     return {
-        organizationId: organizationId || (botConfigId ? getDenteTelegramBotSettings().organizationId : null),
-        botConfigId
+        organizationId: organizationId ||
+            (botConfigId ? getDenteTelegramBotSettings().organizationId : null),
+        botConfigId,
     };
 }
 function parseTelegramClinicScopeQuery(query) {
@@ -275,7 +308,7 @@ function parseTelegramLinkCodeListQuery(query) {
         subjectId: firstTelegramQueryValue(source.subjectId),
         organizationId: scope.organizationId,
         clinicId: parseTelegramClinicScopeQuery(query),
-        botConfigId: scope.botConfigId
+        botConfigId: scope.botConfigId,
     };
 }
 function parseTelegramChatLinkListQuery(query) {
@@ -289,7 +322,7 @@ function parseTelegramChatLinkListQuery(query) {
         subjectId: firstTelegramQueryValue(source.subjectId),
         organizationId: scope.organizationId,
         clinicId: parseTelegramClinicScopeQuery(query),
-        botConfigId: scope.botConfigId
+        botConfigId: scope.botConfigId,
     };
 }
 function parseTelegramOutboxSendDueInput(body) {
@@ -301,7 +334,10 @@ function parseTelegramOutboxSendDueInput(body) {
     return { dryRun, limit };
 }
 function dueOutboxClientMutationId(outboxItemId, scheduledAt) {
-    const digest = createHash("sha256").update(`${outboxItemId}:${scheduledAt}`).digest("hex").slice(0, 40);
+    const digest = createHash("sha256")
+        .update(`${outboxItemId}:${scheduledAt}`)
+        .digest("hex")
+        .slice(0, 40);
     return `due-${digest}`;
 }
 function isDenteTelegramOutboxItemDue(item, nowMs) {
@@ -311,22 +347,32 @@ function isDenteTelegramOutboxItemDue(item, nowMs) {
 async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
     const clientMutationId = input.clientMutationId?.trim() || null;
     const replay = findDenteTelegramOutboxDeliveryReceipt(outboxItemId, clientMutationId);
-    if (replay && !(replay.status === "failed" && clientMutationId?.startsWith("due-"))) {
+    if (replay &&
+        !(replay.status === "failed" && clientMutationId?.startsWith("due-"))) {
         const body = denteTelegramOutboxSendResponseSchema.parse({
             ...replay,
             warnings: [...replay.warnings, "idempotent_replay"],
-            retryAfterSeconds: null
+            retryAfterSeconds: null,
         });
-        return { statusCode: replay.status === "failed" ? 502 : replay.status === "blocked" ? 409 : 200, body };
+        return {
+            statusCode: replay.status === "failed"
+                ? 502
+                : replay.status === "blocked"
+                    ? 409
+                    : 200,
+            body,
+        };
     }
-    const runtimeResult = runtime ? { ok: true, runtime } : resolveTelegramOutboxRuntimeScopeFromQuery({});
+    const runtimeResult = runtime
+        ? { ok: true, runtime }
+        : resolveTelegramOutboxRuntimeScopeFromQuery({});
     if (!runtimeResult.ok) {
         return {
             statusCode: runtimeResult.statusCode,
             body: {
                 error: runtimeResult.error,
-                message: runtimeResult.message
-            }
+                message: runtimeResult.message,
+            },
         };
     }
     const token = runtimeResult.runtime.context.botToken;
@@ -343,8 +389,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId,
                 warnings: prepared.warnings,
                 retryAfterSeconds: null,
-                blockedReason: prepared.blockedReason
-            })
+                blockedReason: prepared.blockedReason,
+            }),
         };
     }
     if (!input.dryRun && !clientMutationId) {
@@ -359,8 +405,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId: null,
                 warnings: [...prepared.warnings, "client_mutation_id_required"],
                 retryAfterSeconds: null,
-                blockedReason: "client_mutation_id_required"
-            })
+                blockedReason: "client_mutation_id_required",
+            }),
         };
     }
     if (!token) {
@@ -375,8 +421,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId,
                 warnings: prepared.warnings,
                 retryAfterSeconds: null,
-                blockedReason: "telegram_bot_token_missing"
-            })
+                blockedReason: "telegram_bot_token_missing",
+            }),
         };
     }
     if (input.dryRun) {
@@ -391,8 +437,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId,
                 warnings: prepared.warnings,
                 retryAfterSeconds: null,
-                blockedReason: null
-            })
+                blockedReason: null,
+            }),
         };
     }
     const deliveryClientMutationId = clientMutationId;
@@ -405,9 +451,16 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
         const body = denteTelegramOutboxSendResponseSchema.parse({
             ...durableReplay,
             warnings: [...durableReplay.warnings, "idempotent_replay"],
-            retryAfterSeconds: null
+            retryAfterSeconds: null,
         });
-        return { statusCode: durableReplay.status === "failed" ? 502 : durableReplay.status === "blocked" ? 409 : 200, body };
+        return {
+            statusCode: durableReplay.status === "failed"
+                ? 502
+                : durableReplay.status === "blocked"
+                    ? 409
+                    : 200,
+            body,
+        };
     }
     if (telegramOutboxDeliveryClaims.has(claimKey)) {
         return {
@@ -421,8 +474,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId: deliveryClientMutationId,
                 warnings: [...prepared.warnings, "telegram_delivery_in_progress"],
                 retryAfterSeconds: null,
-                blockedReason: "telegram_delivery_in_progress"
-            })
+                blockedReason: "telegram_delivery_in_progress",
+            }),
         };
     }
     telegramOutboxDeliveryClaims.add(claimKey);
@@ -437,9 +490,11 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 botToken: token,
                 chatId: prepared.chatId,
                 photoUrl,
-                caption: shouldSplitPhotoCaption ? telegramSplitPhotoCaption : deliveryText,
+                caption: shouldSplitPhotoCaption
+                    ? telegramSplitPhotoCaption
+                    : deliveryText,
                 replyMarkup: shouldSplitPhotoCaption ? null : deliveryReplyMarkup,
-                timeoutMs: configuredSendTimeoutMs()
+                timeoutMs: configuredSendTimeoutMs(),
             });
             if (photoTransport.ok) {
                 if (!shouldSplitPhotoCaption)
@@ -450,7 +505,7 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                     chatId: prepared.chatId,
                     text: deliveryText,
                     replyMarkup: deliveryReplyMarkup,
-                    timeoutMs: configuredSendTimeoutMs()
+                    timeoutMs: configuredSendTimeoutMs(),
                 });
                 if (textTransport.ok)
                     return textTransport;
@@ -464,7 +519,7 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
             chatId: prepared.chatId,
             text: deliveryText,
             replyMarkup: deliveryReplyMarkup,
-            timeoutMs: configuredSendTimeoutMs()
+            timeoutMs: configuredSendTimeoutMs(),
         });
     })().finally(() => {
         telegramOutboxDeliveryClaims.delete(claimKey);
@@ -479,7 +534,7 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
             message: transportWarning,
             clientMutationId: deliveryClientMutationId,
             warnings,
-            blockedReason: "telegram_transport_failed"
+            blockedReason: "telegram_transport_failed",
         });
         return {
             statusCode: 502,
@@ -492,8 +547,8 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 clientMutationId: deliveryClientMutationId,
                 warnings,
                 retryAfterSeconds,
-                blockedReason: "telegram_transport_failed"
-            })
+                blockedReason: "telegram_transport_failed",
+            }),
         };
     }
     const delivery = recordDenteTelegramOutboxDelivery({
@@ -503,7 +558,7 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
         message: `Telegram safe template sent: ${prepared.item.templateKind}`,
         clientMutationId: deliveryClientMutationId,
         warnings: deliveryWarnings,
-        blockedReason: null
+        blockedReason: null,
     });
     return {
         statusCode: 200,
@@ -516,12 +571,14 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
             clientMutationId: deliveryClientMutationId,
             warnings: deliveryWarnings,
             retryAfterSeconds: null,
-            blockedReason: null
-        })
+            blockedReason: null,
+        }),
     };
 }
 export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
-    const runtimeResult = runtime ? { ok: true, runtime } : resolveTelegramOutboxRuntimeScopeFromQuery({});
+    const runtimeResult = runtime
+        ? { ok: true, runtime }
+        : resolveTelegramOutboxRuntimeScopeFromQuery({});
     if (!runtimeResult.ok) {
         return denteTelegramOutboxSendDueResponseSchema.parse({
             ok: false,
@@ -540,26 +597,29 @@ export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
                     statusCode: runtimeResult.statusCode,
                     result: {
                         error: runtimeResult.error,
-                        message: runtimeResult.message
-                    }
-                }
-            ]
+                        message: runtimeResult.message,
+                    },
+                },
+            ],
         });
     }
     const outbox = buildDenteTelegramOutbox({ limit: Math.max(input.limit, 50), status: "due" }, runtimeResult.runtime.runtimeScope);
     const nowMs = Date.now();
     const dueItems = outbox.items
-        .filter((item) => item.deliveryStatus === "ready" && isDenteTelegramOutboxItemDue(item, nowMs))
+        .filter((item) => item.deliveryStatus === "ready" &&
+        isDenteTelegramOutboxItemDue(item, nowMs))
         .slice(0, input.limit);
     const results = await Promise.all(dueItems.map(async (item) => {
         const sendResult = await executeTelegramOutboxSend(item.id, {
             dryRun: input.dryRun,
-            clientMutationId: input.dryRun ? null : dueOutboxClientMutationId(item.id, item.scheduledAt)
+            clientMutationId: input.dryRun
+                ? null
+                : dueOutboxClientMutationId(item.id, item.scheduledAt),
         }, runtimeResult.runtime);
         return {
             itemId: item.id,
             statusCode: sendResult.statusCode,
-            result: sendResult.body
+            result: sendResult.body,
         };
     }));
     const sentCount = results.filter((entry) => "status" in entry.result && entry.result.status === "sent").length;
@@ -577,7 +637,7 @@ export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
         dryRunCount,
         blockedCount,
         failedCount,
-        results
+        results,
     });
 }
 function parseTelegramWorkerBoolean(value) {
@@ -608,7 +668,7 @@ export function startDenteTelegramOutboxDueWorker(options = {}) {
         return {
             enabled: false,
             stop: () => undefined,
-            runOnce: async () => null
+            runOnce: async () => null,
         };
     }
     const intervalMs = parseTelegramWorkerInt(process.env.DENTE_TELEGRAM_OUTBOX_WORKER_INTERVAL_MS, 60_000, 15_000, 15 * 60_000);
@@ -639,7 +699,10 @@ export function startDenteTelegramOutboxDueWorker(options = {}) {
         }
         inFlight = true;
         try {
-            const response = await executeDenteTelegramOutboxDueBatch({ dryRun, limit });
+            const response = await executeDenteTelegramOutboxDueBatch({
+                dryRun,
+                limit,
+            });
             const retryDelayMs = retryAfterDelayMs(response);
             logger?.info({
                 attemptedCount: response.attemptedCount,
@@ -647,7 +710,7 @@ export function startDenteTelegramOutboxDueWorker(options = {}) {
                 dryRunCount: response.dryRunCount,
                 blockedCount: response.blockedCount,
                 failedCount: response.failedCount,
-                retryDelayMs
+                retryDelayMs,
             }, "DENTE Telegram due worker tick completed");
             schedule(retryDelayMs ?? intervalMs);
             return response;
@@ -669,7 +732,7 @@ export function startDenteTelegramOutboxDueWorker(options = {}) {
                 clearTimeout(timer);
             timer = null;
         },
-        runOnce: runAndReschedule
+        runOnce: runAndReschedule,
     };
     logger?.info({ intervalMs, limit, dryRun, runOnStart }, "DENTE Telegram due worker enabled");
     schedule(runOnStart ? 0 : intervalMs);
@@ -678,7 +741,10 @@ export function startDenteTelegramOutboxDueWorker(options = {}) {
 function normalizedTelegramBotUsername(value) {
     const selected = value?.trim() || null;
     const normalized = selected?.replace(/^@/, "") ?? null;
-    return normalized && /^[A-Za-z][A-Za-z0-9_]{1,28}[Bb][Oo][Tt]$/.test(normalized) ? normalized : null;
+    return normalized &&
+        /^[A-Za-z][A-Za-z0-9_]{1,28}[Bb][Oo][Tt]$/.test(normalized)
+        ? normalized
+        : null;
 }
 function trimmedEnv(name) {
     return process.env[name]?.trim() || null;
@@ -688,7 +754,8 @@ function stringFromEnvConfig(value) {
 }
 function uuidFromEnvConfig(value) {
     const candidate = stringFromEnvConfig(value);
-    return candidate && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)
+    return candidate &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)
         ? candidate
         : null;
 }
@@ -699,14 +766,22 @@ function visualCardUrlsFromEnvConfig(record) {
         if (value)
             urls[key] = value;
     };
-    assign("mainMenu", safeDenteTelegramPublicHttpsUrl("visualCardUrls.mainMenu", stringFromEnvConfig(source.mainMenu) ?? stringFromEnvConfig(record.mainMenuImageUrl)));
-    assign("appointment", safeDenteTelegramPublicHttpsUrl("visualCardUrls.appointment", stringFromEnvConfig(source.appointment) ?? stringFromEnvConfig(record.appointmentImageUrl)));
-    assign("documents", safeDenteTelegramPublicHttpsUrl("visualCardUrls.documents", stringFromEnvConfig(source.documents) ?? stringFromEnvConfig(record.documentsImageUrl)));
-    assign("tax", safeDenteTelegramPublicHttpsUrl("visualCardUrls.tax", stringFromEnvConfig(source.tax) ?? stringFromEnvConfig(record.taxImageUrl)));
-    assign("billing", safeDenteTelegramPublicHttpsUrl("visualCardUrls.billing", stringFromEnvConfig(source.billing) ?? stringFromEnvConfig(record.billingImageUrl)));
-    assign("care", safeDenteTelegramPublicHttpsUrl("visualCardUrls.care", stringFromEnvConfig(source.care) ?? stringFromEnvConfig(record.careImageUrl)));
-    assign("review", safeDenteTelegramPublicHttpsUrl("visualCardUrls.review", stringFromEnvConfig(source.review) ?? stringFromEnvConfig(record.reviewImageUrl)));
-    assign("staff", safeDenteTelegramPublicHttpsUrl("visualCardUrls.staff", stringFromEnvConfig(source.staff) ?? stringFromEnvConfig(record.staffImageUrl)));
+    assign("mainMenu", safeDenteTelegramPublicHttpsUrl("visualCardUrls.mainMenu", stringFromEnvConfig(source.mainMenu) ??
+        stringFromEnvConfig(record.mainMenuImageUrl)));
+    assign("appointment", safeDenteTelegramPublicHttpsUrl("visualCardUrls.appointment", stringFromEnvConfig(source.appointment) ??
+        stringFromEnvConfig(record.appointmentImageUrl)));
+    assign("documents", safeDenteTelegramPublicHttpsUrl("visualCardUrls.documents", stringFromEnvConfig(source.documents) ??
+        stringFromEnvConfig(record.documentsImageUrl)));
+    assign("tax", safeDenteTelegramPublicHttpsUrl("visualCardUrls.tax", stringFromEnvConfig(source.tax) ??
+        stringFromEnvConfig(record.taxImageUrl)));
+    assign("billing", safeDenteTelegramPublicHttpsUrl("visualCardUrls.billing", stringFromEnvConfig(source.billing) ??
+        stringFromEnvConfig(record.billingImageUrl)));
+    assign("care", safeDenteTelegramPublicHttpsUrl("visualCardUrls.care", stringFromEnvConfig(source.care) ??
+        stringFromEnvConfig(record.careImageUrl)));
+    assign("review", safeDenteTelegramPublicHttpsUrl("visualCardUrls.review", stringFromEnvConfig(source.review) ??
+        stringFromEnvConfig(record.reviewImageUrl)));
+    assign("staff", safeDenteTelegramPublicHttpsUrl("visualCardUrls.staff", stringFromEnvConfig(source.staff) ??
+        stringFromEnvConfig(record.staffImageUrl)));
     return Object.keys(urls).length ? urls : null;
 }
 function postVisitCheckupDelayHoursFromEnvConfig(record) {
@@ -717,12 +792,18 @@ function postVisitCheckupDelayHoursFromEnvConfig(record) {
             : {};
     const delays = {};
     const assign = (key, value) => {
-        const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : NaN;
+        const parsed = typeof value === "number"
+            ? value
+            : typeof value === "string"
+                ? Number.parseInt(value, 10)
+                : NaN;
         if (Number.isFinite(parsed))
             delays[key] = Math.max(1, Math.min(720, Math.floor(parsed)));
     };
     assign("extraction", source.extraction ?? record.extractionCheckupDelayHours);
-    assign("implantation", source.implantation ?? record.implantationCheckupDelayHours ?? record.implantCheckupDelayHours);
+    assign("implantation", source.implantation ??
+        record.implantationCheckupDelayHours ??
+        record.implantCheckupDelayHours);
     assign("filling_restoration", source.filling_restoration ?? record.fillingCheckupDelayHours);
     assign("endo", source.endo ?? record.endoCheckupDelayHours);
     assign("surgery", source.surgery ?? record.surgeryCheckupDelayHours);
@@ -740,7 +821,9 @@ function reviewRequestDelayHoursFromEnvConfig(record) {
         : typeof record.reviewRequestDelayHours === "string"
             ? Number.parseInt(record.reviewRequestDelayHours, 10)
             : NaN;
-    return Number.isFinite(parsed) ? Math.max(1, Math.min(720, Math.floor(parsed))) : null;
+    return Number.isFinite(parsed)
+        ? Math.max(1, Math.min(720, Math.floor(parsed)))
+        : null;
 }
 function clinicBotEnvConfigs() {
     const raw = trimmedEnv("DENTE_TELEGRAM_CLINIC_BOTS_JSON");
@@ -756,17 +839,19 @@ function clinicBotEnvConfigs() {
     const records = Array.isArray(parsed)
         ? parsed
         : isRecord(parsed)
-            ? Object.entries(parsed).map(([key, value]) => (isRecord(value) ? { organizationId: key, ...value } : null))
+            ? Object.entries(parsed).map(([key, value]) => isRecord(value) ? { organizationId: key, ...value } : null)
             : [];
-    return records
-        .filter(isRecord)
-        .map((record) => ({
-        organizationId: uuidFromEnvConfig(record.organizationId) ?? uuidFromEnvConfig(record.orgId),
+    return records.filter(isRecord).map((record) => ({
+        organizationId: uuidFromEnvConfig(record.organizationId) ??
+            uuidFromEnvConfig(record.orgId),
         clinicId: uuidFromEnvConfig(record.clinicId),
-        botConfigId: stringFromEnvConfig(record.botConfigId) ?? stringFromEnvConfig(record.configId),
-        botUsername: normalizedTelegramBotUsername(stringFromEnvConfig(record.botUsername) ?? stringFromEnvConfig(record.username)),
+        botConfigId: stringFromEnvConfig(record.botConfigId) ??
+            stringFromEnvConfig(record.configId),
+        botUsername: normalizedTelegramBotUsername(stringFromEnvConfig(record.botUsername) ??
+            stringFromEnvConfig(record.username)),
         botToken: stringFromEnvConfig(record.botToken) ?? stringFromEnvConfig(record.token),
-        webhookSecret: stringFromEnvConfig(record.webhookSecret) ?? stringFromEnvConfig(record.secret),
+        webhookSecret: stringFromEnvConfig(record.webhookSecret) ??
+            stringFromEnvConfig(record.secret),
         webhookBaseUrl: safeDenteTelegramPublicHttpsUrl("webhookBaseUrl", stringFromEnvConfig(record.webhookBaseUrl)),
         patientPortalBaseUrl: safeDenteTelegramPublicHttpsUrl("patientPortalBaseUrl", stringFromEnvConfig(record.patientPortalBaseUrl)),
         welcomeImageUrl: safeDenteTelegramPublicHttpsUrl("welcomeImageUrl", stringFromEnvConfig(record.welcomeImageUrl)),
@@ -774,16 +859,19 @@ function clinicBotEnvConfigs() {
         postVisitCheckupDelayHoursByTopic: postVisitCheckupDelayHoursFromEnvConfig(record),
         reviewRequestDelayHours: reviewRequestDelayHoursFromEnvConfig(record),
         clinicReviewUrl: safeDenteTelegramPublicHttpsUrl("clinicReviewUrl", stringFromEnvConfig(record.clinicReviewUrl)),
-        clinicMapsUrl: safeDenteTelegramPublicHttpsUrl("clinicMapsUrl", stringFromEnvConfig(record.clinicMapsUrl))
+        clinicMapsUrl: safeDenteTelegramPublicHttpsUrl("clinicMapsUrl", stringFromEnvConfig(record.clinicMapsUrl)),
     }));
 }
 function clinicBotEnvConfigForOrganization(organizationId, clinicId = null, botConfigId = null) {
     const matchingConfigs = clinicBotEnvConfigs().filter((config) => {
-        const tenantMatches = config.organizationId === organizationId || config.clinicId === organizationId || (clinicId !== null && config.clinicId === clinicId);
+        const tenantMatches = config.organizationId === organizationId ||
+            config.clinicId === organizationId ||
+            (clinicId !== null && config.clinicId === clinicId);
         return tenantMatches;
     });
     if (botConfigId) {
-        return matchingConfigs.find((config) => config.botConfigId === botConfigId) ?? null;
+        return (matchingConfigs.find((config) => config.botConfigId === botConfigId) ??
+            null);
     }
     return matchingConfigs.length === 1 ? (matchingConfigs[0] ?? null) : null;
 }
@@ -803,29 +891,33 @@ function runtimeSettingsForRequestedOrganization(requestedOrganizationId, reques
                 mode: "clinic_owned_bot",
                 ownBotUsername: envConfig.botUsername,
                 webhookBaseUrl: envConfig.webhookBaseUrl ?? currentSettings.webhookBaseUrl,
-                patientPortalBaseUrl: envConfig.patientPortalBaseUrl ?? currentSettings.patientPortalBaseUrl,
+                patientPortalBaseUrl: envConfig.patientPortalBaseUrl ??
+                    currentSettings.patientPortalBaseUrl,
                 welcomeImageUrl: envConfig.welcomeImageUrl ?? currentSettings.welcomeImageUrl,
                 visualCardUrls: {
                     ...currentSettings.visualCardUrls,
-                    ...(envConfig.visualCardUrls ?? {})
+                    ...(envConfig.visualCardUrls ?? {}),
                 },
                 postVisitCheckupDelayHoursByTopic: {
                     ...currentSettings.postVisitCheckupDelayHoursByTopic,
-                    ...(envConfig.postVisitCheckupDelayHoursByTopic ?? {})
+                    ...(envConfig.postVisitCheckupDelayHoursByTopic ?? {}),
                 },
-                reviewRequestDelayHours: envConfig.reviewRequestDelayHours ?? currentSettings.reviewRequestDelayHours,
+                reviewRequestDelayHours: envConfig.reviewRequestDelayHours ??
+                    currentSettings.reviewRequestDelayHours,
                 clinicReviewUrl: envConfig.clinicReviewUrl ?? currentSettings.clinicReviewUrl,
-                clinicMapsUrl: envConfig.clinicMapsUrl ?? currentSettings.clinicMapsUrl
+                clinicMapsUrl: envConfig.clinicMapsUrl ?? currentSettings.clinicMapsUrl,
             },
             clinicId: envConfig.clinicId ?? envConfig.organizationId,
-            envConfig
+            envConfig,
         };
     }
-    if (!requestedBotConfigId && (!requestedOrganizationId || requestedOrganizationId === currentSettings.organizationId)) {
+    if (!requestedBotConfigId &&
+        (!requestedOrganizationId ||
+            requestedOrganizationId === currentSettings.organizationId)) {
         return {
             settings: currentSettings,
             clinicId: currentSettings.organizationId,
-            envConfig: clinicBotEnvConfigFor(currentSettings)
+            envConfig: clinicBotEnvConfigFor(currentSettings),
         };
     }
     return null;
@@ -841,10 +933,12 @@ function configuredClinicOwnedBotUsername(settings) {
         null);
 }
 function configuredBotUsername(settings) {
-    return settings.mode === "clinic_owned_bot" ? configuredClinicOwnedBotUsername(settings) : configuredSharedBotUsername(settings);
+    return settings.mode === "clinic_owned_bot"
+        ? configuredClinicOwnedBotUsername(settings)
+        : configuredSharedBotUsername(settings);
 }
 function configuredSharedBotToken() {
-    return trimmedEnv("DENTE_TELEGRAM_BOT_TOKEN") || trimmedEnv("TELEGRAM_BOT_TOKEN");
+    return (trimmedEnv("DENTE_TELEGRAM_BOT_TOKEN") || trimmedEnv("TELEGRAM_BOT_TOKEN"));
 }
 function configuredClinicOwnedBotToken(settings) {
     return (clinicBotEnvConfigFor(settings)?.botToken ||
@@ -852,7 +946,9 @@ function configuredClinicOwnedBotToken(settings) {
         trimmedEnv("DENTE_TELEGRAM_CLINIC_BOT_TOKEN"));
 }
 function configuredBotToken(settings) {
-    return settings.mode === "clinic_owned_bot" ? configuredClinicOwnedBotToken(settings) : configuredSharedBotToken();
+    return settings.mode === "clinic_owned_bot"
+        ? configuredClinicOwnedBotToken(settings)
+        : configuredSharedBotToken();
 }
 function configuredWebhookSecret(settings) {
     if (settings.mode === "clinic_owned_bot") {
@@ -878,17 +974,19 @@ function resolveTelegramRuntimeContext(requestedOrganizationId = null, requested
             ok: false,
             statusCode: 404,
             error: "TelegramTenantNotFound",
-            message: "Telegram webhook относится к другой организации DENTE."
+            message: "Telegram webhook относится к другой организации DENTE.",
         };
     }
     const { settings } = runtimeSettings;
-    const botUsername = settings.mode === "clinic_owned_bot" && runtimeSettings.envConfig?.botUsername
+    const botUsername = settings.mode === "clinic_owned_bot" &&
+        runtimeSettings.envConfig?.botUsername
         ? runtimeSettings.envConfig.botUsername
         : configuredBotUsername(settings);
     const botToken = settings.mode === "clinic_owned_bot" && runtimeSettings.envConfig?.botToken
         ? runtimeSettings.envConfig.botToken
         : configuredBotToken(settings);
-    const webhookSecret = settings.mode === "clinic_owned_bot" && runtimeSettings.envConfig?.webhookSecret
+    const webhookSecret = settings.mode === "clinic_owned_bot" &&
+        runtimeSettings.envConfig?.webhookSecret
         ? runtimeSettings.envConfig.webhookSecret
         : configuredWebhookSecret(settings);
     const tokenConfigured = Boolean(botToken);
@@ -900,15 +998,18 @@ function resolveTelegramRuntimeContext(requestedOrganizationId = null, requested
             settings,
             organizationId: settings.organizationId,
             clinicId: runtimeSettings.clinicId,
-            botConfigId: runtimeSettings.envConfig?.botConfigId ?? telegramBotConfigId(settings, botUsername),
+            botConfigId: runtimeSettings.envConfig?.botConfigId ??
+                telegramBotConfigId(settings, botUsername),
             botUsername,
             botToken,
             webhookSecret,
             tokenConfigured,
             webhookSecretConfigured,
-            webhookReady: settings.mode !== "disabled" && tokenConfigured && webhookSecretConfigured,
-            clinicOwnedBotReady
-        }
+            webhookReady: settings.mode !== "disabled" &&
+                tokenConfigured &&
+                webhookSecretConfigured,
+            clinicOwnedBotReady,
+        },
     };
 }
 function denteTelegramOutboxRuntimeScope(runtime) {
@@ -916,13 +1017,13 @@ function denteTelegramOutboxRuntimeScope(runtime) {
         settings: runtime.settings,
         botTokenConfigured: runtime.tokenConfigured,
         botConfigId: runtime.botConfigId,
-        clinicId: runtime.clinicId
+        clinicId: runtime.clinicId,
     };
 }
 function denteTelegramResolvedOutboxRuntime(runtime) {
     return {
         context: runtime,
-        runtimeScope: denteTelegramOutboxRuntimeScope(runtime)
+        runtimeScope: denteTelegramOutboxRuntimeScope(runtime),
     };
 }
 function resolveTelegramOutboxRuntimeScopeFromQuery(query) {
@@ -930,15 +1031,22 @@ function resolveTelegramOutboxRuntimeScopeFromQuery(query) {
     const runtimeResult = resolveTelegramRuntimeContext(scope.organizationId, scope.botConfigId);
     if (!runtimeResult.ok)
         return runtimeResult;
-    return { ok: true, runtime: denteTelegramResolvedOutboxRuntime(runtimeResult.context) };
+    return {
+        ok: true,
+        runtime: denteTelegramResolvedOutboxRuntime(runtimeResult.context),
+    };
 }
 function configuredTelegramAdminSecret() {
     return process.env.DENTE_TELEGRAM_ADMIN_SECRET?.trim() || null;
 }
 function isExplicitlyUnguardedControlPlaneAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE === "1";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE === "1");
 }
 async function requireTelegramControlPlaneAccess(request, reply) {
+    const allowed = await requireNonDoctorAccess(request, reply);
+    if (!allowed)
+        return;
     const adminSecret = configuredTelegramAdminSecret();
     if (!adminSecret) {
         if (isExplicitlyUnguardedControlPlaneAllowed()) {
@@ -946,15 +1054,19 @@ async function requireTelegramControlPlaneAccess(request, reply) {
         }
         return reply.code(503).send({
             error: "TelegramAdminSecretMissing",
-            message: "На сервере не задан секрет администратора для управления Telegram. Для локального стенда можно явно включить режим без проверки в серверных настройках."
+            message: "На сервере не задан секрет администратора для управления Telegram. Для локального стенда можно явно включить режим без проверки в серверных настройках.",
         });
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-    if (!timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (!timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
         return reply.code(403).send({
             error: "TelegramAdminSecretRequired",
-            message: "Для управления Telegram нужен действующий секрет администратора клиники."
+            message: "Для управления Telegram нужен действующий секрет администратора клиники.",
         });
     }
 }
@@ -963,13 +1075,18 @@ function configuredSendTimeoutMs() {
     if (!raw)
         return 12_000;
     const parsed = Number(raw);
-    return Number.isFinite(parsed) ? Math.max(1000, Math.min(60_000, parsed)) : 12_000;
+    return Number.isFinite(parsed)
+        ? Math.max(1000, Math.min(60_000, parsed))
+        : 12_000;
 }
 function chatFingerprint(chatId, organizationId) {
     if (!chatId)
         return null;
     const salt = process.env.DENTE_TELEGRAM_CHAT_HASH_SALT?.trim() || organizationId;
-    return createHash("sha256").update(`${salt}:${chatId}`).digest("hex").slice(0, 24);
+    return createHash("sha256")
+        .update(`${salt}:${chatId}`)
+        .digest("hex")
+        .slice(0, 24);
 }
 function rejectedTelegramLinkCodeAttemptCount(chatFingerprintValue, organizationId, botConfigId, nowMs = Date.now()) {
     if (!chatFingerprintValue)
@@ -978,14 +1095,15 @@ function rejectedTelegramLinkCodeAttemptCount(chatFingerprintValue, organization
     return listDenteTelegramWebhookEvents(300, organizationId, botConfigId).filter((event) => {
         if (event.chatFingerprint !== chatFingerprintValue)
             return false;
-        if (event.action !== "rejected_telegram_link_code" && event.action !== "rate_limited_telegram_link_code")
+        if (event.action !== "rejected_telegram_link_code" &&
+            event.action !== "rate_limited_telegram_link_code")
             return false;
         const createdAtMs = Date.parse(event.createdAt);
         return Number.isFinite(createdAtMs) && createdAtMs >= windowStartedAt;
     }).length;
 }
 function telegramLinkCodeRateLimitExceeded(chatFingerprintValue, organizationId, botConfigId) {
-    return rejectedTelegramLinkCodeAttemptCount(chatFingerprintValue, organizationId, botConfigId) >= telegramLinkCodeRejectedAttemptLimit;
+    return (rejectedTelegramLinkCodeAttemptCount(chatFingerprintValue, organizationId, botConfigId) >= telegramLinkCodeRejectedAttemptLimit);
 }
 function normalizeCommand(text) {
     if (!text?.startsWith("/"))
@@ -1020,7 +1138,9 @@ function extractChatInfo(update) {
         isRecord(update.message) ? update.message : null,
         isRecord(update.edited_message) ? update.edited_message : null,
         isRecord(update.channel_post) ? update.channel_post : null,
-        isRecord(update.callback_query) && isRecord(update.callback_query.message) ? update.callback_query.message : null
+        isRecord(update.callback_query) && isRecord(update.callback_query.message)
+            ? update.callback_query.message
+            : null,
     ];
     for (const message of candidates) {
         if (!message || !isRecord(message.chat))
@@ -1029,7 +1149,7 @@ function extractChatInfo(update) {
         if (id) {
             return {
                 id,
-                type: stringFromUnknown(message.chat.type)?.trim().toLowerCase() ?? null
+                type: stringFromUnknown(message.chat.type)?.trim().toLowerCase() ?? null,
             };
         }
     }
@@ -1041,15 +1161,21 @@ function extractCommand(update) {
     return normalizeCommand(text);
 }
 function extractCallbackQueryId(update) {
-    const callbackQuery = isRecord(update.callback_query) ? update.callback_query : null;
+    const callbackQuery = isRecord(update.callback_query)
+        ? update.callback_query
+        : null;
     return stringFromUnknown(callbackQuery?.id)?.trim() ?? null;
 }
 function extractCallbackData(update) {
-    const callbackQuery = isRecord(update.callback_query) ? update.callback_query : null;
+    const callbackQuery = isRecord(update.callback_query)
+        ? update.callback_query
+        : null;
     return stringFromUnknown(callbackQuery?.data)?.trim() ?? null;
 }
 function extractSafeCallbackAction(update) {
-    const callbackQuery = isRecord(update.callback_query) ? update.callback_query : null;
+    const callbackQuery = isRecord(update.callback_query)
+        ? update.callback_query
+        : null;
     const data = stringFromUnknown(callbackQuery?.data)?.trim() ?? null;
     if (data === "dente:start" ||
         data === "dente:help" ||
@@ -1119,7 +1245,7 @@ function safeHttpsTelegramButton(raw, text) {
 function reviewButtons(settings) {
     return [
         ...safeHttpsTelegramButton(settings.clinicReviewUrl, "Оценить клинику"),
-        ...safeHttpsTelegramButton(settings.clinicMapsUrl, "Открыть карту")
+        ...safeHttpsTelegramButton(settings.clinicMapsUrl, "Открыть карту"),
     ];
 }
 function mapButtons(settings) {
@@ -1129,7 +1255,8 @@ function telegramInlineKeyboardRows(markup) {
     const rows = markup?.inline_keyboard;
     if (!Array.isArray(rows))
         return [];
-    return rows.filter((row) => Array.isArray(row) && row.every((button) => isRecord(button) && typeof button.text === "string"));
+    return rows.filter((row) => Array.isArray(row) &&
+        row.every((button) => isRecord(button) && typeof button.text === "string"));
 }
 function mainMenuTelegramRow() {
     return [{ text: "Главное меню", callback_data: "dente:start" }];
@@ -1144,7 +1271,7 @@ const telegramCareCallbackTopicByAction = {
     "dente:care-hygiene": "hygiene",
     "dente:care-prosthetics": "prosthetics",
     "dente:care-orthodontics": "orthodontics",
-    "dente:care-periodontology": "periodontology"
+    "dente:care-periodontology": "periodontology",
 };
 function careTopicFromFreeText(text) {
     if (freeTextIncludes(text, ["удален", "лунка", "лунку"]))
@@ -1172,7 +1299,7 @@ function careTopicFromFreeText(text) {
 function replyMarkupWithNextActions(primaryRows, settings) {
     const rows = [
         ...primaryRows.filter((row) => row.length),
-        ...telegramInlineKeyboardRows(safeCommandKeyboard(settings, "appointment_callback"))
+        ...telegramInlineKeyboardRows(safeCommandKeyboard(settings, "appointment_callback")),
     ];
     return rows.length ? { inline_keyboard: rows } : null;
 }
@@ -1183,15 +1310,30 @@ function safeCommandKeyboard(settings, mode) {
     const schedule = [{ text: "Расписание", callback_data: "dente:schedule" }];
     const documents = [{ text: "Документы", callback_data: "dente:documents" }];
     const care = [{ text: "Памятки", callback_data: "dente:care" }];
-    const contact = [{ text: "Позвать администратора", callback_data: "dente:contact" }];
-    const privacy = [{ text: "Конфиденциальность", callback_data: "dente:privacy" }];
+    const contact = [
+        { text: "Позвать администратора", callback_data: "dente:contact" },
+    ];
+    const privacy = [
+        { text: "Конфиденциальность", callback_data: "dente:privacy" },
+    ];
     const home = mainMenuTelegramRow();
     if (mode === "appointment_callback") {
-        const rows = [[...schedule, ...documents], [...contact, ...privacy], home, portal].filter((row) => row.length);
+        const rows = [
+            [...schedule, ...documents],
+            [...contact, ...privacy],
+            home,
+            portal,
+        ].filter((row) => row.length);
         return rows.length ? { inline_keyboard: rows } : null;
     }
     if (mode === "linked") {
-        const rows = [[...schedule, ...documents], [...care, ...contact], home, portal, review].filter((row) => row.length);
+        const rows = [
+            [...schedule, ...documents],
+            [...care, ...contact],
+            home,
+            portal,
+            review,
+        ].filter((row) => row.length);
         return rows.length ? { inline_keyboard: rows } : null;
     }
     if (mode === "rejected") {
@@ -1201,8 +1343,8 @@ function safeCommandKeyboard(settings, mode) {
                 [...documents, ...care],
                 contact,
                 home,
-                portal
-            ].filter((row) => row.length)
+                portal,
+            ].filter((row) => row.length),
         };
     }
     if (mode === "clinic") {
@@ -1213,10 +1355,10 @@ function safeCommandKeyboard(settings, mode) {
                 [...schedule, ...contact],
                 [
                     { text: "Помощь", callback_data: "dente:help" },
-                    { text: "Конфиденциальность", callback_data: "dente:privacy" }
+                    { text: "Конфиденциальность", callback_data: "dente:privacy" },
                 ],
-                home
-            ].filter((row) => row.length)
+                home,
+            ].filter((row) => row.length),
         };
     }
     if (mode === "privacy") {
@@ -1224,37 +1366,37 @@ function safeCommandKeyboard(settings, mode) {
             inline_keyboard: [
                 [
                     { text: "Что умеет бот", callback_data: "dente:help" },
-                    { text: "Подключение", callback_data: "dente:clinic" }
+                    { text: "Подключение", callback_data: "dente:clinic" },
                 ],
                 [...schedule, ...documents],
                 care,
                 home,
-                portal
-            ].filter((row) => row.length)
+                portal,
+            ].filter((row) => row.length),
         };
     }
     return {
         inline_keyboard: [
             [
                 { text: "Подключить клинику", callback_data: "dente:clinic" },
-                { text: "Конфиденциальность", callback_data: "dente:privacy" }
+                { text: "Конфиденциальность", callback_data: "dente:privacy" },
             ],
             [
                 { text: "Документы", callback_data: "dente:documents" },
-                { text: "Памятки", callback_data: "dente:care" }
+                { text: "Памятки", callback_data: "dente:care" },
             ],
             review.length
                 ? review
                 : [
                     { text: "Отзывы", callback_data: "dente:review" },
-                    { text: "Карта", callback_data: "dente:map" }
+                    { text: "Карта", callback_data: "dente:map" },
                 ],
             [
                 { text: "Расписание", callback_data: "dente:schedule" },
-                { text: "Позвать администратора", callback_data: "dente:contact" }
+                { text: "Позвать администратора", callback_data: "dente:contact" },
             ],
-            portal
-        ].filter((row) => row.length)
+            portal,
+        ].filter((row) => row.length),
     };
 }
 function reviewReplyFor(settings) {
@@ -1262,13 +1404,13 @@ function reviewReplyFor(settings) {
     if (!buttons.length) {
         return {
             text: "Ссылка для оценки клиники пока не настроена. Попросите администратора добавить ссылку на отзывы или карточку клиники в настройках DENTE.",
-            replyMarkup: safeCommandKeyboard(settings, "help")
+            replyMarkup: safeCommandKeyboard(settings, "help"),
         };
     }
     return {
         text: "Спасибо за визит. Можно оставить отзыв о клинике по безопасной общей ссылке ниже.",
         replyMarkup: replyMarkupWithNextActions([buttons], settings),
-        photoUrl: patientMenuCardPhoto(settings, "review")
+        photoUrl: patientMenuCardPhoto(settings, "review"),
     };
 }
 function mapReplyFor(settings) {
@@ -1276,13 +1418,13 @@ function mapReplyFor(settings) {
     if (!buttons.length) {
         return {
             text: "Ссылка на карту клиники пока не настроена. Попросите администратора добавить карточку клиники в настройках DENTE.",
-            replyMarkup: safeCommandKeyboard(settings, "clinic")
+            replyMarkup: safeCommandKeyboard(settings, "clinic"),
         };
     }
     return {
         text: "Карта клиники доступна по безопасной общей ссылке ниже.",
         replyMarkup: replyMarkupWithNextActions([buttons], settings),
-        photoUrl: patientMenuCardPhoto(settings, "review")
+        photoUrl: patientMenuCardPhoto(settings, "review"),
     };
 }
 function patientMenuCardPhoto(settings, cardKey = "mainMenu") {
@@ -1293,23 +1435,23 @@ function documentsReplyFor(settings) {
     const rows = [
         [
             { text: "Налоговая", callback_data: "dente:tax" },
-            { text: "Оплата и чеки", callback_data: "dente:billing" }
+            { text: "Оплата и чеки", callback_data: "dente:billing" },
         ],
-        [
-            { text: "Медкарта", callback_data: "dente:medical-docs" }
-        ],
+        [{ text: "Медкарта", callback_data: "dente:medical-docs" }],
         [{ text: "Формы пациента", callback_data: "dente:patient-forms" }],
         portal,
         [
             { text: "Позвать администратора", callback_data: "dente:contact" },
-            { text: "Памятки", callback_data: "dente:care" }
+            { text: "Памятки", callback_data: "dente:care" },
         ],
-        mainMenuTelegramRow()
+        mainMenuTelegramRow(),
     ].filter((row) => row.length);
     return {
         text: "DENTE: договоры, согласия, акты, счета, чеки, возвраты и налоговые справки открываются только в защищенном портале клиники. В Telegram доступны уведомления и кнопка перехода, без вложений с медданными.",
-        replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "documents")
+        replyMarkup: rows.length
+            ? { inline_keyboard: rows }
+            : safeCommandKeyboard(settings, "help"),
+        photoUrl: patientMenuCardPhoto(settings, "documents"),
     };
 }
 function careReplyFor(settings) {
@@ -1317,37 +1459,40 @@ function careReplyFor(settings) {
     const rows = [
         [
             { text: "После удаления", callback_data: "dente:care-extraction" },
-            { text: "После имплантации", callback_data: "dente:care-implant" }
+            { text: "После имплантации", callback_data: "dente:care-implant" },
         ],
         [
             { text: "После пломбы", callback_data: "dente:care-filling" },
-            { text: "После эндодонтии", callback_data: "dente:care-endo" }
+            { text: "После эндодонтии", callback_data: "dente:care-endo" },
         ],
         [
             { text: "После хирургии", callback_data: "dente:care-surgery" },
-            { text: "После анестезии", callback_data: "dente:care-anesthesia" }
+            { text: "После анестезии", callback_data: "dente:care-anesthesia" },
         ],
-        [
-            { text: "После гигиены", callback_data: "dente:care-hygiene" }
-        ],
+        [{ text: "После гигиены", callback_data: "dente:care-hygiene" }],
         [
             { text: "После протезирования", callback_data: "dente:care-prosthetics" },
-            { text: "После ортодонтии", callback_data: "dente:care-orthodontics" }
+            { text: "После ортодонтии", callback_data: "dente:care-orthodontics" },
         ],
         [
-            { text: "После пародонтологии", callback_data: "dente:care-periodontology" }
+            {
+                text: "После пародонтологии",
+                callback_data: "dente:care-periodontology",
+            },
         ],
         portal,
         [
             { text: "Документы", callback_data: "dente:documents" },
-            { text: "Позвать администратора", callback_data: "dente:contact" }
+            { text: "Позвать администратора", callback_data: "dente:contact" },
         ],
-        mainMenuTelegramRow()
+        mainMenuTelegramRow(),
     ].filter((row) => row.length);
     return {
         text: "DENTE: памятки после удаления, имплантации, пломбы, эндодонтии, хирургии, анестезии, гигиены, протезирования, ортодонтии и пародонтологии выдаются в портале после оформления приема. Выберите нужную памятку кнопкой ниже; бот присылает безопасное уведомление и кнопку, когда памятка готова.",
-        replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "care")
+        replyMarkup: rows.length
+            ? { inline_keyboard: rows }
+            : safeCommandKeyboard(settings, "help"),
+        photoUrl: patientMenuCardPhoto(settings, "care"),
     };
 }
 function documentSubmenuReplyFor(settings, topic, requestResult) {
@@ -1356,25 +1501,27 @@ function documentSubmenuReplyFor(settings, topic, requestResult) {
         tax: "Налоговая: DENTE помогает подготовить заявление, данные для КНД 1151156, старую справку для расходов 2021-2023 и реестр оплат. Нужны фискальные чеки и данные плательщика. Готовые справки открываются в защищенном портале.",
         billing: "Оплата и чеки: DENTE помогает подготовить счет, чек, акт выполненных работ, график рассрочки или запрос на корректировку/возврат. Суммы и документы выдаются только через защищенный портал после проверки администратором.",
         medical: "Медкарта: выписка, запрос копий, расписка выдачи, DICOM/КЛКТ и другие медицинские документы готовятся в DENTE и выдаются через защищенный портал после проверки личности и полномочий.",
-        patientForms: "Формы пациента: анкета, согласия, отказ, ПДн, представитель, фото/видео и документы визита заполняются в DENTE. Если нужна бумажная копия или помощь, нажмите кнопку администратора."
+        patientForms: "Формы пациента: анкета, согласия, отказ, ПДн, представитель, фото/видео и документы визита заполняются в DENTE. Если нужна бумажная копия или помощь, нажмите кнопку администратора.",
     };
     const rows = [
         portal,
         requestResult && !requestResult.linked
             ? [
                 { text: "Как получить код", callback_data: "dente:clinic" },
-                { text: "Документы", callback_data: "dente:documents" }
+                { text: "Документы", callback_data: "dente:documents" },
             ]
             : [
                 { text: "Документы", callback_data: "dente:documents" },
-                { text: "Позвать администратора", callback_data: "dente:contact" }
+                { text: "Позвать администратора", callback_data: "dente:contact" },
             ],
-        mainMenuTelegramRow()
+        mainMenuTelegramRow(),
     ].filter((row) => row.length);
     return {
         text: [texts[topic], requestResult?.text].filter(Boolean).join("\n\n"),
-        replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, topic === "tax" ? "tax" : topic === "billing" ? "billing" : "documents")
+        replyMarkup: rows.length
+            ? { inline_keyboard: rows }
+            : safeCommandKeyboard(settings, "help"),
+        photoUrl: patientMenuCardPhoto(settings, topic === "tax" ? "tax" : topic === "billing" ? "billing" : "documents"),
     };
 }
 function careTopicReplyFor(settings, topic, requestResult) {
@@ -1389,20 +1536,22 @@ function careTopicReplyFor(settings, topic, requestResult) {
         hygiene: "После профгигиены: мягкая щетка, аккуратная гигиена, временно избегайте красящей пищи по рекомендации врача. Если десна кровит долго или боль усиливается, нажмите администратора.",
         prosthetics: "После протезирования: привыкайте к конструкции постепенно, не перегружайте ее твердой пищей и не корректируйте самостоятельно. Если коронка, мост, винир или протез мешает, натирает или расцементировался, нажмите администратора.",
         orthodontics: "После ортодонтии: соблюдайте режим ношения аппарата или элайнеров, используйте назначенный уход и не подкручивайте элементы без врача. Если брекет отклеился, дуга колет или аппарат натирает, нажмите администратора.",
-        periodontology: "После пародонтологии: аккуратно очищайте десны по схеме врача, не пропускайте назначенные средства и контроль. Если кровоточивость, отек, боль или неприятный запах усиливаются, нажмите администратора."
+        periodontology: "После пародонтологии: аккуратно очищайте десны по схеме врача, не пропускайте назначенные средства и контроль. Если кровоточивость, отек, боль или неприятный запах усиливаются, нажмите администратора.",
     };
     const rows = [
         portal,
         [
             { text: "Все памятки", callback_data: "dente:care" },
-            { text: "Позвать администратора", callback_data: "dente:contact" }
+            { text: "Позвать администратора", callback_data: "dente:contact" },
         ],
-        mainMenuTelegramRow()
+        mainMenuTelegramRow(),
     ].filter((row) => row.length);
     return {
         text: [texts[topic], requestResult?.text].filter(Boolean).join("\n\n"),
-        replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "care")
+        replyMarkup: rows.length
+            ? { inline_keyboard: rows }
+            : safeCommandKeyboard(settings, "help"),
+        photoUrl: patientMenuCardPhoto(settings, "care"),
     };
 }
 function contactRequestReplyFor(settings, chatFingerprintValue, scope = {}) {
@@ -1413,16 +1562,18 @@ function contactRequestReplyFor(settings, chatFingerprintValue, scope = {}) {
         result.linked
             ? [
                 { text: "Расписание", callback_data: "dente:schedule" },
-                { text: "Документы", callback_data: "dente:documents" }
+                { text: "Документы", callback_data: "dente:documents" },
             ]
             : [{ text: "Как получить код", callback_data: "dente:clinic" }],
         [{ text: "Помощь", callback_data: "dente:help" }],
-        mainMenuTelegramRow()
+        mainMenuTelegramRow(),
     ].filter((row) => row.length);
     return {
         text: result.text,
-        replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, result.linked ? "linked" : "rejected"),
-        photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+        replyMarkup: rows.length
+            ? { inline_keyboard: rows }
+            : safeCommandKeyboard(settings, result.linked ? "linked" : "rejected"),
+        photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
     };
 }
 function telegramFeatureEnabled(settings, feature) {
@@ -1432,7 +1583,7 @@ function featureDisabledReplyFor(settings, title) {
     return {
         text: `${title} сейчас отключены в настройках клиники DENTE. Выберите доступное действие кнопками ниже или позовите администратора.`,
         replyMarkup: safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+        photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
     };
 }
 function unsafeTelegramAttachmentReplyFor(settings, updateKind) {
@@ -1444,7 +1595,7 @@ function unsafeTelegramAttachmentReplyFor(settings, updateKind) {
     return {
         text: `${label} в Telegram не принимаются как медицинские документы DENTE. Откройте защищенный портал или выберите кнопку: документы, памятки или администратор. Так клиника не потеряет файл и не смешает его с чужой картой.`,
         replyMarkup: safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "documents")
+        photoUrl: patientMenuCardPhoto(settings, "documents"),
     };
 }
 function normalizedFreeText(value) {
@@ -1456,17 +1607,35 @@ function freeTextIncludes(value, fragments) {
 function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {}) {
     const text = normalizedFreeText(messageText);
     if (freeTextIncludes(text, ["налог", "ндфл", "вычет", "кнд", "1151156"]) ||
-        (freeTextIncludes(text, ["справк"]) && freeTextIncludes(text, ["оплат", "чек", "фиск"]))) {
+        (freeTextIncludes(text, ["справк"]) &&
+            freeTextIncludes(text, ["оплат", "чек", "фиск"]))) {
         return telegramFeatureEnabled(settings, "tax_document_request")
             ? documentSubmenuReplyFor(settings, "tax", createDenteTelegramDocumentRequest(chatFingerprintValue, "tax", scope))
             : featureDisabledReplyFor(settings, "Налоговые запросы");
     }
-    if (freeTextIncludes(text, ["оплат", "счет", "счёт", "чек", "квитанц", "возврат", "рассроч", "акт"])) {
+    if (freeTextIncludes(text, [
+        "оплат",
+        "счет",
+        "счёт",
+        "чек",
+        "квитанц",
+        "возврат",
+        "рассроч",
+        "акт",
+    ])) {
         return telegramFeatureEnabled(settings, "secure_portal_links")
             ? documentSubmenuReplyFor(settings, "billing", createDenteTelegramDocumentRequest(chatFingerprintValue, "billing", scope))
             : featureDisabledReplyFor(settings, "Финансовые документы");
     }
-    if (freeTextIncludes(text, ["медкарт", "выписк", "копи", "dicom", "клкт", "кт", "снимк"])) {
+    if (freeTextIncludes(text, [
+        "медкарт",
+        "выписк",
+        "копи",
+        "dicom",
+        "клкт",
+        "кт",
+        "снимк",
+    ])) {
         return telegramFeatureEnabled(settings, "secure_portal_links")
             ? documentSubmenuReplyFor(settings, "medical", createDenteTelegramDocumentRequest(chatFingerprintValue, "medical", scope))
             : featureDisabledReplyFor(settings, "Медицинские документы");
@@ -1485,7 +1654,15 @@ function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {
             ? careTopicReplyFor(settings, careTopic, createDenteTelegramCareRequest(chatFingerprintValue, careTopic, scope))
             : featureDisabledReplyFor(settings, "Памятки после приема");
     }
-    if (freeTextIncludes(text, ["памят", "рекоменд", "удален", "имплан", "пломб", "гигиен", "после"])) {
+    if (freeTextIncludes(text, [
+        "памят",
+        "рекоменд",
+        "удален",
+        "имплан",
+        "пломб",
+        "гигиен",
+        "после",
+    ])) {
         return telegramFeatureEnabled(settings, "post_visit_instructions")
             ? careReplyFor(settings)
             : featureDisabledReplyFor(settings, "Памятки после приема");
@@ -1494,11 +1671,22 @@ function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {
         const scheduleReply = buildDenteTelegramLinkedScheduleReply(chatFingerprintValue, scope, settings);
         return {
             text: scheduleReply.text,
-            replyMarkup: scheduleReply.replyMarkup ?? safeCommandKeyboard(settings, scheduleReply.linked ? "linked" : "rejected"),
-            photoUrl: patientMenuCardPhoto(settings, "appointment")
+            replyMarkup: scheduleReply.replyMarkup ??
+                safeCommandKeyboard(settings, scheduleReply.linked ? "linked" : "rejected"),
+            photoUrl: patientMenuCardPhoto(settings, "appointment"),
         };
     }
-    if (freeTextIncludes(text, ["звон", "перезвон", "админ", "оператор", "связ", "боль", "отек", "кров", "температур"])) {
+    if (freeTextIncludes(text, [
+        "звон",
+        "перезвон",
+        "админ",
+        "оператор",
+        "связ",
+        "боль",
+        "отек",
+        "кров",
+        "температур",
+    ])) {
         return contactRequestReplyFor(settings, chatFingerprintValue, scope);
     }
     if (freeTextIncludes(text, ["отзыв", "оцен", "рейтинг"]))
@@ -1508,13 +1696,15 @@ function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {
     return {
         text: "DENTE принял сообщение. Чтобы клиника быстро поняла запрос, выберите действие кнопками ниже. Команды писать не нужно.",
         replyMarkup: safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+        photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
     };
 }
 function suggestedReplyFor(command, callbackAction, settings, chatFingerprintValue, updateKind, messageText, scope = {}) {
     const portal = settings.patientPortalBaseUrl || "защищенный портал DENTE";
     const normalizedCommand = command?.split("@")[0] ?? null;
-    if (updateKind === "photo" || updateKind === "document" || (updateKind === "voice" && !settings.allowVoiceIntake)) {
+    if (updateKind === "photo" ||
+        updateKind === "document" ||
+        (updateKind === "voice" && !settings.allowVoiceIntake)) {
         return unsafeTelegramAttachmentReplyFor(settings, updateKind);
     }
     if (normalizedCommand === "/start" || callbackAction === "dente:start") {
@@ -1525,47 +1715,53 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
                     ? "DENTE: рабочий Telegram подключен. Выберите расписание, связь или откройте защищенный DENTE-портал. ФИО пациентов и медицинские детали в Telegram не отправляются."
                     : "DENTE: Telegram подключен к клинике. Выберите расписание, документы, памятки или связь с администратором кнопками ниже. Медицинские документы открываются только в защищенном портале.",
                 replyMarkup: linkedStartReply.subjectType === "staff"
-                    ? linkedStartReply.replyMarkup ?? safeCommandKeyboard(settings, "linked")
+                    ? (linkedStartReply.replyMarkup ??
+                        safeCommandKeyboard(settings, "linked"))
                     : safeCommandKeyboard(settings, "linked"),
-                photoUrl: patientMenuCardPhoto(settings, linkedStartReply.subjectType === "staff" ? "staff" : "mainMenu")
+                photoUrl: patientMenuCardPhoto(settings, linkedStartReply.subjectType === "staff" ? "staff" : "mainMenu"),
             };
         }
         return {
             text: "Бот DENTE подключен. Отсканируйте QR из приложения клиники или отправьте одноразовый код вручную, чтобы безопасно привязать чат. Дальше выбирайте действия кнопками ниже; команды нужны только как запасной вариант. Медицинские документы открываются только в защищенном портале.",
             replyMarkup: safeCommandKeyboard(settings, "start"),
-            photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+            photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
         };
     }
     if (normalizedCommand === "/help" || callbackAction === "dente:help") {
         return {
             text: "DENTE работает кнопками: расписание, документы, памятки, связь с администратором, отзыв и карта клиники. Команды остаются запасным вариантом. Медицинские данные в Telegram не отправляются.",
             replyMarkup: safeCommandKeyboard(settings, "help"),
-            photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+            photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
         };
     }
     if (normalizedCommand === "/privacy" || callbackAction === "dente:privacy") {
         return {
             text: "DENTE по умолчанию не отправляет диагнозы, КТ, рентген, планы лечения и налоговые PDF через Telegram. В Telegram уходят только безопасные уведомления и ссылки.",
             replyMarkup: safeCommandKeyboard(settings, "privacy"),
-            photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+            photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
         };
     }
     if (normalizedCommand === "/clinic" || callbackAction === "dente:clinic") {
         return {
             text: `Попросите администратора открыть DENTE и показать QR-код подключения. QR сам откроет бот с одноразовым кодом; если камера недоступна, код можно отправить сюда вручную. Портал клиники: ${portal}.`,
             replyMarkup: safeCommandKeyboard(settings, "clinic"),
-            photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+            photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
         };
     }
-    if (normalizedCommand === "/schedule" || normalizedCommand === "/appointments" || callbackAction === "dente:schedule") {
+    if (normalizedCommand === "/schedule" ||
+        normalizedCommand === "/appointments" ||
+        callbackAction === "dente:schedule") {
         const scheduleReply = buildDenteTelegramLinkedScheduleReply(chatFingerprintValue, scope, settings);
         return {
             text: scheduleReply.text,
-            replyMarkup: scheduleReply.replyMarkup ?? safeCommandKeyboard(settings, scheduleReply.linked ? "linked" : "rejected"),
-            photoUrl: patientMenuCardPhoto(settings, "appointment")
+            replyMarkup: scheduleReply.replyMarkup ??
+                safeCommandKeyboard(settings, scheduleReply.linked ? "linked" : "rejected"),
+            photoUrl: patientMenuCardPhoto(settings, "appointment"),
         };
     }
-    if (normalizedCommand === "/documents" || normalizedCommand === "/docs" || callbackAction === "dente:documents") {
+    if (normalizedCommand === "/documents" ||
+        normalizedCommand === "/docs" ||
+        callbackAction === "dente:documents") {
         return documentsReplyFor(settings);
     }
     if (callbackAction === "dente:tax") {
@@ -1596,19 +1792,25 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
             return featureDisabledReplyFor(settings, "Памятки после приема");
         return careReplyFor(settings);
     }
-    const callbackCareTopic = callbackAction ? telegramCareCallbackTopicByAction[callbackAction] : null;
+    const callbackCareTopic = callbackAction
+        ? telegramCareCallbackTopicByAction[callbackAction]
+        : null;
     if (callbackCareTopic) {
         if (!telegramFeatureEnabled(settings, "post_visit_instructions"))
             return featureDisabledReplyFor(settings, "Памятки после приема");
         return careTopicReplyFor(settings, callbackCareTopic, createDenteTelegramCareRequest(chatFingerprintValue, callbackCareTopic, scope));
     }
-    if (normalizedCommand === "/contact" || normalizedCommand === "/call" || callbackAction === "dente:contact") {
+    if (normalizedCommand === "/contact" ||
+        normalizedCommand === "/call" ||
+        callbackAction === "dente:contact") {
         return contactRequestReplyFor(settings, chatFingerprintValue, scope);
     }
     if (normalizedCommand === "/review" || callbackAction === "dente:review") {
         return reviewReplyFor(settings);
     }
-    if (normalizedCommand === "/map" || normalizedCommand === "/maps" || callbackAction === "dente:map") {
+    if (normalizedCommand === "/map" ||
+        normalizedCommand === "/maps" ||
+        callbackAction === "dente:map") {
         return mapReplyFor(settings);
     }
     if (!command && !callbackAction)
@@ -1616,7 +1818,7 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
     return {
         text: "DENTE принял сообщение. Выберите безопасное действие кнопками ниже.",
         replyMarkup: safeCommandKeyboard(settings, "help"),
-        photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+        photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
     };
 }
 function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null) {
@@ -1629,7 +1831,9 @@ function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null
     const isPrimaryRuntime = runtime.organizationId === getDenteTelegramBotSettings().organizationId;
     const warnings = [];
     const nextActions = [];
-    if (settings.mode !== "disabled" && !runtime.tokenConfigured && settings.mode !== "clinic_owned_bot") {
+    if (settings.mode !== "disabled" &&
+        !runtime.tokenConfigured &&
+        settings.mode !== "clinic_owned_bot") {
         warnings.push("Бот Telegram не подключен в серверных настройках DENTE.");
         nextActions.push("Подключите секрет бота в серверных настройках клиники; не храните его в браузере, документации или клиентском коде.");
     }
@@ -1661,9 +1865,13 @@ function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null
         warnings,
         nextActions,
         processedUpdateCount: listDenteTelegramWebhookEvents(300, runtime.organizationId, runtime.botConfigId).filter((event) => event.status === "processed").length,
-        pendingLinkCodeCount: isPrimaryRuntime ? listDenteTelegramLinkCodes(100).filter((code) => code.status === "pending").length : 0,
-        activeChatLinkCount: isPrimaryRuntime ? listDenteTelegramChatLinks(100).filter((link) => link.status === "active").length : 0,
-        recentEvents: listDenteTelegramWebhookEvents(50, runtime.organizationId, runtime.botConfigId)
+        pendingLinkCodeCount: isPrimaryRuntime
+            ? listDenteTelegramLinkCodes(100).filter((code) => code.status === "pending").length
+            : 0,
+        activeChatLinkCount: isPrimaryRuntime
+            ? listDenteTelegramChatLinks(100).filter((link) => link.status === "active").length
+            : 0,
+        recentEvents: listDenteTelegramWebhookEvents(50, runtime.organizationId, runtime.botConfigId),
     }));
 }
 function buildFeaturePlan(settings) {
@@ -1672,14 +1880,14 @@ function buildFeaturePlan(settings) {
         botUsername: configuredBotUsername(settings),
         modes: [
             "shared_dente_bot: общий платформенный бот, клиника определяется по одноразовому коду",
-            "clinic_owned_bot: собственный бот клиники; имя в настройках, секрет только в серверной конфигурации"
+            "clinic_owned_bot: собственный бот клиники; имя в настройках, секрет только в серверной конфигурации",
         ],
         enabledFeatures: settings.enabledFeatures,
         releaseReadyLayers: [
             "linking: одноразовые QR/deep-link коды",
             "outbox: безопасная очередь напоминаний с причинами блокировки",
             "transport: отправка идет только через подключенного бота и защищенную связку чата",
-            "audit: webhook-события и коммуникации остаются в DENTE"
+            "audit: webhook-события и коммуникации остаются в DENTE",
         ],
         patientSafeActions: [
             "одноразовый код привязки",
@@ -1687,22 +1895,22 @@ function buildFeaturePlan(settings) {
             "перенос приема или запрос звонка",
             "уведомление о готовности документа через ссылку на защищенный портал",
             "статус налогового запроса без передачи PDF",
-            "общие памятки после визита по утвержденным шаблонам"
+            "общие памятки после визита по утвержденным шаблонам",
         ],
         staffSafeActions: [
             "ежедневная сводка расписания",
             "очередь подтверждений",
             "эскалация задач связи",
             "счетчики готовности документов без тела документов",
-            "маршрутизация запросов обратного звонка"
+            "маршрутизация запросов обратного звонка",
         ],
         blockedByDefault: [
             "текст диагноза",
             "номера зубов и детали лечения",
             "передача DICOM/КЛКТ/рентгена/фото",
             "налоговые PDF и копии медкарты как файлы Telegram",
-            "свободные клинические рекомендации"
-        ]
+            "свободные клинические рекомендации",
+        ],
     });
 }
 async function sendWebhookSuggestedReply(chatId, suggestedReply, botToken) {
@@ -1720,7 +1928,7 @@ async function sendWebhookSuggestedReply(chatId, suggestedReply, botToken) {
             photoUrl,
             caption: text,
             replyMarkup,
-            timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
+            timeoutMs: Math.min(configuredSendTimeoutMs(), 5000),
         });
         if (photoResult.ok)
             return null;
@@ -1730,7 +1938,7 @@ async function sendWebhookSuggestedReply(chatId, suggestedReply, botToken) {
         chatId,
         text,
         replyMarkup,
-        timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
+        timeoutMs: Math.min(configuredSendTimeoutMs(), 5000),
     });
     if (result.ok)
         return null;
@@ -1742,7 +1950,7 @@ async function handleWebhook(request, reply) {
         return reply.code(runtimeResult.statusCode).send({
             ok: false,
             error: runtimeResult.error,
-            message: runtimeResult.message
+            message: runtimeResult.message,
         });
     }
     const runtime = runtimeResult.context;
@@ -1752,13 +1960,14 @@ async function handleWebhook(request, reply) {
     if (!expectedSecret && process.env.NODE_ENV === "production") {
         return reply.code(503).send({
             ok: false,
-            error: "TelegramWebhookSecretRequired"
+            error: "TelegramWebhookSecretRequired",
         });
     }
-    if (expectedSecret && !timingSafeSecretEqual(providedSecret, expectedSecret)) {
+    if (expectedSecret &&
+        !timingSafeSecretEqual(providedSecret, expectedSecret)) {
         return reply.code(401).send({
             ok: false,
-            error: "TelegramWebhookSecretMismatch"
+            error: "TelegramWebhookSecretMismatch",
         });
     }
     if (settings.mode === "disabled") {
@@ -1767,8 +1976,10 @@ async function handleWebhook(request, reply) {
             duplicate: false,
             action: "ignored_telegram_disabled",
             suggestedReply: null,
-            warnings: ["Telegram отключен в настройках клиники; update не обработан, код привязки не использован."],
-            event: null
+            warnings: [
+                "Telegram отключен в настройках клиники; update не обработан, код привязки не использован.",
+            ],
+            event: null,
         }));
     }
     const parsedUpdate = parseTelegramRouteBody(denteTelegramWebhookUpdateSchema, request.body);
@@ -1776,7 +1987,7 @@ async function handleWebhook(request, reply) {
         return reply.code(400).send({
             ok: false,
             error: "TelegramWebhookValidationFailed",
-            message: parsedUpdate.message
+            message: parsedUpdate.message,
         });
     }
     const update = parsedUpdate.value;
@@ -1787,7 +1998,7 @@ async function handleWebhook(request, reply) {
             action: "ignored_duplicate_update",
             suggestedReply: null,
             warnings: [],
-            event: null
+            event: null,
         });
     }
     const updateKind = detectUpdateKind(update);
@@ -1795,7 +2006,11 @@ async function handleWebhook(request, reply) {
     const callbackAction = extractSafeCallbackAction(update);
     const callbackQueryId = extractCallbackQueryId(update);
     const command = extractCommand(update) ??
-        (callbackData?.startsWith("d1.") ? "/callback:appointment" : callbackAction ? `/callback:${callbackAction.replace("dente:", "")}` : null);
+        (callbackData?.startsWith("d1.")
+            ? "/callback:appointment"
+            : callbackAction
+                ? `/callback:${callbackAction.replace("dente:", "")}`
+                : null);
     const chatInfo = extractChatInfo(update);
     const chatId = chatInfo?.id ?? null;
     const chatType = chatInfo?.type ?? null;
@@ -1808,7 +2023,7 @@ async function handleWebhook(request, reply) {
         botConfigId: runtime.botConfigId,
         chatFingerprint: chatHash,
         updateKind,
-        command
+        command,
     });
     if (!webhookClaim.claimed) {
         return denteTelegramWebhookResponseSchema.parse({
@@ -1817,7 +2032,7 @@ async function handleWebhook(request, reply) {
             action: "ignored_duplicate_update",
             suggestedReply: null,
             warnings: [],
-            event: null
+            event: null,
         });
     }
     const appointmentCallbackResult = handleDenteTelegramAppointmentCallback({
@@ -1825,22 +2040,30 @@ async function handleWebhook(request, reply) {
         chatFingerprint: chatHash,
         organizationId: runtime.organizationId,
         clinicId: runtime.clinicId,
-        botConfigId: runtime.botConfigId
+        botConfigId: runtime.botConfigId,
     });
-    const linkCode = appointmentCallbackResult.handled ? null : extractDenteTelegramLinkCode(messageText);
+    const linkCode = appointmentCallbackResult.handled
+        ? null
+        : extractDenteTelegramLinkCode(messageText);
     const linkCodeRejectedByChatType = Boolean(linkCode && chatType !== "private");
-    const linkCodeRejectedByRateLimit = Boolean(linkCode && !linkCodeRejectedByChatType && telegramLinkCodeRateLimitExceeded(chatHash, runtime.organizationId, runtime.botConfigId));
+    const linkCodeRejectedByRateLimit = Boolean(linkCode &&
+        !linkCodeRejectedByChatType &&
+        telegramLinkCodeRateLimitExceeded(chatHash, runtime.organizationId, runtime.botConfigId));
     const linkResult = linkCode && !linkCodeRejectedByChatType && !linkCodeRejectedByRateLimit
         ? consumeDenteTelegramLinkCode(linkCode, chatHash, chatId, {
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
-            botConfigId: runtime.botConfigId
+            botConfigId: runtime.botConfigId,
         })
         : null;
     const warnings = [
         ...webhookClaim.event.warnings,
         ...appointmentCallbackResult.warnings,
-        ...(expectedSecret ? [] : ["Webhook secret не настроен; update принимается только для локальной разработки."])
+        ...(expectedSecret
+            ? []
+            : [
+                "Webhook secret не настроен; update принимается только для локальной разработки.",
+            ]),
     ];
     if (linkCodeRejectedByChatType) {
         warnings.push("Одноразовый код Telegram можно использовать только в личном чате с ботом; привязка в группах и каналах заблокирована.");
@@ -1858,7 +2081,8 @@ async function handleWebhook(request, reply) {
         if (linkResult.reason === "chat_encryption_key_missing") {
             warnings.push("Защищенная связка Telegram-чата не настроена; одноразовый код Telegram не был использован.");
         }
-        else if (linkResult.reason === "missing_chat_transport" || linkResult.reason === "chat_encryption_failed") {
+        else if (linkResult.reason === "missing_chat_transport" ||
+            linkResult.reason === "chat_encryption_failed") {
             warnings.push("Чат Telegram не удалось сохранить в защищенной связке; одноразовый код Telegram не был использован.");
         }
         else {
@@ -1884,12 +2108,12 @@ async function handleWebhook(request, reply) {
         ? {
             text: appointmentCallbackResult.suggestedReply,
             replyMarkup: safeCommandKeyboard(settings, "appointment_callback"),
-            photoUrl: patientMenuCardPhoto(settings, "appointment")
+            photoUrl: patientMenuCardPhoto(settings, "appointment"),
         }
         : linkCodeRejectedByRateLimit
             ? {
                 text: null,
-                replyMarkup: null
+                replyMarkup: null,
             }
             : linkCodeRejectedByChatType || suppressPublicChatReply
                 ? {
@@ -1897,13 +2121,13 @@ async function handleWebhook(request, reply) {
                         ? "Код DENTE не принят в публичном чате. Откройте личный чат с ботом и попросите клинику показать QR подключения или отправьте одноразовый код там."
                         : "DENTE отвечает только в личном чате с ботом. Откройте личный чат, чтобы подключить уведомления клиники.",
                     replyMarkup: safeCommandKeyboard(settings, "rejected"),
-                    photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+                    photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
                 }
                 : linkResult?.ok === true
                     ? {
                         text: "Привязка DENTE завершена. Telegram будет получать только безопасные уведомления клиники. Медицинские документы остаются в защищенном портале.",
                         replyMarkup: safeCommandKeyboard(settings, "linked"),
-                        photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+                        photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
                     }
                     : linkResult
                         ? {
@@ -1913,25 +2137,29 @@ async function handleWebhook(request, reply) {
                                 ? "DENTE временно не может безопасно привязать Telegram. Попросите клинику проверить настройки бота и повторить код после исправления."
                                 : "Код DENTE не принят. Попросите клинику показать новый QR подключения или выдать новый одноразовый код.",
                             replyMarkup: safeCommandKeyboard(settings, "rejected"),
-                            photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+                            photoUrl: patientMenuCardPhoto(settings, "mainMenu"),
                         }
                         : suggestedReplyFor(command, callbackAction, settings, chatHash, updateKind, messageText, {
                             organizationId: runtime.organizationId,
                             clinicId: runtime.clinicId,
-                            botConfigId: runtime.botConfigId
+                            botConfigId: runtime.botConfigId,
                         });
     const botToken = runtime.botToken;
     if (callbackQueryId && botToken) {
         const callbackAnswer = await answerTelegramCallbackQuery({
             botToken,
             callbackQueryId,
-            text: appointmentCallbackResult.handled ? appointmentCallbackResult.callbackAnswerText : "DENTE: безопасный ответ отправлен.",
-            timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
+            text: appointmentCallbackResult.handled
+                ? appointmentCallbackResult.callbackAnswerText
+                : "DENTE: безопасный ответ отправлен.",
+            timeoutMs: Math.min(configuredSendTimeoutMs(), 5000),
         });
         if (!callbackAnswer.ok)
             warnings.push(telegramCallbackTransportFailureWarning(callbackAnswer));
     }
-    const replyWarning = suppressPublicChatReply ? null : await sendWebhookSuggestedReply(chatId, suggestedReply, runtime.botToken);
+    const replyWarning = suppressPublicChatReply
+        ? null
+        : await sendWebhookSuggestedReply(chatId, suggestedReply, runtime.botToken);
     if (suppressPublicChatReply) {
         warnings.push("Ответ Telegram не отправлен в группу или канал: DENTE отвечает только в личном чате.");
     }
@@ -1954,7 +2182,7 @@ async function handleWebhook(request, reply) {
                 ? "ignored"
                 : "processed",
         action,
-        warnings
+        warnings,
     });
     return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
         ok: true,
@@ -1964,7 +2192,7 @@ async function handleWebhook(request, reply) {
         suggestedReplyMarkup: readableTelegramPayload(suggestedReply.replyMarkup),
         suggestedPhotoUrl: suggestedReply.photoUrl?.trim() || null,
         warnings,
-        event
+        event,
     }));
 }
 export async function registerTelegramWebhookRoutes(app) {
@@ -1979,7 +2207,7 @@ function registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         return buildStatus(request.params.organizationId);
@@ -1989,7 +2217,7 @@ function registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         return buildStatus(request.params.organizationId, request.params.botConfigId);
@@ -2001,10 +2229,14 @@ function registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions) {
         const parsedInput = parseTelegramRouteBody(updateDenteTelegramBotSettingsSchema, request.body);
         if (!parsedInput.ok) {
             const schemaResult = updateDenteTelegramBotSettingsSchema.safeParse(request.body);
-            const issueCount = schemaResult.success ? 0 : schemaResult.error.issues.length;
+            const issueCount = schemaResult.success
+                ? 0
+                : schemaResult.error.issues.length;
             return reply.code(400).send({
                 error: "TelegramSettingsValidationFailed",
-                message: schemaResult.success || issueCount !== 1 ? parsedInput.message : readableTelegramSettingsSchemaMessage(schemaResult.error)
+                message: schemaResult.success || issueCount !== 1
+                    ? parsedInput.message
+                    : readableTelegramSettingsSchemaMessage(schemaResult.error),
             });
         }
         const input = parsedInput.value;
@@ -2014,7 +2246,7 @@ function registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions) {
         catch (settingsError) {
             return reply.code(400).send({
                 error: "TelegramSettingsValidationFailed",
-                message: readableTelegramSettingsValidationMessage(settingsError)
+                message: readableTelegramSettingsValidationMessage(settingsError),
             });
         }
         return buildStatus();
@@ -2027,7 +2259,7 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         return buildDenteTelegramOutbox(parseTelegramOutboxQuery(request.query), runtimeResult.runtime.runtimeScope);
@@ -2040,7 +2272,7 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const result = await executeTelegramOutboxSend(request.params.itemId, parsedInput.value, runtimeResult.runtime);
@@ -2054,11 +2286,17 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const response = await executeDenteTelegramOutboxDueBatch(input, runtimeResult.runtime);
-        return reply.code(response.failedCount > 0 ? 502 : response.blockedCount > 0 ? 409 : 200).send(response);
+        return reply
+            .code(response.failedCount > 0
+            ? 502
+            : response.blockedCount > 0
+                ? 409
+                : 200)
+            .send(response);
     });
 }
 function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
@@ -2067,12 +2305,13 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (!parsedInput.ok)
             return sendTelegramValidationError(reply);
         const input = parsedInput.value;
-        const requestedOrganizationId = input.organizationId ?? (input.botConfigId ? (input.clinicId ?? null) : null);
+        const requestedOrganizationId = input.organizationId ??
+            (input.botConfigId ? (input.clinicId ?? null) : null);
         const runtimeResult = resolveTelegramRuntimeContext(requestedOrganizationId, input.botConfigId ?? null);
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const runtime = runtimeResult.context;
@@ -2081,13 +2320,14 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (requestedClinicId && requestedClinicId !== runtime.clinicId) {
             return reply.code(409).send({
                 error: "TelegramLinkCodeScopeInvalid",
-                message: "Код привязки Telegram относится к другой клинике."
+                message: "Код привязки Telegram относится к другой клинике.",
             });
         }
-        if (settings.mode === "disabled" || !settings.enabledFeatures.includes("patient_linking")) {
+        if (settings.mode === "disabled" ||
+            !settings.enabledFeatures.includes("patient_linking")) {
             return reply.code(409).send({
                 error: "TelegramLinkingDisabled",
-                message: "Привязка Telegram отключена в настройках клиники."
+                message: "Привязка Telegram отключена в настройках клиники.",
             });
         }
         try {
@@ -2096,7 +2336,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
                 organizationId: runtime.organizationId,
                 clinicId: input.clinicId ?? runtime.clinicId,
                 botConfigId: runtime.botConfigId,
-                botUsername: runtime.botUsername
+                botUsername: runtime.botUsername,
             });
         }
         catch (linkCodeError) {
@@ -2104,7 +2344,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
             return reply.code(409).send({
                 error: rejection.error,
                 reason: rejection.reason,
-                message: rejection.message
+                message: rejection.message,
             });
         }
     });
@@ -2113,7 +2353,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const runtime = runtimeResult.runtime.context;
@@ -2121,7 +2361,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
             ...parseTelegramLinkCodeListQuery(request.query),
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
-            botConfigId: runtime.botConfigId
+            botConfigId: runtime.botConfigId,
         });
     });
     app.get("/api/telegram/chat-links", telegramControlPlaneRouteOptions, async (request, reply) => {
@@ -2129,7 +2369,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const runtime = runtimeResult.runtime.context;
@@ -2137,7 +2377,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
             ...parseTelegramChatLinkListQuery(request.query),
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
-            botConfigId: runtime.botConfigId
+            botConfigId: runtime.botConfigId,
         });
     });
     app.post("/api/telegram/chat-links/:linkId/revoke", telegramControlPlaneRouteOptions, async (request, reply) => {
@@ -2145,19 +2385,19 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const runtime = runtimeResult.runtime.context;
         const revoked = revokeDenteTelegramChatLink(request.params.linkId, {
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
-            botConfigId: runtime.botConfigId
+            botConfigId: runtime.botConfigId,
         });
         if (!revoked) {
             return reply.code(404).send({
                 error: "TelegramChatLinkNotFound",
-                message: telegramChatLinkNotFoundMessage
+                message: telegramChatLinkNotFoundMessage,
             });
         }
         return denteTelegramChatLinkPublicSchema.parse(revoked);
@@ -2169,7 +2409,7 @@ function registerTelegramPreviewRoutes(app, telegramControlPlaneRouteOptions) {
         if (!runtimeResult.ok) {
             return reply.code(runtimeResult.statusCode).send({
                 error: runtimeResult.error,
-                message: runtimeResult.message
+                message: runtimeResult.message,
             });
         }
         const parsedInput = parseTelegramRouteBody(denteTelegramMessagePreviewRequestSchema, request.body);
@@ -2181,12 +2421,18 @@ function registerTelegramPreviewRoutes(app, telegramControlPlaneRouteOptions) {
         }
         catch (previewError) {
             const rejection = telegramMessagePreviewRejection(previewError);
-            return reply.code(404).send({ error: "TelegramMessagePreviewNotFound", reason: rejection.reason, message: rejection.message });
+            return reply.code(404).send({
+                error: "TelegramMessagePreviewNotFound",
+                reason: rejection.reason,
+                message: rejection.message,
+            });
         }
     });
 }
 export async function registerTelegramRoutes(app) {
-    const telegramControlPlaneRouteOptions = { preHandler: requireTelegramControlPlaneAccess };
+    const telegramControlPlaneRouteOptions = {
+        preHandler: requireTelegramControlPlaneAccess,
+    };
     registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions);
     registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions);
     registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions);

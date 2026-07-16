@@ -7,11 +7,11 @@ export class PriceListMatcher {
             keys: [
                 { name: "title", weight: 0.7 },
                 { name: "aliases", weight: 0.9 }, // Aliases have higher weight because they map exact doctor slang
-                { name: "code", weight: 0.3 }
+                { name: "code", weight: 0.3 },
             ],
             threshold: 0.4, // Requires a reasonably close match
             ignoreLocation: true,
-            includeScore: true
+            includeScore: true,
         });
     }
     /**

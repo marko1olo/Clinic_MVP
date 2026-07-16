@@ -1,53 +1,61 @@
 import "dotenv/config";
-import cors from "@fastify/cors";
-import Fastify from "fastify";
-import fastifyWebsocket from "@fastify/websocket";
-import fastifyMultipart from "@fastify/multipart";
+import net from "node:net";
 import { pathToFileURL } from "node:url";
+import cors from "@fastify/cors";
+import fastifyMultipart from "@fastify/multipart";
+import fastifyWebsocket from "@fastify/websocket";
+import Fastify from "fastify";
 import { ZodError } from "zod";
-import { wsBroker } from "./services/websocketBroker.js";
+import { db } from "./db/client.js";
+import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { registerAiRoutes } from "./routes/ai.js";
-import { registerBillingRoutes, registerAdvancedBillingRoutes } from "./routes/billing.js";
+import { registerAnalyticsRoutes } from "./routes/analytics.js";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerAdvancedBillingRoutes, registerBillingRoutes, } from "./routes/billing.js";
 import { registerClinicalRoutes } from "./routes/clinical.js";
 import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
-import { registerAnalyticsRoutes } from "./routes/analytics.js";
+import registerDiaryRoutes from "./routes/diary.js";
+import { registerDicomwebRoutes } from "./routes/dicomweb.js";
 import { registerDocumentRoutes } from "./routes/documents.js";
+import registerEgiszRoutes from "./routes/egisz.js";
+import { registerFilesRoutes } from "./routes/files.js";
+import { registerFamilyFinanceRoutes } from "./routes/finance_family.js";
 import { registerImagingRoutes } from "./routes/imaging.js";
 import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
-import { registerIngestionRoutes } from "./routes/ingestion.js";
 import { registerImportRoutes } from "./routes/imports.js";
+import { registerIngestionRoutes } from "./routes/ingestion.js";
+import { inventoryRoutes } from "./routes/inventory.js";
+import { registerLabRoutes } from "./routes/lab.js";
+import { registerLeadsRoutes } from "./routes/leads.js";
+import { registerMaxRoutes } from "./routes/max.js";
+import { registerOdontogramRoutes } from "./routes/odontogram.js";
 import { registerPatientRoutes } from "./routes/patients.js";
+import { portalRoutes } from "./routes/portal.js";
 import { registerPricelistRoutes } from "./routes/pricelist.js";
+import { registerPublicBookingRoutes } from "./routes/publicBooking.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
-import { registerSpeechRoutes } from "./routes/speech.js";
 import { registerSmartImportRoutes } from "./routes/smartImports.js";
-import { registerSystemRoutes } from "./routes/system.js";
-import { registerTelegramRoutes, registerTelegramWebhookRoutes } from "./routes/telegram.js";
-import { registerVisitRoutes } from "./routes/visits.js";
-import { registerLeadsRoutes } from "./routes/leads.js";
+import { registerSpeechRoutes } from "./routes/speech.js";
 import { registerSterilizationRoutes } from "./routes/sterilization.js";
-import { registerFamilyFinanceRoutes } from "./routes/finance_family.js";
-import { registerDicomwebRoutes } from "./routes/dicomweb.js";
-import { registerXrayRoutes } from "./routes/xray.js";
-import { registerAuthRoutes } from "./routes/auth.js";
-import registerEgiszRoutes from "./routes/egisz.js";
-import registerDiaryRoutes from "./routes/diary.js";
+import { registerSystemRoutes } from "./routes/system.js";
+import { registerTelegramRoutes, registerTelegramWebhookRoutes, } from "./routes/telegram.js";
+import { telephonyRoutes } from "./routes/telephony.js";
 import registerTemplateRoutes from "./routes/templates.js";
 import registerToothHistoryRoutes from "./routes/toothHistory.js";
-import { registerOdontogramRoutes } from "./routes/odontogram.js";
-import { registerLabRoutes } from "./routes/lab.js";
-import { registerFilesRoutes } from "./routes/files.js";
+import { registerVisitRoutes } from "./routes/visits.js";
+import { registerVkRoutes } from "./routes/vk.js";
+import { registerWhatsappRoutes } from "./routes/whatsapp.js";
 import { workspaceProfileRoutes } from "./routes/workspaceProfile.js";
+import { registerXrayRoutes } from "./routes/xray.js";
+import { startBackupDaemon, stopBackupDaemon, } from "./services/backupWorker.js";
 import { startBiAnalyticsWorker } from "./services/biAnalyticsWorker.js";
-import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
-import { repairMojibakeText } from "./text/repairMojibake.js";
-import { startSyncDaemon, stopSyncDaemon } from "./services/syncDaemon.js";
-import { startBackupDaemon, stopBackupDaemon } from "./services/backupWorker.js";
-import net from "node:net";
-import { ensureSshTunnel } from "./speech/tunnel.js";
+import { startSyncEngine, stopSyncEngine } from "./services/syncEngine.js";
+import { wsBroker } from "./services/websocketBroker.js";
 import { getProxyAgent } from "./speech/keyPool.js";
+import { ensureSshTunnel } from "./speech/tunnel.js";
+import { repairMojibakeText } from "./text/repairMojibake.js";
 import { startWatchdog } from "./watchdog.js";
 loadAdditionalServerEnv();
 startWatchdog();
@@ -90,7 +98,9 @@ export async function setupProxyAndTunnels() {
     }
     else {
         // 2. Если туннеля нет, проверяем настроенный прокси из .env
-        const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
+        const proxyUrl = process.env.HTTPS_PROXY ||
+            process.env.HTTP_PROXY ||
+            process.env.PROXY_URL;
         if (proxyUrl) {
             const isOnline = await checkProxyPortDirectly(proxyUrl);
             if (!isOnline) {
@@ -117,7 +127,10 @@ function isZodValidationError(error) {
 function apiErrorStatusCode(error) {
     const candidate = error;
     const statusCode = candidate?.statusCode ?? candidate?.status;
-    if (typeof statusCode === "number" && Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600)
+    if (typeof statusCode === "number" &&
+        Number.isInteger(statusCode) &&
+        statusCode >= 400 &&
+        statusCode < 600)
         return statusCode;
     return 500;
 }
@@ -133,9 +146,14 @@ function fallbackApiErrorMessage(statusCode) {
     return "Запрос не выполнен. Проверьте данные и повторите действие.";
 }
 function publicApiErrorMessage(error, statusCode) {
-    const rawMessage = typeof error?.message === "string" ? String(error.message) : "";
+    const rawMessage = typeof error?.message === "string"
+        ? String(error.message)
+        : "";
     const repairedMessage = repairMojibakeText(rawMessage).trim();
-    if (repairedMessage && repairedMessage.length <= 600 && /[А-Яа-яЁё]/.test(repairedMessage) && !apiTechnicalErrorPattern.test(repairedMessage)) {
+    if (repairedMessage &&
+        repairedMessage.length <= 600 &&
+        /[А-Яа-яЁё]/.test(repairedMessage) &&
+        !apiTechnicalErrorPattern.test(repairedMessage)) {
         return repairedMessage;
     }
     return fallbackApiErrorMessage(statusCode);
@@ -143,8 +161,8 @@ function publicApiErrorMessage(error, statusCode) {
 export async function createDenteApiApp(options = {}) {
     const app = Fastify({
         logger: {
-            level: process.env.NODE_ENV === "production" ? "info" : "debug"
-        }
+            level: process.env.NODE_ENV === "production" ? "info" : "debug",
+        },
     });
     const webOrigins = (process.env.WEB_ORIGIN ?? "http://127.0.0.1:5173")
         .split(",")
@@ -165,13 +183,13 @@ export async function createDenteApiApp(options = {}) {
         }
     });
     await app.register(cors, {
-        origin: webOrigins
+        origin: webOrigins,
     });
     await app.register(fastifyWebsocket, {
-        options: { maxPayload: 1048576 }
+        options: { maxPayload: 1048576 },
     });
     await app.register(fastifyMultipart, {
-        limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
     });
     app.get("/api/ws/schedule", { websocket: true }, (connection, req) => {
         const orgId = req.query.orgId || "default-org";
@@ -179,18 +197,24 @@ export async function createDenteApiApp(options = {}) {
         wsBroker.addClient(connection, orgId, patientId);
     });
     app.setErrorHandler((error, _request, reply) => {
-        import("node:fs").then(m => m.appendFileSync("C:/Clinic_MVP/error.log", (error?.stack || error?.message || String(error)) + "\nCAUSE: " + (error?.cause || "") + "\n"));
+        const logPath = process.env.ERROR_LOG_PATH;
+        if (logPath) {
+            import("node:fs").then((m) => m.appendFileSync(logPath, (error?.stack || error?.message || String(error)) +
+                "\nCAUSE: " +
+                (error?.cause || "") +
+                "\n"));
+        }
         if (isZodValidationError(error)) {
             reply.status(400).send({
                 error: "ValidationError",
-                message: publicValidationErrorMessage
+                message: publicValidationErrorMessage,
             });
             return;
         }
         const statusCode = apiErrorStatusCode(error);
         reply.status(statusCode).send({
             error: statusCode >= 500 ? "ServerError" : "RequestError",
-            message: publicApiErrorMessage(error, statusCode)
+            message: publicApiErrorMessage(error, statusCode),
         });
     });
     app.addHook("onSend", async (_request, reply, payload) => {
@@ -209,11 +233,14 @@ export async function createDenteApiApp(options = {}) {
     app.get("/api/health", async () => ({
         ok: true,
         service: "dental-crm-api",
-        time: new Date().toISOString()
+        time: new Date().toISOString(),
     }));
     await registerAiRoutes(app);
     await registerBillingRoutes(app);
     await registerAdvancedBillingRoutes(app);
+    await app.register(telephonyRoutes, { prefix: "/api/telephony" });
+    await app.register(portalRoutes, { prefix: "/api/portal" });
+    await app.register(inventoryRoutes, { prefix: "/api/inventory" });
     await registerClinicalRoutes(app);
     await registerCommunicationRoutes(app);
     await registerDashboardRoutes(app);
@@ -227,11 +254,17 @@ export async function createDenteApiApp(options = {}) {
     await registerPricelistRoutes(app);
     await registerScheduleRoutes(app);
     await registerSettingsRoutes(app);
+    await app.register(registerPublicBookingRoutes, {
+        prefix: "/api/public/booking",
+    });
+    await registerVkRoutes(app);
     await registerSpeechRoutes(app);
     await registerSmartImportRoutes(app);
     await registerSystemRoutes(app);
     await registerTelegramRoutes(app);
     await registerTelegramWebhookRoutes(app);
+    await registerWhatsappRoutes(app);
+    await registerMaxRoutes(app);
     await registerVisitRoutes(app);
     await registerLeadsRoutes(app);
     await registerSterilizationRoutes(app);
@@ -250,19 +283,19 @@ export async function createDenteApiApp(options = {}) {
     if (options.startTelegramWorker !== false) {
         // const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
         startBiAnalyticsWorker();
-        startSyncDaemon();
+        startSyncEngine(db.$client); // assuming db exposes pglite
         startBackupDaemon();
         app.addHook("onClose", async () => {
             // telegramOutboxDueWorker.stop();
             // clearInterval(recallWorkerTimer);
-            stopSyncDaemon();
+            stopSyncEngine();
             stopBackupDaemon();
         });
     }
     return app;
 }
 export async function startDenteApiServer() {
-    await setupProxyAndTunnels().catch(err => {
+    await setupProxyAndTunnels().catch((err) => {
         console.error("[Proxy Boot] Failed to run proxy/tunnel diagnostics:", err);
     });
     const app = await createDenteApiApp();
@@ -276,7 +309,8 @@ export async function startDenteApiServer() {
         process.exit(1);
     }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] &&
+    import.meta.url === pathToFileURL(process.argv[1]).href) {
     await startDenteApiServer();
 }
 // trigger restart

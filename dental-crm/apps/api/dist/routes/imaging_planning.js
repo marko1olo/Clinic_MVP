@@ -11,7 +11,7 @@ export async function registerImagingPlanningRoutes(app) {
             const key = `${payload.patientId}_${payload.studyInstanceUid}`;
             inMemoryPlannings.set(key, {
                 ...payload,
-                updatedAt: new Date()
+                updatedAt: new Date(),
             });
             return reply.status(200).send({ success: true });
         }
@@ -25,7 +25,9 @@ export async function registerImagingPlanningRoutes(app) {
         try {
             const { studyUid, patientId } = request.query;
             if (!studyUid || !patientId) {
-                return reply.status(400).send({ error: "Missing required query parameters" });
+                return reply
+                    .status(400)
+                    .send({ error: "Missing required query parameters" });
             }
             const key = `${patientId}_${studyUid}`;
             const planning = inMemoryPlannings.get(key);

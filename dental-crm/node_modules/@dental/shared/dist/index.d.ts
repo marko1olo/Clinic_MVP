@@ -4889,10 +4889,10 @@ export declare const createClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
     action: z.ZodEnum<["add_required_service", "block_service", "show_warning", "schedule_followup"]>;
     severity: z.ZodEnum<["info", "warning", "blocker"]>;
     ownerRole: z.ZodEnum<["owner", "doctor", "administrator", "assistant", "manager"]>;
-    triggerServiceIds: z.ZodArray<z.ZodString, "many">;
-    requiredServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
-    requiresCompletedServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
-    blockedServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    triggerServiceIds: z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>;
+    requiredServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
+    requiresCompletedServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
+    blockedServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
     condition: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     warningText: z.ZodString;
     patientText: z.ZodString;
@@ -4959,17 +4959,17 @@ export declare const createClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
     condition?: string | null | undefined;
 }>;
 export type CreateClinicalRuleInput = z.infer<typeof createClinicalRuleSchema>;
-export declare const updateClinicalRuleSchema: z.ZodObject<{
+export declare const updateClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
     title: z.ZodOptional<z.ZodString>;
     category: z.ZodOptional<z.ZodEnum<["consultation", "therapy", "surgery", "prosthetics", "orthodontics", "periodontology", "hygiene", "imaging", "documents", "other"]>>;
     specialty: z.ZodOptional<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>>;
     action: z.ZodOptional<z.ZodEnum<["add_required_service", "block_service", "show_warning", "schedule_followup"]>>;
     severity: z.ZodOptional<z.ZodEnum<["info", "warning", "blocker"]>>;
     ownerRole: z.ZodOptional<z.ZodEnum<["owner", "doctor", "administrator", "assistant", "manager"]>>;
-    triggerServiceIds: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-    requiredServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
-    requiresCompletedServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
-    blockedServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
+    triggerServiceIds: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>>;
+    requiredServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
+    requiresCompletedServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
+    blockedServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
     condition: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     warningText: z.ZodOptional<z.ZodString>;
     patientText: z.ZodOptional<z.ZodString>;
@@ -4977,6 +4977,38 @@ export declare const updateClinicalRuleSchema: z.ZodObject<{
 } & {
     id: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    id: string;
+    active?: boolean | undefined;
+    title?: string | undefined;
+    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
+    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
+    severity?: "info" | "warning" | "blocker" | undefined;
+    ownerRole?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
+    action?: "add_required_service" | "block_service" | "show_warning" | "schedule_followup" | undefined;
+    triggerServiceIds?: string[] | undefined;
+    requiredServiceIds?: string[] | undefined;
+    requiresCompletedServiceIds?: string[] | undefined;
+    blockedServiceIds?: string[] | undefined;
+    condition?: string | null | undefined;
+    warningText?: string | undefined;
+    patientText?: string | undefined;
+}, {
+    id: string;
+    active?: boolean | undefined;
+    title?: string | undefined;
+    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
+    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
+    severity?: "info" | "warning" | "blocker" | undefined;
+    ownerRole?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
+    action?: "add_required_service" | "block_service" | "show_warning" | "schedule_followup" | undefined;
+    triggerServiceIds?: string[] | undefined;
+    requiredServiceIds?: string[] | undefined;
+    requiresCompletedServiceIds?: string[] | undefined;
+    blockedServiceIds?: string[] | undefined;
+    condition?: string | null | undefined;
+    warningText?: string | undefined;
+    patientText?: string | undefined;
+}>, {
     id: string;
     active?: boolean | undefined;
     title?: string | undefined;
@@ -16103,6 +16135,7 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: z.ZodLiteral<true>;
     clinicRepresentativeSigned: z.ZodLiteral<true>;
     note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strict", z.ZodTypeAny, {
     mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
     signedAt: string;
@@ -16115,6 +16148,7 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: true;
     clinicRepresentativeSigned: true;
     note?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
 }, {
     mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
     signedAt: string;
@@ -16127,6 +16161,7 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: true;
     clinicRepresentativeSigned: true;
     note?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
 }>;
 export type DocumentIssueSignatureAttestation = z.infer<typeof documentIssueSignatureAttestationSchema>;
 export declare const issueDocumentSchema: z.ZodObject<{
@@ -16142,6 +16177,7 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -16154,6 +16190,7 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -16166,6 +16203,7 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }>;
 }, "strict", z.ZodTypeAny, {
     signatureAttestation: {
@@ -16180,6 +16218,7 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     };
 }, {
     signatureAttestation: {
@@ -16194,6 +16233,7 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     };
 }>;
 export type IssueDocumentInput = z.infer<typeof issueDocumentSchema>;
@@ -21627,6 +21667,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -21639,6 +21680,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -21651,7 +21693,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }>>>;
+    signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -22428,6 +22473,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -22440,6 +22486,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -23243,6 +23290,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             patientReason?: string | null | undefined;
         } | undefined;
     } | null | undefined;
+    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -23396,6 +23444,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -23408,6 +23457,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -24211,6 +24261,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             patientReason?: string | null | undefined;
         } | undefined;
     } | null | undefined;
+    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -29024,6 +29075,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29036,6 +29088,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29048,7 +29101,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }>>>;
+    signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -29896,6 +29952,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29908,6 +29965,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -29922,6 +29980,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         statusReviewed: true;
         correctionDocumentId?: string | null | undefined;
     } | null | undefined;
+    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -29976,6 +30035,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
+    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29988,6 +30048,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -30002,6 +30063,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         replacementRequired?: boolean | undefined;
         patientOrPayerNotified?: boolean | undefined;
     } | null | undefined;
+    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -30068,6 +30130,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -30080,6 +30143,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -30092,7 +30156,9 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     }>>;
+    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -30240,6 +30306,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null;
     voidAttestation: {
         staffFullName: string;
@@ -30298,6 +30365,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     sourceNote: string;
     sourceCheckedAt: string;
     sourceUrls: string[];
+    cryptoSignaturePkcs7?: string | null | undefined;
 }, {
     status: "draft" | "voided" | "issued";
     title: string;
@@ -30322,6 +30390,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
     } | null;
     voidAttestation: {
         staffFullName: string;
@@ -30380,6 +30449,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     sourceNote: string;
     sourceCheckedAt: string;
     sourceUrls: string[];
+    cryptoSignaturePkcs7?: string | null | undefined;
 }>;
 export type DocumentAuditFacts = z.infer<typeof documentAuditFactsSchema>;
 export declare const imagingStudySchema: z.ZodObject<{
@@ -36544,6 +36614,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: z.ZodLiteral<true>;
             clinicRepresentativeSigned: z.ZodLiteral<true>;
             note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strict", z.ZodTypeAny, {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -36556,6 +36627,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         }, {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -36568,7 +36640,10 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         }>>>;
+        signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
             reasonText: z.ZodString;
@@ -37416,6 +37491,7 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -37428,6 +37504,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -37442,6 +37519,7 @@ export declare const dashboardSchema: z.ZodObject<{
             statusReviewed: true;
             correctionDocumentId?: string | null | undefined;
         } | null | undefined;
+        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -37496,6 +37574,7 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -37508,6 +37587,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -37522,6 +37602,7 @@ export declare const dashboardSchema: z.ZodObject<{
             replacementRequired?: boolean | undefined;
             patientOrPayerNotified?: boolean | undefined;
         } | null | undefined;
+        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -38349,6 +38430,7 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -38361,6 +38443,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -38375,6 +38458,7 @@ export declare const dashboardSchema: z.ZodObject<{
             statusReviewed: true;
             correctionDocumentId?: string | null | undefined;
         } | null | undefined;
+        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -39010,6 +39094,7 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
+        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -39022,6 +39107,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
+            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -39036,6 +39122,7 @@ export declare const dashboardSchema: z.ZodObject<{
             replacementRequired?: boolean | undefined;
             patientOrPayerNotified?: boolean | undefined;
         } | null | undefined;
+        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -93159,8 +93246,8 @@ export type ImagingViewerState = any;
 export type ImagingViewerSaveState = any;
 export type MprProjection = any;
 export type MprWindowPreset = any;
-export * from "./utils/strings.js";
 export * from "./utils/dates.js";
+export * from "./utils/strings.js";
 export declare const doctorCommissionSchema: z.ZodObject<{
     id: z.ZodString;
     organizationId: z.ZodString;
@@ -93230,4 +93317,307 @@ export declare const doctorAssistantSchema: z.ZodObject<{
     assistantId: string;
 }>;
 export type DoctorAssistant = z.infer<typeof doctorAssistantSchema>;
+export declare const messengerChannelSchema: z.ZodEnum<["telegram", "whatsapp", "max"]>;
+export type MessengerChannel = z.infer<typeof messengerChannelSchema>;
+export declare const messengerIntentSchema: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+export type MessengerIntent = z.infer<typeof messengerIntentSchema>;
+export declare const messengerRoutingRuleSchema: z.ZodObject<{
+    intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+    assignToUserId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+    assignToUserId: string | null;
+}, {
+    intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+    assignToUserId: string | null;
+}>;
+export type MessengerRoutingRule = z.infer<typeof messengerRoutingRuleSchema>;
+export declare const messengerStaffRoutingSchema: z.ZodObject<{
+    defaultUserId: z.ZodNullable<z.ZodString>;
+    rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+        assignToUserId: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+        assignToUserId: string | null;
+    }, {
+        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+        assignToUserId: string | null;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    defaultUserId: string | null;
+    rules: {
+        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+        assignToUserId: string | null;
+    }[];
+}, {
+    defaultUserId: string | null;
+    rules?: {
+        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+        assignToUserId: string | null;
+    }[] | undefined;
+}>;
+export type MessengerStaffRouting = z.infer<typeof messengerStaffRoutingSchema>;
+export declare const denteWhatsappBotConfigSchema: z.ZodObject<{
+    id: z.ZodString;
+    organizationId: z.ZodString;
+    phoneNumberId: z.ZodNullable<z.ZodString>;
+    webhookVerifyToken: z.ZodNullable<z.ZodString>;
+    enabledFeatures: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    staffRouting: z.ZodObject<{
+        defaultUserId: z.ZodNullable<z.ZodString>;
+        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+            assignToUserId: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    }, {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    }>;
+    isActive: z.ZodBoolean;
+    updatedAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    organizationId: string;
+    updatedAt: string;
+    enabledFeatures: string[];
+    phoneNumberId: string | null;
+    webhookVerifyToken: string | null;
+    staffRouting: {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    };
+    isActive: boolean;
+}, {
+    id: string;
+    organizationId: string;
+    updatedAt: string;
+    phoneNumberId: string | null;
+    webhookVerifyToken: string | null;
+    staffRouting: {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    };
+    isActive: boolean;
+    enabledFeatures?: string[] | undefined;
+}>;
+export type DenteWhatsappBotConfig = z.infer<typeof denteWhatsappBotConfigSchema>;
+export declare const updateDenteWhatsappBotConfigSchema: z.ZodObject<{
+    phoneNumberId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    accessToken: z.ZodOptional<z.ZodString>;
+    webhookVerifyToken: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    enabledFeatures: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    staffRouting: z.ZodOptional<z.ZodObject<{
+        defaultUserId: z.ZodNullable<z.ZodString>;
+        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+            assignToUserId: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    }, {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    }>>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    enabledFeatures?: string[] | undefined;
+    phoneNumberId?: string | null | undefined;
+    webhookVerifyToken?: string | null | undefined;
+    staffRouting?: {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    } | undefined;
+    isActive?: boolean | undefined;
+    accessToken?: string | undefined;
+}, {
+    enabledFeatures?: string[] | undefined;
+    phoneNumberId?: string | null | undefined;
+    webhookVerifyToken?: string | null | undefined;
+    staffRouting?: {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    } | undefined;
+    isActive?: boolean | undefined;
+    accessToken?: string | undefined;
+}>;
+export type UpdateDenteWhatsappBotConfigInput = z.infer<typeof updateDenteWhatsappBotConfigSchema>;
+export declare const denteMaxBotConfigSchema: z.ZodObject<{
+    id: z.ZodString;
+    organizationId: z.ZodString;
+    botId: z.ZodNullable<z.ZodString>;
+    webhookUrl: z.ZodNullable<z.ZodString>;
+    enabledFeatures: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    staffRouting: z.ZodObject<{
+        defaultUserId: z.ZodNullable<z.ZodString>;
+        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+            assignToUserId: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    }, {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    }>;
+    isActive: z.ZodBoolean;
+    updatedAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    organizationId: string;
+    updatedAt: string;
+    enabledFeatures: string[];
+    staffRouting: {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    };
+    isActive: boolean;
+    botId: string | null;
+    webhookUrl: string | null;
+}, {
+    id: string;
+    organizationId: string;
+    updatedAt: string;
+    staffRouting: {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    };
+    isActive: boolean;
+    botId: string | null;
+    webhookUrl: string | null;
+    enabledFeatures?: string[] | undefined;
+}>;
+export type DenteMaxBotConfig = z.infer<typeof denteMaxBotConfigSchema>;
+export declare const updateDenteMaxBotConfigSchema: z.ZodObject<{
+    botId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    apiToken: z.ZodOptional<z.ZodString>;
+    webhookUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    enabledFeatures: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    staffRouting: z.ZodOptional<z.ZodObject<{
+        defaultUserId: z.ZodNullable<z.ZodString>;
+        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
+            assignToUserId: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }, {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    }, {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    }>>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    enabledFeatures?: string[] | undefined;
+    staffRouting?: {
+        defaultUserId: string | null;
+        rules: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[];
+    } | undefined;
+    isActive?: boolean | undefined;
+    botId?: string | null | undefined;
+    webhookUrl?: string | null | undefined;
+    apiToken?: string | undefined;
+}, {
+    enabledFeatures?: string[] | undefined;
+    staffRouting?: {
+        defaultUserId: string | null;
+        rules?: {
+            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
+            assignToUserId: string | null;
+        }[] | undefined;
+    } | undefined;
+    isActive?: boolean | undefined;
+    botId?: string | null | undefined;
+    webhookUrl?: string | null | undefined;
+    apiToken?: string | undefined;
+}>;
+export type UpdateDenteMaxBotConfigInput = z.infer<typeof updateDenteMaxBotConfigSchema>;
+export declare const messengerConnectionStatusSchema: z.ZodObject<{
+    channel: z.ZodEnum<["telegram", "whatsapp", "max"]>;
+    connected: z.ZodBoolean;
+    detail: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    detail: string | null;
+    channel: "whatsapp" | "telegram" | "max";
+    connected: boolean;
+}, {
+    detail: string | null;
+    channel: "whatsapp" | "telegram" | "max";
+    connected: boolean;
+}>;
+export type MessengerConnectionStatus = z.infer<typeof messengerConnectionStatusSchema>;
 //# sourceMappingURL=index.d.ts.map

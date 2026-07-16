@@ -1,11 +1,16 @@
 import { buildRuleBasedVisitDraftFromTranscript } from "@dental/shared";
-import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, numberFromEnv } from "../speech/keyPool.js";
+import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, numberFromEnv, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, } from "../speech/keyPool.js";
 function booleanFromEnv(value) {
     return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
 }
 function selectedPolishProvider() {
-    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "").trim().toLowerCase();
-    if (rawProvider === "openai" || rawProvider === "groq" || rawProvider === "gemini" || rawProvider === "custom")
+    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "")
+        .trim()
+        .toLowerCase();
+    if (rawProvider === "openai" ||
+        rawProvider === "groq" ||
+        rawProvider === "gemini" ||
+        rawProvider === "custom")
         return rawProvider;
     if (process.env.DENTAL_SPEECH_POLISH_BASE_URL?.trim())
         return "custom";
@@ -38,13 +43,16 @@ function keyProviderForPolishProvider(provider) {
 }
 function modelForProvider(provider) {
     if (provider === "gemini") {
-        return process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() || process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() || "gemini-2.5-flash";
+        return (process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() ||
+            process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() ||
+            "gemini-2.5-flash");
     }
     if (provider === "groq") {
-        return process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
+        return (process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() ||
+            "llama-3.3-70b-versatile");
     }
     if (provider === "openai") {
-        return process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini";
+        return (process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini");
     }
     const explicitModel = process.env.DENTAL_SPEECH_POLISH_MODEL?.trim();
     if (explicitModel)
@@ -53,23 +61,28 @@ function modelForProvider(provider) {
 }
 function createVisitDraftNeuralConfig() {
     // Check either DENTAL_AI_NEURAL_DRAFT or DENTAL_SPEECH_NEURAL_POLISH (default to speech polish setting if ai draft not explicitly set)
-    const requested = booleanFromEnv(process.env.DENTAL_AI_NEURAL_DRAFT ?? process.env.DENTAL_SPEECH_NEURAL_POLISH);
+    const requested = booleanFromEnv(process.env.DENTAL_AI_NEURAL_DRAFT ??
+        process.env.DENTAL_SPEECH_NEURAL_POLISH);
     const provider = selectedPolishProvider();
     const baseUrl = baseUrlForProvider(provider);
     const explicitApiKey = apiKeyForProvider(provider);
     const keyProviderId = keyProviderForPolishProvider(provider);
     const modelName = modelForProvider(provider);
     const maxTranscriptChars = numberFromEnv("DENTAL_SPEECH_POLISH_MAX_CHARS", 8_000);
-    const keyPool = keyProviderId ? getProviderKeyPoolSummary(keyProviderId) : null;
+    const keyPool = keyProviderId
+        ? getProviderKeyPoolSummary(keyProviderId)
+        : null;
     const hasKey = Boolean(explicitApiKey || (keyPool && keyPool.availableKeyCount > 0));
     return {
-        neuralEnabled: requested && provider !== "none" && Boolean(baseUrl && modelName && hasKey),
+        neuralEnabled: requested &&
+            provider !== "none" &&
+            Boolean(baseUrl && modelName && hasKey),
         provider,
         baseUrl,
         explicitApiKey,
         keyProviderId,
         modelName,
-        maxTranscriptChars
+        maxTranscriptChars,
     };
 }
 async function callOpenAiCompatibleVisitDraft(input) {
@@ -86,7 +99,7 @@ async function callOpenAiCompatibleVisitDraft(input) {
         pediatric: "Детский стоматолог",
         implantologist: "Имплантолог (имплантация, синус-лифтинг)",
         radiologist: "Рентгенолог (снимки, КТ)",
-        universal: "Общий осмотр"
+        universal: "Общий осмотр",
     };
     const requestBody = {
         model: input.config.modelName,
@@ -109,31 +122,32 @@ async function callOpenAiCompatibleVisitDraft(input) {
 Правила:
 1. Пишите на грамотном медицинском русском языке.
 2. Не придумывайте процедуры, зубы или диагнозы, которых не было в диктовке врача.
-3. Сохраняйте все номера зубов (FDI), дозировки анестетиков и названия материалов.`
+3. Сохраняйте все номера зубов (FDI), дозировки анестетиков и названия материалов.`,
             },
             {
                 role: "user",
                 content: [
                     `Специальность врача: ${specialtyLabels[input.specialty] || input.specialty}.`,
                     "Преобразуй диктовку приема ниже:",
-                    input.transcript
-                ].join("\n\n")
-            }
-        ]
+                    input.transcript,
+                ].join("\n\n"),
+            },
+        ],
     };
     const response = await fetchWithProviderTimeout(`${input.config.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${input.apiKey}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
     }, numberFromEnv("DENTAL_SPEECH_POLISH_TIMEOUT_MS", 30_000));
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         throw providerHttpError(response.status, response.statusText, payload.error?.message);
     }
-    const content = payload.choices?.[0]?.message?.content;
+    const content = payload.choices?.[0]?.message
+        ?.content;
     if (typeof content !== "string") {
         throw new Error("ИИ-генератор черновика вернул пустой или некорректный ответ.");
     }
@@ -151,10 +165,16 @@ async function callOpenAiCompatibleVisitDraft(input) {
     return {
         complaint: typeof parsed.complaint === "string" ? parsed.complaint.trim() : null,
         anamnesis: typeof parsed.anamnesis === "string" ? parsed.anamnesis.trim() : null,
-        objectiveStatus: typeof parsed.objectiveStatus === "string" ? parsed.objectiveStatus.trim() : null,
+        objectiveStatus: typeof parsed.objectiveStatus === "string"
+            ? parsed.objectiveStatus.trim()
+            : null,
         diagnosis: typeof parsed.diagnosis === "string" ? parsed.diagnosis.trim() : null,
-        treatmentPlan: typeof parsed.treatmentPlan === "string" ? parsed.treatmentPlan.trim() : null,
-        _rawToothStates: typeof parsed.toothStates === "object" && parsed.toothStates !== null ? parsed.toothStates : null
+        treatmentPlan: typeof parsed.treatmentPlan === "string"
+            ? parsed.treatmentPlan.trim()
+            : null,
+        _rawToothStates: typeof parsed.toothStates === "object" && parsed.toothStates !== null
+            ? parsed.toothStates
+            : null,
     };
 }
 // Список резервных моделей и провайдеров (каскадный фоллбек)
@@ -177,7 +197,10 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input) {
     try {
         if (input.config.neuralEnabled) {
             if (input.config.explicitApiKey) {
-                return await callOpenAiCompatibleVisitDraft({ ...input, apiKey: input.config.explicitApiKey });
+                return await callOpenAiCompatibleVisitDraft({
+                    ...input,
+                    apiKey: input.config.explicitApiKey,
+                });
             }
             const keyProviderId = input.config.keyProviderId;
             if (keyProviderId) {
@@ -191,7 +214,7 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input) {
                     try {
                         const result = await callOpenAiCompatibleVisitDraft({
                             ...input,
-                            apiKey: keyCandidate.value
+                            apiKey: keyCandidate.value,
                         });
                         recordProviderKeySuccess(keyProviderId, keyCandidate);
                         return result;
@@ -211,7 +234,8 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input) {
     // Попытка 2: Идем по каскаду моделей
     for (const fallback of DENTAL_AI_CASCADING_MODELS) {
         // Пропускаем, если эта же модель только что упала в Попытке 1
-        if (fallback.provider === input.config.provider && fallback.model === input.config.modelName) {
+        if (fallback.provider === input.config.provider &&
+            fallback.model === input.config.modelName) {
             continue;
         }
         try {
@@ -232,13 +256,13 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input) {
                 explicitApiKey: null,
                 keyProviderId: fallbackKeyProviderId,
                 modelName: fallback.model,
-                maxTranscriptChars: input.config.maxTranscriptChars
+                maxTranscriptChars: input.config.maxTranscriptChars,
             };
             const result = await callOpenAiCompatibleVisitDraft({
                 config: fallbackConfig,
                 transcript: input.transcript,
                 specialty: input.specialty,
-                apiKey: keyCandidate.value
+                apiKey: keyCandidate.value,
             });
             recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
             return result;
@@ -250,12 +274,13 @@ async function callOpenAiCompatibleVisitDraftWithKeyRotation(input) {
     throw new Error("Сбой ИИ-генератора черновика: все модели из каскада фоллбеков завершились ошибкой или лимиты исчерпаны.");
 }
 function isToothState(state) {
-    return typeof state === "string" && ["idle", "watch", "planned", "done", "missing", "treatment"].includes(state);
+    return (typeof state === "string" &&
+        ["idle", "watch", "planned", "done", "missing", "treatment"].includes(state));
 }
 export async function buildVisitDraftFromTranscript(transcript, specialty = "universal") {
     // 1. Run baseline rule-based parser first (ensures we always have valid quality metrics and fallback texts)
     const baseline = buildRuleBasedVisitDraftFromTranscript(transcript, specialty, {
-        sourceLabel: "Серверный локальный парсер правил"
+        sourceLabel: "Серверный локальный парсер правил",
     });
     const config = createVisitDraftNeuralConfig();
     if (!config.neuralEnabled) {
@@ -269,7 +294,7 @@ export async function buildVisitDraftFromTranscript(transcript, specialty = "uni
         const neural = await callOpenAiCompatibleVisitDraftWithKeyRotation({
             config,
             transcript,
-            specialty
+            specialty,
         });
         // Inject structured AI tooth states into quality object if present
         const finalQuality = baseline.quality ? { ...baseline.quality } : undefined;
@@ -283,7 +308,10 @@ export async function buildVisitDraftFromTranscript(transcript, specialty = "uni
             if (Object.keys(parsedStates).length > 0) {
                 finalQuality.detectedToothStates = parsedStates;
                 // Also sync detectedToothCodes to be a superset of the explicit AI states
-                finalQuality.detectedToothCodes = Array.from(new Set([...(finalQuality.detectedToothCodes || []), ...Object.keys(parsedStates)]));
+                finalQuality.detectedToothCodes = Array.from(new Set([
+                    ...(finalQuality.detectedToothCodes || []),
+                    ...Object.keys(parsedStates),
+                ]));
             }
         }
         // Merge neural outputs with baseline fallbacks if any field is empty or missing
@@ -296,8 +324,8 @@ export async function buildVisitDraftFromTranscript(transcript, specialty = "uni
             quality: finalQuality,
             warnings: [
                 `Черновик приема (Форма 043/у) сформирован ИИ (${config.modelName}). Требуется обязательная проверка врачом.`,
-                ...(baseline.warnings || []).filter(w => !w.includes("черновик собран по профилю специальности"))
-            ]
+                ...(baseline.warnings || []).filter((w) => !w.includes("черновик собран по профилю специальности")),
+            ],
         };
     }
     catch (error) {

@@ -1,8 +1,19 @@
+import { desc, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { desc, eq } from "drizzle-orm";
-const validClinicModes = new Set(["solo_doctor", "one_chair", "small_clinic", "network_clinic"]);
-const validStaffRoles = new Set(["owner", "doctor", "administrator", "assistant", "manager"]);
+const validClinicModes = new Set([
+    "solo_doctor",
+    "one_chair",
+    "small_clinic",
+    "network_clinic",
+]);
+const validStaffRoles = new Set([
+    "owner",
+    "doctor",
+    "administrator",
+    "assistant",
+    "manager",
+]);
 const validDentalSpecialties = new Set([
     "therapist",
     "orthopedist",
@@ -13,9 +24,14 @@ const validDentalSpecialties = new Set([
     "pediatric",
     "implantologist",
     "radiologist",
-    "universal"
+    "universal",
 ]);
-const validImportStatuses = new Set(["previewed", "completed", "completed_with_skips", "failed"]);
+const validImportStatuses = new Set([
+    "previewed",
+    "completed",
+    "completed_with_skips",
+    "failed",
+]);
 function iso(value) {
     if (value instanceof Date)
         return value.toISOString();
@@ -49,7 +65,9 @@ function normalizeRole(value) {
     return "assistant";
 }
 function normalizeSpecialty(value) {
-    return typeof value === "string" && validDentalSpecialties.has(value) ? value : "universal";
+    return typeof value === "string" && validDentalSpecialties.has(value)
+        ? value
+        : "universal";
 }
 function safeArray(value) {
     if (Array.isArray(value))
@@ -74,7 +92,9 @@ function safeObject(value) {
     if (typeof value === "string" && value.trim()) {
         try {
             const parsed = JSON.parse(value);
-            return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+            return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+                ? parsed
+                : null;
         }
         catch {
             return null;
@@ -91,11 +111,14 @@ function chairEquipmentFlags(equipment) {
     return {
         hasXraySensor: /x-?ray|рентген|sensor|датчик/.test(text),
         hasMicroscope: /microscope|микроскоп/.test(text),
-        hasSurgeryKit: /surgery|хирург/.test(text)
+        hasSurgeryKit: /surgery|хирург/.test(text),
     };
 }
 function firstSpecialization(value) {
-    const first = value?.split(/[;,]/).map((item) => item.trim()).find(Boolean);
+    const first = value
+        ?.split(/[;,]/)
+        .map((item) => item.trim())
+        .find(Boolean);
     return first ? normalizeSpecialty(first) : null;
 }
 function parseJsonArrayWithWarning(value, label, warnings) {
@@ -121,28 +144,81 @@ function parseStringArrayWithWarning(value, label, warnings) {
     return parseJsonArrayWithWarning(value, label, warnings).filter((item) => typeof item === "string");
 }
 function normalizeImportStatus(value) {
-    return validImportStatuses.has(value) ? value : "failed";
+    return validImportStatuses.has(value)
+        ? value
+        : "failed";
 }
 export async function getDashboardFromDb(organizationId) {
-    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
+    const [org] = await db
+        .select()
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, organizationId))
+        .limit(1);
     if (!org)
         throw new Error("Organization not found");
     const warnings = [];
-    const users = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId));
-    const patients = await db.select().from(schema.patients).where(eq(schema.patients.organizationId, organizationId));
-    const appointments = await db.select().from(schema.appointments).where(eq(schema.appointments.organizationId, organizationId));
-    const visits = await db.select().from(schema.visits).where(eq(schema.visits.organizationId, organizationId)).orderBy(desc(schema.visits.updatedAt));
-    const documents = await db.select().from(schema.generatedDocuments).where(eq(schema.generatedDocuments.organizationId, organizationId));
-    const imagingStudies = await db.select().from(schema.imagingStudies).where(eq(schema.imagingStudies.organizationId, organizationId));
-    const chairs = await db.select().from(schema.clinicChairs).where(eq(schema.clinicChairs.organizationId, organizationId));
-    const serviceCatalog = await db.select().from(schema.serviceCatalogItems).where(eq(schema.serviceCatalogItems.organizationId, organizationId));
-    const clinicalRules = await db.select().from(schema.clinicalRules).where(eq(schema.clinicalRules.organizationId, organizationId));
-    const payments = await db.select().from(schema.payments).where(eq(schema.payments.organizationId, organizationId));
-    const invoices = await db.select().from(schema.patientInvoices).where(eq(schema.patientInvoices.organizationId, organizationId));
-    const treatmentItems = await db.select().from(schema.treatmentItems).where(eq(schema.treatmentItems.organizationId, organizationId));
-    const treatmentScenarios = await db.select().from(schema.treatmentScenarios).where(eq(schema.treatmentScenarios.organizationId, organizationId));
-    const importBatches = await db.select().from(schema.importBatches).where(eq(schema.importBatches.organizationId, organizationId));
-    const auditEvents = await db.select().from(schema.auditEvents).where(eq(schema.auditEvents.organizationId, organizationId)).orderBy(desc(schema.auditEvents.createdAt));
+    const users = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.organizationId, organizationId));
+    const patients = await db
+        .select()
+        .from(schema.patients)
+        .where(eq(schema.patients.organizationId, organizationId));
+    const appointments = await db
+        .select()
+        .from(schema.appointments)
+        .where(eq(schema.appointments.organizationId, organizationId));
+    const visits = await db
+        .select()
+        .from(schema.visits)
+        .where(eq(schema.visits.organizationId, organizationId))
+        .orderBy(desc(schema.visits.updatedAt));
+    const documents = await db
+        .select()
+        .from(schema.generatedDocuments)
+        .where(eq(schema.generatedDocuments.organizationId, organizationId));
+    const imagingStudies = await db
+        .select()
+        .from(schema.imagingStudies)
+        .where(eq(schema.imagingStudies.organizationId, organizationId));
+    const chairs = await db
+        .select()
+        .from(schema.clinicChairs)
+        .where(eq(schema.clinicChairs.organizationId, organizationId));
+    const serviceCatalog = await db
+        .select()
+        .from(schema.serviceCatalogItems)
+        .where(eq(schema.serviceCatalogItems.organizationId, organizationId));
+    const clinicalRules = await db
+        .select()
+        .from(schema.clinicalRules)
+        .where(eq(schema.clinicalRules.organizationId, organizationId));
+    const payments = await db
+        .select()
+        .from(schema.payments)
+        .where(eq(schema.payments.organizationId, organizationId));
+    const invoices = await db
+        .select()
+        .from(schema.patientInvoices)
+        .where(eq(schema.patientInvoices.organizationId, organizationId));
+    const treatmentItems = await db
+        .select()
+        .from(schema.treatmentItems)
+        .where(eq(schema.treatmentItems.organizationId, organizationId));
+    const treatmentScenarios = await db
+        .select()
+        .from(schema.treatmentScenarios)
+        .where(eq(schema.treatmentScenarios.organizationId, organizationId));
+    const importBatches = await db
+        .select()
+        .from(schema.importBatches)
+        .where(eq(schema.importBatches.organizationId, organizationId));
+    const auditEvents = await db
+        .select()
+        .from(schema.auditEvents)
+        .where(eq(schema.auditEvents.organizationId, organizationId))
+        .orderBy(desc(schema.auditEvents.createdAt));
     const activeVisit = visits.find((visit) => visit.status === "draft") ?? visits[0] ?? null;
     const paidPayments = payments.filter((payment) => payment.status === "paid");
     const totalPaidRub = paidPayments.reduce((sum, payment) => sum + money(payment.amountRub), 0);
@@ -163,20 +239,28 @@ export async function getDashboardFromDb(organizationId) {
         paidByPatient.set(payment.patientId, (paidByPatient.get(payment.patientId) ?? 0) + money(payment.amountRub));
     const plannedByPatient = new Map();
     for (const invoice of invoices)
-        plannedByPatient.set(invoice.patientId, (plannedByPatient.get(invoice.patientId) ?? 0) + money(invoice.totalAmountRub));
+        plannedByPatient.set(invoice.patientId, (plannedByPatient.get(invoice.patientId) ?? 0) +
+            money(invoice.totalAmountRub));
     for (const document of documents)
-        plannedByPatient.set(document.patientId, (plannedByPatient.get(document.patientId) ?? 0) + money(document.totalAmountRub));
+        plannedByPatient.set(document.patientId, (plannedByPatient.get(document.patientId) ?? 0) +
+            money(document.totalAmountRub));
     const mode = normalizeClinicMode(org.clinicMode);
     const specializations = safeStringArray(org.specializations).map(normalizeSpecialty);
     const workingHours = safeObject(org.workingHours);
     const clinicSchedule = safeObject(org.clinicSchedule);
     const scheduleDefaults = {
-        workingDays: safeArray(clinicSchedule?.workingDays).map(Number).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7),
-        workdayStart: typeof clinicSchedule?.workdayStart === "string" ? clinicSchedule.workdayStart : "09:00",
-        workdayEnd: typeof clinicSchedule?.workdayEnd === "string" ? clinicSchedule.workdayEnd : "20:00",
+        workingDays: safeArray(clinicSchedule?.workingDays)
+            .map(Number)
+            .filter((day) => Number.isInteger(day) && day >= 1 && day <= 7),
+        workdayStart: typeof clinicSchedule?.workdayStart === "string"
+            ? clinicSchedule.workdayStart
+            : "09:00",
+        workdayEnd: typeof clinicSchedule?.workdayEnd === "string"
+            ? clinicSchedule.workdayEnd
+            : "20:00",
         appointmentBufferMinutes: Number.isInteger(clinicSchedule?.appointmentBufferMinutes)
             ? Number(clinicSchedule?.appointmentBufferMinutes)
-            : 15
+            : 15,
     };
     if (scheduleDefaults.workingDays.length === 0)
         scheduleDefaults.workingDays = [1, 2, 3, 4, 5];
@@ -213,7 +297,7 @@ export async function getDashboardFromDb(organizationId) {
                 currency: org.currency && org.currency !== "в‚Ѕ" ? org.currency : "₽",
                 themeColor: org.themeColor ?? "teal",
                 logoUrl: org.logoUrl,
-                stampUrl: org.stampUrl
+                stampUrl: org.stampUrl,
             },
             staff: users.map((user) => ({
                 id: user.id,
@@ -230,7 +314,7 @@ export async function getDashboardFromDb(organizationId) {
                 color: user.color || "gray",
                 workingHours: safeObject(user.workingHours),
                 createdAt: iso(user.createdAt),
-                updatedAt: iso(user.updatedAt)
+                updatedAt: iso(user.updatedAt),
             })),
             chairs: chairs.map((chair) => {
                 const flags = chairEquipmentFlags(chair.equipment);
@@ -243,14 +327,14 @@ export async function getDashboardFromDb(organizationId) {
                     active: chair.isActive,
                     ...flags,
                     notes: chair.equipment,
-                    workingHours: safeObject(chair.workingHours)
+                    workingHours: safeObject(chair.workingHours),
                 };
             }),
             integrationPresets: [],
             workspaceProfiles: [],
             roleAccessPolicies: [],
             modeHints: [],
-            soloDoctorMode: mode === "solo_doctor"
+            soloDoctorMode: mode === "solo_doctor",
         },
         patients: patients.map((patient) => ({
             id: patient.id,
@@ -262,9 +346,10 @@ export async function getDashboardFromDb(organizationId) {
             email: safeEmail(patient.email),
             notes: patient.notes,
             administrativeProfile: patient.administrativeProfile,
-            balanceRub: Math.max(0, (plannedByPatient.get(patient.id) ?? 0) - (paidByPatient.get(patient.id) ?? 0)),
+            balanceRub: Math.max(0, (plannedByPatient.get(patient.id) ?? 0) -
+                (paidByPatient.get(patient.id) ?? 0)),
             createdAt: iso(patient.createdAt),
-            updatedAt: iso(patient.updatedAt)
+            updatedAt: iso(patient.updatedAt),
         })),
         patientInsights: [],
         recommendedActions: [],
@@ -279,7 +364,7 @@ export async function getDashboardFromDb(organizationId) {
             startsAt: iso(appointment.startsAt),
             endsAt: iso(appointment.endsAt),
             reason: appointment.reason,
-            comment: appointment.comment
+            comment: appointment.comment,
         })),
         appointmentReadiness: [],
         scheduleSuggestions: [],
@@ -298,7 +383,7 @@ export async function getDashboardFromDb(organizationId) {
                 treatmentPlan: activeVisit.treatmentPlan,
                 doctorSummary: activeVisit.doctorSummary,
                 createdAt: iso(activeVisit.createdAt),
-                updatedAt: iso(activeVisit.updatedAt)
+                updatedAt: iso(activeVisit.updatedAt),
             }
             : null,
         visitCloseChecklist: activeVisit
@@ -308,23 +393,29 @@ export async function getDashboardFromDb(organizationId) {
                 score: 0,
                 nextAction: "review",
                 blockingItems: 0,
-                items: []
+                items: [],
             }
             : null,
         shiftIntelligence: {
             modeFit: {
                 mode,
-                title: mode === "network_clinic" ? "Сеть клиник" : mode === "small_clinic" ? "Малая клиника" : mode === "solo_doctor" ? "Соло-врач" : "Один кабинет",
+                title: mode === "network_clinic"
+                    ? "Сеть клиник"
+                    : mode === "small_clinic"
+                        ? "Малая клиника"
+                        : mode === "solo_doctor"
+                            ? "Соло-врач"
+                            : "Один кабинет",
                 fitScore: 100,
                 blockers: [],
                 upgrades: [],
-                lowFrictionNextStep: "ready"
+                lowFrictionNextStep: "ready",
             },
             doctorLoads: [],
             assistantLoads: [],
             chairLoads: [],
             roleQueues: [],
-            scheduleWarnings: []
+            scheduleWarnings: [],
         },
         protocolTemplates: [],
         treatmentPlanItems: treatmentItems.map((item) => ({
@@ -342,7 +433,7 @@ export async function getDashboardFromDb(organizationId) {
             status: item.status,
             plannedDoctorUserId: item.plannedDoctorUserId,
             plannedChairId: item.plannedChairId,
-            notes: item.notes
+            notes: item.notes,
         })),
         treatmentPlanScenarios: treatmentScenarios.map((scenario) => ({
             id: scenario.id,
@@ -359,7 +450,7 @@ export async function getDashboardFromDb(organizationId) {
             pros: parseStringArrayWithWarning(scenario.prosJson, `treatment_scenarios.${scenario.id}.prosJson`, warnings),
             tradeoffs: parseStringArrayWithWarning(scenario.tradeoffsJson, `treatment_scenarios.${scenario.id}.tradeoffsJson`, warnings),
             clinicalWarnings: parseStringArrayWithWarning(scenario.clinicalWarningsJson, `treatment_scenarios.${scenario.id}.clinicalWarningsJson`, warnings),
-            active: scenario.isActive
+            active: scenario.isActive,
         })),
         clinicalRuleEvaluations: [],
         clinicalRuleSummary: {
@@ -369,7 +460,7 @@ export async function getDashboardFromDb(organizationId) {
             blockers: clinicalRules.filter((rule) => rule.isActive && rule.severity === "blocker").length,
             warnings: clinicalRules.filter((rule) => rule.isActive && rule.severity === "warning").length,
             requiredServices: clinicalRules.filter((rule) => rule.isActive && rule.action === "add_required_service").length,
-            coveredRules: 0
+            coveredRules: 0,
         },
         payments: payments.map((payment) => ({
             id: payment.id,
@@ -393,7 +484,7 @@ export async function getDashboardFromDb(organizationId) {
             payerIdentityDocument: payment.payerIdentityDocument,
             payerRelationship: payment.payerRelationship,
             taxDeductionCode: payment.taxDeductionCode,
-            note: payment.note
+            note: payment.note,
         })),
         billingSummary: {
             totalPlannedRub,
@@ -403,7 +494,7 @@ export async function getDashboardFromDb(organizationId) {
             taxDeductionEligibleRub,
             draftDocumentAmountRub,
             openTreatmentItems,
-            unpaidDocuments
+            unpaidDocuments,
         },
         communicationTemplates: [],
         communicationTasks: [],
@@ -416,7 +507,7 @@ export async function getDashboardFromDb(organizationId) {
             completedToday: 0,
             appointmentConfirmations: 0,
             paymentReminders: 0,
-            postVisitInstructions: 0
+            postVisitInstructions: 0,
         },
         importBatches: importBatches.map((batch) => ({
             id: batch.id,
@@ -428,7 +519,7 @@ export async function getDashboardFromDb(organizationId) {
             skippedRows: batch.skippedRows,
             warningRows: batch.warningRows,
             blockedRows: batch.blockedRows,
-            createdAt: iso(batch.createdAt)
+            createdAt: iso(batch.createdAt),
         })),
         speechProviders: [],
         auditEvents: auditEvents.map((event) => ({
@@ -439,7 +530,7 @@ export async function getDashboardFromDb(organizationId) {
             entityId: event.entityId,
             action: event.action,
             reason: event.reason,
-            createdAt: iso(event.createdAt)
+            createdAt: iso(event.createdAt),
         })),
         complianceWarnings: warnings,
         documents: documents.map((document) => ({
@@ -462,7 +553,7 @@ export async function getDashboardFromDb(organizationId) {
             issuedByUserId: document.issuedByUserId,
             voidedAt: nullableIso(document.voidedAt),
             voidedByUserId: document.voidedByUserId,
-            chainSummary: null
+            chainSummary: null,
         })),
         imagingStudies: imagingStudies.map((study) => ({
             id: study.id,
@@ -481,7 +572,7 @@ export async function getDashboardFromDb(organizationId) {
             status: study.status,
             aiSummary: study.aiSummary,
             previewUrl: `/api/imaging/studies/${study.id}/preview`,
-            viewerUrl: `/api/imaging/studies/${study.id}/viewer`
+            viewerUrl: `/api/imaging/studies/${study.id}/viewer`,
         })),
         serviceCatalog: serviceCatalog.map((service) => ({
             id: service.id,
@@ -494,7 +585,7 @@ export async function getDashboardFromDb(organizationId) {
             basePriceRub: money(service.basePriceRub),
             durationMinutes: Math.max(1, service.durationMinutes),
             taxDeductible: service.taxDeductible,
-            active: service.isActive
+            active: service.isActive,
         })),
         clinicalRules: clinicalRules.map((rule) => ({
             id: rule.id,
@@ -512,8 +603,8 @@ export async function getDashboardFromDb(organizationId) {
             condition: rule.condition,
             warningText: rule.warningText,
             patientText: rule.patientText,
-            active: rule.isActive
-        }))
+            active: rule.isActive,
+        })),
     };
     return dashboard;
 }

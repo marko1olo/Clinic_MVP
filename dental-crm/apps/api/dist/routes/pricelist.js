@@ -1,7 +1,7 @@
-import { dentalPricelistAnalysisRequestSchema, dentalPricelistAnalysisResponseSchema } from "@dental/shared";
-import { requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
-import { analyzePricelist } from "../pricelist/analyzer.js";
+import { dentalPricelistAnalysisRequestSchema, dentalPricelistAnalysisResponseSchema, } from "@dental/shared";
+import { requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
 import { getServiceCatalogForOrganization } from "../db/pricelistQuery.js";
+import { analyzePricelist } from "../pricelist/analyzer.js";
 const pricelistValidationMessage = "Ошибка валидации: прайс-лист или запрос не соответствуют формату.";
 function parsePricelistPayload(schema, value) {
     const parsed = schema.safeParse(value);
@@ -12,7 +12,7 @@ function parsePricelistPayload(schema, value) {
 }
 export async function registerPricelistRoutes(app) {
     app.post("/api/pricelist/analyze", {
-        bodyLimit: 5 * 1024 * 1024
+        bodyLimit: 5 * 1024 * 1024,
     }, async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "pricelist analysis")))
             return;
@@ -20,12 +20,15 @@ export async function registerPricelistRoutes(app) {
         if (!input) {
             return reply.code(400).send({
                 error: "PricelistValidationError",
-                message: pricelistValidationMessage
+                message: pricelistValidationMessage,
             });
         }
         const orgId = await resolveOrganizationId(request);
         if (!orgId) {
-            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+            return reply.code(403).send({
+                error: "OrganizationRequired",
+                message: "Организация не определена",
+            });
         }
         const catalog = await getServiceCatalogForOrganization(orgId);
         return dentalPricelistAnalysisResponseSchema.parse(await analyzePricelist(input, catalog));

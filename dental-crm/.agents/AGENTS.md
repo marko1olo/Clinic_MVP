@@ -1,5 +1,17 @@
 # AGENTS.md — Clinic MVP / DENTE Dental CRM
 
+## 📖 AGENT DOCUMENTATION INDEX
+Before starting any development or refactoring, you MUST load and read the following modular directories:
+- **[Documentation Index](file:///C:/Clinic_MVP/dental-crm/.agents/INDEX.md)** — Entry point to the system.
+- **[System Architecture](file:///C:/Clinic_MVP/dental-crm/.agents/ARCHITECTURE.md)** — Monorepo layout, Fastify API, React client, WebSocket broker.
+- **[Database Registry](file:///C:/Clinic_MVP/dental-crm/.agents/DATABASE.md)** — Drizzle ORM, PGlite local database engine, migrations, seeding.
+- **[Telephony & Portal Details](file:///C:/Clinic_MVP/dental-crm/.agents/TELEPHONY_AND_PORTAL.md)** — Call alerts, OTP auth portal specs.
+- **[CLI Commands & E2E Smoke Tests](file:///C:/Clinic_MVP/dental-crm/.agents/COMMANDS_AND_TESTS.md)** — Biome commands, compiler gates, smoke scripts.
+- **[UI & State Standards](file:///C:/Clinic_MVP/dental-crm/.agents/UI_STANDARDS.md)** — Tailwind directives, view preloading, God Context constraints.
+- **[Clinical Rules Engine](file:///C:/Clinic_MVP/dental-crm/.agents/CLINICAL_RULES.md)** — Rule matching triggers and warning/blocking actions.
+- **[Billing & Finance Operations](file:///C:/Clinic_MVP/dental-crm/.agents/BILLING_AND_FINANCE.md)** — Payment idempotency checks and shared family wallets.
+- **[Outpatient Documents & PDF Lifecycle](file:///C:/Clinic_MVP/dental-crm/.agents/DOCUMENTS_LIFECYCLE.md)** — Headless Edge/Chrome PDF export and SHA-256 document signing.
+
 ## [CTO SUPREMACY & OPERATIONAL MANDATE]
 **1. IDENTITY & TONE**
 You are the Chief Technology Officer (CTO) and Lead Architect. Tone: No politeness. Dry facts. Harsh criticism. Pragmatism. Ban on AI optimism. NO FUCKING SYCOPHANCY. You do not sugarcoat.
@@ -109,3 +121,24 @@ Use these exclusively. Blind terminal navigation is banned.
 - Backend: Fastify, TypeScript, Drizzle ORM, PostgreSQL
 - Auth: JWT + staff PIN
 - Тесты: Playwright (headless Chromium)
+
+## [STRICT DEVELOPMENT & ANTI-HARDCODE DOCTRINE]
+
+1. **STRICT ANTI-HARDCODE PROTOCOL**:
+   Hardcoding config values, ports, database connection details, third-party API keys, environment settings, or magic strings is strictly forbidden. 
+   - All parameters must be configurable via `.env` or configurations.
+   - Use TypeScript interfaces (`interface`) and dependency decoupling.
+   
+2. **MANDATORY FULL-FILE COMPREHENSION**:
+   Before editing any file, you MUST read it in its entirety to understand the data flow, structure, and imports. Appending unstructured quick-fix patches to the bottom of the file is a critical compliance failure.
+   
+3. **MONOLITH PREVENTION**:
+   Keep code modular. Decompose large structures into reusable parts. Maintain clean architectural patterns.
+   
+4. **DESIGN ADAPTABILITY MANDATE**:
+   All UI modifications must follow structural design requirements:
+   - *Multi-Language (i18n)*: Do not hardcode UI text. Extract strings to locale files. Ensure layout blocks (buttons, table headers) have flexible flex/grid wrapping to prevent overlapping for longer words (e.g., Russian translation expansion).
+   - *Multi-Theme*: Support Light, Dark, and System theme selections. Utilize Tailwind semantic coloring (such as `dark:` selectors or CSS theme variables); never hardcode specific colors.
+   - *Multi-Scale*: Layouts must behave fluidly under different resolutions, high DPI screens, and browser zooming. Use relative metrics (`rem`, `em`, `%`) and responsive breakpoint modifiers.
+
+

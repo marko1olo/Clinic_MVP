@@ -1,4 +1,4 @@
-import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, numberFromEnv } from "../speech/keyPool.js";
+import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, numberFromEnv, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, } from "../speech/keyPool.js";
 // ============================================================
 // DEFAULT_HYGIENE_GUIDELINES — клиника DENTE
 // ============================================================
@@ -18,8 +18,13 @@ function booleanFromEnv(value) {
     return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
 }
 function selectedPolishProvider() {
-    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "").trim().toLowerCase();
-    if (rawProvider === "openai" || rawProvider === "groq" || rawProvider === "gemini" || rawProvider === "custom")
+    const rawProvider = (process.env.DENTAL_SPEECH_POLISH_PROVIDER ?? "")
+        .trim()
+        .toLowerCase();
+    if (rawProvider === "openai" ||
+        rawProvider === "groq" ||
+        rawProvider === "gemini" ||
+        rawProvider === "custom")
         return rawProvider;
     if (process.env.DENTAL_SPEECH_POLISH_BASE_URL?.trim())
         return "custom";
@@ -51,13 +56,16 @@ function keyProviderForPolishProvider(provider) {
 }
 function modelForProvider(provider) {
     if (provider === "gemini") {
-        return process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() || process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() || "gemini-2.5-flash";
+        return (process.env.DENTAL_SPEECH_POLISH_GEMINI_MODEL?.trim() ||
+            process.env.DENTAL_SPEECH_POLISH_MODEL?.trim() ||
+            "gemini-2.5-flash");
     }
     if (provider === "groq") {
-        return process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
+        return (process.env.DENTAL_SPEECH_POLISH_GROQ_MODEL?.trim() ||
+            "llama-3.3-70b-versatile");
     }
     if (provider === "openai") {
-        return process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini";
+        return (process.env.DENTAL_SPEECH_POLISH_OPENAI_MODEL?.trim() || "gpt-4o-mini");
     }
     const explicitModel = process.env.DENTAL_SPEECH_POLISH_MODEL?.trim();
     if (explicitModel)
@@ -65,21 +73,27 @@ function modelForProvider(provider) {
     return null;
 }
 function createAIPlanNeuralConfig() {
-    const requested = booleanFromEnv(process.env.DENTAL_AI_NEURAL_DRAFT ?? process.env.DENTAL_SPEECH_NEURAL_POLISH ?? "true");
+    const requested = booleanFromEnv(process.env.DENTAL_AI_NEURAL_DRAFT ??
+        process.env.DENTAL_SPEECH_NEURAL_POLISH ??
+        "true");
     const provider = selectedPolishProvider();
     const baseUrl = baseUrlForProvider(provider);
     const explicitApiKey = apiKeyForProvider(provider);
     const keyProviderId = keyProviderForPolishProvider(provider);
     const modelName = modelForProvider(provider);
-    const keyPool = keyProviderId ? getProviderKeyPoolSummary(keyProviderId) : null;
+    const keyPool = keyProviderId
+        ? getProviderKeyPoolSummary(keyProviderId)
+        : null;
     const hasKey = Boolean(explicitApiKey || (keyPool && keyPool.availableKeyCount > 0));
     return {
-        neuralEnabled: requested && provider !== "none" && Boolean(baseUrl && modelName && hasKey),
+        neuralEnabled: requested &&
+            provider !== "none" &&
+            Boolean(baseUrl && modelName && hasKey),
         provider,
         baseUrl,
         explicitApiKey,
         keyProviderId,
-        modelName
+        modelName,
     };
 }
 // ============================================================
@@ -127,7 +141,7 @@ async function callOpenAiCompatiblePlanPersonalize(input) {
         messages: [
             {
                 role: "system",
-                content: buildSystemPrompt()
+                content: buildSystemPrompt(),
             },
             {
                 role: "user",
@@ -136,27 +150,28 @@ async function callOpenAiCompatiblePlanPersonalize(input) {
 - Диагноз: ${input.payload.diagnosisSummary}
 - Область лечения (зубы): ${input.payload.teethOrArea}
 - Этапы лечения:
-${input.payload.plannedStages.map(s => `  * ${s.stageName}: ${s.plannedServices} (${s.plannedTiming}), ориентировочная стоимость: ${s.estimatedAmountRub ? s.estimatedAmountRub + " руб." : "не указана"} [Заметки: ${s.clinicalNotes ?? "нет"}]`).join("\n")}
+${input.payload.plannedStages.map((s) => `  * ${s.stageName}: ${s.plannedServices} (${s.plannedTiming}), ориентировочная стоимость: ${s.estimatedAmountRub ? s.estimatedAmountRub + " руб." : "не указана"} [Заметки: ${s.clinicalNotes ?? "нет"}]`).join("\n")}
 - Альтернативы: ${input.payload.alternatives.join("; ")}
 - Риски: ${input.payload.risksAndLimitations.join("; ")}
 - Прогноз: ${input.payload.prognosisAndLimits}
-- Ориентировочная общая стоимость: ${input.payload.estimatedTotalRub ? input.payload.estimatedTotalRub + " руб." : "не указана"}`
-            }
-        ]
+- Ориентировочная общая стоимость: ${input.payload.estimatedTotalRub ? input.payload.estimatedTotalRub + " руб." : "не указана"}`,
+            },
+        ],
     };
     const response = await fetchWithProviderTimeout(`${input.config.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${input.apiKey}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
     }, numberFromEnv("DENTAL_SPEECH_POLISH_TIMEOUT_MS", 45_000));
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
         throw providerHttpError(response.status, response.statusText, data.error?.message);
     }
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message
+        ?.content;
     if (typeof content !== "string") {
         throw new Error("ИИ-модель вернула неожиданный ответ.");
     }
@@ -173,7 +188,7 @@ ${input.payload.plannedStages.map(s => `  * ${s.stageName}: ${s.plannedServices}
     }
     return {
         patientFriendlyExplanation: String(parsed.patientFriendlyExplanation ?? "").trim(),
-        patientHygieneAdvice: String(parsed.patientHygieneAdvice ?? "").trim()
+        patientHygieneAdvice: String(parsed.patientHygieneAdvice ?? "").trim(),
     };
 }
 const DENTAL_AI_CASCADING_MODELS = [
@@ -182,20 +197,24 @@ const DENTAL_AI_CASCADING_MODELS = [
     { provider: "gemini", model: "gemini-3.1-flash-lite" },
     { provider: "groq", model: "llama-3.3-70b-versatile" },
     { provider: "groq", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-    { provider: "groq", model: "openai/gpt-oss-120b" }
+    { provider: "groq", model: "openai/gpt-oss-120b" },
 ];
 export async function personalizeTreatmentPlan(payload) {
     const config = createAIPlanNeuralConfig();
     if (!config.neuralEnabled) {
         return {
             patientFriendlyExplanation: `**Почему важно провести лечение:**\nВаш диагноз (${payload.clinicalReason}) требует лечения (${payload.diagnosisSummary}). Откладывание ведёт к осложнениям и значительно большим затратам. Обратитесь к врачу за разъяснениями.`,
-            patientHygieneAdvice: `**Базовые правила домашней гигиены от DENTE:**\n\n${DEFAULT_HYGIENE_GUIDELINES}`
+            patientHygieneAdvice: `**Базовые правила домашней гигиены от DENTE:**\n\n${DEFAULT_HYGIENE_GUIDELINES}`,
         };
     }
     // Primary provider attempt with key pool
     try {
         if (config.explicitApiKey) {
-            return await callOpenAiCompatiblePlanPersonalize({ config, payload, apiKey: config.explicitApiKey });
+            return await callOpenAiCompatiblePlanPersonalize({
+                config,
+                payload,
+                apiKey: config.explicitApiKey,
+            });
         }
         const keyProviderId = config.keyProviderId;
         if (keyProviderId) {
@@ -207,7 +226,11 @@ export async function personalizeTreatmentPlan(payload) {
                     break;
                 triedFingerprints.add(keyCandidate.fingerprint);
                 try {
-                    const result = await callOpenAiCompatiblePlanPersonalize({ config, payload, apiKey: keyCandidate.value });
+                    const result = await callOpenAiCompatiblePlanPersonalize({
+                        config,
+                        payload,
+                        apiKey: keyCandidate.value,
+                    });
                     recordProviderKeySuccess(keyProviderId, keyCandidate);
                     return result;
                 }
@@ -224,7 +247,8 @@ export async function personalizeTreatmentPlan(payload) {
     }
     // Cascade fallback across providers
     for (const fallback of DENTAL_AI_CASCADING_MODELS) {
-        if (fallback.provider === config.provider && fallback.model === config.modelName)
+        if (fallback.provider === config.provider &&
+            fallback.model === config.modelName)
             continue;
         try {
             const fallbackBaseUrl = baseUrlForProvider(fallback.provider);
@@ -241,9 +265,13 @@ export async function personalizeTreatmentPlan(payload) {
                 baseUrl: fallbackBaseUrl,
                 explicitApiKey: null,
                 keyProviderId: fallbackKeyProviderId,
-                modelName: fallback.model
+                modelName: fallback.model,
             };
-            const result = await callOpenAiCompatiblePlanPersonalize({ config: fallbackConfig, payload, apiKey: keyCandidate.value });
+            const result = await callOpenAiCompatiblePlanPersonalize({
+                config: fallbackConfig,
+                payload,
+                apiKey: keyCandidate.value,
+            });
             recordProviderKeySuccess(fallbackKeyProviderId, keyCandidate);
             return result;
         }
@@ -255,6 +283,6 @@ export async function personalizeTreatmentPlan(payload) {
     console.error("[AI Plan Personalize]: All providers failed, returning rule-based fallback.");
     return {
         patientFriendlyExplanation: `**Ваш план лечения:**\n${payload.plannedStages.map((s, i) => `${i + 1}. **${s.stageName}** — ${s.plannedServices} (${s.plannedTiming})`).join("\n")}\n\nОбратитесь к врачу для подробного разъяснения плана.`,
-        patientHygieneAdvice: `**Базовые правила домашней гигиены от DENTE:**\n\n${DEFAULT_HYGIENE_GUIDELINES}`
+        patientHygieneAdvice: `**Базовые правила домашней гигиены от DENTE:**\n\n${DEFAULT_HYGIENE_GUIDELINES}`,
     };
 }

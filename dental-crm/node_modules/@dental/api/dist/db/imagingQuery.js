@@ -1,6 +1,6 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-import { eq, and } from "drizzle-orm";
 function mapImagingStudy(record) {
     return {
         id: record.id,
@@ -19,7 +19,7 @@ function mapImagingStudy(record) {
         status: record.status,
         aiSummary: record.aiSummary,
         previewUrl: `/api/imaging/studies/${record.id}/preview.svg`,
-        viewerUrl: `/api/imaging/studies/${record.id}/preview.svg`
+        viewerUrl: `/api/imaging/studies/${record.id}/preview.svg`,
     };
 }
 export async function getImagingStudiesForPatient(organizationId, patientId) {
@@ -57,11 +57,13 @@ export async function createImagingStudyInDb(organizationId, input) {
         region: input.region || null,
         capturedAt: input.capturedAt ? new Date(input.capturedAt) : new Date(),
         sourceKind: input.sourceKind,
-        sourceName: input.sourceName.length > 160 ? input.sourceName.slice(0, 160) : input.sourceName,
+        sourceName: input.sourceName.length > 160
+            ? input.sourceName.slice(0, 160)
+            : input.sourceName,
         storagePath: input.storagePath || null,
         dicomStudyUid: input.dicomStudyUid || null,
         status: "needs_review",
-        aiSummary: input.aiSummary || null
+        aiSummary: input.aiSummary || null,
     })
         .returning();
     if (!record) {
@@ -84,9 +86,9 @@ export async function getDefaultOrganizationId() {
     const [org] = await db.select().from(schema.organizations).limit(1);
     return org?.id || null;
 }
-import { imagingViewerSessions, dicomWorkbenchBundles } from "./schema.js";
 import { randomUUID } from "crypto";
 import { desc } from "drizzle-orm";
+import { dicomWorkbenchBundles, imagingViewerSessions } from "./schema.js";
 export async function getOrCreateImagingViewerSession(organizationId, study) {
     const [session] = await db
         .select()
@@ -106,18 +108,21 @@ export async function getOrCreateImagingViewerSession(organizationId, study) {
             serverSavedAt: session.serverSavedAt.toISOString(),
             createdAt: session.createdAt.toISOString(),
             updatedAt: session.updatedAt.toISOString(),
-            warnings: session.warnings
+            warnings: session.warnings,
         };
     }
-    const [newSession] = await db.insert(imagingViewerSessions).values({
+    const [newSession] = await db
+        .insert(imagingViewerSessions)
+        .values({
         id: randomUUID(),
         organizationId,
         studyId: study.id,
         patientId: study.patientId,
         state: { version: 1, layout: "1x1", currentTool: "pan" },
         annotations: [],
-        warnings: []
-    }).returning();
+        warnings: [],
+    })
+        .returning();
     if (!newSession)
         throw new Error("Failed to insert session");
     return {
@@ -132,7 +137,7 @@ export async function getOrCreateImagingViewerSession(organizationId, study) {
         serverSavedAt: newSession.serverSavedAt.toISOString(),
         createdAt: newSession.createdAt.toISOString(),
         updatedAt: newSession.updatedAt.toISOString(),
-        warnings: newSession.warnings
+        warnings: newSession.warnings,
     };
 }
 export async function saveImagingViewerSession(organizationId, studyId, input) {
@@ -141,18 +146,24 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
         .from(imagingViewerSessions)
         .where(and(eq(imagingViewerSessions.organizationId, organizationId), eq(imagingViewerSessions.studyId, studyId)))
         .limit(1);
-    const clientSavedAt = input.clientSavedAt ? new Date(input.clientSavedAt) : null;
+    const clientSavedAt = input.clientSavedAt
+        ? new Date(input.clientSavedAt)
+        : null;
     const now = new Date();
     if (existing) {
-        const [updated] = await db.update(imagingViewerSessions).set({
+        const [updated] = await db
+            .update(imagingViewerSessions)
+            .set({
             patientId: input.patientId,
             visitId: input.visitId ?? null,
             state: input.state,
             annotations: input.annotations,
             clientSavedAt,
             serverSavedAt: now,
-            updatedAt: now
-        }).where(and(eq(imagingViewerSessions.id, existing.id), eq(imagingViewerSessions.organizationId, organizationId))).returning();
+            updatedAt: now,
+        })
+            .where(and(eq(imagingViewerSessions.id, existing.id), eq(imagingViewerSessions.organizationId, organizationId)))
+            .returning();
         if (!updated)
             throw new Error("Failed to update session");
         return {
@@ -167,10 +178,12 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
             serverSavedAt: updated.serverSavedAt.toISOString(),
             createdAt: updated.createdAt.toISOString(),
             updatedAt: updated.updatedAt.toISOString(),
-            warnings: updated.warnings
+            warnings: updated.warnings,
         };
     }
-    const [newSession] = await db.insert(imagingViewerSessions).values({
+    const [newSession] = await db
+        .insert(imagingViewerSessions)
+        .values({
         id: randomUUID(),
         organizationId,
         studyId,
@@ -180,8 +193,9 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
         annotations: input.annotations,
         clientSavedAt,
         serverSavedAt: now,
-        warnings: []
-    }).returning();
+        warnings: [],
+    })
+        .returning();
     if (!newSession)
         throw new Error("Failed to insert session");
     return {
@@ -196,7 +210,7 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
         serverSavedAt: newSession.serverSavedAt.toISOString(),
         createdAt: newSession.createdAt.toISOString(),
         updatedAt: newSession.updatedAt.toISOString(),
-        warnings: newSession.warnings
+        warnings: newSession.warnings,
     };
 }
 export async function listDicomWorkbenchBundles(organizationId, limit) {
@@ -206,7 +220,7 @@ export async function listDicomWorkbenchBundles(organizationId, limit) {
         .where(eq(dicomWorkbenchBundles.organizationId, organizationId))
         .orderBy(desc(dicomWorkbenchBundles.createdAt))
         .limit(limit);
-    return bundles.map(b => ({
+    return bundles.map((b) => ({
         id: b.id,
         organizationId: b.organizationId,
         seriesKey: b.seriesKey,
@@ -221,11 +235,13 @@ export async function listDicomWorkbenchBundles(organizationId, limit) {
         serverSavedAt: b.serverSavedAt.toISOString(),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
-        warnings: b.warnings
+        warnings: b.warnings,
     }));
 }
 export async function saveDicomWorkbenchBundle(organizationId, input) {
-    const clientSavedAt = input.clientSavedAt ? new Date(input.clientSavedAt) : null;
+    const clientSavedAt = input.clientSavedAt
+        ? new Date(input.clientSavedAt)
+        : null;
     const now = new Date();
     const existingSeriesKey = input.seriesKey ?? `series_${randomUUID()}`;
     const [existing] = await db
@@ -234,12 +250,16 @@ export async function saveDicomWorkbenchBundle(organizationId, input) {
         .where(and(eq(dicomWorkbenchBundles.organizationId, organizationId), eq(dicomWorkbenchBundles.seriesKey, existingSeriesKey)))
         .limit(1);
     if (existing) {
-        const [updated] = await db.update(dicomWorkbenchBundles).set({
+        const [updated] = await db
+            .update(dicomWorkbenchBundles)
+            .set({
             manifest: input.manifest,
             clientSavedAt,
             serverSavedAt: now,
-            updatedAt: now
-        }).where(and(eq(dicomWorkbenchBundles.id, existing.id), eq(dicomWorkbenchBundles.organizationId, organizationId))).returning();
+            updatedAt: now,
+        })
+            .where(and(eq(dicomWorkbenchBundles.id, existing.id), eq(dicomWorkbenchBundles.organizationId, organizationId)))
+            .returning();
         if (!updated)
             throw new Error("Failed to update bundle");
         return {
@@ -257,10 +277,12 @@ export async function saveDicomWorkbenchBundle(organizationId, input) {
             serverSavedAt: updated.serverSavedAt.toISOString(),
             createdAt: updated.createdAt.toISOString(),
             updatedAt: updated.updatedAt.toISOString(),
-            warnings: updated.warnings
+            warnings: updated.warnings,
         };
     }
-    const [newBundle] = await db.insert(dicomWorkbenchBundles).values({
+    const [newBundle] = await db
+        .insert(dicomWorkbenchBundles)
+        .values({
         id: randomUUID(),
         organizationId,
         seriesKey: existingSeriesKey,
@@ -270,8 +292,9 @@ export async function saveDicomWorkbenchBundle(organizationId, input) {
         manifest: input.manifest,
         clientSavedAt,
         serverSavedAt: now,
-        warnings: []
-    }).returning();
+        warnings: [],
+    })
+        .returning();
     if (!newBundle)
         throw new Error("Failed to insert bundle");
     return {
@@ -289,6 +312,6 @@ export async function saveDicomWorkbenchBundle(organizationId, input) {
         serverSavedAt: newBundle.serverSavedAt.toISOString(),
         createdAt: newBundle.createdAt.toISOString(),
         updatedAt: newBundle.updatedAt.toISOString(),
-        warnings: newBundle.warnings
+        warnings: newBundle.warnings,
     };
 }

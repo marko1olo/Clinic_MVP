@@ -42,17 +42,23 @@ export async function ensureSshTunnel() {
     try {
         const cmdArgs = [
             "-N",
-            "-D", SOCKS_PORT.toString(),
-            "-o", "ExitOnForwardFailure=yes",
-            "-o", "ConnectTimeout=5",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=NUL",
-            "-i", sshKey,
-            sshHost
+            "-D",
+            SOCKS_PORT.toString(),
+            "-o",
+            "ExitOnForwardFailure=yes",
+            "-o",
+            "ConnectTimeout=5",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=NUL",
+            "-i",
+            sshKey,
+            sshHost,
         ];
         tunnelProcess = spawn("ssh", cmdArgs, {
             detached: true,
-            stdio: "ignore"
+            stdio: "ignore",
         });
         tunnelProcess.unref();
         // Ждем 2 секунды, пока туннель установит соединение

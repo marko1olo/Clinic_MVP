@@ -1,13 +1,22 @@
-import { wsBroker } from "../services/websocketBroker.js";
-import { z } from "zod";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
+import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 import { db } from "../db/client.js";
-import { patients, toothStates, treatmentPlans, treatmentPlanItemsNew } from "../db/schema.js";
-import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId } from "../accessGuard.js";
-const toothStateValues = ["Caries", "Pulpitis", "Missing", "Crown", "Implant", "Filled", "Healthy", "Planned_Implant"];
+import { patients, toothStates, treatmentPlanItemsNew, treatmentPlans, } from "../db/schema.js";
+import { wsBroker } from "../services/websocketBroker.js";
+const toothStateValues = [
+    "Caries",
+    "Pulpitis",
+    "Missing",
+    "Crown",
+    "Implant",
+    "Filled",
+    "Healthy",
+    "Planned_Implant",
+];
 const batchToothStateSchema = z.object({
     toothNumbers: z.array(z.number().int().min(11).max(99)).min(1).max(64),
-    state: z.enum(toothStateValues)
+    state: z.enum(toothStateValues),
 });
 const treatmentPlanItemSchema = z.object({
     toothNumber: z.number().int().min(11).max(99).optional().nullable(),
@@ -17,13 +26,13 @@ const treatmentPlanItemSchema = z.object({
     price: z.number().finite().min(0).max(100_000_000),
     discount: z.number().finite().min(0).max(100_000_000).default(0),
     phase: z.number().int().min(1).max(12).default(1),
-    isAuto: z.boolean().optional()
+    isAuto: z.boolean().optional(),
 });
 const treatmentPlanUpsertSchema = z.object({
     id: z.string().uuid().optional().nullable(),
     name: z.string().trim().min(1).max(300).default("Комплексный план лечения"),
     patientSignature: z.string().max(2_000_000).optional().nullable(),
-    items: z.array(treatmentPlanItemSchema).max(500).default([])
+    items: z.array(treatmentPlanItemSchema).max(500).default([]),
 });
 async function ensurePatientInOrganization(patientId, organizationId) {
     const [patient] = await db
@@ -44,7 +53,7 @@ function splitStoredPriceId(value) {
         return { priceId: stored, name: stored };
     return {
         priceId: stored.slice(0, separatorIndex),
-        name: stored.slice(separatorIndex + 2) || stored.slice(0, separatorIndex)
+        name: stored.slice(separatorIndex + 2) || stored.slice(0, separatorIndex),
     };
 }
 function serializeTreatmentPlan(plan, items) {
@@ -68,9 +77,9 @@ function serializeTreatmentPlan(plan, items) {
                 price: numeric(item.price),
                 discount: numeric(item.discount),
                 phase: item.phase,
-                isAuto: item.isBundle
+                isAuto: item.isBundle,
             };
-        })
+        }),
     };
 }
 async function loadTreatmentPlansForPatient(patientId) {
@@ -104,7 +113,10 @@ export async function registerOdontogramRoutes(app) {
             return reply.code(404).send({ error: "PatientNotFound" });
         }
         const states = await db
-            .select({ toothNumber: toothStates.toothNumber, state: toothStates.state })
+            .select({
+            toothNumber: toothStates.toothNumber,
+            state: toothStates.state,
+        })
             .from(toothStates)
             .where(eq(toothStates.patientId, patientId));
         return reply.send({ success: true, states });
@@ -119,12 +131,17 @@ export async function registerOdontogramRoutes(app) {
         }
         const parsed = batchToothStateSchema.safeParse(request.body);
         if (!parsed.success) {
-            return reply.code(400).send({ error: "ToothStateValidationError", message: "Проверьте номера зубов и статус." });
+            return reply.code(400).send({
+                error: "ToothStateValidationError",
+                message: "Проверьте номера зубов и статус.",
+            });
         }
         const toothNumbers = [...new Set(parsed.data.toothNumbers)];
         if (toothNumbers.length === 0)
             return reply.send({ success: true, states: [] });
-        await db.delete(toothStates).where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
+        await db
+            .delete(toothStates)
+            .where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
         const now = new Date();
         const inserted = await db
             .insert(toothStates)
@@ -134,10 +151,16 @@ export async function registerOdontogramRoutes(app) {
             state: parsed.data.state,
             updatedAt: now,
             isSynced: false,
-            version: 1
+            version: 1,
         })))
-            .returning({ toothNumber: toothStates.toothNumber, state: toothStates.state });
-        wsBroker.broadcastToOrganization(organizationId, { type: "UPDATE_ODONTOGRAM", payload: { patientId, states: inserted } });
+            .returning({
+            toothNumber: toothStates.toothNumber,
+            state: toothStates.state,
+        });
+        wsBroker.broadcastToOrganization(organizationId, {
+            type: "UPDATE_ODONTOGRAM",
+            payload: { patientId, states: inserted },
+        });
         return reply.send({ success: true, states: inserted });
     });
     app.get("/api/patients/:patientId/treatment-plans", async (request, reply) => {
@@ -161,7 +184,10 @@ export async function registerOdontogramRoutes(app) {
         }
         const parsed = treatmentPlanUpsertSchema.safeParse(request.body);
         if (!parsed.success) {
-            return reply.code(400).send({ error: "TreatmentPlanValidationError", message: "План лечения не сохранен: проверьте услуги, цены и этапы." });
+            return reply.code(400).send({
+                error: "TreatmentPlanValidationError",
+                message: "План лечения не сохранен: проверьте услуги, цены и этапы.",
+            });
         }
         const input = parsed.data;
         const totalPrice = input.items.reduce((sum, item) => sum + Math.max(0, item.price * item.quantity - item.discount), 0);
@@ -172,7 +198,10 @@ export async function registerOdontogramRoutes(app) {
                 let savedPlanId = input.id ?? null;
                 if (savedPlanId) {
                     const [existing] = await tx
-                        .select({ id: treatmentPlans.id, patientSignature: treatmentPlans.patientSignature })
+                        .select({
+                        id: treatmentPlans.id,
+                        patientSignature: treatmentPlans.patientSignature,
+                    })
                         .from(treatmentPlans)
                         .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId)))
                         .for("update")
@@ -189,13 +218,17 @@ export async function registerOdontogramRoutes(app) {
                         .set({
                         name: input.name,
                         totalPrice: totalPrice.toString(),
-                        ...(input.patientSignature !== undefined ? { patientSignature: input.patientSignature } : {}),
+                        ...(input.patientSignature !== undefined
+                            ? { patientSignature: input.patientSignature }
+                            : {}),
                         updatedAt: now,
                         isSynced: false,
-                        version: sql `${treatmentPlans.version} + 1`
+                        version: sql `${treatmentPlans.version} + 1`,
                     })
                         .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId)));
-                    await tx.delete(treatmentPlanItemsNew).where(eq(treatmentPlanItemsNew.planId, savedPlanId));
+                    await tx
+                        .delete(treatmentPlanItemsNew)
+                        .where(eq(treatmentPlanItemsNew.planId, savedPlanId));
                 }
                 else {
                     const [created] = await tx
@@ -207,7 +240,7 @@ export async function registerOdontogramRoutes(app) {
                         patientSignature: input.patientSignature ?? null,
                         isSynced: false,
                         version: 1,
-                        updatedAt: now
+                        updatedAt: now,
                     })
                         .returning({ id: treatmentPlans.id });
                     savedPlanId = created?.id ?? null;
@@ -218,12 +251,14 @@ export async function registerOdontogramRoutes(app) {
                     await tx.insert(treatmentPlanItemsNew).values(input.items.map((item) => ({
                         planId: savedPlanId,
                         toothNumber: item.toothNumber ?? null,
-                        priceId: item.name ? `${item.priceId}::${item.name}` : item.priceId,
+                        priceId: item.name
+                            ? `${item.priceId}::${item.name}`
+                            : item.priceId,
                         quantity: item.quantity,
                         price: item.price.toString(),
                         discount: item.discount.toString(),
                         phase: item.phase,
-                        isBundle: Boolean(item.isAuto)
+                        isBundle: Boolean(item.isAuto),
                     })));
                 }
                 return savedPlanId;
@@ -231,13 +266,23 @@ export async function registerOdontogramRoutes(app) {
         }
         catch (err) {
             if (err.statusCode) {
-                return reply.code(err.statusCode).send({ error: "TreatmentPlanValidationError", message: err.message });
+                return reply.code(err.statusCode).send({
+                    error: "TreatmentPlanValidationError",
+                    message: err.message,
+                });
             }
             throw err;
         }
         if (!planId)
-            return reply.code(input.id ? 404 : 500).send({ error: input.id ? "TreatmentPlanNotFound" : "TreatmentPlanSaveFailed" });
+            return reply.code(input.id ? 404 : 500).send({
+                error: input.id ? "TreatmentPlanNotFound" : "TreatmentPlanSaveFailed",
+            });
         const [savedPlan] = await loadTreatmentPlansForPatient(patientId);
-        return reply.send({ success: true, planId, totalPrice, plan: savedPlan ?? null });
+        return reply.send({
+            success: true,
+            planId,
+            totalPrice,
+            plan: savedPlan ?? null,
+        });
     });
 }

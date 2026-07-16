@@ -1,12 +1,12 @@
-import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import { chairSchema, clinicSettingsSchema, createChairSchema, createStaffMemberSchema, staffMemberSchema, uiPreferencesInputSchema, uiPreferencesSchema, updateChairWorkingHoursSchema, updateClinicModeSchema, updateClinicProfileSchema, updateStaffWorkingHoursSchema, } from "@dental/shared";
 import { eq } from "drizzle-orm";
+import { resolveOrganizationId } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
-import { resolveOrganizationId } from "../accessGuard.js";
-import { getClinicSettingsFromDb, getUiPreferencesFromDb, saveUiPreferencesInDb, updateClinicModeInDb, updateClinicProfileInDb, createStaffMemberInDb, updateStaffWorkingHoursInDb, updateStaffCredentialsInDb, createChairInDb, updateChairWorkingHoursInDb } from "../db/settingsQuery.js";
-import { hashCredential } from "../utils/cryptoHelper.js";
-import { chairSchema, clinicSettingsSchema, createChairSchema, createStaffMemberSchema, staffMemberSchema, uiPreferencesInputSchema, uiPreferencesSchema, updateClinicModeSchema, updateClinicProfileSchema, updateChairWorkingHoursSchema, updateStaffWorkingHoursSchema } from "@dental/shared";
+import { createChairInDb, createStaffMemberInDb, getClinicSettingsFromDb, getUiPreferencesFromDb, saveUiPreferencesInDb, updateChairWorkingHoursInDb, updateClinicModeInDb, updateClinicProfileInDb, updateStaffCredentialsInDb, updateStaffWorkingHoursInDb, } from "../db/settingsQuery.js";
 import { repairMojibakeDeep } from "../text/repairMojibake.js";
+import { hashCredential } from "../utils/cryptoHelper.js";
+import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 const denteAdminSecretHeader = "x-dente-admin-secret";
 const uiPreferencesValidationMessage = "Настройки интерфейса не сохранены: проверьте выбранную роль, разделы, фильтры и параметры рабочего места.";
 const clinicModeValidationMessage = "Режим клиники не сохранен: выберите допустимый режим работы клиники.";
@@ -40,7 +40,7 @@ function settingsDomainMessage(error) {
     return repairMojibakeDeep(error.message);
 }
 function hasActiveScheduleConflict(message) {
-    return message.includes("активная запись") || message.includes("активные записи");
+    return (message.includes("активная запись") || message.includes("активные записи"));
 }
 function clinicProfileMutationRejection(reply, error) {
     console.error("DEBUG profile update error:", error?.message || error);
@@ -51,20 +51,20 @@ function clinicProfileMutationRejection(reply, error) {
         return reply.code(409).send({
             error: "ClinicProfileMutationRejected",
             reason: "clinic_time_zone_invalid",
-            message: clinicProfileTimezoneMessage
+            message: clinicProfileTimezoneMessage,
         });
     }
     if (hasActiveScheduleConflict(message)) {
         return reply.code(409).send({
             error: "ClinicProfileMutationRejected",
             reason: "active_schedule_conflict",
-            message: clinicProfileScheduleConflictMessage
+            message: clinicProfileScheduleConflictMessage,
         });
     }
     return reply.code(409).send({
         error: "ClinicProfileMutationRejected",
         reason: "clinic_profile_rejected",
-        message: clinicProfileMutationRejectedMessage
+        message: clinicProfileMutationRejectedMessage,
     });
 }
 function staffWorkingHoursRejection(reply, error) {
@@ -73,20 +73,20 @@ function staffWorkingHoursRejection(reply, error) {
         return reply.code(404).send({
             error: "StaffScheduleNotFound",
             reason: "staff_not_found",
-            message: staffWorkingHoursNotFoundMessage
+            message: staffWorkingHoursNotFoundMessage,
         });
     }
     if (hasActiveScheduleConflict(message)) {
         return reply.code(409).send({
             error: "StaffScheduleRejected",
             reason: "active_schedule_conflict",
-            message: staffWorkingHoursConflictMessage
+            message: staffWorkingHoursConflictMessage,
         });
     }
     return reply.code(409).send({
         error: "StaffScheduleRejected",
         reason: "schedule_rejected",
-        message: staffWorkingHoursRejectedMessage
+        message: staffWorkingHoursRejectedMessage,
     });
 }
 function chairWorkingHoursRejection(reply, error) {
@@ -95,27 +95,28 @@ function chairWorkingHoursRejection(reply, error) {
         return reply.code(404).send({
             error: "ChairScheduleNotFound",
             reason: "chair_not_found",
-            message: chairWorkingHoursNotFoundMessage
+            message: chairWorkingHoursNotFoundMessage,
         });
     }
     if (hasActiveScheduleConflict(message)) {
         return reply.code(409).send({
             error: "ChairScheduleRejected",
             reason: "active_schedule_conflict",
-            message: chairWorkingHoursConflictMessage
+            message: chairWorkingHoursConflictMessage,
         });
     }
     return reply.code(409).send({
         error: "ChairScheduleRejected",
         reason: "schedule_rejected",
-        message: chairWorkingHoursRejectedMessage
+        message: chairWorkingHoursRejectedMessage,
     });
 }
 function configuredSettingsAdminSecret() {
     return process.env.DENTE_SETTINGS_ADMIN_SECRET?.trim() || null;
 }
 function settingsUnguardedMutationsAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1";
+    return (process.env.NODE_ENV !== "production" &&
+        process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1");
 }
 async function requireSettingsAccess(request, reply) {
     const adminSecret = configuredSettingsAdminSecret();
@@ -126,21 +127,25 @@ async function requireSettingsAccess(request, reply) {
         else {
             reply.code(503).send({
                 error: "SettingsAdminSecretMissing",
-                message: "На сервере не задан секрет администратора клиники для изменения настроек клиники."
+                message: "На сервере не задан секрет администратора клиники для изменения настроек клиники.",
             });
             return null;
         }
     }
     else {
         const providedSecret = request.headers[denteAdminSecretHeader];
-        const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
-        if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+        const normalizedProvidedSecret = Array.isArray(providedSecret)
+            ? providedSecret[0]
+            : providedSecret;
+        if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+            ? normalizedProvidedSecret
+            : null, adminSecret)) {
             hasAccess = true;
         }
         else {
             reply.code(403).send({
                 error: "SettingsAdminSecretRequired",
-                message: "Для изменения настроек клиники нужен действующий секрет администратора клиники."
+                message: "Для изменения настроек клиники нужен действующий секрет администратора клиники.",
             });
             return null;
         }
@@ -148,12 +153,22 @@ async function requireSettingsAccess(request, reply) {
     // Find organization by token or fallback to MVP default
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId) {
-        reply.code(403).send({ error: "OrganizationRequired", message: "Organization could not be resolved" });
+        reply.code(403).send({
+            error: "OrganizationRequired",
+            message: "Organization could not be resolved",
+        });
         return null;
     }
-    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
+    const [org] = await db
+        .select()
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, organizationId))
+        .limit(1);
     if (!org) {
-        reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
+        reply.code(500).send({
+            error: "NoOrganizationFound",
+            message: "Не найдена организация в базе данных.",
+        });
         return null;
     }
     return org.id;
@@ -179,9 +194,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(uiPreferencesInputSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: uiPreferencesValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: uiPreferencesValidationMessage,
+            });
         }
-        await saveUiPreferencesInDb(orgId, { ...input, version: 1, savedAt: input.savedAt ?? new Date().toISOString() });
+        await saveUiPreferencesInDb(orgId, {
+            ...input,
+            version: 1,
+            savedAt: input.savedAt ?? new Date().toISOString(),
+        });
         return uiPreferencesSchema.parse({ ...input, version: 1 });
     });
     app.post("/api/settings/clinic/mode", async (request, reply) => {
@@ -190,7 +212,10 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(updateClinicModeSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: clinicModeValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: clinicModeValidationMessage,
+            });
         }
         await updateClinicModeInDb(orgId, input.mode);
         const settings = await getClinicSettingsFromDb(orgId);
@@ -202,7 +227,10 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(updateClinicProfileSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "ClinicProfileValidationFailed", message: clinicProfileValidationMessage });
+            return reply.code(400).send({
+                error: "ClinicProfileValidationFailed",
+                message: clinicProfileValidationMessage,
+            });
         }
         try {
             await updateClinicProfileInDb(orgId, input);
@@ -219,13 +247,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createStaffMemberSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffCreateValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: staffCreateValidationMessage,
+            });
         }
         await createStaffMemberInDb(orgId, input);
         const settings = await getClinicSettingsFromDb(orgId);
         // Find the newly created staff to return (for simplicity, we just return the full staff member object from settings list)
         // Actually, createStaffMemberSchema expects the created object, but frontend might just refetch. We'll return the last one matching.
-        const created = settings.staff.find(s => s.fullName === input.fullName);
+        const created = settings.staff.find((s) => s.fullName === input.fullName);
         return reply.code(201).send(staffMemberSchema.parse(created));
     });
     app.post("/api/settings/staff/:staffId/credentials", async (request, reply) => {
@@ -234,11 +265,17 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({ error: "SettingsRouteValidationError", message: "ID сотрудника обязателен." });
+            return reply.code(400).send({
+                error: "SettingsRouteValidationError",
+                message: "ID сотрудника обязателен.",
+            });
         }
         const { email, password, pinCode } = request.body ?? {};
         if (!email && !password && !pinCode) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: "Не переданы данные для обновления." });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: "Не переданы данные для обновления.",
+            });
         }
         const updates = {};
         if (email)
@@ -252,7 +289,10 @@ export async function registerSettingsRoutes(app) {
             return reply.code(200).send({ ok: true });
         }
         catch (err) {
-            return reply.code(500).send({ error: "InternalError", message: "Не удалось обновить доступы." });
+            return reply.code(500).send({
+                error: "InternalError",
+                message: "Не удалось обновить доступы.",
+            });
         }
     });
     app.put("/api/settings/staff/:staffId/working-hours", async (request, reply) => {
@@ -263,17 +303,20 @@ export async function registerSettingsRoutes(app) {
         if (!params.staffId) {
             return reply.code(400).send({
                 error: "SettingsRouteValidationError",
-                message: staffWorkingHoursRouteValidationMessage
+                message: staffWorkingHoursRouteValidationMessage,
             });
         }
         const input = parseSettingsPayload(updateStaffWorkingHoursSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffWorkingHoursValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: staffWorkingHoursValidationMessage,
+            });
         }
         try {
             await updateStaffWorkingHoursInDb(orgId, params.staffId, input.workingHours);
             const settings = await getClinicSettingsFromDb(orgId);
-            const updated = settings.staff.find(s => s.id === params.staffId);
+            const updated = settings.staff.find((s) => s.id === params.staffId);
             if (!updated)
                 throw new Error("Сотрудник не найден.");
             return staffMemberSchema.parse(updated);
@@ -288,11 +331,14 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createChairSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairCreateValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: chairCreateValidationMessage,
+            });
         }
         await createChairInDb(orgId, input);
         const settings = await getClinicSettingsFromDb(orgId);
-        const created = settings.chairs.find(c => c.name === input.name);
+        const created = settings.chairs.find((c) => c.name === input.name);
         return reply.code(201).send(chairSchema.parse(created));
     });
     app.put("/api/settings/chairs/:chairId/working-hours", async (request, reply) => {
@@ -303,17 +349,20 @@ export async function registerSettingsRoutes(app) {
         if (!params.chairId) {
             return reply.code(400).send({
                 error: "SettingsRouteValidationError",
-                message: chairWorkingHoursRouteValidationMessage
+                message: chairWorkingHoursRouteValidationMessage,
             });
         }
         const input = parseSettingsPayload(updateChairWorkingHoursSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairWorkingHoursValidationMessage });
+            return reply.code(400).send({
+                error: "SettingsValidationError",
+                message: chairWorkingHoursValidationMessage,
+            });
         }
         try {
             await updateChairWorkingHoursInDb(orgId, params.chairId, input.workingHours);
             const settings = await getClinicSettingsFromDb(orgId);
-            const updated = settings.chairs.find(c => c.id === params.chairId);
+            const updated = settings.chairs.find((c) => c.id === params.chairId);
             if (!updated)
                 throw new Error("Кресло не найдено.");
             return chairSchema.parse(updated);
@@ -323,9 +372,15 @@ export async function registerSettingsRoutes(app) {
         }
     });
     app.post("/api/settings/reset-demo", async (request, reply) => {
-        return { success: true, message: "Демонстрационный режим больше не поддерживается (используется Postgres)." };
+        return {
+            success: true,
+            message: "Демонстрационный режим больше не поддерживается (используется Postgres).",
+        };
     });
     app.post("/api/settings/reset-zero", async (request, reply) => {
-        return { success: true, message: "Очистка базы больше не поддерживается (используется Postgres)." };
+        return {
+            success: true,
+            message: "Очистка базы больше не поддерживается (используется Postgres).",
+        };
     });
 }

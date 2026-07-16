@@ -1,5 +1,5 @@
-import path from "node:path";
 import fs from "node:fs/promises";
+import path from "node:path";
 export async function registerDicomwebRoutes(app) {
     // Simple WADO-URI mock for local development and demonstration
     app.get("/api/dicomweb/studies/:studyUid/series/:seriesUid/instances/:instanceUid", async (request, reply) => {
@@ -20,7 +20,9 @@ export async function registerDicomwebRoutes(app) {
         }
         catch (e) {
             app.log.error(`DICOM file not found at ${fallbackPath}`);
-            reply.status(404).send({ error: "DICOM file not found. Ensure .data/dicom/test.dcm exists for MVP." });
+            reply.status(404).send({
+                error: "DICOM file not found. Ensure .data/dicom/test.dcm exists for MVP.",
+            });
         }
     });
 }

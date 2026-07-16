@@ -1,8 +1,10 @@
+import { randomUUID } from "crypto";
 import { db } from "./client.js";
 import { auditEvents } from "./schema.js";
-import { randomUUID } from "crypto";
 export async function recordAuditEventInDb(organizationId, input) {
-    const [event] = await db.insert(auditEvents).values({
+    const [event] = await db
+        .insert(auditEvents)
+        .values({
         id: randomUUID(),
         organizationId,
         actorUserId: input.actorUserId ?? null,
@@ -10,7 +12,8 @@ export async function recordAuditEventInDb(organizationId, input) {
         entityId: input.entityId,
         action: input.action,
         reason: input.reason ?? null,
-    }).returning();
+    })
+        .returning();
     if (!event)
         throw new Error("Failed to insert audit event");
     return {
@@ -21,6 +24,6 @@ export async function recordAuditEventInDb(organizationId, input) {
         entityId: event.entityId,
         action: event.action,
         reason: event.reason,
-        createdAt: event.createdAt.toISOString()
+        createdAt: event.createdAt.toISOString(),
     };
 }

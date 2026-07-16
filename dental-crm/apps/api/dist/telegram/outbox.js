@@ -1,6 +1,6 @@
-import { eq, and, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { communicationTasks, denteTelegramChatLinks, denteTelegramOutboxDeliveryReceipts } from "../db/schema.js";
+import { communicationTasks, denteTelegramChatLinks, denteTelegramOutboxDeliveryReceipts, } from "../db/schema.js";
 import { getDenteTelegramBotSettings } from "./config.js";
 function buildOutboxItemId(source, id) {
     return `${source}:${id}`;
@@ -27,7 +27,9 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
             subjectType: "patient",
             subjectId: task.patientId,
             chatLinkId: null, // will be resolved in prepare
-            templateKind: task.intent === "review_request" ? "review_request" : "custom_message",
+            templateKind: task.intent === "review_request"
+                ? "review_request"
+                : "custom_message",
             deliveryStatus: "ready",
             scheduledAt: task.dueAt?.toISOString() ?? now.toISOString(),
             title: task.title,
@@ -36,7 +38,7 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
             photoUrl: null,
             warnings: [],
             blockedReason: null,
-            source: "communication_task"
+            source: "communication_task",
         });
     }
     // 2. Staff Daily Digest
@@ -72,7 +74,7 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
                 photoUrl: null,
                 warnings: [],
                 blockedReason: null,
-                source: "staff_digest"
+                source: "staff_digest",
             });
         }
     }

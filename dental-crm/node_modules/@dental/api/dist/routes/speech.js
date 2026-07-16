@@ -1,12 +1,12 @@
+import { speechChunkUploadSchema, speechGatewayHealthReportSchema, speechGatewayStatusSchema, speechProviderRuntimeStatusSchema, speechRecordingAssemblySchema, speechRecordingRecoveryListSchema, speechRecordingStrategyRequestSchema, speechRecordingStrategySchema, speechTranscriptionChunkSchema, speechTranscriptionResponseSchema, speechTranscriptPolishRequestSchema, speechTranscriptPolishResponseSchema, } from "@dental/shared";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { speechChunkUploadSchema, speechGatewayHealthReportSchema, speechGatewayStatusSchema, speechProviderRuntimeStatusSchema, speechRecordingAssemblySchema, speechRecordingRecoveryListSchema, speechRecordingStrategyRequestSchema, speechRecordingStrategySchema, speechTranscriptPolishRequestSchema, speechTranscriptPolishResponseSchema, speechTranscriptionChunkSchema, speechTranscriptionResponseSchema } from "@dental/shared";
-import { SpeechChunkIdentityConflictError, assembleSpeechRecording, listSpeechRecordingRecoveries, listSpeechTranscriptionChunks, } from "../speech/storage.js";
-import { eq, and } from "drizzle-orm";
+import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import { patients, visits } from "../db/schema.js";
-import { SpeechChunkPayloadError, buildSpeechRecordingStrategy, getSpeechGatewayHealthReport, getSpeechGatewayStatus, getSpeechProviderRuntimeStatuses, speechJsonBodyLimitBytes, transcribeSpeechChunk } from "../speech/gateway.js";
+import { buildSpeechRecordingStrategy, getSpeechGatewayHealthReport, getSpeechGatewayStatus, getSpeechProviderRuntimeStatuses, SpeechChunkPayloadError, speechJsonBodyLimitBytes, transcribeSpeechChunk, } from "../speech/gateway.js";
 import { polishSpeechTranscript } from "../speech/polish.js";
-import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId } from "../accessGuard.js";
+import { assembleSpeechRecording, listSpeechRecordingRecoveries, listSpeechTranscriptionChunks, SpeechChunkIdentityConflictError, } from "../speech/storage.js";
 const speechStrategyValidationMessage = "Стратегия записи не рассчитана: проверьте длительность, режим сети, приватность, специальность и источник диктовки.";
 const speechChunkValidationMessage = "Фрагмент диктовки не принят: передайте запись, номер фрагмента, аудио или локальную расшифровку и клинический контекст.";
 const speechChunkAudioRejectedMessage = "Аудиофрагмент не принят: запись повреждена. Повторите запись или сохраните текстовый черновик.";
@@ -29,20 +29,22 @@ function speechScopeFailure(statusCode, message) {
 function sendSpeechScopeValidationError(reply, scopeValidation) {
     return reply.code(scopeValidation.statusCode).send({
         error: scopeValidation.error,
-        message: scopeValidation.message
+        message: scopeValidation.message,
     });
 }
 function sendSpeechChunkRejection(reply, statusCode, reason, message) {
     return reply.code(statusCode).send({
         error: "SpeechChunkRejected",
         reason,
-        message
+        message,
     });
 }
 async function validateSpeechClinicalScope(input, organizationId, options = {}) {
     const requestedPatientId = normalizeScopeId(input.patientId);
     const requestedVisitId = normalizeScopeId(input.visitId);
-    if (options.requirePatientOrVisit && !requestedPatientId && !requestedVisitId) {
+    if (options.requirePatientOrVisit &&
+        !requestedPatientId &&
+        !requestedVisitId) {
         return speechScopeFailure(400, "Укажите пациента или прием для диктовки.");
     }
     if (input.source === "visit" && !requestedVisitId) {
@@ -50,14 +52,22 @@ async function validateSpeechClinicalScope(input, organizationId, options = {}) 
     }
     let patient = null;
     if (requestedPatientId) {
-        const [found] = await db.select().from(patients).where(and(eq(patients.id, requestedPatientId), eq(patients.organizationId, organizationId))).limit(1);
+        const [found] = await db
+            .select()
+            .from(patients)
+            .where(and(eq(patients.id, requestedPatientId), eq(patients.organizationId, organizationId)))
+            .limit(1);
         patient = found ?? null;
         if (!patient)
             return speechScopeFailure(404, "Пациент для диктовки не найден.");
     }
     let visit = null;
     if (requestedVisitId) {
-        const [found] = await db.select().from(visits).where(and(eq(visits.id, requestedVisitId), eq(visits.organizationId, organizationId))).limit(1);
+        const [found] = await db
+            .select()
+            .from(visits)
+            .where(and(eq(visits.id, requestedVisitId), eq(visits.organizationId, organizationId)))
+            .limit(1);
         visit = found ?? null;
         if (!visit)
             return speechScopeFailure(404, "Прием для диктовки не найден.");
@@ -71,7 +81,7 @@ async function validateSpeechClinicalScope(input, organizationId, options = {}) 
     return {
         ok: true,
         patientId: patient?.id ?? visit?.patientId ?? null,
-        visitId: visit?.id ?? null
+        visitId: visit?.id ?? null,
     };
 }
 async function handleSpeechStatus(request, reply) {
@@ -106,7 +116,10 @@ async function handleSpeechChunks(request, reply) {
         return [];
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
+        return reply.code(403).send({
+            error: "OrganizationRequired",
+            message: "Не удалось определить клинику для голосовых данных.",
+        });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -115,7 +128,9 @@ async function handleSpeechChunks(request, reply) {
         scope.visitId = scopeValidation.visitId;
     if (scopeValidation.patientId)
         scope.patientId = scopeValidation.patientId;
-    return z.array(speechTranscriptionChunkSchema).parse(listSpeechTranscriptionChunks(recordingId, scope));
+    return z
+        .array(speechTranscriptionChunkSchema)
+        .parse(listSpeechTranscriptionChunks(recordingId, scope));
 }
 async function handleSpeechRecordingsRecovery(request, reply) {
     if (!(await requireClinicalReadAccess(request, reply, "speech recording recovery")))
@@ -123,7 +138,10 @@ async function handleSpeechRecordingsRecovery(request, reply) {
     const query = request.query;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
+        return reply.code(403).send({
+            error: "OrganizationRequired",
+            message: "Не удалось определить клинику для голосовых данных.",
+        });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -143,7 +161,10 @@ async function handleSpeechRecordingAssemble(request, reply) {
     const query = request.query;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
+        return reply.code(403).send({
+            error: "OrganizationRequired",
+            message: "Не удалось определить клинику для голосовых данных.",
+        });
     const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, organizationId, { requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
@@ -162,18 +183,23 @@ async function handleSpeechTranscribeChunk(request, reply) {
         return;
     const organizationId = await resolveOrganizationId(request);
     if (!organizationId)
-        return reply.code(403).send({ error: "OrganizationRequired", message: "Не удалось определить клинику для голосовых данных." });
+        return reply.code(403).send({
+            error: "OrganizationRequired",
+            message: "Не удалось определить клинику для голосовых данных.",
+        });
     const scopeValidation = await validateSpeechClinicalScope(input, organizationId);
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
     const scopedInput = {
         ...input,
         patientId: scopeValidation.patientId,
-        visitId: scopeValidation.visitId
+        visitId: scopeValidation.visitId,
     };
     try {
         const result = await transcribeSpeechChunk(scopedInput);
-        return reply.code(result.chunk.status === "failed" ? 503 : 201).send(speechTranscriptionResponseSchema.parse(result));
+        return reply
+            .code(result.chunk.status === "failed" ? 503 : 201)
+            .send(speechTranscriptionResponseSchema.parse(result));
     }
     catch (error) {
         if (error instanceof SpeechChunkPayloadError) {
@@ -192,7 +218,7 @@ async function handleSpeechPolishTranscript(request, reply) {
     if (!parsedInput.success) {
         return reply.code(400).send({
             error: "ValidationError",
-            message: "Некорректный текст для очистки диктовки. Передайте непустую расшифровку до 80 000 символов и специальность приема."
+            message: "Некорректный текст для очистки диктовки. Передайте непустую расшифровку до 80 000 символов и специальность приема.",
         });
     }
     const input = parsedInput.data;

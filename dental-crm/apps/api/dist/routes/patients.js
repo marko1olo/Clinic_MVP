@@ -1,5 +1,5 @@
-import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema } from "@dental/shared";
-import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId } from "../accessGuard.js";
+import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema, } from "@dental/shared";
+import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 const patientCreateValidationMessage = "Пациент не создан: заполните ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientUpdateValidationMessage = "Пациент не обновлен: проверьте ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientAdministrativeValidationMessage = "Административный профиль не сохранен: проверьте документы, согласия, страховку и данные представителя.";
@@ -16,13 +16,13 @@ function parsePatientPayload(schema, value) {
 function sendPatientRouteValidationError(reply) {
     return reply.code(400).send({
         error: "PatientRouteValidationError",
-        message: patientMissingRouteMessage
+        message: patientMissingRouteMessage,
     });
 }
 function sendPatientNotFound(reply) {
     return reply.code(404).send({
         error: "PatientNotFound",
-        message: patientNotFoundMessage
+        message: patientNotFoundMessage,
     });
 }
 function normalizePatientNameForDuplicate(value) {
@@ -41,16 +41,20 @@ function findPatientDuplicate(patientsList, input, ignoredPatientId) {
     return (patientsList.find((patient) => {
         if (patient.id === ignoredPatientId || patient.status !== "active")
             return false;
-        const sameName = Boolean(inputName) && inputName === normalizePatientNameForDuplicate(patient.fullName);
+        const sameName = Boolean(inputName) &&
+            inputName === normalizePatientNameForDuplicate(patient.fullName);
         const sameBirthDate = Boolean(inputBirthDate) && inputBirthDate === (patient.birthDate ?? "");
-        const samePhone = Boolean(inputPhone) && inputPhone === normalizePatientPhoneForDuplicate(patient.phone);
-        return (sameName && sameBirthDate) || (sameName && samePhone) || (sameBirthDate && samePhone);
+        const samePhone = Boolean(inputPhone) &&
+            inputPhone === normalizePatientPhoneForDuplicate(patient.phone);
+        return ((sameName && sameBirthDate) ||
+            (sameName && samePhone) ||
+            (sameBirthDate && samePhone));
     }) ?? null);
 }
 function sendPatientDuplicate(reply) {
     return reply.code(409).send({
         error: "PatientDuplicateError",
-        message: patientDuplicateMessage
+        message: patientDuplicateMessage,
     });
 }
 function hasText(value) {
@@ -64,9 +68,10 @@ function hasIncompleteRepresentativeIdentity(value) {
         /представител|опекун|родител|довер/i.test(value.preferredDocumentRecipient ?? "");
     if (!hasRepresentativeFact)
         return false;
-    return !hasText(value.legalRepresentativeFullName) || !hasText(value.legalRepresentativeRelationship);
+    return (!hasText(value.legalRepresentativeFullName) ||
+        !hasText(value.legalRepresentativeRelationship));
 }
-import { getPatientsFromDb, createPatientInDb, updatePatientInDb, updatePatientAdministrativeProfileInDb } from "../db/patientsQuery.js";
+import { createPatientInDb, getPatientsFromDb, updatePatientAdministrativeProfileInDb, updatePatientInDb, } from "../db/patientsQuery.js";
 export async function registerPatientRoutes(app) {
     app.get("/api/patients", async (request, reply) => {
         const orgId = await requireResolvedOrganizationId(request, reply, "patients read");
@@ -87,7 +92,10 @@ export async function registerPatientRoutes(app) {
             return;
         const input = parsePatientPayload(createPatientSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "PatientValidationError", message: patientCreateValidationMessage });
+            return reply.code(400).send({
+                error: "PatientValidationError",
+                message: patientCreateValidationMessage,
+            });
         }
         const dbPatients = await getPatientsFromDb(orgId);
         const duplicate = findPatientDuplicate(dbPatients, input);
@@ -111,7 +119,10 @@ export async function registerPatientRoutes(app) {
             return sendPatientRouteValidationError(reply);
         const input = parsePatientPayload(updatePatientSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "PatientValidationError", message: patientUpdateValidationMessage });
+            return reply.code(400).send({
+                error: "PatientValidationError",
+                message: patientUpdateValidationMessage,
+            });
         }
         try {
             const patient = await updatePatientInDb(orgId, params.patientId, input);
@@ -133,7 +144,10 @@ export async function registerPatientRoutes(app) {
             return sendPatientRouteValidationError(reply);
         const input = parsePatientPayload(updatePatientAdministrativeProfileSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "PatientValidationError", message: patientAdministrativeValidationMessage });
+            return reply.code(400).send({
+                error: "PatientValidationError",
+                message: patientAdministrativeValidationMessage,
+            });
         }
         try {
             const patient = await updatePatientAdministrativeProfileInDb(orgId, params.patientId, input);

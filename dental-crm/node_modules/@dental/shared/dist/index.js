@@ -7,7 +7,7 @@ export const appointmentStatusSchema = z.enum([
     "in_treatment",
     "completed",
     "cancelled",
-    "no_show"
+    "no_show",
 ]);
 export const visitStatusSchema = z.enum(["draft", "signed", "voided"]);
 export const documentKindSchema = z.enum([
@@ -41,17 +41,22 @@ export const documentKindSchema = z.enum([
     "tax_deduction_application",
     "legacy_tax_deduction_certificate",
     "tax_deduction_registry",
-    "patient_intake_questionnaire"
+    "patient_intake_questionnaire",
 ]);
 export const legacyTaxDeductionCertificateMinYear = 2021;
 export const legacyTaxDeductionCertificateMaxYear = 2023;
 export const taxDeductionCertificateMinYear = 2024;
-export const documentSourceStatusSchema = z.enum(["official_form", "official_workflow", "clinic_template", "internal_register"]);
+export const documentSourceStatusSchema = z.enum([
+    "official_form",
+    "official_workflow",
+    "clinic_template",
+    "internal_register",
+]);
 export const documentSourceStatusLabels = {
     official_form: "Официальная форма",
     official_workflow: "Официальный порядок",
     clinic_template: "Шаблон клиники",
-    internal_register: "Внутренний реестр"
+    internal_register: "Внутренний реестр",
 };
 const documentKindBaseMetadata = {
     paid_medical_services_contract: {
@@ -61,7 +66,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "planned",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     completed_works_act: {
         title: "Акт выполненных работ",
@@ -70,7 +75,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "paid",
         requiresVisit: true,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     tax_deduction_certificate: {
         title: "Черновик данных для справки КНД 1151156",
@@ -79,7 +84,7 @@ const documentKindBaseMetadata = {
         group: "tax",
         amountSource: "paid",
         requiresVisit: false,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     informed_consent: {
         title: "Информированное добровольное согласие",
@@ -88,7 +93,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     procedure_specific_consent_packet: {
         title: "Согласие на стоматологическое вмешательство по процедуре",
@@ -97,7 +102,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     treatment_plan: {
         title: "План лечения",
@@ -106,7 +111,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "planned",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     treatment_plan_acceptance: {
         title: "Согласование плана лечения и альтернатив",
@@ -115,7 +120,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "planned",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     anesthesia_consent_log: {
         title: "Согласие и журнал местной анестезии",
@@ -124,7 +129,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     prescription_medication_order: {
         title: "Назначение лекарственных препаратов",
@@ -133,7 +138,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     personal_data_processing_consent: {
         title: "Согласие на обработку персональных данных",
@@ -142,7 +147,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     minor_legal_representative_consent: {
         title: "Согласие законного представителя несовершеннолетнего",
@@ -151,7 +156,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     photo_video_consent: {
         title: "Согласие на фото-, видео- и рентген-материалы",
@@ -160,7 +165,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     medical_intervention_refusal: {
         title: "Отказ от медицинского вмешательства",
@@ -169,7 +174,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     treatment_cost_estimate: {
         title: "Смета лечения",
@@ -178,7 +183,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "planned",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     payment_invoice: {
         title: "Счет на оплату",
@@ -187,7 +192,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "planned",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     payment_receipt: {
         title: "Квитанция/памятка об оплате",
@@ -196,7 +201,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "paid",
         requiresVisit: false,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     installment_payment_schedule: {
         title: "График рассрочки и оплат",
@@ -205,7 +210,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "planned",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     post_visit_recommendations: {
         title: "Рекомендации после приема",
@@ -214,7 +219,7 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     outpatient_medical_card_025u: {
         title: "Медицинская карта пациента, получающего медицинскую помощь в амбулаторных условиях (форма N 025/у)",
@@ -223,7 +228,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     medical_record_extract: {
         title: "Выписка из медицинской карты",
@@ -232,7 +237,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     medical_record_copy_request: {
         title: "Запрос на копии медицинской документации",
@@ -241,7 +246,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     medical_document_release_receipt: {
         title: "Расписка о выдаче медицинской документации",
@@ -250,7 +255,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     xray_cbct_referral: {
         title: "Направление на рентген/КЛКТ",
@@ -259,7 +264,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     lab_work_order: {
         title: "Зуботехнический заказ-наряд",
@@ -268,7 +273,7 @@ const documentKindBaseMetadata = {
         group: "workflow",
         amountSource: "planned",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     visit_attendance_certificate: {
         title: "Справка о посещении врача-стоматолога",
@@ -277,7 +282,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     warranty_service_memo: {
         title: "Гарантийная памятка по стоматологической работе",
@@ -286,7 +291,7 @@ const documentKindBaseMetadata = {
         group: "legal",
         amountSource: "none",
         requiresVisit: true,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     payment_refund_correction_request: {
         title: "Заявление на возврат или коррекцию оплаты",
@@ -295,7 +300,7 @@ const documentKindBaseMetadata = {
         group: "payment",
         amountSource: "paid",
         requiresVisit: true,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     tax_deduction_application: {
         title: "Заявление на справку для налогового вычета",
@@ -304,7 +309,7 @@ const documentKindBaseMetadata = {
         group: "tax",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
+        requiresPaidRecord: false,
     },
     legacy_tax_deduction_certificate: {
         title: "Справка об оплате медицинских услуг для налоговой до 2024 года",
@@ -313,7 +318,7 @@ const documentKindBaseMetadata = {
         group: "tax",
         amountSource: "paid",
         requiresVisit: false,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     tax_deduction_registry: {
         title: "Реестр оплат для налоговой справки",
@@ -322,7 +327,7 @@ const documentKindBaseMetadata = {
         group: "tax",
         amountSource: "paid",
         requiresVisit: false,
-        requiresPaidRecord: true
+        requiresPaidRecord: true,
     },
     patient_intake_questionnaire: {
         title: "Анкета пациента",
@@ -331,8 +336,8 @@ const documentKindBaseMetadata = {
         group: "visit",
         amountSource: "none",
         requiresVisit: false,
-        requiresPaidRecord: false
-    }
+        requiresPaidRecord: false,
+    },
 };
 const documentSourceCheckedAt = "2026-05-24";
 const fnsDocumentSourceCheckedAt = "2026-05-25";
@@ -342,218 +347,218 @@ export const documentKindSourceMetadata = {
         sourceAuthority: "Правительство РФ",
         sourceReference: "Постановление N 736, правила платных медицинских услуг",
         sourceNote: "Договор DENTE является клиническим шаблоном по официальному порядку платных медуслуг; перед выдачей требует реквизиты клиники, лицензию, состав услуг, цену и подписи.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     completed_works_act: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + правила платных медицинских услуг",
         sourceReference: "Акт к конкретному договору и фактическим оплатам",
         sourceNote: "Не является отдельной федеральной унифицированной формой; фиксирует реально оказанные услуги, связанный договор, фискальные чеки и претензии пациента.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     tax_deduction_certificate: {
         sourceStatus: "official_form",
         sourceAuthority: "ФНС России",
         sourceReference: "КНД 1151156, приказ ФНС от 08.11.2023 N ЕА-7-11/824@",
         sourceNote: "Используется для расходов с 2024 года. DENTE готовит проверяемые данные и печатный черновик, но не подменяет выпуск подписанной справки клиникой.",
-        sourceCheckedAt: fnsDocumentSourceCheckedAt
+        sourceCheckedAt: fnsDocumentSourceCheckedAt,
     },
     informed_consent: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ N 1051н об ИДС и отказе от медицинского вмешательства",
         sourceNote: "Общая форма ИДС заполняется под конкретное стоматологическое вмешательство, риски, альтернативы и вопросы пациента.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     procedure_specific_consent_packet: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + Минздрав N 1051н",
         sourceReference: "Процедурный стоматологический пакет к базовому ИДС",
         sourceNote: "Раскрывает риски анестезии, эндодонтии, хирургии, имплантации, ортопедии, ортодонтии, гигиены и отбеливания; локальную форму клиника прикладывает отдельно.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     treatment_plan: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Клинический план лечения из визита и прайс-листа",
         sourceNote: "План должен брать услуги и суммы из серверных фактов пациента/визита, а не из свободного текста браузера.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     treatment_plan_acceptance: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Согласование плана, альтернатив и отказанных вариантов",
         sourceNote: "Фиксирует выбранный вариант, альтернативы, границы гарантии и контрольные визиты; не заменяет ИДС на вмешательство.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     anesthesia_consent_log: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + Минздрав N 1051н",
         sourceReference: "Локальная анестезия: согласие и журнал введения",
         sourceNote: "Нужны метод, препарат, дозы, зона, аллергии, ограничения и подтверждение объяснения рисков.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     prescription_medication_order: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Назначение лекарств для проверки врачом",
         sourceNote: "Черновик назначения требует ручной проверки врача, указания дозировки, длительности, ограничений и срочных симптомов.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     personal_data_processing_consent: {
         sourceStatus: "official_workflow",
         sourceAuthority: "152-ФЗ о персональных данных",
         sourceReference: "Согласие на обработку персональных и медицинских данных",
         sourceNote: "Шаблон должен отдельно раскрывать цели, медицинскую тайну, передачи, отзыв согласия и срок хранения.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     minor_legal_representative_consent: {
         sourceStatus: "official_workflow",
         sourceAuthority: "323-ФЗ + Минздрав N 1051н",
         sourceReference: "Согласие законного представителя на конкретный визит/вмешательство",
         sourceNote: "Требует связь с конкретным визитом, проверку личности, полномочий и понятное объяснение процедуры представителю.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     photo_video_consent: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + 152-ФЗ",
         sourceReference: "Фото, видео, рентген-материалы и цели использования",
         sourceNote: "Клиническая запись, лаборатория, консультации, обучение и маркетинг разделены; узнаваемая публикация включается отдельно.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     medical_intervention_refusal: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ N 1051н, отказ от медицинского вмешательства",
         sourceNote: "Отказ привязан к конкретному вмешательству, объясненным последствиям, альтернативам и предложению второго мнения.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     treatment_cost_estimate: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Смета лечения по серверному плану и прайсу",
         sourceNote: "Черновик стоимости не должен изобретать суммы: плановая сумма берется из фактов лечения или явного плана.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     payment_invoice: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Счет на оплату медицинских услуг",
         sourceNote: "Счет не заменяет кассовый чек; нужен плательщик, назначение, сумма, основание и банковские реквизиты.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     payment_receipt: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + фискальные данные клиники",
         sourceReference: "Памятка об оплате по выбранным фискальным чекам",
         sourceNote: "Квитанция удобна пациенту, но не заменяет кассовый чек и не должна попадать в налоговый пакет без фискального номера и даты.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     installment_payment_schedule: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "График рассрочки или этапных оплат",
         sourceNote: "Внутренний график сроков и сумм к договору/плану; изменения должны оформляться письменно и не заменяют чек.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     post_visit_recommendations: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Памятки после удаления, имплантации, пломбы и других процедур",
         sourceNote: "Готовится как пациентская памятка и может уходить в Telegram после проверки темы, процедуры, врача и срочных симптомов.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     outpatient_medical_card_025u: {
         sourceStatus: "official_form",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ Минздрава России от 13.05.2025 N 274н, приложение N 1, учетная форма N 025/у",
         sourceNote: "DENTE заполняет структуру формы 025/у только из карточки пациента, профиля клиники и подписанных визитов. Неизвестные разделы остаются явно пустыми; юридически значимый электронный обмен требует отдельного контура УКЭП/МИС/ЕГИСЗ.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     medical_record_extract: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказы N 789н и N 274н по выдаче/ведению медицинских документов",
         sourceNote: "DENTE формирует черновик выписки из подписанных медицинских записей; точные унифицированные формы 274н должны маппиться по полям.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     medical_record_copy_request: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ N 789н, запрос копий медицинских документов",
         sourceNote: "Отделяет запрос пациента/представителя от фактической выдачи и требует период, формат, полномочия и канал доставки.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     medical_document_release_receipt: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ N 789н, выдача копий и выписок",
         sourceNote: "Расписка фиксирует получателя, основание, список документов, формат, защиту передачи и проверку данных третьих лиц.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     xray_cbct_referral: {
         sourceStatus: "official_workflow",
         sourceAuthority: "Минздрав России",
         sourceReference: "Приказ N 560н, правила проведения рентгенологических исследований",
         sourceNote: "Направление DENTE фиксирует клинический вопрос, область, показание, ограничения, архив снимков/отчет и передачу результата.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     lab_work_order: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Зуботехнический заказ-наряд",
         sourceNote: "Производственная форма для лаборатории: тип работы, зубы, материал, цвет, сканы/слепки, имплант-платформа и срок.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     visit_attendance_certificate: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Справка о посещении врача-стоматолога",
         sourceNote: "Подтверждает факт посещения без выдуманного диагноза или нетрудоспособности; диагноз раскрывается только по явному основанию.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     warranty_service_memo: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Гарантийная памятка по стоматологической работе",
         sourceNote: "Не изобретает гарантию: сроки, исключения и контрольные визиты должны соответствовать локальной политике клиники.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     payment_refund_correction_request: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE + фискальные данные клиники",
         sourceReference: "Заявление на возврат или коррекцию оплаты",
         sourceNote: "Требует исходный чек, сумму, причину, получателя, способ возврата и решение ответственного; сумма не может превышать оплаченные факты.",
-        sourceCheckedAt: documentSourceCheckedAt
+        sourceCheckedAt: documentSourceCheckedAt,
     },
     tax_deduction_application: {
         sourceStatus: "clinic_template",
         sourceAuthority: "ФНС России + DENTE",
         sourceReference: "Заявление пациента/плательщика на подготовку справки",
         sourceNote: "Собирает данные налогоплательщика, год, форму, доставку и контроль дублей; не является самой справкой для налоговой.",
-        sourceCheckedAt: fnsDocumentSourceCheckedAt
+        sourceCheckedAt: fnsDocumentSourceCheckedAt,
     },
     legacy_tax_deduction_certificate: {
         sourceStatus: "official_workflow",
         sourceAuthority: "ФНС России / Минздрав России",
         sourceReference: "Старая справка для расходов 2021-2023 до КНД 1151156",
         sourceNote: "Используется только для расходов 2021-2023. Для 2024+ DENTE должен вести пользователя в КНД 1151156.",
-        sourceCheckedAt: fnsDocumentSourceCheckedAt
+        sourceCheckedAt: fnsDocumentSourceCheckedAt,
     },
     tax_deduction_registry: {
         sourceStatus: "internal_register",
         sourceAuthority: "DENTE",
         sourceReference: "Реестр фискальных оплат для подготовки налоговой справки",
         sourceNote: "Внутренний контрольный реестр: группирует только выбранные оплаченные чеки нужного года и одного налогоплательщика.",
-        sourceCheckedAt: fnsDocumentSourceCheckedAt
+        sourceCheckedAt: fnsDocumentSourceCheckedAt,
     },
     patient_intake_questionnaire: {
         sourceStatus: "clinic_template",
         sourceAuthority: "DENTE",
         sourceReference: "Анкета пациента перед приемом",
         sourceNote: "Собирает жалобы, аллергии, лекарства, хронические состояния, беременность/лактацию, антикоагулянты, инфекции и экстренный контакт.",
-        sourceCheckedAt: documentSourceCheckedAt
-    }
+        sourceCheckedAt: documentSourceCheckedAt,
+    },
 };
 const paidMedicalServicesRulesSourceUrl = "https://publication.pravo.gov.ru/Document/View/0001202305120025?index=1&pageSize=100";
 const fnsKnd1151156OrderSourceUrl = "https://www.nalog.gov.ru/rn77/about_fts/docs/14112883/";
@@ -575,25 +580,40 @@ export const documentKindSourceUrls = {
         fnsKnd1151156FormSourceUrl,
         fnsKnd1151156XsdSourceUrl,
         fnsMedicalDeductionRulesSourceUrl,
-        fnsKnd1151156FillingSourceUrl
+        fnsKnd1151156FillingSourceUrl,
     ],
-    informed_consent: [minzdravConsentRefusalSourceUrl, federalHealthLawSourceUrl],
-    procedure_specific_consent_packet: [minzdravConsentRefusalSourceUrl, federalHealthLawSourceUrl],
+    informed_consent: [
+        minzdravConsentRefusalSourceUrl,
+        federalHealthLawSourceUrl,
+    ],
+    procedure_specific_consent_packet: [
+        minzdravConsentRefusalSourceUrl,
+        federalHealthLawSourceUrl,
+    ],
     treatment_plan: [],
     treatment_plan_acceptance: [minzdravConsentRefusalSourceUrl],
     anesthesia_consent_log: [minzdravConsentRefusalSourceUrl],
     prescription_medication_order: [],
     personal_data_processing_consent: [personalDataLawSourceUrl],
-    minor_legal_representative_consent: [federalHealthLawSourceUrl, minzdravConsentRefusalSourceUrl],
+    minor_legal_representative_consent: [
+        federalHealthLawSourceUrl,
+        minzdravConsentRefusalSourceUrl,
+    ],
     photo_video_consent: [personalDataLawSourceUrl],
-    medical_intervention_refusal: [minzdravConsentRefusalSourceUrl, federalHealthLawSourceUrl],
+    medical_intervention_refusal: [
+        minzdravConsentRefusalSourceUrl,
+        federalHealthLawSourceUrl,
+    ],
     treatment_cost_estimate: [],
     payment_invoice: [],
     payment_receipt: [],
     installment_payment_schedule: [],
     post_visit_recommendations: [],
     outpatient_medical_card_025u: [minzdravAmbulatoryFormsSourceUrl],
-    medical_record_extract: [minzdravMedicalDocumentReleaseSourceUrl, minzdravAmbulatoryFormsSourceUrl],
+    medical_record_extract: [
+        minzdravMedicalDocumentReleaseSourceUrl,
+        minzdravAmbulatoryFormsSourceUrl,
+    ],
     medical_record_copy_request: [minzdravMedicalDocumentReleaseSourceUrl],
     medical_document_release_receipt: [minzdravMedicalDocumentReleaseSourceUrl],
     xray_cbct_referral: [minzdravRadiologyRulesSourceUrl],
@@ -604,17 +624,20 @@ export const documentKindSourceUrls = {
     tax_deduction_application: [
         fnsKnd1151156OrderSourceUrl,
         fnsMedicalDeductionRulesSourceUrl,
-        fnsKnd1151156FillingSourceUrl
+        fnsKnd1151156FillingSourceUrl,
     ],
     legacy_tax_deduction_certificate: [fnsMedicalDeductionRulesSourceUrl],
-    tax_deduction_registry: [fnsKnd1151156OrderSourceUrl, fnsKnd1151156FillingSourceUrl],
-    patient_intake_questionnaire: []
+    tax_deduction_registry: [
+        fnsKnd1151156OrderSourceUrl,
+        fnsKnd1151156FillingSourceUrl,
+    ],
+    patient_intake_questionnaire: [],
 };
 export const documentKindMetadata = documentKindSchema.options.reduce((metadataByKind, kind) => {
     metadataByKind[kind] = {
         ...documentKindBaseMetadata[kind],
         ...documentKindSourceMetadata[kind],
-        sourceUrls: documentKindSourceUrls[kind]
+        sourceUrls: documentKindSourceUrls[kind],
     };
     return metadataByKind;
 }, {});
@@ -630,8 +653,8 @@ export const documentFactoryGroups = [
             "anesthesia_consent_log",
             "prescription_medication_order",
             "post_visit_recommendations",
-            "visit_attendance_certificate"
-        ]
+            "visit_attendance_certificate",
+        ],
     },
     {
         title: "Оплата",
@@ -642,12 +665,17 @@ export const documentFactoryGroups = [
             "payment_receipt",
             "installment_payment_schedule",
             "completed_works_act",
-            "payment_refund_correction_request"
-        ]
+            "payment_refund_correction_request",
+        ],
     },
     {
         title: "Налоговая",
-        kinds: ["tax_deduction_application", "tax_deduction_certificate", "legacy_tax_deduction_certificate", "tax_deduction_registry"]
+        kinds: [
+            "tax_deduction_application",
+            "tax_deduction_certificate",
+            "legacy_tax_deduction_certificate",
+            "tax_deduction_registry",
+        ],
     },
     {
         title: "Юр. и медкарта",
@@ -661,13 +689,13 @@ export const documentFactoryGroups = [
             "medical_record_copy_request",
             "medical_document_release_receipt",
             "xray_cbct_referral",
-            "warranty_service_memo"
-        ]
+            "warranty_service_memo",
+        ],
     },
     {
         title: "Лаборатория",
-        kinds: ["lab_work_order"]
-    }
+        kinds: ["lab_work_order"],
+    },
 ];
 export function documentAmountSource(kind) {
     return documentKindMetadata[kind].amountSource;
@@ -680,11 +708,31 @@ export const aiJobKindSchema = z.enum([
     "visit_note_draft",
     "image_summary",
     "document_draft",
-    "paper_ocr"
+    "paper_ocr",
 ]);
-export const aiJobStatusSchema = z.enum(["queued", "running", "needs_review", "accepted", "rejected", "failed"]);
-export const aiRecognitionTargetSchema = z.enum(["visit_note", "patient_import", "imaging_summary", "document_draft"]);
-export const imagingStudyKindSchema = z.enum(["periapical", "bitewing", "opg", "ceph", "cbct", "photo", "other"]);
+export const aiJobStatusSchema = z.enum([
+    "queued",
+    "running",
+    "needs_review",
+    "accepted",
+    "rejected",
+    "failed",
+]);
+export const aiRecognitionTargetSchema = z.enum([
+    "visit_note",
+    "patient_import",
+    "imaging_summary",
+    "document_draft",
+]);
+export const imagingStudyKindSchema = z.enum([
+    "periapical",
+    "bitewing",
+    "opg",
+    "ceph",
+    "cbct",
+    "photo",
+    "other",
+]);
 export const imagingSourceKindSchema = z.enum([
     "manual_upload",
     "dicom_file",
@@ -692,10 +740,21 @@ export const imagingSourceKindSchema = z.enum([
     "pacs",
     "twain_wia",
     "sensor_bridge",
-    "folder_watch"
+    "folder_watch",
 ]);
-export const clinicModeSchema = z.enum(["solo_doctor", "one_chair", "small_clinic", "network_clinic"]);
-export const staffRoleSchema = z.enum(["owner", "doctor", "administrator", "assistant", "manager"]);
+export const clinicModeSchema = z.enum([
+    "solo_doctor",
+    "one_chair",
+    "small_clinic",
+    "network_clinic",
+]);
+export const staffRoleSchema = z.enum([
+    "owner",
+    "doctor",
+    "administrator",
+    "assistant",
+    "manager",
+]);
 export const dentalSpecialtySchema = z.enum([
     "therapist",
     "orthopedist",
@@ -706,7 +765,7 @@ export const dentalSpecialtySchema = z.enum([
     "pediatric",
     "implantologist",
     "radiologist",
-    "universal"
+    "universal",
 ]);
 export const serviceCategorySchema = z.enum([
     "consultation",
@@ -718,21 +777,61 @@ export const serviceCategorySchema = z.enum([
     "hygiene",
     "imaging",
     "documents",
-    "other"
+    "other",
 ]);
-export const treatmentPlanItemStatusSchema = z.enum(["proposed", "approved", "in_progress", "completed", "cancelled"]);
-export const treatmentPlanScenarioStrategySchema = z.enum(["urgent", "standard", "optimal", "phased", "maintenance"]);
-export const treatmentPlanScenarioPrioritySchema = z.enum(["budget", "balanced", "clinical"]);
-export const clinicalRuleSeveritySchema = z.enum(["info", "warning", "blocker"]);
+export const treatmentPlanItemStatusSchema = z.enum([
+    "proposed",
+    "approved",
+    "in_progress",
+    "completed",
+    "cancelled",
+]);
+export const treatmentPlanScenarioStrategySchema = z.enum([
+    "urgent",
+    "standard",
+    "optimal",
+    "phased",
+    "maintenance",
+]);
+export const treatmentPlanScenarioPrioritySchema = z.enum([
+    "budget",
+    "balanced",
+    "clinical",
+]);
+export const clinicalRuleSeveritySchema = z.enum([
+    "info",
+    "warning",
+    "blocker",
+]);
 export const clinicalRuleActionSchema = z.enum([
     "add_required_service",
     "block_service",
     "show_warning",
-    "schedule_followup"
+    "schedule_followup",
 ]);
-export const paymentMethodSchema = z.enum(["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]);
-export const paymentStatusSchema = z.enum(["planned", "paid", "refunded", "voided"]);
-export const communicationChannelSchema = z.enum(["phone", "sms", "whatsapp", "telegram", "email", "in_person"]);
+export const paymentMethodSchema = z.enum([
+    "cash",
+    "card",
+    "bank_transfer",
+    "online",
+    "insurance",
+    "family_wallet",
+    "other",
+]);
+export const paymentStatusSchema = z.enum([
+    "planned",
+    "paid",
+    "refunded",
+    "voided",
+]);
+export const communicationChannelSchema = z.enum([
+    "phone",
+    "sms",
+    "whatsapp",
+    "telegram",
+    "email",
+    "in_person",
+]);
 export const communicationIntentSchema = z.enum([
     "appointment_confirmation",
     "payment_reminder",
@@ -740,7 +839,7 @@ export const communicationIntentSchema = z.enum([
     "recall",
     "document_ready",
     "imaging_review",
-    "general"
+    "general",
 ]);
 export const communicationTaskWorkflowCodeSchema = z.enum([
     "telegram_tax_document_request",
@@ -759,7 +858,7 @@ export const communicationTaskWorkflowCodeSchema = z.enum([
     "telegram_care_periodontology_request",
     "telegram_appointment_reschedule_request",
     "telegram_appointment_call_request",
-    "telegram_contact_request"
+    "telegram_contact_request",
 ]);
 export const communicationStatusSchema = z.enum([
     "queued",
@@ -769,15 +868,20 @@ export const communicationStatusSchema = z.enum([
     "delivered",
     "completed",
     "failed",
-    "skipped"
+    "skipped",
 ]);
-export const communicationPrioritySchema = z.enum(["low", "normal", "high", "urgent"]);
+export const communicationPrioritySchema = z.enum([
+    "low",
+    "normal",
+    "high",
+    "urgent",
+]);
 export const communicationTaskOutcomeSchema = z.enum([
     "no_answer",
     "callback_requested",
     "reschedule_requested",
     "promised_payment",
-    "document_pickup"
+    "document_pickup",
 ]);
 export const integrationCategorySchema = z.enum([
     "dental_mis",
@@ -785,7 +889,7 @@ export const integrationCategorySchema = z.enum([
     "paper_archive",
     "imaging_system",
     "accounting",
-    "custom"
+    "custom",
 ]);
 export const integrationCapabilitySchema = z.enum([
     "patients",
@@ -796,9 +900,13 @@ export const integrationCapabilitySchema = z.enum([
     "payments",
     "imaging",
     "tax_documents",
-    "audit"
+    "audit",
 ]);
-export const integrationPresetStatusSchema = z.enum(["usable_now", "needs_mapping", "planned_connector"]);
+export const integrationPresetStatusSchema = z.enum([
+    "usable_now",
+    "needs_mapping",
+    "planned_connector",
+]);
 export const integrationPresetSchema = z.object({
     id: z.string(),
     title: z.string(),
@@ -808,7 +916,7 @@ export const integrationPresetSchema = z.object({
     supportedInputs: z.array(z.string()),
     capabilities: z.array(integrationCapabilitySchema),
     migrationNotes: z.array(z.string()),
-    riskLevel: z.enum(["low", "medium", "high"])
+    riskLevel: z.enum(["low", "medium", "high"]),
 });
 export const speechProviderKindSchema = z.enum([
     "browser_speech",
@@ -822,10 +930,19 @@ export const speechProviderKindSchema = z.enum([
     "huggingface_asr",
     "mobile_native_speech",
     "local_whisper",
-    "vosk_local"
+    "vosk_local",
 ]);
-export const speechProviderStatusSchema = z.enum(["usable_without_key", "needs_server_key", "planned_local"]);
-export const speechProviderModeSchema = z.enum(["browser_live", "server_upload", "server_streaming", "local_worker"]);
+export const speechProviderStatusSchema = z.enum([
+    "usable_without_key",
+    "needs_server_key",
+    "planned_local",
+]);
+export const speechProviderModeSchema = z.enum([
+    "browser_live",
+    "server_upload",
+    "server_streaming",
+    "local_worker",
+]);
 export const speechProviderSchema = z.object({
     id: speechProviderKindSchema,
     title: z.string(),
@@ -836,10 +953,18 @@ export const speechProviderSchema = z.object({
     limits: z.array(z.string()),
     costNote: z.string(),
     setupSettingsCount: z.number().int().nonnegative(),
-    sourceUrl: z.string().url()
+    sourceUrl: z.string().url(),
 });
-export const speechGatewayProviderSchema = z.union([speechProviderKindSchema, z.literal("none")]);
-export const speechTranscriptionSourceSchema = z.enum(["visit", "import", "document", "settings_lab"]);
+export const speechGatewayProviderSchema = z.union([
+    speechProviderKindSchema,
+    z.literal("none"),
+]);
+export const speechTranscriptionSourceSchema = z.enum([
+    "visit",
+    "import",
+    "document",
+    "settings_lab",
+]);
 export const speechChunkUploadSchema = z
     .object({
     recordingId: z.string().min(1).max(120),
@@ -853,13 +978,23 @@ export const speechChunkUploadSchema = z
     patientId: z.string().uuid().nullable().optional(),
     visitId: z.string().uuid().nullable().optional(),
     specialty: dentalSpecialtySchema.optional(),
-    clientRecordedAt: z.string().nullable().optional()
+    clientRecordedAt: z.string().nullable().optional(),
 })
     .refine((input) => Boolean(input.audioBase64?.trim() || input.localTranscript?.trim()), {
-    message: "Нужно передать аудиофайл или локальную расшифровку"
+    message: "Нужно передать аудиофайл или локальную расшифровку",
 });
-export const speechTranscriptionStatusSchema = z.enum(["transcribed", "fallback_text", "needs_provider_key", "failed"]);
-export const speechTranscriptionQualityLevelSchema = z.enum(["clear", "review", "empty", "failed"]);
+export const speechTranscriptionStatusSchema = z.enum([
+    "transcribed",
+    "fallback_text",
+    "needs_provider_key",
+    "failed",
+]);
+export const speechTranscriptionQualityLevelSchema = z.enum([
+    "clear",
+    "review",
+    "empty",
+    "failed",
+]);
 export const speechTranscriptionQualitySchema = z.object({
     level: speechTranscriptionQualityLevelSchema,
     confidence: z.number().min(0).max(1).nullable(),
@@ -869,9 +1004,14 @@ export const speechTranscriptionQualitySchema = z.object({
     bytesPerSecond: z.number().nonnegative().nullable(),
     providerWarnings: z.array(z.string()),
     signals: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const speechProviderSelectionModeSchema = z.enum(["disabled", "manual", "auto", "fallback"]);
+export const speechProviderSelectionModeSchema = z.enum([
+    "disabled",
+    "manual",
+    "auto",
+    "fallback",
+]);
 export const speechKeyPoolSchema = z.object({
     configuredKeyCount: z.number().int().nonnegative(),
     availableKeyCount: z.number().int().nonnegative(),
@@ -881,9 +1021,15 @@ export const speechKeyPoolSchema = z.object({
     timeoutMs: z.number().int().positive(),
     rateLimitCooldownMs: z.number().int().positive(),
     errorCooldownMs: z.number().int().positive(),
-    authCooldownMs: z.number().int().positive()
+    authCooldownMs: z.number().int().positive(),
 });
-export const speechProviderConnectorSchema = z.enum(["client_only", "server_wired", "server_cataloged", "local_bridge", "local_planned"]);
+export const speechProviderConnectorSchema = z.enum([
+    "client_only",
+    "server_wired",
+    "server_cataloged",
+    "local_bridge",
+    "local_planned",
+]);
 export const speechProviderRuntimeStatusSchema = z.object({
     providerId: speechProviderKindSchema,
     providerLabel: z.string(),
@@ -896,9 +1042,15 @@ export const speechProviderRuntimeStatusSchema = z.object({
     missingSettingsCount: z.number().int().nonnegative(),
     recommendedUse: z.string(),
     nextStep: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const speechProviderHealthLevelSchema = z.enum(["ready", "degraded", "setup_required", "planned", "offline"]);
+export const speechProviderHealthLevelSchema = z.enum([
+    "ready",
+    "degraded",
+    "setup_required",
+    "planned",
+    "offline",
+]);
 export const speechProviderKeyHealthSchema = z.object({
     fingerprint: z.string(),
     source: z.string(),
@@ -909,7 +1061,7 @@ export const speechProviderKeyHealthSchema = z.object({
     successes: z.number().int().nonnegative(),
     lastUsedAt: z.string().nullable(),
     lastStatusCode: z.number().int().nullable(),
-    lastError: z.string().nullable()
+    lastError: z.string().nullable(),
 });
 export const speechProviderHealthSchema = z.object({
     providerId: speechProviderKindSchema,
@@ -923,17 +1075,29 @@ export const speechProviderHealthSchema = z.object({
     fallbackRank: z.number().int().nonnegative().nullable(),
     safeToUseInVisit: z.boolean(),
     warnings: z.array(z.string()),
-    nextStep: z.string()
+    nextStep: z.string(),
 });
 export const speechRecordingStrategyRequestSchema = z.object({
-    expectedDurationMs: z.number().int().positive().max(14_400_000).nullable().optional(),
+    expectedDurationMs: z
+        .number()
+        .int()
+        .positive()
+        .max(14_400_000)
+        .nullable()
+        .optional(),
     networkState: z.enum(["online", "offline", "unknown"]).default("unknown"),
     privacyMode: z.enum(["cloud_allowed", "local_only"]).default("cloud_allowed"),
     specialty: dentalSpecialtySchema.default("universal"),
-    source: speechTranscriptionSourceSchema.default("visit")
+    source: speechTranscriptionSourceSchema.default("visit"),
 });
 export const speechRecordingStrategySchema = z.object({
-    recommendedPath: z.enum(["server_chunked", "browser_live", "offline_queue", "local_transcript_only", "async_long_recording"]),
+    recommendedPath: z.enum([
+        "server_chunked",
+        "browser_live",
+        "offline_queue",
+        "local_transcript_only",
+        "async_long_recording",
+    ]),
     providerId: speechGatewayProviderSchema,
     providerLabel: z.string(),
     serverUploadAllowed: z.boolean(),
@@ -947,7 +1111,7 @@ export const speechRecordingStrategySchema = z.object({
     maxChunkBytes: z.number().int().positive(),
     reason: z.string(),
     steps: z.array(z.string()),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const speechSttPromptPolicySchema = z.object({
     enabled: z.boolean(),
@@ -956,7 +1120,7 @@ export const speechSttPromptPolicySchema = z.object({
     maxChars: z.number().int().positive(),
     termCount: z.number().int().nonnegative(),
     promptPreview: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const speechGatewayStatusSchema = z.object({
     providerId: speechGatewayProviderSchema,
@@ -979,7 +1143,7 @@ export const speechGatewayStatusSchema = z.object({
         rmsThreshold: z.number().positive(),
         monitorIntervalMs: z.number().int().positive(),
         overlapMs: z.number().int().nonnegative(),
-        dedupeWindowChars: z.number().int().positive()
+        dedupeWindowChars: z.number().int().positive(),
     }),
     polishPolicy: z.object({
         deterministicEnabled: z.boolean(),
@@ -987,12 +1151,12 @@ export const speechGatewayStatusSchema = z.object({
         providerLabel: z.string(),
         modelName: z.string().nullable(),
         maxTranscriptChars: z.number().int().positive(),
-        warnings: z.array(z.string())
+        warnings: z.array(z.string()),
     }),
     promptPolicy: speechSttPromptPolicySchema,
     audioRetention: z.enum(["discard_after_transcription", "disabled"]),
     nextSetupStep: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const speechGatewayHealthReportSchema = z.object({
     generatedAt: z.string(),
@@ -1009,7 +1173,7 @@ export const speechGatewayHealthReportSchema = z.object({
     deterministicParserEnabled: z.boolean(),
     providers: z.array(speechProviderHealthSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const speechTranscriptionChunkSchema = z.object({
     id: z.string().uuid(),
@@ -1035,17 +1199,19 @@ export const speechTranscriptionChunkSchema = z.object({
         charCount: 0,
         durationMs: null,
         bytesPerSecond: null,
-        providerWarnings: ["У старого фрагмента распознавания нет метаданных качества."],
+        providerWarnings: [
+            "У старого фрагмента распознавания нет метаданных качества.",
+        ],
         signals: ["legacy_chunk"],
-        nextAction: "Проверьте старый фрагмент распознавания перед переносом в карту."
+        nextAction: "Проверьте старый фрагмент распознавания перед переносом в карту.",
     }),
     warnings: z.array(z.string()),
     clientRecordedAt: z.string().nullable(),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
 export const speechTranscriptionResponseSchema = z.object({
     chunk: speechTranscriptionChunkSchema,
-    gateway: speechGatewayStatusSchema
+    gateway: speechGatewayStatusSchema,
 });
 export const speechRecordingAssemblySchema = z.object({
     recordingId: z.string(),
@@ -1058,20 +1224,20 @@ export const speechRecordingAssemblySchema = z.object({
         clear: z.number().int().nonnegative(),
         review: z.number().int().nonnegative(),
         empty: z.number().int().nonnegative(),
-        failed: z.number().int().nonnegative()
+        failed: z.number().int().nonnegative(),
     }),
     transcript: z.string(),
     warnings: z.array(z.string()),
     firstChunkAt: z.string().nullable(),
     lastChunkAt: z.string().nullable(),
-    assembledAt: z.string()
+    assembledAt: z.string(),
 });
 export const speechRecordingRecoveryStateSchema = z.enum([
     "complete",
     "quality_review",
     "missing_chunks",
     "failed_chunks",
-    "transcript_empty"
+    "transcript_empty",
 ]);
 export const speechRecordingRecoveryItemSchema = z.object({
     recordingId: z.string(),
@@ -1085,13 +1251,13 @@ export const speechRecordingRecoveryItemSchema = z.object({
         transcribed: z.number().int().nonnegative(),
         fallback_text: z.number().int().nonnegative(),
         needs_provider_key: z.number().int().nonnegative(),
-        failed: z.number().int().nonnegative()
+        failed: z.number().int().nonnegative(),
     }),
     qualityCounts: z.object({
         clear: z.number().int().nonnegative(),
         review: z.number().int().nonnegative(),
         empty: z.number().int().nonnegative(),
-        failed: z.number().int().nonnegative()
+        failed: z.number().int().nonnegative(),
     }),
     providerLabels: z.array(z.string()),
     transcriptPreview: z.string(),
@@ -1102,12 +1268,12 @@ export const speechRecordingRecoveryItemSchema = z.object({
     lastChunkAt: z.string().nullable(),
     recoveryState: speechRecordingRecoveryStateSchema,
     nextAction: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const speechRecordingRecoveryListSchema = z.object({
     recordings: z.array(speechRecordingRecoveryItemSchema),
     totalRecordings: z.number().int().nonnegative(),
-    generatedAt: z.string()
+    generatedAt: z.string(),
 });
 export const clockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 export const weekdayIndexSchema = z.number().int().min(0).max(6);
@@ -1120,14 +1286,15 @@ export const clinicScheduleDefaultsSchema = z
     workdayStart: clockTimeSchema,
     workdayEnd: clockTimeSchema,
     workingDays: z.array(weekdayIndexSchema).min(1).max(7),
-    appointmentBufferMinutes: z.number().int().min(0).max(180)
+    appointmentBufferMinutes: z.number().int().min(0).max(180),
 })
     .superRefine((value, context) => {
-    if (clockTimeToMinutes(value.workdayEnd) <= clockTimeToMinutes(value.workdayStart)) {
+    if (clockTimeToMinutes(value.workdayEnd) <=
+        clockTimeToMinutes(value.workdayStart)) {
         context.addIssue({
             code: "custom",
             path: ["workdayEnd"],
-            message: "Окончание рабочего дня должно быть позже начала"
+            message: "Окончание рабочего дня должно быть позже начала",
         });
     }
 });
@@ -1136,14 +1303,15 @@ export const staffWorkingDaySchema = z
     weekday: weekdayIndexSchema,
     enabled: z.boolean(),
     start: clockTimeSchema,
-    end: clockTimeSchema
+    end: clockTimeSchema,
 })
     .superRefine((value, context) => {
-    if (value.enabled && clockTimeToMinutes(value.end) <= clockTimeToMinutes(value.start)) {
+    if (value.enabled &&
+        clockTimeToMinutes(value.end) <= clockTimeToMinutes(value.start)) {
         context.addIssue({
             code: "custom",
             path: ["end"],
-            message: "Окончание рабочего дня сотрудника должно быть позже начала"
+            message: "Окончание рабочего дня сотрудника должно быть позже начала",
         });
     }
 });
@@ -1203,10 +1371,10 @@ export const clinicProfileSchema = z.object({
     updatedAt: z.string(),
     specializations: z.array(dentalSpecialtySchema).default([]),
     workingHours: staffWorkingHoursSchema.nullable().optional(),
-    currency: z.string().default('₽'),
-    themeColor: z.string().default('teal'),
+    currency: z.string().default("₽"),
+    themeColor: z.string().default("teal"),
     logoUrl: z.string().nullable().optional(),
-    stampUrl: z.string().nullable().optional()
+    stampUrl: z.string().nullable().optional(),
 });
 export const staffMemberSchema = z.object({
     id: z.string().uuid(),
@@ -1223,7 +1391,7 @@ export const staffMemberSchema = z.object({
     color: z.string(),
     workingHours: staffWorkingHoursSchema.nullable().optional(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const chairSchema = z.object({
     id: z.string().uuid(),
@@ -1236,9 +1404,14 @@ export const chairSchema = z.object({
     hasMicroscope: z.boolean(),
     hasSurgeryKit: z.boolean(),
     notes: z.string().nullable(),
-    workingHours: staffWorkingHoursSchema.nullable().optional()
+    workingHours: staffWorkingHoursSchema.nullable().optional(),
 });
-export const workspaceScopeSchema = z.enum(["personal", "clinic", "branch", "network"]);
+export const workspaceScopeSchema = z.enum([
+    "personal",
+    "clinic",
+    "branch",
+    "network",
+]);
 export const workspaceSectionSchema = z.enum([
     "shift",
     "schedule",
@@ -1248,7 +1421,7 @@ export const workspaceSectionSchema = z.enum([
     "documents",
     "finance",
     "communications",
-    "settings"
+    "settings",
 ]);
 export const clinicWorkspaceProfileSchema = z.object({
     id: z.string(),
@@ -1262,7 +1435,7 @@ export const clinicWorkspaceProfileSchema = z.object({
     compactNavigation: z.boolean(),
     requiredCapabilities: z.array(z.string()),
     automations: z.array(z.string()),
-    safeguards: z.array(z.string())
+    safeguards: z.array(z.string()),
 });
 export const roleAccessPolicySchema = z.object({
     role: staffRoleSchema,
@@ -1273,7 +1446,7 @@ export const roleAccessPolicySchema = z.object({
     canWrite: z.array(workspaceSectionSchema),
     restricted: z.array(workspaceSectionSchema),
     requiresApprovalFor: z.array(z.string()),
-    auditEvents: z.array(z.string())
+    auditEvents: z.array(z.string()),
 });
 export const clinicSettingsSchema = z.object({
     profile: clinicProfileSchema,
@@ -1283,9 +1456,14 @@ export const clinicSettingsSchema = z.object({
     workspaceProfiles: z.array(clinicWorkspaceProfileSchema),
     roleAccessPolicies: z.array(roleAccessPolicySchema),
     modeHints: z.array(z.string()),
-    soloDoctorMode: z.boolean().optional()
+    soloDoctorMode: z.boolean().optional(),
 });
-export const workloadStateSchema = z.enum(["idle", "healthy", "tight", "overbooked"]);
+export const workloadStateSchema = z.enum([
+    "idle",
+    "healthy",
+    "tight",
+    "overbooked",
+]);
 export const resourceLoadKindSchema = z.enum(["doctor", "assistant", "chair"]);
 export const resourceLoadSchema = z.object({
     id: z.string(),
@@ -1297,7 +1475,7 @@ export const resourceLoadSchema = z.object({
     utilizationPercent: z.number().int().min(0).max(200),
     nextFreeAt: z.string().nullable(),
     state: workloadStateSchema,
-    flags: z.array(z.string())
+    flags: z.array(z.string()),
 });
 export const roleQueueSchema = z.object({
     role: staffRoleSchema,
@@ -1306,7 +1484,7 @@ export const roleQueueSchema = z.object({
     openItems: z.number().int().nonnegative(),
     nextAction: z.string(),
     automationHint: z.string(),
-    blockedBy: z.array(z.string())
+    blockedBy: z.array(z.string()),
 });
 export const scheduleWarningSchema = z.object({
     id: z.string(),
@@ -1315,7 +1493,7 @@ export const scheduleWarningSchema = z.object({
     detail: z.string(),
     ownerRole: staffRoleSchema,
     relatedAppointmentId: z.string().uuid().nullable(),
-    actionLabel: z.string()
+    actionLabel: z.string(),
 });
 export const clinicModeFitSchema = z.object({
     mode: clinicModeSchema,
@@ -1323,7 +1501,7 @@ export const clinicModeFitSchema = z.object({
     fitScore: z.number().int().min(0).max(100),
     blockers: z.array(z.string()),
     upgrades: z.array(z.string()),
-    lowFrictionNextStep: z.string()
+    lowFrictionNextStep: z.string(),
 });
 export const shiftIntelligenceSchema = z.object({
     modeFit: clinicModeFitSchema,
@@ -1331,7 +1509,7 @@ export const shiftIntelligenceSchema = z.object({
     assistantLoads: z.array(resourceLoadSchema),
     chairLoads: z.array(resourceLoadSchema),
     roleQueues: z.array(roleQueueSchema),
-    scheduleWarnings: z.array(scheduleWarningSchema)
+    scheduleWarnings: z.array(scheduleWarningSchema),
 });
 export const protocolTemplateSchema = z.object({
     id: z.string(),
@@ -1347,7 +1525,7 @@ export const protocolTemplateSchema = z.object({
     requiredDocuments: z.array(documentKindSchema),
     suggestedImaging: z.array(imagingStudyKindSchema),
     safetyWarnings: z.array(z.string()),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const serviceCatalogItemSchema = z.object({
     id: z.string(),
@@ -1360,9 +1538,15 @@ export const serviceCatalogItemSchema = z.object({
     basePriceRub: z.number().int().nonnegative(),
     durationMinutes: z.number().int().positive(),
     taxDeductible: z.boolean(),
-    active: z.boolean()
+    active: z.boolean(),
 });
-export const pricelistSourceKindSchema = z.enum(["text", "ocr_text", "photo_ocr", "spreadsheet_copy", "manual"]);
+export const pricelistSourceKindSchema = z.enum([
+    "text",
+    "ocr_text",
+    "photo_ocr",
+    "spreadsheet_copy",
+    "manual",
+]);
 export const dentalMaterialKindSchema = z.enum([
     "composite",
     "glass_ionomer",
@@ -1386,7 +1570,7 @@ export const dentalMaterialKindSchema = z.enum([
     "imaging",
     "lab",
     "other",
-    "unknown"
+    "unknown",
 ]);
 export const dentalRestorationTypeSchema = z.enum([
     "filling",
@@ -1407,16 +1591,20 @@ export const dentalRestorationTypeSchema = z.enum([
     "implant",
     "surgical_guide",
     "none",
-    "unknown"
+    "unknown",
 ]);
-export const pricelistParserModeSchema = z.enum(["deterministic", "groq_json", "deterministic_groq_fallback"]);
+export const pricelistParserModeSchema = z.enum([
+    "deterministic",
+    "groq_json",
+    "deterministic_groq_fallback",
+]);
 export const pricelistAiVisionSchema = z.object({
     providerId: z.literal("groq_whisper"),
     configured: z.boolean(),
     used: z.boolean(),
     modelName: z.string().nullable(),
     maxImagesPerRequest: z.number().int().positive(),
-    reason: z.string()
+    reason: z.string(),
 });
 export const dentalPricelistItemSchema = z.object({
     id: z.string(),
@@ -1438,7 +1626,7 @@ export const dentalPricelistItemSchema = z.object({
     durationMinutes: z.number().int().positive().nullable(),
     confidence: z.number().min(0).max(1),
     warnings: z.array(z.string()),
-    matchedServiceId: z.string().nullable()
+    matchedServiceId: z.string().nullable(),
 });
 export const dentalPricelistCategorySummarySchema = z.object({
     category: serviceCategorySchema,
@@ -1449,7 +1637,7 @@ export const dentalPricelistCategorySummarySchema = z.object({
     maxPriceRub: z.number().int().nonnegative().nullable(),
     averagePriceRub: z.number().int().nonnegative().nullable(),
     materialKinds: z.array(dentalMaterialKindSchema),
-    brands: z.array(z.string())
+    brands: z.array(z.string()),
 });
 export const dentalPricelistAnalysisRequestSchema = z
     .object({
@@ -1457,12 +1645,14 @@ export const dentalPricelistAnalysisRequestSchema = z
     sourceKind: pricelistSourceKindSchema.default("text"),
     rawText: z.string().max(200_000).optional().default(""),
     imageBase64: z.string().max(4_000_000).optional(),
-    imageMimeType: z.enum(["image/jpeg", "image/png", "image/webp"]).default("image/jpeg"),
+    imageMimeType: z
+        .enum(["image/jpeg", "image/png", "image/webp"])
+        .default("image/jpeg"),
     preferredSpecialty: dentalSpecialtySchema.default("universal"),
-    useServerAi: z.boolean().default(false)
+    useServerAi: z.boolean().default(false),
 })
     .refine((input) => Boolean(input.rawText.trim() || input.imageBase64?.trim()), {
-    message: "Нужно передать текст прайса или изображение"
+    message: "Нужно передать текст прайса или изображение",
 });
 export const dentalPricelistAnalysisResponseSchema = z.object({
     sourceName: z.string(),
@@ -1473,7 +1663,7 @@ export const dentalPricelistAnalysisResponseSchema = z.object({
     summary: z.array(dentalPricelistCategorySummarySchema),
     warnings: z.array(z.string()),
     aiVision: pricelistAiVisionSchema,
-    groqJsonPromptVersion: z.string()
+    groqJsonPromptVersion: z.string(),
 });
 export const treatmentPlanItemSchema = z.object({
     id: z.string().uuid(),
@@ -1490,7 +1680,7 @@ export const treatmentPlanItemSchema = z.object({
     status: treatmentPlanItemStatusSchema,
     plannedDoctorUserId: z.string().uuid().nullable(),
     plannedChairId: z.string().uuid().nullable(),
-    notes: z.string().nullable()
+    notes: z.string().nullable(),
 });
 export const treatmentPlanScenarioSchema = z.object({
     id: z.string(),
@@ -1507,12 +1697,12 @@ export const treatmentPlanScenarioSchema = z.object({
         title: z.string(),
         window: z.string(),
         amountRub: z.number().int().nonnegative(),
-        focus: z.string()
+        focus: z.string(),
     })),
     pros: z.array(z.string()),
     tradeoffs: z.array(z.string()),
     clinicalWarnings: z.array(z.string()),
-    active: z.boolean()
+    active: z.boolean(),
 });
 export const clinicalRuleSchema = z.object({
     id: z.string(),
@@ -1530,7 +1720,7 @@ export const clinicalRuleSchema = z.object({
     condition: z.string().nullable(),
     warningText: z.string(),
     patientText: z.string(),
-    active: z.boolean()
+    active: z.boolean(),
 });
 export const clinicalRuleEvaluationSchema = z.object({
     id: z.string(),
@@ -1548,7 +1738,7 @@ export const clinicalRuleEvaluationSchema = z.object({
     blockedServiceIds: z.array(z.string()),
     message: z.string(),
     patientMessage: z.string(),
-    resolved: z.boolean()
+    resolved: z.boolean(),
 });
 export const clinicalRuleSummarySchema = z.object({
     activeRules: z.number().int().nonnegative(),
@@ -1557,42 +1747,46 @@ export const clinicalRuleSummarySchema = z.object({
     blockers: z.number().int().nonnegative(),
     warnings: z.number().int().nonnegative(),
     requiredServices: z.number().int().nonnegative(),
-    coveredRules: z.number().int().nonnegative()
+    coveredRules: z.number().int().nonnegative(),
 });
 export const clinicalRuleEvaluationInputSchema = z.object({
     patientId: z.string().uuid(),
     scenarioId: z.string().nullable().optional(),
     serviceIds: z.array(z.string()).min(1),
-    completedServiceIds: z.array(z.string()).default([])
+    completedServiceIds: z.array(z.string()).default([]),
 });
 export const clinicalRuleEvaluationResponseSchema = z.object({
     evaluations: z.array(clinicalRuleEvaluationSchema),
-    summary: clinicalRuleSummarySchema
+    summary: clinicalRuleSummarySchema,
 });
 const clinicalRuleServiceIdSchema = z.string().trim().min(1).max(120);
-const createClinicalRuleBaseSchema = z
-    .object({
+const createClinicalRuleBaseSchema = z.object({
     title: z.string().trim().min(1).max(160),
     category: serviceCategorySchema,
     specialty: dentalSpecialtySchema,
     action: clinicalRuleActionSchema,
     severity: clinicalRuleSeveritySchema,
     ownerRole: staffRoleSchema,
-    triggerServiceIds: z.array(clinicalRuleServiceIdSchema).min(1).max(80),
-    requiredServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]),
-    requiresCompletedServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]),
-    blockedServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]),
+    triggerServiceIds: z.array(clinicalRuleServiceIdSchema).min(1).max(80).transform((arr) => Array.from(new Set(arr))),
+    requiredServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]).transform((arr) => Array.from(new Set(arr))),
+    requiresCompletedServiceIds: z
+        .array(clinicalRuleServiceIdSchema)
+        .max(80)
+        .default([])
+        .transform((arr) => Array.from(new Set(arr))),
+    blockedServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]).transform((arr) => Array.from(new Set(arr))),
     condition: z.string().trim().max(500).nullable().optional(),
     warningText: z.string().trim().min(1).max(700),
     patientText: z.string().trim().min(1).max(700),
-    active: z.boolean().default(true)
+    active: z.boolean().default(true),
 });
 export const createClinicalRuleSchema = createClinicalRuleBaseSchema.superRefine((input, context) => {
-    if (input.action === "add_required_service" && input.requiredServiceIds.length === 0) {
+    if (input.action === "add_required_service" &&
+        input.requiredServiceIds.length === 0) {
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["requiredServiceIds"],
-            message: "Для правила добавления услуги укажите хотя бы одну обязательную услугу."
+            message: "Для правила добавления услуги укажите хотя бы одну обязательную услугу.",
         });
     }
     if (input.action === "block_service" &&
@@ -1601,12 +1795,35 @@ export const createClinicalRuleSchema = createClinicalRuleBaseSchema.superRefine
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["blockedServiceIds"],
-            message: "Для блокирующего правила укажите блокируемую услугу или требуемую завершенную услугу."
+            message: "Для блокирующего правила укажите блокируемую услугу или требуемую завершенную услугу.",
         });
     }
 });
-export const updateClinicalRuleSchema = createClinicalRuleBaseSchema.partial().extend({
-    id: z.string()
+export const updateClinicalRuleSchema = createClinicalRuleBaseSchema
+    .partial()
+    .extend({
+    id: z.string(),
+})
+    .superRefine((input, context) => {
+    if (input.action === "add_required_service") {
+        if (input.requiredServiceIds && input.requiredServiceIds.length === 0) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["requiredServiceIds"],
+                message: "Для правила добавления услуги укажите хотя бы одну обязательную услугу.",
+            });
+        }
+    }
+    if (input.action === "block_service") {
+        if ((input.blockedServiceIds && input.blockedServiceIds.length === 0) &&
+            (input.requiresCompletedServiceIds && input.requiresCompletedServiceIds.length === 0)) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["blockedServiceIds"],
+                message: "Для блокирующего правила укажите блокируемую услугу или требуемую завершенную услугу.",
+            });
+        }
+    }
 });
 const fiscalReceiptUrlSchema = z
     .string()
@@ -1634,7 +1851,7 @@ export const fiscalReceiptDetailsSchema = z.object({
     fpd: z.string().trim().max(32).nullable().optional(),
     cashierName: z.string().trim().max(160).nullable().optional(),
     receiptUrl: fiscalReceiptUrlSchema.nullable().optional(),
-    operationType: z.enum(["income", "income_return"]).nullable().optional()
+    operationType: z.enum(["income", "income_return"]).nullable().optional(),
 });
 export const paymentSchema = z.object({
     id: z.string().uuid(),
@@ -1658,7 +1875,7 @@ export const paymentSchema = z.object({
     payerIdentityDocument: z.string().nullable().optional(),
     payerRelationship: z.string().nullable().optional(),
     taxDeductionCode: z.enum(["1", "2"]).nullable().optional(),
-    note: z.string().nullable()
+    note: z.string().nullable(),
 });
 export const billingSummarySchema = z.object({
     totalPlannedRub: z.number().int().nonnegative(),
@@ -1668,7 +1885,7 @@ export const billingSummarySchema = z.object({
     taxDeductionEligibleRub: z.number().int().nonnegative(),
     draftDocumentAmountRub: z.number().int().nonnegative(),
     openTreatmentItems: z.number().int().nonnegative(),
-    unpaidDocuments: z.number().int().nonnegative()
+    unpaidDocuments: z.number().int().nonnegative(),
 });
 export const communicationTemplateSchema = z.object({
     id: z.string(),
@@ -1679,7 +1896,7 @@ export const communicationTemplateSchema = z.object({
     audienceRole: staffRoleSchema,
     body: z.string(),
     variables: z.array(z.string()),
-    active: z.boolean()
+    active: z.boolean(),
 });
 export const communicationTaskSchema = z.object({
     id: z.string().uuid(),
@@ -1699,7 +1916,7 @@ export const communicationTaskSchema = z.object({
     workflowCode: communicationTaskWorkflowCodeSchema.nullable().optional(),
     lastOutcome: communicationTaskOutcomeSchema.nullable().optional(),
     lastEventAt: z.string().nullable(),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
 export const communicationEventSchema = z.object({
     id: z.string().uuid(),
@@ -1711,13 +1928,17 @@ export const communicationEventSchema = z.object({
     direction: z.enum(["inbound", "outbound"]),
     status: communicationStatusSchema,
     message: z.string(),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
-export const denteTelegramBotModeSchema = z.enum(["disabled", "shared_dente_bot", "clinic_owned_bot"]);
+export const denteTelegramBotModeSchema = z.enum([
+    "disabled",
+    "shared_dente_bot",
+    "clinic_owned_bot",
+]);
 export const denteTelegramPrivacyModeSchema = z.enum([
     "no_phi_by_default",
     "limited_admin_only",
-    "consented_phi_templates"
+    "consented_phi_templates",
 ]);
 export const denteTelegramFeatureSchema = z.enum([
     "appointment_reminders",
@@ -1734,7 +1955,7 @@ export const denteTelegramFeatureSchema = z.enum([
     "staff_task_alerts",
     "callback_requests",
     "voice_note_intake",
-    "secure_portal_links"
+    "secure_portal_links",
 ]);
 export const denteTelegramVisualCardKeySchema = z.enum([
     "mainMenu",
@@ -1744,7 +1965,7 @@ export const denteTelegramVisualCardKeySchema = z.enum([
     "billing",
     "care",
     "review",
-    "staff"
+    "staff",
 ]);
 export const denteTelegramVisualCardUrlsSchema = z
     .object({
@@ -1755,7 +1976,7 @@ export const denteTelegramVisualCardUrlsSchema = z
     billing: z.string().trim().max(500).nullable().default(null),
     care: z.string().trim().max(500).nullable().default(null),
     review: z.string().trim().max(500).nullable().default(null),
-    staff: z.string().trim().max(500).nullable().default(null)
+    staff: z.string().trim().max(500).nullable().default(null),
 })
     .default({});
 export const denteTelegramPostVisitCheckupDelayHoursByTopicSchema = z
@@ -1770,7 +1991,7 @@ export const denteTelegramPostVisitCheckupDelayHoursByTopicSchema = z
     prosthetics: z.number().int().min(1).max(720).default(48),
     orthodontics: z.number().int().min(1).max(720).default(72),
     periodontology: z.number().int().min(1).max(720).default(72),
-    other: z.number().int().min(1).max(720).default(48)
+    other: z.number().int().min(1).max(720).default(48),
 })
     .default({});
 const telegramBotUsernameSchema = z
@@ -1792,13 +2013,17 @@ export const denteTelegramBotSettingsSchema = z.object({
     clinicMapsUrl: z.string().trim().max(500).nullable(),
     enabledFeatures: z.array(denteTelegramFeatureSchema),
     patientLinkTokenTtlMinutes: z.number().int().min(5).max(1440),
-    appointmentReminderLeadTimesHours: z.array(z.number().int().min(1).max(168)).min(1).max(6).default([24]),
+    appointmentReminderLeadTimesHours: z
+        .array(z.number().int().min(1).max(168))
+        .min(1)
+        .max(6)
+        .default([24]),
     reviewRequestDelayHours: z.number().int().min(1).max(720).default(2),
     postVisitCheckupDelayHoursByTopic: denteTelegramPostVisitCheckupDelayHoursByTopicSchema,
     allowVoiceIntake: z.boolean(),
     staffEscalationChannel: z.string().trim().max(128).nullable(),
     privacyMode: denteTelegramPrivacyModeSchema,
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const updateDenteTelegramBotSettingsSchema = denteTelegramBotSettingsSchema
     .omit({ version: true, organizationId: true, updatedAt: true })
@@ -1806,10 +2031,15 @@ export const updateDenteTelegramBotSettingsSchema = denteTelegramBotSettingsSche
     .extend({
     version: z.literal(1).optional(),
     organizationId: z.string().uuid().optional(),
-    updatedAt: z.string().optional()
+    updatedAt: z.string().optional(),
 });
 export const denteTelegramSubjectTypeSchema = z.enum(["patient", "staff"]);
-export const denteTelegramLinkCodeStatusSchema = z.enum(["pending", "used", "expired", "revoked"]);
+export const denteTelegramLinkCodeStatusSchema = z.enum([
+    "pending",
+    "used",
+    "expired",
+    "revoked",
+]);
 export const denteTelegramChatLinkStatusSchema = z.enum(["active", "revoked"]);
 export const denteTelegramLinkCodeSchema = z.object({
     id: z.string().uuid(),
@@ -1824,7 +2054,7 @@ export const denteTelegramLinkCodeSchema = z.object({
     expiresAt: z.string(),
     usedAt: z.string().nullable(),
     createdAt: z.string(),
-    createdByUserId: z.string().uuid().nullable()
+    createdByUserId: z.string().uuid().nullable(),
 });
 export const denteTelegramLinkCodePublicSchema = denteTelegramLinkCodeSchema.omit({ codeFingerprint: true });
 export const denteTelegramLinkCodeListResponseSchema = z.object({
@@ -1837,7 +2067,7 @@ export const denteTelegramLinkCodeListResponseSchema = z.object({
     usedCount: z.number().int().nonnegative(),
     expiredCount: z.number().int().nonnegative(),
     revokedCount: z.number().int().nonnegative(),
-    linkCodes: z.array(denteTelegramLinkCodePublicSchema)
+    linkCodes: z.array(denteTelegramLinkCodePublicSchema),
 });
 export const createDenteTelegramLinkCodeSchema = z.object({
     organizationId: z.string().uuid().optional(),
@@ -1846,13 +2076,13 @@ export const createDenteTelegramLinkCodeSchema = z.object({
     clinicId: z.string().uuid().nullable().optional(),
     botConfigId: z.string().trim().min(1).max(160).optional(),
     ttlMinutes: z.number().int().min(5).max(1440).optional(),
-    createdByUserId: z.string().uuid().nullable().optional()
+    createdByUserId: z.string().uuid().nullable().optional(),
 });
 export const denteTelegramLinkCodeCreatedSchema = denteTelegramLinkCodePublicSchema.extend({
     code: z.string().min(8).max(64),
     deepLink: z.string().url().nullable(),
     qrSvg: z.string().min(1).max(80_000).nullable(),
-    shareText: z.string().min(1).max(500)
+    shareText: z.string().min(1).max(500),
 });
 export const denteTelegramChatLinkSchema = z.object({
     id: z.string().uuid(),
@@ -1867,7 +2097,7 @@ export const denteTelegramChatLinkSchema = z.object({
     status: denteTelegramChatLinkStatusSchema,
     linkedAt: z.string(),
     revokedAt: z.string().nullable(),
-    lastUpdateAt: z.string()
+    lastUpdateAt: z.string(),
 });
 export const denteTelegramChatLinkPublicSchema = denteTelegramChatLinkSchema.omit({ chatTransportRef: true });
 export const denteTelegramChatLinkListResponseSchema = z.object({
@@ -1878,7 +2108,7 @@ export const denteTelegramChatLinkListResponseSchema = z.object({
     nextCursor: z.string().nullable(),
     activeCount: z.number().int().nonnegative(),
     revokedCount: z.number().int().nonnegative(),
-    chatLinks: z.array(denteTelegramChatLinkPublicSchema)
+    chatLinks: z.array(denteTelegramChatLinkPublicSchema),
 });
 export const denteTelegramTemplateKindSchema = z.enum([
     "appointment_reminder",
@@ -1891,24 +2121,32 @@ export const denteTelegramTemplateKindSchema = z.enum([
     "post_visit_checkup",
     "recall_notice",
     "review_request",
-    "staff_daily_digest"
+    "staff_daily_digest",
 ]);
-export const denteTelegramAppointmentCallbackActionSchema = z.enum(["confirm", "reschedule", "call_request"]);
+export const denteTelegramAppointmentCallbackActionSchema = z.enum([
+    "confirm",
+    "reschedule",
+    "call_request",
+]);
 export const denteTelegramAppointmentCallbackResultSchema = z.object({
     ok: z.boolean(),
     action: z.enum([
         "telegram_appointment_confirmed",
         "telegram_appointment_reschedule_requested",
         "telegram_callback_requested",
-        "telegram_callback_rejected"
+        "telegram_callback_rejected",
     ]),
     appointmentId: z.string().uuid().nullable(),
     taskId: z.string().uuid().nullable(),
     eventId: z.string().uuid().nullable(),
     replyText: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const denteTelegramMessageClassificationSchema = z.enum(["no_phi", "limited_admin", "phi_requires_consent"]);
+export const denteTelegramMessageClassificationSchema = z.enum([
+    "no_phi",
+    "limited_admin",
+    "phi_requires_consent",
+]);
 export const denteTelegramMessagePreviewRequestSchema = z.object({
     templateKind: denteTelegramTemplateKindSchema,
     patientId: z.string().uuid().optional(),
@@ -1916,7 +2154,7 @@ export const denteTelegramMessagePreviewRequestSchema = z.object({
     appointmentId: z.string().uuid().optional(),
     documentId: z.string().uuid().optional(),
     taskId: z.string().uuid().optional(),
-    includePhi: z.boolean().default(false)
+    includePhi: z.boolean().default(false),
 });
 export const denteTelegramMessagePreviewSchema = z.object({
     templateKind: denteTelegramTemplateKindSchema,
@@ -1927,14 +2165,14 @@ export const denteTelegramMessagePreviewSchema = z.object({
     photoUrl: z.string().url().nullable().default(null),
     variablesUsed: z.array(z.string()),
     warnings: z.array(z.string()),
-    blockedReason: z.string().nullable()
+    blockedReason: z.string().nullable(),
 });
 export const denteTelegramOutboxDeliveryStatusSchema = z.enum([
     "ready",
     "needs_chat_link",
     "blocked_by_policy",
     "transport_not_ready",
-    "disabled"
+    "disabled",
 ]);
 export const denteTelegramOutboxItemSchema = z.object({
     id: z.string(),
@@ -1964,8 +2202,8 @@ export const denteTelegramOutboxItemSchema = z.object({
         "post_visit_checkup",
         "recall",
         "appointment_reminder",
-        "tax_document_request"
-    ])
+        "tax_document_request",
+    ]),
 });
 export const denteTelegramOutboxResponseSchema = z.object({
     generatedAt: z.string(),
@@ -1981,13 +2219,18 @@ export const denteTelegramOutboxResponseSchema = z.object({
     notDueCount: z.number().int().nonnegative(),
     blockedCount: z.number().int().nonnegative(),
     items: z.array(denteTelegramOutboxItemSchema),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const denteTelegramOutboxSendRequestSchema = z.object({
     dryRun: z.boolean().default(false),
-    clientMutationId: z.string().min(1).max(120).nullable().optional()
+    clientMutationId: z.string().min(1).max(120).nullable().optional(),
 });
-export const denteTelegramOutboxSendStatusSchema = z.enum(["sent", "dry_run", "blocked", "failed"]);
+export const denteTelegramOutboxSendStatusSchema = z.enum([
+    "sent",
+    "dry_run",
+    "blocked",
+    "failed",
+]);
 export const denteTelegramOutboxSendResponseSchema = z.object({
     status: denteTelegramOutboxSendStatusSchema,
     outboxItem: denteTelegramOutboxItemSchema.nullable(),
@@ -1997,7 +2240,7 @@ export const denteTelegramOutboxSendResponseSchema = z.object({
     clientMutationId: z.string().nullable(),
     warnings: z.array(z.string()),
     retryAfterSeconds: z.number().int().nonnegative().nullable().default(null),
-    blockedReason: z.string().nullable()
+    blockedReason: z.string().nullable(),
 });
 export const denteTelegramOutboxSendDueResponseSchema = z.object({
     ok: z.boolean(),
@@ -2017,10 +2260,10 @@ export const denteTelegramOutboxSendDueResponseSchema = z.object({
             denteTelegramOutboxSendResponseSchema,
             z.object({
                 error: z.string(),
-                message: z.string()
-            })
-        ])
-    }))
+                message: z.string(),
+            }),
+        ]),
+    })),
 });
 export const denteTelegramUpdateKindSchema = z.enum([
     "command",
@@ -2029,7 +2272,7 @@ export const denteTelegramUpdateKindSchema = z.enum([
     "voice",
     "photo",
     "document",
-    "unsupported"
+    "unsupported",
 ]);
 export const denteTelegramWebhookEventSchema = z.object({
     id: z.string().uuid(),
@@ -2039,14 +2282,20 @@ export const denteTelegramWebhookEventSchema = z.object({
     chatFingerprint: z.string().nullable(),
     updateKind: denteTelegramUpdateKindSchema,
     command: z.string().max(64).nullable(),
-    status: z.enum(["processing", "processed", "duplicate", "ignored", "rejected"]),
+    status: z.enum([
+        "processing",
+        "processed",
+        "duplicate",
+        "ignored",
+        "rejected",
+    ]),
     action: z.string(),
     warnings: z.array(z.string()),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
 export const denteTelegramWebhookUpdateSchema = z
     .object({
-    update_id: z.number().int().nonnegative()
+    update_id: z.number().int().nonnegative(),
 })
     .passthrough();
 export const denteTelegramBotStatusSchema = z.object({
@@ -2065,7 +2314,7 @@ export const denteTelegramBotStatusSchema = z.object({
     processedUpdateCount: z.number().int().nonnegative(),
     pendingLinkCodeCount: z.number().int().nonnegative(),
     activeChatLinkCount: z.number().int().nonnegative(),
-    recentEvents: z.array(denteTelegramWebhookEventSchema)
+    recentEvents: z.array(denteTelegramWebhookEventSchema),
 });
 export const denteTelegramWebhookResponseSchema = z.object({
     ok: z.boolean(),
@@ -2075,7 +2324,7 @@ export const denteTelegramWebhookResponseSchema = z.object({
     suggestedReplyMarkup: z.record(z.unknown()).nullable().default(null),
     suggestedPhotoUrl: z.string().url().nullable().default(null),
     warnings: z.array(z.string()),
-    event: denteTelegramWebhookEventSchema.nullable()
+    event: denteTelegramWebhookEventSchema.nullable(),
 });
 export const communicationSummarySchema = z.object({
     openTasks: z.number().int().nonnegative(),
@@ -2085,9 +2334,14 @@ export const communicationSummarySchema = z.object({
     completedToday: z.number().int().nonnegative(),
     appointmentConfirmations: z.number().int().nonnegative(),
     paymentReminders: z.number().int().nonnegative(),
-    postVisitInstructions: z.number().int().nonnegative()
+    postVisitInstructions: z.number().int().nonnegative(),
 });
-const patientAdministrativeTextSchema = z.string().trim().max(500).nullable().default(null);
+const patientAdministrativeTextSchema = z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .default(null);
 const patientAdministrativeProfileBaseSchema = z.object({
     identityDocument: z.string().trim().max(240).nullable().default(null),
     taxpayerInn: z
@@ -2100,25 +2354,46 @@ const patientAdministrativeProfileBaseSchema = z.object({
     residentialAddress: patientAdministrativeTextSchema,
     insurancePolicyNumber: z.string().trim().max(120).nullable().default(null),
     snils: z.string().trim().max(40).nullable().default(null),
-    legalRepresentativeFullName: z.string().trim().max(240).nullable().default(null),
-    legalRepresentativeRelationship: z.string().trim().max(120).nullable().default(null),
-    legalRepresentativeIdentityDocument: z.string().trim().max(240).nullable().default(null),
+    legalRepresentativeFullName: z
+        .string()
+        .trim()
+        .max(240)
+        .nullable()
+        .default(null),
+    legalRepresentativeRelationship: z
+        .string()
+        .trim()
+        .max(120)
+        .nullable()
+        .default(null),
+    legalRepresentativeIdentityDocument: z
+        .string()
+        .trim()
+        .max(240)
+        .nullable()
+        .default(null),
     legalRepresentativePhone: z.string().trim().max(80).nullable().default(null),
-    preferredDocumentRecipient: z.string().trim().max(240).nullable().default(null),
+    preferredDocumentRecipient: z
+        .string()
+        .trim()
+        .max(240)
+        .nullable()
+        .default(null),
     preferredAppointmentWeekdays: z.array(weekdayIndexSchema).max(7).default([]),
     preferredAppointmentStart: clockTimeSchema.nullable().default(null),
     preferredAppointmentEnd: clockTimeSchema.nullable().default(null),
     preferredAppointmentNote: patientAdministrativeTextSchema,
-    dataProcessingBasisNote: patientAdministrativeTextSchema
+    dataProcessingBasisNote: patientAdministrativeTextSchema,
 });
 export const patientAdministrativeProfileSchema = patientAdministrativeProfileBaseSchema.superRefine((value, context) => {
     if (value.preferredAppointmentStart &&
         value.preferredAppointmentEnd &&
-        clockTimeToMinutes(value.preferredAppointmentEnd) <= clockTimeToMinutes(value.preferredAppointmentStart)) {
+        clockTimeToMinutes(value.preferredAppointmentEnd) <=
+            clockTimeToMinutes(value.preferredAppointmentStart)) {
         context.addIssue({
             code: "custom",
             path: ["preferredAppointmentEnd"],
-            message: "Конец удобного времени приема должен быть позже начала"
+            message: "Конец удобного времени приема должен быть позже начала",
         });
     }
 });
@@ -2131,10 +2406,12 @@ export const patientSchema = z.object({
     phone: z.string().nullable(),
     email: z.string().email().nullable(),
     notes: z.string().nullable(),
-    administrativeProfile: patientAdministrativeProfileSchema.nullable().default(null),
+    administrativeProfile: patientAdministrativeProfileSchema
+        .nullable()
+        .default(null),
     balanceRub: z.number().int().default(0),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const patientInsightRiskSchema = z.enum(["low", "watch", "high"]);
 export const patientInsightSchema = z.object({
@@ -2148,9 +2425,13 @@ export const patientInsightSchema = z.object({
     missingDocumentKinds: z.array(documentKindSchema),
     clinicalFlags: z.array(z.string()),
     adminFlags: z.array(z.string()),
-    lastActivityAt: z.string().nullable()
+    lastActivityAt: z.string().nullable(),
 });
-export const recommendedActionPrioritySchema = z.enum(["routine", "important", "urgent"]);
+export const recommendedActionPrioritySchema = z.enum([
+    "routine",
+    "important",
+    "urgent",
+]);
 export const recommendedActionSchema = z.object({
     id: z.string(),
     role: staffRoleSchema,
@@ -2161,7 +2442,7 @@ export const recommendedActionSchema = z.object({
     detail: z.string(),
     metricLabel: z.string(),
     actionLabel: z.string(),
-    source: z.string()
+    source: z.string(),
 });
 export const appointmentSchema = z.object({
     id: z.string().uuid(),
@@ -2175,14 +2456,14 @@ export const appointmentSchema = z.object({
     endsAt: z.string(),
     reason: z.string().nullable(),
     comment: z.string().nullable(),
-    version: z.number().int().optional()
+    version: z.number().int().optional(),
 });
 function parseStrictAppointmentDateTimeMs(value) {
     const trimmed = value.trim();
     const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})$/.exec(trimmed);
     if (!match)
         return null;
-    const [, yearPart, monthPart, dayPart, hourPart, minutePart, secondPart = "00"] = match;
+    const [, yearPart, monthPart, dayPart, hourPart, minutePart, secondPart = "00",] = match;
     const year = Number(yearPart);
     const month = Number(monthPart);
     const day = Number(dayPart);
@@ -2191,7 +2472,12 @@ function parseStrictAppointmentDateTimeMs(value) {
     const second = Number(secondPart);
     if (!isValidDateParts(year, month, day))
         return null;
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59)
+    if (hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59 ||
+        second < 0 ||
+        second > 59)
         return null;
     const parsed = Date.parse(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
@@ -2206,7 +2492,7 @@ export const createAppointmentSchema = z
     startsAt: z.string().trim().min(1),
     endsAt: z.string().trim().min(1),
     reason: z.string().trim().max(500).nullable().optional(),
-    comment: z.string().trim().max(1000).nullable().optional()
+    comment: z.string().trim().max(1000).nullable().optional(),
 })
     .superRefine((value, context) => {
     const startsAt = parseStrictAppointmentDateTimeMs(value.startsAt);
@@ -2215,21 +2501,21 @@ export const createAppointmentSchema = z
         context.addIssue({
             code: "custom",
             path: ["startsAt"],
-            message: "Начало записи должно быть реальной датой и временем в ISO-формате с часовым поясом"
+            message: "Начало записи должно быть реальной датой и временем в ISO-формате с часовым поясом",
         });
     }
     if (endsAt === null) {
         context.addIssue({
             code: "custom",
             path: ["endsAt"],
-            message: "Окончание записи должно быть реальной датой и временем в ISO-формате с часовым поясом"
+            message: "Окончание записи должно быть реальной датой и временем в ISO-формате с часовым поясом",
         });
     }
     if (startsAt !== null && endsAt !== null && endsAt <= startsAt) {
         context.addIssue({
             code: "custom",
             path: ["endsAt"],
-            message: "Окончание записи должно быть позже начала"
+            message: "Окончание записи должно быть позже начала",
         });
     }
 });
@@ -2244,23 +2530,27 @@ export const updateAppointmentSchema = z
     endsAt: z.string().trim().min(1).optional(),
     reason: z.string().trim().max(500).nullable().optional(),
     comment: z.string().trim().max(1000).nullable().optional(),
-    version: z.number().int().nonnegative().optional()
+    version: z.number().int().nonnegative().optional(),
 })
     .superRefine((value, context) => {
-    const startsAt = value.startsAt !== undefined ? parseStrictAppointmentDateTimeMs(value.startsAt) : null;
-    const endsAt = value.endsAt !== undefined ? parseStrictAppointmentDateTimeMs(value.endsAt) : null;
+    const startsAt = value.startsAt !== undefined
+        ? parseStrictAppointmentDateTimeMs(value.startsAt)
+        : null;
+    const endsAt = value.endsAt !== undefined
+        ? parseStrictAppointmentDateTimeMs(value.endsAt)
+        : null;
     if (value.startsAt !== undefined && startsAt === null) {
         context.addIssue({
             code: "custom",
             path: ["startsAt"],
-            message: "Начало записи должно быть реальной датой и временем в ISO-формате с часовым поясом"
+            message: "Начало записи должно быть реальной датой и временем в ISO-формате с часовым поясом",
         });
     }
     if (value.endsAt !== undefined && endsAt === null) {
         context.addIssue({
             code: "custom",
             path: ["endsAt"],
-            message: "Окончание записи должно быть реальной датой и временем в ISO-формате с часовым поясом"
+            message: "Окончание записи должно быть реальной датой и временем в ISO-формате с часовым поясом",
         });
     }
     if (value.startsAt !== undefined && value.endsAt !== undefined) {
@@ -2268,17 +2558,21 @@ export const updateAppointmentSchema = z
             context.addIssue({
                 code: "custom",
                 path: ["endsAt"],
-                message: "Окончание записи должно быть позже начала"
+                message: "Окончание записи должно быть позже начала",
             });
         }
     }
 });
-export const appointmentReadinessStateSchema = z.enum(["ready", "needs_attention", "blocked"]);
+export const appointmentReadinessStateSchema = z.enum([
+    "ready",
+    "needs_attention",
+    "blocked",
+]);
 export const appointmentReadinessCheckSchema = z.object({
     key: z.string(),
     title: z.string(),
     ready: z.boolean(),
-    detail: z.string()
+    detail: z.string(),
 });
 export const appointmentReadinessSchema = z.object({
     appointmentId: z.string().uuid(),
@@ -2289,7 +2583,7 @@ export const appointmentReadinessSchema = z.object({
     nextAction: z.string(),
     blockers: z.array(z.string()),
     warnings: z.array(z.string()).default([]),
-    checks: z.array(appointmentReadinessCheckSchema)
+    checks: z.array(appointmentReadinessCheckSchema),
 });
 export const scheduleSuggestionSchema = z.object({
     id: z.string(),
@@ -2300,7 +2594,7 @@ export const scheduleSuggestionSchema = z.object({
     title: z.string(),
     detail: z.string(),
     actionLabel: z.string(),
-    reason: z.string()
+    reason: z.string(),
 });
 export const visitCloseChecklistItemSchema = z.object({
     id: z.string(),
@@ -2311,7 +2605,7 @@ export const visitCloseChecklistItemSchema = z.object({
     blocking: z.boolean(),
     ownerRole: staffRoleSchema,
     section: workspaceSectionSchema,
-    actionLabel: z.string()
+    actionLabel: z.string(),
 });
 export const visitCloseChecklistSchema = z.object({
     visitId: z.string().uuid(),
@@ -2319,7 +2613,7 @@ export const visitCloseChecklistSchema = z.object({
     score: z.number().int().min(0).max(100),
     nextAction: z.string(),
     blockingItems: z.number().int().nonnegative(),
-    items: z.array(visitCloseChecklistItemSchema)
+    items: z.array(visitCloseChecklistItemSchema),
 });
 export const visitSchema = z.object({
     id: z.string().uuid(),
@@ -2335,7 +2629,7 @@ export const visitSchema = z.object({
     treatmentPlan: z.string().nullable(),
     doctorSummary: z.string().nullable(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const patientIntakePregnancyStatusSchema = z.enum([
     "not_applicable",
@@ -2343,7 +2637,7 @@ export const patientIntakePregnancyStatusSchema = z.enum([
     "possible",
     "confirmed",
     "lactation",
-    "unknown"
+    "unknown",
 ]);
 export const patientIntakeQuestionnairePayloadSchema = z.object({
     chiefComplaint: z.string().trim().min(1).max(500),
@@ -2356,7 +2650,7 @@ export const patientIntakeQuestionnairePayloadSchema = z.object({
     cardioEndocrineNotes: z.string().trim().min(1).max(500),
     emergencyContact: z.string().trim().max(240).nullable().optional(),
     additionalNotes: z.string().trim().max(800).nullable().optional(),
-    accuracyConfirmed: z.literal(true)
+    accuracyConfirmed: z.literal(true),
 });
 export const paidMedicalServicesContractPayloadSchema = z.object({
     contractNumber: z.string().trim().min(1).max(120),
@@ -2379,7 +2673,7 @@ export const paidMedicalServicesContractPayloadSchema = z.object({
     patientReceivedClinicInfo: z.literal(true),
     patientReceivedPriceAndServiceList: z.literal(true),
     patientUnderstandsPaidBasis: z.literal(true),
-    changesRequireWrittenAgreement: z.literal(true)
+    changesRequireWrittenAgreement: z.literal(true),
 });
 export const completedWorksActPayloadSchema = z.object({
     actNumber: z.string().trim().min(1).max(120),
@@ -2392,12 +2686,15 @@ export const completedWorksActPayloadSchema = z.object({
     acceptedServicesSummary: z.string().trim().min(1).max(1200),
     totalByActRub: z.number().int().nonnegative(),
     paidRub: z.number().int().nonnegative(),
-    fiscalReceiptNumbers: z.array(z.string().trim().min(1).max(120)).min(1).max(20),
+    fiscalReceiptNumbers: z
+        .array(z.string().trim().min(1).max(120))
+        .min(1)
+        .max(20),
     patientClaimsText: z.string().trim().max(1000).nullable().optional(),
     linkedToSignedContract: z.literal(true),
     finalServiceScopeConfirmed: z.literal(true),
     fiscalReceiptsVerified: z.literal(true),
-    patientAcceptedWorks: z.literal(true)
+    patientAcceptedWorks: z.literal(true),
 });
 export const treatmentCostEstimatePayloadSchema = z.object({
     estimateNumber: z.string().trim().min(1).max(120),
@@ -2411,7 +2708,7 @@ export const treatmentCostEstimatePayloadSchema = z.object({
         quantity: z.number().int().positive().max(999),
         unitPriceRub: z.number().int().nonnegative(),
         discountRub: z.number().int().nonnegative(),
-        totalRub: z.number().int().nonnegative()
+        totalRub: z.number().int().nonnegative(),
     }))
         .min(1)
         .max(80),
@@ -2426,7 +2723,7 @@ export const treatmentCostEstimatePayloadSchema = z.object({
     patientUnderstandsPreliminaryEstimate: z.literal(true),
     serviceScopeMatchesTreatmentPlan: z.literal(true),
     estimateDoesNotReplaceContractOrFiscalReceipt: z.literal(true),
-    changesRequireUpdatedEstimate: z.literal(true)
+    changesRequireUpdatedEstimate: z.literal(true),
 });
 export const paymentInvoicePayloadSchema = z.object({
     invoiceNumber: z.string().trim().min(1).max(120),
@@ -2442,7 +2739,7 @@ export const paymentInvoicePayloadSchema = z.object({
         quantity: z.number().int().positive().max(999),
         unitPriceRub: z.number().int().nonnegative(),
         discountRub: z.number().int().nonnegative(),
-        totalRub: z.number().int().nonnegative()
+        totalRub: z.number().int().nonnegative(),
     }))
         .min(1)
         .max(60),
@@ -2455,7 +2752,7 @@ export const paymentInvoicePayloadSchema = z.object({
     qrPaymentPayload: z.string().trim().max(1000).nullable().optional(),
     clinicRequisitesVerified: z.literal(true),
     serviceScopeConfirmed: z.literal(true),
-    payerInformedInvoiceIsNotFiscalReceipt: z.literal(true)
+    payerInformedInvoiceIsNotFiscalReceipt: z.literal(true),
 });
 export const paymentReceiptPayloadSchema = z
     .object({
@@ -2475,18 +2772,21 @@ export const paymentReceiptPayloadSchema = z
     payerIdentityDocument: z.string().trim().max(240).nullable().optional(),
     payerRelationship: z.string().trim().max(160).nullable().optional(),
     paymentPurpose: z.string().trim().min(1).max(500),
-    fiscalReceiptNumbers: z.array(z.string().trim().min(1).max(120)).min(1).max(20),
+    fiscalReceiptNumbers: z
+        .array(z.string().trim().min(1).max(120))
+        .min(1)
+        .max(20),
     issuedByFullName: z.string().trim().min(1).max(240),
     paymentAndFiscalDataVerified: z.literal(true),
     payerIdentityVerified: z.literal(true),
-    receiptDoesNotReplaceFiscalReceipt: z.literal(true)
+    receiptDoesNotReplaceFiscalReceipt: z.literal(true),
 })
     .superRefine((value, context) => {
     if (new Set(value.selectedPaymentIds).size !== value.selectedPaymentIds.length) {
         context.addIssue({
             code: "custom",
             path: ["selectedPaymentIds"],
-            message: "Выбранные платежи не должны повторяться."
+            message: "Выбранные платежи не должны повторяться.",
         });
     }
     const normalizedReceipts = value.fiscalReceiptNumbers.map((item) => item.trim().replace(/\s+/g, " ").toLocaleUpperCase("ru-RU"));
@@ -2494,7 +2794,7 @@ export const paymentReceiptPayloadSchema = z
         context.addIssue({
             code: "custom",
             path: ["fiscalReceiptNumbers"],
-            message: "Номера фискальных чеков не должны повторяться."
+            message: "Номера фискальных чеков не должны повторяться.",
         });
     }
     if (value.taxSupportRequested) {
@@ -2504,26 +2804,32 @@ export const paymentReceiptPayloadSchema = z
             context.addIssue({
                 code: "custom",
                 path: ["payerBirthDate"],
-                message: "Для налоговой квитанции укажите дату рождения плательщика."
+                message: "Для налоговой квитанции укажите дату рождения плательщика.",
             });
         }
         if (!value.payerRelationship?.trim()) {
             context.addIssue({
                 code: "custom",
                 path: ["payerRelationship"],
-                message: "Для налоговой квитанции укажите связь плательщика с пациентом."
+                message: "Для налоговой квитанции укажите связь плательщика с пациентом.",
             });
         }
         if (payerInnDigits.length !== 12 && !hasIdentityDocument) {
             context.addIssue({
                 code: "custom",
                 path: ["payerInn"],
-                message: "Для налоговой квитанции укажите 12-значный ИНН плательщика или документ удостоверения личности."
+                message: "Для налоговой квитанции укажите 12-значный ИНН плательщика или документ удостоверения личности.",
             });
         }
     }
 });
-export const installmentPaymentStatusSchema = z.enum(["planned", "paid", "overdue", "rescheduled", "cancelled"]);
+export const installmentPaymentStatusSchema = z.enum([
+    "planned",
+    "paid",
+    "overdue",
+    "rescheduled",
+    "cancelled",
+]);
 export const installmentPaymentSchedulePayloadSchema = z.object({
     scheduleNumber: z.string().trim().min(1).max(120),
     scheduleDate: documentDateLikeStringSchema,
@@ -2537,7 +2843,7 @@ export const installmentPaymentSchedulePayloadSchema = z.object({
         label: z.string().trim().min(1).max(200),
         dueDate: documentDateLikeStringSchema,
         amountRub: z.number().int().positive(),
-        status: installmentPaymentStatusSchema
+        status: installmentPaymentStatusSchema,
     }))
         .min(1)
         .max(36),
@@ -2546,7 +2852,7 @@ export const installmentPaymentSchedulePayloadSchema = z.object({
     responsibleStaffFullName: z.string().trim().min(1).max(240),
     patientAcceptedSchedule: z.literal(true),
     scheduleDoesNotReplaceFiscalReceipt: z.literal(true),
-    changesRequireWrittenAgreement: z.literal(true)
+    changesRequireWrittenAgreement: z.literal(true),
 });
 export const minorLegalRepresentativeConsentPayloadSchema = z.object({
     representativeFullName: z.string().trim().min(1).max(240),
@@ -2559,14 +2865,17 @@ export const minorLegalRepresentativeConsentPayloadSchema = z.object({
     interventionScope: z.string().trim().min(1).max(700),
     diagnosisOrIndication: z.string().trim().min(1).max(700),
     explainedRisks: z.array(z.string().trim().min(1).max(240)).min(1).max(16),
-    alternativesExplained: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
+    alternativesExplained: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(12),
     doctorFullName: z.string().trim().min(1).max(240),
     signedAt: documentDateLikeStringSchema,
     representativeIdentityVerified: z.literal(true),
     representativeAuthorityVerified: z.literal(true),
     informedConsentExplained: z.literal(true),
     medicalRecordConsentStored: z.literal(true),
-    ageAppropriateExplanationGiven: z.literal(true)
+    ageAppropriateExplanationGiven: z.literal(true),
 });
 export const warrantyServiceMemoPayloadSchema = z.object({
     serviceOrWorkName: z.string().trim().min(1).max(500),
@@ -2576,24 +2885,50 @@ export const warrantyServiceMemoPayloadSchema = z.object({
     warrantyPeriod: z.string().trim().min(1).max(300),
     controlVisitSchedule: z.string().trim().min(1).max(700),
     patientObligations: z.array(z.string().trim().min(1).max(240)).min(1).max(16),
-    excludedRiskFactors: z.array(z.string().trim().min(1).max(240)).min(1).max(16),
-    urgentContactReasons: z.array(z.string().trim().min(1).max(240)).min(1).max(16),
+    excludedRiskFactors: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(16),
+    urgentContactReasons: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(16),
     linkedActOrContract: z.string().trim().min(1).max(300),
     doctorFullName: z.string().trim().min(1).max(240),
     issuedAt: documentDateLikeStringSchema,
     localWarrantyPolicyApplied: z.literal(true),
     patientReceivedAftercare: z.literal(true),
-    patientUnderstandsControlVisits: z.literal(true)
+    patientUnderstandsControlVisits: z.literal(true),
 });
-export const taxDeductionApplicationRelationshipSchema = z.enum(["self", "spouse", "parent", "child", "ward"]);
-export const taxDeductionApplicationFormSchema = z.enum(["knd_1151156", "legacy_2021_2023"]);
-export const taxDeductionApplicationDeliveryChannelSchema = z.enum(["paper", "pdf", "secure_link", "email", "portal", "other"]);
+export const taxDeductionApplicationRelationshipSchema = z.enum([
+    "self",
+    "spouse",
+    "parent",
+    "child",
+    "ward",
+]);
+export const taxDeductionApplicationFormSchema = z.enum([
+    "knd_1151156",
+    "legacy_2021_2023",
+]);
+export const taxDeductionApplicationDeliveryChannelSchema = z.enum([
+    "paper",
+    "pdf",
+    "secure_link",
+    "email",
+    "portal",
+    "other",
+]);
 function isValidDateParts(year, month, day) {
     const parsed = new Date(Date.UTC(year, month - 1, day));
-    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+    return (parsed.getUTCFullYear() === year &&
+        parsed.getUTCMonth() === month - 1 &&
+        parsed.getUTCDate() === day);
 }
 function isValidTimeParts(hourText, minuteText, secondText) {
-    if (hourText === undefined && minuteText === undefined && secondText === undefined)
+    if (hourText === undefined &&
+        minuteText === undefined &&
+        secondText === undefined)
         return true;
     if (hourText === undefined || minuteText === undefined)
         return false;
@@ -2618,7 +2953,12 @@ function isValidTimezoneOffset(value) {
         return false;
     const hour = Number(match[2]);
     const minute = Number(match[3]);
-    return Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+    return (Number.isInteger(hour) &&
+        Number.isInteger(minute) &&
+        hour >= 0 &&
+        hour <= 23 &&
+        minute >= 0 &&
+        minute <= 59);
 }
 function isDateLikeString(value) {
     const trimmed = value.trim();
@@ -2630,7 +2970,8 @@ function isDateLikeString(value) {
     }
     const ru = /^(\d{2})\.(\d{2})\.(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(trimmed);
     if (ru) {
-        return isValidDateParts(Number(ru[3]), Number(ru[2]), Number(ru[1])) && isValidTimeParts(ru[4], ru[5], ru[6]);
+        return (isValidDateParts(Number(ru[3]), Number(ru[2]), Number(ru[1])) &&
+            isValidTimeParts(ru[4], ru[5], ru[6]));
     }
     return false;
 }
@@ -2660,9 +3001,9 @@ const birthDateInputSchema = z
     .trim()
     .max(20)
     .refine((value) => !value || isPastOrTodayDateOnlyString(value), {
-    message: "Дата рождения должна быть реальной датой не позже сегодняшнего дня в формате ГГГГ-ММ-ДД или ДД.ММ.ГГГГ."
+    message: "Дата рождения должна быть реальной датой не позже сегодняшнего дня в формате ГГГГ-ММ-ДД или ДД.ММ.ГГГГ.",
 })
-    .transform((value) => (value ? normalizeDateOnlyString(value) ?? value : value))
+    .transform((value) => value ? (normalizeDateOnlyString(value) ?? value) : value)
     .nullable()
     .optional();
 const patientPhoneInputSchema = z
@@ -2670,7 +3011,7 @@ const patientPhoneInputSchema = z
     .trim()
     .max(80)
     .refine((value) => !value || value.replace(/\D/g, "").length >= 5, {
-    message: "Телефон пациента должен содержать не меньше 5 цифр или быть пустым."
+    message: "Телефон пациента должен содержать не меньше 5 цифр или быть пустым.",
 })
     .nullable()
     .optional();
@@ -2690,55 +3031,70 @@ export const taxDeductionApplicationPayloadSchema = z
     taxpayerBirthDate: taxDateLikeStringSchema,
     taxpayerIdentityDocument: z.string().trim().min(1).max(240),
     relationshipToPatient: taxDeductionApplicationRelationshipSchema,
-    requestedTaxYear: z.number().int().min(legacyTaxDeductionCertificateMinYear).max(2100),
+    requestedTaxYear: z
+        .number()
+        .int()
+        .min(legacyTaxDeductionCertificateMinYear)
+        .max(2100),
     requestedForm: taxDeductionApplicationFormSchema,
     selectedPaymentIds: z.array(z.string().uuid()).max(200).default([]),
     deliveryChannel: taxDeductionApplicationDeliveryChannelSchema,
     contactForReadyDocument: z.string().trim().min(1).max(240),
-    applicantAuthorityDocument: z.string().trim().max(300).nullable().optional(),
+    applicantAuthorityDocument: z
+        .string()
+        .trim()
+        .max(300)
+        .nullable()
+        .optional(),
     requestedAt: taxDateLikeStringSchema,
-    duplicateWarningAccepted: z.literal(true)
+    duplicateWarningAccepted: z.literal(true),
 })
     .superRefine((value, context) => {
-    if (value.requestedForm === "legacy_2021_2023" && !/^\d{10}$|^\d{12}$/.test(value.taxpayerInn)) {
+    if (value.requestedForm === "legacy_2021_2023" &&
+        !/^\d{10}$|^\d{12}$/.test(value.taxpayerInn)) {
         context.addIssue({
             code: "custom",
             path: ["taxpayerInn"],
-            message: "Для старой налоговой справки нужен 10- или 12-значный ИНН налогоплательщика."
+            message: "Для старой налоговой справки нужен 10- или 12-значный ИНН налогоплательщика.",
         });
     }
-    if (value.requestedForm === "knd_1151156" && value.taxpayerInn && !/^\d{12}$/.test(value.taxpayerInn)) {
+    if (value.requestedForm === "knd_1151156" &&
+        value.taxpayerInn &&
+        !/^\d{12}$/.test(value.taxpayerInn)) {
         context.addIssue({
             code: "custom",
             path: ["taxpayerInn"],
-            message: "Для заявления на КНД 1151156 нужен 12-значный ИНН физического лица."
+            message: "Для заявления на КНД 1151156 нужен 12-значный ИНН физического лица.",
         });
     }
-    if (value.requestedTaxYear < taxDeductionCertificateMinYear && value.requestedForm !== "legacy_2021_2023") {
+    if (value.requestedTaxYear < taxDeductionCertificateMinYear &&
+        value.requestedForm !== "legacy_2021_2023") {
         context.addIssue({
             code: "custom",
             path: ["requestedForm"],
-            message: "Для налоговых лет до 2024 нужна старая форма 2021-2023."
+            message: "Для налоговых лет до 2024 нужна старая форма 2021-2023.",
         });
     }
-    if (value.requestedTaxYear >= taxDeductionCertificateMinYear && value.requestedForm !== "knd_1151156") {
+    if (value.requestedTaxYear >= taxDeductionCertificateMinYear &&
+        value.requestedForm !== "knd_1151156") {
         context.addIssue({
             code: "custom",
             path: ["requestedForm"],
-            message: "Для налоговых лет с 2024 нужна справка КНД 1151156."
+            message: "Для налоговых лет с 2024 нужна справка КНД 1151156.",
         });
     }
-    if (value.relationshipToPatient !== "self" && !value.applicantAuthorityDocument?.trim()) {
+    if (value.relationshipToPatient !== "self" &&
+        !value.applicantAuthorityDocument?.trim()) {
         context.addIssue({
             code: "custom",
             path: ["applicantAuthorityDocument"],
-            message: "Для заявления представителя нужен документ, подтверждающий полномочия."
+            message: "Для заявления представителя нужен документ, подтверждающий полномочия.",
         });
     }
 });
 export const taxPaymentSelectionPayloadSchema = z
     .object({
-    selectedPaymentIds: z.array(z.string().uuid()).min(1).max(200)
+    selectedPaymentIds: z.array(z.string().uuid()).min(1).max(200),
 })
     .strict();
 export const anesthesiaDoseRowSchema = z.object({
@@ -2746,7 +3102,7 @@ export const anesthesiaDoseRowSchema = z.object({
     medication: z.string().trim().min(1).max(120),
     doseMl: z.string().trim().min(1).max(40),
     zone: z.string().trim().min(1).max(160),
-    reaction: z.string().trim().max(240).nullable().optional()
+    reaction: z.string().trim().max(240).nullable().optional(),
 });
 export const anesthesiaConsentPayloadSchema = z.object({
     method: z.string().trim().min(1).max(160),
@@ -2758,7 +3114,7 @@ export const anesthesiaConsentPayloadSchema = z.object({
     doseRows: z.array(anesthesiaDoseRowSchema).min(1).max(8),
     patientAnesthesiaRisksExplained: z.literal(true),
     allergyAndRestrictionStatusChecked: z.literal(true),
-    patientConfirmedAnesthesiaConsent: z.literal(true)
+    patientConfirmedAnesthesiaConsent: z.literal(true),
 });
 export const clinicalToothSurfaceSchema = z.enum([
     "occlusal",
@@ -2770,7 +3126,7 @@ export const clinicalToothSurfaceSchema = z.enum([
     "incisal",
     "root",
     "implant_site",
-    "not_applicable"
+    "not_applicable",
 ]);
 export const clinicalToothStatusSchema = z.enum([
     "sound",
@@ -2784,7 +3140,7 @@ export const clinicalToothStatusSchema = z.enum([
     "orthodontic",
     "planned",
     "completed",
-    "other"
+    "other",
 ]);
 export const clinicalToothRowSchema = z.object({
     toothOrArea: z.string().trim().min(1).max(80),
@@ -2796,20 +3152,23 @@ export const clinicalToothRowSchema = z.object({
     prognosis: z.string().trim().max(300).nullable().optional(),
     periodontalStatus: z.string().trim().max(300).nullable().optional(),
     implantOrProstheticNotes: z.string().trim().max(300).nullable().optional(),
-    orthodonticNotes: z.string().trim().max(300).nullable().optional()
+    orthodonticNotes: z.string().trim().max(300).nullable().optional(),
 });
-export const clinicalToothRowsSchema = z.array(clinicalToothRowSchema).min(1).max(64);
+export const clinicalToothRowsSchema = z
+    .array(clinicalToothRowSchema)
+    .min(1)
+    .max(64);
 export const prescriptionMedicationRowSchema = z.object({
     medication: z.string().trim().min(1).max(160),
     dosage: z.string().trim().min(1).max(160),
     instructions: z.string().trim().min(1).max(300),
-    duration: z.string().trim().min(1).max(120)
+    duration: z.string().trim().min(1).max(120),
 });
 export const prescriptionMedicationPayloadSchema = z.object({
     clinicalToothRows: clinicalToothRowsSchema,
     medications: z.array(prescriptionMedicationRowSchema).min(1).max(10),
     safetyNotes: z.array(z.string().trim().min(1).max(240)).min(1).max(8),
-    urgentContactReason: z.string().trim().min(1).max(300)
+    urgentContactReason: z.string().trim().min(1).max(300),
 });
 export const labWorkOrderPayloadSchema = z.object({
     clinicalToothRows: clinicalToothRowsSchema,
@@ -2819,7 +3178,7 @@ export const labWorkOrderPayloadSchema = z.object({
     shade: z.string().trim().min(1).max(120),
     source: z.string().trim().min(1).max(200),
     deadline: z.string().trim().min(1).max(120),
-    technicianNotes: z.string().trim().max(800).nullable().optional()
+    technicianNotes: z.string().trim().max(800).nullable().optional(),
 });
 export const photoVideoConsentMaterialSchema = z.enum([
     "intraoral_photo",
@@ -2828,7 +3187,7 @@ export const photoVideoConsentMaterialSchema = z.enum([
     "xray",
     "cbct",
     "scan",
-    "other"
+    "other",
 ]);
 export const photoVideoConsentPayloadSchema = z.object({
     clinicalRecordUse: z.literal(true),
@@ -2840,7 +3199,7 @@ export const photoVideoConsentPayloadSchema = z.object({
     materials: z.array(photoVideoConsentMaterialSchema).min(1).max(7),
     anonymizationRequired: z.literal(true),
     revocationChannel: z.string().trim().min(1).max(240),
-    scopeNotes: z.string().trim().max(800).nullable().optional()
+    scopeNotes: z.string().trim().max(800).nullable().optional(),
 });
 export const xrayCbctReferralStudyTypeSchema = z.enum([
     "rvg",
@@ -2850,7 +3209,7 @@ export const xrayCbctReferralStudyTypeSchema = z.enum([
     "tmj",
     "sinus",
     "photo_protocol",
-    "other"
+    "other",
 ]);
 export const xrayCbctReferralPrioritySchema = z.enum(["routine", "urgent"]);
 export const xrayCbctReferralPregnancyStatusSchema = z.enum([
@@ -2858,7 +3217,7 @@ export const xrayCbctReferralPregnancyStatusSchema = z.enum([
     "denied",
     "possible",
     "confirmed",
-    "unknown"
+    "unknown",
 ]);
 export const xrayCbctReferralPayloadSchema = z.object({
     studyType: xrayCbctReferralStudyTypeSchema,
@@ -2873,21 +3232,28 @@ export const xrayCbctReferralPayloadSchema = z.object({
     includeRadiologistReport: z.boolean(),
     requestedBy: z.string().trim().min(1).max(200),
     recipientClinic: z.string().trim().max(240).nullable().optional(),
-    dueDate: z.string().trim().max(80).nullable().optional()
+    dueDate: z.string().trim().max(80).nullable().optional(),
 });
 export const medicalDocumentReleaseReceiptPayloadSchema = z.object({
     sourceRequestDocumentId: z.string().uuid(),
     recipientFullName: z.string().trim().min(1).max(240),
     recipientIdentityDocument: z.string().trim().min(1).max(240),
     recipientAuthority: z.string().trim().min(1).max(300),
-    releaseChannel: z.enum(["paper", "pdf", "dicom_archive", "secure_link", "physical_media", "other"]),
+    releaseChannel: z.enum([
+        "paper",
+        "pdf",
+        "dicom_archive",
+        "secure_link",
+        "physical_media",
+        "other",
+    ]),
     documentTypes: z.array(z.string().trim().min(1).max(160)).min(1).max(12),
     periodStart: z.string().trim().max(40).nullable().optional(),
     periodEnd: z.string().trim().max(40).nullable().optional(),
     deliveredAt: documentDateLikeStringSchema,
     accessExpiresAt: z.string().trim().max(80).nullable().optional(),
     deliveryProtectionNote: z.string().trim().min(1).max(500),
-    thirdPartyDataChecked: z.literal(true)
+    thirdPartyDataChecked: z.literal(true),
 });
 export const medicalRecordExtractPayloadSchema = z.object({
     periodStart: z.string().trim().min(1).max(40),
@@ -2904,15 +3270,25 @@ export const medicalRecordExtractPayloadSchema = z.object({
     recipientAuthority: z.string().trim().min(1).max(300),
     issuedAt: documentDateLikeStringSchema,
     preparedFromSignedMedicalRecords: z.literal(true),
-    thirdPartyDataChecked: z.literal(true)
+    thirdPartyDataChecked: z.literal(true),
 });
-const outpatientMedicalCard025uDateSchema = z.string().trim().max(40).nullable().optional();
-const outpatientMedicalCard025uOptionalTextSchema = z.string().trim().max(1200).nullable().optional();
+const outpatientMedicalCard025uDateSchema = z
+    .string()
+    .trim()
+    .max(40)
+    .nullable()
+    .optional();
+const outpatientMedicalCard025uOptionalTextSchema = z
+    .string()
+    .trim()
+    .max(1200)
+    .nullable()
+    .optional();
 const outpatientMedicalCard025uCodeSchema = z.enum(["1", "2", "unknown"]);
 export const outpatientMedicalCard025uDoctorSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
     position: z.string().trim().max(160).nullable().optional(),
-    specialty: z.string().trim().max(160).nullable().optional()
+    specialty: z.string().trim().max(160).nullable().optional(),
 });
 export const outpatientMedicalCard025uDiagnosisRowSchema = z.object({
     date: z.string().trim().min(1).max(40),
@@ -2921,27 +3297,27 @@ export const outpatientMedicalCard025uDiagnosisRowSchema = z.object({
     firstOrRepeat: z.enum(["first", "repeat", "unknown"]),
     doctorFullName: z.string().trim().min(1).max(240),
     doctorPosition: z.string().trim().max(160).nullable().optional(),
-    doctorSpecialty: z.string().trim().max(160).nullable().optional()
+    doctorSpecialty: z.string().trim().max(160).nullable().optional(),
 });
 export const outpatientMedicalCard025uTextRecordSchema = z.object({
     date: outpatientMedicalCard025uDateSchema,
     title: z.string().trim().max(240).nullable().optional(),
     text: z.string().trim().min(1).max(2000),
-    doctor: outpatientMedicalCard025uDoctorSchema.nullable().optional()
+    doctor: outpatientMedicalCard025uDoctorSchema.nullable().optional(),
 });
 export const outpatientMedicalCard025uEventRowSchema = z.object({
     date: outpatientMedicalCard025uDateSchema,
     event: z.string().trim().min(1).max(240),
     result: z.string().trim().max(1200).nullable().optional(),
     organization: z.string().trim().max(240).nullable().optional(),
-    doctor: outpatientMedicalCard025uDoctorSchema.nullable().optional()
+    doctor: outpatientMedicalCard025uDoctorSchema.nullable().optional(),
 });
 export const outpatientMedicalCard025uXrayDoseRowSchema = z.object({
     date: outpatientMedicalCard025uDateSchema,
     study: z.string().trim().min(1).max(240),
     area: z.string().trim().max(240).nullable().optional(),
     dose: z.string().trim().max(120).nullable().optional(),
-    sourceDocument: z.string().trim().max(240).nullable().optional()
+    sourceDocument: z.string().trim().max(240).nullable().optional(),
 });
 export const outpatientMedicalCard025uSpecialistVisitRecordSchema = z.object({
     sourceVisitId: z.string().trim().min(1).max(120),
@@ -2967,14 +3343,19 @@ export const outpatientMedicalCard025uSpecialistVisitRecordSchema = z.object({
     sickLeaveOrCertificate: outpatientMedicalCard025uOptionalTextSchema,
     preferentialPrescriptions: outpatientMedicalCard025uOptionalTextSchema,
     informedConsentOrRefusal: z.string().trim().min(1).max(800),
-    clinicalToothRows: clinicalToothRowsSchema
+    clinicalToothRows: clinicalToothRowsSchema,
 });
 export const outpatientMedicalCard025uPayloadSchema = z.object({
     formNumber: z.literal("025/у"),
     sourceOrderReference: z.literal("Приказ Минздрава России от 13.05.2025 N 274н"),
     medicalOrganizationName: z.string().trim().min(1).max(300),
     medicalOrganizationAddress: z.string().trim().max(500).nullable().optional(),
-    medicalOrganizationOgrnOrOgrnip: z.string().trim().max(80).nullable().optional(),
+    medicalOrganizationOgrnOrOgrnip: z
+        .string()
+        .trim()
+        .max(80)
+        .nullable()
+        .optional(),
     medicalOrganizationLicense: z.string().trim().max(300).nullable().optional(),
     medicalCardNumber: z.string().trim().min(1).max(120),
     openedAt: z.string().trim().min(1).max(40),
@@ -2999,7 +3380,12 @@ export const outpatientMedicalCard025uPayloadSchema = z.object({
     insurerName: z.string().trim().max(240).nullable().optional(),
     snils: z.string().trim().max(40).nullable().optional(),
     socialSupportCode: z.string().trim().max(120).nullable().optional(),
-    healthStatusDisclosureContact: z.string().trim().max(300).nullable().optional(),
+    healthStatusDisclosureContact: z
+        .string()
+        .trim()
+        .max(300)
+        .nullable()
+        .optional(),
     employmentCode: z.string().trim().max(120).nullable().optional(),
     disabilityGroup: z.string().trim().max(120).nullable().optional(),
     workOrStudyPlace: z.string().trim().max(240).nullable().optional(),
@@ -3009,40 +3395,79 @@ export const outpatientMedicalCard025uPayloadSchema = z.object({
     kellK1: z.string().trim().max(40).nullable().optional(),
     otherBloodData: z.string().trim().max(300).nullable().optional(),
     allergyHistory: z.string().trim().max(1000).nullable().optional(),
-    chronicDispensaryRegister: z.array(outpatientMedicalCard025uDiagnosisRowSchema).max(100),
-    finalDiagnoses: z.array(outpatientMedicalCard025uDiagnosisRowSchema).min(1).max(100),
-    specialistVisitRecords: z.array(outpatientMedicalCard025uSpecialistVisitRecordSchema).min(1).max(50),
-    dynamicObservationRecords: z.array(outpatientMedicalCard025uTextRecordSchema).max(100),
-    stageEpicrisisRecords: z.array(outpatientMedicalCard025uTextRecordSchema).max(50),
-    departmentHeadConsultations: z.array(outpatientMedicalCard025uTextRecordSchema).max(50),
-    medicalCommissionRecords: z.array(outpatientMedicalCard025uTextRecordSchema).max(50),
-    dispensaryObservationEntries: z.array(outpatientMedicalCard025uTextRecordSchema).max(100),
+    chronicDispensaryRegister: z
+        .array(outpatientMedicalCard025uDiagnosisRowSchema)
+        .max(100),
+    finalDiagnoses: z
+        .array(outpatientMedicalCard025uDiagnosisRowSchema)
+        .min(1)
+        .max(100),
+    specialistVisitRecords: z
+        .array(outpatientMedicalCard025uSpecialistVisitRecordSchema)
+        .min(1)
+        .max(50),
+    dynamicObservationRecords: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(100),
+    stageEpicrisisRecords: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(50),
+    departmentHeadConsultations: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(50),
+    medicalCommissionRecords: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(50),
+    dispensaryObservationEntries: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(100),
     hospitalizationRows: z.array(outpatientMedicalCard025uEventRowSchema).max(50),
-    ambulatorySurgeryRows: z.array(outpatientMedicalCard025uEventRowSchema).max(50),
+    ambulatorySurgeryRows: z
+        .array(outpatientMedicalCard025uEventRowSchema)
+        .max(50),
     xrayDoseRows: z.array(outpatientMedicalCard025uXrayDoseRowSchema).max(100),
-    functionalResults: z.array(outpatientMedicalCard025uTextRecordSchema).max(100),
-    laboratoryResults: z.array(outpatientMedicalCard025uTextRecordSchema).max(100),
+    functionalResults: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(100),
+    laboratoryResults: z
+        .array(outpatientMedicalCard025uTextRecordSchema)
+        .max(100),
     finalEpicrisis: z.string().trim().max(4000).nullable().optional(),
     preparedFromSignedMedicalRecords: z.literal(true),
     officialForm274nChecked: z.literal(true),
-    thirdPartyDataChecked: z.literal(true)
+    thirdPartyDataChecked: z.literal(true),
 });
-export const medicalRecordCopyRequestFormatSchema = z.enum(["paper", "pdf", "dicom_archive", "secure_link", "physical_media", "other"]);
+export const medicalRecordCopyRequestFormatSchema = z.enum([
+    "paper",
+    "pdf",
+    "dicom_archive",
+    "secure_link",
+    "physical_media",
+    "other",
+]);
 export const medicalRecordCopyRequestPayloadSchema = z.object({
-    requestedDocumentTypes: z.array(z.string().trim().min(1).max(180)).min(1).max(20),
+    requestedDocumentTypes: z
+        .array(z.string().trim().min(1).max(180))
+        .min(1)
+        .max(20),
     periodStart: z.string().trim().max(40).nullable().optional(),
     periodEnd: z.string().trim().max(40).nullable().optional(),
     requestedFormat: medicalRecordCopyRequestFormatSchema,
     recipientFullName: z.string().trim().min(1).max(240),
     recipientIdentityDocument: z.string().trim().min(1).max(240),
     recipientAuthority: z.string().trim().min(1).max(300),
-    representativeAuthorityDocument: z.string().trim().max(300).nullable().optional(),
+    representativeAuthorityDocument: z
+        .string()
+        .trim()
+        .max(300)
+        .nullable()
+        .optional(),
     requestedAt: documentDateLikeStringSchema,
     contactForDelivery: z.string().trim().min(1).max(240),
     specialInstructions: z.string().trim().max(700).nullable().optional(),
     includeDicomSourceData: z.boolean(),
     identityVerified: z.literal(true),
-    thirdPartyDataExclusionAcknowledged: z.literal(true)
+    thirdPartyDataExclusionAcknowledged: z.literal(true),
 });
 export const postVisitCareTopicSchema = z.enum([
     "extraction",
@@ -3055,7 +3480,7 @@ export const postVisitCareTopicSchema = z.enum([
     "prosthetics",
     "orthodontics",
     "periodontology",
-    "other"
+    "other",
 ]);
 export const postVisitRecommendationsPayloadSchema = z.object({
     careTopic: postVisitCareTopicSchema,
@@ -3064,17 +3489,29 @@ export const postVisitRecommendationsPayloadSchema = z.object({
     performedAt: documentDateLikeStringSchema,
     doctorFullName: z.string().trim().min(1).max(240),
     allowedAfter: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
-    temporaryRestrictions: z.array(z.string().trim().min(1).max(300)).min(1).max(16),
-    medicationAndRinsePlan: z.array(z.string().trim().min(1).max(300)).min(1).max(16),
-    hygieneInstructions: z.array(z.string().trim().min(1).max(300)).min(1).max(16),
-    nutritionInstructions: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
+    temporaryRestrictions: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(16),
+    medicationAndRinsePlan: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(16),
+    hygieneInstructions: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(16),
+    nutritionInstructions: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(12),
     urgentWarningSigns: z.array(z.string().trim().min(1).max(300)).min(1).max(16),
     plannedFollowUpAt: z.string().trim().max(120).nullable().optional(),
     clinicContactInstruction: z.string().trim().min(1).max(500),
     telegramSummary: z.string().trim().min(1).max(700),
     patientReceivedPrintedCopy: z.literal(true),
     patientUnderstandsUrgentSigns: z.literal(true),
-    safeForTelegramSending: z.literal(true)
+    safeForTelegramSending: z.literal(true),
 });
 export const treatmentPlanPayloadSchema = z.object({
     clinicalReason: z.string().trim().min(1).max(700),
@@ -3088,13 +3525,21 @@ export const treatmentPlanPayloadSchema = z.object({
         plannedServices: z.string().trim().min(1).max(500),
         plannedTiming: z.string().trim().min(1).max(180),
         clinicalNotes: z.string().trim().max(500).nullable().optional(),
-        estimatedAmountRub: z.number().int().nonnegative().nullable().optional()
+        estimatedAmountRub: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional(),
     }))
         .min(1)
         .max(24),
     estimatedTotalRub: z.number().int().nonnegative(),
     alternatives: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
-    risksAndLimitations: z.array(z.string().trim().min(1).max(300)).min(1).max(16),
+    risksAndLimitations: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(16),
     prognosisAndLimits: z.string().trim().min(1).max(900),
     controlPlan: z.string().trim().min(1).max(700),
     doctorFullName: z.string().trim().min(1).max(240),
@@ -3104,9 +3549,16 @@ export const treatmentPlanPayloadSchema = z.object({
     planRequiresNewApprovalOnChange: z.literal(true),
     patientFriendlyExplanation: z.string().trim().max(4000).nullable().optional(),
     patientHygieneAdvice: z.string().trim().max(4000).nullable().optional(),
-    customHygieneTextOverride: z.string().trim().max(4000).nullable().optional()
+    customHygieneTextOverride: z.string().trim().max(4000).nullable().optional(),
 });
-export const treatmentPlanAcceptanceVariantSchema = z.enum(["urgent", "standard", "optimal", "staged", "maintenance", "other"]);
+export const treatmentPlanAcceptanceVariantSchema = z.enum([
+    "urgent",
+    "standard",
+    "optimal",
+    "staged",
+    "maintenance",
+    "other",
+]);
 export const treatmentPlanAcceptancePayloadSchema = z.object({
     selectedVariant: treatmentPlanAcceptanceVariantSchema,
     clinicalGoal: z.string().trim().min(1).max(700),
@@ -3118,22 +3570,33 @@ export const treatmentPlanAcceptancePayloadSchema = z.object({
         stageName: z.string().trim().min(1).max(180),
         plannedServices: z.string().trim().min(1).max(500),
         plannedTiming: z.string().trim().min(1).max(180),
-        estimatedAmountRub: z.number().int().nonnegative().nullable().optional()
+        estimatedAmountRub: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional(),
     }))
         .min(1)
         .max(20),
     estimatedTotalRub: z.number().int().nonnegative(),
     estimateValidUntil: documentDateLikeStringSchema,
     paymentTerms: z.string().trim().min(1).max(700),
-    rejectedAlternatives: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
-    risksAndLimitations: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
+    rejectedAlternatives: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(12),
+    risksAndLimitations: z
+        .array(z.string().trim().min(1).max(300))
+        .min(1)
+        .max(12),
     warrantyAndControlTerms: z.string().trim().min(1).max(700),
     doctorFullName: z.string().trim().min(1).max(240),
     acceptedAt: documentDateLikeStringSchema,
     patientQuestionsAnswered: z.literal(true),
     patientUnderstandsAlternatives: z.literal(true),
     patientUnderstandsCostMayChange: z.literal(true),
-    revisionRequiresNewApproval: z.literal(true)
+    revisionRequiresNewApproval: z.literal(true),
 });
 export const visitAttendanceCertificatePayloadSchema = z.object({
     attendedAtStart: documentDateLikeStringSchema,
@@ -3144,26 +3607,45 @@ export const visitAttendanceCertificatePayloadSchema = z.object({
     signedByFullName: z.string().trim().min(1).max(240),
     signedByRole: z.string().trim().min(1).max(160),
     diagnosisDisclosureExcluded: z.literal(true),
-    notSickLeaveAcknowledged: z.literal(true)
+    notSickLeaveAcknowledged: z.literal(true),
 });
-export const paymentRefundCorrectionPayloadSchema = z.object({
-    action: z.enum(["full_refund", "partial_refund", "payment_transfer", "receipt_correction", "payer_details_correction"]),
+export const paymentRefundCorrectionPayloadSchema = z
+    .object({
+    action: z.enum([
+        "full_refund",
+        "partial_refund",
+        "payment_transfer",
+        "receipt_correction",
+        "payer_details_correction",
+    ]),
     selectedPaymentIds: z.array(z.string().uuid()).min(1).max(20),
     amountRub: z.number().int().positive(),
     reason: z.string().trim().min(1).max(500),
-    refundMethod: z.enum(["cash", "card", "bank_transfer", "internal_offset", "no_money_movement"]),
+    refundMethod: z.enum([
+        "cash",
+        "card",
+        "bank_transfer",
+        "internal_offset",
+        "no_money_movement",
+    ]),
     recipientFullName: z.string().trim().min(1).max(240),
     recipientIdentityDocument: z.string().trim().min(1).max(240),
     bankDetails: z.string().trim().max(1000).nullable().optional(),
     originalFiscalReceiptNumber: z.string().trim().min(1).max(120),
-    correctionFiscalReceiptNumber: z.string().trim().max(120).nullable().optional(),
-    accountantDecision: z.string().trim().min(1).max(500)
-}).superRefine((value, context) => {
+    correctionFiscalReceiptNumber: z
+        .string()
+        .trim()
+        .max(120)
+        .nullable()
+        .optional(),
+    accountantDecision: z.string().trim().min(1).max(500),
+})
+    .superRefine((value, context) => {
     if (new Set(value.selectedPaymentIds).size !== value.selectedPaymentIds.length) {
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["selectedPaymentIds"],
-            message: "Каждый исходный платеж можно выбрать только один раз."
+            message: "Каждый исходный платеж можно выбрать только один раз.",
         });
     }
 });
@@ -3174,15 +3656,23 @@ export const informedConsentPayloadSchema = z.object({
     expectedBenefit: z.string().trim().min(1).max(500),
     plannedAnesthesia: z.string().trim().max(300).nullable().optional(),
     materialOrMedicationNotes: z.string().trim().max(500).nullable().optional(),
-    trustedContactForMedicalInfo: z.string().trim().max(240).nullable().optional(),
+    trustedContactForMedicalInfo: z
+        .string()
+        .trim()
+        .max(240)
+        .nullable()
+        .optional(),
     explainedRisks: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
     alternatives: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
-    aftercareRequirements: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
+    aftercareRequirements: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(12),
     doctorFullName: z.string().trim().min(1).max(240),
     consentConfirmedAt: documentDateLikeStringSchema,
     patientQuestionsAnswered: z.literal(true),
     patientUnderstandsRisks: z.literal(true),
-    patientMayWithdrawBeforeIntervention: z.literal(true)
+    patientMayWithdrawBeforeIntervention: z.literal(true),
 });
 export const procedureSpecificConsentProcedureSchema = z.enum([
     "local_anesthesia",
@@ -3193,7 +3683,7 @@ export const procedureSpecificConsentProcedureSchema = z.enum([
     "orthodontics",
     "hygiene_whitening",
     "periodontology",
-    "other"
+    "other",
 ]);
 export const procedureSpecificConsentPayloadSchema = z.object({
     procedureType: procedureSpecificConsentProcedureSchema,
@@ -3203,8 +3693,14 @@ export const procedureSpecificConsentPayloadSchema = z.object({
     clinicalToothRows: clinicalToothRowsSchema,
     plannedAnesthesia: z.string().trim().max(300).nullable().optional(),
     materialsAndSystems: z.string().trim().max(700).nullable().optional(),
-    patientSpecificRiskFactors: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
-    procedureSpecificRisks: z.array(z.string().trim().min(1).max(240)).min(1).max(16),
+    patientSpecificRiskFactors: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(12),
+    procedureSpecificRisks: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(16),
     alternatives: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
     aftercareAndLimits: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
     doctorFullName: z.string().trim().min(1).max(240),
@@ -3212,7 +3708,7 @@ export const procedureSpecificConsentPayloadSchema = z.object({
     localClinicFormAttached: z.boolean(),
     patientQuestionsAnswered: z.literal(true),
     exactProcedureConfirmed: z.literal(true),
-    patientUnderstandsSpecificRisks: z.literal(true)
+    patientUnderstandsSpecificRisks: z.literal(true),
 });
 export const personalDataProcessingConsentPayloadSchema = z.object({
     operatorLegalName: z.string().trim().min(1).max(240),
@@ -3222,7 +3718,10 @@ export const personalDataProcessingConsentPayloadSchema = z.object({
         .regex(/^\d{10}$|^\d{12}$/),
     operatorAddress: z.string().trim().min(1).max(500),
     processingPurposes: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
-    personalDataCategories: z.array(z.string().trim().min(1).max(240)).min(1).max(20),
+    personalDataCategories: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(20),
     processingActions: z.array(z.string().trim().min(1).max(180)).min(1).max(20),
     thirdPartyTransferRules: z.string().trim().min(1).max(700),
     crossBorderTransferAllowed: z.boolean(),
@@ -3231,20 +3730,23 @@ export const personalDataProcessingConsentPayloadSchema = z.object({
     revocationChannel: z.string().trim().min(1).max(500),
     consentGivenAt: documentDateLikeStringSchema,
     patientConfirmedVoluntaryConsent: z.literal(true),
-    medicalDataProcessingAcknowledged: z.literal(true)
+    medicalDataProcessingAcknowledged: z.literal(true),
 });
 export const medicalInterventionRefusalPayloadSchema = z.object({
     refusedIntervention: z.string().trim().min(1).max(500),
     clinicalIndication: z.string().trim().min(1).max(500),
     patientReason: z.string().trim().max(500).nullable().optional(),
     explainedRisks: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
-    alternativesOffered: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
+    alternativesOffered: z
+        .array(z.string().trim().min(1).max(240))
+        .min(1)
+        .max(12),
     urgentWarningSigns: z.array(z.string().trim().min(1).max(240)).min(1).max(12),
     doctorFullName: z.string().trim().min(1).max(240),
     refusalConfirmedAt: documentDateLikeStringSchema,
     patientUnderstandsConsequences: z.literal(true),
     secondOpinionOffered: z.literal(true),
-    emergencyCareExplained: z.literal(true)
+    emergencyCareExplained: z.literal(true),
 });
 export const documentPayloadSchema = z
     .object({
@@ -3276,7 +3778,7 @@ export const documentPayloadSchema = z
     informedConsent: informedConsentPayloadSchema.optional(),
     procedureSpecificConsent: procedureSpecificConsentPayloadSchema.optional(),
     personalDataProcessingConsent: personalDataProcessingConsentPayloadSchema.optional(),
-    medicalInterventionRefusal: medicalInterventionRefusalPayloadSchema.optional()
+    medicalInterventionRefusal: medicalInterventionRefusalPayloadSchema.optional(),
 })
     .strict();
 export const taxPaymentSnapshotSchema = z.object({
@@ -3289,7 +3791,7 @@ export const taxPaymentSnapshotSchema = z.object({
         .nullable(),
     paymentIds: z.array(z.string().uuid()).min(1).max(200),
     fiscalReceiptKeys: z.array(z.string().trim().min(1).max(160)).min(1).max(200),
-    payments: z.array(paymentSchema).min(1).max(200)
+    payments: z.array(paymentSchema).min(1).max(200),
 });
 export const documentPayloadKeysByKind = {
     patient_intake_questionnaire: ["patientIntakeQuestionnaire"],
@@ -3322,7 +3824,7 @@ export const documentPayloadKeysByKind = {
     informed_consent: ["informedConsent"],
     procedure_specific_consent_packet: ["procedureSpecificConsent"],
     personal_data_processing_consent: ["personalDataProcessingConsent"],
-    medical_intervention_refusal: ["medicalInterventionRefusal"]
+    medical_intervention_refusal: ["medicalInterventionRefusal"],
 };
 export function documentPayloadAllowedKeys(kind) {
     return documentPayloadKeysByKind[kind] ?? [];
@@ -3341,7 +3843,7 @@ export function documentPayloadDisallowedKeys(kind, payload) {
 export const documentIssueSignatureModeSchema = z.enum([
     "paper_signed",
     "simple_electronic_signature",
-    "qualified_electronic_signature"
+    "qualified_electronic_signature",
 ]);
 export const documentIssueSignatureAttestationSchema = z
     .object({
@@ -3355,12 +3857,13 @@ export const documentIssueSignatureAttestationSchema = z
     documentOpenedAndChecked: z.literal(true),
     recipientSigned: z.literal(true),
     clinicRepresentativeSigned: z.literal(true),
-    note: z.string().trim().max(500).nullable().optional()
+    note: z.string().trim().max(500).nullable().optional(),
+    cryptoSignaturePkcs7: z.string().trim().nullable().optional(),
 })
     .strict();
 export const issueDocumentSchema = z
     .object({
-    signatureAttestation: documentIssueSignatureAttestationSchema
+    signatureAttestation: documentIssueSignatureAttestationSchema,
 })
     .strict();
 export const documentVoidReasonCodeSchema = z.enum([
@@ -3371,7 +3874,7 @@ export const documentVoidReasonCodeSchema = z.enum([
     "tax_certificate_correction",
     "medical_release_correction",
     "payment_correction",
-    "other"
+    "other",
 ]);
 export const documentVoidAttestationSchema = z
     .object({
@@ -3384,20 +3887,27 @@ export const documentVoidAttestationSchema = z
     replacementRequired: z.boolean().default(false),
     patientOrPayerNotified: z.boolean().default(false),
     archivePreserved: z.literal(true),
-    statusReviewed: z.literal(true)
+    statusReviewed: z.literal(true),
 })
     .strict();
 export const voidDocumentSchema = z
     .object({
-    voidAttestation: documentVoidAttestationSchema
+    voidAttestation: documentVoidAttestationSchema,
 })
     .strict();
 export const documentReleaseJournalEntryKindSchema = z.enum([
     "request_registered",
     "extract_issued",
-    "release_completed"
+    "release_completed",
 ]);
-export const documentReleaseMaterialKindSchema = z.enum(["original", "copy", "extract", "dicom_archive", "mixed", "other"]);
+export const documentReleaseMaterialKindSchema = z.enum([
+    "original",
+    "copy",
+    "extract",
+    "dicom_archive",
+    "mixed",
+    "other",
+]);
 export const documentReleaseJournalEntrySchema = z
     .object({
     id: z.string().uuid(),
@@ -3417,9 +3927,12 @@ export const documentReleaseJournalEntrySchema = z
     recipientAuthority: z.string().trim().min(1).max(300),
     deliveredAt: documentDateLikeStringSchema,
     retentionPolicy: z.string().trim().min(1).max(500),
-    sourceSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+    sourceSnapshotSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .nullable(),
     createdAt: z.string(),
-    createdByUserId: z.string().uuid().nullable()
+    createdByUserId: z.string().uuid().nullable(),
 })
     .strict();
 export const taxXmlSourceSnapshotSchema = z
@@ -3427,7 +3940,7 @@ export const taxXmlSourceSnapshotSchema = z
     createdAt: z.string(),
     patient: patientSchema,
     clinicProfile: clinicProfileSchema,
-    payments: z.array(paymentSchema)
+    payments: z.array(paymentSchema),
 })
     .strict();
 export const taxXmlSnapshotSchema = z
@@ -3437,7 +3950,7 @@ export const taxXmlSnapshotSchema = z
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     createdAt: z.string(),
     taxOfficeCode: z.string().regex(/^\d{4}$/),
-    sourceSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/)
+    sourceSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/),
 })
     .strict();
 export const generatedDocumentSchema = z.object({
@@ -3450,7 +3963,13 @@ export const generatedDocumentSchema = z.object({
     status: z.enum(["draft", "issued", "voided"]),
     issuedAt: z.string().nullable(),
     totalAmountRub: z.number().nonnegative().nullable(),
-    taxYear: z.number().int().min(legacyTaxDeductionCertificateMinYear).max(2100).nullable().optional(),
+    taxYear: z
+        .number()
+        .int()
+        .min(legacyTaxDeductionCertificateMinYear)
+        .max(2100)
+        .nullable()
+        .optional(),
     taxPayerInn: z
         .string()
         .trim()
@@ -3459,7 +3978,11 @@ export const generatedDocumentSchema = z.object({
         .optional(),
     taxPaymentSnapshot: taxPaymentSnapshotSchema.nullable().optional(),
     payload: documentPayloadSchema.nullable().optional(),
-    signatureAttestation: documentIssueSignatureAttestationSchema.nullable().optional(),
+    signatureAttestation: documentIssueSignatureAttestationSchema
+        .nullable()
+        .optional(),
+    signatureSvg: z.string().nullable().optional(),
+    cryptoSignaturePkcs7: z.string().nullable().optional(),
     voidAttestation: documentVoidAttestationSchema.nullable().optional(),
     releaseJournalEntry: documentReleaseJournalEntrySchema.nullable().optional(),
     taxXmlSourceSnapshot: taxXmlSourceSnapshotSchema.nullable().optional(),
@@ -3469,32 +3992,46 @@ export const generatedDocumentSchema = z.object({
     issuedSnapshotCreatedAt: z.string().nullable().optional(),
     issuedByUserId: z.string().uuid().nullable().optional(),
     voidedAt: z.string().nullable().optional(),
-    voidedByUserId: z.string().uuid().nullable().optional()
+    voidedByUserId: z.string().uuid().nullable().optional(),
 });
 export const documentChainSummarySchema = z
     .object({
     paidMedicalServicesContract: z
         .object({
         contractNumber: z.string().trim().min(1).max(120),
-        contractDate: documentDateLikeStringSchema
+        contractDate: documentDateLikeStringSchema,
     })
         .optional(),
     medicalRecordCopyRequest: z
         .object({
-        requestedDocumentTypes: z.array(z.string().trim().min(1).max(180)).min(1).max(20),
+        requestedDocumentTypes: z
+            .array(z.string().trim().min(1).max(180))
+            .min(1)
+            .max(20),
         periodStart: z.string().trim().max(40).nullable().optional(),
         periodEnd: z.string().trim().max(40).nullable().optional(),
         requestedFormat: medicalRecordCopyRequestFormatSchema,
         recipientFullName: z.string().trim().min(1).max(240),
         recipientIdentityDocument: z.string().trim().min(1).max(240),
         recipientAuthority: z.string().trim().min(1).max(300),
-        representativeAuthorityDocument: z.string().trim().max(300).nullable().optional()
+        representativeAuthorityDocument: z
+            .string()
+            .trim()
+            .max(300)
+            .nullable()
+            .optional(),
     })
-        .optional()
+        .optional(),
 })
     .strict();
 export const publicGeneratedDocumentSchema = generatedDocumentSchema
-    .omit({ storagePath: true, payload: true, taxPaymentSnapshot: true, taxXmlSourceSnapshot: true, taxXmlSnapshot: true })
+    .omit({
+    storagePath: true,
+    payload: true,
+    taxPaymentSnapshot: true,
+    taxXmlSourceSnapshot: true,
+    taxXmlSnapshot: true,
+})
     .extend({ chainSummary: documentChainSummarySchema.nullable().optional() });
 export const documentAuditFactsSchema = z.object({
     documentId: z.string().uuid(),
@@ -3507,10 +4044,14 @@ export const documentAuditFactsSchema = z.object({
     issuedAt: z.string().nullable(),
     issuedByUserId: z.string().uuid().nullable(),
     signatureAttestation: documentIssueSignatureAttestationSchema.nullable(),
+    cryptoSignaturePkcs7: z.string().nullable().optional(),
     voidAttestation: documentVoidAttestationSchema.nullable(),
     releaseJournalEntry: documentReleaseJournalEntrySchema.nullable(),
     generatedAt: z.string(),
-    snapshotSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+    snapshotSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .nullable(),
     snapshotCreatedAt: z.string().nullable(),
     immutableSnapshotReady: z.boolean(),
     canPreviewHtml: z.boolean(),
@@ -3521,10 +4062,19 @@ export const documentAuditFactsSchema = z.object({
     htmlDownloadUrl: z.string().nullable(),
     pdfDownloadUrl: z.string().nullable(),
     taxXmlDownloadUrl: z.string().nullable(),
-    taxXmlSourceSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
-    taxXmlSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+    taxXmlSourceSnapshotSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .nullable(),
+    taxXmlSnapshotSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .nullable(),
     taxXmlSnapshotCreatedAt: z.string().nullable(),
-    taxXmlOfficialValidationStatus: z.enum(["not_applicable", "external_validation_required"]),
+    taxXmlOfficialValidationStatus: z.enum([
+        "not_applicable",
+        "external_validation_required",
+    ]),
     taxXmlOfficialValidationNote: z.string().nullable(),
     sourceStatus: documentSourceStatusSchema,
     sourceAuthority: z.string(),
@@ -3533,7 +4083,7 @@ export const documentAuditFactsSchema = z.object({
     sourceCheckedAt: z.string(),
     sourceUrls: z.array(z.string().url()),
     blockers: z.array(z.string()),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const imagingStudySchema = z.object({
     id: z.string().uuid(),
@@ -3552,7 +4102,7 @@ export const imagingStudySchema = z.object({
     status: z.enum(["available", "needs_review", "failed"]),
     aiSummary: z.string().nullable(),
     previewUrl: z.string(),
-    viewerUrl: z.string().nullable()
+    viewerUrl: z.string().nullable(),
 });
 export const importBatchSchema = z.object({
     id: z.string().uuid(),
@@ -3564,7 +4114,7 @@ export const importBatchSchema = z.object({
     skippedRows: z.number().int().nonnegative(),
     warningRows: z.number().int().nonnegative(),
     blockedRows: z.number().int().nonnegative(),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
 export const auditEventSchema = z.object({
     id: z.string().uuid(),
@@ -3574,7 +4124,7 @@ export const auditEventSchema = z.object({
     entityId: z.string(),
     action: z.string(),
     reason: z.string().nullable(),
-    createdAt: z.string()
+    createdAt: z.string(),
 });
 export const dashboardSchema = z.object({
     clinicName: z.string(),
@@ -3607,7 +4157,7 @@ export const dashboardSchema = z.object({
     importBatches: z.array(importBatchSchema),
     speechProviders: z.array(speechProviderSchema),
     auditEvents: z.array(auditEventSchema),
-    complianceWarnings: z.array(z.string())
+    complianceWarnings: z.array(z.string()),
 });
 export const createPatientSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
@@ -3615,35 +4165,43 @@ export const createPatientSchema = z.object({
     phone: patientPhoneInputSchema,
     email: z.string().trim().email().nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
-    administrativeProfile: patientAdministrativeProfileSchema.nullable().optional()
+    administrativeProfile: patientAdministrativeProfileSchema
+        .nullable()
+        .optional(),
 });
 export const updatePatientSchema = z.object({
     fullName: z.string().trim().min(1).max(240).optional(),
     birthDate: birthDateInputSchema,
     phone: patientPhoneInputSchema,
     email: z.string().trim().email().nullable().optional(),
-    notes: z.string().trim().max(1000).nullable().optional()
+    notes: z.string().trim().max(1000).nullable().optional(),
 });
-export const updatePatientAdministrativeProfileSchema = patientAdministrativeProfileBaseSchema.partial().superRefine((value, context) => {
-    if ((value.preferredAppointmentStart && !value.preferredAppointmentEnd) || (!value.preferredAppointmentStart && value.preferredAppointmentEnd)) {
+export const updatePatientAdministrativeProfileSchema = patientAdministrativeProfileBaseSchema
+    .partial()
+    .superRefine((value, context) => {
+    if ((value.preferredAppointmentStart && !value.preferredAppointmentEnd) ||
+        (!value.preferredAppointmentStart && value.preferredAppointmentEnd)) {
         context.addIssue({
             code: "custom",
-            path: value.preferredAppointmentStart ? ["preferredAppointmentEnd"] : ["preferredAppointmentStart"],
-            message: "Начало и конец удобного времени приема нужно указывать вместе"
+            path: value.preferredAppointmentStart
+                ? ["preferredAppointmentEnd"]
+                : ["preferredAppointmentStart"],
+            message: "Начало и конец удобного времени приема нужно указывать вместе",
         });
     }
     if (value.preferredAppointmentStart &&
         value.preferredAppointmentEnd &&
-        clockTimeToMinutes(value.preferredAppointmentEnd) <= clockTimeToMinutes(value.preferredAppointmentStart)) {
+        clockTimeToMinutes(value.preferredAppointmentEnd) <=
+            clockTimeToMinutes(value.preferredAppointmentStart)) {
         context.addIssue({
             code: "custom",
             path: ["preferredAppointmentEnd"],
-            message: "Конец удобного времени приема должен быть позже начала"
+            message: "Конец удобного времени приема должен быть позже начала",
         });
     }
 });
 export const updateClinicModeSchema = z.object({
-    mode: clinicModeSchema
+    mode: clinicModeSchema,
 });
 export const updateClinicProfileSchema = z.object({
     clinicName: z.string().trim().min(1).max(240).optional(),
@@ -3685,7 +4243,7 @@ export const updateClinicProfileSchema = z.object({
     currency: z.string().max(10).optional(),
     themeColor: z.string().max(100).optional(),
     logoUrl: z.string().url().nullable().optional(),
-    stampUrl: z.string().url().nullable().optional()
+    stampUrl: z.string().url().nullable().optional(),
 });
 export const createStaffMemberSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
@@ -3693,13 +4251,13 @@ export const createStaffMemberSchema = z.object({
     specialties: z.array(dentalSpecialtySchema).min(1).default(["universal"]),
     phone: z.string().trim().max(80).nullable().optional(),
     email: z.string().trim().email().max(240).nullable().optional(),
-    workingHours: staffWorkingHoursSchema.nullable().optional()
+    workingHours: staffWorkingHoursSchema.nullable().optional(),
 });
 export const updateStaffWorkingHoursSchema = z.object({
-    workingHours: staffWorkingHoursSchema
+    workingHours: staffWorkingHoursSchema,
 });
 export const updateChairWorkingHoursSchema = z.object({
-    workingHours: staffWorkingHoursSchema
+    workingHours: staffWorkingHoursSchema,
 });
 export const createChairSchema = z.object({
     name: z.string().trim().min(1).max(120),
@@ -3709,7 +4267,7 @@ export const createChairSchema = z.object({
     hasMicroscope: z.boolean().default(false),
     hasSurgeryKit: z.boolean().default(false),
     notes: z.string().trim().max(500).nullable().optional(),
-    workingHours: staffWorkingHoursSchema.nullable().optional()
+    workingHours: staffWorkingHoursSchema.nullable().optional(),
 });
 export const createDocumentSchema = z
     .object({
@@ -3718,14 +4276,20 @@ export const createDocumentSchema = z
     kind: documentKindSchema,
     title: z.string().trim().min(1).max(240).optional(),
     totalAmountRub: z.number().int().nonnegative().nullable().optional(),
-    taxYear: z.number().int().min(legacyTaxDeductionCertificateMinYear).max(2100).nullable().optional(),
+    taxYear: z
+        .number()
+        .int()
+        .min(legacyTaxDeductionCertificateMinYear)
+        .max(2100)
+        .nullable()
+        .optional(),
     taxPayerInn: z
         .string()
         .trim()
         .regex(/^\d{10}$|^\d{12}$/)
         .nullable()
         .optional(),
-    payload: documentPayloadSchema.nullable().optional()
+    payload: documentPayloadSchema.nullable().optional(),
 })
     .superRefine((input, context) => {
     const disallowedKeys = documentPayloadDisallowedKeys(input.kind, input.payload);
@@ -3735,7 +4299,7 @@ export const createDocumentSchema = z
     context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["payload"],
-        message: `Структурированные данные не соответствуют документу "${documentLabel}": ${disallowedKeys.join(", ")}`
+        message: `Структурированные данные не соответствуют документу "${documentLabel}": ${disallowedKeys.join(", ")}`,
     });
 });
 export const createPaymentSchema = z
@@ -3746,17 +4310,24 @@ export const createPaymentSchema = z
     amountRub: z.number().int().positive(),
     method: paymentMethodSchema.default("card"),
     fiscalReceiptNumber: z.string().trim().max(120).nullable().optional(),
-    fiscalReceiptIssuedAt: strictFiscalReceiptIssuedAtSchema.nullable().optional(),
+    fiscalReceiptIssuedAt: strictFiscalReceiptIssuedAtSchema
+        .nullable()
+        .optional(),
     fiscalReceiptUrl: fiscalReceiptUrlSchema.nullable().optional(),
     fiscalReceipt: fiscalReceiptDetailsSchema.nullable().optional(),
     clientMutationId: z.string().trim().min(1).max(120).nullable().optional(),
     payerFullName: z.string().trim().max(240).nullable().optional(),
-    payerInn: z.string().trim().regex(/^\d{10}$|^\d{12}$/).nullable().optional(),
+    payerInn: z
+        .string()
+        .trim()
+        .regex(/^\d{10}$|^\d{12}$/)
+        .nullable()
+        .optional(),
     payerBirthDate: birthDateInputSchema,
     payerIdentityDocument: z.string().trim().max(240).nullable().optional(),
     payerRelationship: z.string().trim().max(120).nullable().optional(),
     taxDeductionCode: z.enum(["1", "2"]).nullable().optional(),
-    note: z.string().nullable().optional()
+    note: z.string().nullable().optional(),
 })
     .superRefine((input, context) => {
     const fiscalReceiptIssuedAt = input.fiscalReceiptIssuedAt?.trim();
@@ -3764,23 +4335,25 @@ export const createPaymentSchema = z
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["fiscalReceiptIssuedAt"],
-            message: "Дата фискального чека должна быть реальной календарной датой."
+            message: "Дата фискального чека должна быть реальной календарной датой.",
         });
     }
     if (input.fiscalReceipt?.operationType === "income_return") {
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["fiscalReceipt", "operationType"],
-            message: "Возвратный фискальный чек нельзя записывать как новую оплату."
+            message: "Возвратный фискальный чек нельзя записывать как новую оплату.",
         });
     }
     const fiscalReceiptUrl = input.fiscalReceiptUrl?.trim();
     const structuredReceiptUrl = input.fiscalReceipt?.receiptUrl?.trim();
-    if (fiscalReceiptUrl && structuredReceiptUrl && fiscalReceiptUrl !== structuredReceiptUrl) {
+    if (fiscalReceiptUrl &&
+        structuredReceiptUrl &&
+        fiscalReceiptUrl !== structuredReceiptUrl) {
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["fiscalReceipt", "receiptUrl"],
-            message: "Ссылка ОФД в реквизитах чека должна совпадать с основной ссылкой ОФД."
+            message: "Ссылка ОФД в реквизитах чека должна совпадать с основной ссылкой ОФД.",
         });
     }
     if (!input.taxDeductionCode)
@@ -3790,7 +4363,7 @@ export const createPaymentSchema = z
         ["payerFullName", "ФИО плательщика"],
         ["payerBirthDate", "дата рождения плательщика"],
         ["payerIdentityDocument", "документ плательщика"],
-        ["payerRelationship", "родство плательщика с пациентом"]
+        ["payerRelationship", "родство плательщика с пациентом"],
     ];
     for (const [field, label] of requiredTaxFields) {
         const value = input[field];
@@ -3799,14 +4372,14 @@ export const createPaymentSchema = z
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: [field],
-            message: `Для налоговой оплаты нужен явный ввод: ${label}.`
+            message: `Для налоговой оплаты нужен явный ввод: ${label}.`,
         });
     }
     const fiscalReceipt = input.fiscalReceipt;
     const requiredFiscalReceiptFields = [
         ["fn", "ФН"],
         ["fd", "ФД"],
-        ["fpd", "ФПД"]
+        ["fpd", "ФПД"],
     ];
     for (const [field, label] of requiredFiscalReceiptFields) {
         const value = fiscalReceipt?.[field];
@@ -3815,14 +4388,14 @@ export const createPaymentSchema = z
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["fiscalReceipt", field],
-            message: `Для налоговой оплаты укажите реквизит фискального чека: ${label}.`
+            message: `Для налоговой оплаты укажите реквизит фискального чека: ${label}.`,
         });
     }
 });
 export const completeCommunicationTaskSchema = z.object({
     taskId: z.string().uuid(),
     outcome: communicationTaskOutcomeSchema.optional(),
-    note: z.string().trim().min(1).max(1000).optional()
+    note: z.string().trim().min(1).max(1000).optional(),
 });
 export const createImagingStudySchema = z.object({
     patientId: z.string().uuid(),
@@ -3836,12 +4409,12 @@ export const createImagingStudySchema = z.object({
     storagePath: z.string().trim().min(1).max(2048).nullable().optional(),
     dicomStudyUid: z.string().trim().min(1).max(128).nullable().optional(),
     capturedAt: z.string().optional(),
-    aiSummary: z.string().trim().max(2000).nullable().optional()
+    aiSummary: z.string().trim().max(2000).nullable().optional(),
 });
 export const imagingImportPreviewRequestSchema = z.object({
     sourceName: z.string().trim().min(1).max(160).default("imaging_manifest"),
     sourceKind: imagingSourceKindSchema.default("folder_watch"),
-    rawText: z.string().trim().min(1).max(120000)
+    rawText: z.string().trim().min(1).max(120000),
 });
 export const imagingImportPreviewRowSchema = z.object({
     rowNumber: z.number().int().positive(),
@@ -3857,7 +4430,7 @@ export const imagingImportPreviewRowSchema = z.object({
     sourceKind: imagingSourceKindSchema,
     sourceName: z.string(),
     status: z.enum(["ready", "warning", "blocked"]),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const imagingImportPreviewResponseSchema = z.object({
     sourceName: z.string(),
@@ -3867,7 +4440,7 @@ export const imagingImportPreviewResponseSchema = z.object({
     warningRows: z.number().int().nonnegative(),
     blockedRows: z.number().int().nonnegative(),
     rows: z.array(imagingImportPreviewRowSchema),
-    parserNotes: z.array(z.string())
+    parserNotes: z.array(z.string()),
 });
 export const imagingImportCommitResponseSchema = z.object({
     sourceName: z.string(),
@@ -3875,7 +4448,7 @@ export const imagingImportCommitResponseSchema = z.object({
     importedCount: z.number().int().nonnegative(),
     skippedCount: z.number().int().nonnegative(),
     createdStudyIds: z.array(z.string().uuid()),
-    preview: imagingImportPreviewResponseSchema
+    preview: imagingImportPreviewResponseSchema,
 });
 export const imagingFolderScanRequestSchema = z.object({
     folderPath: z.string().min(1),
@@ -3883,7 +4456,7 @@ export const imagingFolderScanRequestSchema = z.object({
     sourceName: z.string().min(1).default("folder_scan"),
     maxFiles: z.number().int().positive().max(5000).default(500),
     maxFolders: z.number().int().positive().max(3000).default(900),
-    maxEntriesPerFolder: z.number().int().positive().max(10000).default(2000)
+    maxEntriesPerFolder: z.number().int().positive().max(10000).default(2000),
 });
 export const imagingFolderScanResponseSchema = z.object({
     folderPath: z.string(),
@@ -3892,9 +4465,14 @@ export const imagingFolderScanResponseSchema = z.object({
     filesReturned: z.number().int().nonnegative(),
     rawText: z.string(),
     preview: imagingImportPreviewResponseSchema,
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const dicomSeriesViewerSchema = z.enum(["none", "two_d_stack", "cbct_mpr", "external_dicom"]);
+export const dicomSeriesViewerSchema = z.enum([
+    "none",
+    "two_d_stack",
+    "cbct_mpr",
+    "external_dicom",
+]);
 export const dicomMprProjectionSchema = z.enum([
     "axial",
     "coronal",
@@ -3902,7 +4480,7 @@ export const dicomMprProjectionSchema = z.enum([
     "oblique",
     "panoramic_reconstruction",
     "three_d_volume",
-    "mip"
+    "mip",
 ]);
 export const dicomMprToolSchema = z.enum([
     "window_level",
@@ -3926,17 +4504,27 @@ export const dicomMprToolSchema = z.enum([
     "surgical_guide",
     "reset",
     "export_snapshot",
-    "external_open"
+    "external_open",
 ]);
-export const dicomMprResourceTierSchema = z.enum(["low_end", "standard", "workstation", "diagnostic_workstation"]);
+export const dicomMprResourceTierSchema = z.enum([
+    "low_end",
+    "standard",
+    "workstation",
+    "diagnostic_workstation",
+]);
 export const dicomMprLoadStrategySchema = z.enum([
     "metadata_only",
     "two_d_stack_stream",
     "mpr_downsampled",
     "mpr_full",
-    "external_handoff"
+    "external_handoff",
 ]);
-export const dicomMprCacheModeSchema = z.enum(["none", "metadata_only", "bounded_disk", "dicomweb_stream"]);
+export const dicomMprCacheModeSchema = z.enum([
+    "none",
+    "metadata_only",
+    "bounded_disk",
+    "dicomweb_stream",
+]);
 export const dicomMprResourcePolicySchema = z.object({
     requiredTier: dicomMprResourceTierSchema,
     loadStrategy: dicomMprLoadStrategySchema,
@@ -3946,25 +4534,31 @@ export const dicomMprResourcePolicySchema = z.object({
     downsampleRecommended: z.boolean(),
     cacheMode: dicomMprCacheModeSchema,
     safetyCaps: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomMprReadinessSchema = z.object({
     volumeCandidate: z.boolean(),
     canOpenMpr: z.boolean(),
     canBuildPanoramic: z.boolean(),
-    recommendedLayout: z.enum(["none", "two_d_stack", "mpr_3up", "mpr_4up", "external_only"]),
+    recommendedLayout: z.enum([
+        "none",
+        "two_d_stack",
+        "mpr_3up",
+        "mpr_4up",
+        "external_only",
+    ]),
     minSliceCount: z.number().int().positive(),
     projections: z.array(dicomMprProjectionSchema),
     tools: z.array(dicomMprToolSchema),
     resourcePolicy: dicomMprResourcePolicySchema,
     blockers: z.array(z.string()),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomSeriesPreviewRequestSchema = z.object({
     sourceName: z.string().min(1).default("dicom_series_manifest"),
     sourceKind: imagingSourceKindSchema.default("dicom_file"),
-    rawText: z.string().min(1)
+    rawText: z.string().min(1),
 });
 export const dicomSeriesPreviewRowSchema = z.object({
     rowNumber: z.number().int().positive(),
@@ -3989,7 +4583,7 @@ export const dicomSeriesPreviewRowSchema = z.object({
     sourceKind: imagingSourceKindSchema,
     sourceName: z.string(),
     status: z.enum(["ready", "warning", "blocked"]),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomSeriesPreviewGroupSchema = z.object({
     id: z.string(),
@@ -4014,7 +4608,7 @@ export const dicomSeriesPreviewGroupSchema = z.object({
     recommendedViewer: dicomSeriesViewerSchema,
     mprReadiness: dicomMprReadinessSchema,
     status: z.enum(["ready", "warning", "blocked"]),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomSeriesPreviewResponseSchema = z.object({
     sourceName: z.string(),
@@ -4026,7 +4620,7 @@ export const dicomSeriesPreviewResponseSchema = z.object({
     blockedSeries: z.number().int().nonnegative(),
     rows: z.array(dicomSeriesPreviewRowSchema),
     series: z.array(dicomSeriesPreviewGroupSchema),
-    parserNotes: z.array(z.string())
+    parserNotes: z.array(z.string()),
 });
 export const dicomFolderSeriesPreviewRequestSchema = z.object({
     folderPath: z.string().min(1),
@@ -4035,7 +4629,12 @@ export const dicomFolderSeriesPreviewRequestSchema = z.object({
     maxFiles: z.number().int().positive().max(5000).default(800),
     maxFolders: z.number().int().positive().max(3000).default(900),
     maxEntriesPerFolder: z.number().int().positive().max(10000).default(2000),
-    maxHeaderBytes: z.number().int().positive().max(1024 * 1024).default(256 * 1024)
+    maxHeaderBytes: z
+        .number()
+        .int()
+        .positive()
+        .max(1024 * 1024)
+        .default(256 * 1024),
 });
 export const dicomFolderSeriesPreviewResponseSchema = z.object({
     folderPath: z.string(),
@@ -4045,7 +4644,7 @@ export const dicomFolderSeriesPreviewResponseSchema = z.object({
     metadataRows: z.number().int().nonnegative(),
     rawText: z.string(),
     preview: dicomSeriesPreviewResponseSchema,
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomFirstFramePreviewRequestSchema = z.object({
     folderPath: z.string().min(1),
@@ -4053,11 +4652,20 @@ export const dicomFirstFramePreviewRequestSchema = z.object({
     maxFiles: z.number().int().positive().max(500).default(80),
     maxFolders: z.number().int().positive().max(3000).default(900),
     maxEntriesPerFolder: z.number().int().positive().max(10000).default(2000),
-    maxFileBytes: z.number().int().positive().max(256 * 1024 * 1024).default(64 * 1024 * 1024),
+    maxFileBytes: z
+        .number()
+        .int()
+        .positive()
+        .max(256 * 1024 * 1024)
+        .default(64 * 1024 * 1024),
     maxPreviewEdge: z.number().int().min(128).max(1024).default(512),
-    preferredFileIndex: z.number().int().nonnegative().optional()
+    preferredFileIndex: z.number().int().nonnegative().optional(),
 });
-export const dicomFirstFramePreviewStatusSchema = z.enum(["ready", "unsupported", "not_found"]);
+export const dicomFirstFramePreviewStatusSchema = z.enum([
+    "ready",
+    "unsupported",
+    "not_found",
+]);
 export const dicomFirstFramePreviewResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-first-frame-preview-v1"),
     generatedAt: z.string(),
@@ -4080,7 +4688,7 @@ export const dicomFirstFramePreviewResponseSchema = z.object({
     windowWidth: z.number().positive().nullable(),
     imageDataUrl: z.string().nullable(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomLocalFolderDiscoveryRequestSchema = z.object({
     rootPaths: z.array(z.string().min(1)).max(12).optional(),
@@ -4088,7 +4696,7 @@ export const dicomLocalFolderDiscoveryRequestSchema = z.object({
     maxFolders: z.number().int().positive().max(3000).default(900),
     maxFilesPerFolder: z.number().int().positive().max(500).default(120),
     minDicomFiles: z.number().int().positive().max(20).default(2),
-    maxCandidates: z.number().int().positive().max(50).default(12)
+    maxCandidates: z.number().int().positive().max(50).default(12),
 });
 export const dicomLocalFolderDiscoveryCandidateSchema = z.object({
     folderPath: z.string(),
@@ -4106,7 +4714,7 @@ export const dicomLocalFolderDiscoveryCandidateSchema = z.object({
     firstFilePath: z.string().nullable(),
     confidence: z.number().min(0).max(1),
     reasons: z.array(z.string()),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomLocalFolderDiscoveryResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-local-discovery-v1"),
@@ -4115,9 +4723,18 @@ export const dicomLocalFolderDiscoveryResponseSchema = z.object({
     scannedFolders: z.number().int().nonnegative(),
     candidates: z.array(dicomLocalFolderDiscoveryCandidateSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const dentalModelFileFormatSchema = z.enum(["stl", "obj", "ply", "glb", "gltf", "3mf", "zip_archive", "unknown"]);
+export const dentalModelFileFormatSchema = z.enum([
+    "stl",
+    "obj",
+    "ply",
+    "glb",
+    "gltf",
+    "3mf",
+    "zip_archive",
+    "unknown",
+]);
 export const dentalModelFileRoleSchema = z.enum([
     "upper_arch",
     "lower_arch",
@@ -4132,7 +4749,7 @@ export const dentalModelFileRoleSchema = z.enum([
     "surgical_guide",
     "aligner",
     "scan_body",
-    "unknown"
+    "unknown",
 ]);
 export const dentalModelFileCandidateSchema = z.object({
     filePath: z.string(),
@@ -4141,18 +4758,41 @@ export const dentalModelFileCandidateSchema = z.object({
     role: dentalModelFileRoleSchema,
     sizeBytes: z.number().int().nonnegative(),
     confidence: z.number().min(0).max(1),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const dentalModelWorkbenchLoadTargetSchema = z.enum(["metadata_only", "external_model_viewer", "local_bridge"]);
-export const dentalModelWorkbenchPairingHintSchema = z.enum(["same_folder_ct_series", "model_only_folder", "unknown"]);
-export const ctSurfaceModelSourceKindSchema = z.enum(["imported_surface_file", "external_local_bridge", "manual_contour", "unknown"]);
-export const ctSurfaceModelReadinessSchema = z.enum(["metadata_only", "pending_local_bridge", "ready_external", "blocked"]);
-export const ctSurfaceModelRegistrationStatusSchema = z.enum(["same_folder_inferred", "registered", "unregistered", "unknown"]);
+export const dentalModelWorkbenchLoadTargetSchema = z.enum([
+    "metadata_only",
+    "external_model_viewer",
+    "local_bridge",
+]);
+export const dentalModelWorkbenchPairingHintSchema = z.enum([
+    "same_folder_ct_series",
+    "model_only_folder",
+    "unknown",
+]);
+export const ctSurfaceModelSourceKindSchema = z.enum([
+    "imported_surface_file",
+    "external_local_bridge",
+    "manual_contour",
+    "unknown",
+]);
+export const ctSurfaceModelReadinessSchema = z.enum([
+    "metadata_only",
+    "pending_local_bridge",
+    "ready_external",
+    "blocked",
+]);
+export const ctSurfaceModelRegistrationStatusSchema = z.enum([
+    "same_folder_inferred",
+    "registered",
+    "unregistered",
+    "unknown",
+]);
 export const ctSurfaceModelSourceSeriesRefSchema = z.object({
     folderFingerprint: z.string(),
     pairingHint: dentalModelWorkbenchPairingHintSchema,
     studyInstanceUid: z.string().nullable(),
-    seriesInstanceUid: z.string().nullable()
+    seriesInstanceUid: z.string().nullable(),
 });
 export const ctSurfaceModelManifestSchema = z.object({
     role: dentalModelFileRoleSchema,
@@ -4165,14 +4805,16 @@ export const ctSurfaceModelManifestSchema = z.object({
     loadTarget: dentalModelWorkbenchLoadTargetSchema,
     sizeMb: z.number().int().nonnegative(),
     checksum: z.string().nullable(),
-    meshStats: z.object({
+    meshStats: z
+        .object({
         vertices: z.number().int().nonnegative().nullable(),
         triangles: z.number().int().nonnegative().nullable(),
-        decimation: z.string().nullable()
-    }).nullable(),
+        decimation: z.string().nullable(),
+    })
+        .nullable(),
     containsMeshGeometry: z.literal(false),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dentalModelWorkbenchItemSchema = z.object({
     fileName: z.string(),
@@ -4184,7 +4826,7 @@ export const dentalModelWorkbenchItemSchema = z.object({
     pairingHint: dentalModelWorkbenchPairingHintSchema,
     ctSurfaceManifest: ctSurfaceModelManifestSchema.nullable(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dentalModelWorkbenchManifestSchema = z.object({
     version: z.literal("dental-crm-model-workbench-v1"),
@@ -4195,7 +4837,7 @@ export const dentalModelWorkbenchManifestSchema = z.object({
     recommendedTarget: dentalModelWorkbenchLoadTargetSchema,
     items: z.array(dentalModelWorkbenchItemSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const localImagingOrganizerRequestSchema = z.object({
     rootPaths: z.array(z.string().min(1)).max(12).optional(),
@@ -4204,13 +4846,13 @@ export const localImagingOrganizerRequestSchema = z.object({
     maxFilesPerFolder: z.number().int().positive().max(800).default(180),
     maxCandidates: z.number().int().positive().max(50).default(12),
     includeDentalModels: z.boolean().default(true),
-    includeDicom: z.boolean().default(true)
+    includeDicom: z.boolean().default(true),
 });
 export const localImagingOrganizerRecommendedActionSchema = z.enum([
     "open_ct_workup",
     "review_3d_models",
     "mixed_case_workup",
-    "manual_review"
+    "manual_review",
 ]);
 export const localImagingOrganizerCaseSchema = z.object({
     id: z.string(),
@@ -4232,7 +4874,7 @@ export const localImagingOrganizerCaseSchema = z.object({
     modelCandidates: z.array(dentalModelFileCandidateSchema),
     modelWorkbenchManifest: dentalModelWorkbenchManifestSchema,
     reasons: z.array(z.string()),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const localImagingOrganizerResponseSchema = z.object({
     version: z.literal("dental-crm-local-imaging-organizer-v1"),
@@ -4241,10 +4883,20 @@ export const localImagingOrganizerResponseSchema = z.object({
     scannedFolders: z.number().int().nonnegative(),
     cases: z.array(localImagingOrganizerCaseSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const dicomWebAuthModeSchema = z.enum(["none", "bearer", "basic", "reverse_proxy"]);
-export const dicomWebConnectorStatusSchema = z.enum(["ready", "auth_required", "unreachable", "misconfigured"]);
+export const dicomWebAuthModeSchema = z.enum([
+    "none",
+    "bearer",
+    "basic",
+    "reverse_proxy",
+]);
+export const dicomWebConnectorStatusSchema = z.enum([
+    "ready",
+    "auth_required",
+    "unreachable",
+    "misconfigured",
+]);
 export const dicomWebConnectorCheckRequestSchema = z.object({
     endpointUrl: z.string().url(),
     qidoRsPath: z.string().min(1).default("/studies"),
@@ -4253,7 +4905,7 @@ export const dicomWebConnectorCheckRequestSchema = z.object({
     studyInstanceUid: z.string().max(128).nullable().optional(),
     seriesInstanceUid: z.string().max(128).nullable().optional(),
     authMode: dicomWebAuthModeSchema.default("reverse_proxy"),
-    timeoutMs: z.number().int().positive().max(30_000).default(5_000)
+    timeoutMs: z.number().int().positive().max(30_000).default(5_000),
 });
 export const dicomWebConnectorCheckResponseSchema = z.object({
     endpointOrigin: z.string(),
@@ -4268,9 +4920,14 @@ export const dicomWebConnectorCheckResponseSchema = z.object({
     qidoHttpStatus: z.number().int().nullable(),
     latencyMs: z.number().int().nonnegative(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const imagingViewerModeSchema = z.enum(["two_d", "stack", "mpr", "photo"]);
+export const imagingViewerModeSchema = z.enum([
+    "two_d",
+    "stack",
+    "mpr",
+    "photo",
+]);
 export const imagingViewerWindowPresetSchema = z.enum([
     "bone",
     "soft_tissue",
@@ -4279,7 +4936,7 @@ export const imagingViewerWindowPresetSchema = z.enum([
     "caries",
     "perio",
     "photo",
-    "custom"
+    "custom",
 ]);
 export const imagingViewerToolSchema = z.enum([
     "window_level",
@@ -4298,7 +4955,7 @@ export const imagingViewerToolSchema = z.enum([
     "panoramic_curve",
     "bone_density_probe",
     "surgical_guide",
-    "reset"
+    "reset",
 ]);
 export const imagingViewerAnnotationTypeSchema = z.enum([
     "note",
@@ -4312,14 +4969,19 @@ export const imagingViewerAnnotationTypeSchema = z.enum([
     "panoramic_curve",
     "bone_density_probe",
     "surgical_guide",
-    "landmark"
+    "landmark",
 ]);
-export const imagingViewerAnnotationSemanticRoleSchema = z.enum(["ridge_width", "bone_height", "clearance", "generic"]);
+export const imagingViewerAnnotationSemanticRoleSchema = z.enum([
+    "ridge_width",
+    "bone_height",
+    "clearance",
+    "generic",
+]);
 export const imagingViewerPointSchema = z.object({
     x: z.number(),
     y: z.number(),
     z: z.number().nullable().optional(),
-    plane: dicomMprProjectionSchema.nullable().optional()
+    plane: dicomMprProjectionSchema.nullable().optional(),
 });
 export const imagingViewerImplantPlanSchema = z.object({
     itemId: z.string().min(1).max(120),
@@ -4332,7 +4994,7 @@ export const imagingViewerImplantPlanSchema = z.object({
     selectedAt: z.string().nullable().default(null),
     sleeveHeightMm: z.number().positive().optional(),
     sleeveDiameterMm: z.number().positive().optional(),
-    sleeveOffsetMm: z.number().positive().optional()
+    sleeveOffsetMm: z.number().positive().optional(),
 });
 export const imagingViewerSessionStateSchema = z.object({
     mode: imagingViewerModeSchema,
@@ -4355,7 +5017,7 @@ export const imagingViewerSessionStateSchema = z.object({
     slabMm: z.number().positive().max(100),
     crosshair: z.boolean(),
     linkedPlanes: z.boolean(),
-    implantPlan: imagingViewerImplantPlanSchema.nullable().default(null)
+    implantPlan: imagingViewerImplantPlanSchema.nullable().default(null),
 });
 export const imagingViewerAnnotationSchema = z.object({
     id: z.string().min(1).max(120),
@@ -4369,14 +5031,14 @@ export const imagingViewerAnnotationSchema = z.object({
     note: z.string().max(1000).nullable(),
     createdByUserId: z.string().uuid().nullable(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const saveImagingViewerSessionRequestSchema = z.object({
     patientId: z.string().uuid(),
     visitId: z.string().uuid().nullable().optional(),
     state: imagingViewerSessionStateSchema,
     annotations: z.array(imagingViewerAnnotationSchema).max(200).default([]),
-    clientSavedAt: z.string().nullable().optional()
+    clientSavedAt: z.string().nullable().optional(),
 });
 export const imagingViewerSessionSchema = z.object({
     id: z.string().uuid(),
@@ -4390,15 +5052,31 @@ export const imagingViewerSessionSchema = z.object({
     serverSavedAt: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const imagingViewerSessionResponseSchema = z.object({
     session: imagingViewerSessionSchema,
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const dicomViewerKindSchema = z.enum(["ohif", "cornerstone3d", "weasis", "radiant", "external_url"]);
-export const dicomViewerLaunchModeSchema = z.enum(["dicomweb_url", "local_manifest", "external_handoff", "blocked"]);
-export const dicomViewerDataSourceKindSchema = z.enum(["dicomweb", "local_files", "external_viewer", "none"]);
+export const dicomViewerKindSchema = z.enum([
+    "ohif",
+    "cornerstone3d",
+    "weasis",
+    "radiant",
+    "external_url",
+]);
+export const dicomViewerLaunchModeSchema = z.enum([
+    "dicomweb_url",
+    "local_manifest",
+    "external_handoff",
+    "blocked",
+]);
+export const dicomViewerDataSourceKindSchema = z.enum([
+    "dicomweb",
+    "local_files",
+    "external_viewer",
+    "none",
+]);
 export const dicomViewerLaunchManifestRequestSchema = z.object({
     viewerKind: dicomViewerKindSchema.default("ohif"),
     series: dicomSeriesPreviewGroupSchema,
@@ -4407,7 +5085,7 @@ export const dicomViewerLaunchManifestRequestSchema = z.object({
     dicomWebBaseUrl: z.string().url().nullable().optional(),
     ohifBaseUrl: z.string().url().nullable().optional(),
     externalViewerPath: z.string().max(1000).nullable().optional(),
-    allowExternalHandoff: z.boolean().default(true)
+    allowExternalHandoff: z.boolean().default(true),
 });
 export const dicomViewerLaunchManifestResponseSchema = z.object({
     viewerKind: dicomViewerKindSchema,
@@ -4423,24 +5101,38 @@ export const dicomViewerLaunchManifestResponseSchema = z.object({
         studyInstanceUid: z.string().nullable(),
         seriesInstanceUid: z.string().nullable(),
         sourceKind: imagingSourceKindSchema,
-        sourceName: z.string()
+        sourceName: z.string(),
     }),
     displaySetSelector: z.object({
         preferredLayout: dicomMprReadinessSchema.shape.recommendedLayout,
         projections: z.array(dicomMprProjectionSchema),
         studyInstanceUid: z.string().nullable(),
-        seriesInstanceUid: z.string().nullable()
+        seriesInstanceUid: z.string().nullable(),
     }),
     cornerstoneVolumeId: z.string().nullable(),
     resourcePolicy: dicomMprResourcePolicySchema,
     viewerState: imagingViewerSessionStateSchema.nullable(),
     annotations: z.array(imagingViewerAnnotationSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const dicomViewerToolStateTargetSchema = z.enum(["cornerstone3d", "ohif", "generic_json", "external_viewer"]);
-export const dicomViewerViewportTypeSchema = z.enum(["stack", "volume", "derived"]);
-export const dicomViewerToolModeSchema = z.enum(["active", "passive", "enabled", "disabled"]);
+export const dicomViewerToolStateTargetSchema = z.enum([
+    "cornerstone3d",
+    "ohif",
+    "generic_json",
+    "external_viewer",
+]);
+export const dicomViewerViewportTypeSchema = z.enum([
+    "stack",
+    "volume",
+    "derived",
+]);
+export const dicomViewerToolModeSchema = z.enum([
+    "active",
+    "passive",
+    "enabled",
+    "disabled",
+]);
 export const dicomViewerTargetToolSchema = z.enum([
     "WindowLevelTool",
     "PanTool",
@@ -4454,14 +5146,14 @@ export const dicomViewerTargetToolSchema = z.enum([
     "BidirectionalTool",
     "SplineROITool",
     "PlanarFreehandROITool",
-    "ProbeTool"
+    "ProbeTool",
 ]);
 export const dicomViewerToolConfigSchema = z.object({
     crmTool: imagingViewerToolSchema,
     targetTool: dicomViewerTargetToolSchema,
     mode: dicomViewerToolModeSchema,
     shortcut: z.string().max(20).nullable(),
-    reason: z.string()
+    reason: z.string(),
 });
 export const dicomViewerViewportStateSchema = z.object({
     viewportId: z.string(),
@@ -4478,13 +5170,13 @@ export const dicomViewerViewportStateSchema = z.object({
     slabMm: z.number().positive().max(100),
     axisDeg: z.number().min(-180).max(180),
     crosshair: z.boolean(),
-    linkedPlanes: z.boolean()
+    linkedPlanes: z.boolean(),
 });
 export const dicomViewerToolStatePointSchema = z.object({
     world: z.tuple([z.number(), z.number(), z.number()]),
     canvas: z.tuple([z.number(), z.number()]).nullable(),
     plane: dicomMprProjectionSchema.nullable(),
-    sourceIndex: z.number().int().nonnegative()
+    sourceIndex: z.number().int().nonnegative(),
 });
 export const dicomViewerToolStateAnnotationSchema = z.object({
     id: z.string(),
@@ -4500,12 +5192,12 @@ export const dicomViewerToolStateAnnotationSchema = z.object({
     referencedImageId: z.string().nullable(),
     measurement: z.object({
         value: z.number().nullable(),
-        unit: z.string().nullable()
+        unit: z.string().nullable(),
     }),
     points: z.array(dicomViewerToolStatePointSchema).max(64),
     locked: z.boolean(),
     needsReview: z.boolean(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomViewerPlanningTaskKindSchema = z.enum([
     "panoramic_reconstruction",
@@ -4518,7 +5210,7 @@ export const dicomViewerPlanningTaskKindSchema = z.enum([
     "implant_library",
     "nerve_canal",
     "bone_density_probe",
-    "surgical_guide"
+    "surgical_guide",
 ]);
 export const dicomViewerPlanningTaskSchema = z.object({
     id: z.string(),
@@ -4534,10 +5226,20 @@ export const dicomViewerPlanningTaskSchema = z.object({
     outputUnit: z.string().max(40).nullable(),
     implantPlan: imagingViewerImplantPlanSchema.nullable().default(null),
     reason: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
-export const dicomClientRuntimeSurfaceSchema = z.enum(["mobile_web", "tablet_web", "desktop_web", "desktop_app", "unknown"]);
-export const dicomDirectoryHandlePersistenceSchema = z.enum(["unsupported", "session_only", "persisted_handle"]);
+export const dicomClientRuntimeSurfaceSchema = z.enum([
+    "mobile_web",
+    "tablet_web",
+    "desktop_web",
+    "desktop_app",
+    "unknown",
+]);
+export const dicomDirectoryHandlePersistenceSchema = z.enum([
+    "unsupported",
+    "session_only",
+    "persisted_handle",
+]);
 export const dicomWorkstationClientFactsSchema = z.object({
     deviceMemoryGb: z.number().positive().nullable(),
     hardwareConcurrency: z.number().int().positive().nullable(),
@@ -4559,15 +5261,19 @@ export const dicomWorkstationClientFactsSchema = z.object({
     directoryPickerSupported: z.boolean().optional(),
     directoryHandlePersistence: dicomDirectoryHandlePersistenceSchema.optional(),
     userAgent: z.string().max(300).nullable().optional(),
-    platform: z.string().max(120).nullable().optional()
+    platform: z.string().max(120).nullable().optional(),
 });
-export const dicomClientNetworkModeSchema = z.enum(["online", "offline_local", "offline_remote_blocked"]);
+export const dicomClientNetworkModeSchema = z.enum([
+    "online",
+    "offline_local",
+    "offline_remote_blocked",
+]);
 export const dicomClientExecutionLaneSchema = z.enum([
     "metadata_only",
     "external_or_local_viewer",
     "browser_preview",
     "browser_mpr",
-    "desktop_app_mpr"
+    "desktop_app_mpr",
 ]);
 export const dicomClientRuntimeProfileSchema = z.object({
     surface: dicomClientRuntimeSurfaceSchema,
@@ -4580,35 +5286,47 @@ export const dicomClientRuntimeProfileSchema = z.object({
     canUseBrowserMpr: z.boolean(),
     label: z.string(),
     nextAction: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomWorkstationReadinessCheckSchema = z.object({
     id: z.string(),
     label: z.string(),
     status: z.enum(["pass", "warn", "fail"]),
     detail: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const dicomGpuClassSchema = z.enum(["none", "integrated_low", "integrated_ok", "discrete_ok", "diagnostic"]);
-export const dicomRenderMemoryBudgetClassSchema = z.enum(["minimum", "constrained", "standard", "workstation", "diagnostic"]);
+export const dicomGpuClassSchema = z.enum([
+    "none",
+    "integrated_low",
+    "integrated_ok",
+    "discrete_ok",
+    "diagnostic",
+]);
+export const dicomRenderMemoryBudgetClassSchema = z.enum([
+    "minimum",
+    "constrained",
+    "standard",
+    "workstation",
+    "diagnostic",
+]);
 export const dicomDiagnosticPixelPolicySchema = z.enum([
     "metadata_only_no_pixels",
     "browser_preview_not_diagnostic",
-    "desktop_app_or_external_review"
+    "desktop_app_or_external_review",
 ]);
 export const dicomRenderTextureStrategySchema = z.enum([
     "metadata_only",
     "stack_2d_textures",
     "single_3d_texture",
     "bricked_3d_textures",
-    "external_viewer"
+    "external_viewer",
 ]);
 export const dicomRenderQualityModeSchema = z.enum([
     "metadata_only",
     "interactive_low",
     "balanced_mpr",
     "diagnostic_full",
-    "external"
+    "external",
 ]);
 export const dicomGpuRenderPlanSchema = z.object({
     gpuClass: dicomGpuClassSchema,
@@ -4628,7 +5346,7 @@ export const dicomGpuRenderPlanSchema = z.object({
     interactionBudgetMs: z.number().int().positive(),
     firstPaintStrategy: z.string(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomRenderCacheTaskKindSchema = z.enum([
     "metadata_index",
@@ -4641,10 +5359,23 @@ export const dicomRenderCacheTaskKindSchema = z.enum([
     "derive_mpr_plane",
     "derive_panoramic_curve",
     "persist_cache_index",
-    "external_handoff"
+    "external_handoff",
 ]);
-export const dicomRenderCacheTargetSchema = z.enum(["main_thread", "web_worker", "offscreen_canvas", "gpu", "indexeddb", "external_viewer"]);
-export const dicomRenderCachePrioritySchema = z.enum(["blocking", "interactive", "prefetch", "background", "deferred"]);
+export const dicomRenderCacheTargetSchema = z.enum([
+    "main_thread",
+    "web_worker",
+    "offscreen_canvas",
+    "gpu",
+    "indexeddb",
+    "external_viewer",
+]);
+export const dicomRenderCachePrioritySchema = z.enum([
+    "blocking",
+    "interactive",
+    "prefetch",
+    "background",
+    "deferred",
+]);
 export const dicomRenderCacheTaskSchema = z.object({
     id: z.string(),
     kind: dicomRenderCacheTaskKindSchema,
@@ -4657,17 +5388,22 @@ export const dicomRenderCacheTaskSchema = z.object({
     budgetMs: z.number().int().positive(),
     blocking: z.boolean(),
     label: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomRenderInteractionPhaseSchema = z.object({
-    id: z.enum(["external_review", "first_visible_slice", "interactive_navigation", "idle_refine"]),
+    id: z.enum([
+        "external_review",
+        "first_visible_slice",
+        "interactive_navigation",
+        "idle_refine",
+    ]),
     label: z.string(),
     trigger: z.string(),
     targetFrameMs: z.number().int().positive(),
     downsampleFactor: z.number().int().positive(),
     maxResidentSlices: z.number().int().positive(),
     workerCount: z.number().int().nonnegative(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomProgressiveLoadStageKindSchema = z.enum([
     "metadata_only",
@@ -4676,7 +5412,7 @@ export const dicomProgressiveLoadStageKindSchema = z.enum([
     "interleaved_decimation",
     "active_window",
     "adjacent_window",
-    "idle_refine"
+    "idle_refine",
 ]);
 export const dicomProgressiveLoadRequestPatternSchema = z.enum([
     "none",
@@ -4684,7 +5420,7 @@ export const dicomProgressiveLoadRequestPatternSchema = z.enum([
     "interleaved",
     "active_window",
     "adjacent_window",
-    "idle_full"
+    "idle_full",
 ]);
 export const dicomProgressiveLoadCornerstoneRequestTypeSchema = z.enum([
     "none",
@@ -4692,7 +5428,7 @@ export const dicomProgressiveLoadCornerstoneRequestTypeSchema = z.enum([
     "interaction",
     "prefetch",
     "compute",
-    "external"
+    "external",
 ]);
 export const dicomProgressiveLoadStageSchema = z.object({
     id: z.string(),
@@ -4712,12 +5448,12 @@ export const dicomProgressiveLoadStageSchema = z.object({
     maxResidentSlices: z.number().int().positive(),
     budgetMs: z.number().int().positive(),
     blocking: z.boolean(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomRenderCachePlanRequestSchema = z.object({
     series: dicomSeriesPreviewGroupSchema,
     renderPlan: dicomGpuRenderPlanSchema,
-    viewerState: imagingViewerSessionStateSchema.nullable().optional()
+    viewerState: imagingViewerSessionStateSchema.nullable().optional(),
 });
 export const dicomRenderCachePlanResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-render-cache-v1"),
@@ -4747,7 +5483,7 @@ export const dicomRenderCachePlanResponseSchema = z.object({
     progressiveStages: z.array(dicomProgressiveLoadStageSchema),
     tasks: z.array(dicomRenderCacheTaskSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomViewerToolStateBundleRequestSchema = z.object({
     target: dicomViewerToolStateTargetSchema.default("cornerstone3d"),
@@ -4755,7 +5491,7 @@ export const dicomViewerToolStateBundleRequestSchema = z.object({
     series: dicomSeriesPreviewGroupSchema,
     viewerState: imagingViewerSessionStateSchema.nullable().optional(),
     annotations: z.array(imagingViewerAnnotationSchema).max(200).default([]),
-    renderPlan: dicomGpuRenderPlanSchema.nullable().optional()
+    renderPlan: dicomGpuRenderPlanSchema.nullable().optional(),
 });
 export const dicomViewerToolStateBundleResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-tool-state-v1"),
@@ -4768,20 +5504,20 @@ export const dicomViewerToolStateBundleResponseSchema = z.object({
         sourceKind: imagingSourceKindSchema,
         sourceName: z.string(),
         cornerstoneVolumeId: z.string().nullable(),
-        firstFilePath: z.string().nullable()
+        firstFilePath: z.string().nullable(),
     }),
     adapterHints: z.object({
         cornerstone3d: z.object({
             toolGroupId: z.string(),
             renderingEngineId: z.string(),
             volumeId: z.string().nullable(),
-            viewportIds: z.array(z.string())
+            viewportIds: z.array(z.string()),
         }),
         ohif: z.object({
             measurementSourceName: z.string(),
             displaySetInstanceUid: z.string().nullable(),
-            hangingProtocolStage: z.string()
-        })
+            hangingProtocolStage: z.string(),
+        }),
     }),
     viewports: z.array(dicomViewerViewportStateSchema),
     tools: z.array(dicomViewerToolConfigSchema),
@@ -4793,12 +5529,12 @@ export const dicomViewerToolStateBundleResponseSchema = z.object({
     renderPlan: dicomGpuRenderPlanSchema.nullable(),
     exportHints: z.array(z.string()),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomWorkstationReadinessRequestSchema = z.object({
     series: dicomSeriesPreviewGroupSchema,
     client: dicomWorkstationClientFactsSchema,
-    connector: dicomWebConnectorCheckResponseSchema.nullable().optional()
+    connector: dicomWebConnectorCheckResponseSchema.nullable().optional(),
 });
 export const dicomWorkstationReadinessResponseSchema = z.object({
     detectedTier: dicomMprResourceTierSchema,
@@ -4811,7 +5547,7 @@ export const dicomWorkstationReadinessResponseSchema = z.object({
     renderPlan: dicomGpuRenderPlanSchema,
     checks: z.array(dicomWorkstationReadinessCheckSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomViewerWorkbenchManifestRequestSchema = z.object({
     viewerKind: dicomViewerKindSchema.default("cornerstone3d"),
@@ -4824,7 +5560,7 @@ export const dicomViewerWorkbenchManifestRequestSchema = z.object({
     dicomWebBaseUrl: z.string().url().nullable().optional(),
     ohifBaseUrl: z.string().url().nullable().optional(),
     externalViewerPath: z.string().max(1000).nullable().optional(),
-    allowExternalHandoff: z.boolean().default(true)
+    allowExternalHandoff: z.boolean().default(true),
 });
 export const dicomViewerWorkbenchManifestResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-workbench-v1"),
@@ -4835,7 +5571,7 @@ export const dicomViewerWorkbenchManifestResponseSchema = z.object({
     toolStateBundle: dicomViewerToolStateBundleResponseSchema,
     doctorBlocking: z.boolean(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomWorkbenchPixelPolicySchema = z.literal("metadata_and_tool_state_only_no_pixels");
 export const dicomWorkbenchBundleSchema = z.object({
@@ -4853,25 +5589,30 @@ export const dicomWorkbenchBundleSchema = z.object({
     serverSavedAt: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const saveDicomWorkbenchBundleRequestSchema = z.object({
     manifest: dicomViewerWorkbenchManifestResponseSchema,
     clientSavedAt: z.string().nullable().optional(),
-    seriesKey: z.string().min(1).max(1000).optional()
+    seriesKey: z.string().min(1).max(1000).optional(),
 });
 export const dicomWorkbenchBundleResponseSchema = z.object({
     bundle: dicomWorkbenchBundleSchema,
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const dicomWorkbenchBundleListResponseSchema = z.object({
     bundles: z.array(dicomWorkbenchBundleSchema),
     total: z.number().int().nonnegative(),
     generatedAt: z.string(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export const dicomFolderWorkupPathSchema = z.enum(["open_mpr", "downsampled_mpr", "external_viewer", "metadata_only"]);
+export const dicomFolderWorkupPathSchema = z.enum([
+    "open_mpr",
+    "downsampled_mpr",
+    "external_viewer",
+    "metadata_only",
+]);
 export const dicomFolderWorkupPlanRequestSchema = z.object({
     folderPath: z.string().min(1),
     recursive: z.boolean().default(true),
@@ -4879,9 +5620,14 @@ export const dicomFolderWorkupPlanRequestSchema = z.object({
     maxFiles: z.number().int().positive().max(5000).default(800),
     maxFolders: z.number().int().positive().max(3000).default(900),
     maxEntriesPerFolder: z.number().int().positive().max(10000).default(2000),
-    maxHeaderBytes: z.number().int().positive().max(1024 * 1024).default(256 * 1024),
+    maxHeaderBytes: z
+        .number()
+        .int()
+        .positive()
+        .max(1024 * 1024)
+        .default(256 * 1024),
     client: dicomWorkstationClientFactsSchema,
-    viewerState: imagingViewerSessionStateSchema.nullable().optional()
+    viewerState: imagingViewerSessionStateSchema.nullable().optional(),
 });
 export const dicomFolderWorkupPlanSeriesSchema = z.object({
     series: dicomSeriesPreviewGroupSchema,
@@ -4890,7 +5636,7 @@ export const dicomFolderWorkupPlanSeriesSchema = z.object({
     recommendedPath: dicomFolderWorkupPathSchema,
     doctorBlocking: z.boolean(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const dicomFolderWorkupPlanResponseSchema = z.object({
     version: z.literal("dental-crm-dicom-folder-workup-v1"),
@@ -4899,7 +5645,7 @@ export const dicomFolderWorkupPlanResponseSchema = z.object({
     selectedSeriesCount: z.number().int().nonnegative(),
     plans: z.array(dicomFolderWorkupPlanSeriesSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const localBridgeKindSchema = z.enum([
     "speech_whisper",
@@ -4907,7 +5653,7 @@ export const localBridgeKindSchema = z.enum([
     "dicom_cbct",
     "ocr_vision",
     "ohif_viewer",
-    "migration_staging"
+    "migration_staging",
 ]);
 export const localBridgeStatusSchema = z.enum([
     "ready",
@@ -4915,7 +5661,7 @@ export const localBridgeStatusSchema = z.enum([
     "unreachable",
     "blocked",
     "misconfigured",
-    "planned"
+    "planned",
 ]);
 export const localBridgeReadinessItemSchema = z.object({
     kind: localBridgeKindSchema,
@@ -4930,7 +5676,7 @@ export const localBridgeReadinessItemSchema = z.object({
     workload: z.string(),
     privacyBoundary: z.string(),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const localBridgeReadinessResponseSchema = z.object({
     generatedAt: z.string(),
@@ -4939,14 +5685,14 @@ export const localBridgeReadinessResponseSchema = z.object({
     readyCount: z.number().int().nonnegative(),
     bridges: z.array(localBridgeReadinessItemSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const localBridgeUseScenarioSchema = z.enum([
     "visit_dictation",
     "document_ocr",
     "price_photo_ocr",
     "cbct_mpr",
-    "imaging_import"
+    "imaging_import",
 ]);
 export const localBridgeUsePathSchema = z.enum([
     "browser_local",
@@ -4955,7 +5701,7 @@ export const localBridgeUsePathSchema = z.enum([
     "cloud_provider",
     "metadata_preview",
     "external_viewer",
-    "manual_review"
+    "manual_review",
 ]);
 export const localBridgeUsePlanStepSchema = z.object({
     order: z.number().int().positive(),
@@ -4964,7 +5710,7 @@ export const localBridgeUsePlanStepSchema = z.object({
     path: localBridgeUsePathSchema,
     storesLocalFirst: z.boolean(),
     blocking: z.boolean(),
-    detail: z.string()
+    detail: z.string(),
 });
 export const localBridgeUsePlanSchema = z.object({
     scenario: localBridgeUseScenarioSchema,
@@ -4976,30 +5722,32 @@ export const localBridgeUsePlanSchema = z.object({
     confidence: z.number().min(0).max(1),
     steps: z.array(localBridgeUsePlanStepSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const localBridgeUsePlansResponseSchema = z.object({
     generatedAt: z.string(),
     readiness: localBridgeReadinessResponseSchema,
     plans: z.array(localBridgeUsePlanSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const visitNoteDraftRequestSchema = z.object({
     patientId: z.string().uuid(),
     transcript: z.string().trim().min(1).max(80_000),
     specialty: dentalSpecialtySchema.default("universal"),
-    source: z.enum(["voice", "typed", "image"]).default("voice")
+    source: z.enum(["voice", "typed", "image"]).default("voice"),
 });
 export const visitNoteDraftQualitySchema = z.object({
     level: z.enum(["ready", "review", "needs_more_dictation"]),
     confidence: z.number().min(0).max(1),
     specialty: dentalSpecialtySchema,
     detectedToothCodes: z.array(z.string()),
-    detectedToothStates: z.record(z.enum(["idle", "watch", "planned", "done", "missing", "treatment"])).optional(),
+    detectedToothStates: z
+        .record(z.enum(["idle", "watch", "planned", "done", "missing", "treatment"]))
+        .optional(),
     signals: z.array(z.string()),
     missingCriticalFields: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const visitNoteDraftSchema = z.object({
     complaint: z.string().nullable(),
@@ -5008,7 +5756,7 @@ export const visitNoteDraftSchema = z.object({
     diagnosis: z.string().nullable(),
     treatmentPlan: z.string().nullable(),
     quality: visitNoteDraftQualitySchema.optional(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const visitDraftAutosaveSchema = z.object({
     visitId: z.string().uuid(),
@@ -5020,7 +5768,7 @@ export const visitDraftAutosaveSchema = z.object({
     clientDraftId: z.string().nullable(),
     clientSavedAt: z.string().nullable(),
     serverSavedAt: z.string(),
-    transcriptHash: z.string()
+    transcriptHash: z.string(),
 });
 export const visitDraftAutosaveRequestSchema = z
     .object({
@@ -5031,7 +5779,7 @@ export const visitDraftAutosaveRequestSchema = z
     draft: visitNoteDraftSchema,
     baseRevision: z.number().int().nonnegative().nullable().optional(),
     clientDraftId: z.string().min(1).max(120).nullable().optional(),
-    clientSavedAt: z.string().nullable().optional()
+    clientSavedAt: z.string().nullable().optional(),
 })
     .refine((input) => Boolean(input.transcript.trim() ||
     input.draft.complaint?.trim() ||
@@ -5040,14 +5788,17 @@ export const visitDraftAutosaveRequestSchema = z
     input.draft.diagnosis?.trim() ||
     input.draft.treatmentPlan?.trim()), { message: "Нужно передать текст приема или заполнить поля черновика" });
 export const visitDraftAutosaveResponseSchema = z.object({
-    serverDraft: visitDraftAutosaveSchema.nullable()
+    serverDraft: visitDraftAutosaveSchema.nullable(),
 });
 export const speechTranscriptPolishRequestSchema = z.object({
     transcript: z.string().trim().min(1).max(80_000),
     specialty: dentalSpecialtySchema.default("universal"),
-    source: z.enum(["voice", "typed", "recording_chunk"]).default("voice")
+    source: z.enum(["voice", "typed", "recording_chunk"]).default("voice"),
 });
-export const speechTranscriptPolishModeSchema = z.enum(["deterministic", "deterministic_neural"]);
+export const speechTranscriptPolishModeSchema = z.enum([
+    "deterministic",
+    "deterministic_neural",
+]);
 export const speechTranscriptPolishResponseSchema = z.object({
     rawTranscript: z.string(),
     normalizedTranscript: z.string(),
@@ -5056,7 +5807,7 @@ export const speechTranscriptPolishResponseSchema = z.object({
     polishMode: speechTranscriptPolishModeSchema,
     modelName: z.string().nullable(),
     neuralWarnings: z.array(z.string()),
-    draft: visitNoteDraftSchema
+    draft: visitNoteDraftSchema,
 });
 const ruleParserSpecialtyLabels = {
     therapist: "терапия",
@@ -5068,7 +5819,7 @@ const ruleParserSpecialtyLabels = {
     pediatric: "детская стоматология",
     implantologist: "имплантология",
     radiologist: "рентгенология",
-    universal: "осмотр"
+    universal: "осмотр",
 };
 const commonComplaintTokens = [
     "жалоб",
@@ -5093,7 +5844,7 @@ const commonComplaintTokens = [
     "кровоточ",
     "прикус",
     "скол",
-    "подвиж"
+    "подвиж",
 ];
 const commonAnamnesisTokens = [
     "анамнез",
@@ -5115,7 +5866,7 @@ const commonAnamnesisTokens = [
     "антикоаг",
     "давлен",
     "гиперт",
-    "не отягощ"
+    "не отягощ",
 ];
 const commonObjectiveTokens = [
     "объектив",
@@ -5160,7 +5911,7 @@ const commonObjectiveTokens = [
     "оптг",
     "rvg",
     "cbct",
-    "периапик"
+    "периапик",
 ];
 const commonDiagnosisTokens = [
     "диагноз",
@@ -5182,7 +5933,7 @@ const commonDiagnosisTokens = [
     "абсцесс",
     "альвеолит",
     "ретенц",
-    "дистоп"
+    "дистоп",
 ];
 const commonPlanTokens = [
     "план",
@@ -5222,11 +5973,22 @@ const commonPlanTokens = [
     "контроль",
     "рекоменд",
     "соглас",
-    "наблюд"
+    "наблюд",
 ];
 const visitDraftParserProfiles = {
     therapist: {
-        complaintTokens: ["кари", "пломб", "рестав", "эндо", "канал", "холод", "горяч", "накусыв", "самопроиз", "ноч"],
+        complaintTokens: [
+            "кари",
+            "пломб",
+            "рестав",
+            "эндо",
+            "канал",
+            "холод",
+            "горяч",
+            "накусыв",
+            "самопроиз",
+            "ноч",
+        ],
         objectiveTokens: [
             "кари",
             "полост",
@@ -5255,9 +6017,19 @@ const visitDraftParserProfiles = {
             "фиссур",
             "дефект",
             "гермет",
-            "коффердам"
+            "коффердам",
         ],
-        diagnosisTokens: ["ds", "dx", "d/s", "k02", "k04", "кариес", "пульп", "периодонтит", "периапик"],
+        diagnosisTokens: [
+            "ds",
+            "dx",
+            "d/s",
+            "k02",
+            "k04",
+            "кариес",
+            "пульп",
+            "периодонтит",
+            "периапик",
+        ],
         planTokens: [
             "анест",
             "изоляц",
@@ -5294,103 +6066,344 @@ const visitDraftParserProfiles = {
             "ирригац",
             "канал",
             "пломб",
-            "временная пломба"
+            "временная пломба",
         ],
         objectiveFallback: "Объективно уточнить зуб, полость/реставрацию, перкуссию, зондирование, реакцию на холод и данные снимка.",
         diagnosisFallback: null,
         planFallback: "План: уточнить диагноз, согласовать анестезию, изоляцию, лечение кариеса/эндо и контроль окклюзии.",
-        reviewHints: ["Проверить зуб, диагноз K02/K04, снимок и согласие на лечение."]
+        reviewHints: [
+            "Проверить зуб, диагноз K02/K04, снимок и согласие на лечение.",
+        ],
     },
     orthopedist: {
-        complaintTokens: ["корон", "вклад", "протез", "скол", "эстет", "жев", "мост", "винир"],
-        objectiveTokens: ["культ", "прикус", "окклюз", "уступ", "слеп", "скан", "абатмент", "препар"],
+        complaintTokens: [
+            "корон",
+            "вклад",
+            "протез",
+            "скол",
+            "эстет",
+            "жев",
+            "мост",
+            "винир",
+        ],
+        objectiveTokens: [
+            "культ",
+            "прикус",
+            "окклюз",
+            "уступ",
+            "слеп",
+            "скан",
+            "абатмент",
+            "препар",
+        ],
         diagnosisTokens: ["k08", "адент", "дефект", "стираем", "разруш", "ортопед"],
-        planTokens: ["скан", "слеп", "препар", "временн", "корон", "вклад", "протез", "примерк", "фиксац"],
+        planTokens: [
+            "скан",
+            "слеп",
+            "препар",
+            "временн",
+            "корон",
+            "вклад",
+            "протез",
+            "примерк",
+            "фиксац",
+        ],
         objectiveFallback: "Объективно уточнить опоры, прикус, окклюзионные контакты, состояние пародонта и снимки опорных зубов.",
         diagnosisFallback: null,
         planFallback: "План: диагностика опор, фотопротокол/сканирование, варианты ортопедической конструкции, временный этап и фиксация.",
-        reviewHints: ["Не финализировать ортопедический план без оценки опор, прикуса и согласованных альтернатив."]
+        reviewHints: [
+            "Не финализировать ортопедический план без оценки опор, прикуса и согласованных альтернатив.",
+        ],
     },
     surgeon: {
-        complaintTokens: ["удал", "отек", "абсцесс", "шов", "травм", "альвеолит", "зуб мудрости", "восьм"],
-        objectiveTokens: ["отек", "инфильтр", "слизист", "лун", "шов", "подвиж", "перкус", "кт", "канал нижней челюсти"],
-        diagnosisTokens: ["ретенц", "дистоп", "периост", "абсцесс", "альвеолит", "k01", "k04"],
-        planTokens: ["анест", "удал", "разрез", "дрен", "швы", "кюретаж", "рекоменд", "контроль"],
+        complaintTokens: [
+            "удал",
+            "отек",
+            "абсцесс",
+            "шов",
+            "травм",
+            "альвеолит",
+            "зуб мудрости",
+            "восьм",
+        ],
+        objectiveTokens: [
+            "отек",
+            "инфильтр",
+            "слизист",
+            "лун",
+            "шов",
+            "подвиж",
+            "перкус",
+            "кт",
+            "канал нижней челюсти",
+        ],
+        diagnosisTokens: [
+            "ретенц",
+            "дистоп",
+            "периост",
+            "абсцесс",
+            "альвеолит",
+            "k01",
+            "k04",
+        ],
+        planTokens: [
+            "анест",
+            "удал",
+            "разрез",
+            "дрен",
+            "швы",
+            "кюретаж",
+            "рекоменд",
+            "контроль",
+        ],
         objectiveFallback: "Объективно уточнить отек, слизистую, подвижность, перкуссию, КТ/снимок и отношение к анатомическим структурам.",
         diagnosisFallback: null,
         planFallback: "План: анестезия, хирургический этап, гемостаз/швы, рекомендации, контрольный осмотр.",
-        reviewHints: ["Проверить аллергии, антикоагулянты, давление, КТ/снимок и послеоперационные рекомендации."]
+        reviewHints: [
+            "Проверить аллергии, антикоагулянты, давление, КТ/снимок и послеоперационные рекомендации.",
+        ],
     },
     orthodontist: {
-        complaintTokens: ["прикус", "скуч", "брекет", "элайн", "ретейн", "щелк", "сустав"],
-        objectiveTokens: ["класс", "перекрыт", "скуч", "диаст", "трема", "средняя линия", "трг", "оптг", "модел"],
-        diagnosisTokens: ["дисталь", "мезиаль", "глубок", "открыт", "перекрест", "аномал"],
-        planTokens: ["диагност", "трг", "оптг", "скан", "брекет", "элайн", "сепарац", "ретенц", "контроль"],
+        complaintTokens: [
+            "прикус",
+            "скуч",
+            "брекет",
+            "элайн",
+            "ретейн",
+            "щелк",
+            "сустав",
+        ],
+        objectiveTokens: [
+            "класс",
+            "перекрыт",
+            "скуч",
+            "диаст",
+            "трема",
+            "средняя линия",
+            "трг",
+            "оптг",
+            "модел",
+        ],
+        diagnosisTokens: [
+            "дисталь",
+            "мезиаль",
+            "глубок",
+            "открыт",
+            "перекрест",
+            "аномал",
+        ],
+        planTokens: [
+            "диагност",
+            "трг",
+            "оптг",
+            "скан",
+            "брекет",
+            "элайн",
+            "сепарац",
+            "ретенц",
+            "контроль",
+        ],
         objectiveFallback: "Объективно уточнить прикус, классы, скученность, средние линии, ВНЧС, ОПТГ/ТРГ/сканы.",
         diagnosisFallback: null,
         planFallback: "План: ортодонтическая диагностика, фотопротокол, ОПТГ/ТРГ/скан, варианты брекеты/элайнеры и ретенция.",
-        reviewHints: ["Не обещать сроки без диагностики, анализа снимков, моделей и обсуждения ретенции."]
+        reviewHints: [
+            "Не обещать сроки без диагностики, анализа снимков, моделей и обсуждения ретенции.",
+        ],
     },
     periodontist: {
-        complaintTokens: ["десн", "кровоточ", "карман", "подвиж", "рецесс", "запах", "оголен"],
-        objectiveTokens: ["карман", "кровоточ", "рецесс", "подвиж", "фуркац", "налет", "камень", "индекс"],
+        complaintTokens: [
+            "десн",
+            "кровоточ",
+            "карман",
+            "подвиж",
+            "рецесс",
+            "запах",
+            "оголен",
+        ],
+        objectiveTokens: [
+            "карман",
+            "кровоточ",
+            "рецесс",
+            "подвиж",
+            "фуркац",
+            "налет",
+            "камень",
+            "индекс",
+        ],
         diagnosisTokens: ["k05", "гингив", "пародонтит", "рецесс", "мукозит"],
-        planTokens: ["пародонтограмм", "снятие", "скейлинг", "кюретаж", "шинир", "recall", "контроль"],
+        planTokens: [
+            "пародонтограмм",
+            "снятие",
+            "скейлинг",
+            "кюретаж",
+            "шинир",
+            "recall",
+            "контроль",
+        ],
         objectiveFallback: "Объективно уточнить индексы налета/кровоточивости, глубину карманов, рецессии, подвижность и снимки.",
         diagnosisFallback: null,
         planFallback: "План: пародонтальная карта, профессиональная гигиена/скейлинг, домашняя гигиена, recall и контроль.",
-        reviewHints: ["Пародонтальный статус требует измерений, индексов и динамического контроля."]
+        reviewHints: [
+            "Пародонтальный статус требует измерений, индексов и динамического контроля.",
+        ],
     },
     hygienist: {
-        complaintTokens: ["налет", "камень", "пигмент", "запах", "проф", "гигиен", "кровоточ"],
-        objectiveTokens: ["налет", "камень", "пигмент", "индекс", "десн", "air flow", "airflow", "ультразв"],
+        complaintTokens: [
+            "налет",
+            "камень",
+            "пигмент",
+            "запах",
+            "проф",
+            "гигиен",
+            "кровоточ",
+        ],
+        objectiveTokens: [
+            "налет",
+            "камень",
+            "пигмент",
+            "индекс",
+            "десн",
+            "air flow",
+            "airflow",
+            "ультразв",
+        ],
         diagnosisTokens: ["налет", "зубной камень", "гингив", "k05"],
-        planTokens: ["ультразв", "air flow", "airflow", "полиров", "фтор", "обуч", "ершик", "нить", "recall"],
+        planTokens: [
+            "ультразв",
+            "air flow",
+            "airflow",
+            "полиров",
+            "фтор",
+            "обуч",
+            "ершик",
+            "нить",
+            "recall",
+        ],
         objectiveFallback: "Объективно уточнить налет, камень, пигментацию, состояние десны, индексы гигиены и зоны риска.",
         diagnosisFallback: null,
         planFallback: "План: профгигиена, полировка, реминерализация по показаниям, обучение домашней гигиене и recall.",
-        reviewHints: ["Профилактический прием должен завершаться понятной домашней гигиеной и сроком recall."]
+        reviewHints: [
+            "Профилактический прием должен завершаться понятной домашней гигиеной и сроком recall.",
+        ],
     },
     pediatric: {
-        complaintTokens: ["молоч", "ребен", "страх", "адаптац", "кариес", "боль", "пломб"],
-        objectiveTokens: ["молоч", "прикус", "кари", "налет", "гермет", "пульп", "поведение"],
+        complaintTokens: [
+            "молоч",
+            "ребен",
+            "страх",
+            "адаптац",
+            "кариес",
+            "боль",
+            "пломб",
+        ],
+        objectiveTokens: [
+            "молоч",
+            "прикус",
+            "кари",
+            "налет",
+            "гермет",
+            "пульп",
+            "поведение",
+        ],
         diagnosisTokens: ["кариес", "пульп", "периодонт", "гингив"],
-        planTokens: ["адаптац", "аппликац", "гермет", "пломб", "лечение", "проф", "контроль"],
+        planTokens: [
+            "адаптац",
+            "аппликац",
+            "гермет",
+            "пломб",
+            "лечение",
+            "проф",
+            "контроль",
+        ],
         objectiveFallback: "Объективно уточнить зубы молочного/постоянного прикуса, поведение ребенка, налет, кариес и слизистую.",
         diagnosisFallback: null,
         planFallback: "План: адаптация, лечение/профилактика по показаниям, инструкции родителю, контроль.",
-        reviewHints: ["Фиксировать согласие законного представителя и поведение ребенка на приеме."]
+        reviewHints: [
+            "Фиксировать согласие законного представителя и поведение ребенка на приеме.",
+        ],
     },
     implantologist: {
-        complaintTokens: ["имплан", "нет зуб", "адент", "кость", "синус", "протез", "жев"],
-        objectiveTokens: ["кт", "cbct", "кость", "синус", "нерв", "гребень", "слизист", "шаблон", "окклюз"],
+        complaintTokens: [
+            "имплан",
+            "нет зуб",
+            "адент",
+            "кость",
+            "синус",
+            "протез",
+            "жев",
+        ],
+        objectiveTokens: [
+            "кт",
+            "cbct",
+            "кость",
+            "синус",
+            "нерв",
+            "гребень",
+            "слизист",
+            "шаблон",
+            "окклюз",
+        ],
         diagnosisTokens: ["адент", "атроф", "дефект", "периимплант", "k08"],
-        planTokens: ["кт", "планирован", "имплан", "навигац", "шаблон", "синус", "костн", "формиров", "раскрыт"],
+        planTokens: [
+            "кт",
+            "планирован",
+            "имплан",
+            "навигац",
+            "шаблон",
+            "синус",
+            "костн",
+            "формиров",
+            "раскрыт",
+        ],
         objectiveFallback: "Объективно уточнить зону адентии, объем кости по КТ, слизистую, соседние зубы, окклюзию и риски.",
         diagnosisFallback: null,
         planFallback: "План: КТ-анализ, варианты имплантации/костной пластики, сроки этапов, согласие и хирургический протокол.",
-        reviewHints: ["Имплантационный план не финализировать без КТ, медицинских рисков и ортопедической цели."]
+        reviewHints: [
+            "Имплантационный план не финализировать без КТ, медицинских рисков и ортопедической цели.",
+        ],
     },
     radiologist: {
         complaintTokens: ["снимок", "кт", "оптг", "трг", "опис", "рентген", "очаг"],
-        objectiveTokens: ["кт", "cbct", "оптг", "трг", "периапик", "очаг", "канал", "пазух", "сустав"],
+        objectiveTokens: [
+            "кт",
+            "cbct",
+            "оптг",
+            "трг",
+            "периапик",
+            "очаг",
+            "канал",
+            "пазух",
+            "сустав",
+        ],
         diagnosisTokens: ["очаг", "киста", "гранул", "резорб", "периодонт", "опис"],
         planTokens: ["опис", "рекоменд", "сопостав", "консультац", "контроль"],
         objectiveFallback: "Описание исследования: указать тип снимка, область, качество, ключевые находки и ограничения.",
         diagnosisFallback: "Описание снимка требует клинической корреляции лечащим врачом.",
         planFallback: "План: передать описание лечащему врачу, сопоставить с жалобами и клиническим осмотром.",
-        reviewHints: ["Рентгенологическое описание не является самостоятельным клиническим диагнозом."]
+        reviewHints: [
+            "Рентгенологическое описание не является самостоятельным клиническим диагнозом.",
+        ],
     },
     universal: {
         complaintTokens: ["осмотр", "консульт", "первич", "план", "проф", "жалоб"],
-        objectiveTokens: ["осмотр", "зуб", "слизист", "прикус", "гигиен", "снимок", "пародонт"],
+        objectiveTokens: [
+            "осмотр",
+            "зуб",
+            "слизист",
+            "прикус",
+            "гигиен",
+            "снимок",
+            "пародонт",
+        ],
         diagnosisTokens: ["диагноз", "кариес", "адент", "гингив", "пародонт"],
         planTokens: ["план", "маршрут", "консультац", "снимок", "проф", "контроль"],
         objectiveFallback: "Объективно уточнить зубную формулу, слизистую, пародонтальный статус, гигиену, прикус и снимки по показаниям.",
         diagnosisFallback: null,
         planFallback: "План: маршрутизация по специальностям, снимки/документы по показаниям, согласование приоритетов лечения.",
-        reviewHints: ["Осмотр должен давать понятный маршрут: что срочно, что планово, что наблюдать."]
-    }
+        reviewHints: [
+            "Осмотр должен давать понятный маршрут: что срочно, что планово, что наблюдать.",
+        ],
+    },
 };
 const spokenToothNumberMap = [
     [/\b(?:один\s+один|одиннадцат(?:ый|ого|ом)?)\b/gi, "11"],
@@ -5424,49 +6437,90 @@ const spokenToothNumberMap = [
     [/\b(?:четыре\s+пять|сорок\s+пят(?:ый|ого|ом)?)\b/gi, "45"],
     [/\b(?:четыре\s+шесть|сорок\s+шест(?:ой|ого|ом)?)\b/gi, "46"],
     [/\b(?:четыре\s+семь|сорок\s+седьм(?:ой|ого|ом)?)\b/gi, "47"],
-    [/\b(?:четыре\s+восемь|сорок\s+восьм(?:ой|ого|ом)?)\b/gi, "48"]
+    [/\b(?:четыре\s+восемь|сорок\s+восьм(?:ой|ого|ом)?)\b/gi, "48"],
 ];
 function dentalTermPattern(source) {
     return new RegExp(`(?<![0-9A-Za-zА-Яа-яЁё])(?:${source})(?![0-9A-Za-zА-Яа-яЁё])`, "gi");
 }
 const spokenAnatomicToothQuadrants = [
-    { archPattern: String.raw `верхн(?:яя|ей|юю|ий|его|ем)?`, sidePattern: String.raw `прав(?:ая|ой|ую|ый|ого|ом)?`, quadrant: "1" },
-    { archPattern: String.raw `верхн(?:яя|ей|юю|ий|его|ем)?`, sidePattern: String.raw `лев(?:ая|ой|ую|ый|ого|ом)?`, quadrant: "2" },
-    { archPattern: String.raw `нижн(?:яя|ей|юю|ий|его|ем)?`, sidePattern: String.raw `лев(?:ая|ой|ую|ый|ого|ом)?`, quadrant: "3" },
-    { archPattern: String.raw `нижн(?:яя|ей|юю|ий|его|ем)?`, sidePattern: String.raw `прав(?:ая|ой|ую|ый|ого|ом)?`, quadrant: "4" }
+    {
+        archPattern: String.raw `верхн(?:яя|ей|юю|ий|его|ем)?`,
+        sidePattern: String.raw `прав(?:ая|ой|ую|ый|ого|ом)?`,
+        quadrant: "1",
+    },
+    {
+        archPattern: String.raw `верхн(?:яя|ей|юю|ий|его|ем)?`,
+        sidePattern: String.raw `лев(?:ая|ой|ую|ый|ого|ом)?`,
+        quadrant: "2",
+    },
+    {
+        archPattern: String.raw `нижн(?:яя|ей|юю|ий|его|ем)?`,
+        sidePattern: String.raw `лев(?:ая|ой|ую|ый|ого|ом)?`,
+        quadrant: "3",
+    },
+    {
+        archPattern: String.raw `нижн(?:яя|ей|юю|ий|его|ем)?`,
+        sidePattern: String.raw `прав(?:ая|ой|ую|ый|ого|ом)?`,
+        quadrant: "4",
+    },
 ];
 const spokenAnatomicToothPositions = [
     ["1", String.raw `единиц(?:а|ы|у|ей|е)?|перв(?:ый|ого|ому|ым|ом)?`],
-    ["2", String.raw `двойк(?:а|и|у|ой|е)?|двоечк(?:а|и|у|ой|е)?|втор(?:ой|ого|ому|ым|ом)?`],
-    ["3", String.raw `тройк(?:а|и|у|ой|е)?|клык(?:а|ом|е)?|трет(?:ий|ьего|ьему|ьим|ьем)?`],
-    ["4", String.raw `четверк(?:а|и|у|ой|е)?|четверочк(?:а|и|у|ой|е)?|четверт(?:ый|ого|ому|ым|ом)?`],
-    ["5", String.raw `пятерк(?:а|и|у|ой|е)?|пятерочк(?:а|и|у|ой|е)?|пят(?:ый|ого|ому|ым|ом)?`],
+    [
+        "2",
+        String.raw `двойк(?:а|и|у|ой|е)?|двоечк(?:а|и|у|ой|е)?|втор(?:ой|ого|ому|ым|ом)?`,
+    ],
+    [
+        "3",
+        String.raw `тройк(?:а|и|у|ой|е)?|клык(?:а|ом|е)?|трет(?:ий|ьего|ьему|ьим|ьем)?`,
+    ],
+    [
+        "4",
+        String.raw `четверк(?:а|и|у|ой|е)?|четверочк(?:а|и|у|ой|е)?|четверт(?:ый|ого|ому|ым|ом)?`,
+    ],
+    [
+        "5",
+        String.raw `пятерк(?:а|и|у|ой|е)?|пятерочк(?:а|и|у|ой|е)?|пят(?:ый|ого|ому|ым|ом)?`,
+    ],
     ["6", String.raw `шестер(ка|ки|ку|кой|ке)?|шест(?:ой|ого|ому|ым|ом)?`],
     ["7", String.raw `семерк(?:а|и|у|ой|е)?|седьм(?:ой|ого|ому|ым|ом)?`],
-    ["8", String.raw `восьмерк(?:а|и|у|ой|е)?|восьм(?:ой|ого|ому|ым|ом)?`]
+    ["8", String.raw `восьмерк(?:а|и|у|ой|е)?|восьм(?:ой|ого|ому|ым|ом)?`],
 ];
 const spokenAnatomicToothMap = spokenAnatomicToothQuadrants.flatMap(({ archPattern, sidePattern, quadrant }) => spokenAnatomicToothPositions.flatMap(([position, positionPattern]) => {
     const replacement = `зуб ${quadrant}${position}`;
     return [
-        [dentalTermPattern(String.raw `${archPattern}\s+${sidePattern}\s+(?:${positionPattern})`), replacement],
-        [dentalTermPattern(String.raw `${sidePattern}\s+${archPattern}\s+(?:${positionPattern})`), replacement],
-        [dentalTermPattern(String.raw `(?:${positionPattern})\s+${archPattern}\s+${sidePattern}`), replacement]
+        [
+            dentalTermPattern(String.raw `${archPattern}\s+${sidePattern}\s+(?:${positionPattern})`),
+            replacement,
+        ],
+        [
+            dentalTermPattern(String.raw `${sidePattern}\s+${archPattern}\s+(?:${positionPattern})`),
+            replacement,
+        ],
+        [
+            dentalTermPattern(String.raw `(?:${positionPattern})\s+${archPattern}\s+${sidePattern}`),
+            replacement,
+        ],
     ];
 }));
 const dentalSpeechReplacementMap = [
     [
-        /(?<![0-9A-Za-zА-Яа-яЁё])((?:зуб(?:а|е|ом)?|област(?:ь|и)|fdi)\s+)([1-4])\s*[\.,]\s*([1-8])(?![0-9A-Za-zА-Яа-яЁё])/gi,
+        /(?<![0-9A-Za-zА-Яа-яЁё])((?:зуб(?:а|е|ом)?|област(?:ь|и)|fdi)\s+)([1-4])\s*[.,]\s*([1-8])(?![0-9A-Za-zА-Яа-яЁё])/gi,
         "$1$2$3",
-        "номер зуба FDI"
+        "номер зуба FDI",
     ],
     [
-        /(?<![0-9A-Za-zА-Яа-яЁё])([1-4])\s*[\.,]\s*([1-8])(\s+(?:зуб|зуба|зубе|зубом))(?![0-9A-Za-zА-Яа-яЁё])/gi,
+        /(?<![0-9A-Za-zА-Яа-яЁё])([1-4])\s*[.,]\s*([1-8])(\s+(?:зуб|зуба|зубе|зубом))(?![0-9A-Za-zА-Яа-яЁё])/gi,
         "$1$2$3",
-        "номер зуба FDI"
+        "номер зуба FDI",
     ],
     [dentalTermPattern(String.raw `к\s*л\s*к\s*т`), "КЛКТ", "КЛКТ"],
     [dentalTermPattern(String.raw `клкт`), "КЛКТ", "КЛКТ"],
-    [dentalTermPattern(String.raw `конусно[-\s]*лучев(?:ая|ой|ую)\s+компьютерн(?:ая|ой|ую)\s+томограф(?:ия|ию)`), "КЛКТ", "КЛКТ"],
+    [
+        dentalTermPattern(String.raw `конусно[-\s]*лучев(?:ая|ой|ую)\s+компьютерн(?:ая|ой|ую)\s+томограф(?:ия|ию)`),
+        "КЛКТ",
+        "КЛКТ",
+    ],
     [dentalTermPattern(String.raw `к\s*т`), "КТ", "КТ"],
     [dentalTermPattern(String.raw `кт`), "КТ", "КТ"],
     [dentalTermPattern(String.raw `о\s*п\s*т\s*г`), "ОПТГ", "ОПТГ"],
@@ -5475,87 +6529,295 @@ const dentalSpeechReplacementMap = [
     [dentalTermPattern(String.raw `э\s*о\s*д|е\s*о\s*д|эод|еод`), "ЭОД", "ЭОД"],
     [dentalTermPattern(String.raw `д\s*с|ди\s*эс|ds|d\/s`), "DS", "DS"],
     [dentalTermPattern(String.raw `д\s*икс|ди\s*икс|dx`), "Dx", "Dx"],
-    [dentalTermPattern(String.raw `м\s*к\s*б(?:\s*[-–]?\s*10)?|эм\s*ка\s*бэ(?:\s*[-–]?\s*10)?`), "МКБ-10", "МКБ-10"],
-    [dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*2\s*(?:[.,]|точк(?:а|и)?)\s*1`), "K02.1", "K02.1"],
-    [dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*4\s*(?:[.,]|точк(?:а|и)?)\s*0`), "K04.0", "K04.0"],
-    [dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*4\s*(?:[.,]|точк(?:а|и)?)\s*5`), "K04.5", "K04.5"],
+    [
+        dentalTermPattern(String.raw `м\s*к\s*б(?:\s*[-–]?\s*10)?|эм\s*ка\s*бэ(?:\s*[-–]?\s*10)?`),
+        "МКБ-10",
+        "МКБ-10",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*2\s*(?:[.,]|точк(?:а|и)?)\s*1`),
+        "K02.1",
+        "K02.1",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*4\s*(?:[.,]|точк(?:а|и)?)\s*0`),
+        "K04.0",
+        "K04.0",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:k|к|ка)\s*0\s*4\s*(?:[.,]|точк(?:а|и)?)\s*5`),
+        "K04.5",
+        "K04.5",
+    ],
     [dentalTermPattern(String.raw `си\s*би\s*си\s*ти|cbct`), "CBCT", "CBCT"],
-    [dentalTermPattern(String.raw `(?:кофердам|кофедам|кофирдам|коффердамм)(?:ом|а|е)?`), "коффердам", "коффердам"],
-    [dentalTermPattern(String.raw `раббер\s*дам(?:ом|а|е)?`), "коффердам", "коффердам"],
-    [dentalTermPattern(String.raw `раббердам(?:ом|а|е)?`), "коффердам", "коффердам"],
-    [dentalTermPattern(String.raw `эйр\s*флоу|айр\s*флоу|air\s*flow|airflow`), "Air Flow", "Air Flow"],
-    [dentalTermPattern(String.raw `(?:пульпид|пульпед)(?:а|ом|е)?`), "пульпит", "пульпит"],
-    [dentalTermPattern(String.raw `(?:периодантит|переодонтит)(?:а|ом|е)?`), "периодонтит", "периодонтит"],
-    [dentalTermPattern(String.raw `(?:пародантит|парадонтит)(?:а|ом|е)?`), "пародонтит", "пародонтит"],
-    [dentalTermPattern(String.raw `кариес\s+дентина|кариес\s+дентин`), "кариес дентина", "кариес дентина"],
-    [dentalTermPattern(String.raw `кариозн(?:ая|ой|ую)\s+поласть|кариозн(?:ая|ой|ую)\s+полас[тд]ь`), "кариозная полость", "кариозная полость"],
-    [dentalTermPattern(String.raw `зандирован(?:ие|ия)|зондированее`), "зондирование", "зондирование"],
+    [
+        dentalTermPattern(String.raw `(?:кофердам|кофедам|кофирдам|коффердамм)(?:ом|а|е)?`),
+        "коффердам",
+        "коффердам",
+    ],
+    [
+        dentalTermPattern(String.raw `раббер\s*дам(?:ом|а|е)?`),
+        "коффердам",
+        "коффердам",
+    ],
+    [
+        dentalTermPattern(String.raw `раббердам(?:ом|а|е)?`),
+        "коффердам",
+        "коффердам",
+    ],
+    [
+        dentalTermPattern(String.raw `эйр\s*флоу|айр\s*флоу|air\s*flow|airflow`),
+        "Air Flow",
+        "Air Flow",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:пульпид|пульпед)(?:а|ом|е)?`),
+        "пульпит",
+        "пульпит",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:периодантит|переодонтит)(?:а|ом|е)?`),
+        "периодонтит",
+        "периодонтит",
+    ],
+    [
+        dentalTermPattern(String.raw `(?:пародантит|парадонтит)(?:а|ом|е)?`),
+        "пародонтит",
+        "пародонтит",
+    ],
+    [
+        dentalTermPattern(String.raw `кариес\s+дентина|кариес\s+дентин`),
+        "кариес дентина",
+        "кариес дентина",
+    ],
+    [
+        dentalTermPattern(String.raw `кариозн(?:ая|ой|ую)\s+поласть|кариозн(?:ая|ой|ую)\s+полас[тд]ь`),
+        "кариозная полость",
+        "кариозная полость",
+    ],
+    [
+        dentalTermPattern(String.raw `зандирован(?:ие|ия)|зондированее`),
+        "зондирование",
+        "зондирование",
+    ],
     [dentalTermPattern(String.raw `перкусия`), "перкуссия", "перкуссия"],
-    [dentalTermPattern(String.raw `палпац(?:ия|ии)|пальпацыя`), "пальпация", "пальпация"],
-    [dentalTermPattern(String.raw `адгизивн(?:ый|ого|ом|ая|ую)`), "адгезивный", "адгезивный"],
-    [dentalTermPattern(String.raw `рестоврац(?:ия|ии|ию)`), "реставрация", "реставрация"],
+    [
+        dentalTermPattern(String.raw `палпац(?:ия|ии)|пальпацыя`),
+        "пальпация",
+        "пальпация",
+    ],
+    [
+        dentalTermPattern(String.raw `адгизивн(?:ый|ого|ом|ая|ую)`),
+        "адгезивный",
+        "адгезивный",
+    ],
+    [
+        dentalTermPattern(String.raw `рестоврац(?:ия|ии|ию)`),
+        "реставрация",
+        "реставрация",
+    ],
     [dentalTermPattern(String.raw `пламб(?:а|ы|у|ой|е)?`), "пломба", "пломба"],
     [dentalTermPattern(String.raw `матриц(?:а|ы|у|ей|е)?`), "матрица", "матрица"],
     [dentalTermPattern(String.raw `клин(?:а|ом|е)?`), "клин", "клин"],
-    [dentalTermPattern(String.raw `финиров(?:ание|ания)|финишн(?:ая|ой|ую)\s+обработк(?:а|и|у)`), "финирование", "финирование"],
-    [dentalTermPattern(String.raw `полеровк(?:а|и|у)|полировк(?:а|и|у)`), "полировка", "полировка"],
-    [dentalTermPattern(String.raw `холодов(?:ая|ой|ую)\s+проб(?:а|ы|у)|термо\s*проб(?:а|ы|у)|термопроб(?:а|ы|у)`), "холодовая проба", "холодовая проба"],
-    [dentalTermPattern(String.raw `визиограф(?:ия|ии|ию)|прицельн(?:ый|ого|ом|ая|ую)\s+сним(?:ок|ка)`), "прицельный снимок", "прицельный снимок"],
+    [
+        dentalTermPattern(String.raw `финиров(?:ание|ания)|финишн(?:ая|ой|ую)\s+обработк(?:а|и|у)`),
+        "финирование",
+        "финирование",
+    ],
+    [
+        dentalTermPattern(String.raw `полеровк(?:а|и|у)|полировк(?:а|и|у)`),
+        "полировка",
+        "полировка",
+    ],
+    [
+        dentalTermPattern(String.raw `холодов(?:ая|ой|ую)\s+проб(?:а|ы|у)|термо\s*проб(?:а|ы|у)|термопроб(?:а|ы|у)`),
+        "холодовая проба",
+        "холодовая проба",
+    ],
+    [
+        dentalTermPattern(String.raw `визиограф(?:ия|ии|ию)|прицельн(?:ый|ого|ом|ая|ую)\s+сним(?:ок|ка)`),
+        "прицельный снимок",
+        "прицельный снимок",
+    ],
     [dentalTermPattern(String.raw `и\s*р\s*о\s*п\s*з|иропз`), "ИРОПЗ", "ИРОПЗ"],
     [dentalTermPattern(String.raw `к\s*п\s*у|кпу`), "КПУ", "КПУ"],
     [dentalTermPattern(String.raw `с\s*и\s*ц|сиц`), "СИЦ", "СИЦ"],
     [dentalTermPattern(String.raw `м\s*т\s*а|mta`), "MTA", "MTA"],
-    [dentalTermPattern(String.raw `стекло\s*иономерн(ый|ого|ом|ая|ую)?`), "стеклоиономерн$1", "стеклоиономерный цемент"],
-    [dentalTermPattern(String.raw `фесур(?:а|ы|у|ой)?|фиссур(?:а|ы|у|ой)?`), "фиссура", "фиссура"],
-    [dentalTermPattern(String.raw `гермитизац(?:ия|ии|ию)|герметизац(?:ия|ии|ию)`), "герметизация", "герметизация"],
-    [dentalTermPattern(String.raw `мастер\s*штифт(?:а|ом|е)?`), "мастер-штифт", "мастер-штифт"],
+    [
+        dentalTermPattern(String.raw `стекло\s*иономерн(ый|ого|ом|ая|ую)?`),
+        "стеклоиономерн$1",
+        "стеклоиономерный цемент",
+    ],
+    [
+        dentalTermPattern(String.raw `фесур(?:а|ы|у|ой)?|фиссур(?:а|ы|у|ой)?`),
+        "фиссура",
+        "фиссура",
+    ],
+    [
+        dentalTermPattern(String.raw `гермитизац(?:ия|ии|ию)|герметизац(?:ия|ии|ию)`),
+        "герметизация",
+        "герметизация",
+    ],
+    [
+        dentalTermPattern(String.raw `мастер\s*штифт(?:а|ом|е)?`),
+        "мастер-штифт",
+        "мастер-штифт",
+    ],
     [dentalTermPattern(String.raw `м\s*о\s*д|эм\s*о\s*дэ|мод`), "МОД", "МОД"],
     [dentalTermPattern(String.raw `м\s*о|эм\s*о`), "МО", "МО"],
     [dentalTermPattern(String.raw `о\s*д|о\s*дэ`), "ОД", "ОД"],
     [
         dentalTermPattern(String.raw `мезиальн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?\s+окклюзионн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?\s+дистальн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
         "МОД",
-        "МОД"
+        "МОД",
     ],
     [
         dentalTermPattern(String.raw `мезиальн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?\s+окклюзионн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
         "МО",
-        "МО"
+        "МО",
     ],
     [
         dentalTermPattern(String.raw `дистальн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?\s+окклюзионн(?:ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
         "ОД",
-        "ОД"
+        "ОД",
     ],
-    [dentalTermPattern(String.raw `перв(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`), "I класс по Блэку", "класс по Блэку"],
-    [dentalTermPattern(String.raw `втор(?:ого|ой|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`), "II класс по Блэку", "класс по Блэку"],
-    [dentalTermPattern(String.raw `треть(?:его|ий|ем)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`), "III класс по Блэку", "класс по Блэку"],
-    [dentalTermPattern(String.raw `четверт(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`), "IV класс по Блэку", "класс по Блэку"],
-    [dentalTermPattern(String.raw `пят(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`), "V класс по Блэку", "класс по Блэку"],
-    [dentalTermPattern(String.raw `оклюзионн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`), "окклюзионн$1", "окклюзионная поверхность"],
-    [dentalTermPattern(String.raw `медиальн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`), "мезиальн$1", "мезиальная поверхность"],
-    [dentalTermPattern(String.raw `апрокс\s*имальн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?|апроксималн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`), "апроксимальн$1$2", "апроксимальная поверхность"],
-    [dentalTermPattern(String.raw `контактн(?:ый|ого|ом|ая|ую|ой)?\s+пун[кт](?:а|ом|е)?`), "контактный пункт", "контактный пункт"],
-    [dentalTermPattern(String.raw `при\s+шеечн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`), "пришеечн$1", "пришеечная область"],
-    [dentalTermPattern(String.raw `апек\s*локатор`), "апекслокатор", "апекслокатор"],
-    [dentalTermPattern(String.raw `рабоч(?:ая|ей|ую)\s+длин(?:а|ы|у)`), "рабочая длина", "рабочая длина"],
-    [dentalTermPattern(String.raw `гут[ао]\s*перч(?:а|и|у|ей)?`), "гуттаперча", "гуттаперча"],
+    [
+        dentalTermPattern(String.raw `перв(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`),
+        "I класс по Блэку",
+        "класс по Блэку",
+    ],
+    [
+        dentalTermPattern(String.raw `втор(?:ого|ой|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`),
+        "II класс по Блэку",
+        "класс по Блэку",
+    ],
+    [
+        dentalTermPattern(String.raw `треть(?:его|ий|ем)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`),
+        "III класс по Блэку",
+        "класс по Блэку",
+    ],
+    [
+        dentalTermPattern(String.raw `четверт(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`),
+        "IV класс по Блэку",
+        "класс по Блэку",
+    ],
+    [
+        dentalTermPattern(String.raw `пят(?:ого|ый|ом)\s+класс(?:а|у|ом)?\s+по\s+бл[эе]к(?:у|а)?`),
+        "V класс по Блэку",
+        "класс по Блэку",
+    ],
+    [
+        dentalTermPattern(String.raw `оклюзионн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
+        "окклюзионн$1",
+        "окклюзионная поверхность",
+    ],
+    [
+        dentalTermPattern(String.raw `медиальн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
+        "мезиальн$1",
+        "мезиальная поверхность",
+    ],
+    [
+        dentalTermPattern(String.raw `апрокс\s*имальн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?|апроксималн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
+        "апроксимальн$1$2",
+        "апроксимальная поверхность",
+    ],
+    [
+        dentalTermPattern(String.raw `контактн(?:ый|ого|ом|ая|ую|ой)?\s+пун[кт](?:а|ом|е)?`),
+        "контактный пункт",
+        "контактный пункт",
+    ],
+    [
+        dentalTermPattern(String.raw `при\s+шеечн(ая|ой|ую|ые|ых|ым|ыми|ый|ого|ом)?`),
+        "пришеечн$1",
+        "пришеечная область",
+    ],
+    [
+        dentalTermPattern(String.raw `апек\s*локатор`),
+        "апекслокатор",
+        "апекслокатор",
+    ],
+    [
+        dentalTermPattern(String.raw `рабоч(?:ая|ей|ую)\s+длин(?:а|ы|у)`),
+        "рабочая длина",
+        "рабочая длина",
+    ],
+    [
+        dentalTermPattern(String.raw `гут[ао]\s*перч(?:а|и|у|ей)?`),
+        "гуттаперча",
+        "гуттаперча",
+    ],
     [dentalTermPattern(String.raw `силлер(?:а|ом|е)?`), "силер", "силер"],
-    [dentalTermPattern(String.raw `времен(?:ная|ной|ную)\s+пломб(?:а|ы|у|ой)?`), "временная пломба", "временная пломба"],
-    [dentalTermPattern(String.raw `статус\s+пр[еэ]з[еэ]нс|status\s+praesens`), "status praesens", "status praesens"],
-    [dentalTermPattern(String.raw `статус\s+локалис|status\s+localis`), "status localis", "status localis"],
-    [dentalTermPattern(String.raw `ирригац(?:ия|ии|ию)|иригац(?:ия|ии|ию)`), "ирригация", "ирригация"],
-    [dentalTermPattern(String.raw `пломбиров(?:ание|ания)|пламбиров(?:ание|ания)`), "пломбирование", "пломбирование"],
-    [dentalTermPattern(String.raw `шлифовк(?:а|и|у|ой)|пришлифовк(?:а|и|у|ой)`), "шлифовка", "шлифовка"],
-    [dentalTermPattern(String.raw `коррекц(?:ия|ии|ию)\s+окклюз(?:ии|ия|ию)|корекц(?:ия|ии|ию)\s+оклюз(?:ии|ия|ию)`), "коррекция окклюзии", "коррекция окклюзии"],
-    [dentalTermPattern(String.raw `артикуляционн(?:ая|ой|ую)\s+бумаг(?:а|и|у|ой)`), "артикуляционная бумага", "артикуляционная бумага"],
+    [
+        dentalTermPattern(String.raw `времен(?:ная|ной|ную)\s+пломб(?:а|ы|у|ой)?`),
+        "временная пломба",
+        "временная пломба",
+    ],
+    [
+        dentalTermPattern(String.raw `статус\s+пр[еэ]з[еэ]нс|status\s+praesens`),
+        "status praesens",
+        "status praesens",
+    ],
+    [
+        dentalTermPattern(String.raw `статус\s+локалис|status\s+localis`),
+        "status localis",
+        "status localis",
+    ],
+    [
+        dentalTermPattern(String.raw `ирригац(?:ия|ии|ию)|иригац(?:ия|ии|ию)`),
+        "ирригация",
+        "ирригация",
+    ],
+    [
+        dentalTermPattern(String.raw `пломбиров(?:ание|ания)|пламбиров(?:ание|ания)`),
+        "пломбирование",
+        "пломбирование",
+    ],
+    [
+        dentalTermPattern(String.raw `шлифовк(?:а|и|у|ой)|пришлифовк(?:а|и|у|ой)`),
+        "шлифовка",
+        "шлифовка",
+    ],
+    [
+        dentalTermPattern(String.raw `коррекц(?:ия|ии|ию)\s+окклюз(?:ии|ия|ию)|корекц(?:ия|ии|ию)\s+оклюз(?:ии|ия|ию)`),
+        "коррекция окклюзии",
+        "коррекция окклюзии",
+    ],
+    [
+        dentalTermPattern(String.raw `артикуляционн(?:ая|ой|ую)\s+бумаг(?:а|и|у|ой)`),
+        "артикуляционная бумага",
+        "артикуляционная бумага",
+    ],
     [dentalTermPattern(String.raw `карпул(?:а|ы|у|ой|е)?`), "карпула", "карпула"],
-    [dentalTermPattern(String.raw `переапикальн(?:ый|ого|ом)?|периапекальн(?:ый|ого|ом)?`), "периапикальный", "периапикальный"],
-    [dentalTermPattern(String.raw `обьективно|объективна`), "объективно", "объективно"],
-    [dentalTermPattern(String.raw `анастезия|анистезия|анестезея`), "анестезия", "анестезия"],
-    [dentalTermPattern(String.raw `инфильтрационн(?:ая|ой|ую)|инфилтрационн(?:ая|ой|ую)`), "инфильтрационная", "инфильтрационная анестезия"],
-    [dentalTermPattern(String.raw `проводников(?:ая|ой|ую)`), "проводниковая", "проводниковая анестезия"],
-    [dentalTermPattern(String.raw `ортопантомограмма|ортопантомограмму`), "ОПТГ", "ОПТГ"]
+    [
+        dentalTermPattern(String.raw `переапикальн(?:ый|ого|ом)?|периапекальн(?:ый|ого|ом)?`),
+        "периапикальный",
+        "периапикальный",
+    ],
+    [
+        dentalTermPattern(String.raw `обьективно|объективна`),
+        "объективно",
+        "объективно",
+    ],
+    [
+        dentalTermPattern(String.raw `анастезия|анистезия|анестезея`),
+        "анестезия",
+        "анестезия",
+    ],
+    [
+        dentalTermPattern(String.raw `инфильтрационн(?:ая|ой|ую)|инфилтрационн(?:ая|ой|ую)`),
+        "инфильтрационная",
+        "инфильтрационная анестезия",
+    ],
+    [
+        dentalTermPattern(String.raw `проводников(?:ая|ой|ую)`),
+        "проводниковая",
+        "проводниковая анестезия",
+    ],
+    [
+        dentalTermPattern(String.raw `ортопантомограмма|ортопантомограмму`),
+        "ОПТГ",
+        "ОПТГ",
+    ],
 ];
 const spokenToothOrdinalMap = [
     [dentalTermPattern(String.raw `одиннадцат(?:ый|ого|ому|ым|ом)?`), "11"],
@@ -5568,16 +6830,28 @@ const spokenToothOrdinalMap = [
     [dentalTermPattern(String.raw `восемнадцат(?:ый|ого|ому|ым|ом)?`), "18"],
     [dentalTermPattern(String.raw `двадцать\s+перв(?:ый|ого|ому|ым|ом)?`), "21"],
     [dentalTermPattern(String.raw `двадцать\s+втор(?:ой|ого|ому|ым|ом)?`), "22"],
-    [dentalTermPattern(String.raw `двадцать\s+трет(?:ий|ьего|ьему|ьим|ьем)?`), "23"],
-    [dentalTermPattern(String.raw `двадцать\s+четверт(?:ый|ого|ому|ым|ом)?`), "24"],
+    [
+        dentalTermPattern(String.raw `двадцать\s+трет(?:ий|ьего|ьему|ьим|ьем)?`),
+        "23",
+    ],
+    [
+        dentalTermPattern(String.raw `двадцать\s+четверт(?:ый|ого|ому|ым|ом)?`),
+        "24",
+    ],
     [dentalTermPattern(String.raw `двадцать\s+пят(?:ый|ого|ому|ым|ом)?`), "25"],
     [dentalTermPattern(String.raw `двадцать\s+шест(?:ой|ого|ому|ым|ом)?`), "26"],
     [dentalTermPattern(String.raw `двадцать\s+седьм(?:ой|ого|ому|ым|ом)?`), "27"],
     [dentalTermPattern(String.raw `двадцать\s+восьм(?:ой|ого|ому|ым|ом)?`), "28"],
     [dentalTermPattern(String.raw `тридцать\s+перв(?:ый|ого|ому|ым|ом)?`), "31"],
     [dentalTermPattern(String.raw `тридцать\s+втор(?:ой|ого|ому|ым|ом)?`), "32"],
-    [dentalTermPattern(String.raw `тридцать\s+трет(?:ий|ьего|ьему|ьим|ьем)?`), "33"],
-    [dentalTermPattern(String.raw `тридцать\s+четверт(?:ый|ого|ому|ым|ом)?`), "34"],
+    [
+        dentalTermPattern(String.raw `тридцать\s+трет(?:ий|ьего|ьему|ьим|ьем)?`),
+        "33",
+    ],
+    [
+        dentalTermPattern(String.raw `тридцать\s+четверт(?:ый|ого|ому|ым|ом)?`),
+        "34",
+    ],
     [dentalTermPattern(String.raw `тридцать\s+пят(?:ый|ого|ому|ым|ом)?`), "35"],
     [dentalTermPattern(String.raw `тридцать\s+шест(?:ой|ого|ому|ым|ом)?`), "36"],
     [dentalTermPattern(String.raw `тридцать\s+седьм(?:ой|ого|ому|ым|ом)?`), "37"],
@@ -5589,7 +6863,7 @@ const spokenToothOrdinalMap = [
     [dentalTermPattern(String.raw `сорок\s+пят(?:ый|ого|ому|ым|ом)?`), "45"],
     [dentalTermPattern(String.raw `сорок\s+шест(?:ой|ого|ому|ым|ом)?`), "46"],
     [dentalTermPattern(String.raw `сорок\s+седьм(?:ой|ого|ому|ым|ом)?`), "47"],
-    [dentalTermPattern(String.raw `сорок\s+восьм(?:ой|ого|ому|ым|ом)?`), "48"]
+    [dentalTermPattern(String.raw `сорок\s+восьм(?:ой|ого|ому|ым|ом)?`), "48"],
 ];
 const spokenToothPhraseMap = [
     ["один один", "11"],
@@ -5656,7 +6930,7 @@ const spokenToothPhraseMap = [
     ["четыре семь", "47"],
     ["сорок седьмой", "47"],
     ["четыре восемь", "48"],
-    ["сорок восьмой", "48"]
+    ["сорок восьмой", "48"],
 ];
 const dentalSpeechPhraseMap = [
     ["к л к т", "КЛКТ", "КЛКТ"],
@@ -5766,10 +7040,12 @@ const dentalSpeechPhraseMap = [
     ["анастезия", "анестезия", "анестезия"],
     ["анистезия", "анестезия", "анестезия"],
     ["ортопантомограмма", "ОПТГ", "ОПТГ"],
-    ["ортопантомограмму", "ОПТГ", "ОПТГ"]
+    ["ортопантомограмму", "ОПТГ", "ОПТГ"],
 ];
 function escapedPhrasePattern(phrase) {
-    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const escaped = phrase
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\s+/g, "\\s+");
     return new RegExp(`(?<![0-9A-Za-zА-Яа-яЁё])${escaped}(?![0-9A-Za-zА-Яа-яЁё])`, "gi");
 }
 function applyTrackedReplacement(text, pattern, replacement, label, changes) {
@@ -5784,22 +7060,22 @@ function applyTrackedPhraseReplacement(text, phrase, replacement, label, changes
 }
 function normalizeSpeechSections(text) {
     return text
-        .replace(/\s+((?:без\s+жалоб|жалобы\s+отрицает)\s*[:\-]?)/gi, "\n$1")
-        .replace(/(?<!без)\s+(жалоб(?:ы|а)?(?!\s+отрицает)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:пациент\s+)?жалуется\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:пациент\s+)?отмечает\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:беспокоит|беспокоят)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+(анамнез\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:аллергологический\s+анамнез|аллерги(?:я|ю)|соматически|соматический\s+статус|препараты|лекарственные\s+препараты|постоянные\s+препараты)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+(со слов\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:из\s+анамнеза|со\s+слов\s+пациента|ранее\s+лечен|ранее\s+лечилась|после\s+лечения)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+(объективно\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:status\s+praesens|status\s+localis|осмотр|при\s+осмотре|на\s+снимке|рентгенологически)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:DS|Dx|D\/S)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:ds|dx|d\/s|предварительный\s+)?диагноз\s*[:\-]?|предварительно\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+(план\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+((?:лечение|показано|проведен(?:о|а|ы)?|выполнен(?:о|а|ы)?|сделан(?:о|а|ы)?|назначен(?:о|а|ы)?|рекомендован(?:о|а|ы)?)\s*[:\-]?)/gi, "\n$1")
-        .replace(/\s+(рекомендации\s*[:\-]?)/gi, "\n$1")
+        .replace(/\s+((?:без\s+жалоб|жалобы\s+отрицает)\s*[:-]?)/gi, "\n$1")
+        .replace(/(?<!без)\s+(жалоб(?:ы|а)?(?!\s+отрицает)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:пациент\s+)?жалуется\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:пациент\s+)?отмечает\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:беспокоит|беспокоят)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+(анамнез\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:аллергологический\s+анамнез|аллерги(?:я|ю)|соматически|соматический\s+статус|препараты|лекарственные\s+препараты|постоянные\s+препараты)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+(со слов\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:из\s+анамнеза|со\s+слов\s+пациента|ранее\s+лечен|ранее\s+лечилась|после\s+лечения)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+(объективно\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:status\s+praesens|status\s+localis|осмотр|при\s+осмотре|на\s+снимке|рентгенологически)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:DS|Dx|D\/S)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:ds|dx|d\/s|предварительный\s+)?диагноз\s*[:-]?|предварительно\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+(план\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+((?:лечение|показано|проведен(?:о|а|ы)?|выполнен(?:о|а|ы)?|сделан(?:о|а|ы)?|назначен(?:о|а|ы)?|рекомендован(?:о|а|ы)?)\s*[:-]?)/gi, "\n$1")
+        .replace(/\s+(рекомендации\s*[:-]?)/gi, "\n$1")
         .replace(/\n{3,}/g, "\n\n");
 }
 export function normalizeDentalSpeechTranscript(transcript, specialty = "universal") {
@@ -5840,7 +7116,7 @@ export function normalizeDentalSpeechTranscript(transcript, specialty = "univers
     const lower = normalizedText.toLowerCase();
     const warnings = [
         "Нормализация диктовки только чистит текст и секции, не добавляет клинические факты.",
-        `Фокус нормализации: ${ruleParserSpecialtyLabels[specialty]}.`
+        `Фокус нормализации: ${ruleParserSpecialtyLabels[specialty]}.`,
     ];
     if (changedPhrases.length) {
         warnings.push(`Изменены фразы: ${uniqueStrings(changedPhrases).slice(0, 8).join(", ")}.`);
@@ -5848,14 +7124,25 @@ export function normalizeDentalSpeechTranscript(transcript, specialty = "univers
     if (!toothCodes.length) {
         warnings.push("Номер зуба не найден автоматически: врачу нужно проверить запись.");
     }
-    if (includesAnyText(lower, ["диагноз", "k01", "k02", "k04", "k05", "k08", "кариес", "пульпит", "периодонтит", "пародонтит"])) {
+    if (includesAnyText(lower, [
+        "диагноз",
+        "k01",
+        "k02",
+        "k04",
+        "k05",
+        "k08",
+        "кариес",
+        "пульпит",
+        "периодонтит",
+        "пародонтит",
+    ])) {
         warnings.push("В тексте есть диагноз/код: система не подтверждает его автоматически.");
     }
     return {
         rawText,
         normalizedText,
         changedPhrases: uniqueStrings(changedPhrases),
-        warnings
+        warnings,
     };
 }
 function includesAnyText(text, tokens) {
@@ -5875,7 +7162,7 @@ const complaintSectionPrefixes = [
     "пациент отмечает",
     "отмечает",
     "беспокоит",
-    "беспокоят"
+    "беспокоят",
 ];
 const anamnesisSectionPrefixes = [
     "анамнез",
@@ -5892,7 +7179,7 @@ const anamnesisSectionPrefixes = [
     "со слов пациента",
     "ранее лечен",
     "ранее лечилась",
-    "после лечения"
+    "после лечения",
 ];
 const objectiveSectionPrefixes = [
     "объективно",
@@ -5902,9 +7189,17 @@ const objectiveSectionPrefixes = [
     "осмотр",
     "при осмотре",
     "на снимке",
-    "рентгенологически"
+    "рентгенологически",
 ];
-const diagnosisSectionPrefixes = ["диагноз", "предварительный диагноз", "клинический диагноз", "предварительно", "DS", "Dx", "D/S"];
+const diagnosisSectionPrefixes = [
+    "диагноз",
+    "предварительный диагноз",
+    "клинический диагноз",
+    "предварительно",
+    "DS",
+    "Dx",
+    "D/S",
+];
 const planSectionPrefixes = [
     "план",
     "лечение",
@@ -5925,14 +7220,14 @@ const planSectionPrefixes = [
     "назначения",
     "назначено",
     "назначена",
-    "назначены"
+    "назначены",
 ];
 const allSectionPrefixes = [
     ...complaintSectionPrefixes,
     ...anamnesisSectionPrefixes,
     ...objectiveSectionPrefixes,
     ...diagnosisSectionPrefixes,
-    ...planSectionPrefixes
+    ...planSectionPrefixes,
 ];
 function cleanRuleParserLine(value) {
     const trimmed = value.trim();
@@ -5961,7 +7256,8 @@ function cleanFallbackComplaintLine(context) {
     const firstLine = context.allLines[0] ?? null;
     if (!firstLine)
         return null;
-    if (lineStartsWithSection(firstLine, complaintSectionPrefixes) || includesAnyText(firstLine.toLowerCase(), ["без жалоб", "жалобы отрицает"])) {
+    if (lineStartsWithSection(firstLine, complaintSectionPrefixes) ||
+        includesAnyText(firstLine.toLowerCase(), ["без жалоб", "жалобы отрицает"])) {
         return cleanRuleParserLine(firstLine) || firstLine;
     }
     return firstLine;
@@ -5986,14 +7282,19 @@ function buildRuleParserContext(text) {
             .map((line) => line.trim())
             .filter(Boolean),
         unscopedLines,
-        sectionBlocks
+        sectionBlocks,
     };
 }
 function findRuleParserLines(context, tokens, sectionPrefixes = [], limit = 4) {
     const sectionBlocks = sectionPrefixes.length
-        ? context.sectionBlocks.filter((item) => lineStartsWithSection(item, sectionPrefixes)).map(cleanRuleParserLine).filter(Boolean)
+        ? context.sectionBlocks
+            .filter((item) => lineStartsWithSection(item, sectionPrefixes))
+            .map(cleanRuleParserLine)
+            .filter(Boolean)
         : [];
-    const searchLines = sectionBlocks.length ? context.unscopedLines : context.allLines;
+    const searchLines = sectionBlocks.length
+        ? context.unscopedLines
+        : context.allLines;
     const excludedPrefixes = allSectionPrefixes.filter((prefix) => !sectionPrefixes.includes(prefix));
     const matchedLines = searchLines
         .filter((item) => !lineStartsWithSection(item, excludedPrefixes))
@@ -6035,11 +7336,26 @@ function buildVisitDraftQuality(input) {
         signals.push("tooth_codes_detected");
     else
         missingCriticalFields.push("tooth_or_region");
-    if (includesAnyText(lower, ["кт", "клкт", "cbct", "оптг", "rvg", "трг", "снимок", "рентген"]))
+    if (includesAnyText(lower, [
+        "кт",
+        "клкт",
+        "cbct",
+        "оптг",
+        "rvg",
+        "трг",
+        "снимок",
+        "рентген",
+    ]))
         signals.push("imaging_mentioned");
     if (includesAnyText(lower, ["соглас", "договор", "информирован"]))
         signals.push("consent_mentioned");
-    if (includesAnyText(lower, ["аллерг", "антикоаг", "диабет", "беремен", "давлен"]))
+    if (includesAnyText(lower, [
+        "аллерг",
+        "антикоаг",
+        "диабет",
+        "беремен",
+        "давлен",
+    ]))
         signals.push("medical_risk_mentioned");
     if (includesAnyText(lower, [
         "анест",
@@ -6075,7 +7391,7 @@ function buildVisitDraftQuality(input) {
         "корон",
         "брекет",
         "air flow",
-        "канал"
+        "канал",
     ])) {
         signals.push("procedure_mentioned");
     }
@@ -6104,7 +7420,7 @@ function buildVisitDraftQuality(input) {
             ? "Проверить распознанные поля, диагноз, документы и подписать только после врачебного подтверждения."
             : level === "review"
                 ? "Проверить недостающие поля и при необходимости дописать короткую диктовку."
-                : "Продиктовать жалобы, объективный статус, зуб/область и план лечения подробнее."
+                : "Продиктовать жалобы, объективный статус, зуб/область и план лечения подробнее.",
     };
 }
 export function buildRuleBasedVisitDraftFromTranscript(transcript, specialty = "universal", options = {}) {
@@ -6167,7 +7483,7 @@ export function buildRuleBasedVisitDraftFromTranscript(transcript, specialty = "
         "абатмент",
         "синус-лифтинг",
         "костная пластика",
-        "навигационный шаблон"
+        "навигационный шаблон",
     ]);
     const complaint = complaintLine ??
         cleanFallbackComplaintLine(parserContext) ??
@@ -6175,13 +7491,16 @@ export function buildRuleBasedVisitDraftFromTranscript(transcript, specialty = "
     const anamnesis = anamnesisLine ??
         "Анамнез уточнить: сроки, аллергии, препараты, хронические заболевания, беременность, антикоагулянты.";
     const objectiveStatus = objectiveLine ??
-        [profile.objectiveFallback, toothCodes.length ? `Распознаны зубы/сегменты: ${toothCodes.join(", ")}.` : null].filter(Boolean).join(" ");
-    const diagnosis = diagnosisLine ??
-        profile.diagnosisFallback;
-    const treatmentPlan = planLine ??
-        (planSignal
-            ? cleanRuleParserLine(text)
-            : profile.planFallback);
+        [
+            profile.objectiveFallback,
+            toothCodes.length
+                ? `Распознаны зубы/сегменты: ${toothCodes.join(", ")}.`
+                : null,
+        ]
+            .filter(Boolean)
+            .join(" ");
+    const diagnosis = diagnosisLine ?? profile.diagnosisFallback;
+    const treatmentPlan = planLine ?? (planSignal ? cleanRuleParserLine(text) : profile.planFallback);
     return {
         complaint,
         anamnesis,
@@ -6197,16 +7516,18 @@ export function buildRuleBasedVisitDraftFromTranscript(transcript, specialty = "
             objectiveLine,
             diagnosisLine,
             planLine,
-            planSignal
+            planSignal,
         }),
         warnings: [
             `${sourceLabel}: черновик собран по профилю специальности и ключевым словам; это не финальное медицинское решение.`,
             ...normalization.warnings,
             "Диагноз, план, противопоказания, документы и подпись подтверждает врач.",
             `Фокус приема: ${ruleParserSpecialtyLabels[specialty]}.`,
-            toothCodes.length ? `Распознаны зубы/сегменты: ${toothCodes.join(", ")}.` : "Номер зуба не распознан автоматически.",
-            ...profile.reviewHints
-        ]
+            toothCodes.length
+                ? `Распознаны зубы/сегменты: ${toothCodes.join(", ")}.`
+                : "Номер зуба не распознан автоматически.",
+            ...profile.reviewHints,
+        ],
     };
 }
 export const acceptVisitDraftSchema = z.object({
@@ -6216,7 +7537,7 @@ export const acceptVisitDraftSchema = z.object({
     clientMutationId: z.string().min(1).max(120).nullable().optional(),
     baseRevision: z.number().int().nonnegative().nullable().optional(),
     clientSavedAt: z.string().nullable().optional(),
-    instrumentTrayBarcode: z.string().nullable().optional()
+    instrumentTrayBarcode: z.string().nullable().optional(),
 });
 export const visitSaveReceiptSchema = z.object({
     visitId: z.string().uuid(),
@@ -6224,12 +7545,12 @@ export const visitSaveReceiptSchema = z.object({
     status: z.enum(["accepted", "duplicate", "conflict_accepted"]),
     serverRevision: z.number().int().nonnegative(),
     savedAt: z.string(),
-    warning: z.string().nullable()
+    warning: z.string().nullable(),
 });
 export const acceptVisitDraftResponseSchema = z.object({
     visit: visitSchema,
     visitCloseChecklist: visitCloseChecklistSchema,
-    saveReceipt: visitSaveReceiptSchema
+    saveReceipt: visitSaveReceiptSchema,
 });
 export const aiRecognitionJobSchema = z.object({
     id: z.string().uuid(),
@@ -6246,7 +7567,7 @@ export const aiRecognitionJobSchema = z.object({
     warnings: z.array(z.string()),
     suggestedNextStep: z.string(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
 });
 export const createAiRecognitionJobSchema = z.object({
     kind: aiJobKindSchema,
@@ -6254,10 +7575,10 @@ export const createAiRecognitionJobSchema = z.object({
     sourceLabel: z.string().trim().min(1).max(160).default("manual"),
     inputText: z.string().trim().min(1).max(80000),
     patientId: z.string().uuid().nullable().optional(),
-    imagingStudyId: z.string().uuid().nullable().optional()
+    imagingStudyId: z.string().uuid().nullable().optional(),
 });
 export const aiRecognitionJobResponseSchema = z.object({
-    job: aiRecognitionJobSchema
+    job: aiRecognitionJobSchema,
 });
 export const importSourceKindSchema = z.enum([
     "csv_text",
@@ -6265,12 +7586,12 @@ export const importSourceKindSchema = z.enum([
     "mis_export",
     "image_ocr",
     "voice_dictation",
-    "free_text"
+    "free_text",
 ]);
 export const importPreviewRequestSchema = z.object({
     sourceName: z.string().trim().min(1).max(160).default("manual_csv"),
     sourceKind: importSourceKindSchema.default("csv_text"),
-    rawText: z.string().trim().min(1).max(120000)
+    rawText: z.string().trim().min(1).max(120000),
 });
 export const importPreviewRowSchema = z.object({
     rowNumber: z.number().int().positive(),
@@ -6279,7 +7600,7 @@ export const importPreviewRowSchema = z.object({
     birthDate: z.string().nullable(),
     notes: z.string().nullable(),
     status: z.enum(["ready", "warning", "blocked"]),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const importPreviewResponseSchema = z.object({
     sourceName: z.string(),
@@ -6287,27 +7608,27 @@ export const importPreviewResponseSchema = z.object({
     readyRows: z.number().int().nonnegative(),
     warningRows: z.number().int().nonnegative(),
     blockedRows: z.number().int().nonnegative(),
-    rows: z.array(importPreviewRowSchema)
+    rows: z.array(importPreviewRowSchema),
 });
 export const importCommitRequestSchema = importPreviewRequestSchema;
 export const importCommitResponseSchema = z.object({
     preview: importPreviewResponseSchema,
     importedCount: z.number().int().nonnegative(),
     skippedCount: z.number().int().nonnegative(),
-    importedPatientIds: z.array(z.string().uuid())
+    importedPatientIds: z.array(z.string().uuid()),
 });
 export const importIntakeRequestSchema = z.object({
     sourceName: z.string().trim().min(1).max(160).default("manual_input"),
     sourceKind: importSourceKindSchema,
     rawText: z.string().trim().min(1).max(120000),
-    fileName: z.string().trim().min(1).max(260).nullable().optional()
+    fileName: z.string().trim().min(1).max(260).nullable().optional(),
 });
 export const importIntakeResponseSchema = z.object({
     sourceName: z.string(),
     sourceKind: importSourceKindSchema,
     normalizedText: z.string(),
     preview: importPreviewResponseSchema,
-    recognitionNotes: z.array(z.string())
+    recognitionNotes: z.array(z.string()),
 });
 export const documentIngestionKindSchema = z.enum([
     "txt",
@@ -6328,33 +7649,39 @@ export const documentIngestionKindSchema = z.enum([
     "image",
     "legacy_database",
     "legacy_dump",
-    "unknown"
+    "unknown",
 ]);
-export const documentIngestionTargetSchema = z.enum(["smart_import", "patients", "imaging", "pricelist", "plain_text"]);
+export const documentIngestionTargetSchema = z.enum([
+    "smart_import",
+    "patients",
+    "imaging",
+    "pricelist",
+    "plain_text",
+]);
 export const documentIngestionRequestSchema = z
     .object({
     fileName: z.string().min(1).max(260),
     mimeType: z.string().max(160).nullable().optional(),
     fileBase64: z.string().max(8_000_000).optional(),
     rawText: z.string().max(300_000).optional(),
-    target: documentIngestionTargetSchema.default("smart_import")
+    target: documentIngestionTargetSchema.default("smart_import"),
 })
     .refine((input) => Boolean(input.fileBase64?.trim() || input.rawText?.trim()), {
-    message: "Нужно передать файл или текст документа"
+    message: "Нужно передать файл или текст документа",
 });
 export const documentIngestionRouteSchema = z.object({
     target: documentIngestionTargetSchema,
     title: z.string(),
     endpoint: z.string(),
     enabled: z.boolean(),
-    reason: z.string()
+    reason: z.string(),
 });
 export const documentIngestionQualitySchema = z.object({
     extractionQuality: z.enum(["ready", "review", "ocr_required", "unsupported"]),
     confidence: z.number().min(0).max(1),
     suggestedTarget: documentIngestionTargetSchema,
     signals: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const documentIngestionExtractedFileSchema = z.object({
     fileName: z.string(),
@@ -6362,7 +7689,7 @@ export const documentIngestionExtractedFileSchema = z.object({
     rowCount: z.number().int().nonnegative(),
     tableCount: z.number().int().nonnegative(),
     textPreview: z.string(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const documentIngestionResponseSchema = z.object({
     fileName: z.string(),
@@ -6377,11 +7704,25 @@ export const documentIngestionResponseSchema = z.object({
     routes: z.array(documentIngestionRouteSchema),
     quality: documentIngestionQualitySchema,
     warnings: z.array(z.string()),
-    parserNotes: z.array(z.string())
+    parserNotes: z.array(z.string()),
 });
-export const smartImportModeSchema = z.enum(["auto", "patients", "imaging", "mixed"]);
+export const smartImportModeSchema = z.enum([
+    "auto",
+    "patients",
+    "imaging",
+    "mixed",
+]);
 export const uiLanguageSchema = z.enum(["ru"]);
-export const onboardingStepSchema = z.enum(["intro", "role", "clinic", "legal", "team", "sources", "telegram", "done"]);
+export const onboardingStepSchema = z.enum([
+    "intro",
+    "role",
+    "clinic",
+    "legal",
+    "team",
+    "sources",
+    "telegram",
+    "done",
+]);
 export const uiPreferencesSchema = z.object({
     version: z.literal(1).default(1),
     uiLanguage: uiLanguageSchema.default("ru"),
@@ -6395,17 +7736,28 @@ export const uiPreferencesSchema = z.object({
     scheduleDefaultDoctorUserId: z.string().uuid().nullable().default(null),
     scheduleDefaultAssistantUserId: z.string().uuid().nullable().default(null),
     scheduleDefaultChairId: z.string().uuid().nullable().default(null),
-    scheduleStatusFilter: z.union([appointmentStatusSchema, z.literal("all")]).default("all"),
+    scheduleStatusFilter: z
+        .union([appointmentStatusSchema, z.literal("all")])
+        .default("all"),
     scheduleDateFilter: z.string().max(10).default(""),
     paymentMethod: paymentMethodSchema.default("card"),
-    taxDocumentYear: z.number().int().min(legacyTaxDeductionCertificateMinYear).max(2100).default(new Date().getFullYear()),
+    taxDocumentYear: z
+        .number()
+        .int()
+        .min(legacyTaxDeductionCertificateMinYear)
+        .max(2100)
+        .default(new Date().getFullYear()),
     selectedDocumentKind: documentKindSchema.default("patient_intake_questionnaire"),
     taxApplicationForm: taxDeductionApplicationFormSchema.default("knd_1151156"),
     taxApplicationDeliveryChannel: taxDeductionApplicationDeliveryChannelSchema.default("paper"),
     paymentReceiptTaxSupportRequested: z.boolean().default(false),
     documentIssueSignatureMode: documentIssueSignatureModeSchema.default("paper_signed"),
     documentIssueStaffFullName: z.string().trim().max(160).default(""),
-    documentIssueStaffRole: z.string().trim().max(120).default("Врач/администратор"),
+    documentIssueStaffRole: z
+        .string()
+        .trim()
+        .max(120)
+        .default("Врач/администратор"),
     procedureConsentProcedureType: procedureSpecificConsentProcedureSchema.default("implantation_bone_graft"),
     postVisitCareTopic: postVisitCareTopicSchema.default("filling_restoration"),
     pricelistSourceKind: pricelistSourceKindSchema.default("spreadsheet_copy"),
@@ -6416,52 +7768,76 @@ export const uiPreferencesSchema = z.object({
     documentIngestionTarget: documentIngestionTargetSchema.default("smart_import"),
     imagingImportSourceKind: imagingSourceKindSchema.default("folder_watch"),
     smartImportMode: smartImportModeSchema.default("auto"),
-    imagingKindFilter: z.union([imagingStudyKindSchema, z.literal("all")]).default("all"),
-    dicomWebEndpointUrl: z.string().max(500).default("http://127.0.0.1:8042/dicom-web"),
+    imagingKindFilter: z
+        .union([imagingStudyKindSchema, z.literal("all")])
+        .default("all"),
+    dicomWebEndpointUrl: z
+        .string()
+        .max(500)
+        .default("http://127.0.0.1:8042/dicom-web"),
     ohifBaseUrl: z.string().max(500).default("http://127.0.0.1:3000"),
     telegramBotConfigId: z.string().trim().max(160).default(""),
     telegramLinkSubjectType: denteTelegramSubjectTypeSchema.default("patient"),
     telegramLinkStaffId: z.string().uuid().nullable().default(null),
     telegramOutboxStatusFilter: z
-        .union([denteTelegramOutboxDeliveryStatusSchema, z.literal("all"), z.literal("due")])
+        .union([
+        denteTelegramOutboxDeliveryStatusSchema,
+        z.literal("all"),
+        z.literal("due"),
+    ])
         .default("all"),
-    telegramOutboxTemplateFilter: z.union([denteTelegramTemplateKindSchema, z.literal("all")]).default("all"),
+    telegramOutboxTemplateFilter: z
+        .union([denteTelegramTemplateKindSchema, z.literal("all")])
+        .default("all"),
     onboardingDismissed: z.boolean().default(false),
     onboardingDismissedAt: z.string().nullable().default(null),
     onboardingStep: onboardingStepSchema.default("intro"),
     onboardingDraftMode: z.boolean().default(false),
-    savedAt: z.string().default("")
+    savedAt: z.string().default(""),
 });
-export const uiPreferencesInputSchema = uiPreferencesSchema.omit({ version: true, savedAt: true }).extend({
+export const uiPreferencesInputSchema = uiPreferencesSchema
+    .omit({ version: true, savedAt: true })
+    .extend({
     version: z.literal(1).optional(),
-    savedAt: z.string().optional()
+    savedAt: z.string().optional(),
 });
 export const smartImportRequestSchema = z.object({
     sourceName: z.string().trim().min(1).max(160).default("smart_import"),
     rawText: z.string().trim().min(1).max(120000),
-    mode: smartImportModeSchema.default("auto")
+    mode: smartImportModeSchema.default("auto"),
 });
-export const smartImportLineKindSchema = z.enum(["patient", "imaging", "clinic", "legacy_source", "ignored"]);
+export const smartImportLineKindSchema = z.enum([
+    "patient",
+    "imaging",
+    "clinic",
+    "legacy_source",
+    "ignored",
+]);
 export const smartImportLineClassificationSchema = z.object({
     lineNumber: z.number().int().positive(),
     kind: smartImportLineKindSchema,
     confidence: z.number().min(0).max(1),
     reason: z.string(),
-    text: z.string()
+    text: z.string(),
 });
 export const smartImportClinicProfileSuggestionSchema = z.object({
     fields: updateClinicProfileSchema.partial(),
     confidence: z.number().min(0).max(1),
     sourceLineNumbers: z.array(z.number().int().positive()),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const smartImportPublicLookupTargetSchema = z.object({
-    kind: z.enum(["maps", "company_registry", "website_search", "medical_license_registry"]),
+    kind: z.enum([
+        "maps",
+        "company_registry",
+        "website_search",
+        "medical_license_registry",
+    ]),
     title: z.string(),
     query: z.string(),
     url: z.string().url(),
     privacy: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const smartImportLegacySourceKindSchema = z.enum([
     "mis_database",
@@ -6477,13 +7853,13 @@ export const smartImportLegacySourceKindSchema = z.enum([
     "xray_image_archive",
     "vendor_imaging_system",
     "network_share",
-    "unknown_legacy_source"
+    "unknown_legacy_source",
 ]);
 export const smartImportLegacySourceAutomationLevelSchema = z.enum([
     "ready_for_preview",
     "needs_file_upload",
     "needs_local_bridge",
-    "manual_review"
+    "manual_review",
 ]);
 export const smartImportLegacySourceSchema = z.object({
     kind: smartImportLegacySourceKindSchema,
@@ -6496,14 +7872,14 @@ export const smartImportLegacySourceSchema = z.object({
     recommendedRoute: z.string(),
     automationLevel: smartImportLegacySourceAutomationLevelSchema,
     privacy: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const smartImportMigrationPlanStepSchema = z.object({
     id: z.string(),
     title: z.string(),
     status: z.enum(["ready", "review", "manual", "blocked"]),
     detail: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const smartImportMigrationPlanSchema = z.object({
     coverage: z.object({
@@ -6511,11 +7887,11 @@ export const smartImportMigrationPlanSchema = z.object({
         imaging: z.boolean(),
         clinicProfile: z.boolean(),
         publicLookup: z.boolean(),
-        legacySources: z.boolean()
+        legacySources: z.boolean(),
     }),
     steps: z.array(smartImportMigrationPlanStepSchema),
     privacyWarnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const smartImportPreviewResponseSchema = z.object({
     sourceName: z.string(),
@@ -6531,12 +7907,12 @@ export const smartImportPreviewResponseSchema = z.object({
     legacySources: z.array(smartImportLegacySourceSchema),
     migrationPlan: smartImportMigrationPlanSchema,
     lineClassifications: z.array(smartImportLineClassificationSchema),
-    parserNotes: z.array(z.string())
+    parserNotes: z.array(z.string()),
 });
 export const smartImportCommitResponseSchema = z.object({
     preview: smartImportPreviewResponseSchema,
     patientCommit: importCommitResponseSchema.nullable(),
-    imagingCommit: imagingImportCommitResponseSchema.nullable()
+    imagingCommit: imagingImportCommitResponseSchema.nullable(),
 });
 export const migrationLocalSourceDiscoveryRequestSchema = z.object({
     rootPaths: z.array(z.string().min(1)).max(16).optional(),
@@ -6545,7 +7921,7 @@ export const migrationLocalSourceDiscoveryRequestSchema = z.object({
     maxFilesPerFolder: z.number().int().positive().max(500).default(160),
     maxCandidates: z.number().int().positive().max(80).default(18),
     includeWorkstationSignals: z.boolean().default(true),
-    maxWorkstationSignals: z.number().int().nonnegative().max(80).default(24)
+    maxWorkstationSignals: z.number().int().nonnegative().max(80).default(24),
 });
 export const migrationLocalSourceDiscoveryCandidateSchema = z.object({
     sourceRef: z.string(),
@@ -6566,7 +7942,7 @@ export const migrationLocalSourceDiscoveryCandidateSchema = z.object({
     latestModifiedAt: z.string().nullable(),
     reasons: z.array(z.string()),
     warnings: z.array(z.string()),
-    smartImportLine: z.string()
+    smartImportLine: z.string(),
 });
 export const migrationLocalSourceDiscoveryResponseSchema = z.object({
     version: z.literal("dental-crm-migration-local-discovery-v1"),
@@ -6575,12 +7951,12 @@ export const migrationLocalSourceDiscoveryResponseSchema = z.object({
     scannedFolders: z.number().int().nonnegative(),
     candidates: z.array(migrationLocalSourceDiscoveryCandidateSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationLocalSourceWorkupRequestSchema = z.object({
     sourceRef: z.string().min(1),
     sourceKind: smartImportLegacySourceKindSchema.optional(),
-    safeDisplayName: z.string().trim().max(160).optional()
+    safeDisplayName: z.string().trim().max(160).optional(),
 });
 export const migrationExtractableEntitySchema = z.enum([
     "clinic_profile",
@@ -6592,21 +7968,21 @@ export const migrationExtractableEntitySchema = z.enum([
     "service_catalog",
     "imaging",
     "dicom_series",
-    "unknown"
+    "unknown",
 ]);
 export const migrationLocalSourceWorkupStepSchema = z.object({
     id: z.string(),
     title: z.string(),
     status: z.enum(["ready", "needs_bridge", "manual", "blocked"]),
     detail: z.string(),
-    actionLabel: z.string()
+    actionLabel: z.string(),
 });
 export const migrationLocalSourceHandoffSchema = z.object({
     title: z.string(),
     method: z.enum(["GET", "POST"]),
     endpoint: z.string(),
     payloadHint: z.string(),
-    privacy: z.string()
+    privacy: z.string(),
 });
 export const migrationReadinessItemSchema = z.object({
     id: z.string(),
@@ -6614,15 +7990,21 @@ export const migrationReadinessItemSchema = z.object({
     status: z.enum(["ready", "warning", "blocked"]),
     owner: z.enum(["administrator", "doctor", "assistant", "system"]),
     detail: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationReadinessSchema = z.object({
-    level: z.enum(["ready_for_preview", "needs_bridge", "needs_export", "manual_review", "blocked"]),
+    level: z.enum([
+        "ready_for_preview",
+        "needs_bridge",
+        "needs_export",
+        "manual_review",
+        "blocked",
+    ]),
     score: z.number().min(0).max(1),
     blockers: z.array(migrationReadinessItemSchema),
     warnings: z.array(migrationReadinessItemSchema),
     ready: z.array(migrationReadinessItemSchema),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationBridgeKitActionSchema = z.object({
     id: z.string(),
@@ -6630,7 +8012,7 @@ export const migrationBridgeKitActionSchema = z.object({
     title: z.string(),
     detail: z.string(),
     safety: z.string(),
-    doneWhen: z.string()
+    doneWhen: z.string(),
 });
 export const migrationBridgeKitSchema = z.object({
     kind: z.enum([
@@ -6641,7 +8023,7 @@ export const migrationBridgeKitSchema = z.object({
         "image_manifest",
         "network_share_bridge",
         "browser_manifest_bridge",
-        "manual_manifest"
+        "manual_manifest",
     ]),
     title: z.string(),
     status: z.enum(["ready", "needs_admin", "needs_export", "manual", "blocked"]),
@@ -6654,10 +8036,10 @@ export const migrationBridgeKitSchema = z.object({
         endpoint: z.string(),
         requiredColumns: z.array(z.string()),
         optionalColumns: z.array(z.string()),
-        forbiddenFields: z.array(z.string())
+        forbiddenFields: z.array(z.string()),
     }),
     privacyBoundary: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationLocalSourceWorkupResponseSchema = z.object({
     version: z.literal("dental-crm-migration-source-workup-v1"),
@@ -6680,7 +8062,7 @@ export const migrationLocalSourceWorkupResponseSchema = z.object({
     warnings: z.array(z.string()),
     privacyWarnings: z.array(z.string()),
     smartImportLine: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationLocalSourceProbeRequestSchema = z.object({
     sourceRef: z.string().min(1),
@@ -6690,7 +8072,7 @@ export const migrationLocalSourceProbeRequestSchema = z.object({
     maxFolders: z.number().int().positive().max(500).default(120),
     maxFiles: z.number().int().positive().max(3000).default(600),
     maxSampleArtifacts: z.number().int().positive().max(80).default(18),
-    readHeaderBytes: z.number().int().positive().max(65536).default(4096)
+    readHeaderBytes: z.number().int().positive().max(65536).default(4096),
 });
 export const migrationProbeArtifactKindSchema = z.enum([
     "database",
@@ -6701,7 +8083,7 @@ export const migrationProbeArtifactKindSchema = z.enum([
     "image",
     "model",
     "folder",
-    "unknown"
+    "unknown",
 ]);
 export const migrationProbeArtifactSchema = z.object({
     id: z.string(),
@@ -6711,17 +8093,23 @@ export const migrationProbeArtifactSchema = z.object({
     byteSize: z.number().int().nonnegative().nullable(),
     modifiedAt: z.string().nullable(),
     depth: z.number().int().nonnegative(),
-    signals: z.array(z.string())
+    signals: z.array(z.string()),
 });
 export const migrationProbeAdapterSchema = z.object({
     id: z.string(),
     title: z.string(),
-    status: z.enum(["built_in", "needs_local_bridge", "needs_export", "manual", "blocked"]),
+    status: z.enum([
+        "built_in",
+        "needs_local_bridge",
+        "needs_export",
+        "manual",
+        "blocked",
+    ]),
     confidence: z.number().min(0).max(1),
     input: z.string(),
     output: z.string(),
     privacy: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationLocalSourceProbeResponseSchema = z.object({
     version: z.literal("dental-crm-migration-source-probe-v1"),
@@ -6744,7 +8132,7 @@ export const migrationLocalSourceProbeResponseSchema = z.object({
         dicom: z.number().int().nonnegative(),
         images: z.number().int().nonnegative(),
         models: z.number().int().nonnegative(),
-        unknown: z.number().int().nonnegative()
+        unknown: z.number().int().nonnegative(),
     }),
     formatSignals: z.array(z.string()),
     detectedVendors: z.array(z.string()),
@@ -6756,7 +8144,7 @@ export const migrationLocalSourceProbeResponseSchema = z.object({
     recommendedRoute: z.string(),
     readiness: migrationReadinessSchema,
     bridgeKit: migrationBridgeKitSchema,
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const clinicPublicLookupRequestSchema = z
     .object({
@@ -6766,25 +8154,38 @@ export const clinicPublicLookupRequestSchema = z
     clinicName: z.string().trim().max(240).optional(),
     legalName: z.string().trim().max(240).optional(),
     address: z.string().trim().max(500).optional(),
-    medicalLicenseNumber: z.string().trim().max(120).optional()
+    medicalLicenseNumber: z.string().trim().max(120).optional(),
 })
-    .refine((value) => [value.inn, value.kpp, value.ogrn, value.clinicName, value.legalName, value.address, value.medicalLicenseNumber].some((item) => item && item.trim()), "Укажите ИНН, КПП, ОГРН, название, адрес или номер медицинской лицензии клиники.");
+    .refine((value) => [
+    value.inn,
+    value.kpp,
+    value.ogrn,
+    value.clinicName,
+    value.legalName,
+    value.address,
+    value.medicalLicenseNumber,
+].some((item) => item && item.trim()), "Укажите ИНН, КПП, ОГРН, название, адрес или номер медицинской лицензии клиники.");
 export const clinicPublicLookupSuggestionSchema = z.object({
     source: z.enum(["dadata", "manual_public_targets"]),
     confidence: z.number().min(0).max(1),
     fields: updateClinicProfileSchema.partial(),
-    warnings: z.array(z.string())
+    warnings: z.array(z.string()),
 });
 export const clinicPublicLookupResponseSchema = z.object({
     version: z.literal("dental-crm-clinic-public-lookup-v1"),
     generatedAt: z.string(),
-    providerStatus: z.enum(["not_configured", "ready", "error", "skipped_no_safe_query"]),
+    providerStatus: z.enum([
+        "not_configured",
+        "ready",
+        "error",
+        "skipped_no_safe_query",
+    ]),
     provider: z.string(),
     safeQuery: z.string(),
     suggestions: z.array(clinicPublicLookupSuggestionSchema),
     publicLookupTargets: z.array(smartImportPublicLookupTargetSchema),
     warnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationAutopilotRequestSchema = z.object({
     rootPaths: z.array(z.string().min(1)).max(16).optional(),
@@ -6795,10 +8196,13 @@ export const migrationAutopilotRequestSchema = z.object({
     maxProbeCandidates: z.number().int().positive().max(8).default(4),
     includeWorkstationSignals: z.boolean().default(true),
     maxWorkstationSignals: z.number().int().nonnegative().max(80).default(24),
-    knownSources: z.array(migrationLocalSourceDiscoveryCandidateSchema).max(80).optional(),
+    knownSources: z
+        .array(migrationLocalSourceDiscoveryCandidateSchema)
+        .max(80)
+        .optional(),
     knownScannedFolders: z.number().int().nonnegative().max(5000).optional(),
     smartImport: smartImportRequestSchema.optional(),
-    clinic: clinicPublicLookupRequestSchema.optional()
+    clinic: clinicPublicLookupRequestSchema.optional(),
 });
 export const migrationAutopilotSourceSchema = z.object({
     candidate: migrationLocalSourceDiscoveryCandidateSchema,
@@ -6809,14 +8213,14 @@ export const migrationAutopilotSourceSchema = z.object({
     readiness: migrationReadinessSchema,
     bridgeKit: migrationBridgeKitSchema,
     recommendedAction: z.string(),
-    riskFlags: z.array(z.string())
+    riskFlags: z.array(z.string()),
 });
 export const migrationAutopilotStepSchema = z.object({
     order: z.number().int().positive(),
     owner: z.enum(["administrator", "doctor", "assistant", "system"]),
     title: z.string(),
     detail: z.string(),
-    blocking: z.boolean()
+    blocking: z.boolean(),
 });
 export const migrationAutopilotPacketStatusSchema = z.enum([
     "ready_for_preview",
@@ -6825,7 +8229,7 @@ export const migrationAutopilotPacketStatusSchema = z.enum([
     "needs_export",
     "manual_review",
     "blocked",
-    "empty"
+    "empty",
 ]);
 export const migrationAutopilotPacketLaneSchema = z.object({
     id: z.string(),
@@ -6834,14 +8238,14 @@ export const migrationAutopilotPacketLaneSchema = z.object({
     status: migrationAutopilotPacketStatusSchema,
     score: z.number().min(0).max(1),
     detail: z.string(),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
 export const migrationAutopilotHandoffPhaseSchema = z.enum([
     "clinic_requisites",
     "source_access",
     "export_or_bridge",
     "staging_preview",
-    "doctor_control"
+    "doctor_control",
 ]);
 export const migrationAutopilotHandoffChecklistItemSchema = z.object({
     id: z.string(),
@@ -6855,7 +8259,7 @@ export const migrationAutopilotHandoffChecklistItemSchema = z.object({
     sourceKind: smartImportLegacySourceKindSchema.nullable(),
     privacy: z.string(),
     doneWhen: z.string(),
-    blocking: z.boolean()
+    blocking: z.boolean(),
 });
 export const migrationAutopilotOperatorScriptActionSchema = z.enum([
     "discover_sources",
@@ -6867,7 +8271,7 @@ export const migrationAutopilotOperatorScriptActionSchema = z.enum([
     "run_clinic_lookup",
     "build_preview",
     "doctor_review",
-    "manual"
+    "manual",
 ]);
 export const migrationAutopilotOperatorScriptStepSchema = z.object({
     id: z.string(),
@@ -6879,13 +8283,13 @@ export const migrationAutopilotOperatorScriptStepSchema = z.object({
     sourceFingerprint: z.string().nullable(),
     sourceKind: smartImportLegacySourceKindSchema.nullable(),
     estimatedMinutes: z.number().int().nonnegative(),
-    blocking: z.boolean()
+    blocking: z.boolean(),
 });
 export const migrationAutopilotOperatorScriptSchema = z.object({
     title: z.string(),
     headline: z.string(),
     totalEstimatedMinutes: z.number().int().nonnegative(),
-    steps: z.array(migrationAutopilotOperatorScriptStepSchema)
+    steps: z.array(migrationAutopilotOperatorScriptStepSchema),
 });
 export const migrationAutopilotDryRunSummarySchema = z.object({
     previewableSources: z.number().int().nonnegative(),
@@ -6894,7 +8298,7 @@ export const migrationAutopilotDryRunSummarySchema = z.object({
     estimatedOperatorMinutes: z.number().int().nonnegative(),
     estimatedClinicDowntimeMinutes: z.number().int().nonnegative(),
     fastestRoute: z.string(),
-    nextBestAction: z.string()
+    nextBestAction: z.string(),
 });
 export const migrationAutopilotOperatorPacketSchema = z.object({
     overallStatus: migrationAutopilotPacketStatusSchema,
@@ -6908,7 +8312,7 @@ export const migrationAutopilotOperatorPacketSchema = z.object({
         payments: z.boolean(),
         workstationHints: z.boolean(),
         browserManifests: z.boolean(),
-        smartPreviewSources: z.boolean()
+        smartPreviewSources: z.boolean(),
     }),
     totals: z.object({
         sources: z.number().int().nonnegative(),
@@ -6925,7 +8329,7 @@ export const migrationAutopilotOperatorPacketSchema = z.object({
         browserManifests: z.number().int().nonnegative(),
         smartPreviewSources: z.number().int().nonnegative(),
         publicLookupTargets: z.number().int().nonnegative(),
-        clinicSuggestions: z.number().int().nonnegative()
+        clinicSuggestions: z.number().int().nonnegative(),
     }),
     dryRun: migrationAutopilotDryRunSummarySchema,
     lanes: z.array(migrationAutopilotPacketLaneSchema),
@@ -6936,8 +8340,10 @@ export const migrationAutopilotOperatorPacketSchema = z.object({
         allowed: z.array(z.string()),
         forbidden: z.array(z.string()),
         safeQuery: z.string().nullable(),
-        providerStatus: z.enum(["not_configured", "ready", "error", "skipped_no_safe_query"]).nullable()
-    })
+        providerStatus: z
+            .enum(["not_configured", "ready", "error", "skipped_no_safe_query"])
+            .nullable(),
+    }),
 });
 export const migrationAutopilotResponseSchema = z.object({
     version: z.literal("dental-crm-migration-autopilot-v1"),
@@ -6946,7 +8352,7 @@ export const migrationAutopilotResponseSchema = z.object({
         roots: z.array(z.string()),
         scannedFolders: z.number().int().nonnegative(),
         candidateCount: z.number().int().nonnegative(),
-        probedCount: z.number().int().nonnegative()
+        probedCount: z.number().int().nonnegative(),
     }),
     sources: z.array(migrationAutopilotSourceSchema),
     clinicLookup: clinicPublicLookupResponseSchema.nullable(),
@@ -6954,10 +8360,10 @@ export const migrationAutopilotResponseSchema = z.object({
     steps: z.array(migrationAutopilotStepSchema),
     warnings: z.array(z.string()),
     privacyWarnings: z.array(z.string()),
-    nextAction: z.string()
+    nextAction: z.string(),
 });
-export * from "./utils/strings.js";
 export * from "./utils/dates.js";
+export * from "./utils/strings.js";
 export const doctorCommissionSchema = z.object({
     id: z.string().uuid(),
     organizationId: z.string().uuid(),
@@ -6976,9 +8382,71 @@ export const cashShiftSchema = z.object({
     expectedClosingBalance: z.number().int().nullable(),
     actualClosingBalance: z.number().int().nullable(),
     status: z.enum(["Open", "Closed", "Discrepancy"]),
-    discrepancyReason: z.string().nullable()
+    discrepancyReason: z.string().nullable(),
 });
 export const doctorAssistantSchema = z.object({
     doctorId: z.string().uuid(),
-    assistantId: z.string().uuid()
+    assistantId: z.string().uuid(),
+});
+// ──────────────────────────────────────────────────────────────────────────
+// MESSENGER CHANNEL: WhatsApp + MAX shared types
+// ──────────────────────────────────────────────────────────────────────────
+export const messengerChannelSchema = z.enum(["telegram", "whatsapp", "max"]);
+export const messengerIntentSchema = z.enum([
+    "appointment_booking",
+    "appointment_status",
+    "document_request",
+    "payment_question",
+    "recall_request",
+    "general_question",
+    "default",
+]);
+export const messengerRoutingRuleSchema = z.object({
+    intent: messengerIntentSchema,
+    assignToUserId: z.string().uuid().nullable(),
+});
+export const messengerStaffRoutingSchema = z.object({
+    defaultUserId: z.string().uuid().nullable(),
+    rules: z.array(messengerRoutingRuleSchema).default([]),
+});
+export const denteWhatsappBotConfigSchema = z.object({
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    phoneNumberId: z.string().trim().max(64).nullable(),
+    webhookVerifyToken: z.string().trim().max(128).nullable(),
+    enabledFeatures: z.array(z.string()).default([]),
+    staffRouting: messengerStaffRoutingSchema,
+    isActive: z.boolean(),
+    updatedAt: z.string(),
+});
+export const updateDenteWhatsappBotConfigSchema = z.object({
+    phoneNumberId: z.string().trim().max(64).nullable().optional(),
+    accessToken: z.string().trim().max(512).optional(),
+    webhookVerifyToken: z.string().trim().max(128).nullable().optional(),
+    enabledFeatures: z.array(z.string()).optional(),
+    staffRouting: messengerStaffRoutingSchema.optional(),
+    isActive: z.boolean().optional(),
+});
+export const denteMaxBotConfigSchema = z.object({
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    botId: z.string().trim().max(128).nullable(),
+    webhookUrl: z.string().trim().max(512).nullable(),
+    enabledFeatures: z.array(z.string()).default([]),
+    staffRouting: messengerStaffRoutingSchema,
+    isActive: z.boolean(),
+    updatedAt: z.string(),
+});
+export const updateDenteMaxBotConfigSchema = z.object({
+    botId: z.string().trim().max(128).nullable().optional(),
+    apiToken: z.string().trim().max(512).optional(),
+    webhookUrl: z.string().trim().max(512).nullable().optional(),
+    enabledFeatures: z.array(z.string()).optional(),
+    staffRouting: messengerStaffRoutingSchema.optional(),
+    isActive: z.boolean().optional(),
+});
+export const messengerConnectionStatusSchema = z.object({
+    channel: messengerChannelSchema,
+    connected: z.boolean(),
+    detail: z.string().nullable(),
 });

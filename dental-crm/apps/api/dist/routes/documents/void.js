@@ -1,8 +1,8 @@
-import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId } from "../../accessGuard.js";
-import { publicGeneratedDocumentSchema, voidDocumentSchema } from "@dental/shared";
-import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
-import { apiError, documentVoidValidationMessage } from "../documents.js";
-import { getDocumentById, voidGeneratedDocumentInDb } from "../../db/documentQuery.js";
+import { publicGeneratedDocumentSchema, voidDocumentSchema, } from "@dental/shared";
+import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId, } from "../../accessGuard.js";
+import { getDocumentById, voidGeneratedDocumentInDb, } from "../../db/documentQuery.js";
+import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
+import { apiError, documentVoidValidationMessage, } from "../documents.js";
 export async function register(app) {
     app.post("/api/documents/:id/void", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document void")))
@@ -19,13 +19,15 @@ export async function register(app) {
         if (!parsedVoidInput.success) {
             return reply.code(400).send({
                 error: "DocumentVoidValidationFailed",
-                message: repairMojibakeText(documentVoidValidationMessage)
+                message: repairMojibakeText(documentVoidValidationMessage),
             });
         }
         const voidAttestationInput = repairMojibakeDeep(parsedVoidInput.data.voidAttestation);
         const correctionDocumentId = voidAttestationInput.correctionDocumentId ?? null;
         if (correctionDocumentId === id) {
-            return reply.code(409).send(apiError("Документ не может ссылаться на себя как на исправление."));
+            return reply
+                .code(409)
+                .send(apiError("Документ не может ссылаться на себя как на исправление."));
         }
         if (correctionDocumentId) {
             const correctionDocument = await getDocumentById(orgId, correctionDocumentId);
@@ -43,11 +45,13 @@ export async function register(app) {
             voidedAt,
             voidAttestation: {
                 ...voidAttestationInput,
-                voidedAt
-            }
+                voidedAt,
+            },
         });
         if (!document) {
-            return reply.code(409).send(apiError("Статус документа нельзя изменить."));
+            return reply
+                .code(409)
+                .send(apiError("Статус документа нельзя изменить."));
         }
         return reply.send(publicGeneratedDocumentSchema.parse(document));
     });

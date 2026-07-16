@@ -1,5 +1,5 @@
-import { dentalPricelistAnalysisResponseSchema, dentalPricelistItemSchema } from "@dental/shared";
-import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, sanitizeProviderErrorMessage, selectProviderKey, shouldTryNextProviderKey } from "../speech/keyPool.js";
+import { dentalPricelistAnalysisResponseSchema, dentalPricelistItemSchema, } from "@dental/shared";
+import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, sanitizeProviderErrorMessage, selectProviderKey, shouldTryNextProviderKey, } from "../speech/keyPool.js";
 const groqPromptVersion = "pricelist-json-v1";
 const maxGroqImagesPerRequest = 1;
 const groqProviderId = "groq_whisper";
@@ -8,98 +8,417 @@ const categoryRules = [
         value: "consultation",
         specialty: "universal",
         treatmentKind: "consultation",
-        patterns: [/консульт/i, /осмотр/i, /план\s+леч/i, /прием/i]
+        patterns: [/консульт/i, /осмотр/i, /план\s+леч/i, /прием/i],
     },
     {
         value: "imaging",
         specialty: "radiologist",
         treatmentKind: "imaging",
-        patterns: [/кт\b/i, /cbct/i, /оптг/i, /ортопан/i, /трг/i, /rvg/i, /рентген/i, /сним/i, /фото\s*протокол/i, /скан/i, /3shape/i, /medit/i, /sirona/i]
+        patterns: [
+            /кт\b/i,
+            /cbct/i,
+            /оптг/i,
+            /ортопан/i,
+            /трг/i,
+            /rvg/i,
+            /рентген/i,
+            /сним/i,
+            /фото\s*протокол/i,
+            /скан/i,
+            /3shape/i,
+            /medit/i,
+            /sirona/i,
+        ],
     },
     {
         value: "hygiene",
         specialty: "hygienist",
         treatmentKind: "hygiene",
-        patterns: [/гигиен/i, /air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i, /налет/i, /камн/i, /фтор/i, /реминерал/i, /отбел/i, /zoom/i, /beyond/i, /opalescence/i, /white/i]
+        patterns: [
+            /гигиен/i,
+            /air\s*flow/i,
+            /airflow/i,
+            /ems\b/i,
+            /ультразв/i,
+            /скейл/i,
+            /налет/i,
+            /камн/i,
+            /фтор/i,
+            /реминерал/i,
+            /отбел/i,
+            /zoom/i,
+            /beyond/i,
+            /opalescence/i,
+            /white/i,
+        ],
     },
     {
         value: "orthodontics",
         specialty: "orthodontist",
         treatmentKind: "orthodontics",
-        patterns: [/брекет/i, /элайнер/i, /капп/i, /ретейн/i, /ортодонт/i, /damon/i, /ormco/i, /invisalign/i]
+        patterns: [
+            /брекет/i,
+            /элайнер/i,
+            /капп/i,
+            /ретейн/i,
+            /ортодонт/i,
+            /damon/i,
+            /ormco/i,
+            /invisalign/i,
+        ],
     },
     {
         value: "periodontology",
         specialty: "periodontist",
         treatmentKind: "periodontology",
-        patterns: [/пародонт/i, /кюрет/i, /шинир/i, /лоскут/i, /пародонтальн/i, /гингив/i]
+        patterns: [
+            /пародонт/i,
+            /кюрет/i,
+            /шинир/i,
+            /лоскут/i,
+            /пародонтальн/i,
+            /гингив/i,
+        ],
     },
     {
         value: "surgery",
         specialty: "implantologist",
         treatmentKind: "implantology",
-        patterns: [/имплант/i, /аба[тд]мент/i, /формировател/i, /синус/i, /костн/i, /мембран/i, /straumann/i, /nobel/i, /osstem/i, /dentium/i, /megagen/i]
+        patterns: [
+            /имплант/i,
+            /аба[тд]мент/i,
+            /формировател/i,
+            /синус/i,
+            /костн/i,
+            /мембран/i,
+            /straumann/i,
+            /nobel/i,
+            /osstem/i,
+            /dentium/i,
+            /megagen/i,
+        ],
     },
     {
         value: "surgery",
         specialty: "surgeon",
         treatmentKind: "surgery",
-        patterns: [/удален/i, /экстракц/i, /восьмер/i, /резекц/i, /цист/i, /уздеч/i, /шв/i, /prf/i]
+        patterns: [
+            /удален/i,
+            /экстракц/i,
+            /восьмер/i,
+            /резекц/i,
+            /цист/i,
+            /уздеч/i,
+            /шв/i,
+            /prf/i,
+        ],
     },
     {
         value: "prosthetics",
         specialty: "orthopedist",
         treatmentKind: "prosthetics",
-        patterns: [/корон/i, /винир/i, /вкладк/i, /накладк/i, /мост/i, /протез/i, /керамик/i, /циркон/i, /zircon/i, /e\.?\s*max/i]
+        patterns: [
+            /корон/i,
+            /винир/i,
+            /вкладк/i,
+            /накладк/i,
+            /мост/i,
+            /протез/i,
+            /керамик/i,
+            /циркон/i,
+            /zircon/i,
+            /e\.?\s*max/i,
+        ],
     },
     {
         value: "therapy",
         specialty: "pediatric",
         treatmentKind: "pediatric",
-        patterns: [/детск/i, /молочн/i, /герметизац/i, /фиссур/i, /sealant/i, /пульпотом/i, /серебрен/i]
+        patterns: [
+            /детск/i,
+            /молочн/i,
+            /герметизац/i,
+            /фиссур/i,
+            /sealant/i,
+            /пульпотом/i,
+            /серебрен/i,
+        ],
     },
     {
         value: "therapy",
         specialty: "therapist",
         treatmentKind: "therapy",
-        patterns: [/кариес/i, /пульпит/i, /периодонт/i, /канал/i, /эндод/i, /пломб/i, /реставрац/i, /герметизац/i, /фиссур/i, /коффер/i, /анестез/i]
+        patterns: [
+            /кариес/i,
+            /пульпит/i,
+            /периодонт/i,
+            /канал/i,
+            /эндод/i,
+            /пломб/i,
+            /реставрац/i,
+            /герметизац/i,
+            /фиссур/i,
+            /коффер/i,
+            /анестез/i,
+        ],
     },
     {
         value: "documents",
         specialty: "universal",
         treatmentKind: "document",
-        patterns: [/справк/i, /договор/i, /акт\b/i, /вычет/i, /соглас/i]
-    }
+        patterns: [/справк/i, /договор/i, /акт\b/i, /вычет/i, /соглас/i],
+    },
 ];
 const materialRules = [
-    { value: "zirconia", label: "zirconia", patterns: [/циркон/i, /zircon/i, /zro/i, /multi\s*layer/i, /katana/i, /prettau/i, /bruxzir/i, /aidite/i, /cercon/i, /zircad/i, /lava/i] },
-    { value: "lithium_disilicate", label: "e.max", patterns: [/e\.?\s*max/i, /emax/i, /lithium/i, /disilicate/i, /дисиликат/i] },
-    { value: "metal_ceramic", label: "metal ceramic", patterns: [/металлокерами/i, /металл[о-]?\s*керами/i, /pfm\b/i] },
-    { value: "ceramic", label: "ceramic", patterns: [/керамик/i, /фарфор/i, /noritake/i, /vita/i, /ivoclar/i] },
-    { value: "pmma", label: "pmma", patterns: [/pmma/i, /времен/i, /пластмасс/i, /акрил/i] },
-    { value: "glass_ionomer", label: "glass ionomer", patterns: [/стеклоиономер/i, /\bсиц\b/i, /glass\s*ionomer/i, /fuji/i, /ketac/i] },
-    { value: "sealant", label: "sealant", patterns: [/герметизац/i, /фиссур/i, /sealant/i] },
-    { value: "whitening", label: "whitening", patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i, /amazing\s*white/i] },
-    { value: "other", label: "hygiene system", patterns: [/air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i] },
-    { value: "composite", label: "composite", patterns: [/композит/i, /фотополимер/i, /светов/i, /filtek/i, /estelite/i, /gradia/i, /sdr\b/i, /tokuyama/i, /omnichroma/i, /charisma/i, /tetric/i, /venus/i, /esthet[-\s]?x/i, /dentsply/i, /kerr/i, /voco/i, /kulzer/i] },
-    { value: "implant_system", label: "implant", patterns: [/straumann/i, /nobel/i, /osstem/i, /dentium/i, /megagen/i, /anyridge/i, /astra/i, /biohorizons/i, /mis\b/i, /alpha[-\s]?bio/i, /neodent/i, /ankylos/i, /zimmer/i, /biomet/i, /bredent/i, /impro/i, /sgs\b/i, /имплант/i] },
-    { value: "abutment", label: "abutment", patterns: [/аба[тд]мент/i, /abutment/i, /формировател/i] },
-    { value: "bone_graft", label: "bone graft", patterns: [/костн/i, /остео/i, /bone/i, /графт/i, /bio[-\s]?oss/i, /cerabone/i, /geistlich/i, /botiss/i, /osteo\s*biol/i, /symbios/i] },
-    { value: "membrane", label: "membrane", patterns: [/мембран/i, /membrane/i, /bio[-\s]?gide/i, /jason/i, /collagen/i, /collprotect/i] },
-    { value: "aligner", label: "aligner", patterns: [/элайнер/i, /aligner/i, /invisalign/i, /star\s*smile/i, /flexi/i] },
-    { value: "bracket", label: "bracket", patterns: [/брекет/i, /damon/i, /ormco/i, /3m\b/i, /сапфир/i, /керамическ.*брек/i, /металл.*брек/i] },
-    { value: "fluoride", label: "fluoride", patterns: [/фтор/i, /fluor/i, /реминерал/i] },
-    { value: "anesthetic", label: "anesthetic", patterns: [/анестез/i, /артикаин/i, /ультракаин/i, /убистезин/i, /septanest/i, /ultracain/i, /ubistesin/i] },
-    { value: "imaging", label: "imaging", patterns: [/кт\b/i, /cbct/i, /оптг/i, /rvg/i, /трг/i, /рентген/i, /vatech/i, /carestream/i, /planmeca/i] },
-    { value: "lab", label: "lab", patterns: [/лаборатор/i, /техник/i, /слепок/i, /оттиск/i, /скан/i, /3shape/i, /medit/i, /sirona/i, /exocad/i] },
-    { value: "metal", label: "metal", patterns: [/кобальт/i, /хром/i, /cobalt/i, /chrome/i, /co[-\s]?cr/i, /бюгель/i] },
-    { value: "titanium", label: "titanium", patterns: [/титан/i, /titan/i] }
+    {
+        value: "zirconia",
+        label: "zirconia",
+        patterns: [
+            /циркон/i,
+            /zircon/i,
+            /zro/i,
+            /multi\s*layer/i,
+            /katana/i,
+            /prettau/i,
+            /bruxzir/i,
+            /aidite/i,
+            /cercon/i,
+            /zircad/i,
+            /lava/i,
+        ],
+    },
+    {
+        value: "lithium_disilicate",
+        label: "e.max",
+        patterns: [/e\.?\s*max/i, /emax/i, /lithium/i, /disilicate/i, /дисиликат/i],
+    },
+    {
+        value: "metal_ceramic",
+        label: "metal ceramic",
+        patterns: [/металлокерами/i, /металл[о-]?\s*керами/i, /pfm\b/i],
+    },
+    {
+        value: "ceramic",
+        label: "ceramic",
+        patterns: [/керамик/i, /фарфор/i, /noritake/i, /vita/i, /ivoclar/i],
+    },
+    {
+        value: "pmma",
+        label: "pmma",
+        patterns: [/pmma/i, /времен/i, /пластмасс/i, /акрил/i],
+    },
+    {
+        value: "glass_ionomer",
+        label: "glass ionomer",
+        patterns: [
+            /стеклоиономер/i,
+            /\bсиц\b/i,
+            /glass\s*ionomer/i,
+            /fuji/i,
+            /ketac/i,
+        ],
+    },
+    {
+        value: "sealant",
+        label: "sealant",
+        patterns: [/герметизац/i, /фиссур/i, /sealant/i],
+    },
+    {
+        value: "whitening",
+        label: "whitening",
+        patterns: [
+            /отбел/i,
+            /zoom/i,
+            /beyond/i,
+            /opalescence/i,
+            /amazing\s*white/i,
+        ],
+    },
+    {
+        value: "other",
+        label: "hygiene system",
+        patterns: [/air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i],
+    },
+    {
+        value: "composite",
+        label: "composite",
+        patterns: [
+            /композит/i,
+            /фотополимер/i,
+            /светов/i,
+            /filtek/i,
+            /estelite/i,
+            /gradia/i,
+            /sdr\b/i,
+            /tokuyama/i,
+            /omnichroma/i,
+            /charisma/i,
+            /tetric/i,
+            /venus/i,
+            /esthet[-\s]?x/i,
+            /dentsply/i,
+            /kerr/i,
+            /voco/i,
+            /kulzer/i,
+        ],
+    },
+    {
+        value: "implant_system",
+        label: "implant",
+        patterns: [
+            /straumann/i,
+            /nobel/i,
+            /osstem/i,
+            /dentium/i,
+            /megagen/i,
+            /anyridge/i,
+            /astra/i,
+            /biohorizons/i,
+            /mis\b/i,
+            /alpha[-\s]?bio/i,
+            /neodent/i,
+            /ankylos/i,
+            /zimmer/i,
+            /biomet/i,
+            /bredent/i,
+            /impro/i,
+            /sgs\b/i,
+            /имплант/i,
+        ],
+    },
+    {
+        value: "abutment",
+        label: "abutment",
+        patterns: [/аба[тд]мент/i, /abutment/i, /формировател/i],
+    },
+    {
+        value: "bone_graft",
+        label: "bone graft",
+        patterns: [
+            /костн/i,
+            /остео/i,
+            /bone/i,
+            /графт/i,
+            /bio[-\s]?oss/i,
+            /cerabone/i,
+            /geistlich/i,
+            /botiss/i,
+            /osteo\s*biol/i,
+            /symbios/i,
+        ],
+    },
+    {
+        value: "membrane",
+        label: "membrane",
+        patterns: [
+            /мембран/i,
+            /membrane/i,
+            /bio[-\s]?gide/i,
+            /jason/i,
+            /collagen/i,
+            /collprotect/i,
+        ],
+    },
+    {
+        value: "aligner",
+        label: "aligner",
+        patterns: [
+            /элайнер/i,
+            /aligner/i,
+            /invisalign/i,
+            /star\s*smile/i,
+            /flexi/i,
+        ],
+    },
+    {
+        value: "bracket",
+        label: "bracket",
+        patterns: [
+            /брекет/i,
+            /damon/i,
+            /ormco/i,
+            /3m\b/i,
+            /сапфир/i,
+            /керамическ.*брек/i,
+            /металл.*брек/i,
+        ],
+    },
+    {
+        value: "fluoride",
+        label: "fluoride",
+        patterns: [/фтор/i, /fluor/i, /реминерал/i],
+    },
+    {
+        value: "anesthetic",
+        label: "anesthetic",
+        patterns: [
+            /анестез/i,
+            /артикаин/i,
+            /ультракаин/i,
+            /убистезин/i,
+            /septanest/i,
+            /ultracain/i,
+            /ubistesin/i,
+        ],
+    },
+    {
+        value: "imaging",
+        label: "imaging",
+        patterns: [
+            /кт\b/i,
+            /cbct/i,
+            /оптг/i,
+            /rvg/i,
+            /трг/i,
+            /рентген/i,
+            /vatech/i,
+            /carestream/i,
+            /planmeca/i,
+        ],
+    },
+    {
+        value: "lab",
+        label: "lab",
+        patterns: [
+            /лаборатор/i,
+            /техник/i,
+            /слепок/i,
+            /оттиск/i,
+            /скан/i,
+            /3shape/i,
+            /medit/i,
+            /sirona/i,
+            /exocad/i,
+        ],
+    },
+    {
+        value: "metal",
+        label: "metal",
+        patterns: [
+            /кобальт/i,
+            /хром/i,
+            /cobalt/i,
+            /chrome/i,
+            /co[-\s]?cr/i,
+            /бюгель/i,
+        ],
+    },
+    { value: "titanium", label: "titanium", patterns: [/титан/i, /titan/i] },
 ];
 const restorationRules = [
-    { value: "surgical_guide", patterns: [/хирургическ.*шаблон/i, /surgical\s*guide/i, /навигац.*шаблон/i] },
-    { value: "implant", patterns: [/имплантац/i, /установк.*имплан/i, /implant\s*placement/i] },
+    {
+        value: "surgical_guide",
+        patterns: [/хирургическ.*шаблон/i, /surgical\s*guide/i, /навигац.*шаблон/i],
+    },
+    {
+        value: "implant",
+        patterns: [/имплантац/i, /установк.*имплан/i, /implant\s*placement/i],
+    },
     { value: "implant_crown", patterns: [/корон.*имплан/i, /implant.*crown/i] },
-    { value: "temporary_crown", patterns: [/времен.*корон/i, /temporary.*crown/i] },
+    {
+        value: "temporary_crown",
+        patterns: [/времен.*корон/i, /temporary.*crown/i],
+    },
     { value: "crown", patterns: [/корон/i, /crown/i] },
     { value: "bridge", patterns: [/мост/i, /bridge/i] },
     { value: "veneer", patterns: [/винир/i, /veneer/i] },
@@ -108,11 +427,17 @@ const restorationRules = [
     { value: "overlay", patterns: [/overlay/i] },
     { value: "post_core", patterns: [/культев/i, /штифт/i, /post/i, /core/i] },
     { value: "denture", patterns: [/протез/i, /denture/i] },
-    { value: "ortho_appliance", patterns: [/брекет/i, /элайнер/i, /ретейн/i, /капп/i] },
+    {
+        value: "ortho_appliance",
+        patterns: [/брекет/i, /элайнер/i, /ретейн/i, /капп/i],
+    },
     { value: "sealant", patterns: [/герметизац/i, /фиссур/i, /sealant/i] },
-    { value: "whitening", patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i] },
+    {
+        value: "whitening",
+        patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i],
+    },
     { value: "direct_restoration", patterns: [/реставрац/i] },
-    { value: "filling", patterns: [/пломб/i, /filling/i] }
+    { value: "filling", patterns: [/пломб/i, /filling/i] },
 ];
 const brandRules = [
     "Straumann",
@@ -193,7 +518,7 @@ const brandRules = [
     "Carestream",
     "KaVo",
     "NSK",
-    "W&H"
+    "W&H",
 ];
 function normalizeText(value) {
     return value
@@ -217,22 +542,25 @@ function classifyLine(line, preferredSpecialty) {
     if (rule) {
         return {
             category: rule.value,
-            specialty: preferredSpecialty !== "universal" && rule.value !== "imaging" ? preferredSpecialty : rule.specialty,
-            treatmentKind: rule.treatmentKind
+            specialty: preferredSpecialty !== "universal" && rule.value !== "imaging"
+                ? preferredSpecialty
+                : rule.specialty,
+            treatmentKind: rule.treatmentKind,
         };
     }
     return {
         category: "other",
         specialty: preferredSpecialty,
-        treatmentKind: "unclassified"
+        treatmentKind: "unclassified",
     };
 }
 function firstRuleValue(line, rules, fallback) {
-    return rules.find((candidate) => matchesAny(line, candidate.patterns))?.value ?? fallback;
+    return (rules.find((candidate) => matchesAny(line, candidate.patterns))?.value ??
+        fallback);
 }
 function detectBrand(line) {
     const normalized = normalizeKey(line);
-    return brandRules.find((brand) => normalized.includes(normalizeKey(brand))) ?? null;
+    return (brandRules.find((brand) => normalized.includes(normalizeKey(brand))) ?? null);
 }
 function detectCrownType(line, materialKind) {
     if (!/корон|crown/i.test(line))
@@ -291,7 +619,7 @@ function classifyMaterial(line) {
         crownType: detectCrownType(line, materialKind),
         brand: detectBrand(line),
         unit: detectUnit(line),
-        toothScope: detectToothScope(line)
+        toothScope: detectToothScope(line),
     };
 }
 function parseMoney(value) {
@@ -301,7 +629,9 @@ function parseMoney(value) {
     if (!normalized)
         return null;
     const price = Number(normalized);
-    return Number.isFinite(price) && price >= 300 && price <= 2_000_000 ? Math.round(price) : null;
+    return Number.isFinite(price) && price >= 300 && price <= 2_000_000
+        ? Math.round(price)
+        : null;
 }
 function extractPrice(line) {
     const withoutServiceCodes = line.replace(/\b[A-ZА-Я]?\d{2}\.\d{2}\.\d{3}\b/giu, " ");
@@ -314,7 +644,7 @@ function extractPrice(line) {
             candidates.push({
                 priceRub,
                 priceMaxRub: priceMaxRub !== null && priceMaxRub >= priceRub ? priceMaxRub : null,
-                explicit: Boolean(match[3] || match[2])
+                explicit: Boolean(match[3] || match[2]),
             });
         }
     }
@@ -322,7 +652,10 @@ function extractPrice(line) {
         return { priceRub: null, priceMaxRub: null };
     const explicit = candidates.filter((candidate) => candidate.explicit);
     const selected = (explicit.length ? explicit : candidates).at(-1);
-    return { priceRub: selected?.priceRub ?? null, priceMaxRub: selected?.priceMaxRub ?? null };
+    return {
+        priceRub: selected?.priceRub ?? null,
+        priceMaxRub: selected?.priceMaxRub ?? null,
+    };
 }
 function stripPriceFromTitle(line) {
     return normalizeText(line
@@ -336,7 +669,9 @@ function durationFromLine(line) {
     if (!match)
         return null;
     const duration = Number(match[1]);
-    return Number.isFinite(duration) && duration > 0 && duration <= 600 ? duration : null;
+    return Number.isFinite(duration) && duration > 0 && duration <= 600
+        ? duration
+        : null;
 }
 function titleTokens(value) {
     return new Set(normalizeKey(value)
@@ -348,7 +683,8 @@ function matchServiceId(item, catalog) {
     let best = null;
     for (const service of catalog) {
         let score = service.category === item.category ? 2 : 0;
-        if (service.specialty === item.specialty || service.specialty === "universal")
+        if (service.specialty === item.specialty ||
+            service.specialty === "universal")
             score += 1;
         for (const token of titleTokens(service.title)) {
             if (sourceTokens.has(token))
@@ -425,7 +761,7 @@ function buildItemFromLine(line, lineNumber, input, catalog) {
         durationMinutes: durationFromLine(line),
         confidence: 0,
         warnings: [],
-        matchedServiceId: null
+        matchedServiceId: null,
     };
     item.warnings = buildWarnings({ ...item, sourceKind: input.sourceKind });
     item.confidence = confidenceForItem(item);
@@ -440,9 +776,15 @@ function summarize(items) {
     }
     return Array.from(grouped.values())
         .map((group) => {
-        const prices = group.map((item) => item.priceRub).filter((price) => price !== null);
-        const materials = Array.from(new Set(group.map((item) => item.materialKind).filter((kind) => kind !== "unknown"))).sort();
-        const brands = Array.from(new Set(group.map((item) => item.brand).filter((brand) => Boolean(brand)))).sort();
+        const prices = group
+            .map((item) => item.priceRub)
+            .filter((price) => price !== null);
+        const materials = Array.from(new Set(group
+            .map((item) => item.materialKind)
+            .filter((kind) => kind !== "unknown"))).sort();
+        const brands = Array.from(new Set(group
+            .map((item) => item.brand)
+            .filter((brand) => Boolean(brand)))).sort();
         return {
             category: group[0]?.category ?? "other",
             specialty: group[0]?.specialty ?? "universal",
@@ -450,9 +792,11 @@ function summarize(items) {
             pricedCount: prices.length,
             minPriceRub: prices.length ? Math.min(...prices) : null,
             maxPriceRub: prices.length ? Math.max(...prices) : null,
-            averagePriceRub: prices.length ? Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length) : null,
+            averagePriceRub: prices.length
+                ? Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length)
+                : null,
             materialKinds: materials,
-            brands
+            brands,
         };
     })
         .sort((left, right) => right.count - left.count);
@@ -465,12 +809,17 @@ function createVisionStatus(used, reason, modelName) {
         used,
         modelName,
         maxImagesPerRequest: maxGroqImagesPerRequest,
-        reason
+        reason,
     };
 }
 function decodeBase64ImagePayload(value) {
-    const cleaned = value.trim().replace(/^data:[^,]+,/i, "").replace(/\s+/g, "");
-    if (!cleaned || cleaned.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(cleaned))
+    const cleaned = value
+        .trim()
+        .replace(/^data:[^,]+,/i, "")
+        .replace(/\s+/g, "");
+    if (!cleaned ||
+        cleaned.length % 4 === 1 ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(cleaned))
         return null;
     const buffer = Buffer.from(cleaned, "base64");
     return buffer.length >= 12 ? buffer : null;
@@ -485,10 +834,13 @@ function isExpectedImagePayload(request) {
         return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
     }
     if (request.imageMimeType === "image/png") {
-        return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+        return buffer
+            .subarray(0, 8)
+            .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     }
     if (request.imageMimeType === "image/webp") {
-        return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
+        return (buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+            buffer.subarray(8, 12).toString("ascii") === "WEBP");
     }
     return false;
 }
@@ -507,14 +859,15 @@ function responseFromItems(input) {
         summary: summarize(input.items),
         warnings: input.warnings,
         aiVision: createVisionStatus(input.aiUsed, input.aiReason, input.modelName),
-        groqJsonPromptVersion: groqPromptVersion
+        groqJsonPromptVersion: groqPromptVersion,
     });
 }
 function analyzePricelistDeterministic(request, catalog, parserMode = "deterministic", extraWarnings = []) {
     const lines = splitPricelistLines(request.rawText);
     const items = lines
         .map((line, index) => buildItemFromLine(line, index + 1, request, catalog))
-        .filter((item) => item.title.length > 0 && (item.priceRub !== null || item.category !== "other"));
+        .filter((item) => item.title.length > 0 &&
+        (item.priceRub !== null || item.category !== "other"));
     const warnings = [...extraWarnings];
     if (!items.length)
         warnings.push("no_pricelist_rows_detected");
@@ -526,8 +879,10 @@ function analyzePricelistDeterministic(request, catalog, parserMode = "determini
         parserMode,
         warnings,
         aiUsed: false,
-        aiReason: request.useServerAi ? "Нейро-проверка не запускалась: локальный разбор уже дал безопасный черновик." : "Нейро-проверка выключена.",
-        modelName: null
+        aiReason: request.useServerAi
+            ? "Нейро-проверка не запускалась: локальный разбор уже дал безопасный черновик."
+            : "Нейро-проверка выключена.",
+        modelName: null,
     });
 }
 function groqSystemPrompt() {
@@ -541,7 +896,7 @@ function groqSystemPrompt() {
         "Allowed category values: consultation, therapy, surgery, prosthetics, orthodontics, periodontology, hygiene, imaging, documents, other.",
         "Allowed specialty values: therapist, orthopedist, surgeon, orthodontist, periodontist, hygienist, pediatric, implantologist, radiologist, universal.",
         "Allowed materialKind values: composite, glass_ionomer, sealant, ceramic, zirconia, lithium_disilicate, metal_ceramic, pmma, metal, titanium, implant_system, abutment, bone_graft, membrane, aligner, bracket, fluoride, whitening, anesthetic, imaging, lab, other, unknown.",
-        "Allowed restorationType values: filling, direct_restoration, inlay, onlay, overlay, veneer, crown, bridge, implant_crown, temporary_crown, post_core, denture, ortho_appliance, sealant, whitening, implant, surgical_guide, none, unknown."
+        "Allowed restorationType values: filling, direct_restoration, inlay, onlay, overlay, veneer, crown, bridge, implant_crown, temporary_crown, post_core, denture, ortho_appliance, sealant, whitening, implant, surgical_guide, none, unknown.",
     ].join(" ");
 }
 function groqUserPrompt(request) {
@@ -549,14 +904,18 @@ function groqUserPrompt(request) {
         `Prompt version: ${groqPromptVersion}.`,
         `Source kind: ${request.sourceKind}. Preferred specialty: ${request.preferredSpecialty}.`,
         "Parse the price list text/OCR/photo. Preserve original visible wording in sourceText. Return JSON only.",
-        request.rawText ? `Text:\n${request.rawText.slice(0, 60_000)}` : "No OCR text was supplied; use the attached image only."
+        request.rawText
+            ? `Text:\n${request.rawText.slice(0, 60_000)}`
+            : "No OCR text was supplied; use the attached image only.",
     ].join("\n\n");
 }
 function contentToString(content) {
     if (typeof content === "string")
         return content;
     if (Array.isArray(content)) {
-        return content.map((part) => (typeof part.text === "string" ? part.text : "")).join("\n");
+        return content
+            .map((part) => typeof part.text === "string" ? part.text : "")
+            .join("\n");
     }
     return "";
 }
@@ -585,7 +944,10 @@ function asNumberOrNull(value) {
 }
 function asWarnings(value) {
     return Array.isArray(value)
-        ? value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 8)
+        ? value
+            .map((item) => (typeof item === "string" ? item.trim() : ""))
+            .filter(Boolean)
+            .slice(0, 8)
         : [];
 }
 function itemFromGroq(raw, index, request, catalog) {
@@ -608,19 +970,27 @@ function itemFromGroq(raw, index, request, catalog) {
         treatmentKind: asString(record.treatmentKind, fallback.treatmentKind),
         materialKind: asString(record.materialKind, fallback.materialKind),
         restorationType: asString(record.restorationType, fallback.restorationType),
-        crownType: record.crownType === null ? null : asString(record.crownType, fallback.crownType ?? "") || null,
-        brand: record.brand === null ? null : asString(record.brand, fallback.brand ?? "") || null,
-        toothScope: record.toothScope === null ? null : asString(record.toothScope, fallback.toothScope ?? "") || null,
+        crownType: record.crownType === null
+            ? null
+            : asString(record.crownType, fallback.crownType ?? "") || null,
+        brand: record.brand === null
+            ? null
+            : asString(record.brand, fallback.brand ?? "") || null,
+        toothScope: record.toothScope === null
+            ? null
+            : asString(record.toothScope, fallback.toothScope ?? "") || null,
         unit: asString(record.unit, fallback.unit),
         priceRub: asNumberOrNull(record.priceRub) ?? fallback.priceRub,
         priceMaxRub: asNumberOrNull(record.priceMaxRub) ?? fallback.priceMaxRub,
         durationMinutes: asNumberOrNull(record.durationMinutes) ?? fallback.durationMinutes,
         confidence: Math.min(0.98, Math.max(0.1, Number(record.confidence) || fallback.confidence)),
         warnings: Array.from(new Set([...fallback.warnings, ...asWarnings(record.warnings)])),
-        matchedServiceId: null
+        matchedServiceId: null,
     };
     item.matchedServiceId = matchServiceId(item, catalog);
-    return dentalPricelistItemSchema.safeParse(item).success ? dentalPricelistItemSchema.parse(item) : fallback;
+    return dentalPricelistItemSchema.safeParse(item).success
+        ? dentalPricelistItemSchema.parse(item)
+        : fallback;
 }
 async function callGroqPricelist(request, catalog) {
     const modelName = groqPricelistModelName();
@@ -633,20 +1003,22 @@ async function callGroqPricelist(request, catalog) {
             break;
         tried.add(key.fingerprint);
         try {
-            const content = [{ type: "text", text: groqUserPrompt(request) }];
+            const content = [
+                { type: "text", text: groqUserPrompt(request) },
+            ];
             if (request.imageBase64) {
                 content.push({
                     type: "image_url",
                     image_url: {
-                        url: `data:${request.imageMimeType};base64,${request.imageBase64}`
-                    }
+                        url: `data:${request.imageMimeType};base64,${request.imageBase64}`,
+                    },
                 });
             }
             const response = await fetchWithProviderTimeout("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${key.value}`,
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     model: modelName,
@@ -654,11 +1026,13 @@ async function callGroqPricelist(request, catalog) {
                     response_format: { type: "json_object" },
                     messages: [
                         { role: "system", content: groqSystemPrompt() },
-                        { role: "user", content }
-                    ]
-                })
+                        { role: "user", content },
+                    ],
+                }),
             });
-            const payload = (await response.json().catch(() => ({})));
+            const payload = (await response
+                .json()
+                .catch(() => ({})));
             if (!response.ok) {
                 throw providerHttpError(response.status, response.statusText, payload.error?.message);
             }
@@ -681,7 +1055,9 @@ async function callGroqPricelist(request, catalog) {
                 break;
         }
     }
-    throw new Error(sanitizeProviderErrorMessage(lastError instanceof Error ? lastError.message : "Groq pricelist extraction failed."));
+    throw new Error(sanitizeProviderErrorMessage(lastError instanceof Error
+        ? lastError.message
+        : "Groq pricelist extraction failed."));
 }
 export async function analyzePricelist(request, catalog) {
     const keyPool = getProviderKeyPoolSummary(groqProviderId);
@@ -690,10 +1066,7 @@ export async function analyzePricelist(request, catalog) {
         return analyzePricelistDeterministic(request, catalog);
     }
     if (request.imageBase64 && !isExpectedImagePayload(request)) {
-        return analyzePricelistDeterministic(request, catalog, "deterministic_groq_fallback", [
-            "image_payload_invalid",
-            "groq_skipped_invalid_image_payload"
-        ]);
+        return analyzePricelistDeterministic(request, catalog, "deterministic_groq_fallback", ["image_payload_invalid", "groq_skipped_invalid_image_payload"]);
     }
     if (!keyPool.configuredKeyCount) {
         return analyzePricelistDeterministic(request, catalog, "deterministic_groq_fallback", ["groq_key_pool_empty"]);
@@ -707,12 +1080,12 @@ export async function analyzePricelist(request, catalog) {
             warnings: request.imageBase64 ? ["photo_ocr_requires_visual_review"] : [],
             aiUsed: true,
             aiReason: "Серверная нейро-проверка разобрала текст или фото; результат проверен схемой перед показом.",
-            modelName
+            modelName,
         });
     }
     catch (error) {
         return analyzePricelistDeterministic(request, catalog, "deterministic_groq_fallback", [
-            `groq_failed:${sanitizeProviderErrorMessage(error instanceof Error ? error.message : "unknown")}`
+            `groq_failed:${sanitizeProviderErrorMessage(error instanceof Error ? error.message : "unknown")}`,
         ]);
     }
 }

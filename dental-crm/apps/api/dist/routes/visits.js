@@ -1,5 +1,5 @@
-import { acceptVisitDraftResponseSchema, acceptVisitDraftSchema, visitDraftAutosaveRequestSchema, visitDraftAutosaveResponseSchema } from "@dental/shared";
-import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId } from "../accessGuard.js";
+import { acceptVisitDraftResponseSchema, acceptVisitDraftSchema, visitDraftAutosaveRequestSchema, visitDraftAutosaveResponseSchema, } from "@dental/shared";
+import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 const visitDraftAutosaveValidationMessage = "Черновик приема не сохранен: передайте пациента, специальность, текст приема или заполненные поля черновика.";
 const visitDraftAcceptValidationMessage = "Черновик приема не принят: передайте текст приема, заполненные поля черновика и данные сохранения врача.";
 const visitDraftNotFoundMessage = "Прием не найден. Обновите рабочий экран и выберите актуальный прием.";
@@ -7,7 +7,9 @@ const visitDraftAutosaveClosedMessage = "Черновик приема не со
 const visitDraftAcceptClosedMessage = "Черновик приема не принят: этот прием уже недоступен для изменений.";
 const visitDraftMutationRejectedMessage = "Черновик приема не изменен: обновите прием и повторите действие.";
 function visitRequestBody(value) {
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
 }
 function parseVisitPayload(schema, value, message, reply) {
     const parsed = schema.safeParse(value);
@@ -28,23 +30,25 @@ function sendVisitDraftMutationError(error, reply, operation) {
         return reply.code(404).send({
             error: "VisitNotFound",
             reason: "visit_not_found",
-            message: visitDraftNotFoundMessage
+            message: visitDraftNotFoundMessage,
         });
     }
     if (message === "Прием уже закрыт или аннулирован") {
         return reply.code(409).send({
             error: "VisitDraftMutationRejected",
             reason: "visit_closed",
-            message: operation === "accept" ? visitDraftAcceptClosedMessage : visitDraftAutosaveClosedMessage
+            message: operation === "accept"
+                ? visitDraftAcceptClosedMessage
+                : visitDraftAutosaveClosedMessage,
         });
     }
     return reply.code(409).send({
         error: "VisitDraftMutationRejected",
         reason: "visit_draft_rejected",
-        message: visitDraftMutationRejectedMessage
+        message: visitDraftMutationRejectedMessage,
     });
 }
-import { getVisitDraftAutosaveFromDb, upsertVisitDraftAutosaveInDb, acceptVisitDraftInDb } from "../db/visitsQuery.js";
+import { acceptVisitDraftInDb, getVisitDraftAutosaveFromDb, upsertVisitDraftAutosaveInDb, } from "../db/visitsQuery.js";
 export async function registerVisitRoutes(app) {
     app.get("/api/visits/:visitId/draft/autosave", async (request, reply) => {
         const orgId = await requireResolvedOrganizationId(request, reply, "visit draft autosave read");
@@ -57,7 +61,9 @@ export async function registerVisitRoutes(app) {
         }
         const draft = await getVisitDraftAutosaveFromDb(orgId, visitId);
         if (!draft)
-            return reply.code(404).send({ error: "VisitNotFound", message: visitDraftNotFoundMessage });
+            return reply
+                .code(404)
+                .send({ error: "VisitNotFound", message: visitDraftNotFoundMessage });
         return visitDraftAutosaveResponseSchema.parse({ serverDraft: draft });
     });
     app.put("/api/visits/:visitId/draft/autosave", async (request, reply) => {

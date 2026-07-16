@@ -1,6 +1,6 @@
-import { documentKindMetadata, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionCertificateMinYear } from "@dental/shared";
-import { taxPaymentsForDocumentScope } from "./taxPaymentSnapshot.js";
+import { documentKindMetadata, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionCertificateMinYear, } from "@dental/shared";
 import { repairMojibakeText } from "../text/repairMojibake.js";
+import { taxPaymentsForDocumentScope } from "./taxPaymentSnapshot.js";
 function escapeHtml(value) {
     return value
         .replaceAll("&", "&amp;")
@@ -10,21 +10,25 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 function rub(value) {
-    return value === null ? "не указана" : `${value.toLocaleString("ru-RU")} руб.`;
+    return value === null
+        ? "не указана"
+        : `${value.toLocaleString("ru-RU")} руб.`;
 }
 function issuedDate(document) {
-    return document.issuedAt ? new Date(document.issuedAt).toLocaleDateString("ru-RU") : "не выдан";
+    return document.issuedAt
+        ? new Date(document.issuedAt).toLocaleDateString("ru-RU")
+        : "не выдан";
 }
 const documentStatusLabels = {
     draft: "черновик",
     issued: "выдан",
-    voided: "аннулирован"
+    voided: "аннулирован",
 };
 function documentStatusBanner(document) {
     const textByStatus = {
         draft: "ЧЕРНОВИК. ПЕРЕД ВЫДАЧЕЙ НУЖНА ПРОВЕРКА КЛИНИКИ",
         issued: "ВЫДАНО. ПРОВЕРИТЬ ПОДПИСИ И ПРИЛОЖЕНИЯ ПЕРЕД ПЕРЕДАЧЕЙ",
-        voided: "АННУЛИРОВАНО. НЕ ИСПОЛЬЗОВАТЬ КАК ДЕЙСТВУЮЩИЙ ДОКУМЕНТ"
+        voided: "АННУЛИРОВАНО. НЕ ИСПОЛЬЗОВАТЬ КАК ДЕЙСТВУЮЩИЙ ДОКУМЕНТ",
     };
     return `<div class="document-status-banner status-${document.status}">${escapeHtml(textByStatus[document.status])}</div>`;
 }
@@ -34,7 +38,7 @@ const unresolvedPlaceholderPatterns = [
     "указать врачом",
     "указать по",
     "не указана",
-    "не указан"
+    "не указан",
 ].map((pattern) => repairMojibakeText(pattern));
 export function documentHasUnresolvedPlaceholders(html) {
     if (html.includes("[[{") || html.includes("}]]"))
@@ -60,13 +64,17 @@ function hasPersonNameParts(value) {
     return (present(value) ?? "").split(/\s+/).filter(Boolean).length >= 2;
 }
 function compactParts(parts) {
-    return parts.filter((part) => Boolean(part && part.trim())).join("; ");
+    return parts
+        .filter((part) => Boolean(part && part.trim()))
+        .join("; ");
 }
 function hasClinicalToothRows(value) {
-    return Array.isArray(value?.clinicalToothRows) && value.clinicalToothRows.length > 0;
+    return (Array.isArray(value?.clinicalToothRows) &&
+        value.clinicalToothRows.length > 0);
 }
 function hasOutpatient025uClinicalRows(value) {
-    return Boolean(value?.specialistVisitRecords.some((record) => Array.isArray(record.clinicalToothRows) && record.clinicalToothRows.length > 0));
+    return Boolean(value?.specialistVisitRecords.some((record) => Array.isArray(record.clinicalToothRows) &&
+        record.clinicalToothRows.length > 0));
 }
 function clinicalToothSurfaceLabel(value) {
     const labels = {
@@ -79,7 +87,7 @@ function clinicalToothSurfaceLabel(value) {
         incisal: "режущий край",
         root: "корень",
         implant_site: "зона имплантации",
-        not_applicable: "не применимо"
+        not_applicable: "не применимо",
     };
     return labels[value] ?? value;
 }
@@ -96,7 +104,7 @@ function clinicalToothStatusLabel(value) {
         orthodontic: "ортодонтический статус",
         planned: "запланировано",
         completed: "выполнено",
-        other: "иное"
+        other: "иное",
     };
     return labels[value] ?? value;
 }
@@ -162,30 +170,40 @@ function preferredDocumentRecipient(patient) {
 function representativeDisplayLine(patient) {
     return (compactParts([
         legalRepresentativeName(patient),
-        legalRepresentativeDocument(patient) ? `документ: ${legalRepresentativeDocument(patient)}` : null
+        legalRepresentativeDocument(patient)
+            ? `документ: ${legalRepresentativeDocument(patient)}`
+            : null,
     ]) || "ФИО: ____________________; документ: ____________________");
 }
 function representativeAuthorityLine(patient) {
     return (compactParts([
         legalRepresentativeRelationship(patient),
-        legalRepresentativeDocument(patient) ? `подтверждение: ${legalRepresentativeDocument(patient)}` : null
+        legalRepresentativeDocument(patient)
+            ? `подтверждение: ${legalRepresentativeDocument(patient)}`
+            : null,
     ]) || "родитель / опекун / попечитель / доверенность / иное");
 }
 function representativeContactLine(patient) {
-    return legalRepresentativePhone(patient) ? `телефон: ${legalRepresentativePhone(patient)}` : "телефон: ____________________; email: ____________________";
+    return legalRepresentativePhone(patient)
+        ? `телефон: ${legalRepresentativePhone(patient)}`
+        : "телефон: ____________________; email: ____________________";
 }
 function documentRecipientLine(patient) {
-    return preferredDocumentRecipient(patient) || legalRepresentativeName(patient) || "пациент / законный представитель / доверенное лицо";
+    return (preferredDocumentRecipient(patient) ||
+        legalRepresentativeName(patient) ||
+        "пациент / законный представитель / доверенное лицо");
 }
 function representativeIdentityLine(patient) {
     return (compactParts([
         legalRepresentativeName(patient),
         legalRepresentativeDocument(patient),
-        legalRepresentativeRelationship(patient)
+        legalRepresentativeRelationship(patient),
     ]) || "паспорт/доверенность/документ представителя: ____________________");
 }
 function clinicDisplayName(profile) {
-    return present(profile?.legalName) ?? present(profile?.clinicName) ?? "Профиль клиники не заполнен";
+    return (present(profile?.legalName) ??
+        present(profile?.clinicName) ??
+        "Профиль клиники не заполнен");
 }
 function clinicLicenseLine(profile) {
     const number = present(profile?.medicalLicenseNumber);
@@ -193,7 +211,11 @@ function clinicLicenseLine(profile) {
         return null;
     const issuedAt = present(profile?.medicalLicenseIssuedAt);
     const issuer = present(profile?.medicalLicenseIssuer);
-    return compactParts([`лицензия ${number}`, issuedAt ? `от ${issuedAt}` : null, issuer ? `выдана ${issuer}` : null]);
+    return compactParts([
+        `лицензия ${number}`,
+        issuedAt ? `от ${issuedAt}` : null,
+        issuer ? `выдана ${issuer}` : null,
+    ]);
 }
 function clinicLegalRequisites(profile) {
     return (compactParts([
@@ -205,14 +227,20 @@ function clinicLegalRequisites(profile) {
         present(profile?.address) ? `адрес ${present(profile?.address)}` : null,
         present(profile?.phone) ? `тел. ${present(profile?.phone)}` : null,
         present(profile?.email) ? `email ${present(profile?.email)}` : null,
-        present(profile?.website) ? `сайт ${present(profile?.website)}` : null
+        present(profile?.website) ? `сайт ${present(profile?.website)}` : null,
     ]) || "Профиль клиники не заполнен");
 }
 function clinicPaymentRequisites(profile) {
-    return compactParts([clinicLegalRequisites(profile), present(profile?.bankDetails)]) || clinicLegalRequisites(profile);
+    return (compactParts([
+        clinicLegalRequisites(profile),
+        present(profile?.bankDetails),
+    ]) || clinicLegalRequisites(profile));
 }
 function clinicSignatory(profile) {
-    return compactParts([present(profile?.signatoryTitle), present(profile?.signatoryName)]) || "уполномоченное лицо клиники";
+    return (compactParts([
+        present(profile?.signatoryTitle),
+        present(profile?.signatoryName),
+    ]) || "уполномоченное лицо клиники");
 }
 const clinicLegalProfileFieldLabels = {
     legalName: "юридическое наименование",
@@ -221,7 +249,7 @@ const clinicLegalProfileFieldLabels = {
     phone: "телефон",
     medicalLicenseNumber: "номер медицинской лицензии",
     medicalLicenseIssuedAt: "дата лицензии",
-    medicalLicenseIssuer: "орган, выдавший лицензию"
+    medicalLicenseIssuer: "орган, выдавший лицензию",
 };
 const clinicLegalProfileOptionalDocumentKinds = new Set([
     "patient_intake_questionnaire",
@@ -231,7 +259,7 @@ const clinicLegalProfileOptionalDocumentKinds = new Set([
     "prescription_medication_order",
     "xray_cbct_referral",
     "lab_work_order",
-    "warranty_service_memo"
+    "warranty_service_memo",
 ]);
 function documentRequiresClinicLegalProfile(kind) {
     return !clinicLegalProfileOptionalDocumentKinds.has(kind);
@@ -246,100 +274,129 @@ function clinicLegalProfileMissingFields(profile) {
         ["phone", profile.phone],
         ["medicalLicenseNumber", profile.medicalLicenseNumber],
         ["medicalLicenseIssuedAt", profile.medicalLicenseIssuedAt],
-        ["medicalLicenseIssuer", profile.medicalLicenseIssuer]
+        ["medicalLicenseIssuer", profile.medicalLicenseIssuer],
     ];
-    return checks.filter(([, value]) => !present(value)).map(([field]) => clinicLegalProfileFieldLabels[field] ?? field);
+    return checks
+        .filter(([, value]) => !present(value))
+        .map(([field]) => clinicLegalProfileFieldLabels[field] ?? field);
 }
 function documentPayloadBlockReason(document) {
-    if (document.kind === "patient_intake_questionnaire" && !document.payload?.patientIntakeQuestionnaire) {
+    if (document.kind === "patient_intake_questionnaire" &&
+        !document.payload?.patientIntakeQuestionnaire) {
         return "Для выдачи анкеты пациента нужны структурированные данные: жалоба, аллергии, препараты, хронические заболевания, беременность/лактация, антикоагулянты и подтверждение пациента.";
     }
-    if (document.kind === "tax_deduction_application" && !document.payload?.taxDeductionApplication) {
+    if (document.kind === "tax_deduction_application" &&
+        !document.payload?.taxDeductionApplication) {
         return "Для выдачи заявления на налоговую справку нужны структурированные данные: заявитель, ИНН, дата рождения, документ, родство, год, форма справки, канал выдачи, контакт и проверка дублей.";
     }
-    if (document.kind === "paid_medical_services_contract" && !document.payload?.paidMedicalServicesContract) {
+    if (document.kind === "paid_medical_services_contract" &&
+        !document.payload?.paidMedicalServicesContract) {
         return "Для выдачи договора платных медицинских услуг нужны структурированные данные: номер и дата договора, сроки, заказчик, основание обращения, состав услуг, сумма, порядок оплаты, изменение цены, уведомление о бесплатной помощи, предупреждение о рекомендациях врача, отказ/возврат, гарантия и подтверждения пациента.";
     }
-    if (document.kind === "completed_works_act" && !document.payload?.completedWorksAct) {
+    if (document.kind === "completed_works_act" &&
+        !document.payload?.completedWorksAct) {
         return "Для выдачи акта выполненных работ нужны структурированные данные: номер и дата акта, договор, период оказания, врач, состав работ, суммы, фискальные чеки, претензии или их отсутствие и подтверждения пациента.";
     }
-    if (document.kind === "treatment_cost_estimate" && !document.payload?.treatmentCostEstimate) {
+    if (document.kind === "treatment_cost_estimate" &&
+        !document.payload?.treatmentCostEstimate) {
         return "Для выдачи сметы лечения нужны структурированные данные: номер, дата, пациент или плательщик, основание лечения, состав услуг, сумма, срок действия, правила изменения цены, исключения, условия оплаты, ответственный врач и подтверждения пациента.";
     }
-    if (document.kind === "payment_invoice" && !document.payload?.paymentInvoice) {
+    if (document.kind === "payment_invoice" &&
+        !document.payload?.paymentInvoice) {
         return "Для выдачи счета на оплату нужны структурированные данные: номер и дата счета, плательщик, назначение платежа, состав услуг, сумма, срок оплаты, реквизиты, способы оплаты и подтверждение, что счет не заменяет кассовый чек.";
     }
-    if (document.kind === "payment_receipt" && !document.payload?.paymentReceipt) {
+    if (document.kind === "payment_receipt" &&
+        !document.payload?.paymentReceipt) {
         return "Для выдачи платежной квитанции нужны структурированные данные: номер и дата квитанции, выбранные оплаченные платежи, сумма, плательщик, фискальные чеки, назначение оплаты и подтверждение проверки.";
     }
-    if (document.kind === "installment_payment_schedule" && !document.payload?.installmentPaymentSchedule) {
+    if (document.kind === "installment_payment_schedule" &&
+        !document.payload?.installmentPaymentSchedule) {
         return "Для выдачи графика рассрочки нужны структурированные данные: номер и дата графика, базовый договор или план, плательщик, сумма, предоплата, остаток, платежи, правила просрочки, способы оплаты и подтверждения пациента.";
     }
-    if (document.kind === "minor_legal_representative_consent" && !document.payload?.minorLegalRepresentativeConsent) {
+    if (document.kind === "minor_legal_representative_consent" &&
+        !document.payload?.minorLegalRepresentativeConsent) {
         return "Для выдачи согласия законного представителя нужны структурированные данные: представитель, родство, документ личности, основание полномочий, данные несовершеннолетнего, вмешательство, риски, альтернативы, врач и подтверждения проверки.";
     }
-    if (document.kind === "warranty_service_memo" && !document.payload?.warrantyServiceMemo) {
+    if (document.kind === "warranty_service_memo" &&
+        !document.payload?.warrantyServiceMemo) {
         return "Для выдачи гарантийной памятки нужны структурированные данные: работа, дата завершения, зубы или область, материалы, срок гарантии, контрольные визиты, обязанности пациента, исключения, срочные признаки, связанный акт или договор и подтверждения выдачи.";
     }
-    if (document.kind === "anesthesia_consent_log" && !document.payload?.anesthesiaConsentLog) {
+    if (document.kind === "anesthesia_consent_log" &&
+        !document.payload?.anesthesiaConsentLog) {
         return "Для выдачи журнала анестезии нужны структурированные данные: метод, препарат, зона, аллергостатус и дозы.";
     }
-    if (document.kind === "prescription_medication_order" && !document.payload?.prescriptionMedicationOrder) {
+    if (document.kind === "prescription_medication_order" &&
+        !document.payload?.prescriptionMedicationOrder) {
         return "Для выдачи назначения препаратов нужны структурированные данные: препарат, дозировка, режим, срок и памятка пациенту.";
     }
-    if (document.kind === "prescription_medication_order" && !hasClinicalToothRows(document.payload?.prescriptionMedicationOrder)) {
+    if (document.kind === "prescription_medication_order" &&
+        !hasClinicalToothRows(document.payload?.prescriptionMedicationOrder)) {
         return "Для выдачи назначения препаратов нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
     if (document.kind === "lab_work_order" && !document.payload?.labWorkOrder) {
         return "Для выдачи лабораторного заказа нужны структурированные данные: работа, зона, материал, цвет, источник данных и срок.";
     }
-    if (document.kind === "lab_work_order" && !hasClinicalToothRows(document.payload?.labWorkOrder)) {
+    if (document.kind === "lab_work_order" &&
+        !hasClinicalToothRows(document.payload?.labWorkOrder)) {
         return "Для выдачи лабораторного заказа нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "photo_video_consent" && !document.payload?.photoVideoConsent) {
+    if (document.kind === "photo_video_consent" &&
+        !document.payload?.photoVideoConsent) {
         return "Для выдачи согласия на фото, видео и снимки нужны структурированные данные: материалы, разрешенные цели, публикация и порядок отзыва.";
     }
-    if (document.kind === "xray_cbct_referral" && !document.payload?.xrayCbctReferral) {
+    if (document.kind === "xray_cbct_referral" &&
+        !document.payload?.xrayCbctReferral) {
         return "Для выдачи направления на рентген или КЛКТ нужны структурированные данные: вид исследования, область, клинический вопрос, показание, ограничения и ответственный врач.";
     }
-    if (document.kind === "xray_cbct_referral" && !hasClinicalToothRows(document.payload?.xrayCbctReferral)) {
+    if (document.kind === "xray_cbct_referral" &&
+        !hasClinicalToothRows(document.payload?.xrayCbctReferral)) {
         return "Для выдачи направления на рентген или КЛКТ нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "medical_record_extract" && !document.payload?.medicalRecordExtract) {
+    if (document.kind === "medical_record_extract" &&
+        !document.payload?.medicalRecordExtract) {
         return "Для выдачи выписки из медицинской карты нужны структурированные данные: период, источники записей, жалобы и анамнез, объективный статус, диагноз, лечение, рекомендации, врач, получатель и проверка данных третьих лиц.";
     }
-    if (document.kind === "medical_record_extract" && !hasClinicalToothRows(document.payload?.medicalRecordExtract)) {
+    if (document.kind === "medical_record_extract" &&
+        !hasClinicalToothRows(document.payload?.medicalRecordExtract)) {
         return "Для выдачи выписки из медицинской карты нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "outpatient_medical_card_025u" && !document.payload?.outpatientMedicalCard025u) {
+    if (document.kind === "outpatient_medical_card_025u" &&
+        !document.payload?.outpatientMedicalCard025u) {
         return "Для выдачи медицинской карты 025/у нужны структурированные данные: организация, номер карты, пациент, период, источники подписанных записей, диагнозы, записи врачей, стоматологические строки и подтверждения формы 274н.";
     }
     if (document.kind === "outpatient_medical_card_025u" &&
         !hasOutpatient025uClinicalRows(document.payload?.outpatientMedicalCard025u)) {
         return "Для выдачи медицинской карты 025/у нужны клинические строки по зубам или сегментам хотя бы в одной записи врача.";
     }
-    if (document.kind === "medical_record_copy_request" && !document.payload?.medicalRecordCopyRequest) {
+    if (document.kind === "medical_record_copy_request" &&
+        !document.payload?.medicalRecordCopyRequest) {
         return "Для выдачи запроса копий медицинской документации нужны структурированные данные: состав документов, период, формат, получатель, документ получателя, полномочия, контакт выдачи и проверка лишних данных третьих лиц.";
     }
-    if (document.kind === "post_visit_recommendations" && !document.payload?.postVisitRecommendations) {
+    if (document.kind === "post_visit_recommendations" &&
+        !document.payload?.postVisitRecommendations) {
         return "Для выдачи рекомендаций после приема нужны структурированные данные: процедура, зона, дата, врач, разрешенные действия, ограничения, назначения, питание, гигиена, тревожные признаки, контакт клиники и краткий текст для Telegram.";
     }
     if (document.kind === "treatment_plan" && !document.payload?.treatmentPlan) {
         return "Для выдачи плана лечения нужны структурированные данные: причина обращения, диагноз, область, цели, этапы, стоимость, альтернативы, риски, прогноз, контроль, врач и подтверждения пациента.";
     }
-    if (document.kind === "treatment_plan" && !hasClinicalToothRows(document.payload?.treatmentPlan)) {
+    if (document.kind === "treatment_plan" &&
+        !hasClinicalToothRows(document.payload?.treatmentPlan)) {
         return "Для выдачи плана лечения нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "treatment_plan_acceptance" && !document.payload?.treatmentPlanAcceptance) {
+    if (document.kind === "treatment_plan_acceptance" &&
+        !document.payload?.treatmentPlanAcceptance) {
         return "Для согласования плана лечения нужны структурированные данные: выбранный вариант, диагноз/цель, зона, этапы, сумма, срок действия сметы, условия оплаты, отклоненные альтернативы, риски, врач и подтверждения пациента.";
     }
-    if (document.kind === "treatment_plan_acceptance" && !hasClinicalToothRows(document.payload?.treatmentPlanAcceptance)) {
+    if (document.kind === "treatment_plan_acceptance" &&
+        !hasClinicalToothRows(document.payload?.treatmentPlanAcceptance)) {
         return "Для согласования плана лечения нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "visit_attendance_certificate" && !document.payload?.visitAttendanceCertificate) {
+    if (document.kind === "visit_attendance_certificate" &&
+        !document.payload?.visitAttendanceCertificate) {
         return "Для выдачи справки о посещении нужны структурированные данные: время начала и окончания приема, цель выдачи, получатель, дата, подписант и подтверждение, что диагноз не раскрывается.";
     }
-    if (document.kind === "medical_document_release_receipt" && !document.payload?.medicalDocumentReleaseReceipt) {
+    if (document.kind === "medical_document_release_receipt" &&
+        !document.payload?.medicalDocumentReleaseReceipt) {
         return "Для выдачи расписки о передаче медицинских документов нужны структурированные данные: получатель, основание, канал, состав выдачи, дата и защита передачи.";
     }
     if (document.kind === "medical_document_release_receipt" &&
@@ -347,22 +404,28 @@ function documentPayloadBlockReason(document) {
         !document.payload.medicalDocumentReleaseReceipt.sourceRequestDocumentId) {
         return "Для расписки о выдаче медицинских документов выберите конкретный выданный запрос пациента или представителя.";
     }
-    if (document.kind === "payment_refund_correction_request" && !document.payload?.paymentRefundCorrection) {
+    if (document.kind === "payment_refund_correction_request" &&
+        !document.payload?.paymentRefundCorrection) {
         return "Для выдачи заявления на возврат или коррекцию оплаты нужны структурированные данные: действие, сумма, основание, способ, получатель, исходный чек и решение ответственного.";
     }
-    if (document.kind === "informed_consent" && !document.payload?.informedConsent) {
+    if (document.kind === "informed_consent" &&
+        !document.payload?.informedConsent) {
         return "Для выдачи информированного согласия нужны структурированные данные: вмешательство, область, показание, ожидаемая польза, риски, альтернативы, рекомендации после вмешательства, врач и подтверждения пациента.";
     }
-    if (document.kind === "procedure_specific_consent_packet" && !document.payload?.procedureSpecificConsent) {
+    if (document.kind === "procedure_specific_consent_packet" &&
+        !document.payload?.procedureSpecificConsent) {
         return "Для выдачи процедурного согласия нужны структурированные данные: вид процедуры, область, показание, анестезия, материалы, персональные риски пациента, процедурные риски, альтернативы, ограничения после процедуры, врач и подтверждения пациента.";
     }
-    if (document.kind === "procedure_specific_consent_packet" && !hasClinicalToothRows(document.payload?.procedureSpecificConsent)) {
+    if (document.kind === "procedure_specific_consent_packet" &&
+        !hasClinicalToothRows(document.payload?.procedureSpecificConsent)) {
         return "Для выдачи процедурного согласия нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
     }
-    if (document.kind === "personal_data_processing_consent" && !document.payload?.personalDataProcessingConsent) {
+    if (document.kind === "personal_data_processing_consent" &&
+        !document.payload?.personalDataProcessingConsent) {
         return "Для выдачи согласия на обработку персональных данных нужны структурированные данные: оператор, ИНН, адрес, цели, категории данных, действия обработки, правила передачи третьим лицам, срок хранения, отзыв согласия и подтверждение обработки медицинских данных.";
     }
-    if (document.kind === "medical_intervention_refusal" && !document.payload?.medicalInterventionRefusal) {
+    if (document.kind === "medical_intervention_refusal" &&
+        !document.payload?.medicalInterventionRefusal) {
         return "Для выдачи отказа от медицинского вмешательства нужны структурированные данные: вмешательство, показание, причина отказа, риски, альтернативы, тревожные признаки и подтверждения пациента.";
     }
     return null;
@@ -445,7 +508,7 @@ function releaseJournalBlock(document) {
         return "";
     const period = compactParts([
         journal.periodStart ? `с ${journal.periodStart}` : null,
-        journal.periodEnd ? `по ${journal.periodEnd}` : null
+        journal.periodEnd ? `по ${journal.periodEnd}` : null,
     ]);
     return `<section class="release-journal">
     <h2>Журнал выдачи медицинской документации</h2>
@@ -527,14 +590,14 @@ const treatmentPlanBackedFinancialKinds = new Set([
     "completed_works_act",
     "treatment_cost_estimate",
     "payment_invoice",
-    "installment_payment_schedule"
+    "installment_payment_schedule",
 ]);
 const treatmentPlanItemStatusLabels = {
     proposed: "предложено",
     approved: "согласовано",
     in_progress: "в работе",
     completed: "выполнено",
-    cancelled: "отменено"
+    cancelled: "отменено",
 };
 function treatmentPlanItemTotalRub(item) {
     return Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
@@ -544,7 +607,9 @@ function serviceCatalogMap(context) {
 }
 function documentTreatmentPlanItems(document, context) {
     const patientItems = (context.treatmentPlanItems ?? []).filter((item) => item.patientId === document.patientId && item.status !== "cancelled");
-    const visitItems = document.visitId ? patientItems.filter((item) => item.visitId === document.visitId) : [];
+    const visitItems = document.visitId
+        ? patientItems.filter((item) => item.visitId === document.visitId)
+        : [];
     return visitItems.length ? visitItems : patientItems;
 }
 function financialDocumentTreatmentItems(document, context) {
@@ -571,9 +636,13 @@ function financialServiceRows(document, context, includeStatus = false) {
         const service = services.get(item.serviceId);
         const title = service?.title ?? item.serviceId;
         const code = service?.code ? `${service.code} ` : "";
-        const tooth = item.toothCode ? `зуб ${item.toothCode}` : "без привязки к зубу";
+        const tooth = item.toothCode
+            ? `зуб ${item.toothCode}`
+            : "без привязки к зубу";
         const discount = item.discountRub > 0 ? rub(item.discountRub) : "нет";
-        const statusCell = includeStatus ? `<td>${escapeHtml(treatmentPlanItemStatusLabels[item.status])}</td>` : "";
+        const statusCell = includeStatus
+            ? `<td>${escapeHtml(treatmentPlanItemStatusLabels[item.status])}</td>`
+            : "";
         return `<tr>
         <td>${escapeHtml(`${code}${title}`)}</td>
         <td>${escapeHtml(tooth)}</td>
@@ -611,7 +680,9 @@ function installmentRows(document, context) {
             rows.push(`<tr><td>Финальный платеж до выдачи акта</td><td>${escapeHtml(rub(secondPart))}</td><td>план</td></tr>`);
         }
     }
-    return rows.length ? rows.join("") : `<tr><td>План полностью оплачен</td><td>${escapeHtml(rub(0))}</td><td>оплачено</td></tr>`;
+    return rows.length
+        ? rows.join("")
+        : `<tr><td>План полностью оплачен</td><td>${escapeHtml(rub(0))}</td><td>оплачено</td></tr>`;
 }
 function paidMedicalServicesContract(document, context) {
     const payload = document.payload?.paidMedicalServicesContract;
@@ -625,7 +696,7 @@ function paidMedicalServicesContract(document, context) {
             row("Срок начала оказания", payload.serviceStart),
             row("Окончание / условие завершения", payload.serviceEndOrCondition),
             row("Ответственный врач", payload.doctorFullName),
-            row("Подписано", payload.signedAt)
+            row("Подписано", payload.signedAt),
         ].join("");
         return `<h2>Договор оказания платных медицинских услуг</h2>
     <div class="notice">
@@ -654,14 +725,14 @@ function paidMedicalServicesContract(document, context) {
             payload.warrantyAndClaimsTerms,
             "пациент получил сведения об исполнителе, лицензии, услугах, цене, сроках и порядке оплаты",
             "дополнительные платные услуги оформляются письменным соглашением или новым договором до оказания",
-            "несоблюдение рекомендаций врача может снизить качество услуги, изменить сроки или повлиять на состояние здоровья"
+            "несоблюдение рекомендаций врача может снизить качество услуги, изменить сроки или повлиять на состояние здоровья",
         ])}
     <h2>5. Подтверждения</h2>
     ${checkList([
             "сведения о клинике и лицензии переданы пациенту до подписания",
             "перечень услуг и стоимость согласованы",
             "пациент понимает платную основу оказания услуг",
-            "изменения договора фиксируются письменно"
+            "изменения договора фиксируются письменно",
         ])}
     ${signatureBlock()}`;
     }
@@ -680,7 +751,7 @@ function paidMedicalServicesContract(document, context) {
         "услуги оказываются по медицинским показаниям и согласованному плану лечения",
         "изменение состава услуг фиксируется дополнительной сметой или соглашением",
         "кассовый чек и акт выполненных работ хранятся вместе с договором",
-        "гарантийные условия и претензионный порядок применяются по локальным правилам клиники"
+        "гарантийные условия и претензионный порядок применяются по локальным правилам клиники",
     ])}
     ${signatureBlock()}`;
 }
@@ -710,7 +781,7 @@ function completedWorksAct(document, context) {
             "акт связан с подписанным договором и планом лечения",
             "финальный состав работ сверил врач или администратор",
             "фискальные чеки и оплаты проверены",
-            "пациент принял выполненные работы; замечания внесены в акт до подписания"
+            "пациент принял выполненные работы; замечания внесены в акт до подписания",
         ])}
     ${signatureBlock("Пациент / плательщик", signatureParty("Врач-исполнитель / представитель клиники", payload.doctorFullName))}`;
     }
@@ -725,18 +796,22 @@ function completedWorksAct(document, context) {
     ${checkList([
         "сверить акт с договором, кассовым чеком и фактически оказанными услугами",
         "даты оказания услуг и врач-исполнитель берутся из связанного визита и карты пациента",
-        "зафиксировать замечания пациента или отметить их отсутствие"
+        "зафиксировать замечания пациента или отметить их отсутствие",
     ])}
     ${signatureBlock()}`;
 }
 function documentTaxYear(document) {
-    return document.taxYear ? `${document.taxYear}` : "год оплаты: заполнить по кассовым данным";
+    return document.taxYear
+        ? `${document.taxYear}`
+        : "год оплаты: заполнить по кассовым данным";
 }
 function taxPaymentsForDocument(document, context) {
     return taxPaymentsForDocumentScope(document, context.payments ?? []);
 }
 function taxPaymentCode(payment) {
-    return payment.taxDeductionCode === "1" || payment.taxDeductionCode === "2" ? payment.taxDeductionCode : null;
+    return payment.taxDeductionCode === "1" || payment.taxDeductionCode === "2"
+        ? payment.taxDeductionCode
+        : null;
 }
 function taxPaymentCodeLabel(code) {
     if (!code)
@@ -756,24 +831,29 @@ function namePartsForTax(fullName) {
     return {
         lastName: parts[0] ?? "",
         firstName: parts[1] ?? "",
-        middleName: parts.slice(2).join(" ")
+        middleName: parts.slice(2).join(" "),
     };
 }
 function taxCertificateNumber(document) {
     const year = document.taxYear ? String(document.taxYear) : "";
     const idDigits = document.id.replace(/\D+/g, "");
     const numericHash = Array.from(document.id).reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1_000_000_000, 17);
-    const sequence = (idDigits || String(numericHash)).slice(0, 10).padStart(10, "0");
+    const sequence = (idDigits || String(numericHash))
+        .slice(0, 10)
+        .padStart(10, "0");
     return `${year}${sequence}`.replace(/\D+/g, "") || "1";
 }
 function taxpayerPatientSameFlagCode(payment) {
-    return normalizedTaxpayerRelationship(payment?.payerRelationship) === "self" ? "1" : "0";
+    return normalizedTaxpayerRelationship(payment?.payerRelationship) === "self"
+        ? "1"
+        : "0";
 }
 function identityDocumentKindCode(value) {
     const normalized = present(value)?.toLocaleLowerCase("ru-RU") ?? "";
     if (normalized.includes("паспорт") || normalized.includes("passport"))
         return "21";
-    if (normalized.includes("свидетельство о рождении") || normalized.includes("birth certificate"))
+    if (normalized.includes("свидетельство о рождении") ||
+        normalized.includes("birth certificate"))
         return "03";
     if (normalized.includes("военн") || normalized.includes("military"))
         return "07";
@@ -801,7 +881,8 @@ function hasTaxInn(value) {
     return digitsOnly(value).length === 12;
 }
 function hasTaxIdentityDocument(value) {
-    return Boolean(identityDocumentNumberForTax(value) && identityDocumentIssuedAtForTax(value));
+    return Boolean(identityDocumentNumberForTax(value) &&
+        identityDocumentIssuedAtForTax(value));
 }
 function hasTaxPersonIdentifier(inn, identity) {
     return hasTaxInn(inn) || hasTaxIdentityDocument(identity);
@@ -836,7 +917,9 @@ function officialKnd1151156PrintBlock(document, patient, context, taxPayments, t
     const clinicProfile = context.clinicProfile;
     const clinicKpp = present(clinicProfile?.kpp) ?? "не применяется";
     const clinicOgrn = present(clinicProfile?.ogrn) ?? "не применяется";
-    const receiptNumbers = taxPayments.length ? taxReceiptList(taxPayments) : "фискальные чеки будут подтянуты после оплаты";
+    const receiptNumbers = taxPayments.length
+        ? taxReceiptList(taxPayments)
+        : "фискальные чеки будут подтянуты после оплаты";
     const patientPage = samePersonFlag === "0"
         ? `<h3>Лист 002. Данные физического лица, которому оказаны медицинские услуги</h3>
       <table>
@@ -883,15 +966,20 @@ function payerInnForTax(payment, patient) {
     const inn = payment?.payerInn?.trim() || (patient ? patientTaxpayerInn(patient) : null);
     if (inn)
         return inn;
-    if (payment?.payerIdentityDocument?.trim() || (patient ? patientIdentityDocument(patient) : null))
+    if (payment?.payerIdentityDocument?.trim() ||
+        (patient ? patientIdentityDocument(patient) : null))
         return "";
     return "заполнить перед выдачей";
 }
 function payerBirthDateForTax(payment, patient) {
-    return payment?.payerBirthDate?.trim() || patient.birthDate || "заполнить перед выдачей";
+    return (payment?.payerBirthDate?.trim() ||
+        patient.birthDate ||
+        "заполнить перед выдачей");
 }
 function payerIdentityDocumentForTax(payment, patient) {
-    return payment?.payerIdentityDocument?.trim() || (patient ? patientIdentityDocument(patient) : null) || "заполнить перед выдачей";
+    return (payment?.payerIdentityDocument?.trim() ||
+        (patient ? patientIdentityDocument(patient) : null) ||
+        "заполнить перед выдачей");
 }
 function payerRelationshipForTax(payment) {
     return payment?.payerRelationship?.trim() || "пациент";
@@ -901,11 +989,11 @@ const taxApplicationRelationshipLabels = {
     spouse: "супруг / супруга",
     parent: "родитель",
     child: "ребенок",
-    ward: "подопечный"
+    ward: "подопечный",
 };
 const taxApplicationFormLabels = {
     knd_1151156: "КНД 1151156 для расходов с 2024 года",
-    legacy_2021_2023: "справка по прежнему порядку для оплат 2021-2023"
+    legacy_2021_2023: "справка по прежнему порядку для оплат 2021-2023",
 };
 const taxApplicationDeliveryChannelLabels = {
     paper: "бумажный экземпляр в клинике",
@@ -913,17 +1001,37 @@ const taxApplicationDeliveryChannelLabels = {
     secure_link: "защищенная ссылка",
     email: "email после проверки согласия",
     portal: "личный кабинет / портал пациента",
-    other: "иной согласованный канал"
+    other: "иной согласованный канал",
 };
 function normalizedTaxpayerRelationship(value) {
-    const normalized = present(value)?.toLocaleLowerCase("ru-RU").replaceAll("ё", "е").replace(/[\s_-]+/g, " ") ?? null;
+    const normalized = present(value)
+        ?.toLocaleLowerCase("ru-RU")
+        .replaceAll("ё", "е")
+        .replace(/[\s_-]+/g, " ") ?? null;
     if (!normalized)
         return null;
-    if (["self", "patient", "me", "пациент", "сам пациент", "сама пациентка", "налогоплательщик"].includes(normalized))
+    if ([
+        "self",
+        "patient",
+        "me",
+        "пациент",
+        "сам пациент",
+        "сама пациентка",
+        "налогоплательщик",
+    ].includes(normalized))
         return "self";
     if (["spouse", "husband", "wife", "супруг", "супруга", "муж", "жена"].includes(normalized))
         return "spouse";
-    if (["parent", "father", "mother", "родитель", "отец", "мать", "папа", "мама"].includes(normalized))
+    if ([
+        "parent",
+        "father",
+        "mother",
+        "родитель",
+        "отец",
+        "мать",
+        "папа",
+        "мама",
+    ].includes(normalized))
         return "parent";
     if ([
         "child",
@@ -936,7 +1044,7 @@ function normalizedTaxpayerRelationship(value) {
         "сын",
         "дочь",
         "усыновленный",
-        "усыновленная"
+        "усыновленная",
     ].includes(normalized)) {
         return "child";
     }
@@ -948,21 +1056,32 @@ function taxpayerPatientSameFlag(payment) {
     return taxpayerPatientSameFlagCode(payment) === "1" ? "1 - да" : "0 - нет";
 }
 function patientBirthDateForTax(payment, patient) {
-    return patient.birthDate || (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self" ? payment?.payerBirthDate?.trim() : null) || "заполнить перед выдачей";
+    return (patient.birthDate ||
+        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self"
+            ? payment?.payerBirthDate?.trim()
+            : null) ||
+        "заполнить перед выдачей");
 }
 function patientInnForTax(payment, patient) {
-    const inn = patientTaxpayerInn(patient) || (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self" ? payment?.payerInn?.trim() : null);
+    const inn = patientTaxpayerInn(patient) ||
+        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self"
+            ? payment?.payerInn?.trim()
+            : null);
     if (inn)
         return inn;
     const identity = patientIdentityDocument(patient) ||
-        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self" ? payment?.payerIdentityDocument?.trim() : null);
+        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self"
+            ? payment?.payerIdentityDocument?.trim()
+            : null);
     if (identity)
         return "";
     return "заполнить перед выдачей";
 }
 function patientIdentityDocumentForTax(payment, patient) {
     return (patientIdentityDocument(patient) ||
-        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self" ? payment?.payerIdentityDocument?.trim() : null) ||
+        (normalizedTaxpayerRelationship(payment?.payerRelationship) === "self"
+            ? payment?.payerIdentityDocument?.trim()
+            : null) ||
         "заполнить перед выдачей");
 }
 function paymentFiscalReceiptDetailsLabel(payment) {
@@ -974,27 +1093,37 @@ function paymentFiscalReceiptDetailsLabel(payment) {
         present(fiscalReceipt?.fn) ? `ФН ${present(fiscalReceipt?.fn)}` : null,
         present(fiscalReceipt?.fd) ? `ФД ${present(fiscalReceipt?.fd)}` : null,
         present(fiscalReceipt?.fpd) ? `ФПД ${present(fiscalReceipt?.fpd)}` : null,
-        present(fiscalReceipt?.cashierName) ? `кассир ${present(fiscalReceipt?.cashierName)}` : null,
-        receiptUrl ? `ОФД ${receiptUrl}` : null
+        present(fiscalReceipt?.cashierName)
+            ? `кассир ${present(fiscalReceipt?.cashierName)}`
+            : null,
+        receiptUrl ? `ОФД ${receiptUrl}` : null,
     ]) || null);
 }
 function paymentReceiptLabel(payment) {
-    return paymentFiscalReceiptDetailsLabel(payment) || payment.fiscalReceiptNumber?.trim() || `платеж ${payment.id.slice(0, 8)}`;
+    return (paymentFiscalReceiptDetailsLabel(payment) ||
+        payment.fiscalReceiptNumber?.trim() ||
+        `платеж ${payment.id.slice(0, 8)}`);
 }
 function paymentDateLabel(payment) {
     const value = payment.fiscalReceiptIssuedAt || payment.paidAt;
     if (!value)
         return "дата не зафиксирована";
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("ru-RU");
+    return Number.isNaN(parsed.getTime())
+        ? value
+        : parsed.toLocaleString("ru-RU");
 }
 function paidPaymentsForDocument(document, context) {
-    const matchingPayments = (context.payments ?? []).filter((payment) => payment.patientId === document.patientId && payment.status === "paid" && payment.amountRub > 0);
-    if (document.kind === "payment_receipt" && document.payload?.paymentReceipt?.selectedPaymentIds.length) {
+    const matchingPayments = (context.payments ?? []).filter((payment) => payment.patientId === document.patientId &&
+        payment.status === "paid" &&
+        payment.amountRub > 0);
+    if (document.kind === "payment_receipt" &&
+        document.payload?.paymentReceipt?.selectedPaymentIds.length) {
         const selectedPaymentIds = new Set(document.payload.paymentReceipt.selectedPaymentIds);
         return matchingPayments.filter((payment) => selectedPaymentIds.has(payment.id));
     }
-    if (document.kind === "payment_refund_correction_request" && document.payload?.paymentRefundCorrection?.selectedPaymentIds.length) {
+    if (document.kind === "payment_refund_correction_request" &&
+        document.payload?.paymentRefundCorrection?.selectedPaymentIds.length) {
         const selectedPaymentIds = new Set(document.payload.paymentRefundCorrection.selectedPaymentIds);
         return matchingPayments.filter((payment) => selectedPaymentIds.has(payment.id));
     }
@@ -1081,8 +1210,14 @@ function paymentReceiptSelectionBlockReason(document, context) {
     if (actualTotalRub !== payload.totalPaidRub) {
         return `Платежная квитанция: сумма ${payload.totalPaidRub} руб. не совпадает с выбранными оплатами ${actualTotalRub} руб.`;
     }
-    const actualReceiptNumbers = new Set(selectedPayments.map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber)).filter(Boolean));
-    const payloadReceiptNumbers = [...new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean))];
+    const actualReceiptNumbers = new Set(selectedPayments
+        .map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber))
+        .filter(Boolean));
+    const payloadReceiptNumbers = [
+        ...new Set(payload.fiscalReceiptNumbers
+            .map(normalizedFiscalReceiptNumber)
+            .filter(Boolean)),
+    ];
     const unknownPayloadReceipts = payloadReceiptNumbers.filter((receiptNumber) => !actualReceiptNumbers.has(receiptNumber));
     if (unknownPayloadReceipts.length) {
         return `Платежная квитанция содержит фискальный чек без связи с выбранной оплатой: ${unknownPayloadReceipts.join(", ")}.`;
@@ -1096,10 +1231,11 @@ function paymentReceiptSelectionBlockReason(document, context) {
         birthDate: payload.payerBirthDate,
         inn: payload.payerInn,
         identityDocument: payload.payerIdentityDocument,
-        relationship: payload.payerRelationship
+        relationship: payload.payerRelationship,
     };
     for (const payment of selectedPayments) {
-        if (normalizedDocumentValue(payment.payerFullName) !== payloadPayer.fullName ||
+        if (normalizedDocumentValue(payment.payerFullName) !==
+            payloadPayer.fullName ||
             (payload.taxSupportRequested &&
                 (!paymentReceiptStoredFieldMatchesPayload(payment.payerBirthDate, payloadPayer.birthDate) ||
                     !paymentReceiptStoredFieldMatchesPayload(payment.payerInn, payloadPayer.inn) ||
@@ -1117,8 +1253,14 @@ function completedWorksActFiscalReceiptBlockReason(document, context) {
     if (!payload)
         return null;
     const paidPayments = paidPaymentsForDocument(document, context);
-    const actualReceiptNumbers = new Set(paidPayments.map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber)).filter(Boolean));
-    const payloadReceiptNumbers = [...new Set(payload.fiscalReceiptNumbers.map(normalizedFiscalReceiptNumber).filter(Boolean))];
+    const actualReceiptNumbers = new Set(paidPayments
+        .map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber))
+        .filter(Boolean));
+    const payloadReceiptNumbers = [
+        ...new Set(payload.fiscalReceiptNumbers
+            .map(normalizedFiscalReceiptNumber)
+            .filter(Boolean)),
+    ];
     if (!paidPayments.length)
         return null;
     if (!actualReceiptNumbers.size) {
@@ -1143,7 +1285,9 @@ function paymentRefundCorrectionFiscalReceiptBlockReason(document, context) {
     const expectedReceipt = normalizedFiscalReceiptNumber(payload.originalFiscalReceiptNumber);
     if (!expectedReceipt)
         return "Заявление на возврат или коррекцию требует исходный номер фискального чека.";
-    const actualReceiptNumbers = new Set(paidPaymentsForDocument(document, context).map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber)).filter(Boolean));
+    const actualReceiptNumbers = new Set(paidPaymentsForDocument(document, context)
+        .map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber))
+        .filter(Boolean));
     if (!actualReceiptNumbers.size)
         return null;
     return actualReceiptNumbers.has(expectedReceipt)
@@ -1161,7 +1305,7 @@ function paymentMethodForDocument(payment) {
         online: "онлайн-оплата",
         insurance: "страховая",
         family_wallet: "семейный кошелек",
-        other: "иной способ"
+        other: "иной способ",
     };
     return labels[payment.method] ?? payment.method;
 }
@@ -1172,10 +1316,18 @@ function paymentReceiptRows(payments) {
     return payments
         .map((payment) => `<tr><td>${escapeHtml(paymentDateLabel(payment))}</td><td>${escapeHtml(paymentMethodForDocument(payment))}</td><td>${escapeHtml(rub(payment.amountRub))}</td><td>${escapeHtml(paymentReceiptLabel(payment))}</td><td>${escapeHtml(compactParts([
         present(payment.payerFullName),
-        present(payment.payerInn) ? `ИНН ${present(payment.payerInn)}` : null,
-        present(payment.payerBirthDate) ? `дата рождения ${present(payment.payerBirthDate)}` : null,
-        present(payment.payerIdentityDocument) ? `документ ${present(payment.payerIdentityDocument)}` : null,
-        present(payment.payerRelationship) ? `связь с пациентом: ${present(payment.payerRelationship)}` : null
+        present(payment.payerInn)
+            ? `ИНН ${present(payment.payerInn)}`
+            : null,
+        present(payment.payerBirthDate)
+            ? `дата рождения ${present(payment.payerBirthDate)}`
+            : null,
+        present(payment.payerIdentityDocument)
+            ? `документ ${present(payment.payerIdentityDocument)}`
+            : null,
+        present(payment.payerRelationship)
+            ? `связь с пациентом: ${present(payment.payerRelationship)}`
+            : null,
     ]) || "плательщик не указан")}</td></tr>`)
         .join("");
 }
@@ -1193,7 +1345,9 @@ function taxRegistryRows(payments, document) {
 function taxDeductionCertificate(document, patient, context) {
     const taxPayments = taxPaymentsForDocument(document, context);
     const taxpayerPayment = firstTaxPayment(taxPayments);
-    const regularTreatmentRub = taxPayments.length ? taxPaymentSum(taxPayments, "1") : document.totalAmountRub;
+    const regularTreatmentRub = taxPayments.length
+        ? taxPaymentSum(taxPayments, "1")
+        : document.totalAmountRub;
     const expensiveTreatmentRub = taxPaymentSum(taxPayments, "2");
     return `<div class="notice">
       <strong>Налоговый документ.</strong>
@@ -1233,14 +1387,16 @@ function taxDeductionCertificate(document, patient, context) {
         "есть заявление плательщика; справка готовится в двух экземплярах, повторная справка по тем же расходам не выдавалась",
         "при исправлении ранее выданных сведений оформляется корректировка/аннулирование по правилам ФНС, а не новый дубликат",
         "код услуги выбран по утвержденному перечню и внутренней политике клиники",
-        "справка подписана уполномоченным лицом клиники"
+        "справка подписана уполномоченным лицом клиники",
     ])}
     ${signatureBlock("Ответственный администратор", "Главный врач/уполномоченное лицо")}`;
 }
 function legacyTaxDeductionCertificate(document, patient, context) {
     const taxPayments = taxPaymentsForDocument(document, context);
     const taxpayerPayment = firstTaxPayment(taxPayments);
-    const regularTreatmentRub = taxPayments.length ? taxPaymentSum(taxPayments, "1") : document.totalAmountRub;
+    const regularTreatmentRub = taxPayments.length
+        ? taxPaymentSum(taxPayments, "1")
+        : document.totalAmountRub;
     const expensiveTreatmentRub = taxPaymentSum(taxPayments, "2");
     return `<div class="notice">
       <strong>Старая налоговая справка.</strong>
@@ -1273,15 +1429,21 @@ function legacyTaxDeductionCertificate(document, patient, context) {
         "проверены ФИО, ИНН и документ налогоплательщика",
         "суммы совпадают с фактическими оплатами и фискальными чеками",
         "коды 1/2 разделены по утвержденному перечню и внутренней политике клиники",
-        "справка выдается на локальном бланке клиники, подписывается уполномоченным лицом и не включает неоплаченные планы"
+        "справка выдается на локальном бланке клиники, подписывается уполномоченным лицом и не включает неоплаченные планы",
     ])}
     ${signatureBlock("Ответственный администратор", "Главный врач/уполномоченное лицо")}`;
 }
 function taxApplicationFiscalReceiptLine(payment) {
     return compactParts([
-        payment.fiscalReceiptNumber?.trim() ? `чек ${payment.fiscalReceiptNumber.trim()}` : "чек без номера",
-        payment.fiscalReceiptIssuedAt?.trim() ? `от ${payment.fiscalReceiptIssuedAt.trim()}` : payment.paidAt?.trim() ? `оплата ${payment.paidAt.trim()}` : null,
-        rub(payment.amountRub)
+        payment.fiscalReceiptNumber?.trim()
+            ? `чек ${payment.fiscalReceiptNumber.trim()}`
+            : "чек без номера",
+        payment.fiscalReceiptIssuedAt?.trim()
+            ? `от ${payment.fiscalReceiptIssuedAt.trim()}`
+            : payment.paidAt?.trim()
+                ? `оплата ${payment.paidAt.trim()}`
+                : null,
+        rub(payment.amountRub),
     ]);
 }
 function taxApplicationSelectedPaymentsSummary(payments, selectedPaymentCount) {
@@ -1305,19 +1467,26 @@ function taxDeductionApplication(document, patient, context) {
     const taxpayerPayment = firstTaxPayment(taxPayments);
     const taxpayerName = payload?.taxpayerFullName ?? payerNameForTax(taxpayerPayment, patient);
     const taxpayerInn = payload?.taxpayerInn ?? payerInnForTax(taxpayerPayment, patient);
-    const taxpayerBirthDate = payload?.taxpayerBirthDate ?? payerBirthDateForTax(taxpayerPayment, patient);
-    const taxpayerIdentityDocument = payload?.taxpayerIdentityDocument ?? payerIdentityDocumentForTax(taxpayerPayment, patient);
+    const taxpayerBirthDate = payload?.taxpayerBirthDate ??
+        payerBirthDateForTax(taxpayerPayment, patient);
+    const taxpayerIdentityDocument = payload?.taxpayerIdentityDocument ??
+        payerIdentityDocumentForTax(taxpayerPayment, patient);
     const taxpayerRelationship = payload
         ? taxApplicationRelationshipLabels[payload.relationshipToPatient]
         : payerRelationshipForTax(taxpayerPayment);
     const requestedTaxYear = payload?.requestedTaxYear ?? document.taxYear;
     const requestedForm = payload?.requestedForm ??
-        (requestedTaxYear && requestedTaxYear < taxDeductionCertificateMinYear ? "legacy_2021_2023" : "knd_1151156");
-    const deliveryChannel = payload ? taxApplicationDeliveryChannelLabels[payload.deliveryChannel] : "бумажно / электронно / через личный кабинет при наличии процесса";
+        (requestedTaxYear && requestedTaxYear < taxDeductionCertificateMinYear
+            ? "legacy_2021_2023"
+            : "knd_1151156");
+    const deliveryChannel = payload
+        ? taxApplicationDeliveryChannelLabels[payload.deliveryChannel]
+        : "бумажно / электронно / через личный кабинет при наличии процесса";
     const recipient = payload?.contactForReadyDocument ?? documentRecipientLine(patient);
     const targetCertificate = taxApplicationFormLabels[requestedForm];
     const requestDate = payload?.requestedAt ?? issuedDate(document);
-    const authorityDocument = payload?.applicantAuthorityDocument?.trim() || "не требуется, если заявитель и налогоплательщик совпадают";
+    const authorityDocument = payload?.applicantAuthorityDocument?.trim() ||
+        "не требуется, если заявитель и налогоплательщик совпадают";
     return `<h2>Заявление на справку для налогового вычета</h2>
     <p>Прошу подготовить ${escapeHtml(targetCertificate)} для представления в налоговый орган.</p>
     <table>
@@ -1352,7 +1521,7 @@ function taxDeductionApplication(document, patient, context) {
         "оплаты и фискальные чеки найдены в кассе за выбранный налоговый период",
         "обычное лечение код 1 и дорогостоящее лечение код 2 будут разделены перед выдачей справки",
         "неоплаченные планы лечения и предварительные сметы не попадут в КНД 1151156",
-        "повторная справка по тем же расходам не выпускается без аннулирования или корректировки предыдущей"
+        "повторная справка по тем же расходам не выпускается без аннулирования или корректировки предыдущей",
     ])}
     ${signatureBlock("Заявитель", "Администратор")}`;
 }
@@ -1385,7 +1554,7 @@ function informedConsent(document) {
     ${checkList([
             "пациент получил ответы на вопросы до подписания",
             "пациент понимает характер вмешательства, риски и возможные осложнения",
-            "пациент знает, что может отозвать согласие до начала вмешательства"
+            "пациент знает, что может отозвать согласие до начала вмешательства",
         ])}
     ${signatureBlock("Пациент/законный представитель", signatureParty("Врач", payload.doctorFullName))}`;
     }
@@ -1398,7 +1567,7 @@ function informedConsent(document) {
       ${row("Планируемое вмешательство", document.title)}
       ${row("Область/зубы", "заполнить врачом перед подписанием")}
       ${row("Анестезия", "указать препарат/метод при применении")}
-      ${row("Кому можно сообщать медсведения", "ФИО/телефон доверенного лица или \"не разрешаю\"")}
+      ${row("Кому можно сообщать медсведения", 'ФИО/телефон доверенного лица или "не разрешаю"')}
     </table>
     <h2>Пациенту разъяснено</h2>
     ${bulletList([
@@ -1406,7 +1575,7 @@ function informedConsent(document) {
         "основные риски, осложнения, боль, отек, кровотечение, аллергические реакции, необходимость повторного приема",
         "альтернативы лечения и последствия отказа",
         "право задавать вопросы и отозвать согласие до вмешательства",
-        "необходимость сообщить об аллергиях, лекарствах, беременности, хронических заболеваниях"
+        "необходимость сообщить об аллергиях, лекарствах, беременности, хронических заболеваниях",
     ])}
     <p>Пациент подтверждает, что получил ответы на вопросы и согласен на проведение вмешательства.</p>
     ${signatureBlock("Пациент/законный представитель", "Врач")}`;
@@ -1423,7 +1592,7 @@ function procedureSpecificConsentPacket(document) {
             orthodontics: "ортодонтия",
             hygiene_whitening: "профессиональная гигиена или отбеливание",
             periodontology: "пародонтология",
-            other: "другая процедура"
+            other: "другая процедура",
         };
         return `<div class="notice">
       Процедурное приложение к информированному согласию оформлено по конкретной процедуре. Общие чеклисты без указания области, рисков и подтверждений пациента не считаются готовым согласием.
@@ -1456,7 +1625,7 @@ function procedureSpecificConsentPacket(document) {
             "пациент сообщил об аллергиях, препаратах, беременности, хронических заболеваниях и антикоагулянтах либо подтвердил их отсутствие",
             "пациент получил ответы на вопросы до подписания",
             "альтернативы лечения и последствия отказа проговорены",
-            "рекомендации после процедуры и признаки срочного обращения понятны пациенту"
+            "рекомендации после процедуры и признаки срочного обращения понятны пациенту",
         ])}
     ${signatureBlock("Пациент/законный представитель", signatureParty("Врач", payload.doctorFullName))}`;
     }
@@ -1478,14 +1647,14 @@ function procedureSpecificConsentPacket(document) {
         "имплантация/НКР/синус-лифтинг: КТ-планирование, костный объем, мембрана/костный материал, риск отторжения и повторного этапа",
         "ортопедия: препарирование, временная конструкция, примерки, цвет/форма, риск сколов и коррекций",
         "ортодонтия: сроки лечения, гигиена, риск кариеса/резорбции/рецессий, ретенция после лечения",
-        "гигиена/отбеливание: чувствительность, раздражение десны, ограничения по питанию и домашнему уходу"
+        "гигиена/отбеливание: чувствительность, раздражение десны, ограничения по питанию и домашнему уходу",
     ])}
     <h2>Перед подписью</h2>
     ${checkList([
         "альтернативы лечения и последствия отказа проговорены",
         "сроки, этапы, стоимость и необходимость снимков/КТ понятны пациенту",
         "пациент сообщил об аллергиях, лекарствах, беременности, хронических заболеваниях и антикоагулянтах",
-        "отдельные локальные формы клиники приложены, если процедура требует расширенного согласия"
+        "отдельные локальные формы клиники приложены, если процедура требует расширенного согласия",
     ])}
     ${signatureBlock("Пациент/законный представитель", "Врач")}`;
 }
@@ -1525,7 +1694,7 @@ function treatmentPlan(document) {
     ${checkList([
             "пациент получил ответы на вопросы по плану лечения",
             "план лечения не заменяет отдельное информированное согласие перед вмешательством",
-            "при изменении диагноза, объема, материалов, сроков или стоимости план требует нового согласования"
+            "при изменении диагноза, объема, материалов, сроков или стоимости план требует нового согласования",
         ])}
     ${signatureBlock("Пациент ознакомлен", signatureParty("Врач", payload.doctorFullName))}`;
     }
@@ -1542,7 +1711,7 @@ function treatmentPlan(document) {
         "санация/терапия/гигиена перед ортопедией или хирургией",
         "основное лечение по специальности",
         "контрольный осмотр и рекомендации",
-        "альтернативный план и отказанные варианты зафиксированы"
+        "альтернативный план и отказанные варианты зафиксированы",
     ])}
     <p class="small">План лечения не является подписанной медицинской записью до проверки врачом.</p>
     ${signatureBlock("Пациент ознакомлен", "Врач")}`;
@@ -1554,7 +1723,7 @@ function treatmentPlanAcceptanceVariantLabel(value) {
         optimal: "оптимальный",
         staged: "этапный",
         maintenance: "поддерживающий",
-        other: "индивидуальный"
+        other: "индивидуальный",
     };
     return labels[value] ?? value;
 }
@@ -1597,7 +1766,7 @@ function treatmentPlanAcceptance(document) {
         "пациент получил ответы на вопросы до согласования плана",
         "пациенту объяснены альтернативы, включая наблюдение, второй взгляд, перенос лечения и отказ",
         "пациент понимает, что стоимость и сроки могут измениться при новых клинических данных, снимках, осложнениях или выборе других материалов",
-        "существенное изменение объема лечения требует нового согласования"
+        "существенное изменение объема лечения требует нового согласования",
     ])}
     ${signatureBlock("Пациент согласовал план", "Врач")}`;
 }
@@ -1616,7 +1785,7 @@ function fallbackTreatmentPlanAcceptance(document) {
         "альтернативные варианты: наблюдение, терапия, хирургия, ортопедия, ортодонтия, имплантация или отказ",
         "что стоимость меняется при новых клинических данных, КТ/снимках, осложнениях или изменении выбранных материалов",
         "какие варианты пациент отклонил и чем это может повлиять на прогноз",
-        "гарантийные условия, ограничения и необходимость контрольных посещений"
+        "гарантийные условия, ограничения и необходимость контрольных посещений",
     ])}
     <h2>Отклоненные или отложенные варианты</h2>
     <p>______________________________________________________________________________</p>
@@ -1652,7 +1821,7 @@ function anesthesiaConsentLog(document) {
       ${checkList([
             "пациент предупрежден об онемении, риске травмы мягких тканей и временном ограничении еды/горячего",
             "перед введением уточнены аллергии, лекарства, хронические заболевания, беременность/лактация и антикоагулянты",
-            "при осложнении симптомы, действия врача и дальнейшие рекомендации фиксируются в записи приема"
+            "при осложнении симптомы, действия врача и дальнейшие рекомендации фиксируются в записи приема",
         ])}
       ${signatureBlock("Пациент/законный представитель", "Врач")}`;
     }
@@ -1676,7 +1845,7 @@ function anesthesiaConsentLog(document) {
     ${checkList([
         "пациент предупрежден об онемении, риске травмы мягких тканей и временном ограничении еды/горячего",
         "перед введением уточнены аллергии, лекарства и хронические заболевания",
-        "при осложнении указаны симптомы, действия врача и дальнейшие рекомендации"
+        "при осложнении указаны симптомы, действия врача и дальнейшие рекомендации",
     ])}
     ${signatureBlock("Пациент/представитель", "Врач")}`;
 }
@@ -1715,7 +1884,7 @@ function prescriptionMedicationOrder(document) {
         "аллергии, беременность/лактация, антикоагулянты и постоянные препараты сверены",
         "пациенту объяснено, что нельзя менять дозировку без врача",
         "указан повод срочно связаться с клиникой: отек, сыпь, одышка, кровотечение, нарастающая боль, температура",
-        "назначения согласованы с проведенным вмешательством и медицинской записью"
+        "назначения согласованы с проведенным вмешательством и медицинской записью",
     ])}
     ${signatureBlock("Пациент получил назначения", "Врач")}`;
 }
@@ -1725,7 +1894,7 @@ function personalDataConsent(document, patient) {
         const representativeIdentity = compactParts([
             legalRepresentativeName(patient),
             legalRepresentativeDocument(patient),
-            legalRepresentativeRelationship(patient)
+            legalRepresentativeRelationship(patient),
         ]);
         return `<h2>Согласие на обработку персональных данных</h2>
       <p>Пациент дает добровольное, конкретное и информированное согласие оператору на обработку персональных данных, включая сведения о здоровье, в пределах целей и правил, указанных ниже.</p>
@@ -1761,7 +1930,7 @@ function personalDataConsent(document, patient) {
             "пациент подтвердил добровольное согласие без принуждения",
             "пациент отдельно уведомлен об обработке медицинских данных и сведений о здоровье",
             "оператор обязан прекратить новые необязательные обработки после отзыва согласия, если нет законного основания продолжать хранение",
-            "маркетинг, публикации и передача вне медицинского процесса требуют отдельного основания или отдельной отметки пациента"
+            "маркетинг, публикации и передача вне медицинского процесса требуют отдельного основания или отдельной отметки пациента",
         ])}
       ${signatureBlock("Пациент/законный представитель", "Оператор/представитель клиники")}`;
     }
@@ -1783,7 +1952,7 @@ function personalDataConsent(document, patient) {
         "ФИО, дата рождения, контакты, документы, адрес",
         "медицинские сведения, диагнозы, снимки, планы лечения, назначения",
         "платежи, договоры, акты, налоговые документы",
-        "история обращений, коммуникации и записи согласий"
+        "история обращений, коммуникации и записи согласий",
     ])}
     <h2>Ограничения</h2>
     <p>Перед использованием шаблона клиника должна указать оператора ПДн, цели, сроки хранения, способы обработки, передачу третьим лицам и порядок отзыва согласия.</p>
@@ -1818,7 +1987,7 @@ function minorLegalRepresentativeConsent(document, patient) {
             "полномочия представителя подтверждены документом",
             "представитель получил понятное объяснение плана, рисков, альтернатив и ожидаемого результата",
             "согласие будет храниться в медицинской документации пациента",
-            "ребенку дано объяснение по возрасту и состоянию"
+            "ребенку дано объяснение по возрасту и состоянию",
         ])}
       ${signatureBlock("Законный представитель", signatureParty("Администратор/врач", payload.doctorFullName))}`;
     }
@@ -1835,7 +2004,7 @@ function minorLegalRepresentativeConsent(document, patient) {
         "полномочия представителя подтверждены",
         "анамнез ребенка заполнен отдельно: аллергии, лекарства, хронические заболевания, прививки/инфекции по необходимости",
         "представитель получил объяснение плана лечения, рисков, альтернатив и стоимости",
-        "при необходимости ребенок получил понятное возрасту объяснение процедуры"
+        "при необходимости ребенок получил понятное возрасту объяснение процедуры",
     ])}
     ${signatureBlock("Законный представитель", "Администратор/врач")}`;
 }
@@ -1852,7 +2021,7 @@ function photoVideoConsent(document) {
             xray: "рентген-снимки",
             cbct: "КЛКТ/КТ",
             scan: "цифровые сканы",
-            other: "иные материалы"
+            other: "иные материалы",
         };
         return `<h2>Согласие на фото-, видео- и рентген-материалы</h2>
       <div class="notice">
@@ -1874,7 +2043,7 @@ function photoVideoConsent(document) {
             "использовать материалы только в отмеченных целях",
             "для маркетинга и узнаваемой публикации нужна отдельная явная отметка пациента",
             "после отзыва прекратить новые публикации и зафиксировать дату отзыва в карте/CRM",
-            "рентген, КТ и сканы остаются частью медицинской документации и не удаляются из карты без законного основания"
+            "рентген, КТ и сканы остаются частью медицинской документации и не удаляются из карты без законного основания",
         ])}
       ${signatureBlock("Пациент/законный представитель", "Представитель клиники")}`;
     }
@@ -1890,7 +2059,7 @@ function photoVideoConsent(document) {
         "отдельно отметить, разрешено ли использовать материалы вне медицинской карты",
         "проверить, что передача лаборатории/консилиуму соответствует согласию на ПДн",
         "не публиковать до/после с узнаваемым лицом без отдельной письменной отметки",
-        "рентген/КТ остаются частью медицинской документации и не должны удаляться из карты без законного основания"
+        "рентген/КТ остаются частью медицинской документации и не должны удаляться из карты без законного основания",
     ])}
     ${signatureBlock("Пациент/законный представитель", "Представитель клиники")}`;
 }
@@ -1925,7 +2094,7 @@ function medicalInterventionRefusal(document) {
     ${checkList([
         "пациент подтвердил, что понял возможные последствия отказа",
         "пациенту предложено получить второе мнение или повторную консультацию",
-        "пациенту объяснено, что при ухудшении состояния можно обратиться за экстренной помощью"
+        "пациенту объяснено, что при ухудшении состояния можно обратиться за экстренной помощью",
     ])}
     ${signatureBlock("Пациент/законный представитель", "Врач")}`;
 }
@@ -1973,7 +2142,7 @@ function treatmentCostEstimate(document, context) {
             "пациент понимает предварительный характер сметы и срок ее действия",
             "состав услуг сметы сверён с планом лечения или клиническим назначением",
             "пациент предупрежден, что смета не заменяет договор, акт и кассовый чек",
-            "изменение объема или цены требует обновленной сметы либо отдельного согласования"
+            "изменение объема или цены требует обновленной сметы либо отдельного согласования",
         ])}
       ${signatureBlock("Пациент/плательщик", "Врач/администратор")}`;
     }
@@ -1987,14 +2156,15 @@ function treatmentCostEstimate(document, context) {
     ${bulletList([
         "смета предварительная и уточняется после диагностики и согласования плана",
         "материалы, лаборатория, снимки и дополнительные этапы выделяются отдельными строками плана лечения",
-        "скидки, рассрочка, предоплата и остаток фиксируются до подписания договора/акта"
+        "скидки, рассрочка, предоплата и остаток фиксируются до подписания договора/акта",
     ])}
     ${signatureBlock("Пациент ознакомлен", "Администратор/врач")}`;
 }
 function paymentInvoice(document, context) {
     const payload = document.payload?.paymentInvoice;
     if (payload) {
-        const payerContact = compactParts([payload.payerPhone, payload.payerEmail]) || "контакт не передается в счет";
+        const payerContact = compactParts([payload.payerPhone, payload.payerEmail]) ||
+            "контакт не передается в счет";
         const serviceRows = payload.serviceLines
             .map((line) => `<tr>
           <td>${escapeHtml(line.serviceName)}</td>
@@ -2034,7 +2204,7 @@ function paymentInvoice(document, context) {
       ${checkList([
             "реквизиты клиники проверены перед передачей счета",
             "состав услуг соответствует согласованному плану или договору",
-            "пациент предупрежден, что счет не является фискальным чеком"
+            "пациент предупрежден, что счет не является фискальным чеком",
         ])}
       ${signatureBlock("Администратор", "Плательщик")}`;
     }
@@ -2092,7 +2262,7 @@ function paymentReceipt(document, context) {
             "выбранные платежи сверены с платежным журналом",
             payerCheck,
             "номера фискальных чеков совпадают с выбранными оплатами",
-            "пациент предупрежден, что квитанция не заменяет кассовый чек"
+            "пациент предупрежден, что квитанция не заменяет кассовый чек",
         ])}
       ${signatureBlock("Администратор", "Пациент/плательщик")}`;
     }
@@ -2110,7 +2280,7 @@ function paymentReceipt(document, context) {
     ${checkList([
         "выдать кассовый чек",
         "связать оплату с договором/актом",
-        "при необходимости подготовить налоговую справку КНД 1151156"
+        "при необходимости подготовить налоговую справку КНД 1151156",
     ])}
     ${signatureBlock("Администратор", "Пациент/плательщик")}`;
 }
@@ -2122,7 +2292,7 @@ function installmentPaymentSchedule(document, context) {
             paid: "оплачен",
             overdue: "просрочен",
             rescheduled: "перенесен",
-            cancelled: "отменен"
+            cancelled: "отменен",
         };
         const rows = payload.installments
             .map((installment) => `<tr>
@@ -2158,7 +2328,7 @@ function installmentPaymentSchedule(document, context) {
       ${checkList([
             "пациент или плательщик принял график оплат",
             "график не заменяет кассовый чек, акт и договор",
-            "изменение суммы или сроков оформляется письменно до нового срока оплаты"
+            "изменение суммы или сроков оформляется письменно до нового срока оплаты",
         ])}
       ${signatureBlock("Пациент/плательщик", signatureParty("Ответственный сотрудник", payload.responsibleStaffFullName))}`;
     }
@@ -2183,7 +2353,7 @@ function installmentPaymentSchedule(document, context) {
     ${checkList([
         "график не заменяет кассовый чек и акт выполненных работ",
         "изменение плана лечения пересогласуется отдельной сметой/дополнительным соглашением",
-        "при просрочке администратор фиксирует контакт и новый безопасный срок оплаты"
+        "при просрочке администратор фиксирует контакт и новый безопасный срок оплаты",
     ])}
     ${signatureBlock("Пациент/плательщик", "Администратор")}`;
 }
@@ -2199,7 +2369,7 @@ function postVisitCareTopicLabel(value) {
         prosthetics: "ортопедическое лечение",
         orthodontics: "ортодонтическое лечение",
         periodontology: "пародонтологическое лечение",
-        other: "индивидуальные рекомендации"
+        other: "индивидуальные рекомендации",
     };
     return labels[value] ?? value;
 }
@@ -2547,11 +2717,13 @@ function postVisitRecommendations(document) {
         ${bulletList(payload.nutritionInstructions)}
       </div>
       
-      ${payload.plannedFollowUpAt ? `
+      ${payload.plannedFollowUpAt
+            ? `
       <div class="doc-section-card doc-alert-info">
         <h3>📅 Контрольный прием</h3>
         <p style="margin: 4px 0; font-size: 12px; font-weight: 600; color: #0369a1;">${escapeHtml(payload.plannedFollowUpAt)}</p>
-      </div>` : `
+      </div>`
+            : `
       <div class="doc-section-card doc-alert-info">
         <h3>📅 Контрольный прием</h3>
         <p style="margin: 4px 0; font-size: 12px; color: #475569;">Прием по плану врача или при дискомфорте</p>
@@ -2573,7 +2745,7 @@ function postVisitRecommendations(document) {
     ${checkList([
             "пациент получил бумажную или электронную копию рекомендаций",
             "пациент понимает тревожные признаки и канал срочной связи",
-            "краткий текст подходит для Telegram и не содержит лишних медицинских подробностей"
+            "краткий текст подходит для Telegram и не содержит лишних медицинских подробностей",
         ])}
     ${signatureBlock("Пациент получил рекомендации", signatureParty("Врач", payload.doctorFullName))}
 
@@ -2689,7 +2861,7 @@ function postVisitRecommendations(document) {
         "соблюдать назначенный режим, гигиену и прием препаратов",
         "при нарастающей боли, отеке, кровотечении, температуре или аллергической реакции связаться с клиникой",
         "явиться на контрольный прием в согласованный срок",
-        "индивидуальные назначения врача вписать ниже"
+        "индивидуальные назначения врача вписать ниже",
     ])}
     <h2>Индивидуальные назначения</h2>
     <p>______________________________________________________________________________</p>
@@ -2726,7 +2898,7 @@ function medicalRecordExtract(document, patient) {
         "выписка сформирована только из подписанных медицинских записей",
         "диагноз и рекомендации проверены врачом перед выдачей",
         "лишние сведения о третьих лицах исключены из текста выписки",
-        "основание выдачи и получатель проверены администратором клиники"
+        "основание выдачи и получатель проверены администратором клиники",
     ])}
     <p class="small">Выписка отражает сведения медицинской документации за указанный период. Диктовка, черновики и AI-подсказки не являются источником финального диагноза.</p>
     ${signatureBlock(signatureParty("Пациент/получатель", payload.recipientFullName), signatureParty("Врач/уполномоченное лицо", payload.doctorFullName))}`;
@@ -2743,7 +2915,11 @@ function outpatient025uDoctorLine(doctor) {
     return compactParts([doctor.fullName, doctor.position, doctor.specialty]);
 }
 function outpatient025uDiagnosisDoctorLine(item) {
-    return compactParts([item.doctorFullName, item.doctorPosition, item.doctorSpecialty]);
+    return compactParts([
+        item.doctorFullName,
+        item.doctorPosition,
+        item.doctorSpecialty,
+    ]);
 }
 function outpatient025uFirstOrRepeat(value) {
     if (value === "first")
@@ -2798,9 +2974,15 @@ function outpatientMedicalCard025u(document, patient) {
       ${signatureBlock("Ответственный врач", "Ответственный за выпуск")}`;
     }
     const firstDoctor = payload.specialistVisitRecords[0]?.doctorFullName ?? null;
-    const sexLabel = outpatient025uCode(payload.patientSexCode, { "1": "мужской", "2": "женский" });
+    const sexLabel = outpatient025uCode(payload.patientSexCode, {
+        "1": "мужской",
+        "2": "женский",
+    });
     const registrationType = outpatient025uCode(payload.registrationUrbanRuralCode, { "1": "город", "2": "село" });
-    const stayType = outpatient025uCode(payload.stayUrbanRuralCode, { "1": "город", "2": "село" });
+    const stayType = outpatient025uCode(payload.stayUrbanRuralCode, {
+        "1": "город",
+        "2": "село",
+    });
     const specialistBlocks = payload.specialistVisitRecords
         .map((record, index) => render025uSpecialistVisitRecord(record, index))
         .join("");
@@ -2840,7 +3022,7 @@ function outpatientMedicalCard025u(document, patient) {
         "карта сформирована из карточки пациента, профиля клиники и подписанных медицинских записей DENTE",
         "структура сверена с приказом Минздрава России от 13.05.2025 N 274н",
         "лишние сведения о третьих лицах исключены перед выдачей",
-        "неизвестные разделы не выдуманы и оставлены как нет данных"
+        "неизвестные разделы не выдуманы и оставлены как нет данных",
     ])}
     ${signatureBlock(signatureParty("Ответственный врач", firstDoctor), "Ответственный за выпуск")}`;
 }
@@ -2934,7 +3116,7 @@ function structuredMedicalRecordCopyRequest(document, patient) {
         dicom_archive: "архив исходных снимков",
         secure_link: "защищенная ссылка",
         physical_media: "физический носитель",
-        other: "иной согласованный формат"
+        other: "иной согласованный формат",
     };
     const period = payload.periodStart || payload.periodEnd
         ? `с ${payload.periodStart || "начала хранения"} по ${payload.periodEnd || "дату запроса"}`
@@ -2960,7 +3142,7 @@ function structuredMedicalRecordCopyRequest(document, patient) {
         "личность получателя проверена до выдачи",
         "объем выдачи соответствует запросу и не содержит лишних данных третьих лиц",
         "КТ и рентген выдаются как исходные медицинские файлы, а не как скриншоты, если пациент запросил исходные данные",
-        "факт выдачи нужно закрыть распиской о передаче медицинских документов"
+        "факт выдачи нужно закрыть распиской о передаче медицинских документов",
     ])}
     ${signatureBlock(signatureParty("Заявитель/получатель", payload.recipientFullName), "Ответственный сотрудник")}`;
 }
@@ -2980,7 +3162,7 @@ function medicalRecordCopyRequest(patient) {
         "личность получателя проверена",
         "объем выдачи согласован с врачом/администратором и не содержит лишних данных третьих лиц",
         "КТ и рентген выдаются как исходные медицинские файлы, а не как скриншоты, если пациент запросил исходные данные",
-        "факт выдачи и канал передачи записаны в журнале клиники"
+        "факт выдачи и канал передачи записаны в журнале клиники",
     ])}
     ${signatureBlock("Заявитель/получатель", "Ответственный сотрудник")}`;
 }
@@ -2993,11 +3175,11 @@ function medicalDocumentReleaseReceipt(document, patient) {
             dicom_archive: "архив исходных снимков",
             secure_link: "защищенная ссылка",
             physical_media: "физический носитель",
-            other: "иной канал"
+            other: "иной канал",
         };
         const period = compactParts([
             present(payload.periodStart) ? `с ${present(payload.periodStart)}` : null,
-            present(payload.periodEnd) ? `по ${present(payload.periodEnd)}` : null
+            present(payload.periodEnd) ? `по ${present(payload.periodEnd)}` : null,
         ]);
         return `<h2>Расписка о выдаче медицинской документации</h2>
       <p>Получатель подтверждает, что клиника передала только согласованный состав медицинских документов и проверила полномочия до выдачи.</p>
@@ -3018,7 +3200,7 @@ function medicalDocumentReleaseReceipt(document, patient) {
             "личность получателя и основание выдачи проверены",
             "состав выдачи совпадает с запросом пациента или законного представителя",
             "при передаче КТ/рентгена/снимков проверена целостность архива и носителя",
-            "в журнале клиники сохранен факт выдачи, канал передачи и ответственный сотрудник"
+            "в журнале клиники сохранен факт выдачи, канал передачи и ответственный сотрудник",
         ])}
       ${signatureBlock("Получатель", "Администратор/ответственный сотрудник")}`;
     }
@@ -3037,14 +3219,14 @@ function medicalDocumentReleaseReceipt(document, patient) {
         "копии медицинской документации за указанный период",
         "рентген/ОПТГ/ТРГ/КЛКТ: исходные файлы снимков или архив, если они запрошены",
         "финансовые документы: договор, акт, чек/квитанция, налоговая справка при наличии",
-        "иное: ____________________"
+        "иное: ____________________",
     ])}
     <h2>Контроль выдачи</h2>
     ${checkList([
         "личность получателя проверена до передачи",
         "лишние данные третьих лиц не включены",
         "факт выдачи записан в журнале/аудите клиники",
-        "при электронной передаче указан срок действия ссылки или способ защиты архива"
+        "при электронной передаче указан срок действия ссылки или способ защиты архива",
     ])}
     ${signatureBlock("Получатель", "Ответственный сотрудник")}`;
 }
@@ -3059,18 +3241,18 @@ function xrayCbctReferral(document) {
             tmj: "ВНЧС",
             sinus: "гайморова пазуха",
             photo_protocol: "фотопротокол",
-            other: "иное исследование"
+            other: "иное исследование",
         };
         const priorityLabels = {
             routine: "планово",
-            urgent: "срочно"
+            urgent: "срочно",
         };
         const pregnancyStatusLabels = {
             not_applicable: "не применимо",
             denied: "беременность со слов пациента отрицается",
             possible: "беременность возможна",
             confirmed: "беременность подтверждена",
-            unknown: "статус не уточнен"
+            unknown: "статус не уточнен",
         };
         return `<h2>Направление на рентген/КЛКТ</h2>
       <div class="notice">
@@ -3095,7 +3277,7 @@ function xrayCbctReferral(document) {
             "пациенту объяснена цель исследования и связь с планом лечения",
             "перед исследованием уточнены беременность, ограничения и необходимость защиты",
             "результат должен быть просмотрен врачом, назначившим исследование",
-            "исходные файлы, снимки и описание сохраняются в карте пациента и журнале выдачи"
+            "исходные файлы, снимки и описание сохраняются в карте пациента и журнале выдачи",
         ])}
       ${signatureBlock("Пациент", "Врач")}`;
     }
@@ -3109,7 +3291,7 @@ function xrayCbctReferral(document) {
     ${checkList([
         "пациенту объяснена цель исследования",
         "проверены противопоказания и необходимость защиты",
-        "результат должен быть привязан к карте пациента и просмотрен врачом"
+        "результат должен быть привязан к карте пациента и просмотрен врачом",
     ])}
     ${signatureBlock("Пациент", "Врач")}`;
 }
@@ -3134,7 +3316,7 @@ function labWorkOrder(document) {
             "контактные пункты, окклюзия, края и требования к препарированию зафиксированы",
             "имплант-платформа, абатмент, тип фиксации и torque указаны, если применимо",
             "фото, карта цвета, сканы и комментарии врача приложены в карте пациента",
-            "примерки, коррекции, дата готовности и ответственный техник отслеживаются"
+            "примерки, коррекции, дата готовности и ответственный техник отслеживаются",
         ])}
       ${signatureBlock("Врач", "Лаборатория")}`;
     }
@@ -3153,7 +3335,7 @@ function labWorkOrder(document) {
         "для имплантов указать систему, платформу, абатмент, винтовую/цементную фиксацию и torque, если применимо",
         "для ортодонтии указать цель, этап, количество кап/ретейнеров и контрольную дату",
         "приложить фото улыбки, шкалу цвета, сканы и комментарии врача",
-        "фиксировать примерки, коррекции, срок готовности и ответственного техника"
+        "фиксировать примерки, коррекции, срок готовности и ответственного техника",
     ])}
     ${signatureBlock("Врач", "Лаборатория")}`;
 }
@@ -3181,7 +3363,7 @@ function visitAttendanceCertificate(document, patient) {
         "ФИО, дата рождения и документ пациента сверены",
         "указано фактическое время посещения клиники",
         "диагноз, план лечения, снимки и стоимость не раскрыты",
-        "при необходимости клиника ставит печать по локальному порядку"
+        "при необходимости клиника ставит печать по локальному порядку",
     ])}
     ${signatureBlock("Пациент/получатель", signatureParty(payload.signedByRole, payload.signedByFullName))}`;
 }
@@ -3213,7 +3395,7 @@ function warrantyServiceMemo(document) {
       ${checkList([
             "условия сверены с локальным гарантийным положением клиники",
             "пациент получил послеоперационные или поствизитные рекомендации",
-            "пациент понимает обязательность контрольных визитов и гигиены"
+            "пациент понимает обязательность контрольных визитов и гигиены",
         ])}
       ${signatureBlock("Пациент", signatureParty("Врач", payload.doctorFullName))}`;
     }
@@ -3229,7 +3411,7 @@ function warrantyServiceMemo(document) {
         "вписать точные сроки и условия по локальному положению клиники",
         "отметить материалы, конструкцию, зубы или имплант-систему",
         "объяснить пациенту контрольные визиты и признаки срочного обращения",
-        "выдать памятку вместе с актом или финальным этапом лечения"
+        "выдать памятку вместе с актом или финальным этапом лечения",
     ])}
     ${signatureBlock()}`;
 }
@@ -3242,14 +3424,14 @@ function paymentRefundCorrectionRequest(document, context) {
             partial_refund: "частичный возврат",
             payment_transfer: "перенос оплаты",
             receipt_correction: "коррекция чека",
-            payer_details_correction: "коррекция данных плательщика"
+            payer_details_correction: "коррекция данных плательщика",
         };
         const methodLabels = {
             cash: "наличные",
             card: "карта",
             bank_transfer: "банковский перевод",
             internal_offset: "внутренний взаимозачет",
-            no_money_movement: "без движения денег"
+            no_money_movement: "без движения денег",
         };
         return `<h2>Заявление на возврат или коррекцию оплаты</h2>
       <p>Форма фиксирует конкретное бухгалтерское действие и основание. Сумма сверяется с фактической оплатой и фискальным чеком до выдачи.</p>
@@ -3273,7 +3455,7 @@ function paymentRefundCorrectionRequest(document, context) {
             "личность пациента или плательщика сверена",
             "исходный фискальный чек, кассовая смена и платеж найдены в CRM",
             "сумма не превышает фактическую оплату по выбранному визиту",
-            "решение ответственного сотрудника сохранено вместе с документом"
+            "решение ответственного сотрудника сохранено вместе с документом",
         ])}
       ${signatureBlock("Пациент/плательщик", "Администратор/бухгалтер")}`;
     }
@@ -3293,7 +3475,7 @@ function paymentRefundCorrectionRequest(document, context) {
         "сверить личность пациента или плательщика",
         "сверить фискальный чек, кассовую смену и платеж в CRM",
         "не проводить возврат по плановой сумме без фактической оплаты",
-        "зафиксировать решение ответственного сотрудника и способ возврата"
+        "зафиксировать решение ответственного сотрудника и способ возврата",
     ])}
     ${signatureBlock("Пациент/плательщик", "Администратор/бухгалтер")}`;
 }
@@ -3310,7 +3492,7 @@ function taxDeductionRegistry(document, context) {
         "разделить обычное и дорогостоящее лечение при необходимости",
         "не включать неоплаченные планы лечения",
         "проверить заявление на выдачу справки и ИНН налогоплательщика",
-        "использовать реестр как контроль перед выпуском КНД 1151156"
+        "использовать реестр как контроль перед выпуском КНД 1151156",
     ])}
     ${signatureBlock("Ответственный администратор", "Бухгалтер/уполномоченное лицо")}`;
 }
@@ -3323,7 +3505,7 @@ function patientIntakeQuestionnaire(document) {
             possible: "беременность возможна",
             confirmed: "беременность подтверждена",
             lactation: "лактация",
-            unknown: "статус не уточнен"
+            unknown: "статус не уточнен",
         };
         return `<h2>Анкета пациента</h2>
       <div class="notice">
@@ -3346,7 +3528,7 @@ function patientIntakeQuestionnaire(document) {
             "администратор сверил ФИО, телефон и дату рождения пациента",
             "врач просмотрел аллергоанамнез, лекарства, хронические заболевания и риски кровотечения до вмешательства",
             "при неясном статусе беременности или системных рисках врач выбирает безопасную тактику или откладывает вмешательство",
-            "изменения анкеты сохраняются в карте пациента и учитываются в последующих визитах"
+            "изменения анкеты сохраняются в карте пациента и учитываются в последующих визитах",
         ])}
       ${signatureBlock("Пациент/законный представитель", "Администратор/врач")}`;
     }
@@ -3365,7 +3547,7 @@ function patientIntakeQuestionnaire(document) {
 const taxFiscalDocumentKinds = new Set([
     "tax_deduction_certificate",
     "legacy_tax_deduction_certificate",
-    "tax_deduction_registry"
+    "tax_deduction_registry",
 ]);
 function normalizedTaxpayerIdentityPart(value) {
     return (present(value) ?? "").replace(/\s+/g, " ").toLocaleLowerCase("ru-RU");
@@ -3376,7 +3558,8 @@ function taxpayerIdentityKey(payment, patient) {
         normalizedTaxpayerIdentityPart(payment.payerInn),
         normalizedTaxpayerIdentityPart(payment.payerBirthDate),
         normalizedTaxpayerIdentityPart(payment.payerIdentityDocument),
-        normalizedTaxpayerIdentityPart(normalizedTaxpayerRelationship(payment.payerRelationship) ?? payment.payerRelationship)
+        normalizedTaxpayerIdentityPart(normalizedTaxpayerRelationship(payment.payerRelationship) ??
+            payment.payerRelationship),
     ].join("::");
 }
 function taxDocumentBlockReason(document, patient, context) {
@@ -3385,10 +3568,12 @@ function taxDocumentBlockReason(document, patient, context) {
     if (!document.taxYear)
         return "Для налогового документа нужно выбрать налоговый год.";
     if (document.kind === "legacy_tax_deduction_certificate" &&
-        (document.taxYear < legacyTaxDeductionCertificateMinYear || document.taxYear > legacyTaxDeductionCertificateMaxYear)) {
+        (document.taxYear < legacyTaxDeductionCertificateMinYear ||
+            document.taxYear > legacyTaxDeductionCertificateMaxYear)) {
         return "Старая налоговая справка действует только для оплат 2021-2023; для оплат с 2024 года используйте КНД 1151156.";
     }
-    if (document.kind !== "legacy_tax_deduction_certificate" && document.taxYear < taxDeductionCertificateMinYear) {
+    if (document.kind !== "legacy_tax_deduction_certificate" &&
+        document.taxYear < taxDeductionCertificateMinYear) {
         return "КНД 1151156 действует только для оплат с 2024 года; для более ранних оплат используйте старую справку.";
     }
     const taxPayments = taxPaymentsForDocument(document, context);
@@ -3414,13 +3599,18 @@ function taxDocumentBlockReason(document, patient, context) {
     if (invalidPayerRelationship) {
         return "Налоговый документ поддерживает только отношения: пациент, супруг, родитель, ребенок или подопечный.";
     }
-    if (new Set(taxPayments.map((payment) => taxpayerIdentityKey(payment, patient))).size > 1) {
+    if (new Set(taxPayments.map((payment) => taxpayerIdentityKey(payment, patient)))
+        .size > 1) {
         return "Налоговый документ не может смешивать разных налогоплательщиков; создайте отдельную справку на каждого плательщика.";
     }
-    if (document.kind === "tax_deduction_certificate" || document.kind === "tax_deduction_registry") {
-        const invalidKndPayerInn = taxPayments.some((payment) => Boolean(present(payment.payerInn)) && digitsOnly(payment.payerInn).length !== 12);
+    if (document.kind === "tax_deduction_certificate" ||
+        document.kind === "tax_deduction_registry") {
+        const invalidKndPayerInn = taxPayments.some((payment) => Boolean(present(payment.payerInn)) &&
+            digitsOnly(payment.payerInn).length !== 12);
         const explicitDocumentTaxpayerInn = digitsOnly(document.taxPayerInn);
-        if (invalidKndPayerInn || (Boolean(present(document.taxPayerInn)) && explicitDocumentTaxpayerInn.length !== 12)) {
+        if (invalidKndPayerInn ||
+            (Boolean(present(document.taxPayerInn)) &&
+                explicitDocumentTaxpayerInn.length !== 12)) {
             return "КНД 1151156 требует 12-значный ИНН физического лица-налогоплательщика; 10-значный ИНН организации для этой справки/XML не подходит.";
         }
         const nonSelfPayer = taxPayments.some((payment) => normalizedTaxpayerRelationship(payment.payerRelationship) !== "self");
@@ -3484,7 +3674,7 @@ export function renderDocumentHtml(document, patient, context = {}) {
         tax_deduction_application: taxDeductionApplication(document, patient, context),
         legacy_tax_deduction_certificate: legacyTaxDeductionCertificate(document, patient, context),
         tax_deduction_registry: taxDeductionRegistry(document, context),
-        patient_intake_questionnaire: patientIntakeQuestionnaire(document)
+        patient_intake_questionnaire: patientIntakeQuestionnaire(document),
     };
     return repairMojibakeText(baseDocument(document.title, patient, document, bodyByKind[document.kind], context));
 }
@@ -3505,7 +3695,8 @@ function documentIssueBlockReasonRaw(document, patient, context = {}) {
             return `Юридический профиль клиники заполнен не полностью: ${missingClinicFields.join(", ")}.`;
         }
     }
-    if (treatmentPlanBackedFinancialKinds.has(document.kind) && !financialDocumentTreatmentItems(document, context).length) {
+    if (treatmentPlanBackedFinancialKinds.has(document.kind) &&
+        !financialDocumentTreatmentItems(document, context).length) {
         return "Для выдачи финансового документа нужен состав услуг из плана лечения: услуга, количество, цена, скидка и итоговая сумма.";
     }
     const payloadBlockReason = documentPayloadBlockReason(document);
@@ -3537,18 +3728,23 @@ function documentIssueBlockReasonRaw(document, patient, context = {}) {
         if (!paidPayments.length) {
             return "Для этого документа нужен хотя бы один сохраненный оплаченный платеж в выбранном визите или документе.";
         }
-        if (document.kind === "payment_refund_correction_request" && refundPayload && refundPayload.amountRub > paidTotalRub) {
+        if (document.kind === "payment_refund_correction_request" &&
+            refundPayload &&
+            refundPayload.amountRub > paidTotalRub) {
             return "Сумма возврата или коррекции не может превышать фактически оплаченную сумму по выбранному визиту.";
         }
-        if ((document.kind === "payment_receipt" || document.kind === "payment_refund_correction_request") &&
+        if ((document.kind === "payment_receipt" ||
+            document.kind === "payment_refund_correction_request") &&
             !hasAllFiscalReceipts(paidPayments)) {
             return "Платежный документ требует номер фискального чека в каждом включенном платеже.";
         }
-        if ((document.kind === "payment_receipt" || document.kind === "payment_refund_correction_request") &&
+        if ((document.kind === "payment_receipt" ||
+            document.kind === "payment_refund_correction_request") &&
             !hasAllFiscalReceiptDates(paidPayments)) {
             return "Платежный документ требует дату фискального чека в каждом включенном платеже.";
         }
-        if (document.kind === "payment_refund_correction_request" && !hasAllPaymentPayerIdentities(paidPayments)) {
+        if (document.kind === "payment_refund_correction_request" &&
+            !hasAllPaymentPayerIdentities(paidPayments)) {
             return "Платежный документ требует ФИО, дату рождения, ИНН, документ удостоверения личности и связь плательщика с пациентом в каждом включенном платеже.";
         }
     }

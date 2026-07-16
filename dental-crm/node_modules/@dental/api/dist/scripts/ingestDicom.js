@@ -1,24 +1,24 @@
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import dicomParser from "dicom-parser";
-import { db } from "../db/client.js";
-import { imagingInstances, imagingSeries, imagingStudies } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { db } from "../db/client.js";
+import { imagingInstances, imagingSeries, imagingStudies, } from "../db/schema.js";
 export async function parseAndIngestDicomFile(filePath, organizationId, patientId) {
     try {
         const buffer = await fs.readFile(filePath);
         const dicomData = dicomParser.parseDicom(new Uint8Array(buffer));
         // Extract Metadata
-        const dicomStudyUid = dicomData.string('x0020000d'); // Study Instance UID
-        const dicomSeriesUid = dicomData.string('x0020000e'); // Series Instance UID
-        const dicomSopInstanceUid = dicomData.string('x00080018'); // SOP Instance UID
-        const seriesNumber = parseInt(dicomData.string('x00200011') || "1");
-        const instanceNumber = parseInt(dicomData.string('x00200013') || "1");
-        const rows = dicomData.uint16('x00280010');
-        const columns = dicomData.uint16('x00280011');
-        const sopClassUid = dicomData.string('x00080016');
-        const modality = dicomData.string('x00080060');
+        const dicomStudyUid = dicomData.string("x0020000d"); // Study Instance UID
+        const dicomSeriesUid = dicomData.string("x0020000e"); // Series Instance UID
+        const dicomSopInstanceUid = dicomData.string("x00080018"); // SOP Instance UID
+        const seriesNumber = parseInt(dicomData.string("x00200011") || "1");
+        const instanceNumber = parseInt(dicomData.string("x00200013") || "1");
+        const rows = dicomData.uint16("x00280010");
+        const columns = dicomData.uint16("x00280011");
+        const sopClassUid = dicomData.string("x00080016");
+        const modality = dicomData.string("x00080060");
         if (!dicomStudyUid || !dicomSeriesUid || !dicomSopInstanceUid) {
             console.warn(`[Skip] Missing vital UID in DICOM file: ${filePath}`);
             return;
@@ -26,7 +26,9 @@ export async function parseAndIngestDicomFile(filePath, organizationId, patientI
         console.log(`[Ingest] Processing Instance: ${dicomSopInstanceUid} (Study: ${dicomStudyUid})`);
         // In a real flow, we'd use DB transactions to upsert Study -> Series -> Instance
         // Since we don't have a live postgres, we'll just demonstrate the queries:
-        const insertStudyQuery = db.insert(imagingStudies).values({
+        const insertStudyQuery = db
+            .insert(imagingStudies)
+            .values({
             id: randomUUID(),
             organizationId,
             patientId,
@@ -35,19 +37,25 @@ export async function parseAndIngestDicomFile(filePath, organizationId, patientI
             capturedAt: new Date(),
             sourceKind: "dicom_file",
             sourceName: "ingestDicom.ts",
-            dicomStudyUid
-        }).onConflictDoNothing();
+            dicomStudyUid,
+        })
+            .onConflictDoNothing();
         console.log("[Query] Insert Study:\n", insertStudyQuery.toSQL());
-        const insertSeriesQuery = db.insert(imagingSeries).values({
+        const insertSeriesQuery = db
+            .insert(imagingSeries)
+            .values({
             id: randomUUID(),
             organizationId,
             studyId: randomUUID(), // mock
             dicomSeriesUid,
             seriesNumber,
-            modality
-        }).onConflictDoNothing();
+            modality,
+        })
+            .onConflictDoNothing();
         console.log("[Query] Insert Series:\n", insertSeriesQuery.toSQL());
-        const insertInstanceQuery = db.insert(imagingInstances).values({
+        const insertInstanceQuery = db
+            .insert(imagingInstances)
+            .values({
             id: randomUUID(),
             organizationId,
             seriesId: randomUUID(), // mock
@@ -56,11 +64,13 @@ export async function parseAndIngestDicomFile(filePath, organizationId, patientI
             sopClassUid,
             storagePath: filePath,
             rows,
-            columns
-        }).onConflictDoNothing();
+            columns,
+        })
+            .onConflictDoNothing();
         console.log("[Query] Insert Instance:\n", insertInstanceQuery.toSQL());
         // Demonstration of an indexed query on the instance
-        const findInstanceQuery = db.select()
+        const findInstanceQuery = db
+            .select()
             .from(imagingInstances)
             .where(eq(imagingInstances.dicomSopInstanceUid, dicomSopInstanceUid));
         console.log("\n[Query] Find Instance (Should use Index `imaging_instances_uid_idx`):");

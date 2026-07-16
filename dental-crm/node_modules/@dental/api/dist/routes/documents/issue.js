@@ -1,11 +1,11 @@
-import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId } from "../../accessGuard.js";
-import { issueDocumentSchema, publicGeneratedDocumentSchema } from "@dental/shared";
-import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot } from "../../documents/taxPaymentSnapshot.js";
-import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
-import { apiError, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, taxSnapshotDocument, documentRenderContext, documentIssueValidationMessage, buildMedicalDocumentReleaseJournalEntry, taxXmlSourceSnapshotForIssue } from "../documents.js";
-import { getDocumentById, issueGeneratedDocumentInDb } from "../../db/documentQuery.js";
+import { issueDocumentSchema, publicGeneratedDocumentSchema, } from "@dental/shared";
+import { requireClinicalMutationAccess, requireResolvedStaffOrAdminOrganizationId, } from "../../accessGuard.js";
+import { getDocumentById, issueGeneratedDocumentInDb, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
-import { renderDocumentHtml } from "../../documents/renderDocument.js";
+import { renderDocumentHtml, } from "../../documents/renderDocument.js";
+import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot, } from "../../documents/taxPaymentSnapshot.js";
+import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
+import { apiError, buildMedicalDocumentReleaseJournalEntry, documentIssueBlockReason, documentIssueChainBlockReason, documentIssueValidationMessage, documentRenderContext, findIssuedDuplicateTaxCertificate, taxSnapshotDocument, taxXmlSourceSnapshotForIssue, } from "../documents.js";
 export async function register(app) {
     app.post("/api/documents/:id/issue", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document issue")))
@@ -19,7 +19,9 @@ export async function register(app) {
             return reply.code(404).send(apiError("Документ не найден"));
         }
         if (existing.status === "voided") {
-            return reply.code(409).send(apiError("Аннулированный документ нельзя выдать."));
+            return reply
+                .code(409)
+                .send(apiError("Аннулированный документ нельзя выдать."));
         }
         if (existing.status === "issued") {
             return reply.code(409).send(apiError("Документ уже выдан."));
@@ -29,7 +31,7 @@ export async function register(app) {
             return reply.code(404).send(apiError("Пациент не найден"));
         }
         const taxPaymentSnapshot = taxDocumentUsesPaymentSnapshot(existing.kind)
-            ? buildTaxPaymentSnapshotForIssue(existing, await import("../../db/billingQuery.js").then(m => m.getPaymentsByPatientIdInDb(orgId, existing.patientId)), await import("../../db/documentQuery.js").then(m => m.getDocumentsByPatientId(orgId, existing.patientId)))
+            ? buildTaxPaymentSnapshotForIssue(existing, await import("../../db/billingQuery.js").then((m) => m.getPaymentsByPatientIdInDb(orgId, existing.patientId)), await import("../../db/documentQuery.js").then((m) => m.getDocumentsByPatientId(orgId, existing.patientId)))
             : null;
         if (taxDocumentUsesPaymentSnapshot(existing.kind) && !taxPaymentSnapshot) {
             const duplicateTaxCertificate = await findIssuedDuplicateTaxCertificate(existing, []);
@@ -65,7 +67,7 @@ export async function register(app) {
         if (!parsedIssueInput.success) {
             return reply.code(400).send({
                 error: "DocumentIssueValidationFailed",
-                message: repairMojibakeText(documentIssueValidationMessage)
+                message: repairMojibakeText(documentIssueValidationMessage),
             });
         }
         const signatureAttestation = repairMojibakeDeep(parsedIssueInput.data.signatureAttestation);
@@ -78,7 +80,7 @@ export async function register(app) {
             issuedAt,
             signatureAttestation,
             releaseJournalEntry,
-            taxXmlSourceSnapshot
+            taxXmlSourceSnapshot,
         };
         const issuedHtml = renderDocumentHtml(issuedDocumentCandidate, patient, renderContext);
         const document = await issueGeneratedDocumentInDb(orgId, id, {
@@ -88,10 +90,12 @@ export async function register(app) {
             signatureAttestation,
             taxPaymentSnapshot,
             taxXmlSourceSnapshot,
-            totalAmountRub: issueCandidate.totalAmountRub
+            totalAmountRub: issueCandidate.totalAmountRub,
         });
         if (!document) {
-            return reply.code(409).send(apiError("Статус документа нельзя изменить."));
+            return reply
+                .code(409)
+                .send(apiError("Статус документа нельзя изменить."));
         }
         return reply.send(publicGeneratedDocumentSchema.parse(document));
     });

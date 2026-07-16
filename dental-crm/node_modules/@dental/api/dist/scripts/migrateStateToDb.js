@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { db } from "../db/client.js";
 import { sql } from "drizzle-orm";
+import { db, client } from "../db/client.js";
 import * as schema from "../db/schema.js";
 // We will read the actual saved state, or fallback to the sample data
 import { loadPersistentState } from "../persistentState.js";
@@ -56,7 +56,7 @@ async function migrate() {
         name: "Основная клиника",
         address: state.clinicProfile.address,
         phone: state.clinicProfile.phone,
-        timezone: state.clinicProfile.timezone
+        timezone: state.clinicProfile.timezone,
     });
     console.log(`👥 Migrating ${state.staffMembers.length} Staff Members (Users)...`);
     for (const staff of state.staffMembers) {
@@ -81,7 +81,7 @@ async function migrate() {
             organizationId: orgId,
             clinicId: "e50337ad-f762-4f3b-8255-a2267576be78",
             name: chair.name,
-            isActive: chair.active
+            isActive: chair.active,
         });
     }
     console.log(`🧑‍⚕️ Migrating ${state.patients.length} Patients...`);
@@ -113,7 +113,7 @@ async function migrate() {
             startsAt: new Date(appt.startsAt),
             endsAt: new Date(appt.endsAt),
             reason: appt.reason,
-            comment: appt.comment
+            comment: appt.comment,
         });
     }
     if (state.activeVisit) {
@@ -131,7 +131,9 @@ async function migrate() {
             diagnosis: state.activeVisit.diagnosis,
             treatmentPlan: state.activeVisit.treatmentPlan,
             doctorSummary: state.activeVisit.doctorSummary,
-            signedAt: state.activeVisit.signedAt ? new Date(state.activeVisit.signedAt) : null,
+            signedAt: state.activeVisit.signedAt
+                ? new Date(state.activeVisit.signedAt)
+                : null,
             createdAt: new Date(state.activeVisit.createdAt),
             updatedAt: new Date(state.activeVisit.updatedAt),
         });
@@ -149,7 +151,7 @@ async function migrate() {
             totalAmountRub: doc.totalAmountRub || null,
             payloadJson: doc.payload ? JSON.stringify(doc.payload) : null,
             issuedAt: doc.issuedAt ? new Date(doc.issuedAt) : null,
-            createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date()
+            createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
         });
     }
     console.log(`⚖️ Migrating ${state.clinicalRules.length} Clinical Rules...`);
@@ -199,13 +201,22 @@ async function migrate() {
             payerIdentityDocument: p.payerIdentityDocument,
             payerRelationship: p.payerRelationship,
             taxDeductionCode: p.taxDeductionCode,
-            note: p.note
+            note: p.note,
         });
     }
     console.log("\n🎉 Migration completed successfully!");
     console.log("   Make sure you have run 'npm run db:migrate' first to create the tables.\n");
 }
-migrate().then(() => process.exit(0)).catch(e => {
+migrate()
+    .then(async () => {
+    await client.close();
+    process.exit(0);
+})
+    .catch(async (e) => {
     console.error("❌ Migration error:", e);
+    try {
+        await client.close();
+    }
+    catch { }
     process.exit(1);
 });

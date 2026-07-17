@@ -1,29 +1,32 @@
-<<<<<<< HEAD
 import os
 import paramiko
 import sys
 
-=======
-import paramiko
-import sys
 
-host = '62.84.100.97'
-user = 'root'
-password = 'W15n8zf781%nV25BGZ+2'
-
->>>>>>> gitlab/main
 def ssh(client, cmd, desc="", timeout=60):
     sys.stdout.buffer.write(f"\n>>> {desc or cmd[:60]}\n".encode())
     sys.stdout.flush()
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace').strip()
-    err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out+"\n").encode('utf-8','replace'))
-    if err: sys.stdout.buffer.write(("STDERR: "+err+"\n").encode('utf-8','replace'))
-    sys.stdout.flush()
-    return out, err
+    try:
+        out = stdout.read().decode('utf-8', errors='replace').strip()
+        err = stderr.read().decode('utf-8', errors='replace').strip()
+        if out:
+            sys.stdout.buffer.write((out + "\n").encode('utf-8', 'replace'))
+        if err:
+            sys.stdout.buffer.write(
+                ("STDERR: " +
+                 err +
+                 "\n").encode(
+                    'utf-8',
+                    'replace'))
+        sys.stdout.flush()
+        return out, err
+    finally:
+        stdin.close()
+        stdout.close()
+        stderr.close()
 
-<<<<<<< HEAD
+
 def main():
     host = os.environ.get('VPS_HOST', '62.84.100.97')
     user = os.environ.get('VPS_USER', 'root')
@@ -32,11 +35,6 @@ def main():
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-=======
-if __name__ == "__main__":
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
->>>>>>> gitlab/main
     client.connect(hostname=host, username=user, password=password, timeout=10)
     sys.stdout.buffer.write(b"Connected.\n")
 
@@ -54,16 +52,17 @@ if [ -f "$DB_FILE" ]; then
 fi
 """
 
-    ssh(client, f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF", "Write backup cron")
+    ssh(client,
+        f"cat << 'EOF' > /etc/cron.daily/clinic_backup\n{backup_script}EOF",
+        "Write backup cron")
     ssh(client, "chmod +x /etc/cron.daily/clinic_backup", "Make executable")
-    ssh(client, "/etc/cron.daily/clinic_backup", "Run backup immediately to test")
+    ssh(client, "/etc/cron.daily/clinic_backup",
+        "Run backup immediately to test")
     ssh(client, "ls -lh /opt/backups/clinic/", "Check backup files")
 
     client.close()
     sys.stdout.buffer.write(b"\nDone.\n")
-<<<<<<< HEAD
+
 
 if __name__ == "__main__":
     main()
-=======
->>>>>>> gitlab/main

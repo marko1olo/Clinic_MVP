@@ -14,12 +14,8 @@ if not password:
 
 
 client = paramiko.SSHClient()
-<<<<<<< HEAD
 client.load_system_host_keys()
 client.set_missing_host_key_policy(paramiko.RejectPolicy())
-=======
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
->>>>>>> gitlab/main
 client.connect(hostname=host, username=user, password=password, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
 

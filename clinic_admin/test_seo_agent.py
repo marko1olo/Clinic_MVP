@@ -3,12 +3,9 @@ from unittest.mock import patch, MagicMock, mock_open
 from clinic_admin.seo_agent import generate_seo_response, get_groq_api_key
 
 class TestSEOAgent(unittest.TestCase):
-<<<<<<< HEAD
     def setUp(self):
         import clinic_admin.seo_agent
         clinic_admin.seo_agent._cached_groq_keys = None
-=======
->>>>>>> gitlab/main
     @patch('builtins.open')
     def test_get_groq_api_key_error_path(self, mock_open):
         # Configure the mock to raise an IOError when open() is called
@@ -107,7 +104,6 @@ class TestSEOAgent(unittest.TestCase):
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
 
-<<<<<<< HEAD
     @patch('clinic_admin.seo_agent.requests.post')
     @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_malformed_response(self, mock_get_api_key, mock_post):
@@ -129,8 +125,5 @@ class TestSEOAgent(unittest.TestCase):
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
-
-=======
->>>>>>> gitlab/main
 if __name__ == '__main__':
     unittest.main()

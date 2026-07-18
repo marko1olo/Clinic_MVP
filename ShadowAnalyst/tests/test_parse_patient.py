@@ -79,9 +79,6 @@ class TestParsePatientFromFilename(unittest.TestCase):
 
     def test_more_than_two_names(self):
         res = parse_patient_from_filename("Иванов Иван Иванович 30 M.png")
-        # Logic says p1=Иванов, p2=Иван, so it ignores the third string, but let's see what it does actually.
-        # name_parts will be ['Иванов', 'Иван', 'Иванович'].
-        # if len(name_parts) >= 2 it takes first two.
         self.assertEqual(res["patient_name"], "Иван Иванов")
 
 if __name__ == '__main__':

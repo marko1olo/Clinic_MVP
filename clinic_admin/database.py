@@ -1,11 +1,16 @@
 import sqlite3
+import logging
 
 DB_FILE = "clinic.db"
 
 def get_connection():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.Error as e:
+        logging.error(f"Error connecting to database: {e}")
+        raise
 
 def init_db():
     conn = get_connection()

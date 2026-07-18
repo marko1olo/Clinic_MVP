@@ -75,7 +75,11 @@ def init_db():
     cursor.execute("PRAGMA table_info(scans)")
     columns = [col[1] for col in cursor.fetchall()]
     if "ai_image" not in columns:
-        cursor.execute("ALTER TABLE scans ADD COLUMN ai_image TEXT")
+        try:
+            cursor.execute("ALTER TABLE scans ADD COLUMN ai_image TEXT")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         
     conn.commit()
     conn.close()

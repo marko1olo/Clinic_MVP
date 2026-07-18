@@ -89,6 +89,44 @@ class TestSetupBackups(unittest.TestCase):
             call(b'timeout test\n')
         ])
 
+
+    @patch('sys.stdout')
+    def test_ssh_very_long_command(self, mock_stdout):
+        mock_client = Mock()
+        mock_stdin = Mock()
+        mock_stdout_ssh = Mock()
+        mock_stderr_ssh = Mock()
+
+        mock_stdout_ssh.read.return_value = b""
+        mock_stderr_ssh.read.return_value = b""
+
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+
+        long_cmd = "a" * 100
+        out, err = ssh(mock_client, long_cmd, desc="")
+
+        self.assertEqual(out, "")
+        self.assertEqual(err, "")
+        mock_client.exec_command.assert_called_once_with(long_cmd, timeout=60)
+        mock_stdout.buffer.write.assert_called_once_with(f'\n>>> {"a"*60}\n'.encode())
+
+
+    @patch('sys.stdout')
+    def test_ssh_output_flush(self, mock_stdout):
+        mock_client = Mock()
+        mock_stdin = Mock()
+        mock_stdout_ssh = Mock()
+        mock_stderr_ssh = Mock()
+
+        mock_stdout_ssh.read.return_value = b""
+        mock_stderr_ssh.read.return_value = b""
+
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+
+        ssh(mock_client, "echo test", desc="")
+
+        self.assertEqual(mock_stdout.flush.call_count, 2)
+
     @patch('sys.stdout')
     @patch('paramiko.SSHClient')
     @patch('Scripts.setup_backups.ssh')

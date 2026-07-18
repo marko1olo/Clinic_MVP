@@ -151,6 +151,28 @@ class TestSEOAgent(unittest.TestCase):
         finally:
             clinic_admin.seo_agent._cached_groq_keys = original_cache
 
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_empty_review_text(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key and successful request for empty text
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [
+                {"message": {"content": "Спасибо за отзыв!"}}
+            ]
+        }
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("")
+
+        # Verify
+        self.assertEqual(result, "Спасибо за отзыв!")
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+
     @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_generate_seo_response_missing_api_key_error(self, mock_get_api_key):
         # Setup: Return None to simulate missing API key

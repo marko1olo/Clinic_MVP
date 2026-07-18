@@ -1,7 +1,11 @@
 import sqlite3
 import logging
+import os
 
-DB_FILE = "clinic.db"
+DEFAULT_DB_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "clinic.db")
+)
+DB_FILE = os.environ.get("DB_FILE", DEFAULT_DB_FILE)
 
 def get_connection():
     try:
@@ -20,7 +24,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            phone TEXT,
+            phone TEXT CHECK (phone IS NULL OR (length(phone) >= 5 AND length(phone) <= 20 AND phone NOT GLOB '*[^0-9+() -]*')),
             last_visit TEXT,
             notes TEXT,
             created_at TEXT

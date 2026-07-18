@@ -152,6 +152,44 @@ class TestSetupBackups(unittest.TestCase):
             hostname='127.0.0.1',
             username='testuser',
             password='testpassword',
+            key_filename=None,
+            timeout=10
+        )
+
+        mock_stdout.buffer.write.assert_has_calls([
+            call(b"Connected.\n"),
+            call(b"\nDone.\n")
+        ])
+
+        self.assertEqual(mock_ssh.call_count, 4)
+        mock_client.close.assert_called_once()
+
+    @patch('sys.stdout')
+    @patch('paramiko.SSHClient')
+    @patch('Scripts.setup_backups.ssh')
+    def test_main_execution_with_key_file(self, mock_ssh, MockSSHClient, mock_stdout):
+        mock_client = Mock()
+        MockSSHClient.return_value = mock_client
+
+        env_vars = {
+            'VPS_HOST': '127.0.0.1',
+            'VPS_USER': 'testuser',
+            'VPS_KEY_PATH': '/path/to/key'
+        }
+
+        with patch.dict('os.environ', env_vars, clear=True):
+            from Scripts.setup_backups import main
+            main()
+
+        MockSSHClient.assert_called_once()
+        mock_client.load_system_host_keys.assert_called_once()
+        mock_client.set_missing_host_key_policy.assert_called_once()
+
+        mock_client.connect.assert_called_once_with(
+            hostname='127.0.0.1',
+            username='testuser',
+            password=None,
+            key_filename='/path/to/key',
             timeout=10
         )
 

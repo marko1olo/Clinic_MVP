@@ -22,11 +22,18 @@ def main():
     host = os.environ.get('VPS_HOST', '62.84.100.97')
     user = os.environ.get('VPS_USER', 'root')
     password = os.environ.get('VPS_PASSWORD')
+    key_path = os.environ.get('VPS_KEY_PATH')
 
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    client.connect(hostname=host, username=user, password=password, timeout=10)
+    client.connect(
+        hostname=host,
+        username=user,
+        password=password,
+        key_filename=key_path,
+        timeout=10
+    )
     sys.stdout.buffer.write(b"Connected.\n")
 
     # Create backup script

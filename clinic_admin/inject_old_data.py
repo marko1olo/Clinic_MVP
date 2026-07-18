@@ -2,7 +2,12 @@ import sqlite3
 import json
 from datetime import datetime, timedelta
 
-DB_FILE = "C:/Clinic_MVP/clinic_admin/clinic.db"
+import os
+
+DEFAULT_DB_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "clinic.db")
+)
+DB_FILE = os.environ.get("DB_FILE", DEFAULT_DB_FILE)
 
 def _get_existing_names(c, names):
     if not names:
@@ -15,14 +20,20 @@ def _get_existing_names(c, names):
     return set(row[0] for row in c.fetchall())
 
 def _insert_patients(c, new_patients_data):
-    inserted_ids = []
-    for data in new_patients_data:
-        c.execute(
-            "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
-            data
-        )
-        inserted_ids.append(c.lastrowid)
-    return inserted_ids
+    if not new_patients_data:
+        return []
+
+    c.executemany(
+        "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
+        new_patients_data
+    )
+
+    inserted_names = [p[0] for p in new_patients_data]
+    c.execute(
+        "SELECT id FROM patients WHERE name IN (SELECT value FROM json_each(?))",
+        (json.dumps(inserted_names),)
+    )
+    return [row[0] for row in c.fetchall()]
 
 def _insert_appointments(c, inserted_ids, now):
     old_date = (now - timedelta(days=210)).isoformat()

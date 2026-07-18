@@ -738,6 +738,16 @@ import {
 	findCtPlanningQuickActionForArtifactCommand,
 } from "./ctPlanningTools";
 import {
+	documentPayloadForKind,
+	validateDocumentPayloadForKind,
+} from "./documentLogic";
+import { useAuthLogic } from "./hooks/domains/useAuthLogic";
+import { usePatientLogic } from "./hooks/domains/usePatientLogic";
+import { useScheduleLogic } from "./hooks/domains/useScheduleLogic";
+import { useVisitLogic } from "./hooks/domains/useVisitLogic";
+import { useTelegramSettings } from "./hooks/useTelegramSettings.js";
+import { useWorkspaceProfileStore } from "./hooks/useWorkspaceProfile";
+import {
 	type ImagingStudyRow,
 	imagingCaptureDistanceMs,
 	imagingComparisonReason,
@@ -862,6 +872,7 @@ import {
 	type AppView,
 	appViews,
 	getFilteredAppViews,
+	filterViewsByFlags,
 	viewLabels,
 	WorkspaceSidebar,
 	WorkspaceTopbar,
@@ -923,81 +934,8 @@ import {
 	warningSeverityLabels,
 	workloadStateLabels,
 } from "./workspaceUiLabels";
-import { useTelegramSettings } from "./hooks/useTelegramSettings.js";
 
 export function useAppLogic(): any {
-	const {
-		selectedPatientId,
-		patientCoreDraft,
-		patientCoreSaveState,
-		patientCoreDirty,
-		patientAdministrativeProfileDraft,
-		patientAdministrativeProfileSaveState,
-		patientAdministrativeProfileDirty,
-		newPatientName,
-		newPatientPhone,
-		newPatientBirthDate,
-		isPatientCreating,
-		newRulePatientText,
-		setSelectedPatientId,
-		setPatientCoreDraft,
-		setPatientCoreSaveState,
-		setPatientCoreDirty,
-		setPatientAdministrativeProfileDraft,
-		setPatientAdministrativeProfileSaveState,
-		setPatientAdministrativeProfileDirty,
-		setNewPatientName,
-		setNewPatientPhone,
-		setNewPatientBirthDate,
-		setIsPatientCreating,
-		setNewRulePatientText,
-	} = usePatientStore();
-	const {
-		scheduleDoctorFilterId,
-		setScheduleDoctorFilterId,
-		scheduleAssistantFilterId,
-		setScheduleAssistantFilterId,
-		scheduleChairFilterId,
-		setScheduleChairFilterId,
-		scheduleDefaultDoctorUserId,
-		setScheduleDefaultDoctorUserId,
-		scheduleDefaultAssistantUserId,
-		setScheduleDefaultAssistantUserId,
-		scheduleDefaultChairId,
-		setScheduleDefaultChairId,
-		scheduleStatusFilter,
-		setScheduleStatusFilter,
-		scheduleDateFilter,
-		setScheduleDateFilter,
-		staffScheduleDrafts,
-		setStaffScheduleDrafts,
-		staffScheduleSavingId,
-		setStaffScheduleSavingId,
-		staffScheduleDirtyIds,
-		setStaffScheduleDirtyIds,
-		staffScheduleSaveStates,
-		setStaffScheduleSaveStates,
-		chairScheduleDrafts,
-		setChairScheduleDrafts,
-		chairScheduleSavingId,
-		setChairScheduleSavingId,
-		chairScheduleDirtyIds,
-		setChairScheduleDirtyIds,
-		chairScheduleSaveStates,
-		setChairScheduleSaveStates,
-		appointmentScheduleDrafts,
-		setAppointmentScheduleDrafts,
-		appointmentScheduleDirtyIds,
-		setAppointmentScheduleDirtyIds,
-		appointmentScheduleSaveStates,
-		setAppointmentScheduleSaveStates,
-		appointmentScheduleErrors,
-		setAppointmentScheduleErrors,
-		newAppointmentDraft,
-		setNewAppointmentDraft,
-		newAppointmentSaveState,
-		setNewAppointmentSaveState,
-	} = useScheduleStore();
 	const {
 		imagingImportText,
 		setImagingImportText,
@@ -1136,49 +1074,7 @@ export function useAppLogic(): any {
 		isLocalDicomOperationActive,
 		setIsLocalDicomOperationActive,
 	} = useImagingStore();
-	const {
-		selectedSpecialty,
-		setSelectedSpecialty,
-		selectedProtocolId,
-		setSelectedProtocolId,
-		clearedTranscriptSnapshot,
-		setClearedTranscriptSnapshot,
-		transcript,
-		setTranscript,
-		draft,
-		setDraft,
-		visitNoteForm,
-		setVisitNoteForm,
-		visitToothStateByCode,
-		setToothState,
-		applyAiToothCodes,
-		lastServerDraftSavedAt,
-		setLastServerDraftSavedAt,
-		serverDraftSyncState,
-		setServerDraftSyncState,
-		localDraftWasRestored,
-		setLocalDraftWasRestored,
-		pendingVisitSaveCount,
-		setPendingVisitSaveCount,
-		lastPendingVisitSaveAt,
-		setLastPendingVisitSaveAt,
-		lastVisitSaveReceipt,
-		setLastVisitSaveReceipt,
-		speechLastQuality,
-		setSpeechLastQuality,
-		isDraftLoading,
-		setIsDraftLoading,
-		isDraftAccepting,
-		setIsDraftAccepting,
-		isPendingVisitSyncing,
-		setIsPendingVisitSyncing,
-		isVisitDictating,
-		setIsVisitDictating,
-		isTranscriptPolishing,
-		setIsTranscriptPolishing,
-		lastServerDraftSignatureRef,
-		visitDraftUserEditedRef,
-	} = useVisitStore();
+	const documentState = useDocumentStore();
 	const {
 		documentCreateSavingKind,
 		setDocumentCreateSavingKind,
@@ -2044,7 +1940,7 @@ export function useAppLogic(): any {
 		setSelectedDocumentKind,
 		isDocumentIngesting,
 		setIsDocumentIngesting,
-	} = useDocumentStore();
+	} = documentState;
 	const {
 		uiPreferencesHydrated,
 		setUiPreferencesHydrated,
@@ -2124,6 +2020,8 @@ export function useAppLogic(): any {
 		setPricelistSourceKind,
 		usePricelistAi,
 		setUsePricelistAi,
+		odontogramUseSurfaces,
+		setOdontogramUseSurfaces,
 		pricelistAnalysis,
 		setPricelistAnalysis,
 		pricelistImageBase64,
@@ -2367,31 +2265,31 @@ export function useAppLogic(): any {
 		telegramRevokingLinkId,
 		setTelegramRevokingLinkId,
 	} = useSettingsStore();
-    const telegramSettingsModule = useTelegramSettings({
-        apiFetch: null,
-        setError,
-        settingsAdminSecretSession: settingsAdminSecretSession || undefined,
-        loadDashboard
-    });
-    const { 
-            markTelegramSettingsDirty,
-            updateTelegramVisualCardUrlDraft,
-            toggleTelegramFeature,
-            parseTelegramLinkTtlMinutes,
-            parseTelegramReminderLeadTimesHours,
-            parseTelegramReviewRequestDelayHours,
-            parseTelegramPostVisitCheckupDelayHours,
-            normalizeTelegramPostVisitCheckupDelayDrafts,
-            updateTelegramPostVisitCheckupDelayDraft,
-            telegramFeatureLabel,
-            saveTelegramSettings,
-            telegramControlPlaneHeaders,
-            loadTelegramControlPlane,
-            telegramStatusEndpoint,
-            telegramOutboxRequestParams,
-            telegramLinkCodeLedgerRequestParams,
-            telegramChatLinkLedgerRequestParams 
-        } = telegramSettingsModule;
+	const telegramSettingsModule = useTelegramSettings({
+		apiFetch: null,
+		setError,
+		settingsAdminSecretSession: settingsAdminSecretSession || undefined,
+		loadDashboard,
+	});
+	const {
+		markTelegramSettingsDirty,
+		updateTelegramVisualCardUrlDraft,
+		toggleTelegramFeature,
+		parseTelegramLinkTtlMinutes,
+		parseTelegramReminderLeadTimesHours,
+		parseTelegramReviewRequestDelayHours,
+		parseTelegramPostVisitCheckupDelayHours,
+		normalizeTelegramPostVisitCheckupDelayDrafts,
+		updateTelegramPostVisitCheckupDelayDraft,
+		telegramFeatureLabel,
+		saveTelegramSettings,
+		telegramControlPlaneHeaders,
+		loadTelegramControlPlane,
+		telegramStatusEndpoint,
+		telegramOutboxRequestParams,
+		telegramLinkCodeLedgerRequestParams,
+		telegramChatLinkLedgerRequestParams,
+	} = telegramSettingsModule;
 	const activeSettingsTabButtonRef = useRef<HTMLButtonElement | null>(null);
 	const initialTelegramHandoffTargetRef =
 		useRef<DenteTelegramHandoffTarget | null>(readDenteTelegramHandoffTarget());
@@ -2406,7 +2304,6 @@ export function useAppLogic(): any {
 	const clinicProfileDraftRef = useRef<ClinicProfileDraft>(
 		emptyClinicProfileDraft(),
 	);
-	const patientCoreDraftRef = useRef<PatientCoreDraft>(emptyPatientCoreDraft());
 	const releaseSourceRequestAutofillRef = useRef<string | null>(null);
 	const taxPaymentSelectionHydratedKeyRef = useRef<string | null>(null);
 	const paymentReceiptSelectionHydratedKeyRef = useRef<string | null>(null);
@@ -2459,23 +2356,6 @@ export function useAppLogic(): any {
 	const browserImagingScanAbortRef = useRef<AbortController | null>(null);
 	const browserMigrationScanAbortRef = useRef<AbortController | null>(null);
 	const localDicomOperationAbortRef = useRef<AbortController | null>(null);
-
-	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-	const mediaStreamRef = useRef<MediaStream | null>(null);
-	const speechAudioContextRef = useRef<AudioContext | null>(null);
-	const speechAnalyserRef = useRef<AnalyserNode | null>(null);
-	const speechMonitorTimerRef = useRef<number | null>(null);
-	const speechRecordingIdRef = useRef<string | null>(null);
-	const speechChunkIndexRef = useRef(0);
-	const speechSegmentStartedAtRef = useRef(0);
-	const speechLastSoundAtRef = useRef(0);
-	const speechPendingChunkDurationMsRef = useRef<number | null>(null);
-	const speechUploadPromisesRef = useRef<Set<Promise<void>>>(new Set());
-	const appliedSpeechChunkKeysRef = useRef<Set<string>>(new Set());
-	const patientAdministrativeProfileDraftRef =
-		useRef<PatientAdministrativeProfileDraft>(
-			emptyPatientAdministrativeProfileDraft(),
-		);
 	const staffScheduleDraftsRef = useRef<Record<string, StaffScheduleDraft>>({});
 	const chairScheduleDraftsRef = useRef<Record<string, StaffScheduleDraft>>({});
 	const appointmentScheduleDraftsRef = useRef<
@@ -2484,179 +2364,344 @@ export function useAppLogic(): any {
 	const imagingViewerSaveTimerRef = useRef<number | null>(null);
 	const mprWorkbenchSaveTimerRef = useRef<number | null>(null);
 
-	function rememberAdminSecret(
-		secret: string,
-		domain: AdminSecretUnlockDomain,
-	) {
-		const normalized = secret.trim();
-		if (!normalized) return;
-		if (domain === "all" || domain === "clinical")
-			setClinicalAdminSecretSession(normalized);
-		if (domain === "all" || domain === "settings")
-			setSettingsAdminSecretSession(normalized);
-		if (domain === "all" || domain === "schedule")
-			setScheduleAdminSecretSession(normalized);
-		if (domain === "all" || domain === "telegram")
-			setTelegramAdminSecretSession(normalized);
-	}
+	const auth = useAuthLogic({
+		setError,
+		loadDashboard,
+		loadTelegramControlPlane: telegramSettingsModule.loadTelegramControlPlane,
+	});
 
-	function forgetAdminSecret(domain: AdminSecretUnlockDomain) {
-		if (domain === "all" || domain === "clinical")
-			setClinicalAdminSecretSession("");
-		if (domain === "all" || domain === "settings")
-			setSettingsAdminSecretSession("");
-		if (domain === "all" || domain === "schedule")
-			setScheduleAdminSecretSession("");
-		if (domain === "all" || domain === "telegram")
-			setTelegramAdminSecretSession("");
-	}
+	const patient = usePatientLogic({
+		dashboard,
+		query,
+		setPaymentFeedback,
+		setPaymentPayerFullName,
+		setPaymentPayerInn,
+		setPaymentPayerBirthDate,
+		setPaymentPayerIdentityDocument,
+		setPaymentPayerRelationship,
+		setPaymentTaxDeductionCode,
+		setError,
+		auth,
+		setDashboard,
+		setQuery,
+	});
+	const {
+		patientCoreDraftRef,
+		patientAdministrativeProfileDraftRef,
+		selectedPatientId,
+		patientCoreDraft,
+		patientCoreSaveState,
+		patientCoreDirty,
+		patientAdministrativeProfileDraft,
+		patientAdministrativeProfileSaveState,
+		patientAdministrativeProfileDirty,
+		newPatientName,
+		newPatientPhone,
+		newPatientBirthDate,
+		isPatientCreating,
+		newRulePatientText,
+		setSelectedPatientId,
+		setPatientCoreDraft,
+		setPatientCoreSaveState,
+		setPatientCoreDirty,
+		setPatientAdministrativeProfileDraft,
+		setPatientAdministrativeProfileSaveState,
+		setPatientAdministrativeProfileDirty,
+		setNewPatientName,
+		setNewPatientPhone,
+		setNewPatientBirthDate,
+		setIsPatientCreating,
+		setNewRulePatientText,
+		activePatient,
+		selectedPatient,
+		documentPatient,
+		documentPatientMatchesActiveVisit,
+		paymentPatientContextReady,
+		paymentPatientContextMessage,
+		patientAdministrativeProfileValidationMessage,
+		patientInsightById,
+		activePatientInsight,
+		activePatientCallablePhone,
+		activePatientHasCallablePhone,
+		filteredPatients,
+		updatePatientCoreDraft,
+		updatePatientAdministrativeProfileDraft,
+		savePatientCore,
+		savePatientAdministrativeProfile,
+		createPatient,
+	} = patient;
 
-	function currentAdminSecretUnlockDomain(): AdminSecretUnlockDomain {
-		if (accessUnlockRequired || !dashboard) return "all";
-		if (currentView === "schedule") return "schedule";
-		if (currentView === "settings")
-			return settingsTab === "telegram" ? "telegram" : "settings";
-		if (onboardingStep === "telegram") return "telegram";
-		return "clinical";
-	}
-
-	function resolvedAdminSecretUnlockDomain(
-		domainOverride?: AdminSecretUnlockDomain,
-	): AdminSecretUnlockDomain {
-		return domainOverride ?? currentAdminSecretUnlockDomain();
-	}
-
-	function adminSecretDraftForDomain(domain: AdminSecretUnlockDomain): string {
-		if (domain === "settings") return settingsAdminSecretDraft;
-		if (domain === "schedule") return scheduleAdminSecretDraft;
-		if (domain === "telegram") return telegramAdminSecretDraft;
-		return clinicalAdminSecretDraft;
-	}
-
-	function clearAdminSecretDraft(domain: AdminSecretUnlockDomain) {
-		if (domain === "all" || domain === "clinical")
-			setClinicalAdminSecretDraft("");
-		if (domain === "all" || domain === "settings")
-			setSettingsAdminSecretDraft("");
-		if (domain === "all" || domain === "schedule")
-			setScheduleAdminSecretDraft("");
-		if (domain === "all" || domain === "telegram")
-			setTelegramAdminSecretDraft("");
-	}
-
-	function settingsAccessHeaders(
-		extra: Record<string, string> = {},
-		adminSecretOverride?: string,
-	): Record<string, string> {
-		return denteAdminSecretRequestHeaders(
-			extra,
-			adminSecretOverride ?? settingsAdminSecretSession,
+	const activeAppointment = useMemo(() => {
+		if (!dashboard) return null;
+		return (
+			dashboard.appointments?.find(
+				(appointment) =>
+					appointment.id === dashboard?.activeVisit?.appointmentId,
+			) ?? null
 		);
-	}
-
-	function scheduleMutationHeaders(
-		extra: Record<string, string> = {},
-		adminSecretOverride?: string,
-	): Record<string, string> {
-		return denteAdminSecretRequestHeaders(
-			extra,
-			adminSecretOverride ?? scheduleAdminSecretSession,
+	}, [dashboard]);
+	const activeDoctor = useMemo(() => {
+		if (!dashboard || !activeAppointment) return null;
+		return (
+			dashboard?.clinicSettings?.staff?.find(
+				(member) =>
+					member.id === activeAppointment.doctorUserId && member.active,
+			) ?? null
 		);
-	}
-
-	function denteClinicalMutationHeaders(
-		extra: Record<string, string> = {},
-		adminSecretOverride?: string,
-	): Record<string, string> {
-		return denteAdminSecretRequestHeaders(
-			extra,
-			adminSecretOverride ?? clinicalAdminSecretSession,
+	}, [activeAppointment, dashboard]);
+	const activeChair = useMemo(() => {
+		if (!dashboard || !activeAppointment) return null;
+		return (
+			dashboard?.clinicSettings?.chairs?.find(
+				(chair) => chair.id === activeAppointment.chairId && chair.active,
+			) ?? null
 		);
-	}
+	}, [activeAppointment, dashboard]);
+	const {
+		selectedSpecialty,
+		setSelectedSpecialty,
+		selectedProtocolId,
+		setSelectedProtocolId,
+		clearedTranscriptSnapshot,
+		setClearedTranscriptSnapshot,
+		transcript,
+		setTranscript,
+		draft,
+		setDraft,
+		visitNoteForm,
+		setVisitNoteForm,
+		visitToothStateByCode,
+		setToothState,
+		applyAiToothCodes,
+		lastServerDraftSavedAt,
+		setLastServerDraftSavedAt,
+		serverDraftSyncState,
+		setServerDraftSyncState,
+		localDraftWasRestored,
+		setLocalDraftWasRestored,
+		pendingVisitSaveCount,
+		setPendingVisitSaveCount,
+		lastPendingVisitSaveAt,
+		setLastPendingVisitSaveAt,
+		lastVisitSaveReceipt,
+		setLastVisitSaveReceipt,
+		speechLastQuality,
+		setSpeechLastQuality,
+		isDraftLoading,
+		setIsDraftLoading,
+		isDraftAccepting,
+		setIsDraftAccepting,
+		isPendingVisitSyncing,
+		setIsPendingVisitSyncing,
+		isVisitDictating,
+		setIsVisitDictating,
+		isTranscriptPolishing,
+		setIsTranscriptPolishing,
+		lastServerDraftSignatureRef,
+		visitDraftUserEditedRef,
+		visitCloseChecklist,
+		visitWarnings,
+		primaryVisitWarning,
+		speechProviderRuntimeById,
+		speechProviderHealthById,
+		activeSpeechProviderHealth,
+		savedVisitNoteForm,
+		isVisitNoteDirty,
+		hasVisitNoteFormText,
+		hasVisitTranscriptText,
+		visitDraftBuildMissingSteps,
+		visitDraftReadyToBuild,
+		visitNoteAcceptMissingSteps,
+		visitNoteReadyToAccept,
+		visitNoteActionLabel,
+		visitNoteStatusLabel,
+		visitHasSavedNote,
+		mediaRecorderRef,
+		mediaStreamRef,
+		speechAudioContextRef,
+		speechAnalyserRef,
+		speechMonitorTimerRef,
+		speechRecordingIdRef,
+		speechChunkIndexRef,
+		speechSegmentStartedAtRef,
+		speechLastSoundAtRef,
+		speechPendingChunkDurationMsRef,
+		speechUploadPromisesRef,
+		appliedSpeechChunkKeysRef,
+		loadSpeechGatewayStatus,
+		loadSpeechGatewayHealthReport,
+		loadSpeechProviderRuntimeStatuses,
+		loadSpeechRecordingStrategy,
+		loadSpeechRecordingRecovery,
+		refreshSpeechRuntime,
+		refreshPendingVisitSaveState,
+		refreshPendingSpeechChunkState,
+		applyAcceptedVisitResponse,
+		submitAcceptedVisitDraft,
+		visitDraftSignature,
+		loadServerVisitDraft,
+		syncVisitDraftAutosave,
+		flushPendingVisitSaves,
+		submitSpeechChunk,
+		speechChunkApplyKey,
+		speechTranscriptionMatchesActiveVisit,
+		applySpeechTranscription,
+		assembleSpeechRecording,
+		trackSpeechUpload,
+		waitForSpeechUploads,
+		finalizeSpeechRecording,
+		flushPendingSpeechChunks,
+		scrollToVisitArea,
+		appendToTranscript,
+		updateVisitNoteField,
+		buildOfflineDraft,
+		openVisitWarningAction,
+		polishTranscript,
+		buildDraft,
+		acceptDraftToVisit,
+		appendVisitDictationText,
+		clearTranscriptWithUndo,
+		undoTranscriptClear,
+		startVisitDictation,
+		preferredSpeechMimeType,
+		uploadSpeechBlob,
+		stopSpeechMonitor,
+		requestSpeechChunk,
+		startSpeechMonitor,
+		startImportDictation,
+	} = useVisitLogic({
+		dashboard,
+		query,
+		setError,
+		auth,
+		setDashboard,
+		setQuery,
+		selectedPatientId,
+		documentPatient,
+		activePatient,
+		activeAppointment,
+		activeDoctor,
+		activeChair,
+		paymentPatientContextReady,
+		paymentPatientContextMessage,
+		loadDashboard,
+		clinicProfileDraft,
+		patientCoreDraft,
+		documentPatientMatchesActiveVisit,
+		activeOrganizationId,
+		importSourceKind,
+		setImportSourceKind,
+		importText,
+		setImportText,
+		setImportPreview,
+		setImportCommit,
+	});
 
-	function denteClinicalReadHeaders(
-		extra: Record<string, string> = {},
-		adminSecretOverride?: string,
-	): Record<string, string> {
-		return denteAdminSecretRequestHeaders(
-			extra,
-			adminSecretOverride ?? clinicalAdminSecretSession,
-		);
-	}
-
-	function revokeObjectUrlIfNeeded(url: string): void {
-		if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-	}
-
-	function revokeObjectUrlMap(urls: Record<string, string>): void {
-		Object.values(urls).forEach(revokeObjectUrlIfNeeded);
-	}
-
-	function unlockTelegramAdminSession(
-		domainOverride?: AdminSecretUnlockDomain,
-	) {
-		const domain = resolvedAdminSecretUnlockDomain(domainOverride);
-		const secret = adminSecretDraftForDomain(domain).trim();
-		if (!secret) {
-			setError(
-				"Введите секрет администратора клиники, если он включен в серверных настройках клиники.",
-			);
-			return;
-		}
-		rememberAdminSecret(secret, domain);
-		clearAdminSecretDraft(domain);
-		setError(null);
-		if (domain === "settings" || domain === "schedule") return;
-		if (domain === "telegram") {
-			void loadTelegramControlPlane({ adminSecret: secret });
-			return;
-		}
-		setAccessUnlockRequired(false);
-		setAccessUnlockMessage("");
-		void loadDashboard({ adminSecret: secret })
-			.then(() => {
-				if (domain === "all")
-					void loadTelegramControlPlane({ adminSecret: secret, silent: true });
-			})
-			.catch((loadError: unknown) => {
-				forgetAdminSecret(domain);
-				setError(
-					operatorWorkflowFailureMessage(
-						"Не удалось загрузить данные клиники",
-						loadError,
-					),
-				);
-			});
-	}
-
-	function lockTelegramAdminSession(domainOverride?: AdminSecretUnlockDomain) {
-		const domain = resolvedAdminSecretUnlockDomain(domainOverride);
-		forgetAdminSecret(domain);
-		clearAdminSecretDraft(domain);
-		if (domain === "settings" || domain === "schedule" || domain === "telegram")
-			return;
-		setDashboard(null);
-		void loadDashboard().catch((loadError: unknown) => {
-			setError(
-				operatorWorkflowFailureMessage(
-					"Не удалось загрузить данные клиники",
-					loadError,
-				),
-			);
-		});
-	}
+	const schedule = useScheduleLogic({
+		dashboard,
+		query,
+		setError,
+		auth,
+		setDashboard,
+		setQuery,
+		selectedPatientId,
+		setEditingAppointmentId,
+		newAppointmentDraftUserEditedRef,
+		setSelectedPatientId,
+		setNewAppointmentError,
+		clinicProfileDraft,
+		setSettingsTab,
+		staffScheduleDraftsRef,
+		chairScheduleDraftsRef,
+		appointmentScheduleDraftsRef,
+		loadDashboard,
+		selectedSpecialty,
+	});
+	const {
+		scheduleDoctorFilterId,
+		setScheduleDoctorFilterId,
+		scheduleAssistantFilterId,
+		setScheduleAssistantFilterId,
+		scheduleChairFilterId,
+		setScheduleChairFilterId,
+		scheduleDefaultDoctorUserId,
+		setScheduleDefaultDoctorUserId,
+		scheduleDefaultAssistantUserId,
+		setScheduleDefaultAssistantUserId,
+		scheduleDefaultChairId,
+		setScheduleDefaultChairId,
+		scheduleStatusFilter,
+		setScheduleStatusFilter,
+		scheduleDateFilter,
+		setScheduleDateFilter,
+		staffScheduleDrafts,
+		setStaffScheduleDrafts,
+		staffScheduleSavingId,
+		setStaffScheduleSavingId,
+		staffScheduleDirtyIds,
+		setStaffScheduleDirtyIds,
+		staffScheduleSaveStates,
+		setStaffScheduleSaveStates,
+		chairScheduleDrafts,
+		setChairScheduleDrafts,
+		chairScheduleSavingId,
+		setChairScheduleSavingId,
+		chairScheduleDirtyIds,
+		setChairScheduleDirtyIds,
+		chairScheduleSaveStates,
+		setChairScheduleSaveStates,
+		appointmentScheduleDrafts,
+		setAppointmentScheduleDrafts,
+		appointmentScheduleDirtyIds,
+		setAppointmentScheduleDirtyIds,
+		appointmentScheduleSaveStates,
+		setAppointmentScheduleSaveStates,
+		appointmentScheduleErrors,
+		setAppointmentScheduleErrors,
+		newAppointmentDraft,
+		setNewAppointmentDraft,
+		newAppointmentSaveState,
+		setNewAppointmentSaveState,
+		markStaffScheduleDirty,
+		markChairScheduleDirty,
+		updateStaffScheduleDraft,
+		updateChairScheduleDraft,
+		updateStaffScheduleDay,
+		updateChairScheduleDay,
+		openAppointmentEditor,
+		markAppointmentScheduleDirty,
+		updateAppointmentScheduleDraft,
+		newAppointmentPreferenceDefaults,
+		updateNewAppointmentDraft,
+		resetNewAppointmentDraft,
+		closeAppointmentEditor,
+		buildOnboardingFirstAppointmentIssues:
+			_buildOnboardingFirstAppointmentIssues,
+		saveOnboardingSchedulesIfDirty,
+		openScheduleWarning,
+		saveStaffSchedule,
+		saveChairSchedule,
+		saveAppointmentSchedule,
+		newAppointmentMissingFields,
+		createAppointmentFromDraft,
+	} = schedule;
 
 	async function loadDashboard(options: { adminSecret?: string } = {}) {
 		const response = await fetch("/api/dashboard", {
 			cache: "no-store",
-			headers: denteClinicalReadHeaders({}, options.adminSecret),
+			headers: auth.denteClinicalReadHeaders({}, options.adminSecret),
 		});
 		if (!response.ok) {
 			const message = await responseErrorMessage(
 				response,
 				"Данные клиники не загружены",
 			);
-			if (response.status === 403 || response.status === 503) {
+			if (
+				response.status === 401 ||
+				response.status === 403 ||
+				response.status === 503 ||
+				response.status === 404
+			) {
 				setAccessUnlockRequired(true);
 				setAccessUnlockMessage(message);
 				setDashboard(null);
@@ -2683,26 +2728,6 @@ export function useAppLogic(): any {
 		setClinicProfileSaveState("idle");
 	}
 
-	function updatePatientCoreDraft<K extends keyof PatientCoreDraft>(
-		key: K,
-		value: PatientCoreDraft[K],
-	) {
-		setPatientCoreDraft((current: any) => ({ ...current, [key]: value }));
-		setPatientCoreDirty(true);
-		setPatientCoreSaveState("idle");
-	}
-
-	function updatePatientAdministrativeProfileDraft<
-		K extends keyof PatientAdministrativeProfileDraft,
-	>(key: K, value: PatientAdministrativeProfileDraft[K]) {
-		setPatientAdministrativeProfileDraft((current: any) => ({
-			...current,
-			[key]: value,
-		}));
-		setPatientAdministrativeProfileDirty(true);
-		setPatientAdministrativeProfileSaveState("idle");
-	}
-
 	function toggleClinicWorkingDay(day: number) {
 		setClinicProfileDraft((current) => {
 			const nextDays = current.workingDays.includes(day)
@@ -2712,106 +2737,6 @@ export function useAppLogic(): any {
 		});
 		setClinicProfileDirty(true);
 		setClinicProfileSaveState("idle");
-	}
-
-	function markStaffScheduleDirty(staffId: string) {
-		setStaffScheduleDirtyIds((current) => {
-			const next = new Set(current);
-			next.add(staffId);
-			return next;
-		});
-		setStaffScheduleSaveStates((current: any) => ({
-			...current,
-			[staffId]: "idle",
-		}));
-	}
-
-	function markChairScheduleDirty(chairId: string) {
-		setChairScheduleDirtyIds((current) => {
-			const next = new Set(current);
-			next.add(chairId);
-			return next;
-		});
-		setChairScheduleSaveStates((current) => ({
-			...current,
-			[chairId]: "idle",
-		}));
-	}
-
-	function updateStaffScheduleDraft(
-		staffId: string,
-		patch: Partial<StaffScheduleDraft>,
-	) {
-		setStaffScheduleDrafts((current: any) => {
-			const base = current[staffId] ?? defaultStaffScheduleDraft();
-			const nextWorkingDays = normalizeWorkingDaysDraft(
-				patch.workingDays ?? base.workingDays,
-			);
-			const nextStart = patch.start ?? base.start;
-			const nextEnd = patch.end ?? base.end;
-			const perDay = base.perDay.map((day: any) => ({
-				...day,
-				enabled: nextWorkingDays.includes(day.weekday),
-				start:
-					patch.start && nextWorkingDays.includes(day.weekday)
-						? nextStart
-						: day.start,
-				end:
-					patch.end && nextWorkingDays.includes(day.weekday)
-						? nextEnd
-						: day.end,
-			}));
-			return {
-				...current,
-				[staffId]: {
-					...base,
-					...patch,
-					start: nextStart,
-					end: nextEnd,
-					workingDays: nextWorkingDays,
-					perDay,
-				},
-			};
-		});
-		markStaffScheduleDirty(staffId);
-	}
-
-	function updateChairScheduleDraft(
-		chairId: string,
-		patch: Partial<StaffScheduleDraft>,
-	) {
-		setChairScheduleDrafts((current: any) => {
-			const base = current[chairId] ?? defaultStaffScheduleDraft();
-			const nextWorkingDays = normalizeWorkingDaysDraft(
-				patch.workingDays ?? base.workingDays,
-			);
-			const nextStart = patch.start ?? base.start;
-			const nextEnd = patch.end ?? base.end;
-			const perDay = base.perDay.map((day: any) => ({
-				...day,
-				enabled: nextWorkingDays.includes(day.weekday),
-				start:
-					patch.start && nextWorkingDays.includes(day.weekday)
-						? nextStart
-						: day.start,
-				end:
-					patch.end && nextWorkingDays.includes(day.weekday)
-						? nextEnd
-						: day.end,
-			}));
-			return {
-				...current,
-				[chairId]: {
-					...base,
-					...patch,
-					start: nextStart,
-					end: nextEnd,
-					workingDays: nextWorkingDays,
-					perDay,
-				},
-			};
-		});
-		markChairScheduleDirty(chairId);
 	}
 
 	function toggleStaffWorkingDay(staffId: string, day: number) {
@@ -2834,109 +2759,6 @@ export function useAppLogic(): any {
 		updateChairScheduleDraft(chairId, {
 			workingDays: normalizeWorkingDaysDraft(workingDays),
 		});
-	}
-
-	function updateStaffScheduleDay(
-		staffId: string,
-		weekday: number,
-		patch: Partial<Pick<StaffWorkingHours[number], "start" | "end">>,
-	) {
-		setStaffScheduleDrafts((current: any) => {
-			const base = current[staffId] ?? defaultStaffScheduleDraft();
-			return {
-				...current,
-				[staffId]: {
-					...base,
-					perDay: base.perDay.map((day: any) =>
-						day.weekday === weekday ? { ...day, ...patch } : day,
-					),
-				},
-			};
-		});
-		markStaffScheduleDirty(staffId);
-	}
-
-	function updateChairScheduleDay(
-		chairId: string,
-		weekday: number,
-		patch: Partial<Pick<StaffWorkingHours[number], "start" | "end">>,
-	) {
-		setChairScheduleDrafts((current: any) => {
-			const base = current[chairId] ?? defaultStaffScheduleDraft();
-			return {
-				...current,
-				[chairId]: {
-					...base,
-					perDay: base.perDay.map((day: any) =>
-						day.weekday === weekday ? { ...day, ...patch } : day,
-					),
-				},
-			};
-		});
-		markChairScheduleDirty(chairId);
-	}
-
-	function openAppointmentEditor(appointment: Appointment) {
-		setEditingAppointmentId(appointment.id);
-		setAppointmentScheduleDrafts((current: any) => ({
-			...current,
-			[appointment.id]:
-				current[appointment.id] ??
-				appointmentScheduleDraftFromAppointment(appointment),
-		}));
-		setAppointmentScheduleSaveStates((current: any) => ({
-			...current,
-			[appointment.id]: "idle",
-		}));
-		setAppointmentScheduleErrors((current) => ({
-			...current,
-			[appointment.id]: null,
-		}));
-	}
-
-	function markAppointmentScheduleDirty(appointmentId: string) {
-		setAppointmentScheduleDirtyIds((current) => {
-			const next = new Set(current);
-			next.add(appointmentId);
-			return next;
-		});
-		setAppointmentScheduleSaveStates((current: any) => ({
-			...current,
-			[appointmentId]: "idle",
-		}));
-		setAppointmentScheduleErrors((current) => ({
-			...current,
-			[appointmentId]: null,
-		}));
-	}
-
-	function updateAppointmentScheduleDraft<
-		K extends keyof AppointmentScheduleDraft,
-	>(appointmentId: string, key: K, value: AppointmentScheduleDraft[K]) {
-		const sourceAppointment = dashboard?.appointments?.find(
-			(appointment) => appointment.id === appointmentId,
-		);
-		setAppointmentScheduleDrafts((current: any) => ({
-			...current,
-			[appointmentId]: {
-				...(current[appointmentId] ??
-					(sourceAppointment
-						? appointmentScheduleDraftFromAppointment(sourceAppointment)
-						: {})),
-				[key]: value,
-			} as AppointmentScheduleDraft,
-		}));
-		markAppointmentScheduleDirty(appointmentId);
-	}
-
-	function newAppointmentPreferenceDefaults() {
-		return {
-			selectedPatientId,
-			selectedSpecialty,
-			scheduleDefaultDoctorUserId,
-			scheduleDefaultAssistantUserId,
-			scheduleDefaultChairId,
-		};
 	}
 
 	function reconcileDashboardScopedUiSelections() {
@@ -3006,51 +2828,6 @@ export function useAppLogic(): any {
 			setTelegramLinkStaffId("");
 	}
 
-	function updateNewAppointmentDraft<K extends keyof AppointmentScheduleDraft>(
-		key: K,
-		value: AppointmentScheduleDraft[K],
-	) {
-		newAppointmentDraftUserEditedRef.current = true;
-		setNewAppointmentDraft((current) => ({ ...current, [key]: value }));
-		if (key === "patientId" && typeof value === "string")
-			setSelectedPatientId(value || null);
-		if (key === "doctorUserId" && typeof value === "string")
-			setScheduleDefaultDoctorUserId(value || null);
-		if (key === "assistantUserId" && typeof value === "string")
-			setScheduleDefaultAssistantUserId(value || null);
-		if (key === "chairId" && typeof value === "string")
-			setScheduleDefaultChairId(value || null);
-		setNewAppointmentSaveState("idle");
-		setNewAppointmentError(null);
-	}
-
-	function resetNewAppointmentDraft() {
-		if (!dashboard) return;
-		newAppointmentDraftUserEditedRef.current = false;
-		setNewAppointmentDraft(
-			newAppointmentDraftFromDashboard(
-				dashboard,
-				newAppointmentPreferenceDefaults(),
-			),
-		);
-		setNewAppointmentSaveState("idle");
-		setNewAppointmentError(null);
-	}
-
-	function closeAppointmentEditor(appointmentId: string) {
-		setEditingAppointmentId((current) =>
-			current === appointmentId ? null : current,
-		);
-		setAppointmentScheduleSaveStates((current: any) => ({
-			...current,
-			[appointmentId]: "idle",
-		}));
-		setAppointmentScheduleErrors((current) => ({
-			...current,
-			[appointmentId]: null,
-		}));
-	}
-
 	async function saveClinicProfileFromDraft(): Promise<boolean> {
 		const payload = buildClinicProfileUpdatePayload(clinicProfileDraft);
 		const expectedSignature = clinicProfileDraftSignature(clinicProfileDraft);
@@ -3063,7 +2840,9 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(clinicProfileEndpoint, {
 				method: "PUT",
-				headers: settingsAccessHeaders({ "Content-Type": "application/json" }),
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
 				body: JSON.stringify(payload),
 			});
 			if (!response.ok)
@@ -3107,149 +2886,6 @@ export function useAppLogic(): any {
 	async function saveClinicProfileIfDirty(): Promise<boolean> {
 		if (!clinicProfileDirty) return true;
 		return saveClinicProfileFromDraft();
-	}
-
-	async function savePatientCore(): Promise<boolean> {
-		if (patientCoreSaveState === "saving") {
-			setError("Дождитесь завершения сохранения карточки пациента.");
-			return false;
-		}
-		if (!selectedPatient) {
-			setError("Выберите пациента перед сохранением карточки.");
-			return false;
-		}
-		if (!patientCoreDirty) return true;
-		const payload = buildPatientCorePayload(patientCoreDraft);
-		const expectedSignature = patientCoreDraftSignature(patientCoreDraft);
-		if (!payload.fullName?.trim()) {
-			setPatientCoreSaveState("error");
-			setError("ФИО пациента обязательно для расписания, документов и связи.");
-			return false;
-		}
-		setPatientCoreSaveState("saving");
-		try {
-			const response = await fetch(`/api/patients/${selectedPatient.id}`, {
-				method: "PUT",
-				headers: denteClinicalMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(payload),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Карточка пациента не сохранена",
-					),
-				);
-			const savedPatient = (await response.json()) as Patient;
-			setDashboard((current) =>
-				current
-					? {
-							...current,
-							patients: current.patients.map((patient) =>
-								patient.id === savedPatient.id ? savedPatient : patient,
-							),
-						}
-					: current,
-			);
-			setSelectedPatientId(savedPatient.id);
-			const latestMatchesSaved =
-				patientCoreDraftSignature(patientCoreDraftRef.current) ===
-				expectedSignature;
-			if (latestMatchesSaved) {
-				setPatientCoreDraft(patientCoreDraftFromPatient(savedPatient));
-				setPatientCoreDirty(false);
-			}
-			setPatientCoreSaveState(latestMatchesSaved ? "saved" : "idle");
-			setError(null);
-			return true;
-		} catch (saveError) {
-			setPatientCoreSaveState("error");
-			setError(
-				operatorWorkflowFailureMessage(
-					"Карточка пациента не сохранена",
-					saveError,
-				),
-			);
-			return false;
-		}
-	}
-
-	async function savePatientAdministrativeProfile() {
-		if (patientAdministrativeProfileSaveState === "saving") {
-			setError("Дождитесь завершения сохранения реквизитов пациента.");
-			return false;
-		}
-		if (!selectedPatient) {
-			setError("Выберите пациента перед сохранением реквизитов.");
-			return false;
-		}
-		if (!patientAdministrativeProfileDirty) return true;
-		if (patientAdministrativeProfileValidationMessage) {
-			setPatientAdministrativeProfileSaveState("error");
-			setError(patientAdministrativeProfileValidationMessage);
-			return false;
-		}
-		const expectedSignature = patientAdministrativeProfileDraftSignature(
-			patientAdministrativeProfileDraft,
-		);
-		setPatientAdministrativeProfileSaveState("saving");
-		try {
-			const response = await fetch(
-				`/api/patients/${selectedPatient.id}/administrative-profile`,
-				{
-					method: "PUT",
-					headers: denteClinicalMutationHeaders({
-						"Content-Type": "application/json",
-					}),
-					body: JSON.stringify(
-						buildPatientAdministrativeProfilePayload(
-							patientAdministrativeProfileDraft,
-						),
-					),
-				},
-			);
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(response, "Данные пациента не сохранены"),
-				);
-			const savedPatient = (await response.json()) as Patient;
-			setDashboard((current) =>
-				current
-					? {
-							...current,
-							patients: current.patients.map((patient) =>
-								patient.id === savedPatient.id ? savedPatient : patient,
-							),
-						}
-					: current,
-			);
-			const latestDraft = patientAdministrativeProfileDraftRef.current;
-			const latestMatchesSaved =
-				patientAdministrativeProfileDraftSignature(latestDraft) ===
-				expectedSignature;
-			if (latestMatchesSaved) {
-				setPatientAdministrativeProfileDraft(
-					patientAdministrativeProfileDraftFromPatient(savedPatient),
-				);
-				setPatientAdministrativeProfileDirty(false);
-			}
-			setPatientAdministrativeProfileSaveState(
-				latestMatchesSaved ? "saved" : "idle",
-			);
-			setError(null);
-			return true;
-		} catch (saveError) {
-			setPatientAdministrativeProfileSaveState("error");
-			setError(
-				operatorWorkflowFailureMessage(
-					"Данные пациента не сохранены",
-					saveError,
-				),
-			);
-			return false;
-		}
 	}
 
 	function buildOnboardingFirstAppointmentIssues(): string[] {
@@ -3358,9 +2994,7 @@ export function useAppLogic(): any {
 		}
 		if (
 			issues.some((issue) =>
-				["название клиники", "телефон клиники", "часовой пояс"].includes(
-					issue,
-				),
+				["название клиники", "телефон клиники", "часовой пояс"].includes(issue),
 			)
 		) {
 			setOnboardingStep("clinic");
@@ -3431,6 +3065,7 @@ export function useAppLogic(): any {
 			postVisitCareTopic,
 			pricelistSourceKind,
 			usePricelistAi,
+			odontogramUseSurfaces,
 			recognitionKind,
 			recognitionTarget,
 			importSourceKind,
@@ -3627,24 +3262,6 @@ export function useAppLogic(): any {
 		setOnboardingStep(step);
 	}
 
-	async function saveOnboardingSchedulesIfDirty(): Promise<boolean> {
-		if (!dashboard) return true;
-		const dirtyStaffIds = Array.from(staffScheduleDirtyIds).filter(
-			(staffId) => staffScheduleSaveStates[staffId] !== "saving",
-		);
-		const dirtyChairIds = Array.from(chairScheduleDirtyIds).filter(
-			(chairId) => chairScheduleSaveStates[chairId] !== "saving",
-		);
-		if (!dirtyStaffIds.length && !dirtyChairIds.length) return true;
-		for (const staffId of dirtyStaffIds) {
-			if (!(await saveStaffSchedule(staffId))) return false;
-		}
-		for (const chairId of dirtyChairIds) {
-			if (!(await saveChairSchedule(chairId))) return false;
-		}
-		return true;
-	}
-
 	function reopenOnboarding() {
 		const dismissal = saveOnboardingDismissed(
 			false,
@@ -3676,7 +3293,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/system/persistence/verify", {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders({}, options.adminSecret),
+				headers: auth.denteClinicalReadHeaders({}, options.adminSecret),
 			});
 			if (!response.ok)
 				throw new Error(
@@ -3703,7 +3320,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/system/persistence/verify", {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok)
 				throw new Error(
@@ -3738,7 +3355,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/system/persistence/export", {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok)
 				throw new Error(
@@ -3791,7 +3408,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/system/local-bridges/readiness", {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok)
 				throw new Error(
@@ -3819,7 +3436,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/system/local-bridges/use-plans", {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok)
 				throw new Error(
@@ -3870,645 +3487,6 @@ export function useAppLogic(): any {
 		}
 	}
 
-	async function loadSpeechGatewayStatus(
-		options: { silent?: boolean } = {},
-	): Promise<SpeechGatewayStatus | null> {
-		try {
-			const response = await fetch("/api/speech/status", {
-				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Состояние распознавания недоступно",
-					),
-				);
-			const status = (await response.json()) as SpeechGatewayStatus;
-			setSpeechGatewayStatus(status);
-			return status;
-		} catch (speechError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Шлюз распознавания речи недоступен",
-						speechError,
-					),
-				);
-			}
-			return null;
-		}
-	}
-
-	async function loadSpeechGatewayHealthReport(
-		options: { silent?: boolean } = {},
-	) {
-		try {
-			const response = await fetch("/api/speech/gateway-health", {
-				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Проверка распознавания недоступна",
-					),
-				);
-			setSpeechGatewayHealthReport(
-				(await response.json()) as SpeechGatewayHealthReport,
-			);
-		} catch (speechHealthError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Проверка распознавания недоступна",
-						speechHealthError,
-					),
-				);
-			}
-		}
-	}
-
-	async function loadSpeechProviderRuntimeStatuses(
-		options: { silent?: boolean } = {},
-	) {
-		try {
-			const response = await fetch("/api/speech/providers/runtime", {
-				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Провайдеры распознавания недоступны",
-					),
-				);
-			setSpeechProviderRuntimeStatuses(
-				(await response.json()) as SpeechProviderRuntimeStatus[],
-			);
-		} catch (speechRuntimeError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Провайдер распознавания недоступен",
-						speechRuntimeError,
-					),
-				);
-			}
-		}
-	}
-
-	async function loadSpeechRecordingStrategy(
-		options: { silent?: boolean } = {},
-	) {
-		try {
-			const response = await fetch("/api/speech/recording-strategy", {
-				method: "POST",
-				headers: denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					expectedDurationMs: 180_000,
-					networkState: isOnline ? "online" : "offline",
-					privacyMode: "cloud_allowed",
-					specialty: selectedSpecialty,
-					source: "visit",
-				}),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Стратегия распознавания недоступна",
-					),
-				);
-			setSpeechRecordingStrategy(
-				(await response.json()) as SpeechRecordingStrategy,
-			);
-		} catch (speechStrategyError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Стратегия распознавания недоступна",
-						speechStrategyError,
-					),
-				);
-			}
-		}
-	}
-
-	async function loadSpeechRecordingRecovery(
-		options: { silent?: boolean } = {},
-	) {
-		try {
-			if (!dashboard?.activeVisit?.id || !dashboard?.activeVisit?.patientId) {
-				setSpeechRecordingRecovery(null);
-				return;
-			}
-			const params = new URLSearchParams({ limit: "5" });
-			params.set("visitId", dashboard?.activeVisit?.id);
-			params.set("patientId", dashboard?.activeVisit?.patientId);
-			const response = await fetch(
-				`/api/speech/recordings/recovery?${params.toString()}`,
-				{
-					cache: "no-store",
-					headers: denteClinicalReadHeaders(),
-				},
-			);
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Восстановление диктовки недоступно",
-					),
-				);
-			setSpeechRecordingRecovery(
-				(await response.json()) as SpeechRecordingRecoveryList,
-			);
-		} catch (speechRecoveryError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Восстановление диктовки недоступно",
-						speechRecoveryError,
-					),
-				);
-			}
-		}
-	}
-
-	async function refreshSpeechRuntime(options: { silent?: boolean } = {}) {
-		await Promise.all([
-			loadSpeechGatewayStatus(options),
-			loadSpeechGatewayHealthReport(options),
-			loadSpeechProviderRuntimeStatuses(options),
-			loadSpeechRecordingStrategy(options),
-			loadSpeechRecordingRecovery(options),
-		]);
-	}
-
-	async function refreshPendingVisitSaveState() {
-		const pending = await loadPendingVisitSaves(activeOrganizationId);
-		setPendingVisitSaveCount(pending.length);
-		setLastPendingVisitSaveAt(latestPendingVisitSaveAt(pending));
-	}
-
-	async function refreshPendingSpeechChunkState() {
-		setPendingSpeechChunkCount(
-			(await loadPendingSpeechChunks(activeOrganizationId)).length,
-		);
-	}
-
-	function applyAcceptedVisitResponse(result: AcceptVisitDraftResponse) {
-		setDashboard((current) =>
-			current
-				? {
-						...current,
-						activeVisit: result.visit,
-						visitCloseChecklist: result.visitCloseChecklist,
-					}
-				: current,
-		);
-		setDraft(null);
-		setVisitNoteForm(visitNoteFormFromVisit(result.visit));
-		setLastVisitSaveReceipt(result.saveReceipt);
-		if (result.saveReceipt.warning) {
-			setError(result.saveReceipt.warning);
-		}
-	}
-
-	async function submitAcceptedVisitDraft(
-		visitId: string | null | undefined,
-		draftToAccept: VisitNoteDraft,
-		doctorSummary: string | null,
-		options: {
-			clientMutationId?: string | null;
-			baseRevision?: number | null;
-			clientSavedAt?: string | null;
-		} = {},
-	) {
-		if (!visitId)
-			throw new WorkflowResponseError(
-				"Откройте или создайте прием перед сохранением ЭМК.",
-				409,
-			);
-		const response = await fetch(`/api/visits/${visitId}/draft/accept`, {
-			method: "POST",
-			headers: denteClinicalMutationHeaders({
-				"Content-Type": "application/json",
-			}),
-			body: JSON.stringify({
-				draft: draftToAccept,
-				doctorSummary,
-				clientMutationId: options.clientMutationId ?? null,
-				baseRevision: options.baseRevision ?? null,
-				clientSavedAt: options.clientSavedAt ?? new Date().toISOString(),
-			}),
-		});
-		if (!response.ok) {
-			throw new WorkflowResponseError(
-				await responseErrorMessage(response, "Прием не принят"),
-				response.status,
-			);
-		}
-		return (await response.json()) as AcceptVisitDraftResponse;
-	}
-
-	function visitDraftSignature(
-		nextTranscript: string,
-		nextSpecialty: DentalSpecialty,
-		nextForm: VisitNoteForm,
-	) {
-		return JSON.stringify([nextTranscript, nextSpecialty, nextForm]);
-	}
-
-	async function loadServerVisitDraft(
-		visitId: string | null | undefined,
-	): Promise<VisitDraftAutosaveResponse> {
-		if (!visitId) return { serverDraft: null };
-		const response = await fetch(`/api/visits/${visitId}/draft/autosave`, {
-			cache: "no-store",
-			headers: denteClinicalReadHeaders(),
-		});
-		if (!response.ok)
-			throw new Error(
-				await responseErrorMessage(response, "Серверный черновик не загружен"),
-			);
-		return (await response.json()) as VisitDraftAutosaveResponse;
-	}
-
-	async function syncVisitDraftAutosave(
-		clientSavedAt: string,
-		options: { silent?: boolean } = {},
-	) {
-		if (!dashboard?.activeVisit?.id) return;
-		const signature = visitDraftSignature(
-			transcript,
-			selectedSpecialty,
-			visitNoteForm,
-		);
-		if (lastServerDraftSignatureRef.current === signature) return;
-		if (!transcript.trim() && !hasVisitNoteFormText) return;
-
-		if (!isOnline) {
-			setServerDraftSyncState("queued");
-			return;
-		}
-
-		setServerDraftSyncState("saving");
-		try {
-			const response = await fetch(
-				`/api/visits/${dashboard?.activeVisit?.id}/draft/autosave`,
-				{
-					method: "PUT",
-					headers: denteClinicalMutationHeaders({
-						"Content-Type": "application/json",
-					}),
-					body: JSON.stringify({
-						patientId: dashboard?.activeVisit?.patientId,
-						selectedSpecialty,
-						transcript,
-						draft: visitNoteDraftFromForm(visitNoteForm, [
-							"Серверный снимок автосохранения. Перед принятием черновика ЭМК врач все равно проверяет текст.",
-						]),
-						baseRevision: dashboard?.activeVisit?.revision ?? null,
-						clientDraftId: `visit-draft-${dashboard?.activeVisit?.id}`,
-						clientSavedAt,
-					}),
-				},
-			);
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Серверный черновик не сохранен",
-					),
-				);
-			const result = (await response.json()) as VisitDraftAutosaveResponse;
-			lastServerDraftSignatureRef.current = signature;
-			setLastServerDraftSavedAt(
-				result.serverDraft?.serverSavedAt ?? clientSavedAt,
-			);
-			setServerDraftSyncState("saved");
-		} catch (syncError) {
-			setServerDraftSyncState("error");
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Серверный черновик не сохранен",
-						syncError,
-					),
-				);
-			}
-		}
-	}
-
-	async function flushPendingVisitSaves(options: { silent?: boolean } = {}) {
-		if (isPendingVisitSyncing) return;
-		const pending = await loadPendingVisitSaves(activeOrganizationId);
-		if (!pending.length) {
-			await refreshPendingVisitSaveState();
-			return;
-		}
-
-		setIsPendingVisitSyncing(true);
-		let remaining = [...pending];
-		try {
-			const promises = pending.map(async (item) => {
-				const result = await submitAcceptedVisitDraft(
-					item.visitId,
-					item.draft,
-					item.doctorSummary,
-					{
-						clientMutationId: item.clientMutationId,
-						baseRevision: item.baseRevision,
-						clientSavedAt: item.queuedAt,
-					},
-				);
-				return { item, result };
-			});
-
-			const outcomes = await Promise.allSettled(promises);
-			const errors: unknown[] = [];
-
-			for (const outcome of outcomes) {
-				if (outcome.status === "fulfilled") {
-					const { item, result } = outcome.value;
-					remaining = remaining.filter((candidate) => candidate.id !== item.id);
-					if (dashboard?.activeVisit?.id === result.visit.id) {
-						applyAcceptedVisitResponse(result);
-					}
-				} else {
-					errors.push(outcome.reason);
-				}
-			}
-
-			await savePendingVisitSaves(remaining, activeOrganizationId);
-
-			if (errors.length > 0) {
-				throw errors[0];
-			}
-
-			await refreshPendingVisitSaveState();
-		} catch (syncError) {
-			await savePendingVisitSaves(remaining, activeOrganizationId);
-			await refreshPendingVisitSaveState();
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Сервер пока не принял очередь",
-						syncError,
-					),
-				);
-			}
-		} finally {
-			setIsPendingVisitSyncing(false);
-		}
-	}
-
-	async function submitSpeechChunk(
-		input: SpeechChunkUploadInput,
-	): Promise<SpeechTranscriptionResponse> {
-		const response = await fetch("/api/speech/transcribe-chunk", {
-			method: "POST",
-			headers: denteClinicalMutationHeaders({
-				"Content-Type": "application/json",
-			}),
-			body: JSON.stringify(input),
-		});
-		const payload = (await response.json()) as SpeechTranscriptionResponse & {
-			error?: unknown;
-			message?: unknown;
-		};
-		if (
-			payload.chunk?.status === "needs_provider_key" &&
-			!payload.chunk.transcript.trim()
-		) {
-			throw new Error(
-				"Серверное распознавание сейчас недоступно; аудио осталось в локальной очереди.",
-			);
-		}
-		if (!response.ok) {
-			const rawDetail =
-				typeof payload.message === "string"
-					? payload.message
-					: typeof payload.error === "string"
-						? payload.error
-						: null;
-			const detail =
-				operatorReadableErrorDetail(rawDetail) ??
-				responseStatusFailureLabel(response);
-			throw new Error(`РаспознаИвание речи не выполнено: ${detail}`);
-		}
-		return payload;
-	}
-
-	function speechChunkApplyKey(result: SpeechTranscriptionResponse): string {
-		return `${result.chunk.recordingId}:${result.chunk.chunkIndex}`;
-	}
-
-	function speechTranscriptionMatchesActiveVisit(
-		result: SpeechTranscriptionResponse,
-	): boolean {
-		if (
-			result.chunk.source !== "visit" ||
-			!result.chunk.visitId ||
-			!dashboard?.activeVisit?.id
-		)
-			return true;
-		return result.chunk.visitId === dashboard?.activeVisit?.id;
-	}
-
-	function applySpeechTranscription(result: SpeechTranscriptionResponse) {
-		setSpeechGatewayStatus(result.gateway);
-		void loadSpeechRecordingRecovery({ silent: true });
-		const applyKey = speechChunkApplyKey(result);
-		if (appliedSpeechChunkKeysRef.current.has(applyKey)) {
-			setSpeechStatusNote(
-				`Фрагмент ${result.chunk.chunkIndex + 1} уже учтен, дубль не добавлен.`,
-			);
-			return;
-		}
-		if (!speechTranscriptionMatchesActiveVisit(result)) {
-			setSpeechStatusNote(
-				"Фрагмент распознавания относится к другому приему и не добавлен в текущую карту.",
-			);
-			return;
-		}
-		const text = result.chunk.transcript.trim();
-		const quality = result.chunk.quality;
-		setSpeechLastQuality(quality);
-		const qualitySuffix =
-			quality.level === "clear"
-				? ""
-				: ` В· ${speechQualityLabels[quality.level]}`;
-		if (text) {
-			appliedSpeechChunkKeysRef.current.add(applyKey);
-			appendVisitDictationText(text);
-			setSpeechStatusNote(
-				result.chunk.status === "transcribed"
-					? `${result.chunk.providerLabel}: фрагмент ${result.chunk.chunkIndex + 1}${qualitySuffix}`
-					: `Сохранен фрагмент ${result.chunk.chunkIndex + 1}${qualitySuffix}: ${quality.nextAction}`,
-			);
-			return;
-		}
-		setSpeechStatusNote(
-			`${speechQualityLabels[quality.level]}: ${quality.nextAction}`,
-		);
-	}
-
-	async function assembleSpeechRecording(
-		recordingId: string,
-		options: { silent?: boolean } = {},
-	) {
-		try {
-			const params = new URLSearchParams();
-			if (dashboard?.activeVisit?.id)
-				params.set("visitId", dashboard?.activeVisit?.id);
-			if (dashboard?.activeVisit?.patientId)
-				params.set("patientId", dashboard?.activeVisit?.patientId);
-			const scopedQuery = params.toString();
-			const response = await fetch(
-				`/api/speech/recordings/${encodeURIComponent(recordingId)}/assemble${scopedQuery ? `?${scopedQuery}` : ""}`,
-				{
-					cache: "no-store",
-					headers: denteClinicalReadHeaders(),
-				},
-			);
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Запись распознавания не собрана",
-					),
-				);
-			const assembly = (await response.json()) as SpeechRecordingAssembly;
-			const assembledTranscript = assembly.transcript.trim();
-			if (assembledTranscript) {
-				visitDraftUserEditedRef.current = true;
-				setTranscript((current: any) => {
-					const normalizedCurrent = current.replace(/\s+/g, " ").trim();
-					const normalizedAssembled = assembledTranscript
-						.replace(/\s+/g, " ")
-						.trim();
-					if (
-						!normalizedAssembled ||
-						normalizedCurrent.includes(normalizedAssembled)
-					)
-						return current;
-					return [current.trim(), assembledTranscript]
-						.filter(Boolean)
-						.join("\n");
-				});
-			}
-			if (
-				!options.silent ||
-				assembly.missingChunkIndexes.length ||
-				assembly.warnings.length
-			) {
-				const missing = assembly.missingChunkIndexes.length
-					? ` В· пропуски ${assembly.missingChunkIndexes.join(", ")}`
-					: "";
-				setSpeechStatusNote(
-					`Запись собрана: ${assembly.chunkCount} фрагм.${missing}`,
-				);
-			}
-			void loadSpeechRecordingRecovery({ silent: true });
-			return assembly;
-		} catch (assemblyError) {
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Не удалось собрать запись распознавания",
-						assemblyError,
-					),
-				);
-			}
-			return null;
-		}
-	}
-
-	function trackSpeechUpload(upload: Promise<void>) {
-		speechUploadPromisesRef.current.add(upload);
-		upload
-			.finally(() => speechUploadPromisesRef.current.delete(upload))
-			.catch(() => undefined);
-	}
-
-	async function waitForSpeechUploads() {
-		const pendingUploads = Array.from(speechUploadPromisesRef.current);
-		if (pendingUploads.length) {
-			await Promise.allSettled(pendingUploads);
-		}
-	}
-
-	async function finalizeSpeechRecording(recordingId: string) {
-		await waitForSpeechUploads();
-		await flushPendingSpeechChunks({ silent: true });
-		await assembleSpeechRecording(recordingId, { silent: true });
-	}
-
-	async function flushPendingSpeechChunks(options: { silent?: boolean } = {}) {
-		const queue = await loadPendingSpeechChunks(activeOrganizationId);
-		if (!queue.length) {
-			await refreshPendingSpeechChunkState();
-			return;
-		}
-
-		if (!isOnline) {
-			await refreshPendingSpeechChunkState();
-			if (!options.silent) {
-				setSpeechStatusNote(
-					`Очередь распознавания сохранена локально: ${queue.length} фрагм., отправка после подключения.`,
-				);
-			}
-			return;
-		}
-
-		const currentGateway =
-			(await loadSpeechGatewayStatus({ silent: true })) ?? speechGatewayStatus;
-		const hasAudioWaitingForServer = queue.some((item) =>
-			Boolean(item.audioBase64?.trim()),
-		);
-		if (hasAudioWaitingForServer && !speechGatewayCanUpload(currentGateway)) {
-			await refreshPendingSpeechChunkState();
-			if (!options.silent) {
-				setSpeechStatusNote(
-					`Очередь распознавания сохранена: ${queue.length} фрагм. Серверное распознавание еще не готово, аудио не удалено.`,
-				);
-			}
-			return;
-		}
-
-		const flushedRecordingIds = new Set<string>();
-		try {
-			for (const item of queue) {
-				const result = await submitSpeechChunk(item);
-				applySpeechTranscription(result);
-				await removePendingSpeechChunkById(item.id, activeOrganizationId);
-				if (speechTranscriptionMatchesActiveVisit(result))
-					flushedRecordingIds.add(item.recordingId);
-				await refreshPendingSpeechChunkState();
-			}
-			for (const recordingId of flushedRecordingIds) {
-				await assembleSpeechRecording(recordingId, { silent: true });
-			}
-		} catch (syncError) {
-			await refreshPendingSpeechChunkState();
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"Очередь распознавания пока не отправлена",
-						syncError,
-					),
-				);
-			}
-		}
-	}
-
 	function applyUiPreferences(preferences: UiPreferences) {
 		setUiLanguage(preferences.uiLanguage);
 		setSelectedWorkspaceRole(preferences.selectedWorkspaceRole);
@@ -4544,6 +3522,7 @@ export function useAppLogic(): any {
 		setPostVisitCareTopic(preferences.postVisitCareTopic);
 		setPricelistSourceKind(preferences.pricelistSourceKind);
 		setUsePricelistAi(preferences.usePricelistAi);
+		setOdontogramUseSurfaces(preferences.odontogramUseSurfaces ?? false);
 		setRecognitionKind(preferences.recognitionKind);
 		setRecognitionTarget(preferences.recognitionTarget);
 		setImportSourceKind(preferences.importSourceKind);
@@ -4703,6 +3682,7 @@ export function useAppLogic(): any {
 			postVisitCareTopic,
 			pricelistSourceKind,
 			usePricelistAi,
+			odontogramUseSurfaces,
 			recognitionKind,
 			recognitionTarget,
 			importSourceKind,
@@ -4757,6 +3737,7 @@ export function useAppLogic(): any {
 		postVisitCareTopic,
 		pricelistSourceKind,
 		usePricelistAi,
+		odontogramUseSurfaces,
 		recognitionKind,
 		recognitionTarget,
 		importSourceKind,
@@ -4845,7 +3826,7 @@ export function useAppLogic(): any {
 		if (typeof window === "undefined") return undefined;
 		if (!imagingPreviewWorkset.length) {
 			setImagingPreviewObjectUrls((current) => {
-				revokeObjectUrlMap(current);
+				auth.revokeObjectUrlMap(current);
 				return {};
 			});
 			return undefined;
@@ -4861,13 +3842,13 @@ export function useAppLogic(): any {
 						return [study.id, study.previewUrl];
 					const response = await fetch(study.previewUrl, {
 						cache: "no-store",
-						headers: denteClinicalReadHeaders(),
+						headers: auth.denteClinicalReadHeaders(),
 						signal: abortController.signal,
 					});
 					if (!response.ok) return null;
 					const blobUrl = URL.createObjectURL(await response.blob());
 					if (cancelled) {
-						revokeObjectUrlIfNeeded(blobUrl);
+						auth.revokeObjectUrlIfNeeded(blobUrl);
 						return null;
 					}
 					createdUrls.push(blobUrl);
@@ -4877,7 +3858,7 @@ export function useAppLogic(): any {
 		)
 			.then((entries) => {
 				if (cancelled) {
-					createdUrls.forEach(revokeObjectUrlIfNeeded);
+					createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
 					return;
 				}
 				const next = Object.fromEntries(
@@ -4886,16 +3867,16 @@ export function useAppLogic(): any {
 				const nextUrls = new Set(Object.values(next));
 				setImagingPreviewObjectUrls((current) => {
 					Object.values(current).forEach((url) => {
-						if (!nextUrls.has(url)) revokeObjectUrlIfNeeded(url);
+						if (!nextUrls.has(url)) auth.revokeObjectUrlIfNeeded(url);
 					});
 					return next;
 				});
 			})
 			.catch(() => {
-				createdUrls.forEach(revokeObjectUrlIfNeeded);
+				createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
 				if (!cancelled) {
 					setImagingPreviewObjectUrls((current) => {
-						revokeObjectUrlMap(current);
+						auth.revokeObjectUrlMap(current);
 						return {};
 					});
 				}
@@ -4904,7 +3885,7 @@ export function useAppLogic(): any {
 		return () => {
 			cancelled = true;
 			abortController.abort();
-			createdUrls.forEach(revokeObjectUrlIfNeeded);
+			createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
 		};
 	}, [
 		imagingPreviewSignature,
@@ -5141,9 +4122,7 @@ export function useAppLogic(): any {
 			() => {
 				dirtyAppointmentIds.forEach(
 					(appointmentId) =>
-						void saveAppointmentSchedule(appointmentId, {
-							closeEditorOnSave: false,
-						}),
+						void saveAppointmentSchedule(appointmentId, { closeEditorOnSave: false }),
 				);
 			},
 			appointmentRetryingErrors ? 5000 : 1200,
@@ -5171,9 +4150,7 @@ export function useAppLogic(): any {
 			});
 			Array.from(appointmentScheduleDirtyIds).forEach((appointmentId) => {
 				if (appointmentScheduleSaveStates[appointmentId] !== "saving") {
-					void saveAppointmentSchedule(appointmentId, {
-						closeEditorOnSave: false,
-					});
+					void saveAppointmentSchedule(appointmentId, { closeEditorOnSave: false });
 				}
 			});
 		};
@@ -5322,10 +4299,12 @@ export function useAppLogic(): any {
 	}, []);
 
 	useEffect(() => {
-		const allowedViews = getFilteredAppViews(selectedWorkspaceRole);
-		if (!allowedViews.includes(currentView)) {
-			setCurrentView("shift");
-			window.location.hash = "shift";
+		const flags = useWorkspaceProfileStore.getState();
+		const allowedViews = filterViewsByFlags(getFilteredAppViews(selectedWorkspaceRole), flags);
+		if (!allowedViews.includes(currentView) && allowedViews.length > 0) {
+			const fallback = allowedViews[0]!;
+			setCurrentView(fallback);
+			window.location.hash = fallback;
 		}
 	}, [selectedWorkspaceRole, currentView]);
 
@@ -5582,16 +4561,6 @@ export function useAppLogic(): any {
 		scheduleDoctorFilterId,
 		scheduleStatusFilter,
 	]);
-
-	const activePatient = useMemo(() => {
-		if (!dashboard) return null;
-		return (
-			findPatient(dashboard.patients, dashboard?.activeVisit?.patientId) ??
-			dashboard?.patients?.find((patient) => patient.status === "active") ??
-			null
-		);
-	}, [dashboard]);
-
 	useEffect(() => {
 		if (!dashboard) return;
 		setSelectedPatientId((current: any) =>
@@ -5601,112 +4570,9 @@ export function useAppLogic(): any {
 				: (activePatient?.id ?? null),
 		);
 	}, [activePatient?.id, dashboard?.patients?.length]);
-
-	const selectedPatient = useMemo(() => {
-		if (!dashboard) return null;
-		return (
-			(selectedPatientId
-				? findPatient(dashboard.patients, selectedPatientId)
-				: null) ?? activePatient
-		);
-	}, [activePatient, dashboard, selectedPatientId]);
-	const documentPatient = selectedPatient ?? activePatient;
-	const documentPatientMatchesActiveVisit = Boolean(
-		documentPatient && dashboard?.activeVisit?.patientId === documentPatient.id,
-	);
-	const paymentPatientContextReady = Boolean(
-		documentPatient && documentPatientMatchesActiveVisit,
-	);
-	const paymentPatientContextMessage = !documentPatient
-		? "Выберите пациента текущего приема перед записью оплаты."
-		: !documentPatientMatchesActiveVisit
-			? `Сейчас выбран пациент ${documentPatient.fullName}, но активный прием открыт для другого пациента. Переключите активный прием перед записью оплаты.`
-			: "";
-
-	useEffect(() => {
-		setPaymentFeedback("");
-		setPaymentPayerFullName("");
-		setPaymentPayerInn("");
-		setPaymentPayerBirthDate("");
-		setPaymentPayerIdentityDocument("");
-		setPaymentPayerRelationship("пациент");
-		setPaymentTaxDeductionCode("");
-	}, [documentPatient?.id]);
-
-	useEffect(() => {
-		setPatientCoreDraft(patientCoreDraftFromPatient(selectedPatient));
-		setPatientCoreSaveState("idle");
-		setPatientCoreDirty(false);
-	}, [selectedPatient?.id, selectedPatient?.updatedAt]);
-
-	useEffect(() => {
-		setPatientAdministrativeProfileDraft(
-			patientAdministrativeProfileDraftFromPatient(selectedPatient),
-		);
-		setPatientAdministrativeProfileSaveState("idle");
-		setPatientAdministrativeProfileDirty(false);
-	}, [selectedPatient?.id, selectedPatient?.updatedAt]);
-
 	useEffect(() => {
 		clinicProfileDraftRef.current = clinicProfileDraft;
 	}, [clinicProfileDraft]);
-
-	useEffect(() => {
-		patientCoreDraftRef.current = patientCoreDraft;
-	}, [patientCoreDraft]);
-
-	useEffect(() => {
-		patientAdministrativeProfileDraftRef.current =
-			patientAdministrativeProfileDraft;
-	}, [patientAdministrativeProfileDraft]);
-
-	const patientAdministrativeProfileValidationMessage = useMemo(
-		() =>
-			patientAdministrativeProfileDraftIssue(patientAdministrativeProfileDraft),
-		[patientAdministrativeProfileDraft],
-	);
-
-	useEffect(() => {
-		if (
-			!selectedPatient ||
-			!patientAdministrativeProfileDirty ||
-			patientAdministrativeProfileSaveState === "saving" ||
-			patientAdministrativeProfileValidationMessage
-		) {
-			return undefined;
-		}
-		const saveTimer = window.setTimeout(() => {
-			void savePatientAdministrativeProfile();
-		}, 1400);
-		return () => window.clearTimeout(saveTimer);
-	}, [
-		selectedPatient?.id,
-		patientAdministrativeProfileDirty,
-		patientAdministrativeProfileDraft,
-		patientAdministrativeProfileSaveState,
-		patientAdministrativeProfileValidationMessage,
-	]);
-
-	const activeAppointment = useMemo(() => {
-		if (!dashboard) return null;
-		return (
-			dashboard.appointments?.find(
-				(appointment) =>
-					appointment.id === dashboard?.activeVisit?.appointmentId,
-			) ?? null
-		);
-	}, [dashboard]);
-
-	const activeDoctor = useMemo(() => {
-		if (!dashboard || !activeAppointment) return null;
-		return (
-			dashboard?.clinicSettings?.staff?.find(
-				(member) =>
-					member.id === activeAppointment.doctorUserId && member.active,
-			) ?? null
-		);
-	}, [activeAppointment, dashboard]);
-
 	const telegramLinkStaffOptions = useMemo(
 		() =>
 			(dashboard?.clinicSettings?.staff || []).filter(
@@ -5791,33 +4657,6 @@ export function useAppLogic(): any {
 		);
 	}
 
-	const activeChair = useMemo(() => {
-		if (!dashboard || !activeAppointment) return null;
-		return (
-			dashboard?.clinicSettings?.chairs?.find(
-				(chair) => chair.id === activeAppointment.chairId && chair.active,
-			) ?? null
-		);
-	}, [activeAppointment, dashboard]);
-
-	const patientInsightById = useMemo(() => {
-		if (!dashboard)
-			return new Map<string, Dashboard["patientInsights"][number]>();
-		return new Map(
-			(dashboard?.patientInsights ?? []).map((insight) => [
-				insight.patientId,
-				insight,
-			]),
-		);
-	}, [dashboard]);
-
-	const activePatientInsight = activePatient
-		? (patientInsightById.get(activePatient.id) ?? null)
-		: null;
-	const activePatientCallablePhone =
-		activePatient?.phone?.trim().replace(/[^\d+]/g, "") ?? "";
-	const activePatientHasCallablePhone = activePatientCallablePhone.length >= 5;
-
 	const appointmentReadinessById = useMemo(() => {
 		if (!dashboard)
 			return new Map<string, Dashboard["appointmentReadiness"][number]>();
@@ -5828,18 +4667,6 @@ export function useAppLogic(): any {
 			]),
 		);
 	}, [dashboard]);
-
-	const filteredPatients = useMemo(() => {
-		if (!dashboard) return [];
-		const normalizedQuery = query.trim().toLowerCase();
-		if (!normalizedQuery) return dashboard.patients;
-		return (dashboard.patients || []).filter((patient) => {
-			return `${patient.fullName} ${patient.phone ?? ""}`
-				.toLowerCase()
-				.includes(normalizedQuery);
-		});
-	}, [dashboard, query]);
-
 	const activeDocuments = useMemo(() => {
 		if (!dashboard || !documentPatient) return [];
 		return (dashboard.documents || []).filter(
@@ -6130,6 +4957,7 @@ export function useAppLogic(): any {
 				draftDocumentAmountRub: 0,
 				openTreatmentItems: 0,
 				unpaidDocuments: 0,
+				insuranceCoverageRub: 0,
 			};
 		const activePlanItems = activeTreatmentPlanItems.filter(
 			(item) => item.status !== "cancelled",
@@ -6165,17 +4993,57 @@ export function useAppLogic(): any {
 						payment.status === "paid" && payment.documentId === document.id,
 				),
 		).length;
+		let insuranceCoverageRub = 0;
+		if (
+			documentPatient?.insuranceContractId ||
+			documentPatient?.administrativeProfile?.insuranceContractId
+		) {
+			const contractId =
+				documentPatient.insuranceContractId ||
+				documentPatient.administrativeProfile?.insuranceContractId;
+			const contract = dashboard?.insuranceContracts?.find(
+				(c: any) => c.id === contractId,
+			);
+			if (contract && contract.isActive) {
+				for (const item of activePlanItems) {
+					const service = dashboard.serviceCatalog?.find(
+						(s: any) => s.id === item.serviceId,
+					);
+					const category = service?.category || "other";
+					let pct = 0;
+					if (
+						category === "therapy" ||
+						category === "consultation" ||
+						category === "periodontology"
+					)
+						pct = contract.coverageTherapyPct || 0;
+					else if (category === "surgery")
+						pct = contract.coverageSurgeryPct || 0;
+					else if (category === "orthodontics" || category === "prosthetics")
+						pct = contract.coverageOrthoPct || 0;
+					else if (category === "hygiene")
+						pct = contract.coverageHygienePct || 0;
+
+					insuranceCoverageRub += treatmentLineTotal(item) * (pct / 100);
+				}
+			}
+		}
+
 		return {
 			totalPlannedRub,
 			totalDiscountRub,
 			totalPaidRub,
-			totalDueRub: Math.max(0, totalPlannedRub - totalPaidRub),
+			totalDueRub: Math.max(
+				0,
+				totalPlannedRub - insuranceCoverageRub - totalPaidRub,
+			),
 			taxDeductionEligibleRub,
 			draftDocumentAmountRub,
 			openTreatmentItems: activePlanItems.filter(
 				(item) => item.status !== "completed",
 			).length,
 			unpaidDocuments,
+			insuranceCoverageRub,
 		};
 	}, [
 		activePayments,
@@ -7620,7 +6488,7 @@ export function useAppLogic(): any {
 				`/api/imaging/studies/${studyId}/viewer-session`,
 				{
 					cache: "no-store",
-					headers: denteClinicalReadHeaders(),
+					headers: auth.denteClinicalReadHeaders(),
 				},
 			);
 			if (!response.ok)
@@ -7686,7 +6554,7 @@ export function useAppLogic(): any {
 				`/api/imaging/studies/${selectedImagingStudy.id}/viewer-session`,
 				{
 					method: "PUT",
-					headers: denteClinicalMutationHeaders({
+					headers: auth.denteClinicalMutationHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -7950,84 +6818,6 @@ export function useAppLogic(): any {
 			.sort(
 				(left, right) => right.utilizationPercent - left.utilizationPercent,
 			)[0] ?? null;
-
-	const visitCloseChecklist = dashboard?.visitCloseChecklist ?? null;
-	const visitWarnings =
-		visitCloseChecklist?.items.filter((item) => !item.ready) ?? [];
-	const primaryVisitWarning =
-		visitWarnings?.find((item) => item.blocking) ?? visitWarnings[0] ?? null;
-	const speechProviderRuntimeById = useMemo(
-		() =>
-			new Map(
-				(Array.isArray(speechProviderRuntimeStatuses)
-					? speechProviderRuntimeStatuses
-					: []
-				).map((provider) => [provider.providerId, provider]),
-			),
-		[speechProviderRuntimeStatuses],
-	);
-	const speechProviderHealthById = useMemo(
-		() =>
-			new Map(
-				(speechGatewayHealthReport?.providers ?? []).map((provider) => [
-					provider.providerId,
-					provider,
-				]),
-			),
-		[speechGatewayHealthReport],
-	);
-	const activeSpeechProviderHealth = useMemo(() => {
-		if (!speechGatewayHealthReport) return null;
-		return (
-			speechGatewayHealthReport.providers?.find(
-				(provider) =>
-					provider.providerId === speechGatewayHealthReport.activeProviderId,
-			) ?? null
-		);
-	}, [speechGatewayHealthReport]);
-	const savedVisitNoteForm = useMemo(
-		() =>
-			dashboard
-				? visitNoteFormFromVisit(dashboard.activeVisit)
-				: emptyVisitNoteForm,
-		[dashboard],
-	);
-	const isVisitNoteDirty = visitNoteFieldDefinitions.some(
-		({ key }) => visitNoteForm[key] !== savedVisitNoteForm[key],
-	);
-	const hasVisitNoteFormText = visitNoteFieldDefinitions.some(
-		({ key }) => visitNoteForm[key].trim().length > 0,
-	);
-	const hasVisitTranscriptText = transcript.trim().length > 0;
-	const visitDraftBuildMissingSteps = [
-		!activePatient ? "выберите пациента" : null,
-		!hasVisitTranscriptText
-			? "добавьте текст диктовки или нажмите голосовую запись"
-			: null,
-	].filter((step): step is string => Boolean(step));
-	const visitDraftReadyToBuild = visitDraftBuildMissingSteps.length === 0;
-	const visitNoteAcceptMissingSteps = [
-		!hasVisitNoteFormText
-			? "заполните хотя бы одно поле ЭМК или соберите черновик из диктовки"
-			: null,
-		!draft && !isVisitNoteDirty
-			? "внесите правку в ЭМК или подготовьте новый черновик"
-			: null,
-	].filter((step): step is string => Boolean(step));
-	const visitNoteReadyToAccept = visitNoteAcceptMissingSteps.length === 0;
-	const visitNoteActionLabel = isDraftAccepting
-		? "Сохраняю"
-		: draft
-			? "Принять"
-			: isVisitNoteDirty
-				? "Сохранить"
-				: "Сохранено";
-	const visitNoteStatusLabel = draft
-		? "черновик готов"
-		: isVisitNoteDirty
-			? "есть правки"
-			: "сохранено";
-	const visitHasSavedNote = hasVisitNoteFormText && !draft && !isVisitNoteDirty;
 	const visitWorkflowSteps: Array<{
 		key: string;
 		label: string;
@@ -8415,159 +7205,14 @@ export function useAppLogic(): any {
 		},
 	];
 
-	function scrollToVisitArea(selector: string) {
-		window.location.hash = "visit";
-		window.requestAnimationFrame(() => {
-			motionSafeScrollIntoView(document.querySelector(selector), {
-				block: "start",
-			});
-		});
-	}
-
-	function appendToTranscript(text: string) {
-		visitDraftUserEditedRef.current = true;
-		setClearedTranscriptSnapshot(null);
-		setTranscript((current: any) =>
-			appendSpeechTextWithoutDuplicateTail(
-				current,
-				text,
-				speechGatewayStatus?.chunkingPolicy.dedupeWindowChars ?? 600,
-			),
-		);
-	}
-
-	function updateVisitNoteField(field: VisitNoteField, value: string) {
-		visitDraftUserEditedRef.current = true;
-		setVisitNoteForm((current) => ({ ...current, [field]: value }));
-	}
-
-	function buildOfflineDraft() {
-		if (!hasVisitTranscriptText) {
-			setError("Добавьте текст диктовки перед локальным разбором.");
-			return;
-		}
-		visitDraftUserEditedRef.current = true;
-		const fallbackDraft = buildOfflineVisitDraftFromTranscript(
-			transcript,
-			selectedSpecialty,
-		);
-		setDraft(fallbackDraft);
-		setVisitNoteForm(visitNoteFormFromDraft(fallbackDraft));
-		scrollToVisitArea(".visit-note-panel");
-	}
-
-	function openVisitWarningAction() {
-		if (!primaryVisitWarning) {
-			scrollToVisitArea(".close-checklist");
-			return;
-		}
-		if (primaryVisitWarning.section === "visit") {
-			if (primaryVisitWarning.id === "ai-draft-review") {
-				scrollToVisitArea(".ai-draft");
-				return;
-			}
-			if (primaryVisitWarning.id === "clinical-rules") {
-				const warningPanel = document.querySelector(
-					".clinical-rule-panel-compact",
-				);
-				if (warningPanel instanceof HTMLDetailsElement) {
-					warningPanel.open = true;
-				}
-				scrollToVisitArea(".clinical-rule-panel");
-				return;
-			}
-			scrollToVisitArea(".close-checklist");
-			return;
-		}
-		window.location.hash = primaryVisitWarning.section;
-	}
-
-	function openScheduleWarning(warning: ScheduleWarning) {
-		if (warning.actionLabel.toLowerCase().includes("связ")) {
-			window.location.hash = "communications";
-			return;
-		}
-		if (warning.actionLabel.toLowerCase().includes("оплат")) {
-			window.location.hash = "finance";
-			return;
-		}
-		if (warning.actionLabel.toLowerCase().includes("документ")) {
-			window.location.hash = "documents";
-			return;
-		}
-		if (warning.actionLabel.toLowerCase().includes("роль")) {
-			window.location.hash = "settings";
-			setSettingsTab("clinic");
-			return;
-		}
-		if (warning.actionLabel.toLowerCase().includes("пациент")) {
-			window.location.hash = "patients";
-			return;
-		}
-		window.location.hash = "visit";
-	}
-
-	async function createPatient() {
-		if (isPatientCreating) {
-			setError("Дождитесь завершения создания карточки пациента.");
-			return;
-		}
-		const fullName = newPatientName.trim();
-		if (!fullName) {
-			setError("Укажите ФИО пациента перед созданием карточки.");
-			return;
-		}
-		const payload = {
-			fullName,
-			phone: nullablePatientDraftValue(newPatientPhone),
-			birthDate: nullablePatientDraftValue(newPatientBirthDate),
-		};
-		setIsPatientCreating(true);
-		try {
-			const response = await fetch("/api/patients", {
-				method: "POST",
-				headers: denteClinicalMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(payload),
-			});
-			if (!response.ok) {
-				setError(await responseErrorMessage(response, "Пациент не создан"));
-				return;
-			}
-			const patient = (await response.json()) as Patient;
-			setNewPatientName("");
-			setNewPatientPhone("");
-			setNewPatientBirthDate("");
-			setSelectedPatientId(patient.id);
-			setQuery(patient.fullName);
-			setDashboard((current) =>
-				current
-					? {
-							...current,
-							patients: [
-								patient,
-								...current.patients.filter((entry) => entry.id !== patient.id),
-							],
-						}
-					: current,
-			);
-			setError(null);
-		} catch (patientError) {
-			setError(
-				operatorWorkflowFailureMessage("Пациент не создан", patientError),
-			);
-		} finally {
-			setIsPatientCreating(false);
-		}
-	}
-
 	async function changeClinicMode(mode: ClinicMode) {
 		if (!(await saveClinicProfileIfDirty())) return;
 		try {
 			const response = await fetch("/api/settings/clinic/mode", {
 				method: "POST",
-				headers: settingsAccessHeaders({ "Content-Type": "application/json" }),
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
 				body: JSON.stringify({ mode }),
 			});
 			if (response.ok) {
@@ -8587,6 +7232,20 @@ export function useAppLogic(): any {
 				);
 				setClinicProfileDirty(false);
 				setClinicProfileSaveState("saved");
+
+				// Refetch workspace profile so that sidebar tabs reflect the updated ClinicMode flags immediately
+				try {
+					const profileRes = await fetch("/api/workspace/profile");
+					if (profileRes.ok) {
+						const updatedFlags = await profileRes.json();
+						useWorkspaceProfileStore.getState().hydrate(updatedFlags);
+					}
+				} catch (profileError) {
+					console.error(
+						"Failed to sync workspace profile flags after mode change:",
+						profileError,
+					);
+				}
 				return;
 			}
 			if (!response.ok) {
@@ -8603,6 +7262,119 @@ export function useAppLogic(): any {
 		}
 	}
 
+	async function createServiceCatalogItem(data: any) {
+		try {
+			const response = await fetch("/api/settings/catalog", {
+				method: "POST",
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify(data),
+			});
+			if (!response.ok) {
+				setError(
+					await responseErrorMessage(response, "Не удалось создать услугу"),
+				);
+				return;
+			}
+			await loadDashboard();
+		} catch (error) {
+			setError("Сетевая ошибка при создании услуги");
+		}
+	}
+
+	async function updateServiceCatalogItem(serviceId: string, updates: any) {
+		try {
+			const response = await fetch(`/api/settings/catalog/${serviceId}`, {
+				method: "PUT",
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify(updates),
+			});
+			if (!response.ok) {
+				setError(
+					await responseErrorMessage(response, "Не удалось обновить услугу"),
+				);
+				return;
+			}
+			await loadDashboard();
+		} catch (error) {
+			setError("Сетевая ошибка при обновлении услуги");
+		}
+	}
+
+	async function deleteServiceCatalogItem(serviceId: string) {
+		try {
+			const response = await fetch(`/api/settings/catalog/${serviceId}`, {
+				method: "DELETE",
+				headers: auth.settingsAccessHeaders(),
+			});
+			if (!response.ok) {
+				setError(
+					await responseErrorMessage(response, "Не удалось удалить услугу"),
+				);
+				return;
+			}
+			await loadDashboard();
+		} catch (error) {
+			setError("Сетевая ошибка при удалении услуги");
+		}
+	}
+
+	async function createStaffMember(data: any) {
+		try {
+			const response = await fetch("/api/settings/staff", {
+				method: "POST",
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify(data),
+			});
+			if (!response.ok) {
+				setError(
+					await responseErrorMessage(
+						response,
+						"Не удалось добавить сотрудника",
+					),
+				);
+				return;
+			}
+			await loadDashboard();
+		} catch (error) {
+			setError("Сетевая ошибка при добавлении сотрудника");
+		}
+	}
+
+	async function updateStaffMember(staffId: string, updates: any) {
+		try {
+			const response = await fetch(`/api/settings/staff/${staffId}`, {
+				method: "PUT",
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify(updates),
+			});
+			if (!response.ok) {
+				setError(
+					await responseErrorMessage(
+						response,
+						"Не удалось обновить профиль сотрудника",
+					),
+				);
+				return;
+			}
+			await loadDashboard();
+		} catch (error) {
+			setError(
+				operatorWorkflowFailureMessage(
+					"Не удалось обновить профиль сотрудника",
+					error,
+				),
+			);
+		}
+	}
+
 	async function addStaffMember(role: StaffRole) {
 		const fullName = newStaffName.trim();
 		if (!fullName) {
@@ -8613,7 +7385,9 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/settings/staff", {
 				method: "POST",
-				headers: settingsAccessHeaders({ "Content-Type": "application/json" }),
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
 				body: JSON.stringify({
 					fullName,
 					role,
@@ -8643,355 +7417,6 @@ export function useAppLogic(): any {
 		}
 	}
 
-	async function saveStaffSchedule(staffId: string): Promise<boolean> {
-		const draft = staffScheduleDrafts[staffId];
-		if (!draft) return false;
-		const expectedSignature = staffScheduleDraftSignature(draft);
-		setStaffScheduleSavingId(staffId);
-		setStaffScheduleSaveStates((current: any) => ({
-			...current,
-			[staffId]: "saving",
-		}));
-		try {
-			const response = await fetch(
-				`/api/settings/staff/${staffId}/working-hours`,
-				{
-					method: "PUT",
-					headers: settingsAccessHeaders({
-						"Content-Type": "application/json",
-					}),
-					body: JSON.stringify({
-						workingHours: staffWorkingHoursFromDraft(draft),
-					}),
-				},
-			);
-			if (!response.ok) {
-				setStaffScheduleSaveStates((current: any) => ({
-					...current,
-					[staffId]: "error",
-				}));
-				setError(
-					await responseErrorMessage(
-						response,
-						"Расписание сотрудника не сохранено",
-					),
-				);
-				return false;
-			}
-			const latestDraft = staffScheduleDraftsRef.current[staffId];
-			const latestMatchesSaved = latestDraft
-				? staffScheduleDraftSignature(latestDraft) === expectedSignature
-				: true;
-			if (latestMatchesSaved) {
-				setStaffScheduleDirtyIds((current) => {
-					const next = new Set(current);
-					next.delete(staffId);
-					return next;
-				});
-			}
-			setStaffScheduleSaveStates((current: any) => ({
-				...current,
-				[staffId]: latestMatchesSaved ? "saved" : "idle",
-			}));
-			await loadDashboard();
-			return true;
-		} catch (scheduleSaveError) {
-			setStaffScheduleSaveStates((current: any) => ({
-				...current,
-				[staffId]: "error",
-			}));
-			setError(
-				operatorWorkflowFailureMessage(
-					"Расписание сотрудника не сохранено",
-					scheduleSaveError,
-				),
-			);
-			return false;
-		} finally {
-			setStaffScheduleSavingId(null);
-		}
-	}
-
-	async function saveChairSchedule(chairId: string): Promise<boolean> {
-		const draft = chairScheduleDrafts[chairId];
-		if (!draft) return false;
-		const expectedSignature = staffScheduleDraftSignature(draft);
-		setChairScheduleSavingId(chairId);
-		setChairScheduleSaveStates((current) => ({
-			...current,
-			[chairId]: "saving",
-		}));
-		try {
-			const response = await fetch(
-				`/api/settings/chairs/${chairId}/working-hours`,
-				{
-					method: "PUT",
-					headers: settingsAccessHeaders({
-						"Content-Type": "application/json",
-					}),
-					body: JSON.stringify({
-						workingHours: staffWorkingHoursFromDraft(draft),
-					}),
-				},
-			);
-			if (!response.ok) {
-				setChairScheduleSaveStates((current) => ({
-					...current,
-					[chairId]: "error",
-				}));
-				setError(
-					await responseErrorMessage(
-						response,
-						"Расписание кресла не сохранено",
-					),
-				);
-				return false;
-			}
-			const latestDraft = chairScheduleDraftsRef.current[chairId];
-			const latestMatchesSaved = latestDraft
-				? staffScheduleDraftSignature(latestDraft) === expectedSignature
-				: true;
-			if (latestMatchesSaved) {
-				setChairScheduleDirtyIds((current) => {
-					const next = new Set(current);
-					next.delete(chairId);
-					return next;
-				});
-			}
-			setChairScheduleSaveStates((current) => ({
-				...current,
-				[chairId]: latestMatchesSaved ? "saved" : "idle",
-			}));
-			await loadDashboard();
-			return true;
-		} catch (scheduleSaveError) {
-			setChairScheduleSaveStates((current) => ({
-				...current,
-				[chairId]: "error",
-			}));
-			setError(
-				operatorWorkflowFailureMessage(
-					"Расписание кресла не сохранено",
-					scheduleSaveError,
-				),
-			);
-			return false;
-		} finally {
-			setChairScheduleSavingId(null);
-		}
-	}
-
-	async function saveAppointmentSchedule(
-		appointmentId: string,
-		options: { closeEditorOnSave?: boolean } = {},
-	): Promise<boolean> {
-		if (appointmentScheduleSaveStates[appointmentId] === "saving") {
-			setError("Дождитесь завершения текущего сохранения записи.");
-			return false;
-		}
-		const draft = appointmentScheduleDrafts[appointmentId];
-		if (!draft) {
-			const message = "Откройте запись в расписании перед сохранением.";
-			setAppointmentScheduleErrors((current) => ({
-				...current,
-				[appointmentId]: message,
-			}));
-			setAppointmentScheduleSaveStates((current: any) => ({
-				...current,
-				[appointmentId]: "error",
-			}));
-			setError(message);
-			return false;
-		}
-		const isOmni = dashboard?.clinicSettings?.profile?.isOmniRole ?? false;
-		const missing = appointmentScheduleMissingFields(
-			draft,
-			isOmni,
-			dashboard?.clinicSettings?.staff,
-		);
-		if (missing.length) {
-			const message = `Перед сохранением записи: ${missing.join("; ")}.`;
-			setAppointmentScheduleErrors((current) => ({
-				...current,
-				[appointmentId]: message,
-			}));
-			setAppointmentScheduleSaveStates((current: any) => ({
-				...current,
-				[appointmentId]: "error",
-			}));
-			setError(message);
-			return false;
-		}
-		const expectedSignature = appointmentScheduleDraftSignature(draft);
-		setAppointmentScheduleSaveStates((current: any) => ({
-			...current,
-			[appointmentId]: "saving",
-		}));
-		setAppointmentScheduleErrors((current) => ({
-			...current,
-			[appointmentId]: null,
-		}));
-		try {
-			const response = await fetch(`/api/appointments/${appointmentId}`, {
-				method: "PATCH",
-				headers: scheduleMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(appointmentUpdateInputFromDraft(draft)),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(response, "Запись не сохранена"),
-				);
-			const payload = await response.json();
-			const nextDashboard = payload as any;
-			setDashboard(nextDashboard);
-			const savedAppointment = nextDashboard.appointments?.find(
-				(appointment) => appointment.id === appointmentId,
-			);
-			const latestDraft = appointmentScheduleDraftsRef.current[appointmentId];
-			const latestMatchesSaved = latestDraft
-				? appointmentScheduleDraftSignature(latestDraft) === expectedSignature
-				: true;
-			if (savedAppointment && latestMatchesSaved) {
-				setAppointmentScheduleDrafts((current: any) => ({
-					...current,
-					[appointmentId]:
-						appointmentScheduleDraftFromAppointment(savedAppointment),
-				}));
-			}
-			if (latestMatchesSaved) {
-				setAppointmentScheduleDirtyIds((current) => {
-					const next = new Set(current);
-					next.delete(appointmentId);
-					return next;
-				});
-			}
-			setAppointmentScheduleSaveStates((current: any) => ({
-				...current,
-				[appointmentId]: latestMatchesSaved ? "saved" : "idle",
-			}));
-			if (latestMatchesSaved && options.closeEditorOnSave !== false)
-				setEditingAppointmentId(null);
-			setError(null);
-			return true;
-		} catch (saveError) {
-			const message = operatorWorkflowFailureMessage(
-				"Запись не сохранена",
-				saveError,
-			);
-			setAppointmentScheduleErrors((current) => ({
-				...current,
-				[appointmentId]: message,
-			}));
-			setAppointmentScheduleSaveStates((current: any) => ({
-				...current,
-				[appointmentId]: "error",
-			}));
-			setError(message);
-			return false;
-		}
-	}
-
-	function newAppointmentMissingFields(
-		draft: AppointmentScheduleDraft,
-	): string[] {
-		const isOmni = dashboard?.clinicSettings?.profile?.isOmniRole ?? false;
-		return appointmentScheduleMissingFields(
-			draft,
-			isOmni,
-			dashboard?.clinicSettings?.staff,
-		);
-	}
-
-	async function createAppointmentFromDraft(): Promise<boolean> {
-		if (!dashboard) {
-			setError(
-				"Данные клиники еще не загружены. Повторите создание записи после загрузки рабочего экрана.",
-			);
-			return false;
-		}
-		if (newAppointmentSaveState === "saving") {
-			setError("Дождитесь завершения текущего создания записи.");
-			return false;
-		}
-		const missing = newAppointmentMissingFields(newAppointmentDraft);
-		if (missing.length) {
-			const message = `Перед созданием записи: ${missing.join("; ")}.`;
-			setNewAppointmentError(message);
-			setNewAppointmentSaveState("error");
-			setError(message);
-			return false;
-		}
-		setNewAppointmentSaveState("saving");
-		setNewAppointmentError(null);
-		const previousIds = new Set(
-			(dashboard?.appointments ?? []).map((appointment) => appointment.id),
-		);
-		try {
-			const response = await fetch("/api/appointments", {
-				method: "POST",
-				headers: scheduleMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(
-					appointmentCreateInputFromDraft(newAppointmentDraft),
-				),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(response, "Запись не создана"),
-				);
-			const payload = await response.json();
-			const nextDashboard = payload as any;
-			const createdAppointment =
-				nextDashboard.appointments?.find(
-					(appointment) => !previousIds.has(appointment.id),
-				) ?? null;
-			const nextDraftPreferences = {
-				selectedPatientId: newAppointmentDraft.patientId || selectedPatientId,
-				selectedSpecialty,
-				scheduleDefaultDoctorUserId: newAppointmentDraft.doctorUserId || null,
-				scheduleDefaultAssistantUserId:
-					newAppointmentDraft.assistantUserId || null,
-				scheduleDefaultChairId: newAppointmentDraft.chairId || null,
-			};
-			setSelectedPatientId(nextDraftPreferences.selectedPatientId ?? null);
-			setScheduleDefaultDoctorUserId(
-				nextDraftPreferences.scheduleDefaultDoctorUserId,
-			);
-			setScheduleDefaultAssistantUserId(
-				nextDraftPreferences.scheduleDefaultAssistantUserId,
-			);
-			setScheduleDefaultChairId(nextDraftPreferences.scheduleDefaultChairId);
-			setDashboard(nextDashboard);
-			newAppointmentDraftUserEditedRef.current = false;
-			setNewAppointmentDraft(
-				newAppointmentDraftFromDashboard(nextDashboard, nextDraftPreferences),
-			);
-			setNewAppointmentSaveState("saved");
-			if (createdAppointment) {
-				setAppointmentScheduleDrafts((current: any) => ({
-					...current,
-					[createdAppointment.id]:
-						appointmentScheduleDraftFromAppointment(createdAppointment),
-				}));
-				setEditingAppointmentId(createdAppointment.id);
-			}
-			setError(null);
-			return true;
-		} catch (createError) {
-			const message = operatorWorkflowFailureMessage(
-				"Запись не создана",
-				createError,
-			);
-			setNewAppointmentError(message);
-			setNewAppointmentSaveState("error");
-			setError(message);
-			return false;
-		}
-	}
-
 	async function addChair() {
 		const name = newChairName.trim();
 		if (!name) {
@@ -9002,7 +7427,9 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/settings/chairs", {
 				method: "POST",
-				headers: settingsAccessHeaders({ "Content-Type": "application/json" }),
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
 				body: JSON.stringify({
 					name,
 					room: name,
@@ -9033,6 +7460,34 @@ export function useAppLogic(): any {
 		}
 	}
 
+	async function deleteChair(chairId: string) {
+		if (!confirm("Вы уверены, что хотите удалить это кресло/кабинет?")) {
+			return;
+		}
+
+		try {
+			const response = await fetch(`/api/settings/chairs/${chairId}`, {
+				method: "DELETE",
+				headers: auth.settingsAccessHeaders(),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				setError(
+					errorData.message ||
+						"Не удалось удалить кресло. Возможно, к нему привязаны приёмы.",
+				);
+				return;
+			}
+
+			await loadDashboard();
+		} catch (error) {
+			setError(
+				operatorWorkflowFailureMessage("Ошибка при удалении кресла", error),
+			);
+		}
+	}
+
 	function chooseRecognitionPreset(
 		preset: (typeof recognitionPresets)[number],
 	) {
@@ -9051,7 +7506,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/ai/recognition-jobs", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9094,7 +7549,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/pricelist/analyze", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9166,7 +7621,7 @@ export function useAppLogic(): any {
 			const dataUrl = await readFileAsDataUrl(file);
 			const response = await fetch("/api/ingestion/extract", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9263,214 +7718,6 @@ export function useAppLogic(): any {
 		);
 	}
 
-	async function polishTranscript() {
-		if (!hasVisitTranscriptText) {
-			setError(
-				"Перед очисткой диктовки: добавьте текст диктовки или нажмите голосовую запись.",
-			);
-			return;
-		}
-		visitDraftUserEditedRef.current = true;
-		setIsTranscriptPolishing(true);
-		try {
-			const response = await fetch("/api/speech/polish-transcript", {
-				method: "POST",
-				headers: denteClinicalMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					transcript,
-					specialty: selectedSpecialty,
-					source: "voice",
-				}),
-			});
-			if (!response.ok) {
-				throw new Error(
-					await responseErrorMessage(
-						response,
-						"Серверная очистка диктовки недоступна",
-					),
-				);
-			}
-			const result = (await response.json()) as SpeechTranscriptPolishResponse;
-			setTranscript(result.normalizedTranscript);
-			setDraft(result.draft);
-			setVisitNoteForm(visitNoteFormFromDraft(result.draft));
-			const polishLabel =
-				result.polishMode === "deterministic_neural"
-					? `ИИ-полировка ${result.modelName ?? ""}`.trim()
-					: "локальная проверка правил";
-			setSpeechStatusNote(
-				result.changedPhrases.length
-					? `Текст очищен (${polishLabel}): ${result.changedPhrases.slice(0, 4).join(", ")}`
-					: `Текст проверен (${polishLabel}): факты не добавлялись.`,
-			);
-		} catch (polishError) {
-			const local = normalizeDentalSpeechTranscript(
-				transcript,
-				selectedSpecialty,
-			);
-			const localDraft = buildRuleBasedVisitDraftFromTranscript(
-				local.normalizedText,
-				selectedSpecialty,
-				{
-					sourceLabel: "Локальная очистка диктовки",
-				},
-			);
-			setTranscript(local.normalizedText);
-			setDraft(localDraft);
-			setVisitNoteForm(visitNoteFormFromDraft(localDraft));
-			setSpeechStatusNote("Текст очищен локальным разбором без сервера.");
-			if (polishError instanceof Error) {
-				setError(
-					`${operatorWorkflowFailureMessage("Серверная очистка недоступна", polishError)} Использован локальный разбор.`,
-				);
-			}
-		} finally {
-			setIsTranscriptPolishing(false);
-		}
-	}
-
-	async function buildDraft() {
-		if (!dashboard || !activePatient || !hasVisitTranscriptText) {
-			const missingSteps = [
-				!dashboard ? "дождитесь загрузки приема" : null,
-				...visitDraftBuildMissingSteps,
-			].filter((step): step is string => Boolean(step));
-			setError(`Перед сборкой черновика: ${missingSteps.join(", ")}.`);
-			return;
-		}
-		visitDraftUserEditedRef.current = true;
-		setIsDraftLoading(true);
-		try {
-			const response = await fetch("/api/ai/visit-note-draft", {
-				method: "POST",
-				headers: denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					patientId: activePatient.id,
-					transcript,
-					specialty: selectedSpecialty,
-					source: "voice",
-				}),
-			});
-			if (!response.ok) {
-				throw new Error(
-					await responseErrorMessage(response, "Серверный черновик недоступен"),
-				);
-			}
-			const result = (await response.json()) as VisitNoteDraft;
-			setDraft(result);
-			setVisitNoteForm(visitNoteFormFromDraft(result));
-			// Auto-update tooth map from AI-detected tooth codes
-			if (
-				result.quality?.detectedToothCodes?.length ||
-				result.quality?.detectedToothStates
-			) {
-				applyAiToothCodes(
-					result.quality?.detectedToothCodes || [],
-					"planned",
-					result.quality?.detectedToothStates as any,
-				);
-			}
-			scrollToVisitArea(".visit-note-panel");
-		} catch (draftError) {
-			const fallbackDraft = buildOfflineVisitDraftFromTranscript(
-				transcript,
-				selectedSpecialty,
-			);
-			setDraft(fallbackDraft);
-			setVisitNoteForm(visitNoteFormFromDraft(fallbackDraft));
-			scrollToVisitArea(".visit-note-panel");
-			setError(
-				`${operatorWorkflowFailureMessage("Серверный черновик недоступен", draftError)} Включен офлайн-разбор.`,
-			);
-		} finally {
-			setIsDraftLoading(false);
-		}
-	}
-
-	async function acceptDraftToVisit() {
-		if (!dashboard?.activeVisit?.id) {
-			setError("Откройте или создайте прием перед сохранением ЭМК.");
-			return;
-		}
-		if (!visitNoteReadyToAccept) {
-			setError(
-				`Перед сохранением приема: ${visitNoteAcceptMissingSteps.join(", ")}.`,
-			);
-			return;
-		}
-		setIsDraftAccepting(true);
-		const acceptedDraft = visitNoteDraftFromForm(
-			visitNoteForm,
-			draft?.warnings ?? [
-				"Правки внесены врачом вручную. Подпись приема остается отдельным действием.",
-			],
-		);
-		const doctorSummary = acceptedDraft.warnings.join(" ");
-		const clientMutationId = createLocalQueueId();
-		const baseRevision = dashboard?.activeVisit?.revision ?? null;
-		try {
-			const result = await submitAcceptedVisitDraft(
-				dashboard?.activeVisit?.id,
-				acceptedDraft,
-				doctorSummary,
-				{
-					clientMutationId,
-					baseRevision,
-					clientSavedAt: new Date().toISOString(),
-				},
-			);
-			applyAcceptedVisitResponse(result);
-			scrollToVisitArea(".visit-fields");
-		} catch (acceptError) {
-			if (!acceptedVisitSaveFailureIsRetryable(acceptError)) {
-				setError(
-					operatorWorkflowFailureMessage("Прием не принят", acceptError),
-				);
-				return;
-			}
-			const queued = await queuePendingVisitSave(
-				{
-					visitId: dashboard?.activeVisit?.id,
-					clientMutationId,
-					baseRevision,
-					draft: acceptedDraft,
-					doctorSummary,
-					transcript,
-					selectedSpecialty,
-				},
-				activeOrganizationId,
-			);
-			await refreshPendingVisitSaveState();
-			const optimisticVisit = {
-				...dashboard.activeVisit,
-				complaint: acceptedDraft.complaint,
-				anamnesis: acceptedDraft.anamnesis,
-				objectiveStatus: acceptedDraft.objectiveStatus,
-				diagnosis: acceptedDraft.diagnosis,
-				treatmentPlan: acceptedDraft.treatmentPlan,
-				doctorSummary:
-					doctorSummary ||
-					"Черновик ЭМК принят врачом локально и ожидает синхронизацию.",
-				updatedAt: queued.queuedAt,
-			};
-			setDashboard((current) =>
-				current ? { ...current, activeVisit: optimisticVisit } : current,
-			);
-			setDraft(null);
-			setVisitNoteForm(visitNoteFormFromVisit(optimisticVisit));
-			scrollToVisitArea(".visit-fields");
-			setError(
-				`${operatorWorkflowFailureMessage("Серверное сохранение недоступно", acceptError)} Прием сохранен локально и поставлен в очередь.`,
-			);
-		} finally {
-			setIsDraftAccepting(false);
-		}
-	}
-
 	async function previewImport() {
 		if (!importText.trim()) {
 			setError(
@@ -9482,7 +7729,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/patients/intake", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9537,7 +7784,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/patients/commit", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9579,7 +7826,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/preview", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9599,10 +7846,7 @@ export function useAppLogic(): any {
 			setSmartImportCommit(null);
 		} catch (importError) {
 			setError(
-				operatorWorkflowFailureMessage(
-					"Умный импорт не проверен",
-					importError,
-				),
+				operatorWorkflowFailureMessage("Умный импорт не проверен", importError),
 			);
 		} finally {
 			setIsSmartImportLoading(false);
@@ -9643,7 +7887,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/commit", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9681,7 +7925,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/report.csv", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9724,7 +7968,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/report.safe.csv", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -9816,7 +8060,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/migration-autopilot", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify(
@@ -9866,7 +8110,7 @@ export function useAppLogic(): any {
 				"/api/imports/smart/migration-autopilot/report.csv",
 				{
 					method: "POST",
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify(
@@ -9910,7 +8154,7 @@ export function useAppLogic(): any {
 				"/api/imports/smart/local-source-discovery",
 				{
 					method: "POST",
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -10055,7 +8299,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/local-source-workup", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -10094,7 +8338,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/local-source-probe", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -10155,7 +8399,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imports/smart/clinic-public-lookup", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify(payload),
@@ -10194,7 +8438,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imaging/imports/preview", {
 				method: "POST",
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11177,7 +9421,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -11233,7 +9477,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -11289,7 +9533,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/folders/scan-preview", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11344,7 +9588,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/folder-series-preview", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11414,7 +9658,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/first-frame-preview", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11485,7 +9729,9 @@ export function useAppLogic(): any {
 		const response = await fetch("/api/imaging/dicom/folder-workup-plan", {
 			method: "POST",
 			signal: options.signal ?? null,
-			headers: denteClinicalReadHeaders({ "Content-Type": "application/json" }),
+			headers: auth.denteClinicalReadHeaders({
+				"Content-Type": "application/json",
+			}),
 			body: JSON.stringify({
 				folderPath,
 				recursive: true,
@@ -11609,7 +9855,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -11683,7 +9929,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/series-preview", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11735,7 +9981,9 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicomweb/check", {
 				method: "POST",
 				signal: controller.signal,
-				headers: settingsAccessHeaders({ "Content-Type": "application/json" }),
+				headers: auth.settingsAccessHeaders({
+					"Content-Type": "application/json",
+				}),
 				body: JSON.stringify({
 					endpointUrl: dicomWebEndpointUrl.trim(),
 					authMode: "reverse_proxy",
@@ -11788,7 +10036,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -11857,7 +10105,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -11911,7 +10159,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/viewer-tool-state", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -11974,7 +10222,7 @@ export function useAppLogic(): any {
 			link.click();
 		} finally {
 			link.remove();
-			revokeObjectUrlIfNeeded(url);
+			auth.revokeObjectUrlIfNeeded(url);
 		}
 		setError(null);
 	}
@@ -12005,7 +10253,7 @@ export function useAppLogic(): any {
 			link.click();
 		} finally {
 			link.remove();
-			revokeObjectUrlIfNeeded(url);
+			auth.revokeObjectUrlIfNeeded(url);
 		}
 		setError(null);
 	}
@@ -12036,7 +10284,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(
 				"/api/imaging/dicom/workbench-bundles?limit=6",
-				{ headers: denteClinicalReadHeaders() },
+				{ headers: auth.denteClinicalReadHeaders() },
 			);
 			if (!response.ok) {
 				throw new Error(
@@ -12076,7 +10324,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/workbench-bundles", {
 				method: "POST",
 				signal: options.signal ?? null,
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -12149,7 +10397,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -12195,7 +10443,7 @@ export function useAppLogic(): any {
 				{
 					method: "POST",
 					signal: controller.signal,
-					headers: denteClinicalReadHeaders({
+					headers: auth.denteClinicalReadHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -12266,7 +10514,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/workstation-readiness", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -12320,7 +10568,7 @@ export function useAppLogic(): any {
 			const response = await fetch("/api/imaging/dicom/render-cache-plan", {
 				method: "POST",
 				signal: controller.signal,
-				headers: denteClinicalReadHeaders({
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -12383,7 +10631,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imaging/imports/commit", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -12407,299 +10655,6 @@ export function useAppLogic(): any {
 			);
 		} finally {
 			setIsImagingImportCommitting(false);
-		}
-	}
-
-	function appendVisitDictationText(value: string) {
-		const cleanValue = value.trim();
-		if (!cleanValue) return;
-		visitDraftUserEditedRef.current = true;
-		setClearedTranscriptSnapshot(null);
-		setTranscript((current: any) =>
-			appendSpeechTextWithoutDuplicateTail(
-				current,
-				cleanValue,
-				speechGatewayStatus?.chunkingPolicy.dedupeWindowChars ?? 600,
-			),
-		);
-		setDraft(null);
-	}
-
-	function clearTranscriptWithUndo() {
-		const previousTranscript = transcript;
-		if (!previousTranscript.trim()) {
-			setSpeechStatusNote("Диктовка уже пустая. Нечего очищать.");
-			return;
-		}
-		visitDraftUserEditedRef.current = true;
-		setClearedTranscriptSnapshot(previousTranscript);
-		setTranscript("");
-		setSpeechStatusNote(
-			"Диктовка очищена. Можно сразу вернуть текст кнопкой В«ВернутьВ».",
-		);
-	}
-
-	function undoTranscriptClear() {
-		if (!clearedTranscriptSnapshot) {
-			setSpeechStatusNote("Нет очищенной диктовки для восстановления.");
-			return;
-		}
-		visitDraftUserEditedRef.current = true;
-		setTranscript(clearedTranscriptSnapshot);
-		setClearedTranscriptSnapshot(null);
-		setSpeechStatusNote("Диктовка восстановлена из локального черновика.");
-	}
-
-	function startVisitDictation() {
-		if (isVisitDictating) {
-			setError("Дождитесь завершения текущей браузерной диктовки.");
-			return;
-		}
-		const speechWindow = window as BrowserWindowWithSpeech;
-		const Recognition =
-			speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-		if (!Recognition) {
-			setError(
-				"Браузерная диктовка недоступна. Текст можно печатать вручную, локальный черновик все равно сохранится.",
-			);
-			return;
-		}
-
-		const recognition = new Recognition();
-		recognition.lang = "ru-RU";
-		recognition.continuous = false;
-		recognition.interimResults = false;
-		recognition.onresult = (event) => {
-			const transcriptText = Array.from(event.results)
-				.map((result) => result[0].transcript)
-				.join(" ");
-			appendVisitDictationText(transcriptText);
-		};
-		recognition.onerror = () => {
-			setError(
-				"Диктовка не распознана. Продолжайте печатать, текущий черновик не потерян.",
-			);
-			setIsVisitDictating(false);
-		};
-		recognition.onend = () => setIsVisitDictating(false);
-		setError(null);
-		setIsVisitDictating(true);
-		try {
-			recognition.start();
-		} catch {
-			setIsVisitDictating(false);
-			setError(
-				"Браузер не смог запустить микрофон. Текст можно продолжить вручную.",
-			);
-		}
-	}
-
-	function preferredSpeechMimeType(): string {
-		const candidates = [
-			"audio/webm;codecs=opus",
-			"audio/webm",
-			"audio/ogg;codecs=opus",
-			"audio/mp4",
-		];
-		return (
-			candidates?.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ??
-			""
-		);
-	}
-
-	async function uploadSpeechBlob(blob: Blob) {
-		if (!dashboard || blob.size === 0) return;
-		const maxChunkBytes = speechGatewayStatus?.maxChunkBytes ?? 6_000_000;
-		if (blob.size > maxChunkBytes) {
-			setSpeechStatusNote(
-				`РаспознаИвание: аудио-фрагмент ${Math.round(blob.size / 1024 / 1024)} МБ больше лимита ${Math.round(
-					maxChunkBytes / 1024 / 1024,
-				)} МБ; запись продолжается, уменьшите длительность чанка или используйте локальный модуль.`,
-			);
-			return;
-		}
-		const audioBase64 = await blobToBase64(blob);
-		const chunkIndex = speechChunkIndexRef.current;
-		speechChunkIndexRef.current += 1;
-		const durationMs =
-			speechPendingChunkDurationMsRef.current ??
-			speechGatewayStatus?.recommendedChunkMs ??
-			15_000;
-		speechPendingChunkDurationMsRef.current = null;
-		const chunk: SpeechChunkUploadInput = {
-			recordingId: speechRecordingIdRef.current ?? createLocalQueueId(),
-			chunkIndex,
-			mimeType: blob.type || "audio/webm",
-			audioBase64,
-			durationMs,
-			language: "ru",
-			source: "visit",
-			patientId: dashboard?.activeVisit?.patientId,
-			visitId: dashboard?.activeVisit?.id,
-			specialty: selectedSpecialty,
-			clientRecordedAt: new Date().toISOString(),
-		};
-		const queuedBeforeUpload = await queuePendingSpeechChunk(
-			chunk,
-			activeOrganizationId,
-		);
-		await refreshPendingSpeechChunkState();
-
-		if (!isOnline || !speechGatewayCanUpload(speechGatewayStatus)) {
-			setSpeechStatusNote(
-				queuedBeforeUpload
-					? `Фрагмент ${chunkIndex + 1} сохранен локально; распознавание отправится, когда источник будет готов.`
-					: `Фрагмент ${chunkIndex + 1} не сохранен: локальная очередь недоступна.`,
-			);
-			return;
-		}
-
-		try {
-			const result = await submitSpeechChunk(chunk);
-			applySpeechTranscription(result);
-			if (queuedBeforeUpload) {
-				await removePendingSpeechChunkById(
-					queuedBeforeUpload.id,
-					activeOrganizationId,
-				);
-				await refreshPendingSpeechChunkState();
-			}
-		} catch (speechError) {
-			const queued =
-				queuedBeforeUpload ??
-				(await queuePendingSpeechChunk(chunk, activeOrganizationId));
-			await refreshPendingSpeechChunkState();
-			setSpeechStatusNote(
-				queued
-					? `Фрагмент ${chunkIndex + 1} сохранен локально и уйдет на сервер позже.`
-					: `Фрагмент ${chunkIndex + 1} не отправлен: ${
-							operatorReadableErrorDetailFromUnknown(speechError) ??
-							"повторите запись или проверьте подключение к серверу клиники"
-						}.`,
-			);
-		}
-	}
-
-	function stopSpeechMonitor() {
-		if (speechMonitorTimerRef.current !== null) {
-			window.clearInterval(speechMonitorTimerRef.current);
-			speechMonitorTimerRef.current = null;
-		}
-		speechAudioContextRef.current?.close().catch(() => undefined);
-		speechAudioContextRef.current = null;
-		speechAnalyserRef.current = null;
-	}
-
-	function requestSpeechChunk(reason: "silence" | "max_time" | "manual") {
-		const recorder = mediaRecorderRef.current;
-		if (!recorder || recorder.state !== "recording") return;
-		try {
-			const now = Date.now();
-			const durationMs = Math.max(
-				250,
-				Math.min(
-					now - speechSegmentStartedAtRef.current,
-					speechGatewayStatus?.chunkingPolicy.maxChunkMs ?? 25_000,
-				),
-			);
-			speechPendingChunkDurationMsRef.current = durationMs;
-			recorder.requestData();
-			speechSegmentStartedAtRef.current = now;
-			speechLastSoundAtRef.current = now;
-			if (reason !== "manual") {
-				setSpeechStatusNote(
-					reason === "silence"
-						? "Фрагмент отправлен после паузы."
-						: "Фрагмент отправлен по лимиту времени.",
-				);
-			}
-		} catch {
-			setSpeechStatusNote(
-				"Браузер не отдал аудио-фрагмент, запись продолжается.",
-			);
-		}
-	}
-
-	function startSpeechMonitor(
-		stream: MediaStream,
-		recorder: MediaRecorder,
-		status: SpeechGatewayStatus | null,
-	) {
-		stopSpeechMonitor();
-		const audioWindow = window as BrowserWindowWithSpeech;
-		const AudioContextClass =
-			window.AudioContext ?? audioWindow.webkitAudioContext;
-		const providerLabel = status?.providerLabel ?? "Локальная запись";
-		const chunkingPolicy = status?.chunkingPolicy ?? {
-			strategy: "time_and_silence" as const,
-			minChunkMs: 10_000,
-			maxChunkMs: 25_000,
-			silenceMs: 900,
-			rmsThreshold: 0.015,
-			monitorIntervalMs: 250,
-			overlapMs: 500,
-			dedupeWindowChars: 600,
-		};
-		const recommendedChunkMs = status?.recommendedChunkMs ?? 15_000;
-		if (!AudioContextClass) {
-			recorder.start(recommendedChunkMs);
-			setSpeechStatusNote(
-				`${providerLabel}: запись идет по таймеру, Web Audio недоступен.`,
-			);
-			return;
-		}
-
-		try {
-			const audioContext = new AudioContextClass();
-			const source = audioContext.createMediaStreamSource(stream);
-			const analyser = audioContext.createAnalyser();
-			analyser.fftSize = 1024;
-			analyser.smoothingTimeConstant = 0.25;
-			source.connect(analyser);
-			speechAudioContextRef.current = audioContext;
-			speechAnalyserRef.current = analyser;
-			speechSegmentStartedAtRef.current = Date.now();
-			speechLastSoundAtRef.current = Date.now();
-			recorder.start(
-				Math.max(1000, Math.min(recommendedChunkMs, chunkingPolicy.maxChunkMs)),
-			);
-			const samples = new Uint8Array(analyser.fftSize);
-			speechMonitorTimerRef.current = window.setInterval(() => {
-				analyser.getByteTimeDomainData(samples);
-				let sumSquares = 0;
-				for (const sample of samples) {
-					const centered = (sample - 128) / 128;
-					sumSquares += centered * centered;
-				}
-				const rms = Math.sqrt(sumSquares / samples.length);
-				const now = Date.now();
-				const segmentAgeMs = now - speechSegmentStartedAtRef.current;
-				if (rms >= chunkingPolicy.rmsThreshold) {
-					speechLastSoundAtRef.current = now;
-				}
-				const silentForMs = now - speechLastSoundAtRef.current;
-				if (segmentAgeMs >= chunkingPolicy.maxChunkMs) {
-					requestSpeechChunk("max_time");
-					return;
-				}
-				if (
-					segmentAgeMs >= chunkingPolicy.minChunkMs &&
-					silentForMs >= chunkingPolicy.silenceMs
-				) {
-					requestSpeechChunk("silence");
-				}
-			}, chunkingPolicy.monitorIntervalMs);
-			setSpeechStatusNote(
-				`${providerLabel}: умные фрагменты ${Math.round(chunkingPolicy.minChunkMs / 1000)}-${Math.round(
-					chunkingPolicy.maxChunkMs / 1000,
-				)} сек., пауза ${chunkingPolicy.silenceMs} мс.`,
-			);
-		} catch {
-			stopSpeechMonitor();
-			recorder.start(recommendedChunkMs);
-			setSpeechStatusNote(
-				`${providerLabel}: запись идет по таймеру, умное деление недоступно.`,
-			);
 		}
 	}
 
@@ -12811,58 +10766,6 @@ export function useAppLogic(): any {
 		}
 	}
 
-	function startImportDictation() {
-		if (isImportDictating) {
-			setError("Дождитесь завершения текущей диктовки импорта.");
-			return;
-		}
-		const speechWindow = window as BrowserWindowWithSpeech;
-		const Recognition =
-			speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-		if (!Recognition) {
-			setImportSourceKind("voice_dictation");
-			setImportText(
-				(current) =>
-					`${current}\n\nДиктовка недоступна в этом браузере. Вставь распознанный текст сюда: Иванов Иван, телефон +7 900 000-00-00, дата рождения 01.01.1980.`,
-			);
-			setError(
-				"Браузерная диктовка импорта недоступна. Вставьте список пациентов вручную или загрузите OCR.",
-			);
-			return;
-		}
-		const recognition = new Recognition();
-		recognition.lang = "ru-RU";
-		recognition.continuous = false;
-		recognition.interimResults = false;
-		recognition.onresult = (event) => {
-			const transcriptText = Array.from(event.results)
-				.map((result) => result[0].transcript)
-				.join(" ");
-			setImportSourceKind("voice_dictation");
-			setImportText((current) => `${current.trim()}\n${transcriptText}`.trim());
-			setImportPreview(null);
-			setImportCommit(null);
-		};
-		recognition.onerror = () => {
-			setImportSourceKind("voice_dictation");
-			setIsImportDictating(false);
-			setError(
-				"Диктовка импорта не распознана. Вставьте список вручную или загрузите OCR.",
-			);
-		};
-		recognition.onend = () => setIsImportDictating(false);
-		setError(null);
-		setIsImportDictating(true);
-		try {
-			recognition.start();
-		} catch {
-			setIsImportDictating(false);
-			setError(
-				"Браузер не смог запустить микрофон для импорта. Вставьте список пациентов вручную или загрузите файл.",
-			);
-		}
-	}
-
 	async function createClinicalRuleFromSettings() {
 		if (!dashboard) {
 			setError(
@@ -12889,7 +10792,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/clinical/rules", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -12937,6 +10840,30 @@ export function useAppLogic(): any {
 		}
 	}
 
+	async function removeClinicalRule(ruleId: string) {
+		if (!dashboard) return;
+		if (isClinicalRuleSaving) return;
+		setIsClinicalRuleSaving(true);
+		try {
+			const response = await fetch(`/api/clinical/rules/${ruleId}`, {
+				method: "DELETE",
+				headers: auth.denteClinicalMutationHeaders(),
+			});
+			if (!response.ok) {
+				throw new Error(
+					await responseErrorMessage(response, "Правило не удалено"),
+				);
+			}
+			await loadDashboard();
+		} catch (ruleError) {
+			setError(
+				operatorWorkflowFailureMessage("Не удалось удалить правило", ruleError),
+			);
+		} finally {
+			setIsClinicalRuleSaving(false);
+		}
+	}
+
 	async function toggleClinicalRule(rule: Dashboard["clinicalRules"][number]) {
 		if (isClinicalRuleSaving) {
 			setError("Дождитесь завершения текущей записи клинического правила.");
@@ -12946,7 +10873,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(`/api/clinical/rules/${rule.id}`, {
 				method: "PATCH",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({ active: !rule.active }),
@@ -13799,8 +11726,8 @@ export function useAppLogic(): any {
 					objectiveData: recordExtractObjectiveStatusValue(),
 					primaryDiagnosis: recordExtractDiagnosisValue(),
 					primaryDiagnosisIcd10: null,
-					complications: null,
-					comorbidities: null,
+					complications: dashboard?.activeVisit?.diary?.complications ?? null,
+					comorbidities: dashboard?.activeVisit?.diary?.comorbidities ?? null,
 					externalCause: null,
 					healthGroup: null,
 					dispensaryObservation: null,
@@ -13870,2077 +11797,6 @@ export function useAppLogic(): any {
 		);
 	}
 
-	function validateDocumentPayloadForKind(
-		kind: GeneratedDocument["kind"],
-	): string | null {
-		if (!structuredPayloadDocumentKinds.has(kind)) return null;
-		if (kind === "paid_medical_services_contract") {
-			return (
-				requiredDocumentField(paidContractNumber, "договор, номер") ??
-				requiredDocumentField(paidContractDate, "договор, дата") ??
-				requiredDocumentField(
-					paidContractServiceStart,
-					"договор, начало оказания услуг",
-				) ??
-				requiredDocumentField(
-					paidContractServiceEnd,
-					"договор, окончание или условие завершения",
-				) ??
-				requiredDocumentField(
-					paidContractCustomerFullNameValue(),
-					"договор, заказчик",
-				) ??
-				requiredDocumentField(
-					paidContractCareReasonValue(),
-					"договор, основание обращения",
-				) ??
-				requiredDocumentField(
-					paidContractServiceScopeValue(),
-					"договор, состав услуг",
-				) ??
-				(paidContractTotalRubValue() > 0
-					? null
-					: "Укажите ориентировочную стоимость договора.") ??
-				requiredDocumentField(
-					paidContractPaymentTerms,
-					"договор, порядок оплаты",
-				) ??
-				requiredDocumentField(
-					paidContractPriceChangeRules,
-					"договор, изменение цены и объема",
-				) ??
-				requiredDocumentField(
-					paidContractFreeCareNotice,
-					"договор, уведомление о бесплатной помощи",
-				) ??
-				requiredDocumentField(
-					paidContractRecommendationWarning,
-					"договор, предупреждение о рекомендациях врача",
-				) ??
-				requiredDocumentField(
-					paidContractRefundTerms,
-					"договор, отказ и возврат",
-				) ??
-				requiredDocumentField(
-					paidContractWarrantyTerms,
-					"договор, гарантия и претензии",
-				) ??
-				requiredDocumentField(
-					paidContractDoctorFullNameValue(),
-					"договор, врач",
-				) ??
-				requiredDocumentField(
-					paidContractSignedAt,
-					"договор, дата подписания",
-				) ??
-				(paidContractClinicInfoConfirmed
-					? null
-					: "Подтвердите, что пациент получил сведения о клинике и лицензии.") ??
-				(paidContractServiceListConfirmed
-					? null
-					: "Подтвердите, что пациент получил перечень услуг и стоимость.") ??
-				(paidContractPaidBasisConfirmed
-					? null
-					: "Подтвердите, что пациент понимает платную основу услуг.") ??
-				(paidContractWrittenChangesConfirmed
-					? null
-					: "Подтвердите, что изменения договора оформляются письменно.")
-			);
-		}
-		if (kind === "completed_works_act") {
-			return (
-				requiredDocumentField(completedActNumber, "акт, номер") ??
-				requiredDocumentField(completedActDate, "акт, дата") ??
-				requiredDocumentField(completedActContractNumber, "акт, договор") ??
-				(selectedCompletedActContractDocumentId
-					? null
-					: "Выберите конкретный уже выданный договор для акта.") ??
-				requiredDocumentField(
-					completedActServicePeriodStart,
-					"акт, начало периода оказания",
-				) ??
-				requiredDocumentField(
-					completedActServicePeriodEnd,
-					"акт, окончание периода оказания",
-				) ??
-				requiredDocumentField(
-					completedActDoctorFullNameValue(),
-					"акт, врач-исполнитель",
-				) ??
-				requiredDocumentField(
-					completedActServicesSummaryValue(),
-					"акт, состав работ",
-				) ??
-				(completedActTotalRubValue() > 0 ? null : "Укажите сумму по акту.") ??
-				(completedActPaidRubValue() > 0
-					? null
-					: "Для акта нужна фактическая оплаченная сумма.") ??
-				(completedActFiscalReceiptLines().length
-					? null
-					: "Добавьте номера фискальных чеков по акту.") ??
-				(completedActLinkedContract
-					? null
-					: "Подтвердите связь акта с подписанным договором.") ??
-				(completedActFinalScopeConfirmed
-					? null
-					: "Подтвердите финальный состав работ.") ??
-				(completedActFiscalReceiptsVerified
-					? null
-					: "Подтвердите проверку фискальных чеков.") ??
-				(completedActAccepted ? null : "Подтвердите приемку работ пациентом.")
-			);
-		}
-		if (kind === "treatment_cost_estimate") {
-			const serviceLines = plannedServiceLinesForFinancialPayload();
-			return (
-				requiredDocumentField(treatmentEstimateNumber, "смета, номер") ??
-				requiredDocumentField(treatmentEstimateDate, "смета, дата") ??
-				requiredDocumentField(
-					treatmentEstimatePatientOrPayerFullNameValue(),
-					"смета, пациент или плательщик",
-				) ??
-				requiredDocumentField(
-					treatmentEstimateTreatmentBasisValue(),
-					"смета, основание лечения",
-				) ??
-				(serviceLines.length
-					? null
-					: "Для сметы нужен состав услуг из плана лечения.") ??
-				(treatmentEstimateTotalRubValue() > 0
-					? null
-					: "Укажите итоговую сумму сметы.") ??
-				requiredDocumentField(
-					treatmentEstimateValidUntil,
-					"смета, срок действия",
-				) ??
-				requiredDocumentField(
-					treatmentEstimatePriceChangeRules,
-					"смета, правила изменения цены",
-				) ??
-				(documentTextLines(treatmentEstimateExcludedItems).length
-					? null
-					: "Укажите, что не входит в текущую смету.") ??
-				requiredDocumentField(
-					treatmentEstimatePaymentMilestoneNotes,
-					"смета, условия оплаты",
-				) ??
-				requiredDocumentField(
-					treatmentEstimateDoctorFullNameValue(),
-					"смета, ответственный врач",
-				) ??
-				requiredDocumentField(
-					treatmentEstimateSignedAt,
-					"смета, дата ознакомления",
-				) ??
-				(treatmentEstimatePreliminaryConfirmed
-					? null
-					: "Подтвердите предварительный характер сметы.") ??
-				(treatmentEstimateScopeConfirmed
-					? null
-					: "Подтвердите соответствие состава услуг плану лечения.") ??
-				(treatmentEstimateFiscalNoticeConfirmed
-					? null
-					: "Подтвердите, что смета не заменяет договор, акт и кассовый чек.") ??
-				(treatmentEstimateChangeRulesConfirmed
-					? null
-					: "Подтвердите правило обновления сметы при изменениях.")
-			);
-		}
-		if (kind === "payment_invoice") {
-			const serviceLines = plannedServiceLinesForFinancialPayload();
-			return (
-				requiredDocumentField(paymentInvoiceNumber, "счет, номер") ??
-				requiredDocumentField(paymentInvoiceDate, "счет, дата") ??
-				requiredDocumentField(
-					paymentInvoicePayerFullNameValue(),
-					"счет, плательщик",
-				) ??
-				requiredDocumentField(
-					paymentInvoicePurpose,
-					"счет, назначение платежа",
-				) ??
-				(serviceLines.length
-					? null
-					: "Для счета нужен состав услуг из плана лечения.") ??
-				(paymentInvoiceTotalRubValue() > 0 ? null : "Укажите сумму счета.") ??
-				requiredDocumentField(paymentInvoiceDueDate, "счет, срок оплаты") ??
-				requiredDocumentField(
-					paymentInvoicePaymentTerms,
-					"счет, условия оплаты",
-				) ??
-				requiredDocumentField(
-					paymentInvoiceBankDetailsValue(),
-					"счет, реквизиты клиники",
-				) ??
-				(paymentInvoiceCashlessAllowed || paymentInvoiceCashDeskAllowed
-					? null
-					: "Выберите хотя бы один способ оплаты.") ??
-				(isOmniRoleMode || paymentInvoiceRequisitesVerified
-					? null
-					: "Подтвердите проверку реквизитов клиники.") ??
-				(isOmniRoleMode || paymentInvoiceServiceScopeConfirmed
-					? null
-					: "Подтвердите состав услуг счета.") ??
-				(isOmniRoleMode || paymentInvoiceFiscalNoticeConfirmed
-					? null
-					: "Подтвердите предупреждение: счет не заменяет кассовый чек.")
-			);
-		}
-		if (kind === "payment_receipt") {
-			return (
-				requiredDocumentField(paymentReceiptNumber, "квитанция, номер") ??
-				requiredDocumentField(paymentReceiptDate, "квитанция, дата") ??
-				(selectedPaymentReceiptPayments.length
-					? null
-					: "Выберите оплаченные платежи для квитанции.") ??
-				(selectedPaymentReceiptTotalRub > 0
-					? null
-					: "Сумма выбранных платежей должна быть больше нуля.") ??
-				requiredDocumentField(
-					paymentReceiptPayerFullNameValue(),
-					"квитанция, ФИО плательщика",
-				) ??
-				(paymentReceiptTaxSupportRequested
-					? (requiredDocumentField(
-							paymentReceiptPayerBirthDateValue(),
-							"квитанция, дата рождения плательщика",
-						) ??
-						requiredDocumentField(
-							paymentReceiptPayerRelationshipValue(),
-							"квитанция, связь плательщика с пациентом",
-						) ??
-						(paymentReceiptPayerInnValue().replace(/\D+/g, "").length === 12 ||
-						paymentReceiptPayerIdentityDocumentValue().trim()
-							? null
-							: "Для налоговой квитанции укажите 12-значный ИНН плательщика или документ плательщика."))
-					: null) ??
-				requiredDocumentField(
-					paymentReceiptPurpose,
-					"квитанция, назначение оплаты",
-				) ??
-				(paymentReceiptFiscalReceiptLines().length ===
-				selectedPaymentReceiptPayments.length
-					? null
-					: "У каждого выбранного платежа должен быть номер фискального чека.") ??
-				(selectedPaymentReceiptPayments.every((payment) =>
-					Boolean(payment.fiscalReceiptIssuedAt?.trim()),
-				)
-					? null
-					: "У каждого выбранного платежа должна быть дата фискального чека.") ??
-				requiredDocumentField(
-					paymentReceiptIssuedByValue(),
-					"квитанция, кто выдал",
-				) ??
-				(paymentReceiptPaymentsVerified
-					? null
-					: "Подтвердите сверку выбранных платежей и фискальных чеков.") ??
-				(paymentReceiptPayerVerified
-					? null
-					: "Подтвердите проверку данных плательщика.") ??
-				(paymentReceiptFiscalNoticeConfirmed
-					? null
-					: "Подтвердите, что квитанция не заменяет кассовый чек.")
-			);
-		}
-		if (kind === "installment_payment_schedule") {
-			const installments = installmentScheduleInstallmentRows();
-			return (
-				requiredDocumentField(installmentScheduleNumber, "график, номер") ??
-				requiredDocumentField(installmentScheduleDate, "график, дата") ??
-				requiredDocumentField(
-					installmentScheduleBaseDocumentTitleValue(),
-					"график, основание",
-				) ??
-				requiredDocumentField(
-					installmentSchedulePayerFullNameValue(),
-					"график, плательщик",
-				) ??
-				(installmentScheduleTotalRubValue() > 0
-					? null
-					: "Укажите общую сумму графика.") ??
-				(installmentScheduleRemainingRubValue() >= 0
-					? null
-					: "Остаток по графику не может быть отрицательным.") ??
-				(installments.length
-					? null
-					: "Добавьте платежи графика или укажите остаток к оплате.") ??
-				requiredDocumentField(
-					installmentScheduleLatePolicy,
-					"график, правила просрочки",
-				) ??
-				requiredDocumentField(
-					installmentSchedulePaymentMethodNotes,
-					"график, способы оплаты",
-				) ??
-				requiredDocumentField(
-					installmentScheduleResponsibleFullNameValue(),
-					"график, ответственный",
-				) ??
-				(installmentScheduleAccepted
-					? null
-					: "Подтвердите принятие графика пациентом.") ??
-				(installmentScheduleFiscalNoticeConfirmed
-					? null
-					: "Подтвердите, что график не заменяет кассовый чек.") ??
-				(installmentScheduleWrittenChangesConfirmed
-					? null
-					: "Подтвердите письменное оформление изменений графика.")
-			);
-		}
-		if (kind === "minor_legal_representative_consent") {
-			return (
-				requiredDocumentField(
-					minorRepresentativeFullNameValue(),
-					"представитель, ФИО",
-				) ??
-				requiredDocumentField(
-					minorRepresentativeRelationshipValue(),
-					"представитель, родство или статус",
-				) ??
-				requiredDocumentField(
-					minorRepresentativeIdentityDocumentValue(),
-					"представитель, документ личности",
-				) ??
-				requiredDocumentField(
-					minorRepresentativeAuthorityDocument,
-					"представитель, основание полномочий",
-				) ??
-				requiredDocumentField(
-					minorConsentPatientFullNameValue(),
-					"несовершеннолетний, ФИО",
-				) ??
-				requiredDocumentField(
-					minorConsentPatientBirthDateValue(),
-					"несовершеннолетний, дата рождения",
-				) ??
-				requiredDocumentField(
-					minorConsentInterventionScopeValue(),
-					"согласие, вмешательство",
-				) ??
-				requiredDocumentField(
-					minorConsentDiagnosisOrIndicationValue(),
-					"согласие, диагноз или показание",
-				) ??
-				(documentTextLines(minorConsentRisks).length
-					? null
-					: "Добавьте разъясненные риски для представителя.") ??
-				(documentTextLines(minorConsentAlternatives).length
-					? null
-					: "Добавьте альтернативы лечения для представителя.") ??
-				requiredDocumentField(
-					minorConsentDoctorFullNameValue(),
-					"согласие, врач",
-				) ??
-				requiredDocumentField(minorConsentSignedAt, "согласие, дата и время") ??
-				(minorConsentIdentityVerified
-					? null
-					: "Подтвердите проверку личности представителя.") ??
-				(minorConsentAuthorityVerified
-					? null
-					: "Подтвердите полномочия представителя.") ??
-				(minorConsentExplained
-					? null
-					: "Подтвердите разъяснение вмешательства, рисков и альтернатив.") ??
-				(minorConsentStored
-					? null
-					: "Подтвердите хранение согласия в медкарте.") ??
-				(minorConsentAgeExplanation
-					? null
-					: "Подтвердите объяснение ребенку по возрасту и состоянию.")
-			);
-		}
-		if (kind === "warranty_service_memo") {
-			return (
-				requiredDocumentField(
-					warrantyServiceOrWorkNameValue(),
-					"гарантия, работа или услуга",
-				) ??
-				requiredDocumentField(
-					warrantyCompletedAt,
-					"гарантия, дата завершения",
-				) ??
-				requiredDocumentField(
-					warrantyTeethOrAreaValue(),
-					"гарантия, зубы или область",
-				) ??
-				requiredDocumentField(
-					warrantyMaterialsOrSystems,
-					"гарантия, материалы или системы",
-				) ??
-				requiredDocumentField(warrantyPeriod, "гарантия, срок и условия") ??
-				requiredDocumentField(
-					warrantyControlVisitSchedule,
-					"гарантия, контрольные визиты",
-				) ??
-				(documentTextLines(warrantyPatientObligations).length
-					? null
-					: "Добавьте обязанности пациента для сохранения гарантии.") ??
-				(documentTextLines(warrantyExcludedRiskFactors).length
-					? null
-					: "Добавьте условия, требующие отдельной оценки.") ??
-				(documentTextLines(warrantyUrgentContactReasons).length
-					? null
-					: "Добавьте признаки для срочной связи с клиникой.") ??
-				requiredDocumentField(
-					warrantyLinkedActOrContractValue(),
-					"гарантия, связанный акт или договор",
-				) ??
-				requiredDocumentField(
-					warrantyDoctorFullNameValue(),
-					"гарантия, врач",
-				) ??
-				requiredDocumentField(warrantyIssuedAt, "гарантия, дата выдачи") ??
-				(warrantyPolicyApplied
-					? null
-					: "Подтвердите применение локального гарантийного положения.") ??
-				(warrantyAftercareReceived
-					? null
-					: "Подтвердите выдачу рекомендаций после лечения.") ??
-				(warrantyControlVisitsUnderstood
-					? null
-					: "Подтвердите понимание контрольных визитов пациентом.")
-			);
-		}
-		if (kind === "patient_intake_questionnaire") {
-			return (
-				requiredDocumentField(
-					intakeChiefComplaint,
-					"анкета, жалоба или цель визита",
-				) ??
-				requiredDocumentField(intakeAllergyStatus, "анкета, аллергии") ??
-				requiredDocumentField(
-					intakeCurrentMedications,
-					"анкета, постоянные препараты",
-				) ??
-				requiredDocumentField(
-					intakeChronicConditions,
-					"анкета, хронические заболеИвания",
-				) ??
-				requiredDocumentField(intakeAnticoagulants, "анкета, антикоагулянты") ??
-				requiredDocumentField(
-					intakeInfectiousRiskNotes,
-					"анкета, инфекционные риски",
-				) ??
-				requiredDocumentField(
-					intakeCardioEndocrineNotes,
-					"анкета, системные риски",
-				) ??
-				(intakeAccuracyConfirmed
-					? null
-					: "Пациент должен подтвердить достоверность анкеты перед созданием документа.")
-			);
-		}
-		if (kind === "tax_deduction_application") {
-			const normalizedInn = taxApplicationTaxpayerInn.replace(/[^\d]/g, "");
-			return (
-				requiredDocumentField(
-					taxApplicationTaxpayerFullName,
-					"налоговое заявление, заявитель",
-				) ??
-				(taxApplicationForm === "legacy_2021_2023" &&
-				normalizedInn.length !== 10 &&
-				normalizedInn.length !== 12
-					? "Для старой налоговой справки укажите 10- или 12-значный ИНН заявителя."
-					: null) ??
-				(normalizedInn &&
-				normalizedInn.length !== 10 &&
-				normalizedInn.length !== 12
-					? "ИНН заявителя должен содержать 10 или 12 цифр."
-					: null) ??
-				(taxApplicationForm === "knd_1151156" &&
-				normalizedInn &&
-				normalizedInn.length !== 12
-					? "Для КНД 1151156 ИНН физического лица должен быть 12-значным. Если ИНН нет, оставьте поле пустым и заполните документ заявителя."
-					: null) ??
-				(isDateInputValue(taxApplicationTaxpayerBirthDate)
-					? null
-					: "Укажите дату рождения заявителя в формате календарной даты.") ??
-				requiredDocumentField(
-					taxApplicationTaxpayerIdentityDocument,
-					"налоговое заявление, документ заявителя",
-				) ??
-				(taxApplicationRelationship === "self" ||
-				taxApplicationAuthorityDocument.trim()
-					? null
-					: "Для заявления представителя укажите документ, подтверждающий полномочия.") ??
-				requiredDocumentField(
-					taxApplicationContact,
-					"налоговое заявление, контакт или канал выдачи",
-				) ??
-				(isDateTimeLocalInputValue(taxApplicationRequestedAt)
-					? null
-					: "Укажите дату и время заявления через календарь.") ??
-				(taxApplicationDuplicateWarningAccepted
-					? null
-					: "Подтвердите, что администратор проверит отсутствие повторной справки по тем же расходам.")
-			);
-		}
-		if (kind === "informed_consent") {
-			const effectiveArea =
-				informedConsentToothOrArea.trim() || inferredTreatmentArea || "";
-			const effectiveIndication =
-				informedConsentDiagnosisOrIndication.trim() ||
-				dashboard?.activeVisit?.complaint ||
-				"";
-			const effectiveDoctor =
-				informedConsentDoctorFullName.trim() || activeDoctor?.fullName || "";
-			return (
-				requiredDocumentField(
-					informedConsentIntervention,
-					"информированное согласие, вмешательство",
-				) ??
-				requiredDocumentField(
-					effectiveArea,
-					"информированное согласие, область или зубы",
-				) ??
-				requiredDocumentField(
-					effectiveIndication,
-					"информированное согласие, диагноз или показание",
-				) ??
-				requiredDocumentField(
-					informedConsentExpectedBenefit,
-					"информированное согласие, ожидаемая польза",
-				) ??
-				(documentTextLines(informedConsentRisks).length
-					? null
-					: "Добавьте разъясненные риски для информированного согласия.") ??
-				(documentTextLines(informedConsentAlternatives).length
-					? null
-					: "Добавьте альтернативы лечения для информированного согласия.") ??
-				(documentTextLines(informedConsentAftercare).length
-					? null
-					: "Добавьте рекомендации после вмешательства для информированного согласия.") ??
-				requiredDocumentField(
-					effectiveDoctor,
-					"информированное согласие, врач",
-				) ??
-				requiredDocumentField(
-					informedConsentConfirmedAt,
-					"информированное согласие, дата подтверждения",
-				) ??
-				(informedConsentQuestionsAnswered
-					? null
-					: "Подтвердите, что пациент получил ответы на вопросы перед согласием.") ??
-				(informedConsentRisksUnderstood
-					? null
-					: "Подтвердите, что пациент понял риски, ограничения и прогноз.") ??
-				(informedConsentWithdrawUnderstood
-					? null
-					: "Подтвердите, что пациенту объяснено право отказаться до вмешательства.")
-			);
-		}
-		if (kind === "procedure_specific_consent_packet") {
-			const effectiveArea =
-				procedureConsentToothOrArea.trim() || inferredTreatmentArea || "";
-			const effectiveIndication =
-				procedureConsentDiagnosisOrIndication.trim() ||
-				dashboard?.activeVisit?.complaint ||
-				"";
-			const effectiveDoctor =
-				procedureConsentDoctorFullName.trim() || activeDoctor?.fullName || "";
-			return (
-				requiredDocumentField(
-					procedureConsentProcedureName,
-					"процедурное согласие, процедура",
-				) ??
-				requiredDocumentField(
-					effectiveArea,
-					"процедурное согласие, область или зубы",
-				) ??
-				requiredDocumentField(
-					effectiveIndication,
-					"процедурное согласие, показание",
-				) ??
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				(documentTextLines(procedureConsentPatientRiskFactors).length
-					? null
-					: "Добавьте персональные факторы риска пациента для процедурного согласия.") ??
-				(documentTextLines(procedureConsentSpecificRisks).length
-					? null
-					: "Добавьте процедурные риски для процедурного согласия.") ??
-				(documentTextLines(procedureConsentAlternatives).length
-					? null
-					: "Добавьте альтернативы лечения для процедурного согласия.") ??
-				(documentTextLines(procedureConsentAftercare).length
-					? null
-					: "Добавьте ограничения и рекомендации после процедуры.") ??
-				requiredDocumentField(effectiveDoctor, "процедурное согласие, врач") ??
-				requiredDocumentField(
-					procedureConsentConfirmedAt,
-					"процедурное согласие, дата подтверждения",
-				) ??
-				(procedureConsentQuestionsAnswered
-					? null
-					: "Подтвердите, что пациент получил ответы на вопросы по процедуре.") ??
-				(procedureConsentExactProcedureConfirmed
-					? null
-					: "Подтвердите, что пациенту назИвана конкретная процедура, зона и объем.") ??
-				(procedureConsentRisksUnderstood
-					? null
-					: "Подтвердите, что пациент понял процедурные риски и ограничения.")
-			);
-		}
-		if (kind === "treatment_plan") {
-			return (
-				requiredDocumentField(
-					treatmentPlanClinicalReasonValue(),
-					"план лечения, повод обращения",
-				) ??
-				requiredDocumentField(
-					treatmentPlanDiagnosisSummaryValue(),
-					"план лечения, диагноз или клиническое основание",
-				) ??
-				requiredDocumentField(
-					treatmentPlanTeethOrAreaValue(),
-					"план лечения, зубы или область",
-				) ??
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				(documentTextLines(treatmentPlanGoals).length
-					? null
-					: "Добавьте цели лечения.") ??
-				(treatmentPlanStageRows().length
-					? null
-					: "Добавьте этапы плана лечения.") ??
-				(treatmentPlanTotalRubValue() > 0
-					? null
-					: "Укажите ориентировочную стоимость плана лечения.") ??
-				(documentTextLines(treatmentPlanAlternatives).length
-					? null
-					: "Добавьте альтернативы плана лечения.") ??
-				(documentTextLines(treatmentPlanRisks).length
-					? null
-					: "Добавьте риски и ограничения плана лечения.") ??
-				requiredDocumentField(
-					treatmentPlanPrognosis,
-					"план лечения, прогноз и ограничения",
-				) ??
-				requiredDocumentField(
-					treatmentPlanControlPlan,
-					"план лечения, контроль",
-				) ??
-				requiredDocumentField(
-					treatmentPlanDoctorFullNameValue(),
-					"план лечения, врач",
-				) ??
-				requiredDocumentField(treatmentPlanPlannedAt, "план лечения, дата") ??
-				(treatmentPlanQuestionsAnswered
-					? null
-					: "Подтвердите, что пациент получил ответы на вопросы.") ??
-				(treatmentPlanSeparateConsentAcknowledged
-					? null
-					: "Подтвердите, что план не заменяет отдельное согласие.") ??
-				(treatmentPlanNewApprovalAcknowledged
-					? null
-					: "Подтвердите, что изменение плана требует нового согласования.")
-			);
-		}
-		if (kind === "treatment_plan_acceptance") {
-			return (
-				requiredDocumentField(
-					treatmentAcceptanceClinicalGoal,
-					"согласование плана, клиническая цель",
-				) ??
-				requiredDocumentField(
-					treatmentAcceptanceDiagnosisSummary.trim() ||
-						dashboard?.activeVisit?.diagnosis ||
-						dashboard?.activeVisit?.complaint ||
-						"",
-					"согласование плана, диагноз или основание",
-				) ??
-				requiredDocumentField(
-					treatmentAcceptanceTeethOrArea.trim() || inferredTreatmentArea || "",
-					"согласование плана, зубы или область",
-				) ??
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				(treatmentAcceptanceStageRows().length
-					? null
-					: "Добавьте этапы согласованного плана лечения.") ??
-				(treatmentAcceptanceTotalRubValue() > 0
-					? null
-					: "Укажите ориентировочную стоимость согласованного плана.") ??
-				requiredDocumentField(
-					treatmentAcceptanceEstimateValidUntil,
-					"согласование плана, срок действия сметы",
-				) ??
-				requiredDocumentField(
-					treatmentAcceptancePaymentTerms,
-					"согласование плана, условия оплаты",
-				) ??
-				(documentTextLines(treatmentAcceptanceRejectedAlternatives).length
-					? null
-					: "Добавьте отклоненные или отложенные альтернативы.") ??
-				(documentTextLines(treatmentAcceptanceRisks).length
-					? null
-					: "Добавьте риски и ограничения плана.") ??
-				requiredDocumentField(
-					treatmentAcceptanceWarrantyTerms,
-					"согласование плана, гарантия и контроль",
-				) ??
-				requiredDocumentField(
-					treatmentAcceptanceDoctorFullName.trim() ||
-						activeDoctor?.fullName ||
-						"",
-					"согласование плана, врач",
-				) ??
-				requiredDocumentField(
-					treatmentAcceptanceAcceptedAt,
-					"согласование плана, дата",
-				) ??
-				(treatmentAcceptanceQuestionsAnswered
-					? null
-					: "Подтвердите, что пациент получил ответы на вопросы.") ??
-				(treatmentAcceptanceAlternativesUnderstood
-					? null
-					: "Подтвердите, что пациент понимает альтернативы.") ??
-				(treatmentAcceptanceCostChangeUnderstood
-					? null
-					: "Подтвердите, что пациент понимает возможность изменения стоимости.") ??
-				(treatmentAcceptanceRevisionAcknowledged
-					? null
-					: "Подтвердите, что существенное изменение плана требует нового согласования.")
-			);
-		}
-		if (kind === "post_visit_recommendations") {
-			return (
-				requiredDocumentField(
-					postVisitProcedureNameValue(),
-					"рекомендации после приема, процедура",
-				) ??
-				requiredDocumentField(
-					postVisitToothOrAreaValue(),
-					"рекомендации после приема, область",
-				) ??
-				requiredDocumentField(
-					postVisitPerformedAt,
-					"рекомендации после приема, дата приема",
-				) ??
-				requiredDocumentField(
-					postVisitDoctorFullNameValue(),
-					"рекомендации после приема, врач",
-				) ??
-				(documentTextLines(postVisitAllowedAfter).length
-					? null
-					: "Добавьте, когда пациенту можно пить, есть и возвращаться к нагрузке.") ??
-				(documentTextLines(postVisitRestrictions).length
-					? null
-					: "Добавьте временные ограничения после приема.") ??
-				(documentTextLines(postVisitMedicationAndRinsePlan).length
-					? null
-					: "Добавьте назначения, полоскания или явно укажите, что назначений нет.") ??
-				(documentTextLines(postVisitHygieneInstructions).length
-					? null
-					: "Добавьте правила гигиены после приема.") ??
-				(documentTextLines(postVisitNutritionInstructions).length
-					? null
-					: "Добавьте рекомендации по питанию.") ??
-				(documentTextLines(postVisitUrgentWarningSigns).length
-					? null
-					: "Добавьте тревожные признаки для срочной связи с клиникой.") ??
-				requiredDocumentField(
-					postVisitClinicContactInstruction,
-					"рекомендации после приема, контакт клиники",
-				) ??
-				requiredDocumentField(
-					postVisitTelegramSummary,
-					"рекомендации после приема, краткий текст для Telegram",
-				) ??
-				(postVisitPrintedCopyReceived
-					? null
-					: "Подтвердите, что пациент получил рекомендации.") ??
-				(postVisitUrgentSignsUnderstood
-					? null
-					: "Подтвердите, что пациент понимает тревожные признаки.") ??
-				(postVisitTelegramSafe
-					? null
-					: "Подтвердите, что текст безопасен для Telegram и не содержит лишних медицинских подробностей.")
-			);
-		}
-		if (kind === "anesthesia_consent_log") {
-			return (
-				requiredDocumentField(anesthesiaMethod, "анестезия, метод") ??
-				requiredDocumentField(anesthesiaAnesthetic, "анестезия, препарат") ??
-				requiredDocumentField(anesthesiaZone, "анестезия, зона") ??
-				requiredDocumentField(
-					anesthesiaAllergyStatus,
-					"анестезия, аллергоанамнез",
-				) ??
-				requiredDocumentField(
-					anesthesiaDoseTime,
-					"анестезия, время введения",
-				) ??
-				requiredDocumentField(anesthesiaDoseMl, "анестезия, доза") ??
-				(anesthesiaRisksExplained
-					? null
-					: "Подтвердите, что пациенту объяснены риски и ограничения анестезии.") ??
-				(anesthesiaAllergyRestrictionsChecked
-					? null
-					: "Подтвердите, что аллергии, лекарства и ограничения проверены до введения.") ??
-				(anesthesiaConsentConfirmed
-					? null
-					: "Подтвердите согласие пациента на выбранную местную анестезию.")
-			);
-		}
-		if (kind === "prescription_medication_order") {
-			return (
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				requiredDocumentField(prescriptionMedication, "назначение, препарат") ??
-				requiredDocumentField(prescriptionDosage, "назначение, дозировка") ??
-				requiredDocumentField(
-					prescriptionInstructions,
-					"назначение, режим приема",
-				) ??
-				requiredDocumentField(
-					prescriptionDuration,
-					"назначение, длительность",
-				) ??
-				(documentTextLines(prescriptionSafetyNotes).length
-					? null
-					: "Добавьте хотя бы одну памятку пациенту для назначения.") ??
-				requiredDocumentField(
-					prescriptionUrgentContactReason,
-					"назначение, когда срочно связаться",
-				)
-			);
-		}
-		if (kind === "lab_work_order") {
-			return (
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				requiredDocumentField(labWorkType, "лаборатория, вид работы") ??
-				requiredDocumentField(labTeethOrArea, "лаборатория, зубы или зона") ??
-				requiredDocumentField(labMaterial, "лаборатория, материал") ??
-				requiredDocumentField(labShade, "лаборатория, цвет") ??
-				requiredDocumentField(labSource, "лаборатория, источник данных") ??
-				requiredDocumentField(labDeadline, "лаборатория, срок")
-			);
-		}
-		if (kind === "photo_video_consent") {
-			return (
-				(photoVideoMaterials.length
-					? null
-					: "Отметьте хотя бы один тип фото, видео или снимков.") ??
-				(photoVideoClinicalRecordUseConfirmed
-					? null
-					: "Подтвердите, что фото, видео и снимки вносятся в медицинскую карту пациента.") ??
-				(photoVideoAnonymizationConfirmed
-					? null
-					: "Подтвердите, что внешнее использование возможно только после обезличивания, кроме отдельно разрешенной узнаваемой публикации.") ??
-				requiredDocumentField(
-					photoVideoRevocationChannel,
-					"фото/видео, порядок отзыва согласия",
-				) ??
-				(photoVideoRecognizablePublicationAllowed &&
-				!photoVideoMarketingUseAllowed &&
-				!photoVideoEducationUseAllowed
-					? "Публикация узнаваемых материалов возможна только вместе с отдельным разрешением на обучение или маркетинг."
-					: null)
-			);
-		}
-		if (kind === "xray_cbct_referral") {
-			return (
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				requiredDocumentField(xrayArea, "снимок, область") ??
-				requiredDocumentField(
-					xrayClinicalQuestion,
-					"снимок, клинический вопрос",
-				) ??
-				requiredDocumentField(xrayIndication, "снимок, показание") ??
-				requiredDocumentField(
-					xraySafetyNotes,
-					"снимок, ограничения и защита",
-				) ??
-				requiredDocumentField(
-					xrayRequestedBy.trim() || activeDoctor?.fullName || "",
-					"снимок, назначивший врач",
-				)
-			);
-		}
-		if (kind === "outpatient_medical_card_025u") {
-			return (
-				requiredDocumentField(
-					clinicProfileDraft.legalName.trim() ||
-						clinicProfileDraft.clinicName.trim(),
-					"карта 025/у, медорганизация",
-				) ??
-				requiredDocumentField(
-					outpatient025uMedicalCardNumberValue(),
-					"карта 025/у, номер медицинской карты",
-				) ??
-				requiredDocumentField(
-					outpatient025uOpenedAt,
-					"карта 025/у, дата открытия",
-				) ??
-				requiredDocumentField(
-					recordExtractPeriodStart,
-					"карта 025/у, период с",
-				) ??
-				requiredDocumentField(
-					recordExtractPeriodEnd,
-					"карта 025/у, период по",
-				) ??
-				(outpatient025uSourceVisitIdsValue().length
-					? null
-					: "Добавьте источник подписанной медицинской записи для карты 025/у.") ??
-				requiredDocumentField(
-					documentPatient?.fullName ?? "",
-					"карта 025/у, пациент",
-				) ??
-				requiredDocumentField(
-					recordExtractComplaintAndAnamnesisValue(),
-					"карта 025/у, жалобы и анамнез",
-				) ??
-				requiredDocumentField(
-					recordExtractObjectiveStatusValue(),
-					"карта 025/у, объективный статус",
-				) ??
-				requiredDocumentField(
-					recordExtractDiagnosisValue(),
-					"карта 025/у, диагноз",
-				) ??
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам для карты 025/у.") ??
-				requiredDocumentField(
-					recordExtractTreatmentProvidedValue(),
-					"карта 025/у, проведенное лечение",
-				) ??
-				requiredDocumentField(
-					recordExtractRecommendations,
-					"карта 025/у, назначения и рекомендации",
-				) ??
-				requiredDocumentField(
-					recordExtractDoctorFullName.trim() || activeDoctor?.fullName || "",
-					"карта 025/у, врач",
-				) ??
-				(recordExtractPreparedFromSignedRecords
-					? null
-					: "Подтвердите, что карта 025/у собрана из подписанных медицинских записей.") ??
-				(outpatient025uOfficialForm274nChecked
-					? null
-					: "Подтвердите сверку карты 025/у с приказом Минздрава N 274н.") ??
-				(outpatient025uThirdPartyDataChecked
-					? null
-					: "Подтвердите, что лишние данные третьих лиц для карты 025/у исключены.")
-			);
-		}
-		if (kind === "medical_record_extract") {
-			const sourceVisitIds = documentTextLines(recordExtractSourceVisitIds);
-			return (
-				requiredDocumentField(recordExtractPeriodStart, "выписка, период с") ??
-				requiredDocumentField(recordExtractPeriodEnd, "выписка, период по") ??
-				(sourceVisitIds.length || dashboard?.activeVisit?.id
-					? null
-					: "Добавьте источник медицинской записи для выписки.") ??
-				requiredDocumentField(
-					recordExtractComplaintAndAnamnesisValue(),
-					"выписка, жалобы и анамнез",
-				) ??
-				requiredDocumentField(
-					recordExtractObjectiveStatusValue(),
-					"выписка, объективный статус",
-				) ??
-				requiredDocumentField(
-					recordExtractDiagnosisValue(),
-					"выписка, диагноз",
-				) ??
-				(clinicalToothRowsValue().length
-					? null
-					: "Добавьте клинические строки по зубам или сегментам.") ??
-				requiredDocumentField(
-					recordExtractTreatmentProvidedValue(),
-					"выписка, проведенное лечение",
-				) ??
-				requiredDocumentField(
-					recordExtractRecommendations,
-					"выписка, рекомендации",
-				) ??
-				requiredDocumentField(
-					recordExtractDoctorFullName.trim() || activeDoctor?.fullName || "",
-					"выписка, врач",
-				) ??
-				requiredDocumentField(
-					recordExtractRecipientFullName.trim() ||
-						documentPatient?.fullName ||
-						"",
-					"выписка, получатель",
-				) ??
-				requiredDocumentField(
-					recordExtractRecipientAuthority,
-					"выписка, основание выдачи",
-				) ??
-				requiredDocumentField(recordExtractIssuedAt, "выписка, дата") ??
-				(recordExtractPreparedFromSignedRecords
-					? null
-					: "Подтвердите, что выписка собрана из подписанных медицинских записей.") ??
-				(recordExtractThirdPartyDataChecked
-					? null
-					: "Подтвердите, что лишние данные третьих лиц исключены.")
-			);
-		}
-		if (kind === "medical_record_copy_request") {
-			return (
-				(documentTextLines(copyRequestDocumentTypes).length
-					? null
-					: "Добавьте состав запрошенных медицинских документов.") ??
-				requiredDocumentField(
-					copyRequestRecipientFullName.trim() ||
-						documentPatient?.fullName ||
-						"",
-					"запрос копий, получатель",
-				) ??
-				requiredDocumentField(
-					copyRequestRecipientIdentityDocument,
-					"запрос копий, документ получателя",
-				) ??
-				requiredDocumentField(
-					copyRequestRecipientAuthority,
-					"запрос копий, основание полномочий",
-				) ??
-				requiredDocumentField(
-					copyRequestRequestedAt,
-					"запрос копий, дата запроса",
-				) ??
-				requiredDocumentField(
-					copyRequestContactForDelivery,
-					"запрос копий, контакт и канал выдачи",
-				) ??
-				(copyRequestIdentityVerified
-					? null
-					: "Подтвердите проверку личности получателя.") ??
-				(copyRequestThirdPartyDataChecked
-					? null
-					: "Подтвердите, что лишние данные третьих лиц будут исключены.")
-			);
-		}
-		if (kind === "visit_attendance_certificate") {
-			return (
-				requiredDocumentField(
-					attendanceStartedAtValue(),
-					"справка о посещении, начало приема",
-				) ??
-				requiredDocumentField(
-					attendanceEndedAtValue(),
-					"справка о посещении, окончание приема",
-				) ??
-				requiredDocumentField(
-					attendancePurpose,
-					"справка о посещении, цель выдачи",
-				) ??
-				requiredDocumentField(
-					attendanceIssuedAt,
-					"справка о посещении, дата выдачи",
-				) ??
-				requiredDocumentField(
-					attendanceSignedByValue(),
-					"справка о посещении, подписант",
-				) ??
-				requiredDocumentField(
-					attendanceSignedByRole,
-					"справка о посещении, должность подписанта",
-				) ??
-				(attendanceDiagnosisDisclosureExcluded
-					? null
-					: "Подтвердите, что диагноз и план лечения не раскрываются в справке.") ??
-				(attendanceNotSickLeaveAcknowledged
-					? null
-					: "Подтвердите, что справка не заменяет листок нетрудоспособности.")
-			);
-		}
-		if (kind === "medical_document_release_receipt") {
-			return (
-				requiredDocumentField(
-					selectedReleaseSourceRequestDocumentId,
-					"выдача документов, выданный запрос на копии",
-				) ??
-				requiredDocumentField(
-					releaseRecipientFullName,
-					"выдача документов, получатель",
-				) ??
-				requiredDocumentField(
-					releaseRecipientIdentityDocument,
-					"выдача документов, документ получателя",
-				) ??
-				requiredDocumentField(
-					releaseRecipientAuthority,
-					"выдача документов, основание полномочий",
-				) ??
-				(documentTextLines(releaseDocumentTypes).length
-					? null
-					: "Добавьте состав выдаваемых медицинских документов.") ??
-				requiredDocumentField(
-					releaseDeliveredAt,
-					"выдача документов, дата и время",
-				) ??
-				requiredDocumentField(
-					releaseProtectionNote,
-					"выдача документов, защита передачи",
-				) ??
-				(releaseThirdPartyDataChecked
-					? null
-					: "Подтвердите, что лишние данные третьих лиц исключены.")
-			);
-		}
-		if (kind === "payment_refund_correction_request") {
-			const requestedAmount = normalizeRubAmountInput(refundAmountRub);
-			return (
-				requiredDocumentField(
-					refundSelectedPaymentId,
-					"возврат/коррекция, исходный платеж",
-				) ??
-				(requestedAmount !== null && requestedAmount > 0
-					? null
-					: validateRubAmountInput(
-							refundAmountRub,
-							"Укажите сумму возврата или коррекции больше нуля.",
-							"Укажите сумму возврата или коррекции целыми рублями без копеек.",
-						)) ??
-				requiredDocumentField(refundReason, "возврат/коррекция, основание") ??
-				requiredDocumentField(
-					refundRecipientFullName,
-					"возврат/коррекция, получатель",
-				) ??
-				requiredDocumentField(
-					refundRecipientIdentityDocument,
-					"возврат/коррекция, документ получателя",
-				) ??
-				requiredDocumentField(
-					refundOriginalFiscalReceiptNumber,
-					"возврат/коррекция, исходный фискальный чек",
-				) ??
-				requiredDocumentField(
-					refundAccountantDecision,
-					"возврат/коррекция, решение ответственного",
-				)
-			);
-		}
-		if (kind === "personal_data_processing_consent") {
-			const operatorName =
-				clinicProfileDraft.legalName.trim() ||
-				clinicProfileDraft.clinicName.trim();
-			const operatorInn = clinicProfileDraft.inn.replace(/[^\d]/g, "");
-			return (
-				requiredDocumentField(operatorName, "ПДн, оператор клиники") ??
-				(operatorInn.length === 10 || operatorInn.length === 12
-					? null
-					: "ИНН оператора ПДн должен содержать 10 или 12 цифр.") ??
-				requiredDocumentField(
-					clinicProfileDraft.address,
-					"ПДн, адрес оператора",
-				) ??
-				(documentTextLines(personalDataPurposes).length
-					? null
-					: "Добавьте цели обработки персональных данных.") ??
-				(documentTextLines(personalDataCategories).length
-					? null
-					: "Добавьте категории персональных данных.") ??
-				(documentTextLines(personalDataActions).length
-					? null
-					: "Добавьте действия с персональными данными.") ??
-				requiredDocumentField(
-					personalDataTransferRules,
-					"ПДн, правила передачи третьим лицам",
-				) ??
-				requiredDocumentField(
-					personalDataRetentionPeriod,
-					"ПДн, срок хранения",
-				) ??
-				requiredDocumentField(
-					personalDataRevocationChannel,
-					"ПДн, порядок отзыва",
-				) ??
-				requiredDocumentField(
-					personalDataConsentGivenAt,
-					"ПДн, дата согласия",
-				) ??
-				(personalDataVoluntaryConsentConfirmed
-					? null
-					: "Подтвердите добровольное согласие пациента на обработку ПДн.") ??
-				(personalDataMedicalProcessingAcknowledged
-					? null
-					: "Подтвердите, что пациент понимает обработку медицинских данных.")
-			);
-		}
-		if (kind === "medical_intervention_refusal") {
-			return (
-				requiredDocumentField(refusalIntervention, "отказ, вмешательство") ??
-				requiredDocumentField(
-					refusalClinicalIndication,
-					"отказ, клиническое показание",
-				) ??
-				(documentTextLines(refusalExplainedRisks).length
-					? null
-					: "Добавьте разъясненные риски отказа.") ??
-				(documentTextLines(refusalAlternatives).length
-					? null
-					: "Добавьте предложенные альтернативы.") ??
-				(documentTextLines(refusalUrgentWarningSigns).length
-					? null
-					: "Добавьте тревожные признаки для срочного обращения.") ??
-				requiredDocumentField(
-					refusalDoctorFullName.trim() || activeDoctor?.fullName || "",
-					"отказ, врач",
-				) ??
-				requiredDocumentField(
-					refusalConfirmedAt,
-					"отказ, дата подтверждения",
-				) ??
-				(refusalConsequencesUnderstood
-					? null
-					: "Подтвердите, что пациент понял последствия отказа.") ??
-				(refusalSecondOpinionOffered
-					? null
-					: "Подтвердите, что пациенту предложено второе мнение или альтернатива.") ??
-				(refusalEmergencyCareExplained
-					? null
-					: "Подтвердите, что пациенту объяснено, когда нужна экстренная помощь.")
-			);
-		}
-		return null;
-	}
-
-	function documentPayloadForKind(
-		kind: GeneratedDocument["kind"],
-	): DocumentPayload | null {
-		if (kind === "paid_medical_services_contract") {
-			return {
-				paidMedicalServicesContract: {
-					contractNumber: paidContractNumber.trim(),
-					contractDate: paidContractDate.trim(),
-					serviceStart: paidContractServiceStart.trim(),
-					serviceEndOrCondition: paidContractServiceEnd.trim(),
-					customerFullName: paidContractCustomerFullNameValue(),
-					representativeFullName:
-						paidContractRepresentativeFullName.trim() || null,
-					plannedCareReason: paidContractCareReasonValue(),
-					serviceScopeSummary: paidContractServiceScopeValue(),
-					estimatedTotalRub: paidContractTotalRubValue(),
-					paymentTerms: paidContractPaymentTerms.trim(),
-					priceChangeRules: paidContractPriceChangeRules.trim(),
-					freeCareAvailabilityNotice: paidContractFreeCareNotice.trim(),
-					medicalRecommendationWarning:
-						paidContractRecommendationWarning.trim(),
-					refusalAndRefundTerms: paidContractRefundTerms.trim(),
-					warrantyAndClaimsTerms: paidContractWarrantyTerms.trim(),
-					doctorFullName: paidContractDoctorFullNameValue(),
-					signedAt: paidContractSignedAt.trim(),
-					patientReceivedClinicInfo: confirmedDocumentLiteral(
-						paidContractClinicInfoConfirmed,
-						"информация о клинике получена",
-					),
-					patientReceivedPriceAndServiceList: confirmedDocumentLiteral(
-						paidContractServiceListConfirmed,
-						"перечень услуг и цены получены",
-					),
-					patientUnderstandsPaidBasis: confirmedDocumentLiteral(
-						paidContractPaidBasisConfirmed,
-						"платная основа понятна",
-					),
-					changesRequireWrittenAgreement: confirmedDocumentLiteral(
-						paidContractWrittenChangesConfirmed,
-						"изменения оформляются письменно",
-					),
-				},
-			};
-		}
-		if (kind === "completed_works_act") {
-			return {
-				completedWorksAct: {
-					actNumber: completedActNumber.trim(),
-					actDate: completedActDate.trim(),
-					contractNumber: completedActContractNumber.trim(),
-					linkedContractDocumentId: selectedCompletedActContractDocumentId,
-					servicePeriodStart: completedActServicePeriodStart.trim(),
-					servicePeriodEnd: completedActServicePeriodEnd.trim(),
-					doctorFullName: completedActDoctorFullNameValue(),
-					acceptedServicesSummary: completedActServicesSummaryValue(),
-					totalByActRub: completedActTotalRubValue(),
-					paidRub: completedActPaidRubValue(),
-					fiscalReceiptNumbers: completedActFiscalReceiptLines(),
-					patientClaimsText: completedActPatientClaims.trim() || null,
-					linkedToSignedContract: confirmedDocumentLiteral(
-						completedActLinkedContract,
-						"акт связан с подписанным договором",
-					),
-					finalServiceScopeConfirmed: confirmedDocumentLiteral(
-						completedActFinalScopeConfirmed,
-						"итоговый объем услуг подтвержден",
-					),
-					fiscalReceiptsVerified: confirmedDocumentLiteral(
-						completedActFiscalReceiptsVerified,
-						"фискальные чеки проверены",
-					),
-					patientAcceptedWorks: confirmedDocumentLiteral(
-						completedActAccepted,
-						"пациент принял работы",
-					),
-				},
-			};
-		}
-		if (kind === "treatment_cost_estimate") {
-			return {
-				treatmentCostEstimate: {
-					estimateNumber: treatmentEstimateNumber.trim(),
-					estimateDate: treatmentEstimateDate.trim(),
-					patientOrPayerFullName:
-						treatmentEstimatePatientOrPayerFullNameValue(),
-					treatmentBasis: treatmentEstimateTreatmentBasisValue(),
-					serviceLines: plannedServiceLinesForFinancialPayload(),
-					totalAmountRub: treatmentEstimateTotalRubValue(),
-					estimateValidUntil: treatmentEstimateValidUntil.trim(),
-					priceChangeRules: treatmentEstimatePriceChangeRules.trim(),
-					excludedItems: documentTextLines(treatmentEstimateExcludedItems),
-					paymentMilestoneNotes: treatmentEstimatePaymentMilestoneNotes.trim(),
-					responsibleDoctorFullName: treatmentEstimateDoctorFullNameValue(),
-					responsibleAdminFullName:
-						treatmentEstimateAdminFullName.trim() || null,
-					signedAt: treatmentEstimateSignedAt.trim(),
-					patientUnderstandsPreliminaryEstimate: confirmedDocumentLiteral(
-						treatmentEstimatePreliminaryConfirmed,
-						"предварительный характер сметы понятен",
-					),
-					serviceScopeMatchesTreatmentPlan: confirmedDocumentLiteral(
-						treatmentEstimateScopeConfirmed,
-						"объем сметы соответствует плану",
-					),
-					estimateDoesNotReplaceContractOrFiscalReceipt:
-						confirmedDocumentLiteral(
-							treatmentEstimateFiscalNoticeConfirmed,
-							"смета не заменяет договор и чек",
-						),
-					changesRequireUpdatedEstimate: confirmedDocumentLiteral(
-						treatmentEstimateChangeRulesConfirmed,
-						"изменения требуют обновления сметы",
-					),
-				},
-			};
-		}
-		if (kind === "payment_invoice") {
-			return {
-				paymentInvoice: {
-					invoiceNumber: paymentInvoiceNumber.trim(),
-					invoiceDate: paymentInvoiceDate.trim(),
-					payerFullName: paymentInvoicePayerFullNameValue(),
-					payerPhone: paymentInvoicePayerPhone.trim() || null,
-					payerEmail: paymentInvoicePayerEmail.trim() || null,
-					paymentPurpose: paymentInvoicePurpose.trim(),
-					serviceLines: plannedServiceLinesForFinancialPayload(),
-					totalAmountRub: paymentInvoiceTotalRubValue(),
-					dueDate: paymentInvoiceDueDate.trim(),
-					paymentTerms: paymentInvoicePaymentTerms.trim(),
-					clinicBankDetails: paymentInvoiceBankDetailsValue(),
-					cashlessPaymentAllowed: paymentInvoiceCashlessAllowed,
-					cashDeskPaymentAllowed: paymentInvoiceCashDeskAllowed,
-					qrPaymentPayload: paymentInvoiceQrPayload.trim() || null,
-					clinicRequisitesVerified: confirmedDocumentLiteral(
-						paymentInvoiceRequisitesVerified,
-						"реквизиты клиники проверены",
-					),
-					serviceScopeConfirmed: confirmedDocumentLiteral(
-						paymentInvoiceServiceScopeConfirmed,
-						"объем услуги в счете подтвержден",
-					),
-					payerInformedInvoiceIsNotFiscalReceipt: confirmedDocumentLiteral(
-						paymentInvoiceFiscalNoticeConfirmed,
-						"плательщик понимает, что счет не является чеком",
-					),
-				},
-			};
-		}
-		if (kind === "payment_receipt") {
-			return {
-				paymentReceipt: {
-					receiptNumber: paymentReceiptNumber.trim(),
-					receiptDate: paymentReceiptDate.trim(),
-					selectedPaymentIds: selectedPaymentReceiptPayments.map(
-						(payment) => payment.id,
-					),
-					totalPaidRub: selectedPaymentReceiptTotalRub,
-					payerFullName: paymentReceiptPayerFullNameValue(),
-					taxSupportRequested: paymentReceiptTaxSupportRequested,
-					payerBirthDate: paymentReceiptTaxSupportRequested
-						? paymentReceiptPayerBirthDateValue()
-						: null,
-					payerInn: paymentReceiptTaxSupportRequested
-						? paymentReceiptPayerInnValue() || null
-						: null,
-					payerIdentityDocument: paymentReceiptTaxSupportRequested
-						? paymentReceiptPayerIdentityDocumentValue() || null
-						: null,
-					payerRelationship: paymentReceiptTaxSupportRequested
-						? paymentReceiptPayerRelationshipValue()
-						: null,
-					paymentPurpose: paymentReceiptPurpose.trim(),
-					fiscalReceiptNumbers: paymentReceiptFiscalReceiptLines(),
-					issuedByFullName: paymentReceiptIssuedByValue(),
-					paymentAndFiscalDataVerified: confirmedDocumentLiteral(
-						paymentReceiptPaymentsVerified,
-						"платежи и фискальные чеки сверены",
-					),
-					payerIdentityVerified: confirmedDocumentLiteral(
-						paymentReceiptPayerVerified,
-						"данные плательщика проверены",
-					),
-					receiptDoesNotReplaceFiscalReceipt: confirmedDocumentLiteral(
-						paymentReceiptFiscalNoticeConfirmed,
-						"квитанция не заменяет кассовый чек",
-					),
-				},
-			};
-		}
-		if (kind === "installment_payment_schedule") {
-			return {
-				installmentPaymentSchedule: {
-					scheduleNumber: installmentScheduleNumber.trim(),
-					scheduleDate: installmentScheduleDate.trim(),
-					baseDocumentTitle: installmentScheduleBaseDocumentTitleValue(),
-					payerFullName: installmentSchedulePayerFullNameValue(),
-					totalAmountRub: installmentScheduleTotalRubValue(),
-					prepaidAmountRub: installmentSchedulePrepaidRubValue(),
-					remainingAmountRub: installmentScheduleRemainingRubValue(),
-					installments: installmentScheduleInstallmentRows(),
-					latePaymentPolicy: installmentScheduleLatePolicy.trim(),
-					paymentMethodNotes: installmentSchedulePaymentMethodNotes.trim(),
-					responsibleStaffFullName:
-						installmentScheduleResponsibleFullNameValue(),
-					patientAcceptedSchedule: confirmedDocumentLiteral(
-						installmentScheduleAccepted,
-						"график платежей принят",
-					),
-					scheduleDoesNotReplaceFiscalReceipt: confirmedDocumentLiteral(
-						installmentScheduleFiscalNoticeConfirmed,
-						"график не заменяет кассовый чек",
-					),
-					changesRequireWrittenAgreement: confirmedDocumentLiteral(
-						installmentScheduleWrittenChangesConfirmed,
-						"изменения графика оформляются письменно",
-					),
-				},
-			};
-		}
-		if (kind === "minor_legal_representative_consent") {
-			return {
-				minorLegalRepresentativeConsent: {
-					representativeFullName: minorRepresentativeFullNameValue(),
-					representativeRelationship: minorRepresentativeRelationshipValue(),
-					representativeIdentityDocument:
-						minorRepresentativeIdentityDocumentValue(),
-					authorityDocument: minorRepresentativeAuthorityDocument.trim(),
-					representativePhone: minorRepresentativePhoneValue() || null,
-					minorFullName: minorConsentPatientFullNameValue(),
-					minorBirthDate: minorConsentPatientBirthDateValue(),
-					interventionScope: minorConsentInterventionScopeValue(),
-					diagnosisOrIndication: minorConsentDiagnosisOrIndicationValue(),
-					explainedRisks: documentTextLines(minorConsentRisks),
-					alternativesExplained: documentTextLines(minorConsentAlternatives),
-					doctorFullName: minorConsentDoctorFullNameValue(),
-					signedAt: minorConsentSignedAt.trim(),
-					representativeIdentityVerified: confirmedDocumentLiteral(
-						minorConsentIdentityVerified,
-						"личность представителя проверена",
-					),
-					representativeAuthorityVerified: confirmedDocumentLiteral(
-						minorConsentAuthorityVerified,
-						"полномочия представителя проверены",
-					),
-					informedConsentExplained: confirmedDocumentLiteral(
-						minorConsentExplained,
-						"информированное согласие разъяснено",
-					),
-					medicalRecordConsentStored: confirmedDocumentLiteral(
-						minorConsentStored,
-						"согласие сохранено в медкарте",
-					),
-					ageAppropriateExplanationGiven: confirmedDocumentLiteral(
-						minorConsentAgeExplanation,
-						"ребенку дано объяснение по возрасту",
-					),
-				},
-			};
-		}
-		if (kind === "warranty_service_memo") {
-			return {
-				warrantyServiceMemo: {
-					serviceOrWorkName: warrantyServiceOrWorkNameValue(),
-					completedAt: warrantyCompletedAt.trim(),
-					teethOrArea: warrantyTeethOrAreaValue(),
-					materialsOrSystems: warrantyMaterialsOrSystems.trim(),
-					warrantyPeriod: warrantyPeriod.trim(),
-					controlVisitSchedule: warrantyControlVisitSchedule.trim(),
-					patientObligations: documentTextLines(warrantyPatientObligations),
-					excludedRiskFactors: documentTextLines(warrantyExcludedRiskFactors),
-					urgentContactReasons: documentTextLines(warrantyUrgentContactReasons),
-					linkedActOrContract: warrantyLinkedActOrContractValue(),
-					doctorFullName: warrantyDoctorFullNameValue(),
-					issuedAt: warrantyIssuedAt.trim(),
-					localWarrantyPolicyApplied: confirmedDocumentLiteral(
-						warrantyPolicyApplied,
-						"локальное гарантийное положение применено",
-					),
-					patientReceivedAftercare: confirmedDocumentLiteral(
-						warrantyAftercareReceived,
-						"пациент получил рекомендации",
-					),
-					patientUnderstandsControlVisits: confirmedDocumentLiteral(
-						warrantyControlVisitsUnderstood,
-						"контрольные визиты понятны",
-					),
-				},
-			};
-		}
-		if (kind === "patient_intake_questionnaire") {
-			return {
-				patientIntakeQuestionnaire: {
-					chiefComplaint: intakeChiefComplaint.trim(),
-					allergyStatus: intakeAllergyStatus.trim(),
-					currentMedications: intakeCurrentMedications.trim(),
-					chronicConditions: intakeChronicConditions.trim(),
-					pregnancyStatus: intakePregnancyStatus,
-					anticoagulants: intakeAnticoagulants.trim(),
-					infectiousRiskNotes: intakeInfectiousRiskNotes.trim(),
-					cardioEndocrineNotes: intakeCardioEndocrineNotes.trim(),
-					emergencyContact: intakeEmergencyContact.trim() || null,
-					additionalNotes: intakeAdditionalNotes.trim() || null,
-					accuracyConfirmed: confirmedDocumentLiteral(
-						intakeAccuracyConfirmed,
-						"пациент подтвердил достоверность анкеты",
-					),
-				},
-			};
-		}
-		if (kind === "tax_deduction_application") {
-			return {
-				taxDeductionApplication: {
-					taxpayerFullName: taxApplicationTaxpayerFullName.trim(),
-					taxpayerInn: taxApplicationTaxpayerInn.replace(/[^\d]/g, ""),
-					taxpayerBirthDate: taxApplicationTaxpayerBirthDate.trim(),
-					taxpayerIdentityDocument:
-						taxApplicationTaxpayerIdentityDocument.trim(),
-					relationshipToPatient: taxApplicationRelationship,
-					requestedTaxYear: taxDocumentYear,
-					requestedForm: taxApplicationForm,
-					selectedPaymentIds: selectedTaxPaymentIdsForCurrentDocument(),
-					deliveryChannel: taxApplicationDeliveryChannel,
-					contactForReadyDocument: taxApplicationContact.trim(),
-					applicantAuthorityDocument:
-						taxApplicationAuthorityDocument.trim() || null,
-					requestedAt: fromDateTimeLocalValue(taxApplicationRequestedAt),
-					duplicateWarningAccepted: confirmedDocumentLiteral(
-						taxApplicationDuplicateWarningAccepted,
-						"проверка дублей налоговой справки подтверждена",
-					),
-				},
-			};
-		}
-		if (kind === "informed_consent") {
-			return {
-				informedConsent: {
-					intervention: informedConsentIntervention.trim(),
-					toothOrArea:
-						informedConsentToothOrArea.trim() || inferredTreatmentArea || "",
-					diagnosisOrIndication:
-						informedConsentDiagnosisOrIndication.trim() ||
-						dashboard?.activeVisit?.complaint ||
-						"",
-					expectedBenefit: informedConsentExpectedBenefit.trim(),
-					plannedAnesthesia: informedConsentAnesthesia.trim() || null,
-					materialOrMedicationNotes:
-						informedConsentMaterialNotes.trim() || null,
-					trustedContactForMedicalInfo:
-						informedConsentTrustedContact.trim() || null,
-					explainedRisks: documentTextLines(informedConsentRisks),
-					alternatives: documentTextLines(informedConsentAlternatives),
-					aftercareRequirements: documentTextLines(informedConsentAftercare),
-					doctorFullName:
-						informedConsentDoctorFullName.trim() ||
-						activeDoctor?.fullName ||
-						"",
-					consentConfirmedAt: informedConsentConfirmedAt.trim(),
-					patientQuestionsAnswered: confirmedDocumentLiteral(
-						informedConsentQuestionsAnswered,
-						"вопросы пациента по информированному согласию закрыты",
-					),
-					patientUnderstandsRisks: confirmedDocumentLiteral(
-						informedConsentRisksUnderstood,
-						"риски информированного согласия понятны",
-					),
-					patientMayWithdrawBeforeIntervention: confirmedDocumentLiteral(
-						informedConsentWithdrawUnderstood,
-						"право отказаться до вмешательства объяснено",
-					),
-				},
-			};
-		}
-		if (kind === "procedure_specific_consent_packet") {
-			return {
-				procedureSpecificConsent: {
-					procedureType: procedureConsentProcedureType,
-					procedureName: procedureConsentProcedureName.trim(),
-					toothOrArea:
-						procedureConsentToothOrArea.trim() || inferredTreatmentArea || "",
-					diagnosisOrIndication:
-						procedureConsentDiagnosisOrIndication.trim() ||
-						dashboard?.activeVisit?.complaint ||
-						"",
-					clinicalToothRows: clinicalToothRowsValue(),
-					plannedAnesthesia: procedureConsentAnesthesia.trim() || null,
-					materialsAndSystems: procedureConsentMaterials.trim() || null,
-					patientSpecificRiskFactors: documentTextLines(
-						procedureConsentPatientRiskFactors,
-					),
-					procedureSpecificRisks: documentTextLines(
-						procedureConsentSpecificRisks,
-					),
-					alternatives: documentTextLines(procedureConsentAlternatives),
-					aftercareAndLimits: documentTextLines(procedureConsentAftercare),
-					doctorFullName:
-						procedureConsentDoctorFullName.trim() ||
-						activeDoctor?.fullName ||
-						"",
-					consentConfirmedAt: procedureConsentConfirmedAt.trim(),
-					localClinicFormAttached: procedureConsentLocalFormAttached,
-					patientQuestionsAnswered: confirmedDocumentLiteral(
-						procedureConsentQuestionsAnswered,
-						"вопросы пациента по процедуре закрыты",
-					),
-					exactProcedureConfirmed: confirmedDocumentLiteral(
-						procedureConsentExactProcedureConfirmed,
-						"процедура, зона и объем подтверждены",
-					),
-					patientUnderstandsSpecificRisks: confirmedDocumentLiteral(
-						procedureConsentRisksUnderstood,
-						"процедурные риски понятны",
-					),
-				},
-			};
-		}
-		if (kind === "treatment_plan") {
-			return {
-				treatmentPlan: {
-					clinicalReason: treatmentPlanClinicalReasonValue(),
-					diagnosisSummary: treatmentPlanDiagnosisSummaryValue(),
-					teethOrArea: treatmentPlanTeethOrAreaValue(),
-					clinicalToothRows: clinicalToothRowsValue(),
-					treatmentGoals: documentTextLines(treatmentPlanGoals),
-					plannedStages: treatmentPlanStageRows(),
-					estimatedTotalRub: treatmentPlanTotalRubValue(),
-					alternatives: documentTextLines(treatmentPlanAlternatives),
-					risksAndLimitations: documentTextLines(treatmentPlanRisks),
-					prognosisAndLimits: treatmentPlanPrognosis.trim(),
-					controlPlan: treatmentPlanControlPlan.trim(),
-					doctorFullName: treatmentPlanDoctorFullNameValue(),
-					plannedAt: treatmentPlanPlannedAt.trim(),
-					patientQuestionsAnswered: confirmedDocumentLiteral(
-						treatmentPlanQuestionsAnswered,
-						"вопросы пациента по плану лечения закрыты",
-					),
-					planRequiresSeparateConsent: confirmedDocumentLiteral(
-						treatmentPlanSeparateConsentAcknowledged,
-						"план не заменяет отдельное согласие",
-					),
-					planRequiresNewApprovalOnChange: confirmedDocumentLiteral(
-						treatmentPlanNewApprovalAcknowledged,
-						"изменение плана требует нового согласования",
-					),
-				},
-			};
-		}
-		if (kind === "treatment_plan_acceptance") {
-			return {
-				treatmentPlanAcceptance: {
-					selectedVariant: treatmentAcceptanceVariant,
-					clinicalGoal: treatmentAcceptanceClinicalGoal.trim(),
-					diagnosisSummary:
-						treatmentAcceptanceDiagnosisSummary.trim() ||
-						dashboard?.activeVisit?.diagnosis ||
-						dashboard?.activeVisit?.complaint ||
-						"",
-					teethOrArea:
-						treatmentAcceptanceTeethOrArea.trim() ||
-						inferredTreatmentArea ||
-						"",
-					clinicalToothRows: clinicalToothRowsValue(),
-					acceptedStages: treatmentAcceptanceStageRows(),
-					estimatedTotalRub: treatmentAcceptanceTotalRubValue(),
-					estimateValidUntil: treatmentAcceptanceEstimateValidUntil.trim(),
-					paymentTerms: treatmentAcceptancePaymentTerms.trim(),
-					rejectedAlternatives: documentTextLines(
-						treatmentAcceptanceRejectedAlternatives,
-					),
-					risksAndLimitations: documentTextLines(treatmentAcceptanceRisks),
-					warrantyAndControlTerms: treatmentAcceptanceWarrantyTerms.trim(),
-					doctorFullName:
-						treatmentAcceptanceDoctorFullName.trim() ||
-						activeDoctor?.fullName ||
-						"",
-					acceptedAt: treatmentAcceptanceAcceptedAt.trim(),
-					patientQuestionsAnswered: confirmedDocumentLiteral(
-						treatmentAcceptanceQuestionsAnswered,
-						"вопросы пациента по согласованию плана закрыты",
-					),
-					patientUnderstandsAlternatives: confirmedDocumentLiteral(
-						treatmentAcceptanceAlternativesUnderstood,
-						"альтернативы плана понятны",
-					),
-					patientUnderstandsCostMayChange: confirmedDocumentLiteral(
-						treatmentAcceptanceCostChangeUnderstood,
-						"изменение стоимости понятно",
-					),
-					revisionRequiresNewApproval: confirmedDocumentLiteral(
-						treatmentAcceptanceRevisionAcknowledged,
-						"пересмотр плана требует нового согласования",
-					),
-				},
-			};
-		}
-		if (kind === "post_visit_recommendations") {
-			return {
-				postVisitRecommendations: {
-					careTopic: postVisitCareTopic,
-					procedureName: postVisitProcedureNameValue(),
-					toothOrArea: postVisitToothOrAreaValue(),
-					performedAt: postVisitPerformedAt.trim(),
-					doctorFullName: postVisitDoctorFullNameValue(),
-					allowedAfter: documentTextLines(postVisitAllowedAfter),
-					temporaryRestrictions: documentTextLines(postVisitRestrictions),
-					medicationAndRinsePlan: documentTextLines(
-						postVisitMedicationAndRinsePlan,
-					),
-					hygieneInstructions: documentTextLines(postVisitHygieneInstructions),
-					nutritionInstructions: documentTextLines(
-						postVisitNutritionInstructions,
-					),
-					urgentWarningSigns: documentTextLines(postVisitUrgentWarningSigns),
-					plannedFollowUpAt: postVisitFollowUpAt.trim() || null,
-					clinicContactInstruction: postVisitClinicContactInstruction.trim(),
-					telegramSummary: postVisitTelegramSummary.trim(),
-					patientReceivedPrintedCopy: confirmedDocumentLiteral(
-						postVisitPrintedCopyReceived,
-						"пациент получил памятку",
-					),
-					patientUnderstandsUrgentSigns: confirmedDocumentLiteral(
-						postVisitUrgentSignsUnderstood,
-						"тревожные признаки понятны",
-					),
-					safeForTelegramSending: confirmedDocumentLiteral(
-						postVisitTelegramSafe,
-						"Telegram-текст проверен",
-					),
-				},
-			};
-		}
-		if (kind === "anesthesia_consent_log") {
-			return {
-				anesthesiaConsentLog: {
-					method: anesthesiaMethod.trim(),
-					anesthetic: anesthesiaAnesthetic.trim(),
-					vasoconstrictor: anesthesiaVasoconstrictor.trim() || null,
-					plannedZone: anesthesiaZone.trim(),
-					allergyStatus: anesthesiaAllergyStatus.trim(),
-					restrictionNotes: anesthesiaRestrictionNotes.trim() || null,
-					doseRows: [
-						{
-							time: anesthesiaDoseTime.trim(),
-							medication: [
-								anesthesiaAnesthetic.trim(),
-								anesthesiaVasoconstrictor.trim(),
-							]
-								.filter(Boolean)
-								.join(", "),
-							doseMl: anesthesiaDoseMl.trim(),
-							zone: anesthesiaZone.trim(),
-							reaction: anesthesiaReaction.trim() || null,
-						},
-					],
-					patientAnesthesiaRisksExplained: confirmedDocumentLiteral(
-						anesthesiaRisksExplained,
-						"риски анестезии разъяснены",
-					),
-					allergyAndRestrictionStatusChecked: confirmedDocumentLiteral(
-						anesthesiaAllergyRestrictionsChecked,
-						"аллергии и ограничения проверены",
-					),
-					patientConfirmedAnesthesiaConsent: confirmedDocumentLiteral(
-						anesthesiaConsentConfirmed,
-						"согласие на местную анестезию подтверждено",
-					),
-				},
-			};
-		}
-		if (kind === "prescription_medication_order") {
-			return {
-				prescriptionMedicationOrder: {
-					clinicalToothRows: clinicalToothRowsValue(),
-					medications: [
-						{
-							medication: prescriptionMedication.trim(),
-							dosage: prescriptionDosage.trim(),
-							instructions: prescriptionInstructions.trim(),
-							duration: prescriptionDuration.trim(),
-						},
-					],
-					safetyNotes: documentTextLines(prescriptionSafetyNotes),
-					urgentContactReason: prescriptionUrgentContactReason.trim(),
-				},
-			};
-		}
-		if (kind === "lab_work_order") {
-			return {
-				labWorkOrder: {
-					clinicalToothRows: clinicalToothRowsValue(),
-					workType: labWorkType.trim(),
-					teethOrArea: labTeethOrArea.trim(),
-					material: labMaterial.trim(),
-					shade: labShade.trim(),
-					source: labSource.trim(),
-					deadline: labDeadline.trim(),
-					technicianNotes: labTechnicianNotes.trim() || null,
-				},
-			};
-		}
-		if (kind === "photo_video_consent") {
-			return {
-				photoVideoConsent: {
-					clinicalRecordUse: confirmedDocumentLiteral(
-						photoVideoClinicalRecordUseConfirmed,
-						"использование фото, видео и снимков в медицинской карте подтверждено",
-					),
-					labTransferAllowed: photoVideoLabTransferAllowed,
-					colleagueConsultationAllowed: photoVideoColleagueConsultationAllowed,
-					educationUseAllowed: photoVideoEducationUseAllowed,
-					marketingUseAllowed: photoVideoMarketingUseAllowed,
-					recognizablePublicationAllowed:
-						photoVideoRecognizablePublicationAllowed,
-					materials: photoVideoMaterials,
-					anonymizationRequired: confirmedDocumentLiteral(
-						photoVideoAnonymizationConfirmed,
-						"обезличивание внешнего использования подтверждено",
-					),
-					revocationChannel: photoVideoRevocationChannel.trim(),
-					scopeNotes: photoVideoScopeNotes.trim() || null,
-				},
-			};
-		}
-		if (kind === "xray_cbct_referral") {
-			return {
-				xrayCbctReferral: {
-					studyType: xrayStudyType,
-					clinicalToothRows: clinicalToothRowsValue(),
-					area: xrayArea.trim(),
-					clinicalQuestion: xrayClinicalQuestion.trim(),
-					indication: xrayIndication.trim(),
-					pregnancyStatus: xrayPregnancyStatus,
-					safetyNotes: xraySafetyNotes.trim(),
-					priority: xrayPriority,
-					includeDicomExport: xrayIncludeDicomExport,
-					includeRadiologistReport: xrayIncludeRadiologistReport,
-					requestedBy:
-						xrayRequestedBy.trim() || activeDoctor?.fullName || "лечащий врач",
-					recipientClinic: xrayRecipientClinic.trim() || null,
-					dueDate: xrayDueDate.trim() || null,
-				},
-			};
-		}
-		if (kind === "outpatient_medical_card_025u") {
-			return {
-				outpatientMedicalCard025u: outpatient025uPayloadValue(),
-			};
-		}
-		if (kind === "medical_record_extract") {
-			const sourceVisitIds = documentTextLines(recordExtractSourceVisitIds);
-			return {
-				medicalRecordExtract: {
-					periodStart: recordExtractPeriodStart.trim(),
-					periodEnd: recordExtractPeriodEnd.trim(),
-					sourceVisitIds: sourceVisitIds.length
-						? sourceVisitIds
-						: [dashboard?.activeVisit?.id ?? "текущий визит"],
-					complaintAndAnamnesis: recordExtractComplaintAndAnamnesisValue(),
-					objectiveStatus: recordExtractObjectiveStatusValue(),
-					diagnosis: recordExtractDiagnosisValue(),
-					clinicalToothRows: clinicalToothRowsValue(),
-					treatmentProvided: recordExtractTreatmentProvidedValue(),
-					recommendations: recordExtractRecommendations.trim(),
-					doctorFullName:
-						recordExtractDoctorFullName.trim() || activeDoctor?.fullName || "",
-					recipientFullName:
-						recordExtractRecipientFullName.trim() ||
-						documentPatient?.fullName ||
-						"",
-					recipientAuthority: recordExtractRecipientAuthority.trim(),
-					issuedAt: recordExtractIssuedAt.trim(),
-					preparedFromSignedMedicalRecords: confirmedDocumentLiteral(
-						recordExtractPreparedFromSignedRecords,
-						"выписка подготовлена из подписанных записей",
-					),
-					thirdPartyDataChecked: confirmedDocumentLiteral(
-						recordExtractThirdPartyDataChecked,
-						"данные третьих лиц проверены",
-					),
-				},
-			};
-		}
-		if (kind === "medical_record_copy_request") {
-			return {
-				medicalRecordCopyRequest: {
-					requestedDocumentTypes: documentTextLines(copyRequestDocumentTypes),
-					periodStart: copyRequestPeriodStart.trim() || null,
-					periodEnd: copyRequestPeriodEnd.trim() || null,
-					requestedFormat: copyRequestFormat,
-					recipientFullName:
-						copyRequestRecipientFullName.trim() ||
-						documentPatient?.fullName ||
-						"",
-					recipientIdentityDocument:
-						copyRequestRecipientIdentityDocument.trim(),
-					recipientAuthority: copyRequestRecipientAuthority.trim(),
-					representativeAuthorityDocument:
-						copyRequestRepresentativeAuthorityDocument.trim() || null,
-					requestedAt: copyRequestRequestedAt.trim(),
-					contactForDelivery: copyRequestContactForDelivery.trim(),
-					specialInstructions: copyRequestSpecialInstructions.trim() || null,
-					includeDicomSourceData: copyRequestIncludeDicomSourceData,
-					identityVerified: confirmedDocumentLiteral(
-						copyRequestIdentityVerified,
-						"личность получателя запроса проверена",
-					),
-					thirdPartyDataExclusionAcknowledged: confirmedDocumentLiteral(
-						copyRequestThirdPartyDataChecked,
-						"исключение данных третьих лиц подтверждено",
-					),
-				},
-			};
-		}
-		if (kind === "visit_attendance_certificate") {
-			return {
-				visitAttendanceCertificate: {
-					attendedAtStart: attendanceStartedAtValue(),
-					attendedAtEnd: attendanceEndedAtValue(),
-					purpose: attendancePurpose.trim(),
-					recipientOrganization: attendanceRecipientOrganization.trim() || null,
-					issuedAt: attendanceIssuedAt.trim(),
-					signedByFullName: attendanceSignedByValue(),
-					signedByRole: attendanceSignedByRole.trim(),
-					diagnosisDisclosureExcluded: confirmedDocumentLiteral(
-						attendanceDiagnosisDisclosureExcluded,
-						"диагноз не раскрывается в справке посещения",
-					),
-					notSickLeaveAcknowledged: confirmedDocumentLiteral(
-						attendanceNotSickLeaveAcknowledged,
-						"справка не заменяет больничный",
-					),
-				},
-			};
-		}
-		if (kind === "medical_document_release_receipt") {
-			return {
-				medicalDocumentReleaseReceipt: {
-					sourceRequestDocumentId: selectedReleaseSourceRequestDocumentId,
-					recipientFullName: releaseRecipientFullName.trim(),
-					recipientIdentityDocument: releaseRecipientIdentityDocument.trim(),
-					recipientAuthority: releaseRecipientAuthority.trim(),
-					releaseChannel,
-					documentTypes: documentTextLines(releaseDocumentTypes),
-					periodStart: releasePeriodStart.trim() || null,
-					periodEnd: releasePeriodEnd.trim() || null,
-					deliveredAt: releaseDeliveredAt.trim(),
-					accessExpiresAt: releaseAccessExpiresAt.trim() || null,
-					deliveryProtectionNote: releaseProtectionNote.trim(),
-					thirdPartyDataChecked: confirmedDocumentLiteral(
-						releaseThirdPartyDataChecked,
-						"лишние данные третьих лиц исключены",
-					),
-				},
-			};
-		}
-		if (kind === "payment_refund_correction_request") {
-			return {
-				paymentRefundCorrection: {
-					action: refundAction,
-					selectedPaymentIds: refundSelectedPaymentId
-						? [refundSelectedPaymentId]
-						: [],
-					amountRub: normalizeRubAmountInput(refundAmountRub) ?? 0,
-					reason: refundReason.trim(),
-					refundMethod,
-					recipientFullName: refundRecipientFullName.trim(),
-					recipientIdentityDocument: refundRecipientIdentityDocument.trim(),
-					bankDetails: refundBankDetails.trim() || null,
-					originalFiscalReceiptNumber: refundOriginalFiscalReceiptNumber.trim(),
-					correctionFiscalReceiptNumber:
-						refundCorrectionFiscalReceiptNumber.trim() || null,
-					accountantDecision: refundAccountantDecision.trim(),
-				},
-			};
-		}
-		if (kind === "personal_data_processing_consent") {
-			return {
-				personalDataProcessingConsent: {
-					operatorLegalName:
-						clinicProfileDraft.legalName.trim() ||
-						clinicProfileDraft.clinicName.trim(),
-					operatorInn: clinicProfileDraft.inn.replace(/[^\d]/g, ""),
-					operatorAddress: clinicProfileDraft.address.trim(),
-					processingPurposes: documentTextLines(personalDataPurposes),
-					personalDataCategories: documentTextLines(personalDataCategories),
-					processingActions: documentTextLines(personalDataActions),
-					thirdPartyTransferRules: personalDataTransferRules.trim(),
-					crossBorderTransferAllowed: personalDataCrossBorderAllowed,
-					automatedDecisionMakingAllowed: personalDataAutomatedDecisionAllowed,
-					retentionPeriod: personalDataRetentionPeriod.trim(),
-					revocationChannel: personalDataRevocationChannel.trim(),
-					consentGivenAt: personalDataConsentGivenAt.trim(),
-					patientConfirmedVoluntaryConsent: confirmedDocumentLiteral(
-						personalDataVoluntaryConsentConfirmed,
-						"добровольное согласие на ПДн подтверждено",
-					),
-					medicalDataProcessingAcknowledged: confirmedDocumentLiteral(
-						personalDataMedicalProcessingAcknowledged,
-						"обработка медицинских данных понятна",
-					),
-				},
-			};
-		}
-		if (kind === "medical_intervention_refusal") {
-			return {
-				medicalInterventionRefusal: {
-					refusedIntervention: refusalIntervention.trim(),
-					clinicalIndication: refusalClinicalIndication.trim(),
-					patientReason: refusalPatientReason.trim() || null,
-					explainedRisks: documentTextLines(refusalExplainedRisks),
-					alternativesOffered: documentTextLines(refusalAlternatives),
-					urgentWarningSigns: documentTextLines(refusalUrgentWarningSigns),
-					doctorFullName:
-						refusalDoctorFullName.trim() || activeDoctor?.fullName || "",
-					refusalConfirmedAt: refusalConfirmedAt.trim(),
-					patientUnderstandsConsequences: confirmedDocumentLiteral(
-						refusalConsequencesUnderstood,
-						"последствия отказа понятны",
-					),
-					secondOpinionOffered: confirmedDocumentLiteral(
-						refusalSecondOpinionOffered,
-						"второе мнение или альтернатива предложены",
-					),
-					emergencyCareExplained: confirmedDocumentLiteral(
-						refusalEmergencyCareExplained,
-						"экстренная помощь объяснена",
-					),
-				},
-			};
-		}
-		return null;
-	}
-
 	function renderClinicalToothRowsEditor() {
 		return (
 			<label>
@@ -15971,12 +11827,12 @@ export function useAppLogic(): any {
 		const amountSource = documentAmountSource(kind);
 		const metadata = documentKindMetadata[kind];
 		const isTaxDocument = metadata.group === "tax";
-		const payloadError = validateDocumentPayloadForKind(kind);
+		const payloadError = validateDocumentPayloadForKind(kind, documentState);
 		if (payloadError) {
 			setError(payloadError);
 			return;
 		}
-		const documentPayload = documentPayloadForKind(kind);
+		const documentPayload = documentPayloadForKind(kind, documentState);
 		if (
 			(kind === "tax_deduction_certificate" ||
 				kind === "tax_deduction_registry") &&
@@ -16128,7 +11984,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/documents", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -16177,7 +12033,7 @@ export function useAppLogic(): any {
 		}
 		setDocumentStatusSavingId(documentId);
 		try {
-			const headers = denteClinicalMutationHeaders(
+			const headers = auth.denteClinicalMutationHeaders(
 				payload ? { "Content-Type": "application/json" } : {},
 			);
 			const response = await fetch(`/api/documents/${documentId}/${action}`, {
@@ -16352,7 +12208,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(`/api/documents/${documentId}/tax-xml`, {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok) {
 				setError(await responseErrorMessage(response, "XML ФНС не выгружен"));
@@ -16382,7 +12238,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(`/api/documents/${documentId}/audit-facts`, {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok) {
 				setError(
@@ -16414,7 +12270,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(issuedDocumentHtmlDownloadUrl(documentId), {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok) {
 				setError(
@@ -16472,7 +12328,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch(`/api/documents/${documentId}/pdf`, {
 				cache: "no-store",
-				headers: denteClinicalReadHeaders(),
+				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (!response.ok) {
 				setError(await responseErrorMessage(response, "PDF не сформирован"));
@@ -16593,7 +12449,7 @@ export function useAppLogic(): any {
 				// Family wallet payment
 				const famRes = await fetch(
 					`/api/finance/family/patient/${documentPatient.id}`,
-					{ headers: denteClinicalReadHeaders() },
+					{ headers: auth.denteClinicalReadHeaders() },
 				);
 				if (!famRes.ok) {
 					setError("У пациента не настроен семейный аккаунт для оплаты.");
@@ -16603,7 +12459,7 @@ export function useAppLogic(): any {
 				const famData = await famRes.json();
 				response = await fetch("/api/finance/family/pay", {
 					method: "POST",
-					headers: denteClinicalMutationHeaders({
+					headers: auth.denteClinicalMutationHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -16623,7 +12479,7 @@ export function useAppLogic(): any {
 				const paymentClientMutationId = browserGeneratedId("payment");
 				response = await fetch("/api/billing/payments", {
 					method: "POST",
-					headers: denteClinicalMutationHeaders({
+					headers: auth.denteClinicalMutationHeaders({
 						"Content-Type": "application/json",
 					}),
 					body: JSON.stringify({
@@ -16755,7 +12611,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/communications/tasks/complete", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -17268,7 +13124,7 @@ export function useAppLogic(): any {
 		try {
 			const response = await fetch("/api/imaging/studies", {
 				method: "POST",
-				headers: denteClinicalMutationHeaders({
+				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -17351,12 +13207,6 @@ export function useAppLogic(): any {
 	const imagingViewerHref = (study: Dashboard["imagingStudies"][number]) =>
 		imagingPreviewObjectUrls[study.id] ?? study.viewerUrl ?? study.previewUrl;
 
-	const activeWorkspaceProfile =
-		dashboard?.clinicSettings?.workspaceProfiles?.find(
-			(profile) => profile.mode === dashboard?.clinicSettings?.profile?.mode,
-		) ?? dashboard?.clinicSettings?.workspaceProfiles?.[0];
-	const settingsAdminSecretDomain: AdminSecretUnlockDomain =
-		settingsTab === "telegram" ? "telegram" : "settings";
 	const activeRolePolicy =
 		dashboard?.clinicSettings?.roleAccessPolicies?.find(
 			(policy) => policy.role === selectedWorkspaceRole,
@@ -17448,6 +13298,38 @@ export function useAppLogic(): any {
 	const serviceTitle = (serviceId: string) =>
 		dashboard?.serviceCatalog?.find((service) => service.id === serviceId)
 			?.title ?? serviceId;
+
+	const [isQuickConsultLoading, setIsQuickConsultLoading] = useState(false);
+	const handleQuickConsult = async () => {
+		if (isQuickConsultLoading) return;
+		setIsQuickConsultLoading(true);
+		try {
+			const response = await fetch("/api/visits/quick", {
+				method: "POST",
+				headers: auth.denteClinicalMutationHeaders({
+					"Content-Type": "application/json",
+				}),
+			});
+			if (!response.ok) {
+				const msg = await response.text().catch(() => "Ошибка");
+				setError(`Быстрый приём: ${msg}`);
+				return;
+			}
+			const { patientId } = (await response.json()) as {
+				patientId: string;
+				appointmentId: string;
+			};
+			// Select the patient and navigate to visit
+			setSelectedPatientId(patientId);
+			await loadDashboard();
+			window.location.hash = "visit";
+		} catch (err: any) {
+			setError(`Быстрый приём: ${err.message ?? "Ошибка сети"}`);
+		} finally {
+			setIsQuickConsultLoading(false);
+		}
+	};
+
 	const goToVisitDictation = () => {
 		window.location.hash = "visit";
 		const openDictation = () => {
@@ -17461,945 +13343,954 @@ export function useAppLogic(): any {
 	};
 
 	return {
-    		...telegramSettingsModule,
-    		acceptDraftToVisit,
-    		activeAppointment,
-    		activeChair,
-    		activeCommunicationTasks,
-    		activeDoctor,
-    		activeDocuments,
-    		activeImagingStudies,
-    		activeIssuedPaidContracts,
-    		activePatient,
-    		activePatientCallablePhone,
-    		activePatientHasCallablePhone,
-    		activePatientInsight,
-    		activePayments,
-    		activeQueueRole,
-    		activeRolePolicy,
-    		activeRoleQueue,
-    		activeRoleRestrictedSections,
-    		activeRoleWritableSections,
-    		activeSettingsTabButtonRef,
-    		activeSpeechProviderHealth,
-    		activeTreatmentPlanItems,
-    		activeTreatmentPlanScenarios,
-    		activeUsableDocuments,
-    		activeVisitClinicalRuleEvaluations,
-    		activeVisitClinicalRuleSummary,
-    		activeWorkspaceProfile,
-    		addChair,
-    		addImagingViewerNoteAnnotation,
-    		addMigrationDiscoveryCandidateToSmartImport,
-    		addStaffMember,
-    		analyzePricelist,
-    		appendToTranscript,
-    		applyCtPlanningQuickAction,
-    		applyMprClinicalPreset,
-    		applyNearestMprClinicalPreset,
-    		applyPostVisitCarePreset,
-    		applyProtocolTemplate,
-    		appointmentLabels,
-    		appointmentReadinessById,
-    		appointmentReadinessLabels,
-    		appointmentScheduleDraftFromAppointment,
-    		attachPricelistImage,
-    		browserCanRequestPersistentStorage,
-    		browserContinuity,
-    		browserContinuityChecks,
-    		browserContinuityCritical,
-    		browserContinuityState,
-    		browserContinuityValue,
-    		browserDirectoryInputRef,
-    		browserDirectoryPickerAvailable,
-    		browserImagingScanProgress,
-    		browserMigrationDiscovery,
-    		browserMigrationInputRef,
-    		browserMigrationScanProgress,
-    		browserPickedImagingFolder,
-    		buildDicomFolderWorkupPlan,
-    		buildDicomRenderCachePlan,
-    		buildDicomViewerLaunchManifest,
-    		buildDicomViewerToolStateBundle,
-    		buildDicomViewerWorkbenchManifest,
-    		buildDraft,
-    		buildOfflineDraft,
-    		canRetryImagingViewerSave,
-    		cancelBrowserImagingFolderScan,
-    		cancelBrowserMigrationScan,
-    		cancelLocalDicomOperation,
-    		cbctWorkbenchPlanes,
-    		cbctWorkbenchProjections,
-    		cbctWorkbenchSeries,
-    		cbctWorkbenchTools,
-    		chairScheduleDirtyIds,
-    		chairScheduleDrafts,
-    		chairScheduleSaveStates,
-    		chairScheduleSavingId,
-    		changeClinicMode,
-    		changePostVisitCareTopic,
-    		checkDicomWebConnector,
-    		checkDicomWorkstationReadiness,
-    		chooseRecognitionPreset,
-    		clampMprAxisDeg,
-    		clampMprSlabMm,
-    		clampMprSliceIndex,
-    		clearBrowserPickedImagingFolderPreview,
-    		clearDicomWorkbenchRecovery,
-    		clearLocalImagingFolderRecovery,
-    		clearPricelistImage,
-    		clearTranscriptWithUndo,
-    		clearedTranscriptSnapshot,
-    		clinicModeLabels,
-    		clinicProfileDraft,
-    		clinicProfileSaveState,
-    		clinicPublicLookup,
-    		clinicalRuleActionLabels,
-    		clinicalRuleSeverityLabels,
-    		closeAppointmentEditor,
-    		commitImagingImport,
-    		commitImport,
-    		commitSmartImport,
-    		communicationChannelLabels,
-    		communicationDocumentTaskActionLabels,
-    		communicationIntentLabels,
-    		communicationNote,
-    		communicationPriorityLabels,
-    		communicationSavingTaskId,
-    		communicationStatusLabels,
-    		compactDocumentText,
-    		completeCommunicationTask,
-    		completedActContractReferenceForUi,
-    		completedActFiscalReceiptLines,
-    		completedActPaidRubValue,
-    		confirmDocumentIssue,
-    		confirmDocumentVoid,
-    		continueOnboardingInDraftMode,
-    		copyTelegramTextToClipboard,
-    		createAppointmentFromDraft,
-    		createClinicalRuleFromSettings,
-    		createCtPlanningArtifact,
-    		createDocument,
-    		createImagingStudy,
-    		createPatient,
-    		createTelegramLinkCode,
-    		ctPlanningActiveQuickActionId,
-    		ctPlanningAnnotationRefs,
-    		ctPlanningImplantPlan,
-    		currentOnboardingIndex,
-    		currentView,
-    		dashboard,
-    		defaultDicomFirstFrameViewerState,
-    		defaultImagingViewerState,
-    		dentalMaterialKindLabels,
-    		dentalRestorationTypeLabels,
-    		describeMprClinicalPresetProjectionFallback,
-    		dicomDiagnosticPixelPolicyLabels,
-    		dicomExecutionLaneLabels,
-    		dicomFirstFrameImageStyle,
-    		dicomFirstFramePreview,
-    		dicomFirstFrameStatusLabels,
-    		dicomFirstFrameViewerState,
-    		dicomFolderSeriesScan,
-    		dicomFolderWorkupPathLabels,
-    		dicomFolderWorkupPlan,
-    		dicomGpuClassLabels,
-    		dicomLabel,
-    		dicomLocalFolderDiscovery,
-    		dicomQualityModeLabels,
-    		dicomReadinessCheckLabels,
-    		dicomRenderCachePlan,
-    		dicomRenderMemoryBudgetClassLabels,
-    		dicomRuntimeTierLabels,
-    		dicomSeriesPreview,
-    		dicomSeriesViewerLabels,
-    		dicomTextureStrategyLabels,
-    		dicomViewerLaunchManifest,
-    		dicomViewerLaunchModeLabels,
-    		dicomViewerToolStateBundle,
-    		dicomViewerWorkbenchManifest,
-    		dicomWebCheck,
-    		dicomWebEndpointUrl,
-    		dicomWebStatusLabels,
-    		dicomWorkbenchLocalSavedAt,
-    		dicomWorkbenchServerBundle,
-    		dicomWorkbenchSourceIsRedacted,
-    		dicomWorkstationReadiness,
-    		dictationQuickPhrases,
-    		discoverDicomFolders,
-    		discoverMigrationSources,
-    		dismissOnboarding,
-    		documentActionLabels,
-    		documentDetectedKindLabel,
-    		documentFactoryGroups,
-    		documentIngestion,
-    		documentIngestionQualityLabels,
-    		documentIngestionTarget,
-    		documentIssueAttestationReady,
-    		documentIssueConfirmation,
-    		documentIssueSignatureModeLabels,
-    		documentKindsForCommunicationTask,
-    		documentLabels,
-    		documentPatient,
-    		documentSourceStatusClassNames,
-    		documentStatusLabels,
-    		documentVoidConfirmation,
-    		documentVoidReady,
-    		documentVoidReasonLabels,
-    		downloadDicomViewerToolStateBundle,
-    		downloadDicomWorkbenchManifest,
-    		downloadIssuedDocumentHtml,
-    		downloadIssuedDocumentPdf,
-    		downloadMigrationHandoffReport,
-    		downloadPersistenceExport,
-    		downloadSmartImportReport,
-    		downloadSmartImportSafeHandoffReport,
-    		downloadTaxDocumentXml,
-    		downloadTelegramQrSvg,
-    		draft,
-    		editingAppointmentId,
-    		eligiblePaymentReceiptPayments,
-    		eligibleRefundCorrectionPayments,
-    		eligibleTaxPayments,
-    		emptyDictationVoiceActionLabel,
-    		error,
-    		filteredPatients,
-    		filteredTelegramOutboxItems,
-    		flushPendingSpeechChunks,
-    		flushPendingVisitSaves,
-    		formatByteSize,
-    		formatDateTime,
-    		formatMegabytes,
-    		formatShortDate,
-    		formatSignedMprStep,
-    		formatTime,
-    		fromDateTimeLocalValue,
-    		goToVisitDictation,
-    		handleBrowserDirectoryInputChange,
-    		handleBrowserMigrationInputChange,
-    		handleMprKeyboardNavigation,
-    		hasVisitTranscriptText,
-    		hiddenTelegramOutboxItemCount,
-    		imagingComparisonCandidates,
-    		imagingConnectorCards,
-    		imagingCreateSavingKind,
-    		imagingFolderPath,
-    		imagingFolderScan,
-    		imagingImportCommit,
-    		imagingImportPreview,
-    		imagingImportSourceKind,
-    		imagingImportText,
-    		imagingKindFilter,
-    		imagingKindLabels,
-    		imagingKindOptions,
-    		imagingPreviewSource,
-    		imagingSourceChoices,
-    		imagingSourceDetails,
-    		imagingSourceLabels,
-    		imagingViewerActiveTool,
-    		imagingViewerAnnotations,
-    		imagingViewerCapabilities,
-    		imagingViewerHref,
-    		imagingViewerImageStyle,
-    		imagingViewerNote,
-    		imagingViewerNoteMissingId,
-    		imagingViewerNoteReady,
-    		imagingViewerRetryMissingId,
-    		imagingViewerSaveDetail,
-    		imagingViewerSaveState,
-    		imagingViewerSaveTitle,
-    		imagingViewerSessionReady,
-    		imagingViewerState,
-    		imagingViewerToolLabels,
-    		importCommit,
-    		importIntake,
-    		importPreview,
-    		importSourceKind,
-    		importSourceLabels,
-    		importText,
-    		inferredTreatmentArea,
-    		ingestImportFile,
-    		ingestionTargetLabels,
-    		installmentScheduleBaseDocumentTitleValue,
-    		installmentScheduleInstallmentRows,
-    		installmentSchedulePrepaidRubValue,
-    		installmentScheduleRemainingRubValue,
-    		installmentScheduleTotalRubValue,
-    		integrationCapabilityLabels,
-    		integrationCategoryLabels,
-    		integrationStatusLabels,
-    		isBrowserImagingFolderPicking,
-    		isBrowserMigrationScanning,
-    		isClinicPublicLookupLoading,
-    		isClinicalRuleSaving,
-    		isDicomFirstFramePreviewing,
-    		isDicomFolderWorkupPlanning,
-    		isDicomLocalDiscovering,
-    		isDicomManifestBuilding,
-    		isDicomRenderCachePlanning,
-    		isDicomSeriesPreviewLoading,
-    		isDicomToolStateBuilding,
-    		isDicomWebChecking,
-    		isDicomWorkbenchBuilding,
-    		isDicomWorkbenchReconnecting,
-    		isDicomWorkbenchServerSaving,
-    		isDicomWorkstationChecking,
-    		isDraftAccepting,
-    		isDraftLoading,
-    		isImagingFolderScanning,
-    		isImagingImportCommitting,
-    		isImagingImportLoading,
-    		isImportCommitting,
-    		isImportDictating,
-    		isImportLoading,
-    		isLocalDicomOperationActive,
-    		isLocalImagingOrganizing,
-    		isMigrationAutopilotLoading,
-    		isMigrationHandoffReportLoading,
-    		isMigrationSourceDiscovering,
-    		isMigrationSourceProbeLoading,
-    		isMigrationSourceWorkupLoading,
-    		isOnline,
-    		isPaymentSaving,
-    		isPendingVisitSyncing,
-    		isPersistenceExporting,
-    		isPricelistAnalyzing,
-    		isRecognitionLoading,
-    		isServerVoiceRecording,
-    		isSmartImportCommitting,
-    		isSmartImportLoading,
-    		isSmartReportLoading,
-    		isSmartSafeReportLoading,
-    		isTelegramChatLinksLoadingMore,
-    		isTelegramLinkCodesLoadingMore,
-    		isTelegramLinkCreating,
-    		isTelegramLoading,
-    		isTelegramOutboxItemDueForUi,
-    		isTelegramOutboxLoadingMore,
-    		isTelegramSendingDue,
-    		isTelegramSettingsSaving,
-    		isTranscriptPolishing,
-    		isVisitDictating,
-    		isVisitNoteDirty,
-    		issuedMedicalCopyRequestDocuments,
-    		lastLocalSavedAt,
-    		lastPendingVisitSaveAt,
-    		lastServerDraftSavedAt,
-    		lastVisitSaveReceipt,
-    		latestDicomWorkbenchServerBundle,
-    		legalMissingFields,
-    		legalReadinessPercent,
-    		loadDocumentAuditFacts,
-    		loadLocalBridgeUsePlans,
-    		loadMoreTelegramChatLinks,
-    		loadMoreTelegramLinkCodes,
-    		loadMoreTelegramOutbox,
-    		loadPersistenceHealth,
-    		loadPersistenceIntegrity,
-    		loadTelegramControlPlane,
-    		localBridgeReadiness,
-    		localBridgeStatusLabels,
-    		localBridgeStatusState,
-    		localBridgeStatusValue,
-    		localBridgeUsePathLabels,
-    		localBridgeUsePlans,
-    		localDraftWasRestored,
-    		localImagingFolderDraft,
-    		localImagingModelRoleLabels,
-    		localImagingOrganizer,
-    		localImagingOrganizerActionLabels,
-    		lockTelegramAdminSession,
-    		lookupClinicPublicProfile,
-    		markPostVisitManualEdited,
-    		markTelegramSettingsDirty,
-    		medicalDocumentReleaseChannelLabels,
-    		migrationAutopilot,
-    		migrationSourceDiscovery,
-    		migrationSourceProbe,
-    		migrationSourceWorkup,
-    		minorConsentDiagnosisOrIndicationValue,
-    		minorConsentInterventionScopeValue,
-    		minorConsentPatientBirthDateValue,
-    		minorConsentPatientFullNameValue,
-    		minorRepresentativeFullNameValue,
-    		minorRepresentativeIdentityDocumentValue,
-    		minorRepresentativePhoneValue,
-    		minorRepresentativeRelationshipValue,
-    		money,
-    		mostLoadedResource,
-    		moveOnboardingTo,
-    		mprActiveProjectionLabel,
-    		mprActiveProjectionOrientation,
-    		mprAxisAngleBadge,
-    		mprAxisBounds,
-    		mprAxisDeg,
-    		mprAxisDirectionLabel,
-    		mprAxisGuidance,
-    		mprAxisNudgeDeg,
-    		mprAxisPresetDeg,
-    		mprAxisRangeValue,
-    		mprAxisVisualizerLabel,
-    		mprAxisVisualizerStyle,
-    		mprCacheModeLabels,
-    		mprClinicalChecklist,
-    		mprClinicalNextStep,
-    		mprClinicalPresetButtonClass,
-    		mprClinicalPresets,
-    		mprControlsAutoOpen,
-    		mprControlsReady,
-    		mprCrosshairEnabled,
-    		mprLinkedPlanesEnabled,
-    		mprLoadStrategyLabels,
-    		mprNearestClinicalPreset,
-    		mprOperatorSummaryCards,
-    		mprProjection,
-    		mprProjectionCompass,
-    		mprProjectionLabels,
-    		mprResourceTierLabels,
-    		mprSafeSliceIndex,
-    		mprSeriesRequiredProjectionLabel,
-    		mprSlabBadge,
-    		mprSlabBounds,
-    		mprSlabMm,
-    		mprSlabNudgeMm,
-    		mprSlabPresetMm,
-    		mprSlabRangeValue,
-    		mprSliceBadge,
-    		mprSliceIndex,
-    		mprSliceIndexFromFraction,
-    		mprSliceLabel,
-    		mprSliceMaxIndex,
-    		mprSliceNudgeSteps,
-    		mprSlicePresetFractions,
-    		mprSliceRangeValue,
-    		mprToolLabels,
-    		mprUnavailableProjectionLabel,
-    		mprWindowPreset,
-    		mprWindowPresetLabels,
-    		mprWorkbenchDraftRestored,
-    		mprWorkbenchLocalSavedAt,
-    		mprWorkbenchSummaryText,
-    		newAppointmentError,
-    		newChairHasMicroscope,
-    		newChairHasSurgeryKit,
-    		newChairHasXraySensor,
-    		newChairName,
-    		newChairReadyToCreate,
-    		newRuleAction,
-    		newRuleBlockedServiceId,
-    		newRuleCategory,
-    		newRuleCompletedServiceId,
-    		newRuleOwnerRole,
-    		newRuleRequiredServiceId,
-    		newRuleSeverity,
-    		newRuleSpecialty,
-    		newRuleTitle,
-    		newRuleTriggerServiceId,
-    		newRuleWarningText,
-    		newStaffName,
-    		newStaffReadyToCreate,
-    		newStaffRole,
-    		newStaffSpecialty,
-    		nextOnboardingStep,
-    		normalizeOptionalWorkingDaysDraft,
-    		normalizeUiLanguageInput,
-    		normalizedAppointmentStatus,
-    		normalizedAppointmentStatusFilter,
-    		normalizedClinicalRuleAction,
-    		normalizedClinicalRuleSeverity,
-    		normalizedDentalSpecialty,
-    		normalizedDocumentIssueSignatureMode,
-    		normalizedDocumentKind,
-    		normalizedDocumentVoidReasonCode,
-    		normalizedMedicalDocumentReleaseChannel,
-    		normalizedOutpatient025uDemographicCode,
-    		normalizedPatientIntakePregnancyStatus,
-    		normalizedPaymentRefundCorrectionAction,
-    		normalizedPaymentRefundCorrectionMethod,
-    		normalizedPostVisitCareTopic,
-    		normalizedProcedureSpecificConsentProcedure,
-    		normalizedServiceCategory,
-    		normalizedStaffRole,
-    		normalizedTaxApplicationDeliveryChannel,
-    		normalizedTaxApplicationForm,
-    		normalizedTaxApplicationRelationshipSelect,
-    		normalizedTelegramBotMode,
-    		normalizedTelegramLinkSubjectType,
-    		normalizedTelegramOutboxStatusFilter,
-    		normalizedTelegramOutboxTemplateFilter,
-    		normalizedTelegramPrivacyMode,
-    		normalizedTreatmentPlanAcceptanceVariant,
-    		normalizedXrayPregnancyStatus,
-    		normalizedXrayPriority,
-    		normalizedXrayStudyType,
-    		ohifBaseUrl,
-    		onboardingBlockingIssues,
-    		onboardingChairCreateGuidanceId,
-    		onboardingDismissed,
-    		onboardingDocumentReadinessIssues,
-    		onboardingDocumentsReady,
-    		onboardingDraftMode,
-    		onboardingFinishGuidanceId,
-    		onboardingReadyToFinish,
-    		onboardingStaffCreateGuidanceId,
-    		onboardingStep,
-    		onboardingSteps,
-    		onboardingTelegramRecommendations,
-    		onboardingTelegramVisualCardKeys,
-    		openAppointmentEditor,
-    		openCommunicationTaskDocumentWorkflow,
-    		openIssuedDocumentHtml,
-    		openOnboardingGuide,
-    		openScheduleWarning,
-    		openVisitWarningAction,
-    		organizeLocalImagingSources,
-    		outpatient025uMedicalCardNumberValue,
-    		paidContractTotalRubValue,
-    		patientAdministrativeProfileValidationMessage,
-    		patientBillingSummary,
-    		patientClinicalRuleEvaluations,
-    		patientClinicalRuleSummary,
-    		patientInsightById,
-    		patientInsightRiskLabels,
-    		patientIntakePregnancyStatusOptions,
-    		patientName,
-    		paymentAmount,
-    		paymentFeedback,
-    		paymentFiscalCashierName,
-    		paymentFiscalFd,
-    		paymentFiscalFn,
-    		paymentFiscalFpd,
-    		paymentFiscalReceiptIssuedAt,
-    		paymentFiscalReceiptLabelForUi,
-    		paymentFiscalReceiptNumber,
-    		paymentFiscalReceiptUrl,
-    		paymentInvoiceTotalRubValue,
-    		paymentMethod,
-    		paymentMethodLabels,
-    		paymentPatientContextMessage,
-    		paymentPatientContextReady,
-    		paymentPayerBirthDate,
-    		paymentPayerFullName,
-    		paymentPayerIdentityDocument,
-    		paymentPayerInn,
-    		paymentPayerRelationship,
-    		paymentReceiptFiscalReceiptLines,
-    		paymentReceiptIssuedByValue,
-    		paymentReceiptPayerBirthDateValue,
-    		paymentReceiptPayerFullNameValue,
-    		paymentReceiptPayerIdentityDocumentValue,
-    		paymentReceiptPayerInnValue,
-    		paymentReceiptPayerRelationshipValue,
-    		paymentTaxDeductionCode,
-    		pendingSpeechChunkCount,
-    		pendingSpeechFlushActionLabel,
-    		pendingSpeechFlushActionTitle,
-    		pendingVisitSaveCount,
-    		persistenceHealth,
-    		persistenceIntegrity,
-    		photoVideoMaterialOptions,
-    		pickBrowserImagingFolder,
-    		pickBrowserMigrationSource,
-    		planMigrationDiscoveryCandidate,
-    		plannedServiceLinesForFinancialPayload,
-    		policyAuditEventLabels,
-    		polishTranscript,
-    		postVisitCareTopicOptions,
-    		preloadWorkspaceView,
-    		prepareDicomWorkbenchFromFolder,
-    		previewDicomFirstFrame,
-    		previewDicomFirstFrameSlice,
-    		previewDicomSeries,
-    		previewImagingImport,
-    		previewImport,
-    		previewMigrationAutopilotSources,
-    		previewMigrationDiscoveryCandidate,
-    		previewSmartImport,
-    		previewTelegramTemplate,
-    		previousOnboardingStep,
-    		pricelistAnalysis,
-    		pricelistImageBase64,
-    		pricelistImageName,
-    		pricelistImageNote,
-    		pricelistItemMaterialText,
-    		pricelistMaterialSummaryText,
-    		pricelistParserModeLabels,
-    		pricelistRecognitionBrandGroups,
-    		pricelistRecognitionServiceGroups,
-    		pricelistSourceKind,
-    		pricelistSourceKindLabels,
-    		pricelistText,
-    		pricelistWarningsText,
-    		primaryVisitWarning,
-    		probeMigrationDiscoveryCandidate,
-    		procedureSpecificConsentProcedureOptions,
-    		query,
-    		recognitionJob,
-    		recognitionKind,
-    		recognitionPresets,
-    		recognitionTarget,
-    		recognitionTargetLabels,
-    		recognitionText,
-    		recommendedActionPriorityLabels,
-    		reconnectDicomWorkbenchFromCurrentFolder,
-    		recordPayment,
-    		refreshBrowserContinuity,
-    		refreshSpeechRuntime,
-    		releaseProtectionNote,
-    		rememberLocalImagingFolder,
-    		renderClinicalToothRowsEditor,
-    		reopenOnboarding,
-    		requestBrowserStoragePersistence,
-    		requestDocumentIssue,
-    		requestDocumentVoid,
-    		resetMprControls,
-    		resetNewAppointmentDraft,
-    		restoreDicomWorkbenchServerBundle,
-    		restoreMprWorkbenchLocalDraft,
-    		retryImagingViewerSessionSave,
-    		revokeTelegramChatLink,
-    		roleFocusOrder,
-    		runMigrationAutopilot,
-    		runRecognitionJob,
-    		saveAppointmentSchedule,
-    		saveChairSchedule,
-    		saveClinicProfileFromDraft,
-    		saveDicomWorkbenchBundleToServer,
-    		savePatientAdministrativeProfile,
-    		savePatientCore,
-    		saveStaffSchedule,
-    		saveTelegramSettings,
-    		scanDicomFolderSeries,
-    		scanImagingFolder,
-    		scenarioPriorityLabels,
-    		scenarioStrategyLabels,
-    		scheduleAdminSecretDraft,
-    		scheduleAdminSecretSession,
-    		scrollToVisitArea,
-    		selectAllEligibleTaxPaymentsForCurrentDocument,
-    		selectCtPlanningImplant,
-    		selectRefundOriginalPayment,
-    		selectedCompletedActContractDocumentId,
-    		selectedDocumentMetadata,
-    		selectedDocumentUsesTaxPaymentSelection,
-    		selectedEligibleTaxPayments,
-    		selectedImagingStudy,
-    		selectedImagingViewerPlan,
-    		selectedPatient,
-    		selectedPaymentReceiptIdSet,
-    		selectedPaymentReceiptPayments,
-    		selectedPaymentReceiptTotalRub,
-    		selectedProtocolTemplate,
-    		selectedRefundCorrectionPayment,
-    		selectedReleaseSourceRequestDocumentId,
-    		selectedSpecialty,
-    		selectedTaxDocumentPayerKey,
-    		selectedTaxPaymentIdSet,
-    		selectedTaxPaymentTotalRub,
-    		selectedUiLanguageOption,
-    		selectedWorkspaceRole,
-    		sendDueTelegramOutbox,
-    		sendRecognitionResultToImport,
-    		sendTelegramOutboxItem,
-    		serverDraftSyncState,
-    		serviceCategoryLabels,
-    		serviceTitle,
-    		setClearedTranscriptSnapshot,
-    		setCommunicationNote,
-    		setCtPlanningActiveQuickActionId,
-    		setCtPlanningImplantPlan,
-    		setCurrentView,
-    		setDicomFirstFramePreview,
-    		setDicomFirstFrameViewerState,
-    		setDicomFolderSeriesScan,
-    		setDicomFolderWorkupPlan,
-    		setDicomLocalFolderDiscovery,
-    		setDicomRenderCachePlan,
-    		setDicomSeriesPreview,
-    		setDicomViewerLaunchManifest,
-    		setDicomViewerToolStateBundle,
-    		setDicomViewerWorkbenchManifest,
-    		setDicomWebCheck,
-    		setDicomWebEndpointUrl,
-    		setDicomWorkbenchLocalSavedAt,
-    		setDicomWorkstationReadiness,
-    		setDocumentIngestionTarget,
-    		setError,
-    		setImagingFolderPath,
-    		setImagingFolderScan,
-    		setImagingImportCommit,
-    		setImagingImportPreview,
-    		setImagingImportSourceKind,
-    		setImagingImportText,
-    		setImagingKindFilter,
-    		setImagingViewerActiveTool,
-    		setImagingViewerNote,
-    		setImagingViewerState,
-    		setImportCommit,
-    		setImportIntake,
-    		setImportPreview,
-    		setImportSourceKind,
-    		setImportText,
-    		setLocalImagingOrganizer,
-    		setMprAxisDeg,
-    		setMprCrosshairEnabled,
-    		setMprLinkedPlanesEnabled,
-    		setMprProjection,
-    		setMprSlabMm,
-    		setMprSliceIndex,
-    		setMprWindowPreset,
-    		setNewChairHasMicroscope,
-    		setNewChairHasSurgeryKit,
-    		setNewChairHasXraySensor,
-    		setNewChairName,
-    		setNewRuleAction,
-    		setNewRuleBlockedServiceId,
-    		setNewRuleCategory,
-    		setNewRuleCompletedServiceId,
-    		setNewRuleOwnerRole,
-    		setNewRuleRequiredServiceId,
-    		setNewRuleSeverity,
-    		setNewRuleSpecialty,
-    		setNewRuleTitle,
-    		setNewRuleTriggerServiceId,
-    		setNewRuleWarningText,
-    		setNewStaffName,
-    		setNewStaffRole,
-    		setNewStaffSpecialty,
-    		setOhifBaseUrl,
-    		setPaymentAmount,
-    		setPaymentFiscalCashierName,
-    		setPaymentFiscalFd,
-    		setPaymentFiscalFn,
-    		setPaymentFiscalFpd,
-    		setPaymentFiscalReceiptIssuedAt,
-    		setPaymentFiscalReceiptNumber,
-    		setPaymentFiscalReceiptUrl,
-    		setPaymentMethod,
-    		setPaymentPayerBirthDate,
-    		setPaymentPayerFullName,
-    		setPaymentPayerIdentityDocument,
-    		setPaymentPayerInn,
-    		setPaymentPayerRelationship,
-    		setPaymentTaxDeductionCode,
-    		setPricelistAnalysis,
-    		setPricelistSourceKind,
-    		setPricelistText,
-    		setQuery,
-    		setRecognitionJob,
-    		setRecognitionText,
-    		setReleaseProtectionNote,
-    		setSelectedImagingStudyId,
-    		setSelectedProtocolId,
-    		setSelectedSpecialty,
-    		setSelectedWorkspaceRole,
-    		setSettingsAdminSecretDraft,
-    		setSettingsTab,
-    		setSmartImportCommit,
-    		setSmartImportMode,
-    		setSmartImportPreview,
-    		setSmartImportText,
-    		setTelegramAdminSecretDraft,
-    		setTelegramBotUsernameDraft,
-    		setTelegramHandoffNotice,
-    		setTelegramMapsUrlDraft,
-    		setTelegramPatientPortalBaseUrlDraft,
-    		setTelegramPrivacyModeDraft,
-    		setTelegramReminderLeadTimesDraft,
-    		setTelegramReviewRequestDelayDraft,
-    		setTelegramReviewUrlDraft,
-    		setTelegramTokenTtlDraft,
-    		setTelegramWelcomeImageUrlDraft,
-    		setTranscript,
-    		setUiLanguage,
-    		setUiPreferencesSyncError,
-    		setUsePricelistAi,
-    		settingsAdminSecretDomain,
-    		settingsAdminSecretDraft,
-    		settingsAdminSecretSession,
-    		settingsTab,
-    		settingsTabs,
-    		shiftWarnings,
-    		showAdministrationTopActions,
-    		showDoctorVisitShortcut,
-    		showFullOnboardingGuide,
-    		smartImportCommit,
-    		smartImportMode,
-    		smartImportModeLabels,
-    		smartImportPreview,
-    		smartImportText,
-    		sortedAppointments,
-    		sortedCommunicationTasks,
-    		specialtiesWithTemplates,
-    		specialtyLabels,
-    		specialtyProtocolTemplates,
-    		speechGatewayActiveProviderIsLocal,
-    		speechGatewayCanUpload,
-    		speechGatewayHealthReport,
-    		speechGatewayStatus,
-    		speechProviderConnectorLabels,
-    		speechProviderHealthById,
-    		speechProviderHealthLabels,
-    		speechProviderModeLabels,
-    		speechProviderRuntimeById,
-    		speechProviderSelectionLabels,
-    		speechProviderStatusLabels,
-    		speechRecognitionReady,
-    		speechRecordingPathLabels,
-    		speechRecordingRecovery,
-    		speechRecordingStrategy,
-    		speechRecoveryStateLabels,
-    		speechStatusNote,
-    		staffRoleLabels,
-    		staffScheduleDirtyIds,
-    		staffScheduleDraftFromWorkingHours,
-    		staffScheduleDrafts,
-    		staffScheduleSaveStates,
-    		staffScheduleSavingId,
-    		stageLocalImagingFolderRecovery,
-    		startImportDictation,
-    		startServerVoiceRecording,
-    		startVisitDictation,
-    		stopServerVoiceRecording,
-    		structuredPayloadDocumentKinds,
-    		taxApplicationDeliveryChannelOptions,
-    		taxApplicationFormOptions,
-    		taxApplicationRelationshipOptions,
-    		taxDocumentPayerOptions,
-    		telegramAdminSecretDraft,
-    		telegramAdminSecretSession,
-    		telegramAllowVoiceIntakeDraft,
-    		telegramBotConfigId,
-    		telegramBotUsernameDraft,
-    		telegramChatLinkLedger,
-    		telegramChatLinks,
-    		telegramClassificationLabels,
-    		telegramDeliveryStatusLabels,
-    		telegramEnabledFeaturesDraft,
-    		telegramFeatureHelp,
-    		telegramFeatureLabel,
-    		telegramFeatureOptions,
-    		telegramFeaturePlan,
-    		telegramHandoffNotice,
-    		telegramHumanMessage,
-    		telegramInlineButtonKindLabels,
-    		telegramInlineButtonRowsFromReplyMarkup,
-    		telegramLinkActionState,
-    		telegramLinkCode,
-    		telegramLinkCodeLedger,
-    		telegramLinkCodeStatusLabels,
-    		telegramLinkCodes,
-    		telegramLinkStaffId,
-    		telegramLinkStaffOptions,
-    		telegramLinkSubjectType,
-    		telegramMapsUrlDraft,
-    		telegramModeDraft,
-    		telegramModeHints,
-    		telegramModeLabels,
-    		telegramOutbox,
-    		telegramOutboxStatusFilter,
-    		telegramOutboxStatusFilterLabels,
-    		telegramOutboxStatusFilterOptions,
-    		telegramOutboxTemplateFilter,
-    		telegramOutboxTemplateFilterLabels,
-    		telegramOutboxTemplateFilterOptions,
-    		telegramOwnBotUsernameDraft,
-    		telegramPatientPortalBaseUrlDraft,
-    		telegramPostVisitCheckupDelayDrafts,
-    		telegramPostVisitCheckupDelayFields,
-    		telegramPreview,
-    		telegramPrivacyModeDraft,
-    		telegramPrivacyModeHints,
-    		telegramPrivacyModeLabels,
-    		telegramQrSvgToDataUrl,
-    		telegramReminderLeadTimesDraft,
-    		telegramReviewRequestDelayDraft,
-    		telegramReviewUrlDraft,
-    		telegramRevokingLinkId,
-    		telegramSendingItemId,
-    		telegramSettingsDirty,
-    		telegramSettingsSaveError,
-    		telegramSettingsSaveState,
-    		telegramStaffEscalationChannelDraft,
-    		telegramStatus,
-    		telegramSubjectName,
-    		telegramTemplateLabels,
-    		telegramTokenTtlDraft,
-    		telegramVisualCardFields,
-    		telegramVisualCardUrlDrafts,
-    		telegramWebhookBaseUrlDraft,
-    		telegramWelcomeImageUrlDraft,
-    		toDateTimeLocalValue,
-    		toggleChairWorkingDay,
-    		toggleClinicWorkingDay,
-    		toggleClinicalRule,
-    		togglePhotoVideoMaterial,
-    		toggleStaffWorkingDay,
-    		toggleTelegramFeature,
-    		toothRows,
-    		toothStateByCode: visitToothStateByCode,
-    		setToothState,
-    		transcript,
-    		treatmentAcceptancePlannedTotalRub,
-    		treatmentEstimatePatientOrPayerFullNameValue,
-    		treatmentEstimateTotalRubValue,
-    		treatmentEstimateTreatmentBasisValue,
-    		treatmentStatusLabels,
-    		uiLanguage,
-    		uiLanguageOptions,
-    		uiPreferencesSyncError,
-    		undoTranscriptClear,
-    		unlockTelegramAdminSession,
-    		updateAppointmentScheduleDraft,
-    		updateChairScheduleDay,
-    		updateChairScheduleDraft,
-    		updateClinicProfileDraft,
-    		updateNewAppointmentDraft,
-    		updatePatientAdministrativeProfileDraft,
-    		updatePatientCoreDraft,
-    		updateStaffScheduleDay,
-    		updateStaffScheduleDraft,
-    		updateTelegramPostVisitCheckupDelayDraft,
-    		updateTelegramVisualCardUrlDraft,
-    		updateVisitNoteField,
-    		usePricelistAi,
-    		viewLabels,
-    		visibleImagingStudies,
-    		visibleRecommendedActions,
-    		visibleScheduleSuggestions,
-    		visibleTelegramOutboxItems,
-    		visibleVisitSpecialtyFocusOptions,
-    		visitCloseChecklist,
-    		visitDraftBuildMissingSteps,
-    		visitDraftMissingFieldLabel,
-    		visitDraftQualityLabels,
-    		visitDraftReadyToBuild,
-    		visitDraftSignalLabel,
-    		visitDraftUserEditedRef,
-    		visitNoteAcceptMissingSteps,
-    		visitNoteActionLabel,
-    		visitNoteFieldDefinitions,
-    		visitNoteForm,
-    		visitNoteReadyToAccept,
-    		visitNoteStatusLabel,
-    		visitPrimaryAction,
-    		visitSafetyCards,
-    		visitSaveReceiptText,
-    		visitWarnings,
-    		visitWorkflowSteps,
-    		warningSeverityLabels,
-    		warrantyLinkedActOrContractValue,
-    		warrantyServiceOrWorkNameValue,
-    		warrantyTeethOrAreaValue,
-    		weekdayOptions,
-    		workspaceScopeLabels,
-    		xrayPregnancyStatusOptions,
-    		xrayStudyTypeOptions,
-    		accessUnlockRequired,
-    		accessUnlockMessage,
-    		clinicalAdminSecretDraft,
-    		setClinicalAdminSecretDraft,
-    		loadDashboard,
-    		operatorWorkflowFailureMessage,
-    	};
+		...telegramSettingsModule,
+		...auth,
+		auth,
+		acceptDraftToVisit,
+		activeAppointment,
+		activeChair,
+		activeCommunicationTasks,
+		activeDoctor,
+		activeDocuments,
+		activeImagingStudies,
+		activeIssuedPaidContracts,
+		activePatient,
+		activePatientCallablePhone,
+		activePatientHasCallablePhone,
+		activePatientInsight,
+		activePayments,
+		activeQueueRole,
+		activeRolePolicy,
+		activeRoleQueue,
+		activeRoleRestrictedSections,
+		activeRoleWritableSections,
+		activeSettingsTabButtonRef,
+		activeSpeechProviderHealth,
+		activeTreatmentPlanItems,
+		activeTreatmentPlanScenarios,
+		activeUsableDocuments,
+		activeVisitClinicalRuleEvaluations,
+		activeVisitClinicalRuleSummary,
+		addChair,
+		deleteChair,
+		addImagingViewerNoteAnnotation,
+		addMigrationDiscoveryCandidateToSmartImport,
+		addStaffMember,
+		createStaffMember,
+		updateStaffMember,
+		createServiceCatalogItem,
+		updateServiceCatalogItem,
+		deleteServiceCatalogItem,
+		analyzePricelist,
+		appendToTranscript,
+		applyCtPlanningQuickAction,
+		applyMprClinicalPreset,
+		applyNearestMprClinicalPreset,
+		applyPostVisitCarePreset,
+		applyProtocolTemplate,
+		appointmentLabels,
+		appointmentReadinessById,
+		appointmentReadinessLabels,
+		appointmentScheduleDraftFromAppointment,
+		attachPricelistImage,
+		browserCanRequestPersistentStorage,
+		browserContinuity,
+		browserContinuityChecks,
+		browserContinuityCritical,
+		browserContinuityState,
+		browserContinuityValue,
+		browserDirectoryInputRef,
+		browserDirectoryPickerAvailable,
+		browserImagingScanProgress,
+		browserMigrationDiscovery,
+		browserMigrationInputRef,
+		browserMigrationScanProgress,
+		browserPickedImagingFolder,
+		buildDicomFolderWorkupPlan,
+		buildDicomRenderCachePlan,
+		buildDicomViewerLaunchManifest,
+		buildDicomViewerToolStateBundle,
+		buildDicomViewerWorkbenchManifest,
+		buildDraft,
+		buildOfflineDraft,
+		canRetryImagingViewerSave,
+		cancelBrowserImagingFolderScan,
+		cancelBrowserMigrationScan,
+		cancelLocalDicomOperation,
+		cbctWorkbenchPlanes,
+		cbctWorkbenchProjections,
+		cbctWorkbenchSeries,
+		cbctWorkbenchTools,
+		chairScheduleDirtyIds,
+		chairScheduleDrafts,
+		chairScheduleSaveStates,
+		chairScheduleSavingId,
+		changeClinicMode,
+		changePostVisitCareTopic,
+		checkDicomWebConnector,
+		checkDicomWorkstationReadiness,
+		chooseRecognitionPreset,
+		clampMprAxisDeg,
+		clampMprSlabMm,
+		clampMprSliceIndex,
+		clearBrowserPickedImagingFolderPreview,
+		clearDicomWorkbenchRecovery,
+		clearLocalImagingFolderRecovery,
+		clearPricelistImage,
+		clearTranscriptWithUndo,
+		clearedTranscriptSnapshot,
+		clinicModeLabels,
+		clinicProfileDraft,
+		clinicProfileSaveState,
+		clinicPublicLookup,
+		clinicalRuleActionLabels,
+		clinicalRuleSeverityLabels,
+		closeAppointmentEditor,
+		commitImagingImport,
+		commitImport,
+		commitSmartImport,
+		communicationChannelLabels,
+		communicationDocumentTaskActionLabels,
+		communicationIntentLabels,
+		communicationNote,
+		communicationPriorityLabels,
+		communicationSavingTaskId,
+		communicationStatusLabels,
+		compactDocumentText,
+		completeCommunicationTask,
+		completedActContractReferenceForUi,
+		completedActFiscalReceiptLines,
+		completedActPaidRubValue,
+		confirmDocumentIssue,
+		confirmDocumentVoid,
+		continueOnboardingInDraftMode,
+		copyTelegramTextToClipboard,
+		createAppointmentFromDraft,
+		createClinicalRuleFromSettings,
+		createCtPlanningArtifact,
+		createDocument,
+		createImagingStudy,
+		createPatient,
+		createTelegramLinkCode,
+		ctPlanningActiveQuickActionId,
+		ctPlanningAnnotationRefs,
+		ctPlanningImplantPlan,
+		currentOnboardingIndex,
+		currentView,
+		dashboard,
+		defaultDicomFirstFrameViewerState,
+		defaultImagingViewerState,
+		dentalMaterialKindLabels,
+		dentalRestorationTypeLabels,
+		describeMprClinicalPresetProjectionFallback,
+		dicomDiagnosticPixelPolicyLabels,
+		dicomExecutionLaneLabels,
+		dicomFirstFrameImageStyle,
+		dicomFirstFramePreview,
+		dicomFirstFrameStatusLabels,
+		dicomFirstFrameViewerState,
+		dicomFolderSeriesScan,
+		dicomFolderWorkupPathLabels,
+		dicomFolderWorkupPlan,
+		dicomGpuClassLabels,
+		dicomLabel,
+		dicomLocalFolderDiscovery,
+		dicomQualityModeLabels,
+		dicomReadinessCheckLabels,
+		dicomRenderCachePlan,
+		dicomRenderMemoryBudgetClassLabels,
+		dicomRuntimeTierLabels,
+		dicomSeriesPreview,
+		dicomSeriesViewerLabels,
+		dicomTextureStrategyLabels,
+		dicomViewerLaunchManifest,
+		dicomViewerLaunchModeLabels,
+		dicomViewerToolStateBundle,
+		dicomViewerWorkbenchManifest,
+		dicomWebCheck,
+		dicomWebEndpointUrl,
+		dicomWebStatusLabels,
+		dicomWorkbenchLocalSavedAt,
+		dicomWorkbenchServerBundle,
+		dicomWorkbenchSourceIsRedacted,
+		dicomWorkstationReadiness,
+		dictationQuickPhrases,
+		discoverDicomFolders,
+		discoverMigrationSources,
+		dismissOnboarding,
+		documentActionLabels,
+		documentDetectedKindLabel,
+		documentFactoryGroups,
+		documentIngestion,
+		documentIngestionQualityLabels,
+		documentIngestionTarget,
+		documentIssueAttestationReady,
+		documentIssueConfirmation,
+		documentIssueSignatureModeLabels,
+		documentKindsForCommunicationTask,
+		documentLabels,
+		documentPatient,
+		documentSourceStatusClassNames,
+		documentStatusLabels,
+		documentVoidConfirmation,
+		documentVoidReady,
+		documentVoidReasonLabels,
+		downloadDicomViewerToolStateBundle,
+		downloadDicomWorkbenchManifest,
+		downloadIssuedDocumentHtml,
+		downloadIssuedDocumentPdf,
+		downloadMigrationHandoffReport,
+		downloadPersistenceExport,
+		downloadSmartImportReport,
+		downloadSmartImportSafeHandoffReport,
+		downloadTaxDocumentXml,
+		downloadTelegramQrSvg,
+		draft,
+		editingAppointmentId,
+		eligiblePaymentReceiptPayments,
+		eligibleRefundCorrectionPayments,
+		eligibleTaxPayments,
+		emptyDictationVoiceActionLabel,
+		error,
+		filteredPatients,
+		filteredTelegramOutboxItems,
+		flushPendingSpeechChunks,
+		flushPendingVisitSaves,
+		formatByteSize,
+		formatDateTime,
+		formatMegabytes,
+		formatShortDate,
+		formatSignedMprStep,
+		formatTime,
+		fromDateTimeLocalValue,
+		goToVisitDictation,
+		handleQuickConsult,
+		isQuickConsultLoading,
+		handleBrowserDirectoryInputChange,
+		handleBrowserMigrationInputChange,
+		handleMprKeyboardNavigation,
+		hasVisitTranscriptText,
+		hiddenTelegramOutboxItemCount,
+		imagingComparisonCandidates,
+		imagingConnectorCards,
+		imagingCreateSavingKind,
+		imagingFolderPath,
+		imagingFolderScan,
+		imagingImportCommit,
+		imagingImportPreview,
+		imagingImportSourceKind,
+		imagingImportText,
+		imagingKindFilter,
+		imagingKindLabels,
+		imagingKindOptions,
+		imagingPreviewSource,
+		imagingSourceChoices,
+		imagingSourceDetails,
+		imagingSourceLabels,
+		imagingViewerActiveTool,
+		imagingViewerAnnotations,
+		imagingViewerCapabilities,
+		imagingViewerHref,
+		imagingViewerImageStyle,
+		imagingViewerNote,
+		imagingViewerNoteMissingId,
+		imagingViewerNoteReady,
+		imagingViewerRetryMissingId,
+		imagingViewerSaveDetail,
+		imagingViewerSaveState,
+		imagingViewerSaveTitle,
+		imagingViewerSessionReady,
+		imagingViewerState,
+		imagingViewerToolLabels,
+		importCommit,
+		importIntake,
+		importPreview,
+		importSourceKind,
+		importSourceLabels,
+		importText,
+		inferredTreatmentArea,
+		ingestImportFile,
+		ingestionTargetLabels,
+		installmentScheduleBaseDocumentTitleValue,
+		installmentScheduleInstallmentRows,
+		installmentSchedulePrepaidRubValue,
+		installmentScheduleRemainingRubValue,
+		installmentScheduleTotalRubValue,
+		integrationCapabilityLabels,
+		integrationCategoryLabels,
+		integrationStatusLabels,
+		isBrowserImagingFolderPicking,
+		isBrowserMigrationScanning,
+		isClinicPublicLookupLoading,
+		isClinicalRuleSaving,
+		isDicomFirstFramePreviewing,
+		isDicomFolderWorkupPlanning,
+		isDicomLocalDiscovering,
+		isDicomManifestBuilding,
+		isDicomRenderCachePlanning,
+		isDicomSeriesPreviewLoading,
+		isDicomToolStateBuilding,
+		isDicomWebChecking,
+		isDicomWorkbenchBuilding,
+		isDicomWorkbenchReconnecting,
+		isDicomWorkbenchServerSaving,
+		isDicomWorkstationChecking,
+		isDraftAccepting,
+		isDraftLoading,
+		isImagingFolderScanning,
+		isImagingImportCommitting,
+		isImagingImportLoading,
+		isImportCommitting,
+		isImportDictating,
+		isImportLoading,
+		isLocalDicomOperationActive,
+		isLocalImagingOrganizing,
+		isMigrationAutopilotLoading,
+		isMigrationHandoffReportLoading,
+		isMigrationSourceDiscovering,
+		isMigrationSourceProbeLoading,
+		isMigrationSourceWorkupLoading,
+		isOnline,
+		isPaymentSaving,
+		isPendingVisitSyncing,
+		isPersistenceExporting,
+		isPricelistAnalyzing,
+		isRecognitionLoading,
+		isServerVoiceRecording,
+		isSmartImportCommitting,
+		isSmartImportLoading,
+		isSmartReportLoading,
+		isSmartSafeReportLoading,
+		isTelegramChatLinksLoadingMore,
+		isTelegramLinkCodesLoadingMore,
+		isTelegramLinkCreating,
+		isTelegramLoading,
+		isTelegramOutboxItemDueForUi,
+		isTelegramOutboxLoadingMore,
+		isTelegramSendingDue,
+		isTelegramSettingsSaving,
+		isTranscriptPolishing,
+		isVisitDictating,
+		isVisitNoteDirty,
+		issuedMedicalCopyRequestDocuments,
+		lastLocalSavedAt,
+		lastPendingVisitSaveAt,
+		lastServerDraftSavedAt,
+		lastVisitSaveReceipt,
+		latestDicomWorkbenchServerBundle,
+		legalMissingFields,
+		legalReadinessPercent,
+		loadDocumentAuditFacts,
+		loadLocalBridgeUsePlans,
+		loadMoreTelegramChatLinks,
+		loadMoreTelegramLinkCodes,
+		loadMoreTelegramOutbox,
+		loadPersistenceHealth,
+		loadPersistenceIntegrity,
+		loadTelegramControlPlane,
+		localBridgeReadiness,
+		localBridgeStatusLabels,
+		localBridgeStatusState,
+		localBridgeStatusValue,
+		localBridgeUsePathLabels,
+		localBridgeUsePlans,
+		localDraftWasRestored,
+		localImagingFolderDraft,
+		localImagingModelRoleLabels,
+		localImagingOrganizer,
+		localImagingOrganizerActionLabels,
+		lookupClinicPublicProfile,
+		markPostVisitManualEdited,
+		markTelegramSettingsDirty,
+		medicalDocumentReleaseChannelLabels,
+		migrationAutopilot,
+		migrationSourceDiscovery,
+		migrationSourceProbe,
+		migrationSourceWorkup,
+		minorConsentDiagnosisOrIndicationValue,
+		minorConsentInterventionScopeValue,
+		minorConsentPatientBirthDateValue,
+		minorConsentPatientFullNameValue,
+		minorRepresentativeFullNameValue,
+		minorRepresentativeIdentityDocumentValue,
+		minorRepresentativePhoneValue,
+		minorRepresentativeRelationshipValue,
+		money,
+		mostLoadedResource,
+		moveOnboardingTo,
+		mprActiveProjectionLabel,
+		mprActiveProjectionOrientation,
+		mprAxisAngleBadge,
+		mprAxisBounds,
+		mprAxisDeg,
+		mprAxisDirectionLabel,
+		mprAxisGuidance,
+		mprAxisNudgeDeg,
+		mprAxisPresetDeg,
+		mprAxisRangeValue,
+		mprAxisVisualizerLabel,
+		mprAxisVisualizerStyle,
+		mprCacheModeLabels,
+		mprClinicalChecklist,
+		mprClinicalNextStep,
+		mprClinicalPresetButtonClass,
+		mprClinicalPresets,
+		mprControlsAutoOpen,
+		mprControlsReady,
+		mprCrosshairEnabled,
+		mprLinkedPlanesEnabled,
+		mprLoadStrategyLabels,
+		mprNearestClinicalPreset,
+		mprOperatorSummaryCards,
+		mprProjection,
+		mprProjectionCompass,
+		mprProjectionLabels,
+		mprResourceTierLabels,
+		mprSafeSliceIndex,
+		mprSeriesRequiredProjectionLabel,
+		mprSlabBadge,
+		mprSlabBounds,
+		mprSlabMm,
+		mprSlabNudgeMm,
+		mprSlabPresetMm,
+		mprSlabRangeValue,
+		mprSliceBadge,
+		mprSliceIndex,
+		mprSliceIndexFromFraction,
+		mprSliceLabel,
+		mprSliceMaxIndex,
+		mprSliceNudgeSteps,
+		mprSlicePresetFractions,
+		mprSliceRangeValue,
+		mprToolLabels,
+		mprUnavailableProjectionLabel,
+		mprWindowPreset,
+		mprWindowPresetLabels,
+		mprWorkbenchDraftRestored,
+		mprWorkbenchLocalSavedAt,
+		mprWorkbenchSummaryText,
+		newAppointmentError,
+		newChairHasMicroscope,
+		newChairHasSurgeryKit,
+		newChairHasXraySensor,
+		newChairName,
+		newChairReadyToCreate,
+		newRuleAction,
+		newRuleBlockedServiceId,
+		newRuleCategory,
+		newRuleCompletedServiceId,
+		newRuleOwnerRole,
+		newRuleRequiredServiceId,
+		newRuleSeverity,
+		newRuleSpecialty,
+		newRuleTitle,
+		newRuleTriggerServiceId,
+		newRuleWarningText,
+		newStaffName,
+		newStaffReadyToCreate,
+		newStaffRole,
+		newStaffSpecialty,
+		nextOnboardingStep,
+		normalizeOptionalWorkingDaysDraft,
+		normalizeUiLanguageInput,
+		normalizedAppointmentStatus,
+		normalizedAppointmentStatusFilter,
+		normalizedClinicalRuleAction,
+		normalizedClinicalRuleSeverity,
+		normalizedDentalSpecialty,
+		normalizedDocumentIssueSignatureMode,
+		normalizedDocumentKind,
+		normalizedDocumentVoidReasonCode,
+		normalizedMedicalDocumentReleaseChannel,
+		normalizedOutpatient025uDemographicCode,
+		normalizedPatientIntakePregnancyStatus,
+		normalizedPaymentRefundCorrectionAction,
+		normalizedPaymentRefundCorrectionMethod,
+		normalizedPostVisitCareTopic,
+		normalizedProcedureSpecificConsentProcedure,
+		normalizedServiceCategory,
+		normalizedStaffRole,
+		normalizedTaxApplicationDeliveryChannel,
+		normalizedTaxApplicationForm,
+		normalizedTaxApplicationRelationshipSelect,
+		normalizedTelegramBotMode,
+		normalizedTelegramLinkSubjectType,
+		normalizedTelegramOutboxStatusFilter,
+		normalizedTelegramOutboxTemplateFilter,
+		normalizedTelegramPrivacyMode,
+		normalizedTreatmentPlanAcceptanceVariant,
+		normalizedXrayPregnancyStatus,
+		normalizedXrayPriority,
+		normalizedXrayStudyType,
+		ohifBaseUrl,
+		onboardingBlockingIssues,
+		onboardingChairCreateGuidanceId,
+		onboardingDismissed,
+		onboardingDocumentReadinessIssues,
+		onboardingDocumentsReady,
+		onboardingDraftMode,
+		onboardingFinishGuidanceId,
+		onboardingReadyToFinish,
+		onboardingStaffCreateGuidanceId,
+		onboardingStep,
+		onboardingSteps,
+		onboardingTelegramRecommendations,
+		onboardingTelegramVisualCardKeys,
+		openAppointmentEditor,
+		openCommunicationTaskDocumentWorkflow,
+		openIssuedDocumentHtml,
+		openOnboardingGuide,
+		openScheduleWarning,
+		openVisitWarningAction,
+		organizeLocalImagingSources,
+		outpatient025uMedicalCardNumberValue,
+		paidContractTotalRubValue,
+		patientAdministrativeProfileValidationMessage,
+		patientBillingSummary,
+		patientClinicalRuleEvaluations,
+		patientClinicalRuleSummary,
+		patientInsightById,
+		patientInsightRiskLabels,
+		patientIntakePregnancyStatusOptions,
+		patientName,
+		paymentAmount,
+		paymentFeedback,
+		paymentFiscalCashierName,
+		paymentFiscalFd,
+		paymentFiscalFn,
+		paymentFiscalFpd,
+		paymentFiscalReceiptIssuedAt,
+		paymentFiscalReceiptLabelForUi,
+		paymentFiscalReceiptNumber,
+		paymentFiscalReceiptUrl,
+		paymentInvoiceTotalRubValue,
+		paymentMethod,
+		paymentMethodLabels,
+		paymentPatientContextMessage,
+		paymentPatientContextReady,
+		paymentPayerBirthDate,
+		paymentPayerFullName,
+		paymentPayerIdentityDocument,
+		paymentPayerInn,
+		paymentPayerRelationship,
+		paymentReceiptFiscalReceiptLines,
+		paymentReceiptIssuedByValue,
+		paymentReceiptPayerBirthDateValue,
+		paymentReceiptPayerFullNameValue,
+		paymentReceiptPayerIdentityDocumentValue,
+		paymentReceiptPayerInnValue,
+		paymentReceiptPayerRelationshipValue,
+		paymentTaxDeductionCode,
+		pendingSpeechChunkCount,
+		pendingSpeechFlushActionLabel,
+		pendingSpeechFlushActionTitle,
+		pendingVisitSaveCount,
+		persistenceHealth,
+		persistenceIntegrity,
+		photoVideoMaterialOptions,
+		pickBrowserImagingFolder,
+		pickBrowserMigrationSource,
+		planMigrationDiscoveryCandidate,
+		plannedServiceLinesForFinancialPayload,
+		policyAuditEventLabels,
+		polishTranscript,
+		postVisitCareTopicOptions,
+		preloadWorkspaceView,
+		prepareDicomWorkbenchFromFolder,
+		previewDicomFirstFrame,
+		previewDicomFirstFrameSlice,
+		previewDicomSeries,
+		previewImagingImport,
+		previewImport,
+		previewMigrationAutopilotSources,
+		previewMigrationDiscoveryCandidate,
+		previewSmartImport,
+		previewTelegramTemplate,
+		previousOnboardingStep,
+		pricelistAnalysis,
+		pricelistImageBase64,
+		pricelistImageName,
+		pricelistImageNote,
+		pricelistItemMaterialText,
+		pricelistMaterialSummaryText,
+		pricelistParserModeLabels,
+		pricelistRecognitionBrandGroups,
+		pricelistRecognitionServiceGroups,
+		pricelistSourceKind,
+		pricelistSourceKindLabels,
+		pricelistText,
+		pricelistWarningsText,
+		primaryVisitWarning,
+		probeMigrationDiscoveryCandidate,
+		procedureSpecificConsentProcedureOptions,
+		query,
+		recognitionJob,
+		recognitionKind,
+		recognitionPresets,
+		recognitionTarget,
+		recognitionTargetLabels,
+		recognitionText,
+		recommendedActionPriorityLabels,
+		reconnectDicomWorkbenchFromCurrentFolder,
+		recordPayment,
+		refreshBrowserContinuity,
+		refreshSpeechRuntime,
+		releaseProtectionNote,
+		rememberLocalImagingFolder,
+		renderClinicalToothRowsEditor,
+		reopenOnboarding,
+		requestBrowserStoragePersistence,
+		requestDocumentIssue,
+		requestDocumentVoid,
+		resetMprControls,
+		resetNewAppointmentDraft,
+		restoreDicomWorkbenchServerBundle,
+		restoreMprWorkbenchLocalDraft,
+		retryImagingViewerSessionSave,
+		revokeTelegramChatLink,
+		roleFocusOrder,
+		runMigrationAutopilot,
+		runRecognitionJob,
+		saveAppointmentSchedule,
+		saveChairSchedule,
+		saveClinicProfileFromDraft,
+		saveDicomWorkbenchBundleToServer,
+		savePatientAdministrativeProfile,
+		savePatientCore,
+		saveStaffSchedule,
+		saveTelegramSettings,
+		scanDicomFolderSeries,
+		scanImagingFolder,
+		scenarioPriorityLabels,
+		scenarioStrategyLabels,
+		scheduleAdminSecretDraft,
+		scheduleAdminSecretSession,
+		scrollToVisitArea,
+		selectAllEligibleTaxPaymentsForCurrentDocument,
+		selectCtPlanningImplant,
+		selectRefundOriginalPayment,
+		selectedCompletedActContractDocumentId,
+		selectedDocumentMetadata,
+		selectedDocumentUsesTaxPaymentSelection,
+		selectedEligibleTaxPayments,
+		selectedImagingStudy,
+		selectedImagingViewerPlan,
+		selectedPatient,
+		selectedPaymentReceiptIdSet,
+		selectedPaymentReceiptPayments,
+		selectedPaymentReceiptTotalRub,
+		selectedProtocolTemplate,
+		selectedRefundCorrectionPayment,
+		selectedReleaseSourceRequestDocumentId,
+		selectedSpecialty,
+		selectedTaxDocumentPayerKey,
+		selectedTaxPaymentIdSet,
+		selectedTaxPaymentTotalRub,
+		selectedUiLanguageOption,
+		selectedWorkspaceRole,
+		sendDueTelegramOutbox,
+		sendRecognitionResultToImport,
+		sendTelegramOutboxItem,
+		serverDraftSyncState,
+		serviceCategoryLabels,
+		serviceTitle,
+		setClearedTranscriptSnapshot,
+		setCommunicationNote,
+		setCtPlanningActiveQuickActionId,
+		setCtPlanningImplantPlan,
+		setCurrentView,
+		setDicomFirstFramePreview,
+		setDicomFirstFrameViewerState,
+		setDicomFolderSeriesScan,
+		setDicomFolderWorkupPlan,
+		setDicomLocalFolderDiscovery,
+		setDicomRenderCachePlan,
+		setDicomSeriesPreview,
+		setDicomViewerLaunchManifest,
+		setDicomViewerToolStateBundle,
+		setDicomViewerWorkbenchManifest,
+		setDicomWebCheck,
+		setDicomWebEndpointUrl,
+		setDicomWorkbenchLocalSavedAt,
+		setDicomWorkstationReadiness,
+		setDocumentIngestionTarget,
+		setError,
+		setImagingFolderPath,
+		setImagingFolderScan,
+		setImagingImportCommit,
+		setImagingImportPreview,
+		setImagingImportSourceKind,
+		setImagingImportText,
+		setImagingKindFilter,
+		setImagingViewerActiveTool,
+		setImagingViewerNote,
+		setImagingViewerState,
+		setImportCommit,
+		setImportIntake,
+		setImportPreview,
+		setImportSourceKind,
+		setImportText,
+		setLocalImagingOrganizer,
+		setMprAxisDeg,
+		setMprCrosshairEnabled,
+		setMprLinkedPlanesEnabled,
+		setMprProjection,
+		setMprSlabMm,
+		setMprSliceIndex,
+		setMprWindowPreset,
+		setNewChairHasMicroscope,
+		setNewChairHasSurgeryKit,
+		setNewChairHasXraySensor,
+		setNewChairName,
+		setNewRuleAction,
+		setNewRuleBlockedServiceId,
+		setNewRuleCategory,
+		setNewRuleCompletedServiceId,
+		setNewRuleOwnerRole,
+		setNewRuleRequiredServiceId,
+		setNewRuleSeverity,
+		setNewRuleSpecialty,
+		setNewRuleTitle,
+		setNewRuleTriggerServiceId,
+		setNewRuleWarningText,
+		setNewStaffName,
+		setNewStaffRole,
+		setNewStaffSpecialty,
+		setOhifBaseUrl,
+		setPaymentAmount,
+		setPaymentFiscalCashierName,
+		setPaymentFiscalFd,
+		setPaymentFiscalFn,
+		setPaymentFiscalFpd,
+		setPaymentFiscalReceiptIssuedAt,
+		setPaymentFiscalReceiptNumber,
+		setPaymentFiscalReceiptUrl,
+		setPaymentMethod,
+		setPaymentPayerBirthDate,
+		setPaymentPayerFullName,
+		setPaymentPayerIdentityDocument,
+		setPaymentPayerInn,
+		setPaymentPayerRelationship,
+		setPaymentTaxDeductionCode,
+		setPricelistAnalysis,
+		setPricelistSourceKind,
+		setPricelistText,
+		setQuery,
+		setRecognitionJob,
+		setRecognitionText,
+		setReleaseProtectionNote,
+		setSelectedImagingStudyId,
+		setSelectedProtocolId,
+		setSelectedSpecialty,
+		setSelectedWorkspaceRole,
+		setSettingsAdminSecretDraft,
+		setSettingsTab,
+		setSmartImportCommit,
+		setSmartImportMode,
+		setSmartImportPreview,
+		setSmartImportText,
+		setTelegramAdminSecretDraft,
+		setTelegramBotUsernameDraft,
+		setTelegramHandoffNotice,
+		setTelegramMapsUrlDraft,
+		setTelegramPatientPortalBaseUrlDraft,
+		setTelegramPrivacyModeDraft,
+		setTelegramReminderLeadTimesDraft,
+		setTelegramReviewRequestDelayDraft,
+		setTelegramReviewUrlDraft,
+		setTelegramTokenTtlDraft,
+		setTelegramWelcomeImageUrlDraft,
+		setTranscript,
+		setUiLanguage,
+		setUiPreferencesSyncError,
+		setUsePricelistAi,
+		setOdontogramUseSurfaces,
+		settingsAdminSecretDraft,
+		settingsAdminSecretSession,
+		settingsTab,
+		settingsTabs,
+		shiftWarnings,
+		showAdministrationTopActions,
+		showDoctorVisitShortcut,
+		showFullOnboardingGuide,
+		smartImportCommit,
+		smartImportMode,
+		smartImportModeLabels,
+		smartImportPreview,
+		smartImportText,
+		sortedAppointments,
+		sortedCommunicationTasks,
+		specialtiesWithTemplates,
+		specialtyLabels,
+		specialtyProtocolTemplates,
+		speechGatewayActiveProviderIsLocal,
+		speechGatewayCanUpload,
+		speechGatewayHealthReport,
+		speechGatewayStatus,
+		speechProviderConnectorLabels,
+		speechProviderHealthById,
+		speechProviderHealthLabels,
+		speechProviderModeLabels,
+		speechProviderRuntimeById,
+		speechProviderSelectionLabels,
+		speechProviderStatusLabels,
+		speechRecognitionReady,
+		speechRecordingPathLabels,
+		speechRecordingRecovery,
+		speechRecordingStrategy,
+		speechRecoveryStateLabels,
+		speechStatusNote,
+		staffRoleLabels,
+		staffScheduleDirtyIds,
+		staffScheduleDraftFromWorkingHours,
+		staffScheduleDrafts,
+		staffScheduleSaveStates,
+		staffScheduleSavingId,
+		stageLocalImagingFolderRecovery,
+		startImportDictation,
+		startServerVoiceRecording,
+		startVisitDictation,
+		stopServerVoiceRecording,
+		structuredPayloadDocumentKinds,
+		taxApplicationDeliveryChannelOptions,
+		taxApplicationFormOptions,
+		taxApplicationRelationshipOptions,
+		taxDocumentPayerOptions,
+		telegramAdminSecretDraft,
+		telegramAdminSecretSession,
+		telegramAllowVoiceIntakeDraft,
+		telegramBotConfigId,
+		telegramBotUsernameDraft,
+		telegramChatLinkLedger,
+		telegramChatLinks,
+		telegramClassificationLabels,
+		telegramDeliveryStatusLabels,
+		telegramEnabledFeaturesDraft,
+		telegramFeatureHelp,
+		telegramFeatureLabel,
+		telegramFeatureOptions,
+		telegramFeaturePlan,
+		telegramHandoffNotice,
+		telegramHumanMessage,
+		telegramInlineButtonKindLabels,
+		telegramInlineButtonRowsFromReplyMarkup,
+		telegramLinkActionState,
+		telegramLinkCode,
+		telegramLinkCodeLedger,
+		telegramLinkCodeStatusLabels,
+		telegramLinkCodes,
+		telegramLinkStaffId,
+		telegramLinkStaffOptions,
+		telegramLinkSubjectType,
+		telegramMapsUrlDraft,
+		telegramModeDraft,
+		telegramModeHints,
+		telegramModeLabels,
+		telegramOutbox,
+		telegramOutboxStatusFilter,
+		telegramOutboxStatusFilterLabels,
+		telegramOutboxStatusFilterOptions,
+		telegramOutboxTemplateFilter,
+		telegramOutboxTemplateFilterLabels,
+		telegramOutboxTemplateFilterOptions,
+		telegramOwnBotUsernameDraft,
+		telegramPatientPortalBaseUrlDraft,
+		telegramPostVisitCheckupDelayDrafts,
+		telegramPostVisitCheckupDelayFields,
+		telegramPreview,
+		telegramPrivacyModeDraft,
+		telegramPrivacyModeHints,
+		telegramPrivacyModeLabels,
+		telegramQrSvgToDataUrl,
+		telegramReminderLeadTimesDraft,
+		telegramReviewRequestDelayDraft,
+		telegramReviewUrlDraft,
+		telegramRevokingLinkId,
+		telegramSendingItemId,
+		telegramSettingsDirty,
+		telegramSettingsSaveError,
+		telegramSettingsSaveState,
+		telegramStaffEscalationChannelDraft,
+		telegramStatus,
+		telegramSubjectName,
+		telegramTemplateLabels,
+		telegramTokenTtlDraft,
+		telegramVisualCardFields,
+		telegramVisualCardUrlDrafts,
+		telegramWebhookBaseUrlDraft,
+		telegramWelcomeImageUrlDraft,
+		toDateTimeLocalValue,
+		toggleChairWorkingDay,
+		toggleClinicWorkingDay,
+		toggleClinicalRule,
+		removeClinicalRule,
+		togglePhotoVideoMaterial,
+		toggleStaffWorkingDay,
+		toggleTelegramFeature,
+		toothRows,
+		toothStateByCode: visitToothStateByCode,
+		setToothState,
+		transcript,
+		treatmentAcceptancePlannedTotalRub,
+		treatmentEstimatePatientOrPayerFullNameValue,
+		treatmentEstimateTotalRubValue,
+		treatmentEstimateTreatmentBasisValue,
+		treatmentStatusLabels,
+		uiLanguage,
+		uiLanguageOptions,
+		uiPreferencesSyncError,
+		undoTranscriptClear,
+		updateAppointmentScheduleDraft,
+		updateChairScheduleDay,
+		updateChairScheduleDraft,
+		updateClinicProfileDraft,
+		updateNewAppointmentDraft,
+		updatePatientAdministrativeProfileDraft,
+		updatePatientCoreDraft,
+		updateStaffScheduleDay,
+		updateStaffScheduleDraft,
+		updateTelegramPostVisitCheckupDelayDraft,
+		updateTelegramVisualCardUrlDraft,
+		updateVisitNoteField,
+		usePricelistAi,
+		odontogramUseSurfaces,
+		viewLabels,
+		visibleImagingStudies,
+		visibleRecommendedActions,
+		visibleScheduleSuggestions,
+		visibleTelegramOutboxItems,
+		visibleVisitSpecialtyFocusOptions,
+		visitCloseChecklist,
+		visitDraftBuildMissingSteps,
+		visitDraftMissingFieldLabel,
+		visitDraftQualityLabels,
+		visitDraftReadyToBuild,
+		visitDraftSignalLabel,
+		visitDraftUserEditedRef,
+		visitNoteAcceptMissingSteps,
+		visitNoteActionLabel,
+		visitNoteFieldDefinitions,
+		visitNoteForm,
+		visitNoteReadyToAccept,
+		visitNoteStatusLabel,
+		visitPrimaryAction,
+		visitSafetyCards,
+		visitSaveReceiptText,
+		visitWarnings,
+		visitWorkflowSteps,
+		warningSeverityLabels,
+		warrantyLinkedActOrContractValue,
+		warrantyServiceOrWorkNameValue,
+		warrantyTeethOrAreaValue,
+		weekdayOptions,
+		workspaceScopeLabels,
+		xrayPregnancyStatusOptions,
+		xrayStudyTypeOptions,
+		accessUnlockRequired,
+		accessUnlockMessage,
+		clinicalAdminSecretDraft,
+		setClinicalAdminSecretDraft,
+		loadDashboard,
+		operatorWorkflowFailureMessage,
+	};
 }

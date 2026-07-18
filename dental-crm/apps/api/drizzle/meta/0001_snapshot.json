@@ -1,6 +1,6 @@
 {
-  "id": "77188dd8-b2da-44c6-b682-50a5242b4faa",
-  "prevId": "1d6b9797-c0b8-4601-9800-553d91422f9d",
+  "id": "b7b363c8-335b-469f-804e-3017b6cc5315",
+  "prevId": "d436aee8-6902-4080-8cd2-09a1f0f45980",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4285,6 +4285,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "crypto_signature_pkcs7": {
+          "name": "crypto_signature_pkcs7",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "void_attestation": {
           "name": "void_attestation",
           "type": "jsonb",
@@ -6028,7 +6034,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "default": "'в‚Ѕ'"
+          "default": "'₽'"
         },
         "theme_color": {
           "name": "theme_color",
@@ -6046,6 +6052,12 @@
         "stamp_url": {
           "name": "stamp_url",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marketing_data": {
+          "name": "marketing_data",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -7112,7 +7124,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "payments_org_client_mutation_unique": {
+          "name": "payments_org_client_mutation_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_id",
+            "client_mutation_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -7176,6 +7197,128 @@
           "tableTo": "inventory_items",
           "columnsFrom": [
             "inventory_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.protocol_templates": {
+      "name": "protocol_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "specialty": {
+          "name": "specialty",
+          "type": "dental_specialty",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visit_reason": {
+          "name": "visit_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_duration_minutes": {
+          "name": "default_duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "complaint_prompt": {
+          "name": "complaint_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "objective_template": {
+          "name": "objective_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "diagnosis_hints": {
+          "name": "diagnosis_hints",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "treatment_plan_template": {
+          "name": "treatment_plan_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "required_documents": {
+          "name": "required_documents",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "suggested_imaging": {
+          "name": "suggested_imaging",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "safety_warnings": {
+          "name": "safety_warnings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "protocol_templates_organization_id_organizations_id_fk": {
+          "name": "protocol_templates_organization_id_organizations_id_fk",
+          "tableFrom": "protocol_templates",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
           ],
           "columnsTo": [
             "id"
@@ -7585,6 +7728,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'Healthy'"
+        },
+        "surfaces": {
+          "name": "surfaces",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_synced": {
           "name": "is_synced",
@@ -8523,6 +8672,12 @@
         },
         "treatment_description": {
           "name": "treatment_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "crypto_signature_pkcs7": {
+          "name": "crypto_signature_pkcs7",
           "type": "text",
           "primaryKey": false,
           "notNull": false

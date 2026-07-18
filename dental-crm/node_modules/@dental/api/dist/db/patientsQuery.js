@@ -17,6 +17,8 @@ export async function getPatientByIdFromDb(organizationId, id) {
         phone: p.phone,
         email: p.email,
         notes: p.notes,
+        insuranceContractId: p.insuranceContractId,
+        insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
         balanceRub: 0,
         createdAt: p.createdAt.toISOString(),
@@ -37,6 +39,8 @@ export async function getPatientsFromDb(organizationId) {
         phone: p.phone,
         email: p.email,
         notes: p.notes,
+        insuranceContractId: p.insuranceContractId,
+        insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
         balanceRub: 0,
         createdAt: p.createdAt.toISOString(),
@@ -53,6 +57,8 @@ export async function createPatientInDb(organizationId, input) {
         phone: input.phone,
         email: input.email,
         notes: input.notes,
+        insuranceContractId: input.insuranceContractId,
+        insurancePolicyNumber: input.insurancePolicyNumber,
     })
         .returning());
     const created = result[0];
@@ -67,6 +73,8 @@ export async function createPatientInDb(organizationId, input) {
         phone: created.phone,
         email: created.email,
         notes: created.notes,
+        insuranceContractId: created.insuranceContractId,
+        insurancePolicyNumber: created.insurancePolicyNumber,
         administrativeProfile: created.administrativeProfile,
         balanceRub: 0,
         createdAt: created.createdAt.toISOString(),
@@ -82,6 +90,9 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         phone: input.phone,
         email: input.email,
         notes: input.notes,
+        insuranceContractId: input.insuranceContractId,
+        insurancePolicyNumber: input.insurancePolicyNumber,
+        familyGroupId: input.familyGroupId !== undefined ? input.familyGroupId : undefined,
         status: input.status,
         updatedAt: new Date(),
     })
@@ -98,6 +109,8 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         phone: updated.phone,
         email: updated.email,
         notes: updated.notes,
+        insuranceContractId: updated.insuranceContractId,
+        insurancePolicyNumber: updated.insurancePolicyNumber,
         administrativeProfile: updated.administrativeProfile,
         balanceRub: 0,
         createdAt: updated.createdAt.toISOString(),
@@ -109,6 +122,8 @@ export async function updatePatientAdministrativeProfileInDb(organizationId, pat
         .update(schema.patients)
         .set({
         administrativeProfile: input,
+        insuranceContractId: input.insuranceContractId || null,
+        insurancePolicyNumber: input.insurancePolicyNumber || null,
         updatedAt: new Date(),
     })
         .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
@@ -124,9 +139,72 @@ export async function updatePatientAdministrativeProfileInDb(organizationId, pat
         phone: updated.phone,
         email: updated.email,
         notes: updated.notes,
+        insuranceContractId: updated.insuranceContractId,
+        insurancePolicyNumber: updated.insurancePolicyNumber,
         administrativeProfile: updated.administrativeProfile,
         balanceRub: 0,
         createdAt: updated.createdAt.toISOString(),
         updatedAt: updated.updatedAt.toISOString(),
     };
+}
+// patient_anamnesis has no organizationId of its own, so ownership is enforced
+// by confirming the patient belongs to the caller's org first. Returns false when
+// the patient is not in this org (or does not exist).
+async function patientBelongsToOrganization(patientId, organizationId) {
+    const [patient] = await db
+        .select({ id: schema.patients.id })
+        .from(schema.patients)
+        .where(and(eq(schema.patients.id, patientId), eq(schema.patients.organizationId, organizationId)))
+        .limit(1);
+    return Boolean(patient);
+}
+export async function getPatientAnamnesisFromDb(patientId, organizationId) {
+    if (!(await patientBelongsToOrganization(patientId, organizationId))) {
+        return null;
+    }
+    const [anamnesis] = await db
+        .select()
+        .from(schema.patientAnamnesis)
+        .where(eq(schema.patientAnamnesis.patientId, patientId));
+    return anamnesis || null;
+}
+export async function updatePatientAnamnesisInDb(patientId, organizationId, input) {
+    if (!(await patientBelongsToOrganization(patientId, organizationId))) {
+        return null;
+    }
+    const [existing] = await db
+        .select()
+        .from(schema.patientAnamnesis)
+        .where(eq(schema.patientAnamnesis.patientId, patientId));
+    if (existing) {
+        const [updated] = await db
+            .update(schema.patientAnamnesis)
+            .set({
+            allergies: input.allergies ?? existing.allergies,
+            systemicDiseases: input.systemicDiseases ?? existing.systemicDiseases,
+            hasCriticalAlerts: input.hasCriticalAlerts ?? existing.hasCriticalAlerts,
+            medications: input.medications ?? existing.medications,
+            pregnancyStatus: input.pregnancyStatus ?? existing.pregnancyStatus,
+            criticalAlertNote: input.criticalAlertNote ?? existing.criticalAlertNote,
+            updatedAt: new Date(),
+        })
+            .where(eq(schema.patientAnamnesis.patientId, patientId))
+            .returning();
+        return updated;
+    }
+    else {
+        const [created] = await db
+            .insert(schema.patientAnamnesis)
+            .values({
+            patientId,
+            allergies: input.allergies ?? [],
+            systemicDiseases: input.systemicDiseases ?? [],
+            hasCriticalAlerts: input.hasCriticalAlerts ?? false,
+            medications: input.medications ?? [],
+            pregnancyStatus: input.pregnancyStatus ?? null,
+            criticalAlertNote: input.criticalAlertNote ?? null,
+        })
+            .returning();
+        return created;
+    }
 }

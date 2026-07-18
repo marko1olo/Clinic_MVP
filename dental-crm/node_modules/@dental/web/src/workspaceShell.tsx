@@ -1,6 +1,8 @@
 import type { StaffRole } from "@dental/shared";
 import {
+	Banknote,
 	BarChart3,
+	Barcode,
 	CalendarClock,
 	CalendarDays,
 	ClipboardCheck,
@@ -11,27 +13,29 @@ import {
 	FileText,
 	HelpCircle,
 	Image as ImageIcon,
+	LayoutDashboard,
 	Lock,
+	Megaphone,
 	MessageSquare,
 	Mic,
-	Package,
 	Moon,
+	Package,
+	PhoneCall,
 	Plus,
 	ReceiptText,
+	Settings,
 	Sparkles,
 	Stethoscope,
 	Sun,
+	UserPlus,
 	Users,
-	Banknote,
-	PhoneCall,
-	Settings,
-	Megaphone,
-	Barcode,
 } from "lucide-react";
-
 import { useEffect, useState } from "react";
 import { QrGatewayPanel } from "./components/QrGatewayPanel";
-import { resolveConflictLWW, useSyncStore } from "./lib/antifragility";
+import {
+	useWorkspaceProfile,
+	type WorkspaceFeatureFlags,
+} from "./hooks/useWorkspaceProfile";
 import { useThemeStore } from "./store/themeStore";
 
 export const appViews = [
@@ -50,6 +54,7 @@ export const appViews = [
 	"marketing",
 	"scanner",
 	"inventory",
+	"payroll",
 ] as const;
 export type AppView = (typeof appViews)[number];
 
@@ -69,6 +74,7 @@ export const viewLabels: Record<AppView, string> = {
 	marketing: "Маркетинг/SEO",
 	scanner: "Сканнер лотков (ЦСО)",
 	inventory: "Склад",
+	payroll: "Зарплата",
 };
 
 export const viewHints: Record<AppView, string> = {
@@ -87,6 +93,7 @@ export const viewHints: Record<AppView, string> = {
 	marketing: "Аналитика привлечения, LTV",
 	scanner: "Стерилизация и сканирование штрих-кодов",
 	inventory: "Остатки и расходники",
+	payroll: "Расчет комиссий врачей",
 };
 
 type WorkspaceViewIntentHandler = (view: AppView) => void;
@@ -106,6 +113,7 @@ function SidebarIcon({ section }: { section: AppView }) {
 	if (section === "marketing") return <Megaphone aria-hidden="true" />;
 	if (section === "scanner") return <Barcode aria-hidden="true" />;
 	if (section === "inventory") return <Package aria-hidden="true" />;
+	if (section === "payroll") return <ReceiptText aria-hidden="true" />;
 	return <Sparkles aria-hidden="true" />;
 }
 
@@ -121,6 +129,7 @@ export function ActionIcon({ section }: { section: AppView }) {
 	if (section === "communications") return <MessageSquare aria-hidden="true" />;
 	if (section === "settings") return <Database aria-hidden="true" />;
 	if (section === "inventory") return <Package aria-hidden="true" />;
+	if (section === "payroll") return <ReceiptText aria-hidden="true" />;
 	return <Sparkles aria-hidden="true" />;
 }
 
@@ -160,6 +169,7 @@ export function getFilteredAppViews(role: StaffRole): AppView[] {
 			"settings",
 			"marketing",
 			"inventory",
+			"payroll",
 		];
 	}
 	if (role === "manager") {
@@ -172,6 +182,7 @@ export function getFilteredAppViews(role: StaffRole): AppView[] {
 			"communications",
 			"settings",
 			"marketing",
+			"payroll",
 		];
 	}
 	if (role === "owner") {
@@ -180,16 +191,49 @@ export function getFilteredAppViews(role: StaffRole): AppView[] {
 	return ["schedule", "patients"];
 }
 
+export function filterViewsByFlags(
+	views: AppView[],
+	flags: WorkspaceFeatureFlags,
+): AppView[] {
+	let filtered = [...views];
+	if (!flags.hasPayrollModule)
+		filtered = filtered.filter((v) => v !== "payroll");
+	if (!flags.hasMarketingModule)
+		filtered = filtered.filter((v) => v !== "marketing");
+	if (!flags.hasAnalyticsModule)
+		filtered = filtered.filter((v) => v !== "analytics");
+	if (!flags.hasCsoScanner)
+		filtered = filtered.filter((v) => v !== "scanner");
+	if (!flags.hasLeadsKanban)
+		filtered = filtered.filter((v) => v !== "leads");
+	if (!flags.hasTasks)
+		filtered = filtered.filter((v) => v !== "communications");
+	if (!flags.hasOmnichannel)
+		filtered = filtered.filter((v) => v !== "inbox");
+	if (!flags.hasInventoryModule)
+		filtered = filtered.filter((v) => v !== "inventory");
+	return filtered;
+}
+
 export function WorkspaceSidebar({
 	currentView,
 	onViewIntent,
 	role,
+	clinicMode = "network_clinic",
 }: {
 	currentView: AppView;
 	onViewIntent?: WorkspaceViewIntentHandler;
 	role: StaffRole;
+	clinicMode?: string;
 }) {
-	const allowedViews = getFilteredAppViews(role);
+	const flags = useWorkspaceProfile();
+	let allowedViews = filterViewsByFlags(getFilteredAppViews(role), flags);
+
+	if (clinicMode === "solo_doctor" || clinicMode === "one_chair") {
+		// Clean up UI for solo practices by hiding enterprise-heavy modules
+		const hideForSmall = ["payroll", "inventory", "marketing", "analytics", "leads"];
+		allowedViews = allowedViews.filter((v) => !hideForSmall.includes(v));
+	}
 
 	return (
 		<aside className="sidebar" aria-label="Навигация">
@@ -214,7 +258,6 @@ export function WorkspaceSidebar({
 							<SidebarIcon section={view} />
 							<span className="nav-copy">
 								<span className="nav-label">{viewLabels[view]}</span>
-								<small>{viewHints[view]}</small>
 							</span>
 						</a>
 					) : null,
@@ -240,6 +283,9 @@ interface WorkspaceTopbarProps {
 	todayIso: string;
 	onLockSession?: () => void;
 	isOmniRoleMode?: boolean;
+	activeTasksCount?: number;
+	onQuickConsult?: () => void;
+	isQuickConsultLoading?: boolean;
 }
 
 export function WorkspaceTopbar({
@@ -258,17 +304,15 @@ export function WorkspaceTopbar({
 	todayIso,
 	onLockSession,
 	isOmniRoleMode,
+	activeTasksCount,
+	onQuickConsult,
+	isQuickConsultLoading,
 }: WorkspaceTopbarProps) {
 	const themeMode = useThemeStore((s) => s.themeMode);
 	const setThemeMode = useThemeStore((s) => s.setThemeMode);
+	const flags = useWorkspaceProfile();
 
 	const [actualTheme, setActualTheme] = useState<"light" | "dark">("dark");
-
-	const queueCount = useSyncStore((s) => s.queueCount);
-	const topology = useSyncStore((s) => s.topology);
-	const hasConflict = useSyncStore((s) => s.hasConflict);
-	const conflictingRecord = useSyncStore((s) => s.conflictingRecord);
-	const isOnline = useSyncStore((s) => s.isOnline);
 
 	useEffect(() => {
 		let active = "dark";
@@ -290,60 +334,11 @@ export function WorkspaceTopbar({
 			document.documentElement.classList.remove("dark");
 			document.body.classList.remove("theme-dark");
 		}
-		localStorage.setItem("dente_theme", actualTheme);
 	}, [actualTheme]);
 
 	const toggleTheme = () => {
 		const next = actualTheme === "dark" ? "light" : "dark";
 		setThemeMode(next);
-	};
-
-	const formatConflictRecord = (payload: any) => {
-		if (!payload) return null;
-		const skipFields = [
-			"id",
-			"version",
-			"isSynced",
-			"organizationId",
-			"updatedAt",
-			"createdAt",
-		];
-
-		const fieldLabels: Record<string, string> = {
-			toothNumber: "Номер зуба",
-			state: "Состояние/Диагноз",
-			notes: "Клинические примечания",
-			diagnosis: "Диагноз",
-			treatmentPlanId: "План лечения ID",
-			status: "Статус",
-			complaints: "Жалобы",
-			objectively: "Объективно",
-			therapy: "Терапия",
-			amount: "Сумма",
-			paymentMethod: "Метод оплаты",
-		};
-
-		return Object.entries(payload)
-			.filter(([key]) => !skipFields.includes(key))
-			.map(([key, val]) => {
-				const label = fieldLabels[key] || key;
-				const displayVal =
-					typeof val === "object" ? JSON.stringify(val) : String(val);
-				return (
-					<div
-						key={key}
-						style={{
-							marginBottom: "8px",
-							fontSize: "0.88rem",
-							borderBottom: "1px dashed var(--line)",
-							paddingBottom: "4px",
-						}}
-					>
-						<strong style={{ color: "var(--ink)" }}>{label}:</strong>{" "}
-						<span style={{ color: "var(--muted)" }}>{displayVal}</span>
-					</div>
-				);
-			});
 	};
 
 	return (
@@ -398,68 +393,6 @@ export function WorkspaceTopbar({
 			</div>
 
 			<div className="top-actions">
-				<div
-					className="network-indicator-badge"
-					title={isOnline ? "Сеть доступна" : "Нет подключения"}
-					style={{
-						background: isOnline ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-						border: `1px solid ${isOnline ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}`,
-						color: isOnline ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)",
-						padding: "4px 10px",
-						borderRadius: "12px",
-						fontSize: "0.82rem",
-						fontWeight: "bold",
-						display: "flex",
-						alignItems: "center",
-						height: "24px",
-						whiteSpace: "nowrap",
-					}}
-				>
-					{isOnline ? "Онлайн" : "Офлайн"}
-				</div>
-				{topology === "sandbox" && (
-					<div
-						className="topology-sandbox-badge"
-						title="Работа в локальной песочнице (без сервера)"
-						style={{
-							background: "rgba(59, 130, 246, 0.15)",
-							border: "1px solid rgb(59, 130, 246)",
-							color: "rgb(59, 130, 246)",
-							padding: "4px 10px",
-							borderRadius: "12px",
-							fontSize: "0.82rem",
-							fontWeight: "bold",
-							display: "flex",
-							alignItems: "center",
-							height: "24px",
-							whiteSpace: "nowrap",
-						}}
-					>
-						Sandbox Mode
-					</div>
-				)}
-				{queueCount > 0 && (
-					<div
-						className="sync-queue-badge"
-						title="Ожидание отправки данных на сервер"
-						style={{
-							background: "rgba(249, 115, 22, 0.15)",
-							border: "1px solid rgb(249, 115, 22)",
-							color: "rgb(249, 115, 22)",
-							padding: "4px 10px",
-							borderRadius: "12px",
-							fontSize: "0.82rem",
-							fontWeight: "bold",
-							display: "flex",
-							alignItems: "center",
-							gap: "6px",
-							height: "24px",
-							whiteSpace: "nowrap",
-						}}
-					>
-						<span>⚡</span> Ожидание синхронизации: {queueCount}
-					</div>
-				)}
 				{showAdministrationTopActions ? (
 					<a
 						className="icon-button"
@@ -491,6 +424,51 @@ export function WorkspaceTopbar({
 						<ClipboardCheck aria-hidden="true" /> Прием
 					</button>
 				) : null}
+
+				{flags.hasTasks && (
+					<button
+						aria-label="Задачи"
+						className="icon-button"
+						type="button"
+						title="Задачи и тикеты"
+						onClick={() => onViewIntent?.("communications")}
+						style={{ position: "relative" }}
+					>
+						<ClipboardList aria-hidden="true" size={20} />
+						{activeTasksCount && activeTasksCount > 0 ? (
+							<span
+								style={{
+									position: "absolute",
+									top: "-4px",
+									right: "-4px",
+									background: "var(--amber)",
+									color: "var(--amber-contrast, white)",
+									fontSize: "10px",
+									fontWeight: "bold",
+									padding: "2px 4px",
+									borderRadius: "10px",
+									lineHeight: 1,
+								}}
+							>
+								✓ {activeTasksCount}
+							</span>
+						) : null}
+					</button>
+				)}
+
+				{onQuickConsult && (
+					<button
+						aria-label="Быстрый приём без паспорта"
+						className="secondary-button compact-top-button"
+						type="button"
+						onClick={onQuickConsult}
+						disabled={isQuickConsultLoading}
+						title="Создать быстрый приём без документов"
+					>
+						<UserPlus aria-hidden="true" size={16} />
+						{isQuickConsultLoading ? "..." : "Быстрый приём"}
+					</button>
+				)}
 				<button
 					aria-label="Открыть диктовку приема"
 					className="icon-button top-dictation-button"
@@ -533,7 +511,7 @@ export function WorkspaceTopbar({
 						type="button"
 						title="Заблокировать сессию"
 						onClick={onLockSession}
-						style={{ color: "#ef4444" }}
+						style={{ color: "var(--red, #ef4444)" }}
 					>
 						<Lock aria-hidden="true" size={20} />
 					</button>
@@ -549,164 +527,6 @@ export function WorkspaceTopbar({
 					<Plus aria-hidden="true" /> Запись
 				</button>
 			</div>
-
-			{hasConflict && conflictingRecord && (
-				<div
-					className="conflict-overlay"
-					style={{
-						position: "fixed",
-						top: 0,
-						left: 0,
-						right: 0,
-						bottom: 0,
-						background: "rgba(0,0,0,0.5)",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						zIndex: 10000,
-						backdropFilter: "blur(8px)",
-					}}
-				>
-					<div
-						className="conflict-modal"
-						style={{
-							background: "var(--paper)",
-							border: "1px solid var(--border)",
-							borderRadius: "16px",
-							padding: "24px",
-							width: "90%",
-							maxWidth: "650px",
-							boxShadow:
-								"0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-						}}
-					>
-						<h3 style={{ marginTop: 0, color: "var(--ink)" }}>
-							⚡ Разрешение конфликта синхронизации
-						</h3>
-						<p style={{ color: "var(--muted)", fontSize: "0.95rem" }}>
-							Обнаружены одновременные изменения записи в таблице{" "}
-							<strong>{conflictingRecord.table}</strong>. Пожалуйста, выберите
-							версию для сохранения.
-						</p>
-
-						<div
-							style={{
-								display: "grid",
-								gridTemplateColumns: "1fr 1fr",
-								gap: "16px",
-								margin: "20px 0",
-							}}
-						>
-							<div
-								style={{
-									border: "1px solid var(--border)",
-									borderRadius: "8px",
-									padding: "16px",
-									background: "rgba(249, 115, 22, 0.05)",
-									display: "flex",
-									flexDirection: "column",
-									justifyContent: "space-between",
-								}}
-							>
-								<div>
-									<h4
-										style={{ margin: "0 0 10px 0", color: "rgb(249, 115, 22)" }}
-									>
-										Локальная версия
-									</h4>
-									{conflictingRecord.local?.updatedAt && (
-										<div
-											style={{
-												fontSize: "0.78rem",
-												color: "var(--muted)",
-												marginBottom: "10px",
-											}}
-										>
-											Изменено:{" "}
-											{new Date(
-												conflictingRecord.local.updatedAt,
-											).toLocaleString("ru-RU")}
-										</div>
-									)}
-									<div
-										style={{
-											maxHeight: "250px",
-											overflowY: "auto",
-											paddingRight: "4px",
-										}}
-									>
-										{formatConflictRecord(conflictingRecord.local)}
-									</div>
-								</div>
-								<button
-									className="primary-button"
-									type="button"
-									style={{ marginTop: "16px", width: "100%" }}
-									onClick={() => resolveConflictLWW(true)}
-								>
-									Использовать локальную
-								</button>
-							</div>
-
-							<div
-								style={{
-									border: "1px solid var(--border)",
-									borderRadius: "8px",
-									padding: "16px",
-									background: "rgba(59, 130, 246, 0.05)",
-									display: "flex",
-									flexDirection: "column",
-									justifyContent: "space-between",
-								}}
-							>
-								<div>
-									<h4
-										style={{ margin: "0 0 10px 0", color: "rgb(59, 130, 246)" }}
-									>
-										Облачная версия
-									</h4>
-									{conflictingRecord.remote?.updatedAt && (
-										<div
-											style={{
-												fontSize: "0.78rem",
-												color: "var(--muted)",
-												marginBottom: "10px",
-											}}
-										>
-											Изменено:{" "}
-											{new Date(
-												conflictingRecord.remote.updatedAt,
-											).toLocaleString("ru-RU")}
-										</div>
-									)}
-									<div
-										style={{
-											maxHeight: "250px",
-											overflowY: "auto",
-											paddingRight: "4px",
-										}}
-									>
-										{formatConflictRecord(conflictingRecord.remote)}
-									</div>
-								</div>
-								<button
-									className="secondary-button"
-									type="button"
-									style={{
-										marginTop: "16px",
-										width: "100%",
-										borderColor: "rgb(59, 130, 246)",
-										color: "rgb(59, 130, 246)",
-									}}
-									onClick={() => resolveConflictLWW(false)}
-								>
-									Использовать облачную
-								</button>
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
 		</header>
 	);
 }

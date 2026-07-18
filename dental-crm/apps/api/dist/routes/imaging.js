@@ -3927,9 +3927,7 @@ function hasExplicitDicomDesktopBridge(client) {
 }
 function detectDicomClientRuntimeSurface(client) {
     if (client.runtimeSurfaceHint === "desktop_app") {
-        return hasExplicitDicomDesktopBridge(client)
-            ? "desktop_app"
-            : "desktop_web";
+        return hasExplicitDicomDesktopBridge(client) ? "desktop_app" : "desktop_web";
     }
     if (client.runtimeSurfaceHint === "mobile_web" ||
         client.runtimeSurfaceHint === "tablet_web" ||

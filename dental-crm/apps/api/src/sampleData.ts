@@ -293,6 +293,29 @@ export const clinicProfile: ClinicProfile = {
 	themeColor: "teal",
 	logoUrl: null,
 	stampUrl: null,
+hasAssistants: true,
+hasMultipleChairs: true,
+hasDentalLab: true,
+hasInsuranceCoPay: true,
+hasInstallments: true,
+hasOrthodontics: true,
+	hasGnathology: false,
+	hasCsoScanner: false,
+	hasLeadsKanban: false,
+	hasOmnichannel: false,
+	hasTasks: true,
+hasReclamations: true,
+workspacePreset: 'enterprise',
+onboardingCompleted: false,
+hasPediatricMode: false,
+isOmniRole: false,
+hasPayrollModule: true,
+hasMarketingModule: true,
+hasAnalyticsModule: true,
+hasInventoryModule: true,
+aiEnableTreatmentPlan: true,
+aiEnableRecommendations: true,
+aiEnableDocuments: true,
 };
 
 export const staffMembers: StaffMember[] = [
@@ -1274,6 +1297,7 @@ export function buildBillingSummary(): BillingSummary {
 		draftDocumentAmountRub,
 		openTreatmentItems,
 		unpaidDocuments,
+		insuranceCoverageRub: 0,
 	};
 }
 
@@ -10175,6 +10199,7 @@ export function buildDashboard(): Dashboard {
 		clinicName: repairMojibakeText(clinicProfile.clinicName),
 		todayIso: "2026-05-12",
 		clinicSettings: buildClinicSettings(),
+		insuranceContracts: [],
 		shiftIntelligence: repairMojibakeDeep(buildShiftIntelligence()),
 		patients: repairMojibakeDeep(patients),
 		patientInsights: repairMojibakeDeep(patientInsights),
@@ -10261,6 +10286,7 @@ function normalizePatientAdministrativeProfile(
 		preferredAppointmentEnd,
 		preferredAppointmentNote: nullableTrimmed(input?.preferredAppointmentNote),
 		dataProcessingBasisNote: nullableTrimmed(input?.dataProcessingBasisNote),
+		orthodonticProgress: input?.orthodonticProgress ?? null,
 	};
 	const hasValue = Object.values(profile).some((value) =>
 		Array.isArray(value) ? value.length > 0 : Boolean(value),

@@ -1,5 +1,5 @@
-import { describe, test } from "node:test";
 import assert from "node:assert";
+import { describe, test } from "node:test";
 import { buildRuleBasedVisitDraftFromTranscript } from "../index.js";
 describe("buildRuleBasedVisitDraftFromTranscript", () => {
     test("parses a full transcript with all sections correctly", () => {
@@ -12,7 +12,7 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
         assert.strictEqual(result.treatmentPlan, "лечения: экстирпация пульпы");
         assert.strictEqual(result.quality?.level, "ready");
         assert.deepStrictEqual(result.quality?.detectedToothCodes, ["45"]);
-        assert.ok(result.warnings.some(w => w.includes("Распознаны зубы/сегменты: 45.")));
+        assert.ok(result.warnings.some((w) => w.includes("Распознаны зубы/сегменты: 45.")));
     });
     test("handles empty transcript and returns fallbacks", () => {
         const result = buildRuleBasedVisitDraftFromTranscript("   ");
@@ -26,7 +26,7 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
     test("uses custom sourceLabel in warnings", () => {
         const result = buildRuleBasedVisitDraftFromTranscript("жалобы: болит зуб.", "universal", { sourceLabel: "My Custom Source" });
         assert.strictEqual(result.complaint, "болит зуб");
-        assert.ok(result.warnings.some(w => w.includes("My Custom Source: черновик собран по профилю специальности")));
+        assert.ok(result.warnings.some((w) => w.includes("My Custom Source: черновик собран по профилю специальности")));
     });
     test("detects treatment plan signals even without explicit section headers", () => {
         const result = buildRuleBasedVisitDraftFromTranscript("провел анестезию убистезином");
@@ -39,7 +39,7 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
         const transcript = "";
         const result = buildRuleBasedVisitDraftFromTranscript(transcript, "surgeon");
         // Check if the focus reflects the surgeon specialty
-        assert.ok(result.warnings.some(w => w.includes("Фокус приема: хирургия.")));
+        assert.ok(result.warnings.some((w) => w.includes("Фокус приема: хирургия.")));
         // Surgeon's fallback plan might be different, let's just check it doesn't fail
         assert.ok(result.treatmentPlan);
     });

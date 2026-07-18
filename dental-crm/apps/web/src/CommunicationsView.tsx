@@ -4,6 +4,7 @@ import type {
 	GeneratedDocument,
 	StaffRole,
 } from "@dental/shared";
+import { motion } from "framer-motion";
 import {
 	CheckCircle2,
 	FileText,
@@ -14,40 +15,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
+import { useAppLogicContext } from "./contexts/AppLogicContext";
 
 type CommunicationTask = Dashboard["communicationTasks"][number];
 type CommunicationTemplate = Dashboard["communicationTemplates"][number];
 type CommunicationEvent = Dashboard["communicationEvents"][number];
-
-type CommunicationsViewProps = {
-	communicationChannelLabels: Record<CommunicationTask["channel"], string>;
-	communicationDocumentTaskActionLabels: Partial<
-		Record<GeneratedDocument["kind"], string>
-	>;
-	communicationIntentLabels: Record<CommunicationTask["intent"], string>;
-	communicationNote: string;
-	communicationPriorityLabels: Record<CommunicationTask["priority"], string>;
-	communicationSavingTaskId: string | null;
-	communicationStatusLabels: Record<CommunicationTask["status"], string>;
-	completeCommunicationTask: (
-		taskId: string,
-		outcome: CommunicationTaskOutcome,
-	) => void | Promise<void>;
-	dashboard: Dashboard;
-	documentKindsForCommunicationTask: (
-		task: CommunicationTask,
-	) => readonly GeneratedDocument["kind"][];
-	documentLabels: Record<GeneratedDocument["kind"], string>;
-	formatDateTime: (value: string) => string;
-	onCommunicationNoteChange: (value: string) => void;
-	onGoToSchedule: () => void;
-	openCommunicationTaskDocumentWorkflow: (
-		task: CommunicationTask,
-		kind: GeneratedDocument["kind"],
-	) => void;
-	sortedCommunicationTasks: CommunicationTask[];
-	staffRoleLabels: Record<StaffRole, string>;
-};
 
 function ruCount(value: number, forms: [string, string, string]): string {
 	const absolute = Math.abs(value);
@@ -301,30 +273,40 @@ function CommunicationEventRow({
 	);
 }
 
-export function CommunicationsView({
-	communicationChannelLabels,
-	communicationDocumentTaskActionLabels,
-	communicationIntentLabels,
-	communicationNote,
-	communicationPriorityLabels,
-	communicationSavingTaskId,
-	communicationStatusLabels,
-	completeCommunicationTask,
-	dashboard,
-	documentKindsForCommunicationTask,
-	documentLabels,
-	formatDateTime,
-	onCommunicationNoteChange,
-	onGoToSchedule,
-	openCommunicationTaskDocumentWorkflow,
-	sortedCommunicationTasks,
-	staffRoleLabels,
-}: CommunicationsViewProps) {
+export function CommunicationsView() {
+	const {
+		communicationChannelLabels,
+		communicationDocumentTaskActionLabels,
+		communicationIntentLabels,
+		communicationNote,
+		communicationPriorityLabels,
+		communicationSavingTaskId,
+		communicationStatusLabels,
+		completeCommunicationTask,
+		dashboard,
+		documentKindsForCommunicationTask,
+		documentLabels,
+		formatDateTime,
+		setCommunicationNote,
+		openCommunicationTaskDocumentWorkflow,
+		sortedCommunicationTasks,
+		staffRoleLabels,
+	} = useAppLogicContext();
+	const onCommunicationNoteChange = setCommunicationNote;
+	const onGoToSchedule = () => {
+		window.location.hash = "schedule";
+	};
 	const communicationNoteInputId = "communication-closing-note";
 	const communicationNoteDescriptionId = "communication-closing-note-guidance";
 
 	return (
-		<div className="panel communications-panel" id="communications">
+		<motion.div
+			className="panel communications-panel glass-panel"
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4 }}
+			id="communications"
+		>
 			<div className="panel-heading">
 				<h2>Связь с пациентами</h2>
 				<button className="text-button" type="button" onClick={onGoToSchedule}>
@@ -584,6 +566,6 @@ export function CommunicationsView({
 					</section>
 				</aside>
 			</div>
-		</div>
+		</motion.div>
 	);
 }

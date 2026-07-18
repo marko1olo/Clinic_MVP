@@ -7,21 +7,11 @@ import type {
 import { Beaker, Clock, PackageCheck, RefreshCcw } from "lucide-react";
 import type { ChangeEvent } from "react";
 import React, { useState } from "react";
+import type { AppointmentScheduleDraft } from "../../AppHelpers";
 import { useAppStore } from "../../store/appStore";
+import { useWorkspaceProfileStore } from "../../hooks/useWorkspaceProfile";
 
 type TextFieldChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
-
-export type AppointmentScheduleDraft = {
-	patientId: string;
-	doctorUserId: string;
-	assistantUserId: string;
-	chairId: string;
-	startsAt: string;
-	endsAt: string;
-	reason: string;
-	comment: string;
-	status: string;
-};
 
 export type AppointmentCardProps = {
 	appointment: Appointment;
@@ -46,10 +36,10 @@ export type AppointmentCardProps = {
 	) => string;
 	openAppointmentEditor: (appointment: Appointment) => void;
 	closeAppointmentEditor: (appointmentId: string) => void;
-	updateAppointmentScheduleDraft: (
+	updateAppointmentScheduleDraft: <K extends keyof AppointmentScheduleDraft>(
 		appointmentId: string,
-		key: string,
-		value: unknown,
+		key: K,
+		value: AppointmentScheduleDraft[K],
 	) => void;
 	saveAppointmentSchedule: (appointmentId: string) => Promise<boolean>;
 	normalizedAppointmentStatus: (value: unknown) => Appointment["status"];
@@ -89,6 +79,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
 		activeVisitLockedAppointmentStatuses,
 	} = props;
 
+	const workspaceFlags = useWorkspaceProfileStore();
 	const [chipsExpanded, setChipsExpanded] = useState(false);
 	const labOrderStatus = useAppStore((state) =>
 		appointment.patientId
@@ -119,37 +110,56 @@ export function AppointmentCard(props: AppointmentCardProps) {
 		appointment.patientId,
 	);
 
-	const renderLabIndicator = () => {
-		if (!labOrderStatus) return null;
+	const renderTrafficLights = () => {
+		if (!appointment.patientId) return null;
+		const insight = dashboard.patientInsights.find(
+			(p) => p.patientId === appointment.patientId,
+		);
+		if (!insight && !labOrderStatus) return null;
 
-		if (labOrderStatus === "delivered") {
-			return (
-				<div
-					className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium border border-green-200 dark:border-green-800"
-					title="Работа доставлена из лаборатории"
-				>
-					<PackageCheck className="w-3.5 h-3.5" /> Лаба: Готово
-				</div>
-			);
-		}
-
-		if (labOrderStatus === "in_progress" || labOrderStatus === "refitting") {
-			return (
-				<div
-					className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full text-xs font-medium border border-yellow-200 dark:border-yellow-800 animate-pulse"
-					title="Заказ в лаборатории"
-				>
-					{labOrderStatus === "refitting" ? (
-						<RefreshCcw className="w-3.5 h-3.5" />
-					) : (
-						<Clock className="w-3.5 h-3.5" />
+		return (
+			<div
+				className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10"
+				aria-label="Светофоры статуса"
+			>
+				{workspaceFlags.hasDentalLab && labOrderStatus &&
+					(labOrderStatus === "in_progress" ||
+						labOrderStatus === "refitting") && (
+						<div
+							className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)] animate-pulse"
+							title="Лаборатория: В работе"
+						/>
 					)}
-					Лаба: В работе
-				</div>
-			);
-		}
-
-		return null;
+				{workspaceFlags.hasDentalLab && labOrderStatus === "delivered" && (
+					<div
+						className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"
+						title="Лаборатория: Работа доставлена"
+					/>
+				)}
+				{insight?.balanceDueRub ? (
+					<div
+						className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+						title={`Долг: ${insight.balanceDueRub.toLocaleString()} ₽`}
+					/>
+				) : null}
+				{insight?.missingDocumentKinds &&
+					insight.missingDocumentKinds.length > 0 && (
+						<div
+							className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"
+							title="Отсутствуют подписанные документы"
+						/>
+					)}
+				{insight &&
+					!insight.balanceDueRub &&
+					(!insight.missingDocumentKinds ||
+						insight.missingDocumentKinds.length === 0) && (
+						<div
+							className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+							title="Документы подписаны, долгов нет"
+						/>
+					)}
+			</div>
+		);
 	};
 
 	return (
@@ -187,7 +197,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
 						>
 							{appointmentLabels[appointment.status]}
 						</span>
-						{renderLabIndicator()}
+						{renderTrafficLights()}
 						{readiness?.state === "ready" && (
 							<div
 								className="lab-ready-indicator animate-pulse"
@@ -605,11 +615,13 @@ export function AppointmentCard(props: AppointmentCardProps) {
 										"Осмотр",
 										"Профгигиена",
 										"Консультация",
-										"Брекеты",
-										"Коронка",
+										workspaceFlags.hasOrthodontics && "Брекеты",
+										workspaceFlags.hasDentalLab && "Коронка",
 										"КЛКТ",
 										"Имплантация",
-									].map((chip) => (
+									]
+										.filter((chip): chip is string => Boolean(chip))
+										.map((chip) => (
 										<button
 											key={chip}
 											type="button"

@@ -1,6 +1,7 @@
 import type { Dashboard } from "@dental/shared";
 import { ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 import { useState } from "react";
+import { useWorkspaceProfile } from "./hooks/useWorkspaceProfile";
 
 type TreatmentPlanScenario = Dashboard["treatmentPlanScenarios"][number];
 type ServiceCatalogItem = Dashboard["serviceCatalog"][number];
@@ -30,6 +31,7 @@ type FinancePlanningOverviewProps = {
 	priorityLabels: Record<TreatmentPlanScenario["priority"], string>;
 	scenarios: TreatmentPlanScenario[];
 	strategyLabels: Record<TreatmentPlanScenario["strategy"], string>;
+	treatmentItems: Dashboard["treatmentPlanItems"];
 };
 
 type ServiceCatalogStripProps = {
@@ -47,32 +49,40 @@ export function FinancePlanningOverview({
 	priorityLabels,
 	scenarios,
 	strategyLabels,
+	treatmentItems,
 }: FinancePlanningOverviewProps) {
+	const workspaceFlags = useWorkspaceProfile();
 	const [showScenarios, setShowScenarios] = useState(false);
-	const percent = 65;
+
+	const activeItems = treatmentItems.filter((i) => i.status !== "cancelled");
+	const completedItems = activeItems.filter((i) => i.status === "completed");
+	const totalCount = activeItems.length;
+	const completedCount = completedItems.length;
+	const percent =
+		totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+	const remaining = totalCount - completedCount;
 
 	return (
 		<>
-			<div className="treatment-progress-container">
-				<div className="treatment-progress-header">
-					<span className="treatment-progress-title">
-						Прогресс лечения
-					</span>
-					<span className="treatment-progress-percent">
-						{percent}%
-					</span>
+			{totalCount > 0 && percent < 100 && (
+				<div className="treatment-progress-container">
+					<div className="treatment-progress-header">
+						<span className="treatment-progress-title">Прогресс лечения</span>
+						<span className="treatment-progress-percent">{percent}%</span>
+					</div>
+					<div className="treatment-progress-bar-bg">
+						<div
+							className="treatment-progress-bar-fill"
+							style={{ width: `${percent}%` }}
+						/>
+					</div>
+					<p className="treatment-progress-hint">
+						<ClipboardList size={14} /> Осталось {remaining}{" "}
+						{ruCount(remaining, ["этап", "этапа", "этапов"])} до завершения
+						плана. Отличная динамика!
+					</p>
 				</div>
-				<div className="treatment-progress-bar-bg">
-					<div
-						className="treatment-progress-bar-fill"
-						style={{ width: `${percent}%` }}
-					/>
-				</div>
-				<p className="treatment-progress-hint">
-					<ClipboardList size={14} /> Осталось 3 этапа до завершения плана.
-					Отличная динамика!
-				</p>
-			</div>
+			)}
 
 			<div className="finance-summary-grid" aria-label="Финансовая сводка">
 				<article>
@@ -113,6 +123,16 @@ export function FinancePlanningOverview({
 					<strong>{money(billingSummary.taxDeductionEligibleRub)}</strong>
 					<p>медицинские услуги, пригодные для справки</p>
 				</article>
+				{workspaceFlags.hasInsuranceCoPay &&
+					((billingSummary as any).insuranceCoverageRub ?? 0) > 0 && (
+						<article className="finance-insurance">
+							<span>Покрытие ДМС</span>
+							<strong>
+								{money((billingSummary as any).insuranceCoverageRub ?? 0)}
+							</strong>
+							<p>страховая часть по контракту</p>
+						</article>
+					)}
 			</div>
 
 			<section className="plan-scenarios" aria-label="Варианты плана лечения">
@@ -193,9 +213,7 @@ export function FinancePlanningOverview({
 				) : (
 					<article className="finance-empty-state actionable-empty-state">
 						<ClipboardList size={40} className="finance-empty-state-icon" />
-						<h4 className="finance-empty-state-title">
-							Смета пуста
-						</h4>
+						<h4 className="finance-empty-state-title">Смета пуста</h4>
 						<p className="finance-empty-state-desc">
 							Кликните по зубу слева на формуле, чтобы добавить первую услугу.
 						</p>

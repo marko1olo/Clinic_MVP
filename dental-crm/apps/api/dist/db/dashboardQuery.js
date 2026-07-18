@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
+import { protocolTemplates as sampleProtocolTemplates } from "../sampleData.js";
 const validClinicModes = new Set([
     "solo_doctor",
     "one_chair",
@@ -143,6 +144,135 @@ function parseJsonArrayWithWarning(value, label, warnings) {
 function parseStringArrayWithWarning(value, label, warnings) {
     return parseJsonArrayWithWarning(value, label, warnings).filter((item) => typeof item === "string");
 }
+function buildAppointmentReadiness(appointments, patients, users, chairs, documents, imagingStudies, paidByPatient, plannedByPatient, clinicMode) {
+    const patientsById = new Map(patients.map((p) => [p.id, p]));
+    const activeStaffById = new Map(users.map((m) => [m.id, m]));
+    const activeChairsById = new Map(chairs.map((c) => [c.id, c]));
+    const documentsByPatientId = new Map();
+    for (const doc of documents) {
+        if (doc.status !== "voided") {
+            if (!documentsByPatientId.has(doc.patientId)) {
+                documentsByPatientId.set(doc.patientId, []);
+            }
+            documentsByPatientId.get(doc.patientId).push(doc);
+        }
+    }
+    const imagesByPatientId = new Map();
+    for (const study of imagingStudies) {
+        if (!imagesByPatientId.has(study.patientId)) {
+            imagesByPatientId.set(study.patientId, []);
+        }
+        imagesByPatientId.get(study.patientId).push(study);
+    }
+    return appointments.map((appointment) => {
+        const patientId = appointment.patientId || "";
+        const doctorUserId = appointment.doctorUserId || "";
+        const chairId = appointment.chairId || "";
+        const patient = patientsById.get(patientId);
+        const doctor = activeStaffById.get(doctorUserId);
+        const assistant = appointment.assistantUserId
+            ? (activeStaffById.get(appointment.assistantUserId) ?? null)
+            : null;
+        const chair = activeChairsById.get(chairId);
+        const patientDocuments = documentsByPatientId.get(patientId) ?? [];
+        const patientImages = imagesByPatientId.get(patientId) ?? [];
+        const totalPlanned = plannedByPatient.get(patientId) ?? 0;
+        const totalPaid = paidByPatient.get(patientId) ?? 0;
+        const balanceDue = Math.max(0, totalPlanned - totalPaid);
+        const hasContract = patientDocuments.some((d) => d.kind === "paid_medical_services_contract");
+        const hasConsent = patientDocuments.some((d) => d.kind === "informed_consent");
+        const hasImageForTreatment = patientImages.some((study) => study.status !== "failed");
+        const hasImageReviewBlocker = patientImages.some((study) => study.status === "needs_review");
+        const hasBalance = balanceDue > 0;
+        const assistantRequired = clinicMode !== "solo_doctor";
+        const checks = [
+            {
+                key: "patient",
+                title: "Пациент",
+                ready: Boolean(patient),
+                detail: patient ? "карточка найдена" : "нет карточки пациента",
+            },
+            {
+                key: "team",
+                title: "Команда",
+                ready: Boolean(doctor && chair && (!assistantRequired || assistant)),
+                detail: `${doctor ? "врач назначен" : "нет врача"} · ${chair ? chair.name : "нет кресла"} · ${assistant
+                    ? "ассистент назначен"
+                    : assistantRequired
+                        ? "ассистент не назначен"
+                        : "ассистент не требуется"}`,
+            },
+            {
+                key: "schedule",
+                title: "Расписание",
+                ready: true,
+                detail: "согласовано",
+            },
+            {
+                key: "contracts",
+                title: "Договоры",
+                ready: hasContract && hasConsent,
+                detail: hasContract && hasConsent
+                    ? "договор и ИДС подписаны"
+                    : !hasContract && !hasConsent
+                        ? "нет договора и ИДС"
+                        : !hasContract
+                            ? "нет договора"
+                            : "нет ИДС",
+            },
+            {
+                key: "imaging",
+                title: "Диагностика",
+                ready: hasImageForTreatment && !hasImageReviewBlocker,
+                detail: hasImageForTreatment && !hasImageReviewBlocker
+                    ? "снимки загружены"
+                    : hasImageReviewBlocker
+                        ? "снимки требуют описания"
+                        : "нет снимков/КТ",
+            },
+            {
+                key: "finance",
+                title: "Оплата",
+                ready: !hasBalance,
+                detail: hasBalance ? `долг ${balanceDue} ₽` : "оплачено полностью",
+            },
+        ];
+        const readyCount = checks.filter((c) => c.ready).length;
+        const score = Math.round((readyCount / checks.length) * 100);
+        // Determine the traffic light state
+        let state = "ready";
+        if (hasBalance || !hasContract || !hasConsent || !hasImageForTreatment) {
+            state = "needs_attention";
+        }
+        if (!patient || !doctor || !chair || (assistantRequired && !assistant)) {
+            state = "blocked";
+        }
+        let nextAction = "Все готово к приему";
+        if (state === "blocked") {
+            nextAction = "Назначьте команду и время";
+        }
+        else if (!hasContract || !hasConsent) {
+            nextAction = "Подпишите договор и ИДС";
+        }
+        else if (!hasImageForTreatment) {
+            nextAction = "Сделайте прицельный снимок или КТ";
+        }
+        else if (hasBalance) {
+            nextAction = "Оплатите остаток за лечение";
+        }
+        return {
+            appointmentId: appointment.id,
+            patientId: patientId || null,
+            score,
+            state,
+            nextAction,
+            ownerUserId: doctorUserId,
+            ownerRole: "doctor",
+            blockers: checks.filter((c) => !c.ready).map((c) => c.title),
+            checks,
+        };
+    });
+}
 function normalizeImportStatus(value) {
     return validImportStatuses.has(value)
         ? value
@@ -219,7 +349,19 @@ export async function getDashboardFromDb(organizationId) {
         .from(schema.auditEvents)
         .where(eq(schema.auditEvents.organizationId, organizationId))
         .orderBy(desc(schema.auditEvents.createdAt));
+    const activeInsuranceContracts = await db
+        .select()
+        .from(schema.insuranceContracts)
+        .where(eq(schema.insuranceContracts.organizationId, organizationId));
     const activeVisit = visits.find((visit) => visit.status === "draft") ?? visits[0] ?? null;
+    let activeVisitDiary = null;
+    if (activeVisit) {
+        const [diary] = await db
+            .select()
+            .from(schema.visitDiaries)
+            .where(eq(schema.visitDiaries.visitId, activeVisit.id));
+        activeVisitDiary = diary ?? null;
+    }
     const paidPayments = payments.filter((payment) => payment.status === "paid");
     const totalPaidRub = paidPayments.reduce((sum, payment) => sum + money(payment.amountRub), 0);
     const totalInvoiceRub = invoices.reduce((sum, invoice) => sum + money(invoice.totalAmountRub), 0);
@@ -264,6 +406,13 @@ export async function getDashboardFromDb(organizationId) {
     };
     if (scheduleDefaults.workingDays.length === 0)
         scheduleDefaults.workingDays = [1, 2, 3, 4, 5];
+    const rawProtocolTemplates = await db
+        .select()
+        .from(schema.protocolTemplates)
+        .where(eq(schema.protocolTemplates.organizationId, organizationId));
+    const finalProtocolTemplates = rawProtocolTemplates.length > 0
+        ? rawProtocolTemplates
+        : sampleProtocolTemplates.filter((pt) => true);
     const dashboard = {
         clinicName: org.name,
         todayIso: new Date().toISOString().split("T")[0],
@@ -294,10 +443,29 @@ export async function getDashboardFromDb(organizationId) {
                 updatedAt: iso(org.updatedAt),
                 specializations,
                 workingHours: workingHours,
-                currency: org.currency && org.currency !== "в‚Ѕ" ? org.currency : "₽",
+                currency: org.currency && org.currency !== "₽" ? org.currency : "₽",
                 themeColor: org.themeColor ?? "teal",
                 logoUrl: org.logoUrl,
                 stampUrl: org.stampUrl,
+                hasAssistants: org.hasAssistants ?? true,
+                hasMultipleChairs: org.hasMultipleChairs ?? true,
+                hasDentalLab: org.hasDentalLab ?? true,
+                hasInsuranceCoPay: org.hasInsuranceCoPay ?? true,
+                hasInstallments: org.hasInstallments ?? true,
+                hasOrthodontics: org.hasOrthodontics ?? true,
+                hasTasks: org.hasTasks ?? true,
+                hasReclamations: org.hasReclamations ?? true,
+                hasPayrollModule: org.hasPayrollModule ?? true,
+                hasMarketingModule: org.hasMarketingModule ?? true,
+                hasAnalyticsModule: org.hasAnalyticsModule ?? true,
+                hasInventoryModule: org.hasInventoryModule ?? true,
+                aiEnableTreatmentPlan: org.aiEnableTreatmentPlan ?? true,
+                aiEnableRecommendations: org.aiEnableRecommendations ?? true,
+                aiEnableDocuments: org.aiEnableDocuments ?? true,
+                workspacePreset: org.workspacePreset ?? "enterprise",
+                onboardingCompleted: org.onboardingCompleted ?? false,
+                hasPediatricMode: org.hasPediatricMode ?? false,
+                isOmniRole: org.isOmniRole ?? false,
             },
             staff: users.map((user) => ({
                 id: user.id,
@@ -366,7 +534,7 @@ export async function getDashboardFromDb(organizationId) {
             reason: appointment.reason,
             comment: appointment.comment,
         })),
-        appointmentReadiness: [],
+        appointmentReadiness: buildAppointmentReadiness(appointments, patients, users, chairs, documents, imagingStudies, paidByPatient, plannedByPatient, mode),
         scheduleSuggestions: [],
         activeVisit: activeVisit
             ? {
@@ -384,6 +552,11 @@ export async function getDashboardFromDb(organizationId) {
                 doctorSummary: activeVisit.doctorSummary,
                 createdAt: iso(activeVisit.createdAt),
                 updatedAt: iso(activeVisit.updatedAt),
+                diary: activeVisitDiary ? {
+                    id: activeVisitDiary.id,
+                    complications: activeVisitDiary.complications,
+                    comorbidities: activeVisitDiary.comorbidities,
+                } : null,
             }
             : null,
         visitCloseChecklist: activeVisit
@@ -417,7 +590,7 @@ export async function getDashboardFromDb(organizationId) {
             roleQueues: [],
             scheduleWarnings: [],
         },
-        protocolTemplates: [],
+        protocolTemplates: finalProtocolTemplates,
         treatmentPlanItems: treatmentItems.map((item) => ({
             id: item.id,
             organizationId: item.organizationId,
@@ -495,6 +668,7 @@ export async function getDashboardFromDb(organizationId) {
             draftDocumentAmountRub,
             openTreatmentItems,
             unpaidDocuments,
+            insuranceCoverageRub: 0,
         },
         communicationTemplates: [],
         communicationTasks: [],
@@ -533,6 +707,19 @@ export async function getDashboardFromDb(organizationId) {
             createdAt: iso(event.createdAt),
         })),
         complianceWarnings: warnings,
+        insuranceContracts: activeInsuranceContracts.map((c) => ({
+            id: c.id,
+            organizationId: c.organizationId,
+            companyName: c.companyName,
+            policyNumberMask: c.policyNumberMask,
+            coverageTherapyPct: c.coverageTherapyPct,
+            coverageSurgeryPct: c.coverageSurgeryPct,
+            coverageOrthoPct: c.coverageOrthoPct,
+            coverageHygienePct: c.coverageHygienePct,
+            annualLimitRub: c.annualLimitRub,
+            isActive: c.isActive,
+            createdAt: iso(c.createdAt),
+        })),
         documents: documents.map((document) => ({
             id: document.id,
             organizationId: document.organizationId,

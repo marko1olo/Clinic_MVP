@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import {
 	Activity,
 	Box,
@@ -9,10 +10,14 @@ import {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "./components/GlobalToast";
+import { useAppLogicContext } from "./contexts/AppLogicContext";
 import "./ScannerView.css";
 
 export function ScannerView() {
+	const { auth } = useAppLogicContext();
 	const [barcode, setBarcode] = useState("");
+	const [autoclaveId, setAutoclaveId] = useState("ОСНОВНОЙ");
+	const [status, setStatus] = useState<"passed" | "failed">("passed");
 	const [isScanning, setIsScanning] = useState(false);
 	const [logs, setLogs] = useState<any[]>([]);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -25,9 +30,12 @@ export function ScannerView() {
 
 	const loadLogs = async () => {
 		try {
-			const res = await fetch("/api/sterilization");
+			const res = await fetch("/api/sterilization/logs", {
+				headers: auth.denteClinicalReadHeaders(),
+			});
 			if (res.ok) {
-				setLogs(await res.json());
+				const data = await res.json();
+				setLogs(Array.isArray(data) ? data : []);
 			}
 		} catch (e) {
 			console.error(e);
@@ -40,34 +48,52 @@ export function ScannerView() {
 
 		setIsScanning(true);
 
-		// Simulate scan delay for visual effect
-		setTimeout(async () => {
-			try {
-				const res = await fetch("/api/sterilization/scan", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ barcode }),
-				});
+		try {
+			const res = await fetch("/api/sterilization/scan", {
+				method: "POST",
+				headers: auth.denteClinicalReadHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					barcode: barcode.trim(),
+					autoclaveId,
+					status,
+				}),
+			});
 
-				if (!res.ok) throw new Error("Scan rejected");
+			if (!res.ok) throw new Error("Scan rejected");
 
-				showToast("Успешное сканирование лотка", "success");
-				setBarcode("");
-				loadLogs();
-			} catch (err) {
-				showToast("Ошибка валидации лотка", "error");
-			} finally {
-				setIsScanning(false);
-				if (inputRef.current) inputRef.current.focus();
-			}
-		}, 800);
+			showToast("Успешное сканирование лотка", "success");
+			setBarcode("");
+			loadLogs();
+		} catch (err) {
+			showToast("Ошибка валидации лотка", "error");
+		} finally {
+			setIsScanning(false);
+			if (inputRef.current) inputRef.current.focus();
+		}
 	};
 
 	return (
-		<div className="scanner-view-container">
+		<motion.div
+			className="scanner-view-container glass-panel"
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4 }}
+		>
 			<div className="scanner-header">
-				<ScanLine size={32} color="var(--brand-600)" />
-				<h1 className="scanner-title">Сканер Стерилизации</h1>
+				<ScanLine size={32} color="var(--teal)" />
+				<h1
+					className="scanner-title"
+					style={{
+						fontSize: "1.75rem",
+						fontWeight: 700,
+						margin: 0,
+						color: "var(--ink)",
+					}}
+				>
+					Сканер Стерилизации
+				</h1>
 			</div>
 
 			<div className="scanner-card">
@@ -79,6 +105,28 @@ export function ScannerView() {
 						Наведите сканер на штрих-код лотка с инструментами или введите
 						вручную.
 					</p>
+
+					<div className="scanner-select-group">
+						<select
+							value={autoclaveId}
+							onChange={(e) => setAutoclaveId(e.target.value)}
+							className="scanner-select"
+						>
+							<option value="ОСНОВНОЙ">Основной автоклав</option>
+							<option value="РЕЗЕРВНЫЙ">Резервный автоклав</option>
+							<option value="MELAtronic 23">MELAtronic 23</option>
+						</select>
+
+						<select
+							value={status}
+							onChange={(e) => setStatus(e.target.value as "passed" | "failed")}
+							className="scanner-select"
+						>
+							<option value="passed">Успешно</option>
+							<option value="failed">Брак</option>
+						</select>
+					</div>
+
 					<input
 						ref={inputRef}
 						type="text"
@@ -99,7 +147,7 @@ export function ScannerView() {
 
 			<div className="scanner-log-section">
 				<h3 className="scanner-log-title">
-					<Activity size={20} /> Журнал стерилизации
+					<Activity size={20} color="var(--teal)" /> Журнал стерилизации
 				</h3>
 
 				{logs.length > 0 ? (
@@ -114,7 +162,7 @@ export function ScannerView() {
 							<div className="scanner-log-row" key={log.id}>
 								<div className="log-barcode">{log.barcode}</div>
 								<div className="log-autoclave">
-									<Box size={16} /> {log.autoclaveId}
+									<Box size={16} /> {log.autoclaveId || "ОСНОВНОЙ"}
 								</div>
 								<div>
 									{log.status === "passed" ? (
@@ -139,6 +187,6 @@ export function ScannerView() {
 					</div>
 				)}
 			</div>
-		</div>
+		</motion.div>
 	);
 }

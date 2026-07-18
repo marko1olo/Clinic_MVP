@@ -3345,7 +3345,13 @@ export type VisitNoteField =
 	| "objectiveStatus"
 	| "diagnosis"
 	| "treatmentPlan";
-export type VisitNoteForm = Record<VisitNoteField, string>;
+
+import type { visitServiceItemSchema } from "@dental/shared";
+import type { z } from "zod";
+
+export type VisitNoteForm = Record<VisitNoteField, string> & {
+	completedServices: z.infer<typeof visitServiceItemSchema>[];
+};
 
 export const visitNoteFieldDefinitions: Array<{
 	key: VisitNoteField;
@@ -3413,6 +3419,7 @@ export const emptyVisitNoteForm: VisitNoteForm = {
 	objectiveStatus: "",
 	diagnosis: "",
 	treatmentPlan: "",
+	completedServices: [],
 };
 
 export function visitNoteFormFromVisit(
@@ -3425,6 +3432,7 @@ export function visitNoteFormFromVisit(
 			objectiveStatus: "",
 			diagnosis: "",
 			treatmentPlan: "",
+			completedServices: [],
 		};
 	}
 	return {
@@ -3433,6 +3441,7 @@ export function visitNoteFormFromVisit(
 		objectiveStatus: visit.objectiveStatus ?? "",
 		diagnosis: visit.diagnosis ?? "",
 		treatmentPlan: visit.treatmentPlan ?? "",
+		completedServices: [],
 	};
 }
 
@@ -3443,6 +3452,7 @@ export function visitNoteFormFromDraft(draft: VisitNoteDraft): VisitNoteForm {
 		objectiveStatus: draft.objectiveStatus ?? "",
 		diagnosis: draft.diagnosis ?? "",
 		treatmentPlan: draft.treatmentPlan ?? "",
+		completedServices: draft.completedServices ?? [],
 	};
 }
 
@@ -3456,6 +3466,7 @@ export function visitNoteDraftFromForm(
 		objectiveStatus: form.objectiveStatus,
 		diagnosis: form.diagnosis,
 		treatmentPlan: form.treatmentPlan,
+		completedServices: form.completedServices,
 		warnings,
 	};
 }
@@ -3666,6 +3677,7 @@ export type UiPreferences = {
 	postVisitCareTopic: PostVisitCareTopic;
 	pricelistSourceKind: PricelistSourceKind;
 	usePricelistAi: boolean;
+	odontogramUseSurfaces: boolean;
 	recognitionKind: AiJobKind;
 	recognitionTarget: AiRecognitionTarget;
 	importSourceKind: ImportSourceKind;
@@ -4184,16 +4196,19 @@ export type PatientCoreDraft = {
 	phone: string;
 	email: string;
 	notes: string;
+	insuranceContractId: string;
+	insurancePolicyNumber: string;
 };
 export type PatientCoreSaveState = "idle" | "saving" | "saved" | "error";
 
 export type PatientAdministrativeProfileDraft = {
 	[K in Exclude<
 		keyof PatientAdministrativeProfile,
-		"preferredAppointmentWeekdays"
+		"preferredAppointmentWeekdays" | "orthodonticProgress"
 	>]: string;
 } & {
 	preferredAppointmentWeekdays: number[];
+	orthodonticProgress: PatientAdministrativeProfile["orthodonticProgress"];
 };
 export type PatientAdministrativeProfileSaveState =
 	| "idle"
@@ -4607,6 +4622,7 @@ export const defaultUiPreferences: UiPreferences = {
 	onboardingDismissedAt: null,
 	onboardingStep: "intro",
 	onboardingDraftMode: false,
+	odontogramUseSurfaces: false,
 	savedAt: "",
 };
 
@@ -5191,6 +5207,12 @@ export function normalizeUiPreferencesPayload(
 			source,
 			"usePricelistAi",
 			defaultUiPreferences.usePricelistAi,
+			isBooleanPreference,
+		),
+		odontogramUseSurfaces: pickUiPreference(
+			source,
+			"odontogramUseSurfaces",
+			defaultUiPreferences.odontogramUseSurfaces,
 			isBooleanPreference,
 		),
 		recognitionKind: pickUiPreference(
@@ -6274,6 +6296,8 @@ export function emptyPatientCoreDraft(): PatientCoreDraft {
 		phone: "",
 		email: "",
 		notes: "",
+		insuranceContractId: "",
+		insurancePolicyNumber: "",
 	};
 }
 
@@ -6286,6 +6310,8 @@ export function patientCoreDraftFromPatient(
 		phone: patient?.phone ?? "",
 		email: patient?.email ?? "",
 		notes: patient?.notes ?? "",
+		insuranceContractId: patient?.insuranceContractId ?? "",
+		insurancePolicyNumber: patient?.insurancePolicyNumber ?? "",
 	};
 }
 
@@ -6296,6 +6322,7 @@ export function emptyPatientAdministrativeProfileDraft(): PatientAdministrativeP
 		registrationAddress: "",
 		residentialAddress: "",
 		insurancePolicyNumber: "",
+		insuranceContractId: "",
 		snils: "",
 		legalRepresentativeFullName: "",
 		legalRepresentativeRelationship: "",
@@ -6307,6 +6334,7 @@ export function emptyPatientAdministrativeProfileDraft(): PatientAdministrativeP
 		preferredAppointmentEnd: "",
 		preferredAppointmentNote: "",
 		dataProcessingBasisNote: "",
+		orthodonticProgress: null,
 	};
 }
 
@@ -6319,7 +6347,10 @@ export function patientAdministrativeProfileDraftFromPatient(
 		taxpayerInn: profile?.taxpayerInn ?? "",
 		registrationAddress: profile?.registrationAddress ?? "",
 		residentialAddress: profile?.residentialAddress ?? "",
-		insurancePolicyNumber: profile?.insurancePolicyNumber ?? "",
+		insurancePolicyNumber:
+			patient?.insurancePolicyNumber ?? profile?.insurancePolicyNumber ?? "",
+		insuranceContractId:
+			patient?.insuranceContractId ?? profile?.insuranceContractId ?? "",
 		snils: profile?.snils ?? "",
 		legalRepresentativeFullName: profile?.legalRepresentativeFullName ?? "",
 		legalRepresentativeRelationship:
@@ -6335,6 +6366,7 @@ export function patientAdministrativeProfileDraftFromPatient(
 		preferredAppointmentEnd: profile?.preferredAppointmentEnd ?? "",
 		preferredAppointmentNote: profile?.preferredAppointmentNote ?? "",
 		dataProcessingBasisNote: profile?.dataProcessingBasisNote ?? "",
+		orthodonticProgress: profile?.orthodonticProgress ?? null,
 	};
 }
 
@@ -6352,6 +6384,10 @@ export function buildPatientCorePayload(
 		phone: nullablePatientDraftValue(draft.phone),
 		email: nullablePatientDraftValue(draft.email),
 		notes: nullablePatientDraftValue(draft.notes),
+		insuranceContractId: nullablePatientDraftValue(draft.insuranceContractId),
+		insurancePolicyNumber: nullablePatientDraftValue(
+			draft.insurancePolicyNumber,
+		),
 	};
 }
 
@@ -6370,6 +6406,7 @@ export function buildPatientAdministrativeProfilePayload(
 		insurancePolicyNumber: nullablePatientDraftValue(
 			draft.insurancePolicyNumber,
 		),
+		insuranceContractId: nullablePatientDraftValue(draft.insuranceContractId),
 		snils: nullablePatientDraftValue(draft.snils),
 		legalRepresentativeFullName: nullablePatientDraftValue(
 			draft.legalRepresentativeFullName,
@@ -6399,6 +6436,7 @@ export function buildPatientAdministrativeProfilePayload(
 		dataProcessingBasisNote: nullablePatientDraftValue(
 			draft.dataProcessingBasisNote,
 		),
+		orthodonticProgress: draft.orthodonticProgress,
 	};
 }
 
@@ -6512,10 +6550,13 @@ export function clinicLegalReadinessPercent(
 
 export function isVisitNoteForm(value: unknown): value is VisitNoteForm {
 	if (!value || typeof value !== "object") return false;
-	const candidate = value as Partial<Record<VisitNoteField, unknown>>;
-	return visitNoteFieldDefinitions.every(
+	const candidate = value as Partial<Record<VisitNoteField, unknown>> & {
+		completedServices?: unknown;
+	};
+	const hasStrings = visitNoteFieldDefinitions.every(
 		({ key }) => typeof candidate[key] === "string",
 	);
+	return hasStrings && Array.isArray(candidate.completedServices);
 }
 
 export function loadVisitLocalDraft(
@@ -8089,6 +8130,8 @@ export const settingsTabs = [
 	{ id: "clinic", title: "Клиника" },
 	{ id: "staff", title: "Сотрудники" },
 	{ id: "access", title: "Доступы" },
+	{ id: "insurance", title: "ДМС" },
+	{ id: "inventory", title: "Склад" },
 	{ id: "telegram", title: "ТГ-бот" },
 	{ id: "messengers", title: "Мессенджеры" },
 	{ id: "protocols", title: "Протоколы" },
@@ -8098,6 +8141,10 @@ export const settingsTabs = [
 	{ id: "ai", title: "ИИ" },
 	{ id: "imports", title: "Импорт" },
 	{ id: "audit", title: "Аудит" },
+	{ id: "modules", title: "Модули" },
+	{ id: "marketing", title: "Маркетинг" },
+	{ id: "bpmn", title: "Бизнес-процессы" },
+	{ id: "reporting", title: "Отчетность" },
 ] as const;
 export type SettingsTab = (typeof settingsTabs)[number]["id"];
 export type AdminSecretSessionDomain =
@@ -8112,9 +8159,12 @@ export const onboardingSteps: Array<{
 	title: string;
 	detail: string;
 }> = [
-	{ id: "intro", title: "Режим запуска", detail: "демо или чистая" },
-	{ id: "clinic", title: "Клиника", detail: "название и телефон" },
-	{ id: "team", title: "Команда", detail: "первый врач и кресло" },
+	{ id: "intro", title: "Режим", detail: "демо или чистая" },
+	{ id: "role", title: "Роль", detail: "доступ и профиль" },
+	{ id: "clinic", title: "Клиника", detail: "название и график" },
+	{ id: "legal", title: "Реквизиты", detail: "для документов" },
+	{ id: "team", title: "Команда", detail: "врачи и кресла" },
+	{ id: "sources", title: "Базы", detail: "импорт из МИС" },
 	{ id: "telegram", title: "ТГ-бот", detail: "бот, QR и отзывы" },
 	{ id: "done", title: "Готово", detail: "проверка и старт" },
 ];
@@ -8159,3 +8209,10 @@ export function settingsTabFromHash(): SettingsTab {
 }
 
 export const initialUiPreferences = {} as any;
+
+export {
+	telegramFeatureLabels,
+	telegramFeatureOptions
+} from "./workspaceStaticOptions";
+export { imagingSourceLabels } from "./imagingUiLabels";
+export { pricelistSourceKindLabels } from "./pricelistUiMeta";

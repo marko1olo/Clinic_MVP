@@ -1,5 +1,5 @@
 import type { Dashboard } from "@dental/shared";
-import { ClipboardList, CreditCard } from "lucide-react";
+import { ClipboardList, CreditCard, FileText } from "lucide-react";
 
 type TreatmentPlanItem = Dashboard["treatmentPlanItems"][number];
 type Payment = Dashboard["payments"][number];
@@ -21,6 +21,8 @@ type FinanceLedgerProps = {
 	serviceCatalog: ServiceCatalogItem[];
 	treatmentItems: TreatmentPlanItem[];
 	treatmentStatusLabels: Record<TreatmentPlanItem["status"], string>;
+	onCreateDocument?: (kind: string) => void;
+	onRefundPayment?: (paymentId: string) => void;
 };
 
 export function FinanceLedger({
@@ -36,6 +38,8 @@ export function FinanceLedger({
 	serviceCatalog,
 	treatmentItems,
 	treatmentStatusLabels,
+	onCreateDocument,
+	onRefundPayment,
 }: FinanceLedgerProps) {
 	return (
 		<div className="finance-split">
@@ -86,11 +90,31 @@ export function FinanceLedger({
 			</section>
 
 			<section className="finance-list" aria-label="История оплат">
-				<div className="panel-heading">
-					<h3>Платежи</h3>
-					<span className="status-pill status-confirmed">
-						{payments.length}
-					</span>
+				<div
+					className="panel-heading"
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+					}}
+				>
+					<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+						<h3 style={{ margin: 0 }}>Платежи</h3>
+						<span className="status-pill status-confirmed">
+							{payments.length}
+						</span>
+					</div>
+					{payments.some((p) => p.taxDeductionCode) && (
+						<button
+							className="secondary-button"
+							type="button"
+							title="Сгенерировать справку ИФНС для налогового вычета"
+							onClick={() => onCreateDocument?.("tax_deduction_certificate")}
+							style={{ padding: "4px 8px", fontSize: "0.85rem" }}
+						>
+							<FileText size={14} style={{ marginRight: "4px" }} /> Справка ИФНС
+						</button>
+					)}
 				</div>
 				{payments.length ? (
 					payments.map((payment) => (
@@ -107,12 +131,28 @@ export function FinanceLedger({
 									{payment.paidAt
 										? formatDateTime(payment.paidAt)
 										: "ожидает оплаты"}{" "}
-									· чек {paymentFiscalReceiptLabel(payment)} · код{" "}
+									· чек {payment.fiscalReceipt?.receiptUrl ? (
+										<a href={payment.fiscalReceipt.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+											{paymentFiscalReceiptLabel(payment)}
+										</a>
+									) : paymentFiscalReceiptLabel(payment)} · код{" "}
 									{payment.taxDeductionCode ?? "не выбран"} ·{" "}
 									{payment.note ?? "без примечания"}
 								</p>
 							</div>
-							<strong>{money(payment.amountRub)}</strong>
+							<div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+								<strong>{money(payment.amountRub)}</strong>
+								{payment.status === "paid" && onRefundPayment && (
+									<button
+										className="text-button"
+										type="button"
+										onClick={() => onRefundPayment(payment.id)}
+										style={{ fontSize: "0.85rem", color: "var(--color-danger-text, #ef4444)" }}
+									>
+										Возврат
+									</button>
+								)}
+							</div>
 						</article>
 					))
 				) : (

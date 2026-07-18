@@ -2,7 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { sql } from "drizzle-orm";
-import { db, client } from "../db/client.js";
+import { client, db } from "../db/client.js";
 import * as schema from "../db/schema.js";
 
 // We will read the actual saved state, or fallback to the sample data
@@ -59,6 +59,25 @@ async function migrate() {
 		medicalLicenseIssuedAt: state.clinicProfile.medicalLicenseIssuedAt,
 		medicalLicenseIssuer: state.clinicProfile.medicalLicenseIssuer,
 		onboardingCompleted: true,
+		// Explicitly copy over feature flags to avoid database defaults overlay issues
+		hasAssistants: state.clinicProfile.hasAssistants ?? true,
+		hasMultipleChairs: state.clinicProfile.hasMultipleChairs ?? true,
+		hasDentalLab: state.clinicProfile.hasDentalLab ?? true,
+		hasInsuranceCoPay: state.clinicProfile.hasInsuranceCoPay ?? true,
+		hasInstallments: state.clinicProfile.hasInstallments ?? true,
+		hasOrthodontics: state.clinicProfile.hasOrthodontics ?? true,
+		hasTasks: state.clinicProfile.hasTasks ?? true,
+		hasReclamations: state.clinicProfile.hasReclamations ?? true,
+		hasPediatricMode: state.clinicProfile.hasPediatricMode ?? false,
+		isOmniRole: state.clinicProfile.isOmniRole ?? false,
+		workspacePreset: state.clinicProfile.workspacePreset ?? "enterprise",
+		hasPayrollModule: state.clinicProfile.hasPayrollModule ?? true,
+		hasMarketingModule: state.clinicProfile.hasMarketingModule ?? true,
+		hasAnalyticsModule: state.clinicProfile.hasAnalyticsModule ?? true,
+		hasInventoryModule: state.clinicProfile.hasInventoryModule ?? true,
+		aiEnableTreatmentPlan: state.clinicProfile.aiEnableTreatmentPlan ?? true,
+		aiEnableRecommendations: state.clinicProfile.aiEnableRecommendations ?? true,
+		aiEnableDocuments: state.clinicProfile.aiEnableDocuments ?? true,
 	});
 
 	console.log("🏥 Migrating Clinics (Default)");
@@ -201,6 +220,18 @@ async function migrate() {
 			isActive: rule.active,
 			createdAt: rule.createdAt ? new Date(rule.createdAt) : new Date(),
 			updatedAt: rule.updatedAt ? new Date(rule.updatedAt) : new Date(),
+		});
+	}
+
+	console.log("📋 Seeding dummy treatment plans for analytics...");
+	const treatmentPlanStatusOptions = ["Draft", "Active", "Completed"];
+	for (let i = 0; i < state.patients.length; i++) {
+		const patient = state.patients[i];
+		await db.insert(schema.treatmentPlans).values({
+			patientId: patient.id,
+			name: `План лечения для ${patient.fullName}`,
+			status: treatmentPlanStatusOptions[i % treatmentPlanStatusOptions.length] as any,
+			totalPrice: "150000.00",
 		});
 	}
 

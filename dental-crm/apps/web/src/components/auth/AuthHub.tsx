@@ -1,8 +1,9 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AcceptInvite } from "./AcceptInvite";
 import { ClinicLogin } from "./ClinicLogin";
 import { Register } from "./Register";
 import { UserLogin } from "./UserLogin";
+import { AuthArtBackground } from "./AuthArtBackground";
 
 interface AuthHubProps {
 	onSuccess: (clinicProfile: any, userProfile?: any) => void;
@@ -13,6 +14,35 @@ export function AuthHub({ onSuccess }: AuthHubProps) {
 		"clinic_login" | "user_login" | "register" | "accept_invite"
 	>("user_login");
 	const [inviteToken, setInviteToken] = useState<string | null>(null);
+
+	useEffect(() => {
+		// Store original theme states to restore them on unmount
+		const originalDataTheme = document.body.getAttribute("data-theme");
+		const hadDarkClassDoc = document.documentElement.classList.contains("dark");
+		const hadThemeDarkClassBody = document.body.classList.contains("theme-dark");
+
+		// Force dark theme for the login screen to ensure glassmorphism visibility
+		// against all possible art backgrounds (especially bright ones).
+		document.body.setAttribute("data-theme", "dark");
+		document.documentElement.classList.add("dark");
+		document.body.classList.add("theme-dark");
+
+		return () => {
+			// Restore original theme states so the Workspace (post-login) theme isn't broken
+			if (originalDataTheme) {
+				document.body.setAttribute("data-theme", originalDataTheme);
+			} else {
+				document.body.removeAttribute("data-theme");
+			}
+
+			if (!hadDarkClassDoc) {
+				document.documentElement.classList.remove("dark");
+			}
+			if (!hadThemeDarkClassBody) {
+				document.body.classList.remove("theme-dark");
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		const checkHash = () => {
@@ -33,43 +63,55 @@ export function AuthHub({ onSuccess }: AuthHubProps) {
 
 	if (view === "accept_invite" && inviteToken) {
 		return (
-			<AcceptInvite
-				token={inviteToken}
-				onSuccess={onSuccess}
-				onCancel={() => {
-					window.location.hash = "";
-					setView("user_login");
-				}}
-			/>
+			<>
+				<AuthArtBackground />
+				<AcceptInvite
+					token={inviteToken}
+					onSuccess={onSuccess}
+					onCancel={() => {
+						window.location.hash = "";
+						setView("user_login");
+					}}
+				/>
+			</>
 		);
 	}
 
 	if (view === "register") {
 		return (
-			<Register
-				onSuccess={onSuccess}
-				onSwitchToLogin={() => setView("user_login")}
-			/>
+			<>
+				<AuthArtBackground />
+				<Register
+					onSuccess={onSuccess}
+					onSwitchToLogin={() => setView("user_login")}
+				/>
+			</>
 		);
 	}
 
 	if (view === "user_login") {
 		return (
-			<UserLogin
-				onSuccess={onSuccess}
-				onSwitchToRegister={() => setView("register")}
-				onSwitchToClinicMode={() => setView("clinic_login")}
-			/>
+			<>
+				<AuthArtBackground />
+				<UserLogin
+					onSuccess={onSuccess}
+					onSwitchToRegister={() => setView("register")}
+					onSwitchToClinicMode={() => setView("clinic_login")}
+				/>
+			</>
 		);
 	}
 
 	// Fallback to legacy shared-device clinic login mode
 	return (
-		<ClinicLogin
-			onLoginSuccess={(cp) => {
-				// Legacy clinic login only returns clinicProfile, NO staffToken yet
-				onSuccess(cp, null);
-			}}
-		/>
+		<>
+			<AuthArtBackground />
+			<ClinicLogin
+				onLoginSuccess={(cp) => {
+					// Legacy clinic login only returns clinicProfile, NO staffToken yet
+					onSuccess(cp, null);
+				}}
+			/>
+		</>
 	);
 }

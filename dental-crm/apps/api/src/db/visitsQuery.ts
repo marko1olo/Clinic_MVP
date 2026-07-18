@@ -7,6 +7,7 @@ import type {
 import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
+import { signedOutpatientCards, visitGnathology } from "./schema.js";
 
 function hashTranscript(value: string): string {
 	return createHash("sha256").update(value).digest("hex").slice(0, 16);
@@ -227,12 +228,39 @@ export async function acceptVisitDraftInDb(
 		}
 
 		// --- 3. Статус услуг 'Выполнено' & 4. Списание материалов ---
+		if (input.draft.completedServices && input.draft.completedServices.length > 0) {
+			await tx.delete(schema.treatmentItems).where(eq(schema.treatmentItems.visitId, visit.id));
+			await tx.insert(schema.treatmentItems).values(
+				input.draft.completedServices.map(s => ({
+					organizationId,
+					patientId: visit.patientId,
+					visitId: visit.id,
+					serviceId: s.serviceId,
+					title: s.title,
+					quantity: String(s.quantity),
+					priceRub: s.priceRub,
+					unitPriceRub: s.priceRub,
+					status: "completed" as const,
+					toothCode: s.toothCode || null,
+				}))
+			);
+		}
+
 		const tItems = await tx
 			.select()
 			.from(schema.treatmentItems)
 			.where(eq(schema.treatmentItems.visitId, visit.id));
 
 		let totalInvoiceAmount = 0;
+		let totalInsuranceAmount = 0;
+		let totalPatientAmount = 0;
+
+		const [patientRecord] = await tx.select().from(schema.patients).where(eq(schema.patients.id, visit.patientId!));
+		let insuranceContract: any = null;
+		if (patientRecord?.insuranceContractId) {
+			const [contract] = await tx.select().from(schema.insuranceContracts).where(eq(schema.insuranceContracts.id, patientRecord.insuranceContractId));
+			if (contract?.isActive) insuranceContract = contract;
+		}
 
 		if (tItems.length > 0) {
 			await tx
@@ -241,40 +269,70 @@ export async function acceptVisitDraftInDb(
 				.where(eq(schema.treatmentItems.visitId, visit.id));
 
 			for (const item of tItems) {
-				totalInvoiceAmount += Number(item.priceRub) * Number(item.quantity);
+				const itemTotal = Number(item.priceRub) * Number(item.quantity);
+				totalInvoiceAmount += itemTotal;
 
-				if (!item.serviceId) continue;
-				const rules = await tx
-					.select()
-					.from(schema.procedureMaterialRules)
-					.where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
-				for (const rule of rules) {
-					const [inv] = await tx
+				let category = "other";
+				if (item.serviceId) {
+					const [service] = await tx.select({ category: schema.serviceCatalogItems.category }).from(schema.serviceCatalogItems).where(eq(schema.serviceCatalogItems.id, item.serviceId));
+					if (service) category = service.category;
+					
+					const rules = await tx
 						.select()
-						.from(schema.inventoryItems)
-						.where(eq(schema.inventoryItems.id, rule.inventoryItemId))
-						.for("update");
-					if (inv) {
-						const qtyToDeduct =
-							Number(rule.quantityToDeduct) * Number(item.quantity);
-						if (inv.stockQuantity < qtyToDeduct) {
-							throw new Error(`Недостаточно материалов: ${inv.name}`);
+						.from(schema.procedureMaterialRules)
+						.where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
+					for (const rule of rules) {
+						const [inv] = await tx
+							.select()
+							.from(schema.inventoryItems)
+							.where(eq(schema.inventoryItems.id, rule.inventoryItemId))
+							.for("update");
+						if (inv) {
+							const qtyToDeduct =
+								Number(rule.quantityToDeduct) * Number(item.quantity);
+							if (inv.stockQuantity < qtyToDeduct) {
+								throw new Error(`Недостаточно материалов: ${inv.name}`);
+							}
+							await tx
+								.update(schema.inventoryItems)
+								.set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
+								.where(eq(schema.inventoryItems.id, inv.id));
+
+							await tx.insert(schema.inventoryTransactions).values({
+								organizationId,
+								inventoryItemId: inv.id,
+								transactionType: "deduction",
+								quantityChanged: -qtyToDeduct,
+								unitCostRub: inv.unitCostRub || "0",
+								
+								userId,
+								visitId: visit.id,
+							});
 						}
-						await tx
-							.update(schema.inventoryItems)
-							.set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
-							.where(eq(schema.inventoryItems.id, inv.id));
 					}
 				}
+
+				let insurancePct = 0;
+				if (insuranceContract) {
+					if (category === "therapy" || category === "consultation" || category === "periodontology") insurancePct = insuranceContract.coverageTherapyPct;
+					else if (category === "surgery") insurancePct = insuranceContract.coverageSurgeryPct;
+					else if (category === "orthodontics" || category === "prosthetics") insurancePct = insuranceContract.coverageOrthoPct;
+					else if (category === "hygiene") insurancePct = insuranceContract.coverageHygienePct;
+				}
+				const covered = itemTotal * (insurancePct / 100);
+				totalInsuranceAmount += covered;
+				totalPatientAmount += (itemTotal - covered);
 			}
 
 			// --- Выставление счета пациенту ---
 			if (totalInvoiceAmount > 0) {
 				await tx.insert(schema.patientInvoices).values({
 					organizationId,
-					patientId: visit.patientId,
+					patientId: visit.patientId!,
 					visitId: visit.id,
 					totalAmountRub: totalInvoiceAmount.toFixed(2),
+					insuranceAmountRub: totalInsuranceAmount.toFixed(2),
+					patientAmountRub: totalPatientAmount.toFixed(2),
 					status: "unpaid",
 					itemsJson: JSON.stringify(
 						tItems.map((i) => ({
@@ -363,4 +421,78 @@ export async function getVisitByIdInDb(organizationId: string, id: string) {
 		)
 		.limit(1);
 	return res || null;
+}
+
+export async function saveVisitSignatureInDb(
+	payload: {
+		visitId: string;
+		doctorId: string;
+		patientId: string;
+		signatureBase64: string;
+		thumbprint: string;
+		signatureProvider: string;
+	}
+) {
+	await db.insert(signedOutpatientCards).values({
+		visitId: payload.visitId,
+		doctorId: payload.doctorId,
+		patientId: payload.patientId,
+		signatureBase64: payload.signatureBase64,
+		thumbprint: payload.thumbprint,
+		signatureProvider: payload.signatureProvider,
+	});
+}
+
+export async function getVisitSignatureInDb(visitId: string) {
+    const result = await db
+        .select()
+        .from(signedOutpatientCards)
+        .where(eq(signedOutpatientCards.visitId, visitId))
+        .limit(1);
+    return result[0] || null;
+}
+
+export async function getVisitGnathologyFromDb(visitId: string) {
+	const result = await db
+		.select()
+		.from(visitGnathology)
+		.where(eq(visitGnathology.visitId, visitId))
+		.limit(1);
+	return result[0] || null;
+}
+
+export async function upsertVisitGnathologyInDb(
+	visitId: string,
+	patientId: string,
+	data: {
+		occlusionType?: string;
+		jawShift?: string;
+		tmjState?: string;
+		mouthOpeningMm?: number;
+		osteopathicStatus?: string;
+	}
+) {
+	const [existing] = await db
+		.select()
+		.from(visitGnathology)
+		.where(eq(visitGnathology.visitId, visitId))
+		.limit(1);
+
+	if (existing) {
+		await db
+			.update(visitGnathology)
+			.set({
+				...data,
+				updatedAt: new Date(),
+			})
+			.where(eq(visitGnathology.id, existing.id));
+	} else {
+		await db.insert(visitGnathology).values({
+			visitId,
+			patientId,
+			...data,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
 }

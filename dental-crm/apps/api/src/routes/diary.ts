@@ -12,6 +12,7 @@ import {
 	clinicalAuditLogs,
 	doctorCommissions,
 	inventoryItems,
+	inventoryTransactions,
 	procedureMaterialRules,
 	treatmentItems,
 	visitDiaries,
@@ -26,6 +27,8 @@ const diaryUpsertSchema = z.object({
 	diagnosisIcd10: z.string().optional(),
 	diagnosisTooth: z.string().optional(),
 	treatmentDescription: z.string().optional(),
+	complications: z.string().optional(),
+	comorbidities: z.string().optional(),
 	organizationId: z.string().uuid().optional(),
 	status: z.enum(["draft", "signed"]).optional(),
 	instrumentTrayBarcode: z.string().optional(),
@@ -146,6 +149,8 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					diagnosisTooth: data.diagnosisTooth ?? existing.diagnosisTooth,
 					treatmentDescription:
 						data.treatmentDescription ?? existing.treatmentDescription,
+					complications: data.complications ?? existing.complications,
+					comorbidities: data.comorbidities ?? existing.comorbidities,
 					updatedAt: new Date(),
 					coSignedByUserId: isSigning ? userId : existing.coSignedByUserId,
 					diaryHash: diaryHash ?? existing.diaryHash,
@@ -175,6 +180,8 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					diagnosisIcd10: data.diagnosisIcd10,
 					diagnosisTooth: data.diagnosisTooth,
 					treatmentDescription: data.treatmentDescription,
+					complications: data.complications,
+					comorbidities: data.comorbidities,
 					draftAuthorId: userId,
 					coSignedByUserId: isSigning ? userId : null,
 					diaryHash: diaryHash,
@@ -198,6 +205,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 		if (!(await requireClinicalMutationAccess(req, reply, "lock diary")))
 			return;
 		const { id } = req.params as { id: string };
+		const { pkcs7Signature } = (req.body as { pkcs7Signature?: string }) || {};
 		const userContext = (req as any).user;
 		const userId: string | null = userContext?.id ?? null;
 		const role: string = userContext?.role ?? "assistant";
@@ -242,6 +250,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 						lockedByUserId: userId,
 						coSignedByUserId: userId,
 						diaryHash: diaryHash,
+						cryptoSignaturePkcs7: pkcs7Signature ?? null,
 						updatedAt: new Date(),
 					})
 					.where(
@@ -285,23 +294,46 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 										.update(inventoryItems)
 										.set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
 										.where(eq(inventoryItems.id, inv.id));
+
+									await tx.insert(inventoryTransactions).values({
+										organizationId: orgId,
+										visitId: existing.visitId,
+										inventoryItemId: inv.id,
+										quantityChanged: -qtyToDeduct,
+										unitCostRub: inv.unitCostRub,
+										transactionType: "auto_deduct",
+										userId: userId,
+									});
 								}
 							}
 						}
 					}
 				}
 
-				// 2. Insert Commission (stub calculation)
+				// 2. Insert Commission if not exists
 				if (userId) {
-					await tx.insert(doctorCommissions).values({
-						organizationId: orgId,
-						userId: userId,
-						specialty: "universal",
-						serviceCategory: "therapy",
-						commissionPct: 30.0,
-						materialCostDeductionPct: 100.0,
-						isActive: true,
-					});
+					const [existingCommission] = await tx
+						.select()
+						.from(doctorCommissions)
+						.where(
+							and(
+								eq(doctorCommissions.userId, userId),
+								eq(doctorCommissions.organizationId, orgId),
+							),
+						)
+						.limit(1);
+
+					if (!existingCommission) {
+						await tx.insert(doctorCommissions).values({
+							organizationId: orgId,
+							userId: userId,
+							specialty: "universal",
+							serviceCategory: "therapy",
+							commissionPct: 30.0,
+							materialCostDeductionPct: 100.0,
+							isActive: true,
+						});
+					}
 				}
 
 				// 3. Clinical Audit Log

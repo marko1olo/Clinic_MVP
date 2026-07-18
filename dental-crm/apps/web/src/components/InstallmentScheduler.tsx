@@ -1,10 +1,13 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./InstallmentScheduler.css";
+import { denteAdminSecretRequestHeaders } from "../AppHelpers.js";
+import { showToast } from "./GlobalToast.js";
 
 interface Installment {
 	month: number;
 	dueDate: string;
+	dueDateIso: string;
 	amount: number;
 }
 
@@ -30,18 +33,49 @@ function buildSchedule(
 				month: "short",
 				year: "numeric",
 			}),
+			dueDateIso: d.toISOString(),
 			amount: Math.round(monthly),
 		};
 	});
 }
 
-export const InstallmentScheduler: React.FC<{ totalEstimate: number }> = ({
-	totalEstimate,
-}) => {
+export const InstallmentScheduler: React.FC<{
+	totalEstimate: number;
+	patientId?: string | null | undefined;
+}> = ({ totalEstimate, patientId }) => {
 	const [downPct, setDownPct] = useState(0); // 0-100 %
 	const [months, setMonths] = useState(6);
 	const [discount, setDiscount] = useState(0);
 	const [expanded, setExpanded] = useState(true);
+	const [isSaving, setIsSaving] = useState(false);
+	const [existingInstallments, setExistingInstallments] = useState<
+		Installment[]
+	>([]);
+
+	useEffect(() => {
+		if (!patientId) return;
+		fetch(`/api/patients/${patientId}/installments`, {
+			headers: denteAdminSecretRequestHeaders(),
+		})
+			.then((res) => res.json())
+			.then((data) => {
+				if (Array.isArray(data)) {
+					setExistingInstallments(
+						data.map((d: any) => ({
+							month: 0,
+							dueDate: new Date(d.dueDate).toLocaleDateString("ru-RU", {
+								day: "2-digit",
+								month: "short",
+								year: "numeric",
+							}),
+							dueDateIso: d.dueDate,
+							amount: Number(d.amountRub) / 100,
+						})),
+					);
+				}
+			})
+			.catch(console.error);
+	}, [patientId]);
 
 	// Reset when the estimate changes (new patient / plan)
 	useEffect(() => {
@@ -70,6 +104,41 @@ export const InstallmentScheduler: React.FC<{ totalEstimate: number }> = ({
 		setDownPct(Number(e.target.value));
 	}, []);
 
+	const saveInstallmentPlan = async () => {
+		if (!patientId) {
+			showToast("Сначала выберите пациента.", "error");
+			return;
+		}
+		if (schedule.length === 0) return;
+
+		setIsSaving(true);
+		try {
+			const res = await fetch(`/api/patients/${patientId}/installments`, {
+				method: "POST",
+				headers: denteAdminSecretRequestHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					installments: schedule.map((item) => ({
+						dueDate: item.dueDateIso,
+						amount: item.amount,
+					})),
+				}),
+			});
+			if (res.ok) {
+				showToast("План рассрочки успешно сохранен!", "success");
+			} else {
+				const err = await res.json();
+				showToast(err.message || "Ошибка при сохранении рассрочки", "error");
+			}
+		} catch (err) {
+			console.error(err);
+			showToast("Не удалось сохранить план рассрочки", "error");
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
 	// Thumb color track fill via CSS variable trick
 	const sliderFill = `${downPct}%`;
 
@@ -88,6 +157,38 @@ export const InstallmentScheduler: React.FC<{ totalEstimate: number }> = ({
 
 			{expanded && (
 				<div className="inst-body">
+					{existingInstallments.length > 0 && (
+						<div className="inst-section" style={{ marginBottom: 20 }}>
+							<h4
+								style={{
+									margin: "0 0 10px 0",
+									fontSize: 14,
+									fontWeight: 600,
+									color: "var(--teal)",
+								}}
+							>
+								Активные платежи рассрочки
+							</h4>
+							<div className="inst-schedule-list">
+								{existingInstallments.map((inst, idx) => (
+									<div key={idx} className="inst-row">
+										<div className="inst-row-month">
+											<span className="inst-month-dot" />
+											Платёж {idx + 1}
+										</div>
+										<div className="inst-row-date">{inst.dueDate}</div>
+										<div className="inst-row-amount">
+											{inst.amount.toLocaleString()} ₽
+										</div>
+									</div>
+								))}
+							</div>
+							<p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
+								Расчет ниже создаст новый план, который заменит текущий график.
+							</p>
+						</div>
+					)}
+
 					{/* ── Down Payment Slider ── */}
 					<div className="inst-section">
 						<div className="inst-row-label">
@@ -207,8 +308,12 @@ export const InstallmentScheduler: React.FC<{ totalEstimate: number }> = ({
 								))}
 							</div>
 
-							<button className="inst-save-btn">
-								💾 Сохранить план рассрочки
+							<button
+								onClick={saveInstallmentPlan}
+								disabled={isSaving}
+								className="inst-save-btn"
+							>
+								💾 {isSaving ? "Сохранение..." : "Сохранить план рассрочки"}
 							</button>
 						</div>
 					)}

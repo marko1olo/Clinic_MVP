@@ -139,7 +139,12 @@ export const PatientPortal: React.FC = () => {
 	const [phone, setPhone] = useState("");
 	const [step, setStep] = useState<"phone" | "otp">("phone");
 	const [otpError, setOtpError] = useState("");
-	const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+	const [viewingDoc, setViewingDoc] = useState<{
+		id: string;
+		title: string;
+	} | null>(null);
+	const [viewingDocHtml, setViewingDocHtml] = useState<string | null>(null);
+	const [viewingDocLoading, setViewingDocLoading] = useState(false);
 	const phoneRef = useRef<HTMLInputElement>(null);
 
 	const [patientData, setPatientData] = useState<any>(null);
@@ -149,7 +154,7 @@ export const PatientPortal: React.FC = () => {
 		try {
 			setIsLoading(true);
 			const res = await fetch("/api/portal/me", {
-				headers: { Authorization: `Bearer ${token}` }
+				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (res.ok) {
 				const data = await res.json();
@@ -172,8 +177,15 @@ export const PatientPortal: React.FC = () => {
 		phoneRef.current?.focus();
 	}, []);
 
-	const totalCost = patientData?.plans?.reduce((s: number, i: any) => s + (i.totalAmount || 0), 0) || 0;
-	const paid = patientData?.invoices?.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + (i.amount || 0), 0) || 0;
+	const totalCost =
+		patientData?.plans?.reduce(
+			(s: number, i: any) => s + (i.totalAmount || 0),
+			0,
+		) || 0;
+	const paid =
+		patientData?.invoices
+			?.filter((i: any) => i.status === "paid")
+			.reduce((s: number, i: any) => s + (i.amount || 0), 0) || 0;
 	const remaining = totalCost - paid;
 
 	useEffect(() => {
@@ -183,8 +195,34 @@ export const PatientPortal: React.FC = () => {
 			setPhone("");
 			setStep("phone");
 			setOtpError("");
+			setViewingDoc(null);
+			setViewingDocHtml(null);
 		};
 	}, []);
+
+	useEffect(() => {
+		if (viewingDoc) {
+			const token = localStorage.getItem("patient_token");
+			if (!token) return;
+			setViewingDocLoading(true);
+			setViewingDocHtml(null);
+			fetch(`/api/portal/documents/${viewingDoc.id}/html`, {
+				headers: { Authorization: `Bearer ${token}` },
+			})
+				.then((res) => {
+					if (res.ok) return res.text();
+					throw new Error("Не удалось загрузить документ");
+				})
+				.then((html) => setViewingDocHtml(html))
+				.catch((err) => {
+					console.error(err);
+					setViewingDocHtml(
+						"<div style='padding:20px;color:red;font-family:sans-serif;'>Ошибка загрузки документа.</div>",
+					);
+				})
+				.finally(() => setViewingDocLoading(false));
+		}
+	}, [viewingDoc]);
 
 	const handleSendOtp = useCallback(async () => {
 		if (phone.replace(/\D/g, "").length >= 10) {
@@ -192,30 +230,33 @@ export const PatientPortal: React.FC = () => {
 			await fetch("/api/portal/auth/send-otp", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ phone })
+				body: JSON.stringify({ phone }),
 			});
 		}
 	}, [phone]);
 
-	const handleOTPComplete = useCallback(async (code: string) => {
-		try {
-			const res = await fetch("/api/portal/auth/verify-otp", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ phone, code })
-			});
-			const data = await res.json();
-			if (res.ok && data.token) {
-				localStorage.setItem("patient_token", data.token);
-				setOtpError("");
-				await fetchPatientData(data.token);
-			} else {
-				setOtpError(data.error || "Неверный код. Попробуйте ещё раз.");
+	const handleOTPComplete = useCallback(
+		async (code: string) => {
+			try {
+				const res = await fetch("/api/portal/auth/verify-otp", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ phone, code }),
+				});
+				const data = await res.json();
+				if (res.ok && data.token) {
+					localStorage.setItem("patient_token", data.token);
+					setOtpError("");
+					await fetchPatientData(data.token);
+				} else {
+					setOtpError(data.error || "Неверный код. Попробуйте ещё раз.");
+				}
+			} catch (e) {
+				setOtpError("Ошибка соединения.");
 			}
-		} catch (e) {
-			setOtpError("Ошибка соединения.");
-		}
-	}, [phone]);
+		},
+		[phone],
+	);
 
 	if (!isAuthenticated) {
 		return (
@@ -280,13 +321,20 @@ export const PatientPortal: React.FC = () => {
 				<section className="portal-card visits-card">
 					<h3>Мои приёмы</h3>
 					{(patientData?.visits || []).length === 0 && (
-						<p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>У вас пока нет записей.</p>
+						<p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
+							У вас пока нет записей.
+						</p>
 					)}
 					{(patientData?.visits || []).map((v: any) => (
-						<div key={v.id} className={`visit-item ${v.status === 'completed' ? 'past' : 'upcoming'}`}>
-							<div className="visit-date">{new Date(v.date).toLocaleDateString("ru-RU")}</div>
+						<div
+							key={v.id}
+							className={`visit-item ${v.status === "completed" ? "past" : "upcoming"}`}
+						>
+							<div className="visit-date">
+								{new Date(v.date).toLocaleDateString("ru-RU")}
+							</div>
 							<div className="visit-desc">{v.notes || "Консультация"}</div>
-							{v.status === 'completed' ? (
+							{v.status === "completed" ? (
 								<span className="badge gray">Завершён</span>
 							) : (
 								<span className="badge blue">Запланирован</span>
@@ -316,7 +364,9 @@ export const PatientPortal: React.FC = () => {
 					<div className="stages-list">
 						{(patientData?.plans || []).map((stage: any) => (
 							<div key={stage.id} className={`stage-item ${stage.status}`}>
-								<span className="stage-desc">{stage.name || 'План лечения'}</span>
+								<span className="stage-desc">
+									{stage.name || "План лечения"}
+								</span>
 								<span className="stage-cost">
 									{(stage.totalAmount || 0).toLocaleString()} ₽
 								</span>
@@ -330,19 +380,22 @@ export const PatientPortal: React.FC = () => {
 
 				<section className="portal-card docs-card">
 					<h3>Документы</h3>
-					<div className="doc-item">
-						<span>📄 Согласие на лечение.pdf</span>
-						<button className="btn-download">Скачать</button>
-					</div>
-					<div className="doc-item">
-						<span>🦷 Панорамный_снимок.jpg</span>
-						<button
-							className="btn-download"
-							onClick={() => setViewingDoc("Панорамный_снимок.jpg")}
-						>
-							Просмотр
-						</button>
-					</div>
+					{(patientData?.documents || []).length === 0 && (
+						<p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
+							Нет выпущенных документов.
+						</p>
+					)}
+					{(patientData?.documents || []).map((doc: any) => (
+						<div key={doc.id} className="doc-item">
+							<span>📄 {doc.title}</span>
+							<button
+								className="btn-download"
+								onClick={() => setViewingDoc({ id: doc.id, title: doc.title })}
+							>
+								Просмотр
+							</button>
+						</div>
+					))}
 				</section>
 			</div>
 
@@ -351,21 +404,70 @@ export const PatientPortal: React.FC = () => {
 					<div
 						className="doc-overlay-content"
 						onClick={(e) => e.stopPropagation()}
+						style={{
+							width: "90%",
+							maxWidth: "900px",
+							height: "90vh",
+							display: "flex",
+							flexDirection: "column",
+						}}
 					>
-						<div className="doc-overlay-header">
-							<h3>{viewingDoc}</h3>
+						<div
+							className="doc-overlay-header"
+							style={{
+								padding: "16px",
+								borderBottom: "1px solid var(--border)",
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+							}}
+						>
+							<h3 style={{ margin: 0, fontSize: "1.1rem" }}>
+								{viewingDoc.title}
+							</h3>
 							<button
 								className="doc-close-btn"
 								onClick={() => setViewingDoc(null)}
+								style={{
+									background: "none",
+									border: "none",
+									fontSize: "24px",
+									cursor: "pointer",
+									color: "var(--muted)",
+								}}
 							>
 								×
 							</button>
 						</div>
-						<div className="doc-overlay-body">
-							<div className="doc-placeholder">
-								<span style={{ fontSize: "48px" }}>📄</span>
-								<p>Предпросмотр документа: {viewingDoc}</p>
-							</div>
+						<div
+							className="doc-overlay-body"
+							style={{ flex: 1, padding: 0, position: "relative" }}
+						>
+							{viewingDocLoading && (
+								<div
+									style={{
+										position: "absolute",
+										top: "50%",
+										left: "50%",
+										transform: "translate(-50%, -50%)",
+										color: "var(--muted)",
+									}}
+								>
+									Загрузка документа...
+								</div>
+							)}
+							{!viewingDocLoading && viewingDocHtml && (
+								<iframe
+									srcDoc={viewingDocHtml}
+									style={{
+										width: "100%",
+										height: "100%",
+										border: "none",
+										backgroundColor: "#fff",
+									}}
+									title={viewingDoc.title}
+								/>
+							)}
 						</div>
 					</div>
 				</div>

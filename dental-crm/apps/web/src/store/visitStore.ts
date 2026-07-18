@@ -2,6 +2,7 @@ import type {
 	AcceptVisitDraftResponse,
 	DentalSpecialty,
 	SpeechTranscriptionResponse,
+	VisitFlowResult,
 	VisitNoteDraft,
 } from "@dental/shared";
 import { create } from "zustand";
@@ -50,6 +51,14 @@ export interface VisitStore {
 			| VisitNoteDraft
 			| null
 			| ((prev: VisitNoteDraft | null) => VisitNoteDraft | null),
+	) => void;
+
+	visitFlowResult: VisitFlowResult | null;
+	setVisitFlowResult: (
+		val:
+			| VisitFlowResult
+			| null
+			| ((prev: VisitFlowResult | null) => VisitFlowResult | null),
 	) => void;
 
 	visitNoteForm: VisitNoteForm;
@@ -198,6 +207,13 @@ export const useVisitStore = create<VisitStore>((set) => ({
 	setDraft: (val) =>
 		set((state) => ({
 			draft: typeof val === "function" ? val(state.draft) : val,
+		})),
+
+	visitFlowResult: null,
+	setVisitFlowResult: (val) =>
+		set((state) => ({
+			visitFlowResult:
+				typeof val === "function" ? val(state.visitFlowResult) : val,
 		})),
 
 	visitNoteForm: emptyVisitNoteForm,
@@ -363,6 +379,7 @@ export const useVisitStore = create<VisitStore>((set) => ({
 			transcript: "",
 			sessionTranscript: "",
 			draft: null,
+			visitFlowResult: null,
 			visitNoteForm: emptyVisitNoteForm,
 			visitToothStateByCode: {},
 			visitAiDiagnosesByCode: {},

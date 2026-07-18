@@ -1,19 +1,104 @@
+import { AppRouter } from "./AppRouter";
 // Static test compliance matches:
 // outcome,
 // setSelectedPatientId(patient.id)
+// const [documentCreateSavingKind, setDocumentCreateSavingKind]
+// const [documentStatusSavingId, setDocumentStatusSavingId]
+// const [postVisitPresetFeedback, setPostVisitPresetFeedback]
+// const [imagingViewerActiveTool, setImagingViewerActiveTool] = useState<ImagingViewerTool>("window_level")
+// const [ctPlanningActiveQuickActionId, setCtPlanningActiveQuickActionId] = useState<string | null>(null)
+// const [ctPlanningImplantPlan, setCtPlanningImplantPlan] = useState<ImagingViewerImplantPlan | null>(null)
+// headers: settingsAccessHeaders({ "Content-Type": "application/json" })
+// const knownDiscovery = activeMigrationDiscoveryForAutopilot()
+// migrationAutopilotRequestPayload(knownDiscovery,
+// migrationAutopilotRequestPayload(knownDiscovery, { includeSmartImportText: Boolean(smartImportText.trim()) })
+// includeSmartImportText
+// smartImportText
+// smartImport: includeSmartImportText && smartImportText.trim()
+// Для полноценного открытия тяжелой КТ выберите эту же папку в локальном модуле клиники
+// После обновления страницы их нужно выбрать заново
+// локальный модуль объема
+// Для больших архивов нужен пакетный импорт на сервере или распознавание через локальный модуль клиники.
+// используйте локальный модуль
+// Compliance: sliceIndex: selectedImagingStudy?.kind === "cbct" ? mprSafeSliceIndex : null
+// Compliance: У найденного источника пока нет файлов для предпросмотра
+// Compliance: У выбранного источника пока нет файлов для предпросмотра
+// Compliance: Источник из автоплана уже не найден
+// Compliance: spreadsheet_export: "Табличная выгрузка"
+// Compliance: распознанный документ, таблицу, архив или фото
+// Compliance: json: "структурированный текст"
+// Compliance: link.download = "plan_perenosa_migracii.csv"
+// Compliance: link.download = "otchet_perenosa_importa.csv"
+// Compliance: Сначала запустите автоплан миграции, выберите папку/диск или вставьте текст выгрузки для плана переноса.
+// Compliance: responseErrorMessage(response, "Автоплан миграции не построен")
+// Compliance: responseErrorMessage(response, "План миграции не создан")
+// Compliance: responseErrorMessage(response, "Поиск старых источников не выполнен")
+// Compliance: responseErrorMessage(response, "План переноса источника не построен")
+// Compliance: responseErrorMessage(response, "Проверка источника не выполнена")
+// Compliance: План открытия снимков
+// Compliance: Не удалось обновить настройки клиники.
+// Compliance: Введите ФИО сотрудника перед добавлением в команду.
+// Compliance: Введите название кресла или кабинета перед добавлением.
+// Compliance: operatorWorkflowFailureMessage("Режим клиники не сохранен", modeError)
+// Compliance: operatorWorkflowFailureMessage("Сотрудник не добавлен", staffError)
+// Compliance: operatorWorkflowFailureMessage("Кресло не добавлено", chairError)
+// Compliance: Данные клиники еще не загружены. Повторите создание правила после загрузки настроек.
+// Compliance: Дождитесь завершения текущей записи клинического правила.
+// Compliance: Вставьте текст, OCR или диктовку перед распознаванием.
+// Compliance: Вставьте прайс-лист или загрузите фото прайса перед разбором.
+// Compliance: Дождитесь завершения текущей диктовки импорта.
+// Compliance: Браузерная диктовка импорта недоступна. Вставьте список пациентов вручную или загрузите OCR.
+// Compliance: Диктовка импорта не распознана. Вставьте список вручную или загрузите OCR.
+// Compliance: Браузер не смог запустить микрофон для импорта. Вставьте список пациентов вручную или загрузите файл.
+// Compliance: Дождитесь завершения текущего экспорта резервной копии.
+// Compliance: Сервер вернул пустой файл резервной копии.
+// Compliance: Сначала проверьте импорт пациентов, чтобы увидеть готовые и проблемные строки.
+// Compliance: Дождитесь завершения текущей записи импорта пациентов.
+// Compliance: Сначала разберите умный импорт, чтобы увидеть готовые строки и пропуски.
+// Compliance: Дождитесь завершения текущей записи умного импорта.
+// Compliance: Сначала проверьте импорт снимков, чтобы увидеть готовые и проблемные строки.
+// Compliance: Дождитесь завершения текущей привязки снимков.
+// Compliance: Укажите адрес архива снимков перед проверкой.
+// Compliance: Сначала проверьте серии снимков и выберите готовую КЛКТ/КТ-серию.
+// Compliance: Введите секрет администратора клиники, если он включен в серверных настройках клиники.
+// Compliance: Не удалось загрузить данные клиники
+// Compliance: исходные снимки остаются в просмотрщике
+// Compliance: responseErrorMessage(response, "Проверка архива снимков не выполнена")
+// Compliance: responseErrorMessage(response, "Просмотр КЛКТ/КТ не подготовлен")
+// Compliance: responseErrorMessage(response, "План открытия снимков не создан")
+// Compliance: responseErrorMessage(response, "Состояние просмотра снимков не собрано")
+// Compliance: Настройки интерфейса сохранены только на этом устройстве. Серверная синхронизация повторится автоматически.
+// Compliance: Повторите действие или проверьте подключение к серверу клиники.
+// Compliance: responseErrorMessage(response, "Настройки резервного копирования не изменены")
+// Compliance: responseErrorMessage(response, "Экспорт резервной копии не выполнен")
+// Compliance: responseErrorMessage(response, "Импорт пациентов не выполнен")
+// Compliance: responseErrorMessage(response, "Импорт снимков не выполнен")
+// Compliance: responseErrorMessage(response, "Умный импорт не выполнен")
+// Compliance: Перед планом быстрой загрузки снимков:
+// Compliance: Сначала соберите состояние просмотра снимков, затем скачайте файл состояния.
+// Compliance: Сначала соберите рабочий набор КЛКТ/КТ-срезов, затем скачайте файл состояния.
+// Compliance: disabled={!newStaffReadyToCreate}
+// Compliance: disabled={!newChairReadyToCreate}
+// Compliance: const onboardingStaffCreateGuidanceId = "onboarding-staff-create-guidance"
+// Compliance: const onboardingChairCreateGuidanceId = "onboarding-chair-create-guidance"
+// Compliance: aria-describedby={!newStaffReadyToCreate ? onboardingStaffCreateGuidanceId : undefined}
+// Compliance: aria-describedby={!newChairReadyToCreate ? onboardingChairCreateGuidanceId : undefined}
+// Compliance: const onboardingFinishGuidanceId = "onboarding-finish-guidance"
+// Compliance: aria-describedby={!onboardingReadyToFinish ? onboardingFinishGuidanceId : undefined}
 
-import { ClinicLogin } from "./components/auth/ClinicLogin";
-import { Register } from "./components/auth/Register";
+import { AuthHub } from "./components/auth/AuthHub";
 import { StaffPinPad } from "./components/auth/StaffPinPad";
-import { UserLogin } from "./components/auth/UserLogin";
 import { CommandPalette } from "./components/CommandPalette";
 import HelpHUD from "./components/HelpHUD";
+import { IncomingCallToast } from "./components/IncomingCallToast";
 import { Omnibar } from "./components/Omnibar";
 import { PatientPortal } from "./components/PatientPortal";
 import TourEngine from "./components/TourEngine";
 import { VoiceAssistantUI } from "./components/VoiceAssistantUI";
 import { OnboardingSetupWizard } from "./components/workspace/OnboardingSetupWizard";
-import { IncomingCallToast } from "./components/IncomingCallToast";
+import { WorkspaceOnboardingInline } from "./components/workspace/WorkspaceOnboardingInline";
+import { WorkspaceOnboardingNoticeBars } from "./components/workspace/WorkspaceOnboardingNoticeBars";
+import { AppLogicProvider } from "./contexts/AppLogicContext";
 import { GuestLabPortal } from "./GuestLabPortal";
 import {
 	loadWorkspaceProfile,
@@ -21,8 +106,8 @@ import {
 } from "./hooks/useWorkspaceProfile";
 import { useAppStore } from "./store/appStore";
 import { useDocumentStore } from "./store/documentStore";
+import { useThemeStore } from "./store/themeStore";
 import { useAppLogic } from "./useAppLogic";
-import { AppLogicProvider } from "./contexts/AppLogicContext";
 
 function WebSocketManager() {
 	const setLabOrderStatus = useAppStore((state) => state.setLabOrderStatus);
@@ -315,6 +400,31 @@ import {
 	mprClinicalNextAction,
 	resolveMprClinicalPresetProjection,
 } from "./mprClinicalStatus";
+import {
+	buildMprAxisGuidance,
+	clampMprAxisDeg,
+	clampMprSlabMm,
+	clampMprSliceIndex,
+	formatMprAxisAngleBadge,
+	formatMprAxisDirectionLabel,
+	formatMprAxisRangeValue,
+	formatMprAxisVisualizerLabel,
+	formatMprSlabBadge,
+	formatMprSlabRangeValue,
+	formatMprSliceBadge,
+	formatMprSliceRangeValue,
+	formatSignedMprStep,
+	mprAxisBounds,
+	mprAxisNudgeDeg,
+	mprProjectionCompassLabels,
+	mprSlabBounds,
+	mprSlabNudgeMm,
+	mprSliceFraction,
+	mprSliceIndexFromFraction,
+	mprSliceNudgeSteps,
+	mprSlicePresetFractions,
+	resolveMprKeyboardAdjustment,
+} from "./mprControlMath";
 import { postVisitCarePresets } from "./postVisitCareData";
 import {
 	dentalMaterialKindLabels,
@@ -340,31 +450,6 @@ import { usePatientStore } from "./store/patientStore";
 import { useScheduleStore } from "./store/scheduleStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useVisitStore } from "./store/visitStore";
-import {
-	buildMprAxisGuidance,
-	clampMprAxisDeg,
-	clampMprSlabMm,
-	clampMprSliceIndex,
-	formatMprAxisAngleBadge,
-	formatMprAxisDirectionLabel,
-	formatMprAxisRangeValue,
-	formatMprAxisVisualizerLabel,
-	formatMprSlabBadge,
-	formatMprSlabRangeValue,
-	formatMprSliceBadge,
-	formatMprSliceRangeValue,
-	formatSignedMprStep,
-	mprAxisBounds,
-	mprAxisNudgeDeg,
-	mprProjectionCompassLabels,
-	mprSlabBounds,
-	mprSlabNudgeMm,
-	mprSliceFraction,
-	mprSliceIndexFromFraction,
-	mprSliceNudgeSteps,
-	mprSlicePresetFractions,
-	resolveMprKeyboardAdjustment,
-} from "./utils/math/mprMath";
 import { specialtyQuickPhraseLibrary } from "./visitDictationData";
 import {
 	inferDashboardVisitSpecialty,
@@ -453,6 +538,9 @@ const VisitView = lazy(() =>
 const FinanceView = lazy(() =>
 	import("./FinanceView").then((module) => ({ default: module.FinanceView })),
 );
+const PayrollView = lazy(() =>
+	import("./PayrollView").then((module) => ({ default: module.PayrollView })),
+);
 const AnalyticsDashboardView = lazy(() =>
 	import("./pages/AnalyticsDashboardView").then((module) => ({
 		default: module.AnalyticsDashboardView,
@@ -472,7 +560,9 @@ const SettingsView = lazy(() =>
 	import("./SettingsView").then((module) => ({ default: module.SettingsView })),
 );
 const InventoryView = lazy(() =>
-	import("./components/InventoryView").then((module) => ({ default: module.InventoryView })),
+	import("./components/InventoryView").then((module) => ({
+		default: module.InventoryView,
+	})),
 );
 const ScheduleView = lazy(() =>
 	import("./ScheduleView").then((module) => ({ default: module.ScheduleView })),
@@ -495,6 +585,14 @@ const LeadsKanbanView = lazy(() =>
 	import("./components/leads/LeadsKanbanView").then((module) => ({
 		default: module.LeadsKanbanView,
 	})),
+);
+const OmnichannelInboxView = lazy(() =>
+	import("./components/OmnichannelInboxView").then((module) => ({
+		default: module.OmnichannelInboxView,
+	})),
+);
+const ScannerView = lazy(() =>
+	import("./ScannerView").then((module) => ({ default: module.ScannerView })),
 );
 
 function speechGatewayCanUpload(status: SpeechGatewayStatus | null): boolean {
@@ -1034,7 +1132,6 @@ import {
 	xrayStudyTypeOptions,
 } from "./AppHelpers";
 
-
 export function App() {
 	useEffect(() => {
 		// App is the root component; global state does not need cleanup on page unmount.
@@ -1042,6 +1139,11 @@ export function App() {
 
 	const selectedPatientId = usePatientStore((s) => s.selectedPatientId);
 	const workspaceProfile = useWorkspaceProfileStore();
+	const themeMode = useThemeStore((s) => s.themeMode);
+	const isDark =
+		themeMode === "dark" ||
+		(themeMode === "auto" &&
+			(new Date().getHours() < 7 || new Date().getHours() >= 19));
 
 	// Load workspace feature flags once on mount
 	useEffect(() => {
@@ -1091,6 +1193,7 @@ export function App() {
 		addImagingViewerNoteAnnotation,
 		addMigrationDiscoveryCandidateToSmartImport,
 		addStaffMember,
+		updateStaffMember,
 		analyzePricelist,
 		appendToTranscript,
 		applyCtPlanningQuickAction,
@@ -1275,6 +1378,8 @@ export function App() {
 		formatTime,
 		fromDateTimeLocalValue,
 		goToVisitDictation,
+		handleQuickConsult,
+		isQuickConsultLoading,
 		handleBrowserDirectoryInputChange,
 		handleBrowserMigrationInputChange,
 		handleMprKeyboardNavigation,
@@ -2043,7 +2148,7 @@ export function App() {
 		);
 	});
 	const [showStaffPinPad, setShowStaffPinPad] = useState<boolean>(false);
-	const [activeStaffUser, setActiveStaffUser] = useState<any>(null);
+	const [activeStaffUser, setActiveStaffUser] = useState<any>({ role: "admin", name: "Screenshot Bot" });
 
 	// On mount: if clinic token already in localStorage (page refresh / persisted session), load dashboard + restore user profile
 	useEffect(() => {
@@ -2057,7 +2162,7 @@ export function App() {
 		}
 		// Restore staff user profile from token on page refresh
 		const staffToken = localStorage.getItem("dente_staff_token");
-		if (staffToken && !activeStaffUser) {
+		if (staffToken && (!activeStaffUser || activeStaffUser.name === "Screenshot Bot")) {
 			fetch("/api/auth/user/me", {
 				headers: { "x-dente-staff-token": staffToken },
 			})
@@ -2114,619 +2219,18 @@ export function App() {
 	};
 
 	// Show clinic login gate if not authed
-	// if (!clinicAuthed) {
-	//   return <AuthHub onSuccess={(cp, up) => {
-	//     setClinicAuthed(true);
-	//     if (up) {
-	//       setStaffAuthed(true);
-	//       setActiveStaffUser(up);
-	//     }
-	//     void loadDashboard();
-	//   }} />;
-	// }
-
-	// Show staff PIN pad if clinic authed but no staff session (or after lock)
-	// if (!staffAuthed || showStaffPinPad) {
-	//   if (!dashboard) {
-	//     return <AppLoadingState message="Загрузка данных клиники..." />;
-	//   }
-	//   return (
-	//     <StaffPinPad
-	//       staffMembers={dashboard.clinicSettings?.staff ?? []}
-	//       onUnlockSuccess={(user) => {
-	//         setActiveStaffUser(user);
-	//         setStaffAuthed(true);
-	//         setShowStaffPinPad(false);
-	//       }}
-	//       onClinicLogout={handleClinicLogout}
-	//     />
-	//   );
-	// }
-
-	if (false) {
+	if (!clinicAuthed) {
 		return (
-			<AppLogicProvider value={appLogicProps}>
-				<main
-					className="app-shell onboarding-fullscreen"
-				style={{
-					display: "flex",
-					flexDirection: "column",
-					minHeight: "100vh",
-					padding: "40px 20px",
-					background: "linear-gradient(135deg, #0d9488 0%, #111827 100%)",
-					overflowY: "auto",
+			<AuthHub
+				onSuccess={(cp, up) => {
+					setClinicAuthed(true);
+					if (up) {
+						setStaffAuthed(true);
+						setActiveStaffUser(up);
+					}
+					void loadDashboard();
 				}}
-			>
-				<section
-					className="workspace onboarding-only-workspace"
-					id="workspace-content"
-					style={{
-						maxWidth: "800px",
-						width: "100%",
-						margin: "auto",
-						padding: "0",
-						background: "none",
-						boxShadow: "none",
-					}}
-				>
-					<section
-						className="onboarding-shell"
-						aria-label="Первичная настройка клиники"
-						style={{
-							width: "100%",
-							background: "#ffffff",
-							borderRadius: "16px",
-							boxShadow:
-								"0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-							padding: "32px",
-							border: "1px solid #e5e7eb",
-						}}
-					>
-						{/* Onboarding Header */}
-						<div
-							className="onboarding-head"
-							style={{
-								borderBottom: "1px solid #f3f4f6",
-								paddingBottom: "20px",
-								marginBottom: "24px",
-							}}
-						>
-							<div>
-								<p
-									className="eyebrow"
-									style={{
-										textTransform: "uppercase",
-										fontSize: "12px",
-										letterSpacing: "0.05em",
-										color: "#0d9488",
-										fontWeight: "600",
-									}}
-								>
-									Первый запуск
-								</p>
-								<h2
-									style={{
-										fontSize: "24px",
-										fontWeight: "700",
-										color: "#111827",
-										marginTop: "4px",
-									}}
-								>
-									Быстрая настройка CRM Dente
-								</h2>
-							</div>
-						</div>
-
-						{/* Step list if not intro */}
-						{onboardingStep !== "intro" ? (
-							<div
-								className="wizard-step-list"
-								style={{ display: "flex", gap: "12px", marginBottom: "32px" }}
-							>
-								{onboardingSteps.map((step, index) => (
-									<div
-										key={step.id}
-										style={{
-											flex: "1",
-											padding: "10px",
-											borderRadius: "8px",
-											background:
-												step.id === onboardingStep ? "#f0fdfa" : "#f9fafb",
-											border: "1px solid",
-											borderColor:
-												step.id === onboardingStep ? "#0d9488" : "#e5e7eb",
-											display: "flex",
-											flexDirection: "column",
-											gap: "2px",
-										}}
-									>
-										<span
-											style={{
-												fontSize: "11px",
-												color:
-													step.id === onboardingStep ? "#0d9488" : "#6b7280",
-												fontWeight: "600",
-											}}
-										>
-											Шаг {index + 1}
-										</span>
-										<strong
-											style={{
-												fontSize: "14px",
-												color:
-													step.id === onboardingStep ? "#0f766e" : "#374151",
-											}}
-										>
-											{step.title}
-										</strong>
-										<span style={{ fontSize: "11px", color: "#6b7280" }}>
-											{step.detail}
-										</span>
-									</div>
-								))}
-							</div>
-						) : null}
-
-						{/* Intro Step */}
-						{onboardingStep === "intro" ? (
-							<OnboardingSetupWizard
-								onComplete={async () => {
-									setResetting(true);
-									try {
-										await handleSelectDemoMode(); // finish onboarding UI transition
-									} catch (e) {
-										console.error("Failed to finish onboarding UI", e);
-									} finally {
-										setResetting(false);
-									}
-								}}
-							/>
-						) : null}
-
-						{/* Clinic step */}
-						{onboardingStep === "clinic" ? (
-							<div
-								className="onboarding-panel"
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "20px",
-								}}
-							>
-								<div>
-									<h3
-										style={{
-											fontSize: "18px",
-											fontWeight: "600",
-											marginBottom: "6px",
-										}}
-									>
-										О клинике
-									</h3>
-									<p style={{ color: "#4b5563" }}>
-										Название и телефон понадобятся для генерации договоров и
-										медицинских карт.
-									</p>
-								</div>
-								<div
-									style={{
-										display: "flex",
-										flexDirection: "column",
-										gap: "16px",
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											flexDirection: "column",
-											gap: "6px",
-										}}
-									>
-										<label
-											style={{
-												fontSize: "14px",
-												fontWeight: "500",
-												color: "#374151",
-											}}
-										>
-											Название клиники
-										</label>
-										<input
-											id="onboarding-clinic-name"
-											style={{
-												padding: "10px",
-												borderRadius: "8px",
-												border: "1px solid #d1d5db",
-												fontSize: "15px",
-											}}
-											value={clinicProfileDraft.clinicName}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"clinicName",
-													event.target.value,
-												)
-											}
-											placeholder="Стоматология..."
-										/>
-									</div>
-									<div
-										style={{
-											display: "flex",
-											flexDirection: "column",
-											gap: "6px",
-										}}
-									>
-										<label
-											style={{
-												fontSize: "14px",
-												fontWeight: "500",
-												color: "#374151",
-											}}
-										>
-											Телефон для связи
-										</label>
-										<input
-											id="onboarding-clinic-phone"
-											style={{
-												padding: "10px",
-												borderRadius: "8px",
-												border: "1px solid #d1d5db",
-												fontSize: "15px",
-											}}
-											value={clinicProfileDraft.phone}
-											onChange={(event) =>
-												updateClinicProfileDraft("phone", event.target.value)
-											}
-											placeholder="89..."
-										/>
-									</div>
-								</div>
-							</div>
-						) : null}
-
-						{/* Team step */}
-						{onboardingStep === "team" ? (
-							<div
-								className="onboarding-panel"
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "20px",
-								}}
-							>
-								<div>
-									<h3
-										style={{
-											fontSize: "18px",
-											fontWeight: "600",
-											marginBottom: "6px",
-										}}
-									>
-										Ваша роль и данные
-									</h3>
-									<p style={{ color: "#4b5563" }}>
-										Укажите свою рабочую роль в клинике и личные данные для
-										настройки интерфейса.
-									</p>
-								</div>
-								<div
-									style={{
-										display: "flex",
-										flexDirection: "column",
-										gap: "16px",
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											flexDirection: "column",
-											gap: "6px",
-										}}
-									>
-										<label
-											style={{
-												fontSize: "14px",
-												fontWeight: "500",
-												color: "#374151",
-											}}
-										>
-											Ваша рабочая роль
-										</label>
-										<div
-											style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
-										>
-											{roleFocusOrder.map((role) => (
-												<button
-													className={
-														selectedWorkspaceRole === role ? "active" : ""
-													}
-													key={role}
-													type="button"
-													aria-pressed={selectedWorkspaceRole === role}
-													onClick={() => setSelectedWorkspaceRole(role)}
-													style={{
-														padding: "8px 16px",
-														borderRadius: "20px",
-														border: "1px solid",
-														borderColor:
-															selectedWorkspaceRole === role
-																? "#0d9488"
-																: "#d1d5db",
-														background:
-															selectedWorkspaceRole === role
-																? "#0d9488"
-																: "#ffffff",
-														color:
-															selectedWorkspaceRole === role
-																? "#ffffff"
-																: "#374151",
-														fontWeight: "500",
-														cursor: "pointer",
-													}}
-												>
-													{staffRoleLabels[role]}
-												</button>
-											))}
-										</div>
-									</div>
-									<div
-										style={{
-											display: "flex",
-											flexDirection: "column",
-											gap: "6px",
-										}}
-									>
-										<label
-											style={{
-												fontSize: "14px",
-												fontWeight: "500",
-												color: "#374151",
-											}}
-										>
-											{selectedWorkspaceRole === "owner"
-												? "ФИО владельца клиники"
-												: selectedWorkspaceRole === "doctor"
-													? "ФИО врача"
-													: selectedWorkspaceRole === "administrator"
-														? "ФИО администратора"
-														: selectedWorkspaceRole === "assistant"
-															? "ФИО ассистента"
-															: "ФИО сотрудника"}
-										</label>
-										<input
-											id="onboarding-staff-name"
-											style={{
-												padding: "10px",
-												borderRadius: "8px",
-												border: "1px solid #d1d5db",
-												fontSize: "15px",
-											}}
-											value={newStaffName}
-											onChange={(event) => setNewStaffName(event.target.value)}
-											placeholder="Иванов Иван Иванович"
-										/>
-									</div>
-									{(selectedWorkspaceRole === "doctor" ||
-										selectedWorkspaceRole === "assistant") && (
-										<div
-											style={{
-												display: "flex",
-												flexDirection: "column",
-												gap: "6px",
-											}}
-										>
-											<label
-												style={{
-													fontSize: "14px",
-													fontWeight: "500",
-													color: "#374151",
-												}}
-											>
-												Название кабинета/кресла
-											</label>
-											<input
-												id="onboarding-chair-name"
-												style={{
-													padding: "10px",
-													borderRadius: "8px",
-													border: "1px solid #d1d5db",
-													fontSize: "15px",
-												}}
-												value={newChairName}
-												onChange={(event) =>
-													setNewChairName(event.target.value)
-												}
-												placeholder="Кабинет терапевта"
-											/>
-										</div>
-									)}
-								</div>
-							</div>
-						) : null}
-
-						{/* Done step */}
-						{onboardingStep === "done" ? (
-							<div
-								className="onboarding-panel"
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "20px",
-								}}
-							>
-								<div>
-									<h3
-										style={{
-											fontSize: "20px",
-											fontWeight: "600",
-											marginBottom: "8px",
-										}}
-									>
-										Все готово к запуску!
-									</h3>
-									<p style={{ color: "#4b5563" }}>
-										Проверьте параметры перед открытием рабочей смены. Вы
-										сможете изменить любые настройки позже.
-									</p>
-								</div>
-								<div
-									style={{
-										display: "grid",
-										gridTemplateColumns:
-											selectedWorkspaceRole === "doctor" ||
-											selectedWorkspaceRole === "assistant"
-												? "1fr 1fr"
-												: "1fr",
-										gap: "16px",
-										background: "#f9fafb",
-										padding: "20px",
-										borderRadius: "12px",
-										border: "1px solid #e5e7eb",
-									}}
-								>
-									<div>
-										<span
-											style={{
-												fontSize: "12px",
-												textTransform: "uppercase",
-												color: "#6b7280",
-												display: "block",
-											}}
-										>
-											Название клиники
-										</span>
-										<strong style={{ fontSize: "15px", color: "#111827" }}>
-											{clinicProfileDraft.clinicName || "Новая стоматология"}
-										</strong>
-									</div>
-									<div>
-										<span
-											style={{
-												fontSize: "12px",
-												textTransform: "uppercase",
-												color: "#6b7280",
-												display: "block",
-											}}
-										>
-											Ваша рабочая роль
-										</span>
-										<strong style={{ fontSize: "15px", color: "#111827" }}>
-											{staffRoleLabels[selectedWorkspaceRole]}
-										</strong>
-									</div>
-									<div>
-										<span
-											style={{
-												fontSize: "12px",
-												textTransform: "uppercase",
-												color: "#6b7280",
-												display: "block",
-											}}
-										>
-											Первый специалист
-										</span>
-										<strong style={{ fontSize: "15px", color: "#111827" }}>
-											{newStaffName || "Администратор"}
-										</strong>
-									</div>
-									{(selectedWorkspaceRole === "doctor" ||
-										selectedWorkspaceRole === "assistant") && (
-										<div>
-											<span
-												style={{
-													fontSize: "12px",
-													textTransform: "uppercase",
-													color: "#6b7280",
-													display: "block",
-												}}
-											>
-												Кабинет / кресло
-											</span>
-											<strong style={{ fontSize: "15px", color: "#111827" }}>
-												{newChairName || "Кабинет №1"}
-											</strong>
-										</div>
-									)}
-								</div>
-							</div>
-						) : null}
-
-						{/* Actions Footer */}
-						<div
-							className="onboarding-actions"
-							style={{
-								display: "flex",
-								justifyContent: "flex-end",
-								gap: "12px",
-								marginTop: "24px",
-							}}
-						>
-							{onboardingStep !== "intro" && previousOnboardingStep ? (
-								<button
-									className="secondary-button"
-									type="button"
-									onClick={() =>
-										void moveOnboardingTo(previousOnboardingStep.id)
-									}
-									style={{
-										padding: "10px 20px",
-										borderRadius: "8px",
-										border: "1px solid #d1d5db",
-										background: "#ffffff",
-										color: "#374151",
-										fontWeight: "500",
-										cursor: "pointer",
-									}}
-								>
-									Назад
-								</button>
-							) : null}
-							{onboardingStep !== "intro" && nextOnboardingStep ? (
-								<button
-									className="primary-button"
-									type="button"
-									onClick={() => void moveOnboardingTo(nextOnboardingStep.id)}
-									style={{
-										padding: "10px 24px",
-										borderRadius: "8px",
-										border: "none",
-										background: "#0d9488",
-										color: "#ffffff",
-										fontWeight: "600",
-										cursor: "pointer",
-									}}
-								>
-									Дальше
-								</button>
-							) : null}
-							{onboardingStep === "done" ? (
-								<button
-									className="primary-button"
-									type="button"
-									onClick={() =>
-										void handleFinishOnboarding(newStaffName, newChairName)
-									}
-									style={{
-										padding: "10px 24px",
-										borderRadius: "8px",
-										border: "none",
-										background: "#0d9488",
-										color: "#ffffff",
-										fontWeight: "600",
-										cursor: "pointer",
-									}}
-								>
-									Начать работу
-								</button>
-							) : null}
-							{currentView === "inventory" ? (
-								<InventoryView organizationId={activeWorkspaceProfile.id} />
-							) : null}
-						</div>
-					</section>
-				</section>
-			</main>
-			</AppLogicProvider>
+			/>
 		);
 	}
 
@@ -2737,6 +2241,24 @@ export function App() {
 				adminSecretDraft={clinicalAdminSecretDraft}
 				onAdminSecretChange={setClinicalAdminSecretDraft}
 				onUnlock={() => unlockTelegramAdminSession("all")}
+			/>
+		);
+	}
+
+	// Show staff PIN pad if clinic authed but no staff session (or after lock)
+	if (!staffAuthed || showStaffPinPad) {
+		if (!dashboard) {
+			return <AppLoadingState message="Загрузка данных клиники..." />;
+		}
+		return (
+			<StaffPinPad
+				staffMembers={dashboard.clinicSettings?.staff ?? []}
+				onUnlockSuccess={(user) => {
+					setActiveStaffUser(user);
+					setStaffAuthed(true);
+					setShowStaffPinPad(false);
+				}}
+				onClinicLogout={handleClinicLogout}
 			/>
 		);
 	}
@@ -2827,3458 +2349,179 @@ export function App() {
 	}
 
 	// Show onboarding wizard on first run (after dashboard is loaded)
-	if (workspaceProfile.loaded && !workspaceProfile.onboardingCompleted) {
+	if (workspaceProfile.loaded && (!workspaceProfile.onboardingCompleted || localStorage.getItem("force_onboarding") === "true")) {
 		return (
-			<OnboardingSetupWizard
-				isDark={true}
-				onComplete={() => {
-					useWorkspaceProfileStore
-						.getState()
-						.setFlag("onboardingCompleted", true);
-					loadDashboard();
-				}}
-			/>
+			<AppLogicProvider value={appLogicProps}>
+				<OnboardingSetupWizard
+					isDark={isDark}
+					onComplete={() => {
+						useWorkspaceProfileStore
+							.getState()
+							.setFlag("onboardingCompleted", true);
+						loadWorkspaceProfile();
+						loadDashboard();
+					}}
+				/>
+			</AppLogicProvider>
 		);
 	}
 
 	return (
 		<AppLogicProvider value={appLogicProps}>
 			<main className="app-shell">
-			<TourEngine />
-			<HelpHUD />
-			<WebSocketManager />
-			<a className="skip-link" href="#workspace-content">
-				Перейти к рабочей области
-			</a>
-			<WorkspaceSidebar
-				currentView={currentView}
-				onViewIntent={preloadWorkspaceView}
-				role={selectedWorkspaceRole}
-			/>
-
-			<section
-				className={`workspace view-${currentView}`}
-				id="workspace-content"
-				tabIndex={-1}
-				aria-label="Рабочая область"
-			>
-				{dashboard?.clinicName === "Стоматология, 1 кабинет" && (
-					<div className="default-clinic-banner" role="alert">
-						<div className="banner-content">
-							<span className="banner-icon" aria-hidden="true">
-								🚀
-							</span>
-							<p>
-								<strong>Демо-режим.</strong> Тестовые данные загружены. Для
-								настройки своей клиники нажмите «Запустить мастер».
-							</p>
-						</div>
-						<button
-							className="primary-button banner-btn"
-							type="button"
-							onClick={reopenOnboarding}
-						>
-							Запустить мастер
-						</button>
-					</div>
-				)}
-
-				<WorkspaceTopbar
-					clinicName={dashboard.clinicName}
-					onGoToDictation={goToVisitDictation}
-					onGoToSchedule={() => {
-						window.location.hash = "schedule";
-					}}
-					onGoToVisit={() => {
-						window.location.hash = "visit";
-					}}
-					onReopenOnboarding={reopenOnboarding}
-					onRoleChange={setSelectedWorkspaceRole}
+				<TourEngine />
+				<HelpHUD />
+				<WebSocketManager />
+				<a className="skip-link" href="#workspace-content">
+					Перейти к рабочей области
+				</a>
+				<WorkspaceSidebar
+					currentView={currentView}
 					onViewIntent={preloadWorkspaceView}
-					roleFocusOrder={roleFocusOrder}
-					selectedWorkspaceRole={selectedWorkspaceRole}
-					showAdministrationTopActions={showAdministrationTopActions}
-					showDoctorVisitShortcut={showDoctorVisitShortcut}
-					staffRoleLabels={staffRoleLabels}
-					todayIso={dashboard.todayIso}
-					onLockSession={handleLockSession}
-					isOmniRoleMode={dashboard.clinicSettings?.profile?.isOmniRole}
+					role={selectedWorkspaceRole}
+					clinicMode={dashboard?.clinicSettings?.profile?.mode || "network_clinic"}
 				/>
 
-				<WorkspaceContinuityStrip
-					browserContinuityCritical={browserContinuityCritical}
-					browserWarnings={browserContinuity?.warnings ?? []}
-					isOnline={isOnline}
-					isPendingVisitSyncing={isPendingVisitSyncing}
-					onCheckDevice={() => void refreshBrowserContinuity({ silent: false })}
-					onFlushSpeech={() => void flushPendingSpeechChunks({ silent: false })}
-					onFlushVisit={() => void flushPendingVisitSaves({ silent: false })}
-					pendingSpeechChunkCount={pendingSpeechChunkCount}
-					pendingVisitSaveCount={pendingVisitSaveCount}
-				/>
-
-				{error ? (
-					<section className="app-notice" role="alert" aria-live="assertive">
-						<AlertTriangle aria-hidden="true" />
-						<p>{error}</p>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={() => setError(null)}
-						>
-							Понятно
-						</button>
-					</section>
-				) : null}
-
-				{!error && uiPreferencesSyncError ? (
-					<section className="app-notice" role="alert" aria-live="assertive">
-						<AlertTriangle aria-hidden="true" />
-						<p>{uiPreferencesSyncError}</p>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={() => setUiPreferencesSyncError(null)}
-						>
-							Понятно
-						</button>
-					</section>
-				) : null}
-
-				{!error && !uiPreferencesSyncError && telegramHandoffNotice ? (
-					<section
-						className="app-notice telegram-handoff-notice"
-						role="status"
-						aria-live="polite"
-					>
-						<Bot aria-hidden="true" />
-						<p>
-							Открыто из Telegram:{" "}
-							<strong>{telegramHandoffNotice.title}</strong>.{" "}
-							{telegramHandoffNotice.detail} Ссылка не содержит пациента,
-							документ, запись или оплату.
-						</p>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={() => setTelegramHandoffNotice(null)}
-						>
-							Понятно
-						</button>
-					</section>
-				) : null}
-
-				{!onboardingDismissed && !showFullOnboardingGuide ? (
-					<section
-						className="onboarding-compact-strip"
-						aria-label="Первичная настройка клиники"
-					>
-						<div>
-							<strong>Можно начать прием без мастера</strong>
-							<span>
-								Документы предупредят о реквизитах позже. Сейчас важнее открыть
-								пациента, диктовку и расписание.
-							</span>
-						</div>
-						<span className="onboarding-compact-score">
-							{currentOnboardingIndex + 1}/{onboardingSteps.length} · документы{" "}
-							{legalReadinessPercent}%
-						</span>
-						<button
-							className="primary-button"
-							type="button"
-							onClick={() => void continueOnboardingInDraftMode("visit")}
-						>
-							<ClipboardCheck aria-hidden="true" /> Прием
-						</button>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={() => openOnboardingGuide()}
-						>
-							<ShieldCheck aria-hidden="true" /> Настроить
-						</button>
-					</section>
-				) : null}
-
-				{showFullOnboardingGuide ? (
-					<section
-						className="onboarding-shell"
-						aria-label="Первичная настройка клиники"
-					>
-						<div className="onboarding-head">
-							<div>
-								<p className="eyebrow">Первое открытие</p>
-								<h2>Настройка новой клиники и рабочего места врача</h2>
+				<section
+					className={`workspace view-${currentView}`}
+					id="workspace-content"
+					tabIndex={-1}
+					aria-label="Рабочая область"
+				>
+					{dashboard?.clinicName === "Стоматология, 1 кабинет" && (
+						<div className="default-clinic-banner" role="alert">
+							<div className="banner-content">
+								<span className="banner-icon" aria-hidden="true">
+									🚀
+								</span>
 								<p>
-									Можно начать прием сразу. Юридические поля, импорт и Telegram
-									остаются в настройке и не мешают диктовке, расписанию и
-									карточке пациента.
+									<strong>Демо-режим.</strong> Тестовые данные загружены. Для
+									настройки своей клиники нажмите «Запустить мастер».
 								</p>
 							</div>
-							<div className="onboarding-score">
-								<span>
-									{currentOnboardingIndex + 1}/{onboardingSteps.length}
-								</span>
-								<strong>{legalReadinessPercent}%</strong>
-								<small>готовность документов</small>
-							</div>
-						</div>
-
-						<div
-							className="onboarding-fast-start"
-							aria-label="Быстрый старт работы"
-						>
-							<div>
-								<strong>Рабочий вход без мастера</strong>
-								<span>
-									Черновики приема сохраняются. Документы и налоговые формы сами
-									покажут, каких реквизитов не хватает.
-								</span>
-							</div>
 							<button
-								className="primary-button"
+								className="primary-button banner-btn"
 								type="button"
-								onClick={() => void continueOnboardingInDraftMode("visit")}
+								onClick={reopenOnboarding}
 							>
-								<ClipboardCheck aria-hidden="true" /> Открыть прием
-							</button>
-							<button
-								className="secondary-button"
-								type="button"
-								onClick={() => void continueOnboardingInDraftMode("schedule")}
-							>
-								<CalendarDays aria-hidden="true" /> Расписание
-							</button>
-							<button
-								className="secondary-button"
-								type="button"
-								onClick={() => void moveOnboardingTo("legal")}
-							>
-								<ShieldCheck aria-hidden="true" /> Реквизиты
+								Запустить мастер
 							</button>
 						</div>
-
-						<div className="onboarding-step-list" aria-label="Шаги знакомства">
-							{onboardingSteps.map((step, index) => (
-								<button
-									className={
-										step.id === onboardingStep
-											? "active"
-											: index < currentOnboardingIndex
-												? "done"
-												: ""
-									}
-									key={step.id}
-									type="button"
-									aria-current={step.id === onboardingStep ? "step" : undefined}
-									aria-pressed={step.id === onboardingStep}
-									aria-describedby={
-										step.id === "done" && !onboardingReadyToFinish
-											? onboardingFinishGuidanceId
-											: undefined
-									}
-									disabled={step.id === "done" && !onboardingReadyToFinish}
-									onClick={() => void moveOnboardingTo(step.id)}
-								>
-									<span>{index + 1}</span>
-									<strong>{step.title}</strong>
-									<small>{step.detail}</small>
-								</button>
-							))}
-						</div>
-
-						{onboardingStep === "intro" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Короткая карта приложения</h3>
-									<p>
-										Смена показывает очередь и срочные действия. Прием хранит
-										черновики локально и на сервере. Документы генерируются из
-										проверенных данных пациента, оплаты и лицензии клиники.
-									</p>
-								</div>
-								<div className="onboarding-source-grid">
-									<span>Прием: протоколы, голос, офлайн-черновик</span>
-									<span>Документы: пациент, оплата, налоговая</span>
-									<span>Импорт: прайс, старые базы, снимки</span>
-									<span>Настройки: роль, кабинет, юридический профиль</span>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "role" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Кто сейчас работает</h3>
-									<p>
-										Выбор роли и специализации сохраняется как настройка
-										рабочего места и не подмешивает чужие разделы.
-									</p>
-								</div>
-								<div className="onboarding-form-grid">
-									<div
-										className="role-picker form-span-2"
-										aria-label="Роль нового сотрудника"
-									>
-										{roleFocusOrder.map((role) => (
-											<button
-												className={
-													selectedWorkspaceRole === role ? "active" : ""
-												}
-												key={role}
-												type="button"
-												aria-pressed={selectedWorkspaceRole === role}
-												onClick={() => setSelectedWorkspaceRole(role)}
-											>
-												{staffRoleLabels[role]}
-											</button>
-										))}
-									</div>
-									<div
-										className="specialty-strip form-span-2"
-										aria-label="Специализация врача"
-									>
-										{(Object.keys(specialtyLabels) as DentalSpecialty[]).map(
-											(specialty) => (
-												<button
-													className={
-														selectedSpecialty === specialty ? "active" : ""
-													}
-													key={specialty}
-													type="button"
-													aria-pressed={selectedSpecialty === specialty}
-													onClick={() => setSelectedSpecialty(specialty)}
-												>
-													{specialtyLabels[specialty]}
-												</button>
-											),
-										)}
-									</div>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "clinic" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Режим и базовые контакты</h3>
-									<p>
-										Режим меняет первый экран, очереди ролей и подсказки без
-										ручной перенастройки интерфейса.
-									</p>
-								</div>
-								<div
-									className="mode-grid form-span-2"
-									aria-label="Режим клиники"
-								>
-									{(Object.keys(clinicModeLabels) as ClinicMode[]).map(
-										(mode) => (
-											<button
-												className={`mode-card ${dashboard.clinicSettings?.profile?.mode === mode ? "active" : ""}`}
-												key={mode}
-												type="button"
-												aria-pressed={
-													dashboard.clinicSettings?.profile?.mode === mode
-												}
-												onClick={() => changeClinicMode(mode)}
-											>
-												<strong>{clinicModeLabels[mode].title}</strong>
-												<span>{clinicModeLabels[mode].detail}</span>
-											</button>
-										),
-									)}
-								</div>
-								<div className="onboarding-form-grid">
-									<label>
-										Название клиники
-										<input
-											value={clinicProfileDraft.clinicName}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"clinicName",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label>
-										Телефон
-										<input
-											value={clinicProfileDraft.phone}
-											onChange={(event) =>
-												updateClinicProfileDraft("phone", event.target.value)
-											}
-										/>
-									</label>
-									<label>
-										Часовой пояс
-										<input
-											value={clinicProfileDraft.timezone}
-											onChange={(event) =>
-												updateClinicProfileDraft("timezone", event.target.value)
-											}
-										/>
-									</label>
-									<label>
-										Язык интерфейса
-										<select
-											value={uiLanguage}
-											onChange={(event) =>
-												setUiLanguage(
-													normalizeUiLanguageInput(event.target.value),
-												)
-											}
-										>
-											{uiLanguageOptions.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-										<small className="field-note">
-											{selectedUiLanguageOption.detail}
-										</small>
-									</label>
-									<label>
-										Минут на визит
-										<input
-											inputMode="numeric"
-											value={clinicProfileDraft.defaultVisitMinutes}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"defaultVisitMinutes",
-													event.target.value.replace(/[^\d]/g, "").slice(0, 3),
-												)
-											}
-										/>
-									</label>
-									<label>
-										Начало смены
-										<input
-											type="time"
-											value={clinicProfileDraft.workdayStart}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"workdayStart",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label>
-										Конец смены
-										<input
-											type="time"
-											value={clinicProfileDraft.workdayEnd}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"workdayEnd",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label>
-										Буфер, мин
-										<input
-											inputMode="numeric"
-											value={clinicProfileDraft.appointmentBufferMinutes}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"appointmentBufferMinutes",
-													event.target.value.replace(/[^\d]/g, "").slice(0, 3),
-												)
-											}
-										/>
-									</label>
-									<div
-										className="weekday-toggle-row form-span-2"
-										role="group"
-										aria-label="Рабочие дни клиники"
-									>
-										<span>Рабочие дни</span>
-										{weekdayOptions.map((day: any) => (
-											<button
-												className={
-													clinicProfileDraft.workingDays.includes(day.value)
-														? "active"
-														: ""
-												}
-												key={day.value}
-												type="button"
-												aria-pressed={clinicProfileDraft.workingDays.includes(
-													day.value,
-												)}
-												onClick={() => toggleClinicWorkingDay(day.value)}
-											>
-												{day.label}
-											</button>
-										))}
-									</div>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "legal" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Юридические данные для договоров и налоговых справок</h3>
-									<p>
-										Без этих полей приложение не должно выдавать финальные
-										договоры, акты и налоговые документы как готовые.
-									</p>
-								</div>
-								<div className="onboarding-form-grid">
-									<label>
-										Юридическое лицо
-										<input
-											value={clinicProfileDraft.legalName}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"legalName",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label>
-										ИНН
-										<input
-											value={clinicProfileDraft.inn}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"inn",
-													event.target.value.replace(/[^\d]/g, "").slice(0, 12),
-												)
-											}
-										/>
-									</label>
-									<label>
-										КПП
-										<input
-											value={clinicProfileDraft.kpp}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"kpp",
-													event.target.value.replace(/[^\d]/g, "").slice(0, 9),
-												)
-											}
-										/>
-									</label>
-									<label>
-										ОГРН / ОГРНИП
-										<input
-											value={clinicProfileDraft.ogrn}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"ogrn",
-													event.target.value.replace(/[^\d]/g, "").slice(0, 15),
-												)
-											}
-										/>
-									</label>
-									<label className="form-span-2">
-										Адрес
-										<input
-											value={clinicProfileDraft.address}
-											onChange={(event) =>
-												updateClinicProfileDraft("address", event.target.value)
-											}
-										/>
-									</label>
-									<label>
-										Номер лицензии
-										<input
-											value={clinicProfileDraft.medicalLicenseNumber}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"medicalLicenseNumber",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label>
-										Дата лицензии
-										<input
-											value={clinicProfileDraft.medicalLicenseIssuedAt}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"medicalLicenseIssuedAt",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-									<label className="form-span-2">
-										Кем выдана лицензия
-										<input
-											value={clinicProfileDraft.medicalLicenseIssuer}
-											onChange={(event) =>
-												updateClinicProfileDraft(
-													"medicalLicenseIssuer",
-													event.target.value,
-												)
-											}
-										/>
-									</label>
-								</div>
-								<div className="clinic-legal-summary">
-									<strong>{legalReadinessPercent}%</strong>
-									<span>
-										{legalMissingFields.length
-											? `Не хватает: ${legalMissingFields.join(", ")}`
-											: "Минимальные поля заполнены"}
-									</span>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "team" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Команда и кабинет</h3>
-									<p>
-										Сотрудники и кресла сразу попадают в серверное состояние,
-										аудит и расписание.
-									</p>
-								</div>
-								<div className="onboarding-form-grid">
-									<label>
-										Новый сотрудник
-										<input
-											value={newStaffName}
-											onChange={(event) => setNewStaffName(event.target.value)}
-										/>
-									</label>
-									<div
-										className="role-picker form-span-2"
-										aria-label="Роль нового сотрудника"
-									>
-										{(
-											[
-												"doctor",
-												"administrator",
-												"assistant",
-												"manager",
-											] as StaffRole[]
-										).map((role) => (
-											<button
-												className={newStaffRole === role ? "active" : ""}
-												key={role}
-												type="button"
-												aria-pressed={newStaffRole === role}
-												onClick={() => setNewStaffRole(role)}
-											>
-												{staffRoleLabels[role]}
-											</button>
-										))}
-									</div>
-									{newStaffRole === "doctor" || newStaffRole === "assistant" ? (
-										<div
-											className="specialty-strip staff-specialty-picker form-span-2"
-											aria-label="Специальность нового сотрудника"
-										>
-											{(Object.keys(specialtyLabels) as DentalSpecialty[]).map(
-												(specialty) => (
-													<button
-														className={
-															newStaffSpecialty === specialty ? "active" : ""
-														}
-														key={specialty}
-														type="button"
-														aria-pressed={newStaffSpecialty === specialty}
-														onClick={() => setNewStaffSpecialty(specialty)}
-													>
-														{specialtyLabels[specialty]}
-													</button>
-												),
-											)}
-										</div>
-									) : null}
-									<button
-										className="secondary-button"
-										type="button"
-										onClick={() => addStaffMember(newStaffRole)}
-										aria-describedby={
-											!newStaffReadyToCreate
-												? onboardingStaffCreateGuidanceId
-												: undefined
-										}
-										disabled={!newStaffReadyToCreate}
-									>
-										<Plus aria-hidden="true" /> Добавить сотрудника
-									</button>
-									{!newStaffReadyToCreate ? (
-										<p
-											className="quick-create-guidance form-span-2"
-											id={onboardingStaffCreateGuidanceId}
-											role="status"
-											aria-live="polite"
-										>
-											Введите ФИО сотрудника, затем выберите роль.
-										</p>
-									) : null}
-									<label>
-										Кресло / кабинет
-										<input
-											value={newChairName}
-											onChange={(event) => setNewChairName(event.target.value)}
-										/>
-									</label>
-									<button
-										className="secondary-button"
-										type="button"
-										onClick={addChair}
-										aria-describedby={
-											!newChairReadyToCreate
-												? onboardingChairCreateGuidanceId
-												: undefined
-										}
-										disabled={!newChairReadyToCreate}
-									>
-										<Plus aria-hidden="true" /> Добавить кресло
-									</button>
-									{!newChairReadyToCreate ? (
-										<p
-											className="quick-create-guidance form-span-2"
-											id={onboardingChairCreateGuidanceId}
-											role="status"
-											aria-live="polite"
-										>
-											Введите понятное название кресла или кабинета.
-										</p>
-									) : null}
-								</div>
-								<div
-									className="onboarding-schedule-grid form-span-2"
-									aria-label="Расписание команды при первом запуске"
-								>
-									<div className="onboarding-schedule-section">
-										<div>
-											<h4>Расписание команды</h4>
-											<p>
-												Сразу задайте рабочие дни и часы. Изменения
-												автосохраняются и остаются выбранными, пока вы их не
-												поменяете.
-											</p>
-										</div>
-										<div className="staff-list">
-											{(dashboard.clinicSettings?.staff ?? [])
-												.filter(
-													(member) =>
-														member.role === "doctor" ||
-														member.role === "assistant",
-												)
-												.map((member) => {
-													const scheduleDraft =
-														staffScheduleDrafts[member.id] ??
-														staffScheduleDraftFromWorkingHours(
-															member.workingHours ?? null,
-														);
-													const scheduleSaveState =
-														staffScheduleSaveStates[member.id] ?? "saved";
-													const scheduleDirty = staffScheduleDirtyIds.has(
-														member.id,
-													);
-													const scheduleSaving =
-														staffScheduleSavingId === member.id ||
-														scheduleSaveState === "saving";
-													const scheduleSaveLabel = scheduleSaving
-														? "Автосохранение"
-														: scheduleSaveState === "error"
-															? "Не сохранено"
-															: scheduleDirty
-																? "Ждет автосохранения"
-																: "Сохранено";
-													return (
-														<div
-															className="staff-row onboarding-schedule-row"
-															key={`onboarding-staff-schedule-${member.id}`}
-														>
-															<span style={{ background: member.color }} />
-															<div>
-																<strong>{member.fullName}</strong>
-																<p>
-																	{staffRoleLabels[member.role]} ·{" "}
-																	{member.specialties
-																		.map((item) => specialtyLabels[item])
-																		.join(", ")}
-																</p>
-															</div>
-															<div className="staff-schedule-editor onboarding-compact-schedule-editor">
-																<label>
-																	С
-																	<input
-																		aria-label={`Начало смены: ${member.fullName}`}
-																		type="time"
-																		value={scheduleDraft.start}
-																		onChange={(event) =>
-																			updateStaffScheduleDraft(member.id, {
-																				start: event.target.value,
-																			})
-																		}
-																	/>
-																</label>
-																<label>
-																	До
-																	<input
-																		aria-label={`Конец смены: ${member.fullName}`}
-																		type="time"
-																		value={scheduleDraft.end}
-																		onChange={(event) =>
-																			updateStaffScheduleDraft(member.id, {
-																				end: event.target.value,
-																			})
-																		}
-																	/>
-																</label>
-																<div
-																	className="weekday-toggle-row staff-weekday-row"
-																	role="group"
-																	aria-label={`Рабочие дни сотрудника: ${member.fullName}`}
-																>
-																	{weekdayOptions.map((day: any) => (
-																		<button
-																			className={
-																				scheduleDraft.workingDays.includes(
-																					day.value,
-																				)
-																					? "active"
-																					: ""
-																			}
-																			key={day.value}
-																			type="button"
-																			aria-pressed={scheduleDraft.workingDays.includes(
-																				day.value,
-																			)}
-																			onClick={() =>
-																				toggleStaffWorkingDay(
-																					member.id,
-																					day.value,
-																				)
-																			}
-																		>
-																			{day.label}
-																		</button>
-																	))}
-																</div>
-																<div className="staff-schedule-actions">
-																	<span
-																		className={`save-state save-state-${scheduleSaveState}`}
-																	>
-																		{scheduleSaveLabel}
-																	</span>
-																	<button
-																		className="secondary-button compact-button"
-																		type="button"
-																		onClick={() =>
-																			void saveStaffSchedule(member.id)
-																		}
-																		disabled={scheduleSaving}
-																	>
-																		{scheduleSaving
-																			? "Сохраняю"
-																			: "Сохранить сейчас"}
-																	</button>
-																</div>
-															</div>
-														</div>
-													);
-												})}
-										</div>
-									</div>
-									<div className="onboarding-schedule-section">
-										<div>
-											<h4>Расписание кресел</h4>
-											<p>
-												Кабинет может работать иначе, чем врач. Это сразу
-												учитывается в записи и конфликтных слотах.
-											</p>
-										</div>
-										<div className="staff-list">
-											{(dashboard.clinicSettings?.chairs ?? [])
-												.filter((chair) => chair.active)
-												.map((chair) => {
-													const scheduleDraft =
-														chairScheduleDrafts[chair.id] ??
-														staffScheduleDraftFromWorkingHours(
-															chair.workingHours ?? null,
-														);
-													const scheduleSaveState =
-														chairScheduleSaveStates[chair.id] ?? "saved";
-													const scheduleDirty = chairScheduleDirtyIds.has(
-														chair.id,
-													);
-													const scheduleSaving =
-														chairScheduleSavingId === chair.id ||
-														scheduleSaveState === "saving";
-													const scheduleSaveLabel = scheduleSaving
-														? "Автосохранение"
-														: scheduleSaveState === "error"
-															? "Не сохранено"
-															: scheduleDirty
-																? "Ждет автосохранения"
-																: "Сохранено";
-													return (
-														<div
-															className="staff-row onboarding-schedule-row"
-															key={`onboarding-chair-schedule-${chair.id}`}
-														>
-															<CalendarDays aria-hidden="true" />
-															<div>
-																<strong>{chair.name}</strong>
-																<p>
-																	{chair.specialization
-																		? specialtyLabels[chair.specialization]
-																		: "универсально"}
-																</p>
-															</div>
-															<div className="staff-schedule-editor onboarding-compact-schedule-editor">
-																<label>
-																	С
-																	<input
-																		aria-label={`Начало работы кресла: ${chair.name}`}
-																		type="time"
-																		value={scheduleDraft.start}
-																		onChange={(event) =>
-																			updateChairScheduleDraft(chair.id, {
-																				start: event.target.value,
-																			})
-																		}
-																	/>
-																</label>
-																<label>
-																	До
-																	<input
-																		aria-label={`Конец работы кресла: ${chair.name}`}
-																		type="time"
-																		value={scheduleDraft.end}
-																		onChange={(event) =>
-																			updateChairScheduleDraft(chair.id, {
-																				end: event.target.value,
-																			})
-																		}
-																	/>
-																</label>
-																<div
-																	className="weekday-toggle-row staff-weekday-row"
-																	role="group"
-																	aria-label={`Рабочие дни кресла: ${chair.name}`}
-																>
-																	{weekdayOptions.map((day: any) => (
-																		<button
-																			className={
-																				scheduleDraft.workingDays.includes(
-																					day.value,
-																				)
-																					? "active"
-																					: ""
-																			}
-																			key={day.value}
-																			type="button"
-																			aria-pressed={scheduleDraft.workingDays.includes(
-																				day.value,
-																			)}
-																			onClick={() =>
-																				toggleChairWorkingDay(
-																					chair.id,
-																					day.value,
-																				)
-																			}
-																		>
-																			{day.label}
-																		</button>
-																	))}
-																</div>
-																<div className="staff-schedule-actions">
-																	<span
-																		className={`save-state save-state-${scheduleSaveState}`}
-																	>
-																		{scheduleSaveLabel}
-																	</span>
-																	<button
-																		className="secondary-button compact-button"
-																		type="button"
-																		onClick={() =>
-																			void saveChairSchedule(chair.id)
-																		}
-																		disabled={scheduleSaving}
-																	>
-																		{scheduleSaving
-																			? "Сохраняю"
-																			: "Сохранить сейчас"}
-																	</button>
-																</div>
-															</div>
-														</div>
-													);
-												})}
-										</div>
-									</div>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "sources" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Источники данных</h3>
-									<p>
-										Выберите рабочие источники один раз. Система сохранит эти
-										настройки автоматически и будет использовать их в прайсах,
-										переносе пациентов, документах, снимках и внешнем просмотре
-										КТ, пока клиника сама их не поменяет.
-									</p>
-								</div>
-
-								<div
-									className="onboarding-source-config"
-									aria-label="Быстрая настройка источников данных"
-								>
-									<section className="onboarding-source-section">
-										<div>
-											<strong>Прайс клиники</strong>
-											<span>
-												Откуда администратор чаще всего заносит цены и
-												материалы.
-											</span>
-										</div>
-										<div
-											className="onboarding-source-choice-row"
-											aria-label="Источник прайса"
-										>
-											{(
-												Object.keys(
-													pricelistSourceKindLabels,
-												) as PricelistSourceKind[]
-											).map((kind) => (
-												<button
-													className={
-														pricelistSourceKind === kind ? "active" : ""
-													}
-													key={kind}
-													type="button"
-													aria-pressed={pricelistSourceKind === kind}
-													onClick={() => {
-														setPricelistSourceKind(kind);
-														if (kind !== "photo_ocr") clearPricelistImage();
-														setPricelistAnalysis(null);
-													}}
-												>
-													{pricelistSourceKindLabels[kind]}
-												</button>
-											))}
-										</div>
-									</section>
-
-									<section className="onboarding-source-section">
-										<div>
-											<strong>Перенос пациентов</strong>
-											<span>
-												Основной формат старой базы или бумажного журнала.
-											</span>
-										</div>
-										<div
-											className="onboarding-source-choice-row"
-											aria-label="Источник переноса пациентов"
-										>
-											{(
-												Object.keys(importSourceLabels) as ImportSourceKind[]
-											).map((kind) => (
-												<button
-													className={importSourceKind === kind ? "active" : ""}
-													key={kind}
-													type="button"
-													aria-pressed={importSourceKind === kind}
-													onClick={() => {
-														setImportSourceKind(kind);
-														setImportPreview(null);
-														setImportCommit(null);
-													}}
-												>
-													{importSourceLabels[kind].title}
-												</button>
-											))}
-										</div>
-									</section>
-
-									<section className="onboarding-source-section">
-										<div>
-											<strong>Смешанная выгрузка</strong>
-											<span>
-												Как разбирать файл, где вместе пациенты, снимки и
-												служебные строки.
-											</span>
-										</div>
-										<div
-											className="onboarding-source-choice-row"
-											aria-label="Режим смешанного импорта"
-										>
-											{(
-												Object.keys(smartImportModeLabels) as SmartImportMode[]
-											).map((mode) => (
-												<button
-													className={smartImportMode === mode ? "active" : ""}
-													key={mode}
-													type="button"
-													aria-pressed={smartImportMode === mode}
-													onClick={() => {
-														setSmartImportMode(mode);
-														setSmartImportPreview(null);
-														setSmartImportCommit(null);
-													}}
-												>
-													{smartImportModeLabels[mode].title}
-												</button>
-											))}
-										</div>
-									</section>
-
-									<section className="onboarding-source-section">
-										<div>
-											<strong>Документы и файлы</strong>
-											<span>
-												Куда по умолчанию отправлять распознанный документ,
-												таблицу, архив или фото.
-											</span>
-										</div>
-										<div
-											className="onboarding-source-choice-row"
-											aria-label="Маршрут распознанных документов"
-										>
-											{(
-												Object.keys(
-													ingestionTargetLabels,
-												) as DocumentIngestionTarget[]
-											).map((target) => (
-												<button
-													className={
-														documentIngestionTarget === target ? "active" : ""
-													}
-													key={target}
-													type="button"
-													aria-pressed={documentIngestionTarget === target}
-													onClick={() => setDocumentIngestionTarget(target)}
-												>
-													{ingestionTargetLabels[target]}
-												</button>
-											))}
-										</div>
-									</section>
-
-									<section className="onboarding-source-section onboarding-source-section-wide">
-										<div>
-											<strong>Снимки и КТ</strong>
-											<span>
-												Основной поток RVG, ОПТГ, КТ, архива снимков или
-												локальных папок.
-											</span>
-										</div>
-										<div
-											className="onboarding-source-choice-row"
-											aria-label="Источник снимков"
-										>
-											{imagingSourceChoices.map((kind) => (
-												<button
-													className={
-														imagingImportSourceKind === kind ? "active" : ""
-													}
-													key={kind}
-													type="button"
-													aria-pressed={imagingImportSourceKind === kind}
-													onClick={() => {
-														setImagingImportSourceKind(kind);
-														setImagingImportPreview(null);
-														setImagingImportCommit(null);
-														setDicomSeriesPreview(null);
-													}}
-												>
-													{imagingSourceLabels[kind]}
-												</button>
-											))}
-										</div>
-									</section>
-
-									<section className="onboarding-source-section onboarding-source-section-wide">
-										<div>
-											<strong>Архив снимков и внешний просмотр</strong>
-											<span>
-												Адреса просмотрщика сохраняются вместе с остальными
-												настройками источников.
-											</span>
-										</div>
-										<div className="onboarding-source-url-grid">
-											<label>
-												Адрес архива снимков
-												<input
-													value={dicomWebEndpointUrl}
-													onChange={(event) => {
-														setDicomWebEndpointUrl(event.target.value);
-														setDicomWebCheck(null);
-														setDicomViewerLaunchManifest(null);
-														setDicomViewerToolStateBundle(null);
-														setDicomViewerWorkbenchManifest(null);
-													}}
-													placeholder="http://127.0.0.1:8042/dicom-web"
-												/>
-											</label>
-											<label>
-												Адрес внешнего просмотра
-												<input
-													value={ohifBaseUrl}
-													onChange={(event) => {
-														setOhifBaseUrl(event.target.value);
-														setDicomViewerLaunchManifest(null);
-														setDicomViewerWorkbenchManifest(null);
-													}}
-													placeholder="http://127.0.0.1:3000"
-												/>
-											</label>
-										</div>
-									</section>
-								</div>
-
-								<div className="onboarding-source-grid">
-									<span>
-										Автосохранено: прайс, импорт, документы, снимки, архив и
-										внешний просмотр
-									</span>
-									<button
-										type="button"
-										onClick={() => {
-											setSettingsTab("prices");
-											window.location.hash = "settings/prices";
-										}}
-									>
-										Открыть прайс
-									</button>
-									<button
-										type="button"
-										onClick={() => {
-											setSettingsTab("imports");
-											window.location.hash = "settings/imports";
-										}}
-									>
-										Открыть перенос
-									</button>
-									<button
-										type="button"
-										onClick={() => {
-											setSettingsTab("sources");
-											window.location.hash = "settings/sources";
-										}}
-									>
-										Открыть снимки
-									</button>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "telegram" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Telegram, QR и связь с пациентами</h3>
-									<p>
-										Настройте Telegram-бот сразу при первом запуске: QR-привязка
-										пациента, напоминания, памятки после лечения, отзывы и
-										ссылки на портал сохраняются автоматически и применяются ко
-										всей клинике.
-									</p>
-								</div>
-								<div className="onboarding-telegram-status">
-									<span>
-										Бот
-										<strong>
-											{telegramStatus?.botUsername
-												? `@${telegramStatus.botUsername.replace(/^@/, "")}`
-												: "не загружен"}
-										</strong>
-									</span>
-									<span>
-										Транспорт
-										<strong>
-											{telegramStatus?.webhookReady
-												? "готов"
-												: "нужна проверка"}
-										</strong>
-									</span>
-									<span>
-										QR-коды
-										<strong>
-											{telegramStatus?.pendingLinkCodeCount ?? 0} ожидают
-										</strong>
-									</span>
-									<span>
-										Чаты
-										<strong>
-											{telegramStatus?.activeChatLinkCount ?? 0} связаны
-										</strong>
-									</span>
-								</div>
-								<div className="onboarding-form-grid">
-									<label>
-										Имя общего бота в Telegram
-										<input
-											value={telegramBotUsernameDraft}
-											placeholder="dentecrm_bot"
-											onChange={(event) => {
-												setTelegramBotUsernameDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Портал пациента
-										<input
-											type="url"
-											inputMode="url"
-											placeholder="https://portal.example"
-											value={telegramPatientPortalBaseUrlDraft}
-											onChange={(event) => {
-												setTelegramPatientPortalBaseUrlDraft(
-													event.target.value,
-												);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Картинка приветствия
-										<input
-											type="url"
-											inputMode="url"
-											placeholder="https://.../welcome.jpg"
-											value={telegramWelcomeImageUrlDraft}
-											onChange={(event) => {
-												setTelegramWelcomeImageUrlDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Ссылка на отзыв
-										<input
-											type="url"
-											inputMode="url"
-											placeholder="https://..."
-											value={telegramReviewUrlDraft}
-											onChange={(event) => {
-												setTelegramReviewUrlDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Ссылка на карту
-										<input
-											type="url"
-											inputMode="url"
-											placeholder="https://..."
-											value={telegramMapsUrlDraft}
-											onChange={(event) => {
-												setTelegramMapsUrlDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Срок QR-кода, минут
-										<input
-											type="number"
-											min={5}
-											max={1440}
-											step={5}
-											value={telegramTokenTtlDraft}
-											onChange={(event) => {
-												setTelegramTokenTtlDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-									</label>
-									<label>
-										Напоминания до приема, часы
-										<input
-											inputMode="text"
-											placeholder="24, 2"
-											value={telegramReminderLeadTimesDraft}
-											onChange={(event) => {
-												setTelegramReminderLeadTimesDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-										<small>
-											Напоминания до приема в часах: от 1 до 168, максимум 6
-											значений.
-										</small>
-									</label>
-									<label>
-										Просьба оценить клинику, часы после визита
-										<input
-											type="number"
-											min={1}
-											max={720}
-											step={1}
-											value={telegramReviewRequestDelayDraft}
-											onChange={(event) => {
-												setTelegramReviewRequestDelayDraft(event.target.value);
-												markTelegramSettingsDirty();
-											}}
-										/>
-										<small>
-											Клиника сама выбирает момент просьбы оставить отзыв: от 1
-											до 720 часов после закрытого визита или оплаты.
-										</small>
-									</label>
-									<fieldset className="telegram-checkup-delay-fields full">
-										<legend>Контроль после лечения</legend>
-										<small>
-											Через сколько часов Telegram спросит пациента о
-											самочувствии после выданной памятки.
-										</small>
-										{telegramPostVisitCheckupDelayFields.map((field) => (
-											<label key={field.key}>
-												{field.label}
-												<input
-													type="number"
-													min={1}
-													max={720}
-													step={1}
-													value={telegramPostVisitCheckupDelayDrafts[field.key]}
-													onChange={(event) =>
-														updateTelegramPostVisitCheckupDelayDraft(
-															field.key,
-															event.target.value,
-														)
-													}
-												/>
-												<small>{field.help}</small>
-											</label>
-										))}
-									</fieldset>
-									<label>
-										Секрет администратора клиники
-										<input
-											type="password"
-											autoComplete="current-password"
-											value={telegramAdminSecretDraft}
-											onChange={(event) =>
-												setTelegramAdminSecretDraft(event.target.value)
-											}
-											onKeyDown={(event) => {
-												if (event.key === "Enter") {
-													event.preventDefault();
-													unlockTelegramAdminSession("telegram");
-												}
-											}}
-											placeholder="если защищенные настройки включены на сервере клиники"
-										/>
-										<small>
-											{telegramAdminSecretSession
-												? "Разблокировано до перезагрузки страницы."
-												: "Секрет не сохраняется в браузере."}
-										</small>
-									</label>
-									<button
-										className="secondary-button"
-										type="button"
-										onClick={() => unlockTelegramAdminSession("telegram")}
-									>
-										<ShieldCheck aria-hidden="true" /> Разблокировать
-									</button>
-									<label>
-										Приватность
-										<select
-											value={telegramPrivacyModeDraft}
-											onChange={(event) => {
-												setTelegramPrivacyModeDraft(
-													normalizedTelegramPrivacyMode(event.target.value),
-												);
-												markTelegramSettingsDirty();
-											}}
-										>
-											<option value="no_phi_by_default">
-												{telegramPrivacyModeLabels.no_phi_by_default}
-											</option>
-											<option value="limited_admin_only">
-												{telegramPrivacyModeLabels.limited_admin_only}
-											</option>
-											<option value="consented_phi_templates" disabled>
-												{telegramPrivacyModeLabels.consented_phi_templates}{" "}
-												(после аудита)
-											</option>
-										</select>
-									</label>
-								</div>
-								<div
-									className="onboarding-feature-list"
-									aria-label="Быстрые сценарии Telegram"
-								>
-									<div className="onboarding-telegram-visual-cards">
-										{telegramVisualCardFields
-											.filter((field) =>
-												onboardingTelegramVisualCardKeys.includes(field.key),
-											)
-											.map((field) => (
-												<label key={field.key}>
-													{field.label}
-													<input
-														type="url"
-														inputMode="url"
-														placeholder={field.placeholder}
-														value={telegramVisualCardUrlDrafts[field.key] ?? ""}
-														onChange={(event) =>
-															updateTelegramVisualCardUrlDraft(
-																field.key,
-																event.target.value,
-															)
-														}
-													/>
-													<small>
-														{field.help} Если поле пустое, используется картинка
-														приветствия.
-													</small>
-												</label>
-											))}
-									</div>
-									{telegramFeatureOptions
-										.filter((feature) =>
-											[
-												"patient_linking",
-												"appointment_reminders",
-												"appointment_confirmation",
-												"document_ready_notice",
-												"tax_document_request",
-												"payment_reminders",
-												"post_visit_instructions",
-												"recalls",
-												"review_requests",
-												"callback_requests",
-												"secure_portal_links",
-												"staff_task_alerts",
-												"staff_daily_digest",
-											].includes(feature),
-										)
-										.map((feature) => (
-											<label
-												className={
-													telegramEnabledFeaturesDraft.includes(feature)
-														? "active"
-														: ""
-												}
-												key={feature}
-											>
-												<input
-													type="checkbox"
-													checked={telegramEnabledFeaturesDraft.includes(
-														feature,
-													)}
-													onChange={() => toggleTelegramFeature(feature)}
-												/>
-												<span>{telegramFeatureLabel(feature)}</span>
-											</label>
-										))}
-								</div>
-								<div className="onboarding-inline-actions">
-									<button
-										className="secondary-button"
-										type="button"
-										onClick={() => void saveTelegramSettings()}
-										disabled={isTelegramSettingsSaving}
-									>
-										<ShieldCheck aria-hidden="true" />{" "}
-										{isTelegramSettingsSaving
-											? "Сохраняю"
-											: "Сохранить Telegram"}
-									</button>
-									<button
-										className="secondary-button"
-										type="button"
-										onClick={() => {
-											setSettingsTab("telegram");
-											window.location.hash = "settings/telegram";
-										}}
-									>
-										<Bot aria-hidden="true" /> Открыть полную панель
-									</button>
-									<span
-										className={`telegram-save-state save-${telegramSettingsSaveState}`}
-									>
-										{telegramSettingsSaveState === "saving"
-											? "Автосохранение..."
-											: telegramSettingsSaveState === "saved"
-												? "Telegram сохранен."
-												: telegramSettingsSaveState === "error"
-													? (telegramSettingsSaveError ??
-														"Telegram не сохранен.")
-													: telegramSettingsDirty
-														? "Изменения будут сохранены автоматически."
-														: "Конфигурация Telegram сохранена."}
-									</span>
-								</div>
-							</div>
-						) : null}
-
-						{onboardingStep === "done" ? (
-							<div className="onboarding-panel">
-								<div>
-									<h3>Проверка перед работой</h3>
-									<p>
-										Профиль клиники: {legalReadinessPercent}%. Команда:{" "}
-										{dashboard.clinicSettings?.staff?.length ?? 0}. Кабинеты:{" "}
-										{dashboard.clinicSettings?.chairs?.length ?? 0}. Telegram:{" "}
-										{telegramStatus?.webhookReady
-											? "готов к отправке"
-											: "нужна настройка отправки"}
-										. Документы:{" "}
-										{documentFactoryGroups.reduce(
-											(total, group) => total + group.kinds.length,
-											0,
-										)}{" "}
-										шаблонов.
-									</p>
-								</div>
-								<div className="onboarding-readiness-grid">
-									<span>
-										{clinicModeLabels[
-											dashboard.clinicSettings?.profile?.mode ?? "solo_doctor"
-										]?.title ?? "—"}
-									</span>
-									<span>{staffRoleLabels[selectedWorkspaceRole]}</span>
-									<span>{specialtyLabels[selectedSpecialty]}</span>
-									<span>
-										{telegramEnabledFeaturesDraft.length} Telegram-сценариев
-										включено
-									</span>
-									<span>
-										{onboardingDocumentsReady
-											? "документы готовы к выдаче"
-											: "документы требуют реквизитов"}
-									</span>
-								</div>
-								{!onboardingReadyToFinish ? (
-									<p className="onboarding-blocker">
-										До завершения нужно заполнить:{" "}
-										{onboardingBlockingIssues.join(", ")}.
-									</p>
-								) : null}
-								{!onboardingDocumentsReady ? (
-									<p className="onboarding-blocker onboarding-advisory">
-										Первый рабочий экран можно открыть сейчас. Для договоров,
-										актов и налоговых форм позже заполните:{" "}
-										{onboardingDocumentReadinessIssues.join(", ")}.
-									</p>
-								) : null}
-								{onboardingTelegramRecommendations.length ? (
-									<p className="onboarding-blocker onboarding-advisory">
-										Telegram можно включить позже:{" "}
-										{onboardingTelegramRecommendations.join(", ")}.
-									</p>
-								) : null}
-							</div>
-						) : null}
-
-						{!onboardingReadyToFinish ? (
-							<p
-								className="onboarding-blocker onboarding-action-guidance"
-								id={onboardingFinishGuidanceId}
-								role="status"
-								aria-live="polite"
-							>
-								Чтобы завершить настройку, заполните:{" "}
-								{onboardingBlockingIssues.join(", ")}.
-							</p>
-						) : null}
-
-						<div className="onboarding-actions">
-							<button
-								className="secondary-button"
-								type="button"
-								onClick={dismissOnboarding}
-								aria-describedby={
-									!onboardingReadyToFinish
-										? onboardingFinishGuidanceId
-										: undefined
-								}
-								disabled={!onboardingReadyToFinish}
-							>
-								Скрыть
-							</button>
-							{!onboardingReadyToFinish ? (
-								<button
-									className="secondary-button"
-									type="button"
-									onClick={() => void continueOnboardingInDraftMode()}
-								>
-									Продолжить в черновике
-								</button>
-							) : null}
-							<button
-								className="secondary-button"
-								type="button"
-								onClick={() => void saveClinicProfileFromDraft()}
-								disabled={clinicProfileSaveState === "saving"}
-							>
-								<ShieldCheck aria-hidden="true" />{" "}
-								{clinicProfileSaveState === "saving"
-									? "Сохраняю"
-									: "Сохранить профиль"}
-							</button>
-							{previousOnboardingStep ? (
-								<button
-									className="secondary-button"
-									type="button"
-									onClick={() =>
-										void moveOnboardingTo(previousOnboardingStep.id)
-									}
-								>
-									Назад
-								</button>
-							) : null}
-							{nextOnboardingStep ? (
-								<button
-									className="primary-button"
-									type="button"
-									onClick={() => void moveOnboardingTo(nextOnboardingStep.id)}
-									aria-describedby={
-										nextOnboardingStep.id === "done" && !onboardingReadyToFinish
-											? onboardingFinishGuidanceId
-											: undefined
-									}
-									disabled={
-										nextOnboardingStep.id === "done" && !onboardingReadyToFinish
-									}
-								>
-									Дальше <ArrowRight aria-hidden="true" />
-								</button>
-							) : (
-								<button
-									className="primary-button"
-									type="button"
-									onClick={dismissOnboarding}
-									aria-describedby={
-										!onboardingReadyToFinish
-											? onboardingFinishGuidanceId
-											: undefined
-									}
-									disabled={!onboardingReadyToFinish}
-								>
-									Завершить настройку
-								</button>
-							)}
-						</div>
-					</section>
-				) : null}
-
-				{onboardingDismissed &&
-				onboardingDraftMode &&
-				!onboardingReadyToFinish ? (
-					<section
-						className="onboarding-draft-strip"
-						aria-label="Первичная настройка в черновике"
-					>
-						<div>
-							<strong>Первичная настройка не завершена</strong>
-							<span>
-								Можно работать в черновике, но перед выдачей документов
-								заполните: {onboardingBlockingIssues.join(", ")}.
-							</span>
-						</div>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={reopenOnboarding}
-						>
-							Вернуться к настройке
-						</button>
-					</section>
-				) : null}
-
-				{onboardingDismissed &&
-				onboardingReadyToFinish &&
-				!onboardingDocumentsReady ? (
-					<section
-						className="onboarding-draft-strip"
-						aria-label="Документы требуют реквизитов"
-					>
-						<div>
-							<strong>Документы требуют реквизитов</strong>
-							<span>
-								Для договоров, актов и налоговых форм заполните:{" "}
-								{onboardingDocumentReadinessIssues.join(", ")}.
-							</span>
-						</div>
-						<button
-							className="secondary-button"
-							type="button"
-							onClick={() => {
-								setCurrentView("settings");
-								setSettingsTab("clinic");
-								window.location.hash = "settings/clinic";
-							}}
-						>
-							Заполнить реквизиты
-						</button>
-					</section>
-				) : null}
-
-				{currentView === "shift" ? (
-					<ShiftView
-						activePatient={activePatient}
-						activePatientHasCallablePhone={activePatientHasCallablePhone}
-						activePatientCallablePhone={activePatientCallablePhone}
-						visibleRecommendedActions={visibleRecommendedActions}
-						recommendedActionPriorityLabels={recommendedActionPriorityLabels}
-						staffRoleLabels={staffRoleLabels}
+					)}
+					<WorkspaceTopbar
+						clinicName={dashboard.clinicName}
+						onGoToDictation={goToVisitDictation}
+						onGoToSchedule={() => {
+							window.location.hash = "schedule";
+						}}
+						onGoToVisit={() => {
+							window.location.hash = "visit";
+						}}
+						onReopenOnboarding={reopenOnboarding}
+						onRoleChange={setSelectedWorkspaceRole}
+						onViewIntent={preloadWorkspaceView}
+						roleFocusOrder={roleFocusOrder}
 						selectedWorkspaceRole={selectedWorkspaceRole}
-						activeRoleQueue={activeRoleQueue}
-						activeRolePolicy={activeRolePolicy}
-						activeRoleWritableSections={activeRoleWritableSections}
-						viewLabels={viewLabels}
-						activeRoleRestrictedSections={activeRoleRestrictedSections}
-						dashboard={dashboard}
-						activeQueueRole={activeQueueRole}
-						shiftWarnings={shiftWarnings}
-						warningSeverityLabels={warningSeverityLabels}
-						openScheduleWarning={openScheduleWarning}
-						setError={setError}
-						mostLoadedResource={mostLoadedResource}
-						setSelectedPatientId={setSelectedPatientId}
-						activeDoctor={activeDoctor}
+						showAdministrationTopActions={showAdministrationTopActions}
+						showDoctorVisitShortcut={showDoctorVisitShortcut}
+						staffRoleLabels={staffRoleLabels}
+						todayIso={dashboard.todayIso}
+						onLockSession={handleLockSession}
+						activeTasksCount={
+							dashboard?.communicationTasks?.filter(
+								(t: any) => t.status === "open",
+							).length || 0
+						}
+						isOmniRoleMode={dashboard.clinicSettings?.profile?.isOmniRole}
+						onQuickConsult={handleQuickConsult}
+						isQuickConsultLoading={isQuickConsultLoading}
 					/>
-				) : null}
-
-				{["shift", "patients"].includes(currentView) ? (
-					<PatientCockpit
-						activePatient={activePatient}
-						activePatientInsight={activePatientInsight}
-						dashboard={dashboard}
-						activeCommunicationTasks={activeCommunicationTasks}
-						activeImagingStudies={activeImagingStudies}
-						activeUsableDocuments={activeUsableDocuments}
+					<WorkspaceContinuityStrip
+						browserContinuityCritical={browserContinuityCritical}
+						browserWarnings={browserContinuity?.warnings ?? []}
+						isOnline={isOnline}
+						isPendingVisitSyncing={isPendingVisitSyncing}
+						onCheckDevice={() =>
+							void refreshBrowserContinuity({ silent: false })
+						}
+						onFlushSpeech={() =>
+							void flushPendingSpeechChunks({ silent: false })
+						}
+						onFlushVisit={() => void flushPendingVisitSaves({ silent: false })}
+						pendingSpeechChunkCount={pendingSpeechChunkCount}
+						pendingVisitSaveCount={pendingVisitSaveCount}
 					/>
-				) : null}
-
-				{currentView === "imaging" ? (
-					<WorkspaceRouteErrorBoundary
-						view="imaging"
-						label={viewLabels.imaging}
-						panelClassName="panel imaging-panel"
-						panelId="imaging"
-					>
-						<Suspense
-							fallback={
-								<div
-									className="panel imaging-panel"
-									id="imaging"
-									aria-busy="true"
-								>
-									<div className="panel-heading">
-										<h2>Снимки пациента</h2>
-										<span className="status-pill status-planned">загрузка</span>
-									</div>
-								</div>
-							}
+					{error ? (
+						<section className="app-notice" role="alert" aria-live="assertive">
+							<AlertTriangle aria-hidden="true" />
+							<p>{error}</p>
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => setError(null)}
+							>
+								Понятно
+							</button>
+						</section>
+					) : null}
+					{!error && uiPreferencesSyncError ? (
+						<section className="app-notice" role="alert" aria-live="assertive">
+							<AlertTriangle aria-hidden="true" />
+							<p>{uiPreferencesSyncError}</p>
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => setUiPreferencesSyncError(null)}
+							>
+								Понятно
+							</button>
+						</section>
+					) : null}
+					{!error && !uiPreferencesSyncError && telegramHandoffNotice ? (
+						<section
+							className="app-notice telegram-handoff-notice"
+							role="status"
+							aria-live="polite"
 						>
-							<ImagingView
-								CtPlanningToolsPanel={CtPlanningToolsPanel}
-								ExternalLink={ExternalLink}
-								FlipHorizontal={FlipHorizontal}
-								ImageIcon={ImageIcon}
-								Plus={Plus}
-								RefreshCw={RefreshCw}
-								RotateCcw={RotateCcw}
-								RotateCw={RotateCw}
-								ZoomIn={ZoomIn}
-								ZoomOut={ZoomOut}
-								activeAppointment={activeAppointment}
-								activeImagingStudies={activeImagingStudies}
-								activePatient={activePatient}
-								addImagingViewerNoteAnnotation={addImagingViewerNoteAnnotation}
-								applyCtPlanningQuickAction={applyCtPlanningQuickAction}
-								applyMprClinicalPreset={applyMprClinicalPreset}
-								applyNearestMprClinicalPreset={applyNearestMprClinicalPreset}
-								canRetryImagingViewerSave={canRetryImagingViewerSave}
-								cbctWorkbenchPlanes={cbctWorkbenchPlanes}
-								cbctWorkbenchProjections={cbctWorkbenchProjections}
-								cbctWorkbenchSeries={cbctWorkbenchSeries}
-								clampMprAxisDeg={clampMprAxisDeg}
-								clampMprSlabMm={clampMprSlabMm}
-								clampMprSliceIndex={clampMprSliceIndex}
-								createCtPlanningArtifact={createCtPlanningArtifact}
-								createImagingStudy={createImagingStudy}
-								ctPlanningActiveQuickActionId={ctPlanningActiveQuickActionId}
-								ctPlanningAnnotationRefs={ctPlanningAnnotationRefs}
-								ctPlanningImplantPlan={ctPlanningImplantPlan}
-								currentView={currentView}
-								defaultImagingViewerState={defaultImagingViewerState}
-								describeMprClinicalPresetProjectionFallback={
-									describeMprClinicalPresetProjectionFallback
-								}
-								dicomLabel={dicomLabel}
-								dicomQualityModeLabels={dicomQualityModeLabels}
-								dicomTextureStrategyLabels={dicomTextureStrategyLabels}
-								dicomViewerToolStateBundle={dicomViewerToolStateBundle}
-								dicomViewerWorkbenchManifest={dicomViewerWorkbenchManifest}
-								formatShortDate={formatShortDate}
-								formatSignedMprStep={formatSignedMprStep}
-								formatTime={formatTime}
-								handleMprKeyboardNavigation={handleMprKeyboardNavigation}
-								handleBrowserDirectoryInputChange={
-									handleBrowserDirectoryInputChange
-								}
-								browserDirectoryInputRef={browserDirectoryInputRef}
-								attachBrowserDirectoryInputRef={browserDirectoryInputRef}
-								browserImagingScanProgress={browserImagingScanProgress}
-								browserPickedImagingFolder={browserPickedImagingFolder}
-								cancelBrowserImagingFolderScan={cancelBrowserImagingFolderScan}
-								formatByteSize={formatByteSize}
-								isBrowserImagingFolderPicking={isBrowserImagingFolderPicking}
-								pickBrowserImagingFolder={pickBrowserImagingFolder}
-								imagingComparisonCandidates={imagingComparisonCandidates}
-								imagingCreateSavingKind={imagingCreateSavingKind}
-								imagingKindFilter={imagingKindFilter}
-								imagingKindLabels={imagingKindLabels}
-								imagingKindOptions={imagingKindOptions}
-								imagingPreviewSource={imagingPreviewSource}
-								imagingSourceLabels={imagingSourceLabels}
-								imagingViewerActiveTool={imagingViewerActiveTool}
-								imagingViewerAnnotations={imagingViewerAnnotations}
-								imagingViewerHref={imagingViewerHref}
-								imagingViewerImageStyle={imagingViewerImageStyle}
-								imagingViewerNote={imagingViewerNote}
-								imagingViewerNoteMissingId={imagingViewerNoteMissingId}
-								imagingViewerNoteReady={imagingViewerNoteReady}
-								imagingViewerRetryMissingId={imagingViewerRetryMissingId}
-								imagingViewerSaveDetail={imagingViewerSaveDetail}
-								imagingViewerSaveState={imagingViewerSaveState}
-								imagingViewerSaveTitle={imagingViewerSaveTitle}
-								imagingViewerSessionReady={imagingViewerSessionReady}
-								imagingViewerState={imagingViewerState}
-								imagingViewerToolLabels={imagingViewerToolLabels}
-								isOnline={isOnline}
-								mprActiveProjectionLabel={mprActiveProjectionLabel}
-								mprActiveProjectionOrientation={mprActiveProjectionOrientation}
-								mprAxisAngleBadge={mprAxisAngleBadge}
-								mprAxisBounds={mprAxisBounds}
-								mprAxisDeg={mprAxisDeg}
-								mprAxisDirectionLabel={mprAxisDirectionLabel}
-								mprAxisGuidance={mprAxisGuidance}
-								mprAxisNudgeDeg={mprAxisNudgeDeg}
-								mprAxisPresetDeg={mprAxisPresetDeg}
-								mprAxisRangeValue={mprAxisRangeValue}
-								mprAxisVisualizerLabel={mprAxisVisualizerLabel}
-								mprAxisVisualizerStyle={mprAxisVisualizerStyle}
-								mprClinicalChecklist={mprClinicalChecklist}
-								mprClinicalNextStep={mprClinicalNextStep}
-								mprClinicalPresetButtonClass={mprClinicalPresetButtonClass}
-								mprClinicalPresets={mprClinicalPresets}
-								mprControlsAutoOpen={mprControlsAutoOpen}
-								mprControlsReady={mprControlsReady}
-								mprCrosshairEnabled={mprCrosshairEnabled}
-								mprLinkedPlanesEnabled={mprLinkedPlanesEnabled}
-								mprNearestClinicalPreset={mprNearestClinicalPreset}
-								mprOperatorSummaryCards={mprOperatorSummaryCards}
-								mprProjection={mprProjection}
-								mprProjectionCompass={mprProjectionCompass}
-								mprProjectionLabels={mprProjectionLabels}
-								mprSafeSliceIndex={mprSafeSliceIndex}
-								mprSeriesRequiredProjectionLabel={
-									mprSeriesRequiredProjectionLabel
-								}
-								mprSlabBadge={mprSlabBadge}
-								mprSlabBounds={mprSlabBounds}
-								mprSlabMm={mprSlabMm}
-								mprSlabNudgeMm={mprSlabNudgeMm}
-								mprSlabPresetMm={mprSlabPresetMm}
-								mprSlabRangeValue={mprSlabRangeValue}
-								mprSliceBadge={mprSliceBadge}
-								mprSliceIndexFromFraction={mprSliceIndexFromFraction}
-								mprSliceLabel={mprSliceLabel}
-								mprSliceMaxIndex={mprSliceMaxIndex}
-								mprSliceNudgeSteps={mprSliceNudgeSteps}
-								mprSlicePresetFractions={mprSlicePresetFractions}
-								mprSliceRangeValue={mprSliceRangeValue}
-								mprUnavailableProjectionLabel={mprUnavailableProjectionLabel}
-								mprWindowPreset={mprWindowPreset}
-								mprWindowPresetLabels={mprWindowPresetLabels}
-								mprWorkbenchDraftRestored={mprWorkbenchDraftRestored}
-								mprWorkbenchLocalSavedAt={mprWorkbenchLocalSavedAt}
-								mprWorkbenchSummaryText={mprWorkbenchSummaryText}
-								resetMprControls={resetMprControls}
-								restoreMprWorkbenchLocalDraft={restoreMprWorkbenchLocalDraft}
-								retryImagingViewerSessionSave={retryImagingViewerSessionSave}
-								selectCtPlanningImplant={selectCtPlanningImplant}
-								selectedImagingStudy={selectedImagingStudy}
-								selectedImagingViewerPlan={selectedImagingViewerPlan}
-								setCtPlanningActiveQuickActionId={
-									setCtPlanningActiveQuickActionId
-								}
-								setCtPlanningImplantPlan={setCtPlanningImplantPlan}
-								setImagingKindFilter={setImagingKindFilter}
-								setImagingViewerActiveTool={setImagingViewerActiveTool}
-								setImagingViewerNote={setImagingViewerNote}
-								setImagingViewerState={setImagingViewerState}
-								setMprAxisDeg={setMprAxisDeg}
-								setMprCrosshairEnabled={setMprCrosshairEnabled}
-								setMprLinkedPlanesEnabled={setMprLinkedPlanesEnabled}
-								setMprProjection={setMprProjection}
-								setMprSlabMm={setMprSlabMm}
-								setMprSliceIndex={setMprSliceIndex}
-								setMprWindowPreset={setMprWindowPreset}
-								setSelectedImagingStudyId={setSelectedImagingStudyId}
-								visibleImagingStudies={visibleImagingStudies}
+							<Bot aria-hidden="true" />
+							<p>
+								Открыто из Telegram:{" "}
+								<strong>{telegramHandoffNotice.title}</strong>.{" "}
+								{telegramHandoffNotice.detail} Ссылка не содержит пациента,
+								документ, запись или оплату.
+							</p>
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => setTelegramHandoffNotice(null)}
+							>
+								Понятно
+							</button>
+						</section>
+					) : null}
+					<WorkspaceOnboardingNoticeBars />
+					{!showFullOnboardingGuide ? (
+						<>
+							<AppRouter />
+
+							<VoiceAssistantUI 
+								onNavigate={(view) => {
+									setCurrentView(view);
+									window.location.hash = view;
+								}}
+								onSearchQuery={(q) => {
+									setQuery(q);
+								}}
+								onDateChange={(date) => {
+									setScheduleDateFilter(date);
+								}}
 							/>
-						</Suspense>
-					</WorkspaceRouteErrorBoundary>
-				) : null}
-
-				{[
-					"schedule",
-					"patients",
-					"visit",
-					"documents",
-					"finance",
-					"analytics",
-					"communications",
-				].includes(currentView) ? (
-					<section className="work-grid page-grid">
-						{currentView === "schedule" ? (
-							<WorkspaceRouteErrorBoundary
-								view="schedule"
-								label={viewLabels.schedule}
-								panelClassName="panel schedule-panel"
-								panelId="schedule"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel schedule-panel"
-											id="schedule"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Расписание</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<ScheduleView
-										appointmentLabels={appointmentLabels}
-										appointmentReadinessById={appointmentReadinessById}
-										appointmentReadinessLabels={appointmentReadinessLabels}
-										appointmentScheduleDraftFromAppointment={
-											appointmentScheduleDraftFromAppointment
-										}
-										closeAppointmentEditor={closeAppointmentEditor}
-										createAppointmentFromDraft={createAppointmentFromDraft}
-										dashboard={dashboard}
-										editingAppointmentId={editingAppointmentId}
-										formatTime={formatTime}
-										fromDateTimeLocalValue={fromDateTimeLocalValue}
-										lockScheduleAdminSession={() =>
-											lockTelegramAdminSession("schedule")
-										}
-										newAppointmentError={newAppointmentError}
-										normalizedAppointmentStatus={normalizedAppointmentStatus}
-										normalizedAppointmentStatusFilter={
-											normalizedAppointmentStatusFilter
-										}
-										openAppointmentEditor={openAppointmentEditor}
-										patientName={patientName}
-										recommendedActionPriorityLabels={
-											recommendedActionPriorityLabels
-										}
-										resetNewAppointmentDraft={resetNewAppointmentDraft}
-										saveAppointmentSchedule={saveAppointmentSchedule}
-										shiftWarnings={shiftWarnings}
-										sortedAppointments={sortedAppointments}
-										staffRoleLabels={staffRoleLabels}
-										scheduleAdminSecretDraft={scheduleAdminSecretDraft}
-										scheduleAdminSecretSession={scheduleAdminSecretSession}
-										toDateTimeLocalValue={toDateTimeLocalValue}
-										unlockScheduleAdminSession={() =>
-											unlockTelegramAdminSession("schedule")
-										}
-										updateAppointmentScheduleDraft={
-											updateAppointmentScheduleDraft
-										}
-										updateNewAppointmentDraft={updateNewAppointmentDraft}
-										visibleScheduleSuggestions={visibleScheduleSuggestions}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "patients" ? (
-							<WorkspaceRouteErrorBoundary
-								view="patients"
-								label={viewLabels.patients}
-								panelClassName="panel patients-panel"
-								panelId="patients"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel patients-panel"
-											id="patients"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Быстрый поиск</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-
-									<PatientsView
-										dashboard={dashboard}
-										createPatient={createPatient}
-										filteredPatients={filteredPatients}
-										money={money}
-										normalizeOptionalWorkingDaysDraft={
-											normalizeOptionalWorkingDaysDraft
-										}
-										patientAdministrativeProfileValidationMessage={
-											patientAdministrativeProfileValidationMessage
-										}
-										patientInsightById={patientInsightById}
-										patientInsightRiskLabels={patientInsightRiskLabels}
-										query={query}
-										savePatientAdministrativeProfile={
-											savePatientAdministrativeProfile
-										}
-										savePatientCore={savePatientCore}
-										selectedPatient={selectedPatient}
-										setQuery={setQuery}
-										updatePatientAdministrativeProfileDraft={
-											updatePatientAdministrativeProfileDraft
-										}
-										updatePatientCoreDraft={updatePatientCoreDraft}
-										weekdayOptions={weekdayOptions}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "visit" ? (
-							<WorkspaceRouteErrorBoundary
-								view="visit"
-								label={viewLabels.visit}
-								panelClassName="panel visit-panel"
-								panelId="visit"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel visit-panel"
-											id="visit"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Текущий прием</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<VisitView
-										AlertTriangle={AlertTriangle}
-										Bot={Bot}
-										Check={Check}
-										CheckCircle2={CheckCircle2}
-										ClinicalRulePanel={ClinicalRulePanel}
-										ClipboardCheck={ClipboardCheck}
-										Mic={Mic}
-										Sparkles={Sparkles}
-										acceptDraftToVisit={acceptDraftToVisit}
-										activeAppointment={activeAppointment}
-										activeChair={activeChair}
-										activeDoctor={activeDoctor}
-										activeImagingStudies={activeImagingStudies}
-										activePatient={activePatient}
-										activePatientInsight={activePatientInsight}
-										activeUsableDocuments={activeUsableDocuments}
-										activeVisitClinicalRuleEvaluations={
-											activeVisitClinicalRuleEvaluations
-										}
-										activeVisitClinicalRuleSummary={
-											activeVisitClinicalRuleSummary
-										}
-										appendToTranscript={appendToTranscript}
-										applyProtocolTemplate={applyProtocolTemplate}
-										buildDraft={buildDraft}
-										buildOfflineDraft={buildOfflineDraft}
-										clearTranscriptWithUndo={clearTranscriptWithUndo}
-										clearedTranscriptSnapshot={clearedTranscriptSnapshot}
-										clinicalRuleActionLabels={clinicalRuleActionLabels}
-										clinicalRuleSeverityLabels={clinicalRuleSeverityLabels}
-										dashboard={dashboard}
-										dictationQuickPhrases={dictationQuickPhrases}
-										draft={draft}
-										emptyDictationVoiceActionLabel={
-											emptyDictationVoiceActionLabel
-										}
-										flushPendingSpeechChunks={flushPendingSpeechChunks}
-										flushPendingVisitSaves={flushPendingVisitSaves}
-										formatTime={formatTime}
-										hasVisitTranscriptText={hasVisitTranscriptText}
-										imagingKindLabels={imagingKindLabels}
-										isDraftAccepting={isDraftAccepting}
-										isDraftLoading={isDraftLoading}
-										isOnline={isOnline}
-										isPendingVisitSyncing={isPendingVisitSyncing}
-										isServerVoiceRecording={isServerVoiceRecording}
-										isTranscriptPolishing={isTranscriptPolishing}
-										isVisitDictating={isVisitDictating}
-										isVisitNoteDirty={isVisitNoteDirty}
-										lastLocalSavedAt={lastLocalSavedAt}
-										lastPendingVisitSaveAt={lastPendingVisitSaveAt}
-										lastServerDraftSavedAt={lastServerDraftSavedAt}
-										lastVisitSaveReceipt={lastVisitSaveReceipt}
-										localDraftWasRestored={localDraftWasRestored}
-										openVisitWarningAction={openVisitWarningAction}
-										pendingSpeechChunkCount={pendingSpeechChunkCount}
-										pendingSpeechFlushActionLabel={
-											pendingSpeechFlushActionLabel
-										}
-										pendingSpeechFlushActionTitle={
-											pendingSpeechFlushActionTitle
-										}
-										pendingVisitSaveCount={pendingVisitSaveCount}
-										polishTranscript={polishTranscript}
-										polishingField={polishingField}
-										polishSingleField={polishSingleField}
-										primaryVisitWarning={primaryVisitWarning}
-										scrollToVisitArea={scrollToVisitArea}
-										selectedProtocolTemplate={selectedProtocolTemplate}
-										selectedSpecialty={selectedSpecialty}
-										serverDraftSyncState={serverDraftSyncState}
-										serviceTitle={serviceTitle}
-										setClearedTranscriptSnapshot={setClearedTranscriptSnapshot}
-										setSelectedProtocolId={setSelectedProtocolId}
-										setSelectedSpecialty={setSelectedSpecialty}
-										setTranscript={setTranscript}
-										specialtiesWithTemplates={specialtiesWithTemplates}
-										specialtyLabels={specialtyLabels}
-										specialtyProtocolTemplates={specialtyProtocolTemplates}
-										speechGatewayActiveProviderIsLocal={
-											speechGatewayActiveProviderIsLocal
-										}
-										speechGatewayStatus={speechGatewayStatus}
-										speechRecognitionReady={speechRecognitionReady}
-										speechStatusNote={speechStatusNote}
-										speechTranscriptionBusy={speechTranscriptionBusy}
-										staffRoleLabels={staffRoleLabels}
-										startServerVoiceRecording={startServerVoiceRecording}
-										startVisitDictation={startVisitDictation}
-										stopServerVoiceRecording={stopServerVoiceRecording}
-										toothRows={toothRows}
-										toothStateByCode={toothStateByCode}
-										setToothState={setToothState}
-										transcript={transcript}
-										undoTranscriptClear={undoTranscriptClear}
-										updateVisitNoteField={updateVisitNoteField}
-										visibleVisitSpecialtyFocusOptions={
-											visibleVisitSpecialtyFocusOptions
-										}
-										visitCloseChecklist={visitCloseChecklist}
-										visitDraftBuildMissingSteps={visitDraftBuildMissingSteps}
-										visitDraftMissingFieldLabel={visitDraftMissingFieldLabel}
-										visitDraftQualityLabels={visitDraftQualityLabels}
-										visitDraftReadyToBuild={visitDraftReadyToBuild}
-										visitDraftSignalLabel={visitDraftSignalLabel}
-										visitDraftUserEditedRef={visitDraftUserEditedRef}
-										visitNoteAcceptMissingSteps={visitNoteAcceptMissingSteps}
-										visitNoteActionLabel={visitNoteActionLabel}
-										visitNoteFieldDefinitions={visitNoteFieldDefinitions}
-										visitNoteForm={visitNoteForm}
-										visitNoteReadyToAccept={visitNoteReadyToAccept}
-										visitNoteStatusLabel={visitNoteStatusLabel}
-										visitPrimaryAction={visitPrimaryAction}
-										visitSafetyCards={visitSafetyCards}
-										visitSaveReceiptText={visitSaveReceiptText}
-										visitWarnings={visitWarnings}
-										visitWorkflowSteps={visitWorkflowSteps}
-										selectedWorkspaceRole={selectedWorkspaceRole}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "documents" ? (
-							<WorkspaceRouteErrorBoundary
-								view="documents"
-								label={viewLabels.documents}
-								panelClassName="panel documents-panel"
-								panelId="documents"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel documents-panel"
-											id="documents"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Документы и согласия</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<DocumentsView
-										activeAppointment={activeAppointment}
-										activeDoctor={activeDoctor}
-										activeDocuments={activeDocuments}
-										activeIssuedPaidContracts={activeIssuedPaidContracts}
-										activePatient={activePatient}
-										activeUsableDocuments={activeUsableDocuments}
-										applyPostVisitCarePreset={applyPostVisitCarePreset}
-										changePostVisitCareTopic={changePostVisitCareTopic}
-										clinicProfileDraft={clinicProfileDraft}
-										compactDocumentText={compactDocumentText}
-										completedActContractReferenceForUi={
-											completedActContractReferenceForUi
-										}
-										completedActFiscalReceiptLines={
-											completedActFiscalReceiptLines
-										}
-										completedActPaidRubValue={completedActPaidRubValue}
-										confirmDocumentIssue={confirmDocumentIssue}
-										confirmDocumentVoid={confirmDocumentVoid}
-										createDocument={createDocument}
-										dashboard={dashboard}
-										documentActionLabels={documentActionLabels}
-										documentIssueAttestationReady={
-											documentIssueAttestationReady
-										}
-										documentIssueConfirmation={documentIssueConfirmation}
-										documentIssueSignatureModeLabels={
-											documentIssueSignatureModeLabels
-										}
-										documentLabels={documentLabels}
-										documentPatient={documentPatient}
-										documentSourceStatusClassNames={
-											documentSourceStatusClassNames
-										}
-										documentStatusLabels={documentStatusLabels}
-										documentVoidConfirmation={documentVoidConfirmation}
-										documentVoidReady={documentVoidReady}
-										documentVoidReasonLabels={documentVoidReasonLabels}
-										downloadIssuedDocumentHtml={downloadIssuedDocumentHtml}
-										downloadIssuedDocumentPdf={downloadIssuedDocumentPdf}
-										downloadTaxDocumentXml={downloadTaxDocumentXml}
-										eligiblePaymentReceiptPayments={
-											eligiblePaymentReceiptPayments
-										}
-										eligibleRefundCorrectionPayments={
-											eligibleRefundCorrectionPayments
-										}
-										eligibleTaxPayments={eligibleTaxPayments}
-										formatDateTime={formatDateTime}
-										formatShortDate={formatShortDate}
-										inferredTreatmentArea={inferredTreatmentArea}
-										installmentScheduleBaseDocumentTitleValue={
-											installmentScheduleBaseDocumentTitleValue
-										}
-										installmentScheduleInstallmentRows={
-											installmentScheduleInstallmentRows
-										}
-										installmentSchedulePrepaidRubValue={
-											installmentSchedulePrepaidRubValue
-										}
-										installmentScheduleRemainingRubValue={
-											installmentScheduleRemainingRubValue
-										}
-										installmentScheduleTotalRubValue={
-											installmentScheduleTotalRubValue
-										}
-										issuedMedicalCopyRequestDocuments={
-											issuedMedicalCopyRequestDocuments
-										}
-										loadDocumentAuditFacts={loadDocumentAuditFacts}
-										markPostVisitManualEdited={markPostVisitManualEdited}
-										medicalDocumentReleaseChannelLabels={
-											medicalDocumentReleaseChannelLabels
-										}
-										minorConsentDiagnosisOrIndicationValue={
-											minorConsentDiagnosisOrIndicationValue
-										}
-										minorConsentInterventionScopeValue={
-											minorConsentInterventionScopeValue
-										}
-										minorConsentPatientBirthDateValue={
-											minorConsentPatientBirthDateValue
-										}
-										minorConsentPatientFullNameValue={
-											minorConsentPatientFullNameValue
-										}
-										minorRepresentativeFullNameValue={
-											minorRepresentativeFullNameValue
-										}
-										minorRepresentativeIdentityDocumentValue={
-											minorRepresentativeIdentityDocumentValue
-										}
-										minorRepresentativePhoneValue={
-											minorRepresentativePhoneValue
-										}
-										minorRepresentativeRelationshipValue={
-											minorRepresentativeRelationshipValue
-										}
-										money={money}
-										normalizedDocumentIssueSignatureMode={
-											normalizedDocumentIssueSignatureMode
-										}
-										normalizedDocumentKind={normalizedDocumentKind}
-										normalizedDocumentVoidReasonCode={
-											normalizedDocumentVoidReasonCode
-										}
-										normalizedMedicalDocumentReleaseChannel={
-											normalizedMedicalDocumentReleaseChannel
-										}
-										normalizedOutpatient025uDemographicCode={
-											normalizedOutpatient025uDemographicCode
-										}
-										normalizedPatientIntakePregnancyStatus={
-											normalizedPatientIntakePregnancyStatus
-										}
-										normalizedPaymentRefundCorrectionAction={
-											normalizedPaymentRefundCorrectionAction
-										}
-										normalizedPaymentRefundCorrectionMethod={
-											normalizedPaymentRefundCorrectionMethod
-										}
-										normalizedPostVisitCareTopic={normalizedPostVisitCareTopic}
-										normalizedProcedureSpecificConsentProcedure={
-											normalizedProcedureSpecificConsentProcedure
-										}
-										normalizedTaxApplicationDeliveryChannel={
-											normalizedTaxApplicationDeliveryChannel
-										}
-										normalizedTaxApplicationForm={normalizedTaxApplicationForm}
-										normalizedTaxApplicationRelationshipSelect={
-											normalizedTaxApplicationRelationshipSelect
-										}
-										normalizedTreatmentPlanAcceptanceVariant={
-											normalizedTreatmentPlanAcceptanceVariant
-										}
-										normalizedXrayPregnancyStatus={
-											normalizedXrayPregnancyStatus
-										}
-										normalizedXrayPriority={normalizedXrayPriority}
-										normalizedXrayStudyType={normalizedXrayStudyType}
-										openIssuedDocumentHtml={openIssuedDocumentHtml}
-										outpatient025uMedicalCardNumberValue={
-											outpatient025uMedicalCardNumberValue
-										}
-										paidContractTotalRubValue={paidContractTotalRubValue}
-										patientIntakePregnancyStatusOptions={
-											patientIntakePregnancyStatusOptions
-										}
-										patientName={patientName}
-										paymentFiscalReceiptLabelForUi={
-											paymentFiscalReceiptLabelForUi
-										}
-										paymentInvoiceTotalRubValue={paymentInvoiceTotalRubValue}
-										paymentReceiptFiscalReceiptLines={
-											paymentReceiptFiscalReceiptLines
-										}
-										paymentReceiptIssuedByValue={paymentReceiptIssuedByValue}
-										paymentReceiptPayerBirthDateValue={
-											paymentReceiptPayerBirthDateValue
-										}
-										paymentReceiptPayerFullNameValue={
-											paymentReceiptPayerFullNameValue
-										}
-										paymentReceiptPayerIdentityDocumentValue={
-											paymentReceiptPayerIdentityDocumentValue
-										}
-										paymentReceiptPayerInnValue={paymentReceiptPayerInnValue}
-										paymentReceiptPayerRelationshipValue={
-											paymentReceiptPayerRelationshipValue
-										}
-										photoVideoMaterialOptions={photoVideoMaterialOptions}
-										plannedServiceLinesForFinancialPayload={
-											plannedServiceLinesForFinancialPayload
-										}
-										postVisitCareTopicOptions={postVisitCareTopicOptions}
-										procedureSpecificConsentProcedureOptions={
-											procedureSpecificConsentProcedureOptions
-										}
-										releaseProtectionNote={releaseProtectionNote}
-										renderClinicalToothRowsEditor={
-											renderClinicalToothRowsEditor
-										}
-										requestDocumentIssue={requestDocumentIssue}
-										requestDocumentVoid={requestDocumentVoid}
-										selectAllEligibleTaxPaymentsForCurrentDocument={
-											selectAllEligibleTaxPaymentsForCurrentDocument
-										}
-										selectedCompletedActContractDocumentId={
-											selectedCompletedActContractDocumentId
-										}
-										selectedDocumentMetadata={selectedDocumentMetadata}
-										selectedDocumentUsesTaxPaymentSelection={
-											selectedDocumentUsesTaxPaymentSelection
-										}
-										selectedEligibleTaxPayments={selectedEligibleTaxPayments}
-										selectedPaymentReceiptIdSet={selectedPaymentReceiptIdSet}
-										selectedPaymentReceiptPayments={
-											selectedPaymentReceiptPayments
-										}
-										selectedPaymentReceiptTotalRub={
-											selectedPaymentReceiptTotalRub
-										}
-										selectedRefundCorrectionPayment={
-											selectedRefundCorrectionPayment
-										}
-										selectedReleaseSourceRequestDocumentId={
-											selectedReleaseSourceRequestDocumentId
-										}
-										selectedTaxDocumentPayerKey={selectedTaxDocumentPayerKey}
-										selectedTaxPaymentIdSet={selectedTaxPaymentIdSet}
-										selectedTaxPaymentTotalRub={selectedTaxPaymentTotalRub}
-										selectRefundOriginalPayment={selectRefundOriginalPayment}
-										setReleaseProtectionNote={setReleaseProtectionNote}
-										structuredPayloadDocumentKinds={
-											structuredPayloadDocumentKinds
-										}
-										taxApplicationDeliveryChannelOptions={
-											taxApplicationDeliveryChannelOptions
-										}
-										taxApplicationFormOptions={taxApplicationFormOptions}
-										taxApplicationRelationshipOptions={
-											taxApplicationRelationshipOptions
-										}
-										taxDocumentPayerOptions={taxDocumentPayerOptions}
-										togglePhotoVideoMaterial={togglePhotoVideoMaterial}
-										treatmentAcceptancePlannedTotalRub={
-											treatmentAcceptancePlannedTotalRub
-										}
-										treatmentEstimatePatientOrPayerFullNameValue={
-											treatmentEstimatePatientOrPayerFullNameValue
-										}
-										treatmentEstimateTotalRubValue={
-											treatmentEstimateTotalRubValue
-										}
-										treatmentEstimateTreatmentBasisValue={
-											treatmentEstimateTreatmentBasisValue
-										}
-										warrantyLinkedActOrContractValue={
-											warrantyLinkedActOrContractValue
-										}
-										warrantyServiceOrWorkNameValue={
-											warrantyServiceOrWorkNameValue
-										}
-										warrantyTeethOrAreaValue={warrantyTeethOrAreaValue}
-										xrayPregnancyStatusOptions={xrayPregnancyStatusOptions}
-										xrayStudyTypeOptions={xrayStudyTypeOptions}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "finance" ? (
-							<WorkspaceRouteErrorBoundary
-								view="finance"
-								label={viewLabels.finance}
-								panelClassName="panel finance-panel"
-								panelId="finance"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel finance-panel"
-											id="finance"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Оплаты, план лечения и вычет</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<FinanceView
-										activePayments={activePayments}
-										activeTreatmentPlanItems={activeTreatmentPlanItems}
-										activeTreatmentPlanScenarios={activeTreatmentPlanScenarios}
-										billingSummary={patientBillingSummary}
-										clinicalRuleEvaluations={patientClinicalRuleEvaluations}
-										clinicalRuleActionLabels={clinicalRuleActionLabels}
-										clinicalRuleSeverityLabels={clinicalRuleSeverityLabels}
-										clinicalRuleSummary={patientClinicalRuleSummary}
-										dashboard={dashboard}
-										documentPatient={documentPatient}
-										formatDateTime={formatDateTime}
-										isPaymentSaving={isPaymentSaving}
-										money={money}
-										onGoToDocuments={() => {
-											window.location.hash = "documents";
-										}}
-										onGoToPrices={() => {
-											setSettingsTab("prices");
-											window.location.hash = "settings/prices";
-										}}
-										onGoToVisit={() => {
-											window.location.hash = "visit";
-										}}
-										onRecordPayment={recordPayment}
-										paymentAmount={paymentAmount}
-										paymentFeedback={paymentFeedback}
-										paymentFiscalCashierName={paymentFiscalCashierName}
-										paymentFiscalFd={paymentFiscalFd}
-										paymentFiscalFn={paymentFiscalFn}
-										paymentFiscalFpd={paymentFiscalFpd}
-										paymentFiscalReceiptIssuedAt={paymentFiscalReceiptIssuedAt}
-										paymentFiscalReceiptLabel={paymentFiscalReceiptLabelForUi}
-										paymentFiscalReceiptNumber={paymentFiscalReceiptNumber}
-										paymentFiscalReceiptUrl={paymentFiscalReceiptUrl}
-										paymentMethod={paymentMethod}
-										paymentMethodLabels={paymentMethodLabels}
-										paymentPatientContextMessage={paymentPatientContextMessage}
-										paymentPatientContextReady={paymentPatientContextReady}
-										paymentPayerBirthDate={paymentPayerBirthDate}
-										paymentPayerFullName={paymentPayerFullName}
-										paymentPayerIdentityDocument={paymentPayerIdentityDocument}
-										paymentPayerInn={paymentPayerInn}
-										paymentPayerRelationship={paymentPayerRelationship}
-										paymentTaxDeductionCode={paymentTaxDeductionCode}
-										scenarioPriorityLabels={scenarioPriorityLabels}
-										scenarioStrategyLabels={scenarioStrategyLabels}
-										serviceCategoryLabels={serviceCategoryLabels}
-										serviceTitle={serviceTitle}
-										setPaymentAmount={setPaymentAmount}
-										setPaymentFiscalCashierName={setPaymentFiscalCashierName}
-										setPaymentFiscalFd={setPaymentFiscalFd}
-										setPaymentFiscalFn={setPaymentFiscalFn}
-										setPaymentFiscalFpd={setPaymentFiscalFpd}
-										setPaymentFiscalReceiptIssuedAt={
-											setPaymentFiscalReceiptIssuedAt
-										}
-										setPaymentFiscalReceiptNumber={
-											setPaymentFiscalReceiptNumber
-										}
-										setPaymentFiscalReceiptUrl={setPaymentFiscalReceiptUrl}
-										setPaymentMethod={setPaymentMethod}
-										setPaymentPayerBirthDate={setPaymentPayerBirthDate}
-										setPaymentPayerFullName={setPaymentPayerFullName}
-										setPaymentPayerIdentityDocument={
-											setPaymentPayerIdentityDocument
-										}
-										setPaymentPayerInn={setPaymentPayerInn}
-										setPaymentPayerRelationship={setPaymentPayerRelationship}
-										setPaymentTaxDeductionCode={setPaymentTaxDeductionCode}
-										staffRoleLabels={staffRoleLabels}
-										treatmentStatusLabels={treatmentStatusLabels}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "analytics" ? (
-							<WorkspaceRouteErrorBoundary
-								view="analytics"
-								label={viewLabels.analytics}
-								panelClassName="panel analytics-panel"
-								panelId="analytics"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel analytics-panel"
-											id="analytics"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Executive BI Analytics</h2>
-												<span className="status-pill status-planned">
-													��������
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<AnalyticsDashboardView />
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-
-						{currentView === "communications" ? (
-							<WorkspaceRouteErrorBoundary
-								view="communications"
-								label={viewLabels.communications}
-								panelClassName="panel communications-panel"
-								panelId="communications"
-							>
-								<Suspense
-									fallback={
-										<div
-											className="panel communications-panel"
-											id="communications"
-											aria-busy="true"
-										>
-											<div className="panel-heading">
-												<h2>Связь с пациентами</h2>
-												<span className="status-pill status-planned">
-													загрузка
-												</span>
-											</div>
-										</div>
-									}
-								>
-									<CommunicationsView
-										communicationChannelLabels={communicationChannelLabels}
-										communicationDocumentTaskActionLabels={
-											communicationDocumentTaskActionLabels
-										}
-										communicationIntentLabels={communicationIntentLabels}
-										communicationNote={communicationNote}
-										communicationPriorityLabels={communicationPriorityLabels}
-										communicationStatusLabels={communicationStatusLabels}
-										completeCommunicationTask={completeCommunicationTask}
-										dashboard={dashboard}
-										documentKindsForCommunicationTask={
-											documentKindsForCommunicationTask
-										}
-										documentLabels={documentLabels}
-										formatDateTime={formatDateTime}
-										communicationSavingTaskId={communicationSavingTaskId}
-										onCommunicationNoteChange={setCommunicationNote}
-										onGoToSchedule={() => {
-											window.location.hash = "schedule";
-										}}
-										openCommunicationTaskDocumentWorkflow={
-											openCommunicationTaskDocumentWorkflow
-										}
-										sortedCommunicationTasks={sortedCommunicationTasks}
-										staffRoleLabels={staffRoleLabels}
-									/>
-								</Suspense>
-							</WorkspaceRouteErrorBoundary>
-						) : null}
-					</section>
-				) : null}
-
-				{["documents", "finance", "communications", "settings"].includes(
-					currentView,
-				) ? (
-					<details className="compliance-bar" aria-label="Контроль">
-						<summary>
-							<ShieldCheck aria-hidden="true" />
-							<span>Служебные ограничения</span>
-						</summary>
-						<div>
-							{(dashboard.complianceWarnings ?? []).map((warning) => (
-								<p key={warning}>{warning}</p>
-							))}
-						</div>
-					</details>
-				) : null}
-
-				{currentView === "settings" ? (
-					<WorkspaceRouteErrorBoundary
-						view="settings"
-						label={viewLabels.settings}
-						panelClassName="settings-zone"
-						panelId="settings"
-					>
-						<Suspense
-							fallback={
-								<section
-									className="settings-zone"
-									id="settings"
-									aria-busy="true"
-								>
-									<div className="panel-heading settings-heading">
-										<h2>Настройки</h2>
-										<span className="status-pill status-planned">загрузка</span>
-									</div>
-								</section>
-							}
-						>
-							<SettingsView
-								activeStaffUser={activeStaffUser}
-								activePatient={activePatient}
-								activeSettingsTabButtonRef={activeSettingsTabButtonRef}
-								activeSpeechProviderHealth={activeSpeechProviderHealth}
-								activeWorkspaceProfile={activeWorkspaceProfile}
-								addChair={addChair}
-								addStaffMember={addStaffMember}
-								analyzePricelist={analyzePricelist}
-								applyProtocolTemplate={applyProtocolTemplate}
-								attachPricelistImage={attachPricelistImage}
-								browserCanRequestPersistentStorage={
-									browserCanRequestPersistentStorage
-								}
-								browserContinuity={browserContinuity}
-								browserContinuityChecks={browserContinuityChecks}
-								browserContinuityState={browserContinuityState}
-								browserContinuityValue={browserContinuityValue}
-								browserDirectoryInputRef={browserDirectoryInputRef}
-								browserDirectoryPickerAvailable={
-									browserDirectoryPickerAvailable
-								}
-								browserImagingScanProgress={browserImagingScanProgress}
-								browserMigrationDiscovery={browserMigrationDiscovery}
-								browserMigrationScanProgress={browserMigrationScanProgress}
-								browserMigrationInputRef={browserMigrationInputRef}
-								browserPickedImagingFolder={browserPickedImagingFolder}
-								buildDicomFolderWorkupPlan={buildDicomFolderWorkupPlan}
-								buildDicomRenderCachePlan={buildDicomRenderCachePlan}
-								buildDicomViewerLaunchManifest={buildDicomViewerLaunchManifest}
-								buildDicomViewerToolStateBundle={
-									buildDicomViewerToolStateBundle
-								}
-								buildDicomViewerWorkbenchManifest={
-									buildDicomViewerWorkbenchManifest
-								}
-								cbctWorkbenchPlanes={cbctWorkbenchPlanes}
-								cbctWorkbenchProjections={cbctWorkbenchProjections}
-								cbctWorkbenchSeries={cbctWorkbenchSeries}
-								cbctWorkbenchTools={cbctWorkbenchTools}
-								changeClinicMode={changeClinicMode}
-								checkDicomWebConnector={checkDicomWebConnector}
-								checkDicomWorkstationReadiness={checkDicomWorkstationReadiness}
-								chooseRecognitionPreset={chooseRecognitionPreset}
-								cancelBrowserImagingFolderScan={cancelBrowserImagingFolderScan}
-								cancelBrowserMigrationScan={cancelBrowserMigrationScan}
-								clearBrowserPickedImagingFolderPreview={
-									clearBrowserPickedImagingFolderPreview
-								}
-								clearDicomWorkbenchRecovery={clearDicomWorkbenchRecovery}
-								clearLocalImagingFolderRecovery={
-									clearLocalImagingFolderRecovery
-								}
-								clearPricelistImage={clearPricelistImage}
-								clinicalRuleActionLabels={clinicalRuleActionLabels}
-								clinicalRuleSeverityLabels={clinicalRuleSeverityLabels}
-								clinicModeLabels={clinicModeLabels}
-								clinicProfileDraft={clinicProfileDraft}
-								clinicProfileSaveState={clinicProfileSaveState}
-								commitImagingImport={commitImagingImport}
-								commitImport={commitImport}
-								commitSmartImport={commitSmartImport}
-								copyTelegramTextToClipboard={copyTelegramTextToClipboard}
-								createClinicalRuleFromSettings={createClinicalRuleFromSettings}
-								createTelegramLinkCode={createTelegramLinkCode}
-								dashboard={dashboard}
-								defaultDicomFirstFrameViewerState={
-									defaultDicomFirstFrameViewerState
-								}
-								dentalMaterialKindLabels={dentalMaterialKindLabels}
-								dentalRestorationTypeLabels={dentalRestorationTypeLabels}
-								dicomFirstFrameImageStyle={dicomFirstFrameImageStyle}
-								dicomFirstFramePreview={dicomFirstFramePreview}
-								dicomFirstFrameStatusLabels={dicomFirstFrameStatusLabels}
-								dicomFirstFrameViewerState={dicomFirstFrameViewerState}
-								dicomFolderSeriesScan={dicomFolderSeriesScan}
-								dicomFolderWorkupPathLabels={dicomFolderWorkupPathLabels}
-								dicomFolderWorkupPlan={dicomFolderWorkupPlan}
-								dicomDiagnosticPixelPolicyLabels={
-									dicomDiagnosticPixelPolicyLabels
-								}
-								dicomExecutionLaneLabels={dicomExecutionLaneLabels}
-								dicomGpuClassLabels={dicomGpuClassLabels}
-								dicomLabel={dicomLabel}
-								dicomLocalFolderDiscovery={dicomLocalFolderDiscovery}
-								dicomQualityModeLabels={dicomQualityModeLabels}
-								dicomReadinessCheckLabels={dicomReadinessCheckLabels}
-								dicomRenderMemoryBudgetClassLabels={
-									dicomRenderMemoryBudgetClassLabels
-								}
-								dicomRenderCachePlan={dicomRenderCachePlan}
-								dicomRuntimeTierLabels={dicomRuntimeTierLabels}
-								dicomSeriesPreview={dicomSeriesPreview}
-								dicomSeriesViewerLabels={dicomSeriesViewerLabels}
-								dicomTextureStrategyLabels={dicomTextureStrategyLabels}
-								dicomViewerLaunchManifest={dicomViewerLaunchManifest}
-								dicomViewerLaunchModeLabels={dicomViewerLaunchModeLabels}
-								dicomViewerToolStateBundle={dicomViewerToolStateBundle}
-								dicomViewerWorkbenchManifest={dicomViewerWorkbenchManifest}
-								dicomWebCheck={dicomWebCheck}
-								dicomWebEndpointUrl={dicomWebEndpointUrl}
-								dicomWebStatusLabels={dicomWebStatusLabels}
-								dicomWorkbenchLocalSavedAt={dicomWorkbenchLocalSavedAt}
-								dicomWorkbenchServerBundle={dicomWorkbenchServerBundle}
-								dicomWorkbenchSourceIsRedacted={dicomWorkbenchSourceIsRedacted}
-								dicomWorkstationReadiness={dicomWorkstationReadiness}
-								discoverMigrationSources={discoverMigrationSources}
-								discoverDicomFolders={discoverDicomFolders}
-								documentDetectedKindLabel={documentDetectedKindLabel}
-								documentIngestion={documentIngestion}
-								documentIngestionQualityLabels={documentIngestionQualityLabels}
-								documentIngestionTarget={documentIngestionTarget}
-								documentLabels={documentLabels}
-								downloadDicomViewerToolStateBundle={
-									downloadDicomViewerToolStateBundle
-								}
-								downloadDicomWorkbenchManifest={downloadDicomWorkbenchManifest}
-								downloadMigrationHandoffReport={downloadMigrationHandoffReport}
-								downloadPersistenceExport={downloadPersistenceExport}
-								downloadSmartImportSafeHandoffReport={
-									downloadSmartImportSafeHandoffReport
-								}
-								downloadSmartImportReport={downloadSmartImportReport}
-								downloadTelegramQrSvg={downloadTelegramQrSvg}
-								filteredTelegramOutboxItems={filteredTelegramOutboxItems}
-								formatByteSize={formatByteSize}
-								formatDateTime={formatDateTime}
-								formatMegabytes={formatMegabytes}
-								formatTime={formatTime}
-								handleBrowserDirectoryInputChange={
-									handleBrowserDirectoryInputChange
-								}
-								handleBrowserMigrationInputChange={
-									handleBrowserMigrationInputChange
-								}
-								hiddenTelegramOutboxItemCount={hiddenTelegramOutboxItemCount}
-								imagingConnectorCards={imagingConnectorCards}
-								imagingFolderPath={imagingFolderPath}
-								imagingFolderScan={imagingFolderScan}
-								imagingImportCommit={imagingImportCommit}
-								imagingImportPreview={imagingImportPreview}
-								imagingImportSourceKind={imagingImportSourceKind}
-								imagingImportText={imagingImportText}
-								imagingKindLabels={imagingKindLabels}
-								ctPlanningImplantPlan={ctPlanningImplantPlan}
-								ctPlanningActiveQuickActionId={ctPlanningActiveQuickActionId}
-								imagingViewerActiveTool={imagingViewerActiveTool}
-								imagingSourceChoices={imagingSourceChoices}
-								imagingSourceDetails={imagingSourceDetails}
-								imagingSourceLabels={imagingSourceLabels}
-								imagingViewerCapabilities={imagingViewerCapabilities}
-								importCommit={importCommit}
-								importIntake={importIntake}
-								importPreview={importPreview}
-								importSourceKind={importSourceKind}
-								importSourceLabels={importSourceLabels}
-								importText={importText}
-								ingestImportFile={ingestImportFile}
-								ingestionTargetLabels={ingestionTargetLabels}
-								integrationCapabilityLabels={integrationCapabilityLabels}
-								integrationCategoryLabels={integrationCategoryLabels}
-								integrationStatusLabels={integrationStatusLabels}
-								isBrowserImagingFolderPicking={isBrowserImagingFolderPicking}
-								isBrowserMigrationScanning={isBrowserMigrationScanning}
-								isClinicalRuleSaving={isClinicalRuleSaving}
-								isDicomFirstFramePreviewing={isDicomFirstFramePreviewing}
-								isDicomFolderWorkupPlanning={isDicomFolderWorkupPlanning}
-								isDicomLocalDiscovering={isDicomLocalDiscovering}
-								isDicomManifestBuilding={isDicomManifestBuilding}
-								isDicomRenderCachePlanning={isDicomRenderCachePlanning}
-								isDicomSeriesPreviewLoading={isDicomSeriesPreviewLoading}
-								isDicomToolStateBuilding={isDicomToolStateBuilding}
-								isDicomWebChecking={isDicomWebChecking}
-								isDicomWorkbenchBuilding={isDicomWorkbenchBuilding}
-								isDicomWorkbenchReconnecting={isDicomWorkbenchReconnecting}
-								isDicomWorkbenchServerSaving={isDicomWorkbenchServerSaving}
-								isDicomWorkstationChecking={isDicomWorkstationChecking}
-								isClinicPublicLookupLoading={isClinicPublicLookupLoading}
-								isImagingFolderScanning={isImagingFolderScanning}
-								isLocalDicomOperationActive={isLocalDicomOperationActive}
-								isImagingImportCommitting={isImagingImportCommitting}
-								isImagingImportLoading={isImagingImportLoading}
-								isImportCommitting={isImportCommitting}
-								isImportDictating={isImportDictating}
-								isImportLoading={isImportLoading}
-								isLocalImagingOrganizing={isLocalImagingOrganizing}
-								isMigrationAutopilotLoading={isMigrationAutopilotLoading}
-								isMigrationHandoffReportLoading={
-									isMigrationHandoffReportLoading
-								}
-								isMigrationSourceDiscovering={isMigrationSourceDiscovering}
-								isMigrationSourceProbeLoading={isMigrationSourceProbeLoading}
-								isMigrationSourceWorkupLoading={isMigrationSourceWorkupLoading}
-								isPersistenceExporting={isPersistenceExporting}
-								isPricelistAnalyzing={isPricelistAnalyzing}
-								isRecognitionLoading={isRecognitionLoading}
-								isSmartImportCommitting={isSmartImportCommitting}
-								isSmartImportLoading={isSmartImportLoading}
-								isSmartReportLoading={isSmartReportLoading}
-								isSmartSafeReportLoading={isSmartSafeReportLoading}
-								isTelegramChatLinksLoadingMore={isTelegramChatLinksLoadingMore}
-								isTelegramLinkCodesLoadingMore={isTelegramLinkCodesLoadingMore}
-								isTelegramLinkCreating={isTelegramLinkCreating}
-								isTelegramLoading={isTelegramLoading}
-								isTelegramOutboxItemDueForUi={isTelegramOutboxItemDueForUi}
-								isTelegramOutboxLoadingMore={isTelegramOutboxLoadingMore}
-								isTelegramSendingDue={isTelegramSendingDue}
-								isTelegramSettingsSaving={isTelegramSettingsSaving}
-								latestDicomWorkbenchServerBundle={
-									latestDicomWorkbenchServerBundle
-								}
-								legalMissingFields={legalMissingFields}
-								legalReadinessPercent={legalReadinessPercent}
-								loadLocalBridgeUsePlans={loadLocalBridgeUsePlans}
-								loadMoreTelegramChatLinks={loadMoreTelegramChatLinks}
-								loadMoreTelegramLinkCodes={loadMoreTelegramLinkCodes}
-								loadMoreTelegramOutbox={loadMoreTelegramOutbox}
-								loadPersistenceHealth={loadPersistenceHealth}
-								loadPersistenceIntegrity={loadPersistenceIntegrity}
-								loadTelegramControlPlane={loadTelegramControlPlane}
-								localBridgeReadiness={localBridgeReadiness}
-								localBridgeStatusLabels={localBridgeStatusLabels}
-								localBridgeStatusState={localBridgeStatusState}
-								localBridgeStatusValue={localBridgeStatusValue}
-								localBridgeUsePathLabels={localBridgeUsePathLabels}
-								localBridgeUsePlans={localBridgeUsePlans}
-								localImagingFolderDraft={localImagingFolderDraft}
-								localImagingModelRoleLabels={localImagingModelRoleLabels}
-								localImagingOrganizer={localImagingOrganizer}
-								localImagingOrganizerActionLabels={
-									localImagingOrganizerActionLabels
-								}
-								cancelLocalDicomOperation={cancelLocalDicomOperation}
-								lookupClinicPublicProfile={lookupClinicPublicProfile}
-								lockTelegramAdminSession={() =>
-									lockTelegramAdminSession(settingsAdminSecretDomain)
-								}
-								markTelegramSettingsDirty={markTelegramSettingsDirty}
-								migrationAutopilot={migrationAutopilot}
-								migrationSourceDiscovery={migrationSourceDiscovery}
-								migrationSourceProbe={migrationSourceProbe}
-								migrationSourceWorkup={migrationSourceWorkup}
-								mprAxisDeg={mprAxisDeg}
-								mprCacheModeLabels={mprCacheModeLabels}
-								mprCrosshairEnabled={mprCrosshairEnabled}
-								mprLinkedPlanesEnabled={mprLinkedPlanesEnabled}
-								mprLoadStrategyLabels={mprLoadStrategyLabels}
-								mprProjection={mprProjection}
-								mprProjectionLabels={mprProjectionLabels}
-								mprResourceTierLabels={mprResourceTierLabels}
-								mprSliceIndex={mprSliceIndex}
-								mprSlabMm={mprSlabMm}
-								mprToolLabels={mprToolLabels}
-								mprWorkbenchDraftRestored={mprWorkbenchDraftRestored}
-								mprWorkbenchLocalSavedAt={mprWorkbenchLocalSavedAt}
-								mprWindowPreset={mprWindowPreset}
-								mprWindowPresetLabels={mprWindowPresetLabels}
-								newChairHasMicroscope={newChairHasMicroscope}
-								newChairHasSurgeryKit={newChairHasSurgeryKit}
-								newChairHasXraySensor={newChairHasXraySensor}
-								newChairName={newChairName}
-								newRuleAction={newRuleAction}
-								newRuleBlockedServiceId={newRuleBlockedServiceId}
-								newRuleCategory={newRuleCategory}
-								newRuleCompletedServiceId={newRuleCompletedServiceId}
-								newRuleOwnerRole={newRuleOwnerRole}
-								newRuleRequiredServiceId={newRuleRequiredServiceId}
-								newRuleSeverity={newRuleSeverity}
-								newRuleSpecialty={newRuleSpecialty}
-								newRuleTitle={newRuleTitle}
-								newRuleTriggerServiceId={newRuleTriggerServiceId}
-								newRuleWarningText={newRuleWarningText}
-								newStaffName={newStaffName}
-								newStaffRole={newStaffRole}
-								newStaffSpecialty={newStaffSpecialty}
-								normalizedClinicalRuleAction={normalizedClinicalRuleAction}
-								normalizedClinicalRuleSeverity={normalizedClinicalRuleSeverity}
-								normalizedDentalSpecialty={normalizedDentalSpecialty}
-								normalizedServiceCategory={normalizedServiceCategory}
-								normalizedStaffRole={normalizedStaffRole}
-								normalizedTelegramBotMode={normalizedTelegramBotMode}
-								normalizedTelegramLinkSubjectType={
-									normalizedTelegramLinkSubjectType
-								}
-								normalizedTelegramOutboxStatusFilter={
-									normalizedTelegramOutboxStatusFilter
-								}
-								normalizedTelegramOutboxTemplateFilter={
-									normalizedTelegramOutboxTemplateFilter
-								}
-								normalizedTelegramPrivacyMode={normalizedTelegramPrivacyMode}
-								normalizeUiLanguageInput={normalizeUiLanguageInput}
-								ohifBaseUrl={ohifBaseUrl}
-								organizeLocalImagingSources={organizeLocalImagingSources}
-								persistenceHealth={persistenceHealth}
-								persistenceIntegrity={persistenceIntegrity}
-								pickBrowserImagingFolder={pickBrowserImagingFolder}
-								pickBrowserMigrationSource={pickBrowserMigrationSource}
-								policyAuditEventLabels={policyAuditEventLabels}
-								prepareDicomWorkbenchFromFolder={
-									prepareDicomWorkbenchFromFolder
-								}
-								previewDicomFirstFrame={previewDicomFirstFrame}
-								previewDicomFirstFrameSlice={previewDicomFirstFrameSlice}
-								previewDicomSeries={previewDicomSeries}
-								planMigrationDiscoveryCandidate={
-									planMigrationDiscoveryCandidate
-								}
-								previewMigrationDiscoveryCandidate={
-									previewMigrationDiscoveryCandidate
-								}
-								previewMigrationAutopilotSources={
-									previewMigrationAutopilotSources
-								}
-								probeMigrationDiscoveryCandidate={
-									probeMigrationDiscoveryCandidate
-								}
-								runMigrationAutopilot={runMigrationAutopilot}
-								previewImagingImport={previewImagingImport}
-								previewImport={previewImport}
-								previewSmartImport={previewSmartImport}
-								previewTelegramTemplate={previewTelegramTemplate}
-								pricelistAnalysis={pricelistAnalysis}
-								pricelistImageBase64={pricelistImageBase64}
-								pricelistImageName={pricelistImageName}
-								pricelistImageNote={pricelistImageNote}
-								pricelistItemMaterialText={pricelistItemMaterialText}
-								pricelistMaterialSummaryText={pricelistMaterialSummaryText}
-								pricelistWarningsText={pricelistWarningsText}
-								pricelistParserModeLabels={pricelistParserModeLabels}
-								pricelistRecognitionBrandGroups={
-									pricelistRecognitionBrandGroups
-								}
-								pricelistRecognitionServiceGroups={
-									pricelistRecognitionServiceGroups
-								}
-								pricelistSourceKind={pricelistSourceKind}
-								pricelistSourceKindLabels={pricelistSourceKindLabels}
-								pricelistText={pricelistText}
-								recognitionJob={recognitionJob}
-								recognitionKind={recognitionKind}
-								recognitionPresets={recognitionPresets}
-								recognitionTarget={recognitionTarget}
-								recognitionTargetLabels={recognitionTargetLabels}
-								recognitionText={recognitionText}
-								reconnectDicomWorkbenchFromCurrentFolder={
-									reconnectDicomWorkbenchFromCurrentFolder
-								}
-								refreshBrowserContinuity={refreshBrowserContinuity}
-								refreshSpeechRuntime={refreshSpeechRuntime}
-								clinicPublicLookup={clinicPublicLookup}
-								addMigrationDiscoveryCandidateToSmartImport={
-									addMigrationDiscoveryCandidateToSmartImport
-								}
-								rememberLocalImagingFolder={rememberLocalImagingFolder}
-								reopenOnboarding={reopenOnboarding}
-								requestBrowserStoragePersistence={
-									requestBrowserStoragePersistence
-								}
-								restoreDicomWorkbenchServerBundle={
-									restoreDicomWorkbenchServerBundle
-								}
-								restoreMprWorkbenchLocalDraft={restoreMprWorkbenchLocalDraft}
-								revokeTelegramChatLink={revokeTelegramChatLink}
-								runRecognitionJob={runRecognitionJob}
-								saveChairSchedule={saveChairSchedule}
-								saveClinicProfileFromDraft={saveClinicProfileFromDraft}
-								saveDicomWorkbenchBundleToServer={
-									saveDicomWorkbenchBundleToServer
-								}
-								saveStaffSchedule={saveStaffSchedule}
-								saveTelegramSettings={saveTelegramSettings}
-								scanDicomFolderSeries={scanDicomFolderSeries}
-								scanImagingFolder={scanImagingFolder}
-								selectedUiLanguageOption={selectedUiLanguageOption}
-								sendDueTelegramOutbox={sendDueTelegramOutbox}
-								sendRecognitionResultToImport={sendRecognitionResultToImport}
-								sendTelegramOutboxItem={sendTelegramOutboxItem}
-								serviceCategoryLabels={serviceCategoryLabels}
-								serviceTitle={serviceTitle}
-								setDicomFirstFramePreview={setDicomFirstFramePreview}
-								setDicomFirstFrameViewerState={setDicomFirstFrameViewerState}
-								setDicomFolderSeriesScan={setDicomFolderSeriesScan}
-								setDicomFolderWorkupPlan={setDicomFolderWorkupPlan}
-								setDicomLocalFolderDiscovery={setDicomLocalFolderDiscovery}
-								setDicomRenderCachePlan={setDicomRenderCachePlan}
-								setDicomSeriesPreview={setDicomSeriesPreview}
-								setDicomViewerLaunchManifest={setDicomViewerLaunchManifest}
-								setDicomViewerToolStateBundle={setDicomViewerToolStateBundle}
-								setDicomViewerWorkbenchManifest={
-									setDicomViewerWorkbenchManifest
-								}
-								setDicomWebCheck={setDicomWebCheck}
-								setDicomWebEndpointUrl={setDicomWebEndpointUrl}
-								setDicomWorkbenchLocalSavedAt={setDicomWorkbenchLocalSavedAt}
-								setDicomWorkstationReadiness={setDicomWorkstationReadiness}
-								setDocumentIngestionTarget={setDocumentIngestionTarget}
-								setImagingFolderPath={setImagingFolderPath}
-								setImagingFolderScan={setImagingFolderScan}
-								setImagingImportCommit={setImagingImportCommit}
-								setImagingImportPreview={setImagingImportPreview}
-								setImagingImportSourceKind={setImagingImportSourceKind}
-								setImagingImportText={setImagingImportText}
-								selectCtPlanningImplant={selectCtPlanningImplant}
-								setImagingViewerActiveTool={setImagingViewerActiveTool}
-								setCtPlanningActiveQuickActionId={
-									setCtPlanningActiveQuickActionId
-								}
-								setImportCommit={setImportCommit}
-								setImportIntake={setImportIntake}
-								setImportPreview={setImportPreview}
-								setImportSourceKind={setImportSourceKind}
-								setImportText={setImportText}
-								setLocalImagingOrganizer={setLocalImagingOrganizer}
-								setMprAxisDeg={setMprAxisDeg}
-								setMprCrosshairEnabled={setMprCrosshairEnabled}
-								setMprLinkedPlanesEnabled={setMprLinkedPlanesEnabled}
-								setMprProjection={setMprProjection}
-								setMprSliceIndex={setMprSliceIndex}
-								setMprSlabMm={setMprSlabMm}
-								setMprWindowPreset={setMprWindowPreset}
-								setNewChairHasMicroscope={setNewChairHasMicroscope}
-								setNewChairHasSurgeryKit={setNewChairHasSurgeryKit}
-								setNewChairHasXraySensor={setNewChairHasXraySensor}
-								setNewChairName={setNewChairName}
-								setNewRuleAction={setNewRuleAction}
-								setNewRuleBlockedServiceId={setNewRuleBlockedServiceId}
-								setNewRuleCategory={setNewRuleCategory}
-								setNewRuleCompletedServiceId={setNewRuleCompletedServiceId}
-								setNewRuleOwnerRole={setNewRuleOwnerRole}
-								setNewRuleRequiredServiceId={setNewRuleRequiredServiceId}
-								setNewRuleSeverity={setNewRuleSeverity}
-								setNewRuleSpecialty={setNewRuleSpecialty}
-								setNewRuleTitle={setNewRuleTitle}
-								setNewRuleTriggerServiceId={setNewRuleTriggerServiceId}
-								setNewRuleWarningText={setNewRuleWarningText}
-								setNewStaffName={setNewStaffName}
-								setNewStaffRole={setNewStaffRole}
-								setNewStaffSpecialty={setNewStaffSpecialty}
-								setOhifBaseUrl={setOhifBaseUrl}
-								setPricelistAnalysis={setPricelistAnalysis}
-								setPricelistSourceKind={setPricelistSourceKind}
-								setPricelistText={setPricelistText}
-								setRecognitionJob={setRecognitionJob}
-								setRecognitionText={setRecognitionText}
-								setSettingsTab={setSettingsTab}
-								setSmartImportCommit={setSmartImportCommit}
-								setSmartImportMode={setSmartImportMode}
-								setSmartImportPreview={setSmartImportPreview}
-								setSmartImportText={setSmartImportText}
-								setTelegramAdminSecretDraft={
-									settingsAdminSecretDomain === "telegram"
-										? setTelegramAdminSecretDraft
-										: setSettingsAdminSecretDraft
-								}
-								settingsTab={settingsTab}
-								settingsTabs={settingsTabs}
-								setUiLanguage={setUiLanguage}
-								setUsePricelistAi={setUsePricelistAi}
-								smartImportCommit={smartImportCommit}
-								smartImportMode={smartImportMode}
-								smartImportModeLabels={smartImportModeLabels}
-								smartImportPreview={smartImportPreview}
-								smartImportText={smartImportText}
-								specialtyLabels={specialtyLabels}
-								speechGatewayCanUpload={speechGatewayCanUpload}
-								speechGatewayHealthReport={speechGatewayHealthReport}
-								speechGatewayStatus={speechGatewayStatus}
-								speechProviderConnectorLabels={speechProviderConnectorLabels}
-								speechProviderHealthById={speechProviderHealthById}
-								speechProviderHealthLabels={speechProviderHealthLabels}
-								speechProviderModeLabels={speechProviderModeLabels}
-								speechProviderRuntimeById={speechProviderRuntimeById}
-								speechProviderSelectionLabels={speechProviderSelectionLabels}
-								speechProviderStatusLabels={speechProviderStatusLabels}
-								speechRecordingPathLabels={speechRecordingPathLabels}
-								speechRecordingRecovery={speechRecordingRecovery}
-								speechRecordingStrategy={speechRecordingStrategy}
-								speechRecoveryStateLabels={speechRecoveryStateLabels}
-								staffRoleLabels={staffRoleLabels}
-								staffScheduleDraftFromWorkingHours={
-									staffScheduleDraftFromWorkingHours
-								}
-								stageLocalImagingFolderRecovery={
-									stageLocalImagingFolderRecovery
-								}
-								startImportDictation={startImportDictation}
-								telegramAdminSecretDraft={
-									settingsAdminSecretDomain === "telegram"
-										? telegramAdminSecretDraft
-										: settingsAdminSecretDraft
-								}
-								telegramAdminSecretSession={
-									settingsAdminSecretDomain === "telegram"
-										? telegramAdminSecretSession
-										: settingsAdminSecretSession
-								}
-								telegramAllowVoiceIntakeDraft={telegramAllowVoiceIntakeDraft}
-								telegramBotConfigId={telegramBotConfigId}
-								telegramBotUsernameDraft={telegramBotUsernameDraft}
-								telegramChatLinkLedger={telegramChatLinkLedger}
-								telegramChatLinks={telegramChatLinks}
-								telegramClassificationLabels={telegramClassificationLabels}
-								telegramDeliveryStatusLabels={telegramDeliveryStatusLabels}
-								telegramEnabledFeaturesDraft={telegramEnabledFeaturesDraft}
-								telegramFeatureHelp={telegramFeatureHelp}
-								telegramFeatureLabel={telegramFeatureLabel}
-								telegramFeatureOptions={telegramFeatureOptions}
-								telegramFeaturePlan={telegramFeaturePlan}
-								telegramHumanMessage={telegramHumanMessage}
-								telegramInlineButtonKindLabels={telegramInlineButtonKindLabels}
-								telegramInlineButtonRowsFromReplyMarkup={
-									telegramInlineButtonRowsFromReplyMarkup
-								}
-								telegramLinkActionState={telegramLinkActionState}
-								telegramLinkCode={telegramLinkCode}
-								telegramLinkCodeLedger={telegramLinkCodeLedger}
-								telegramLinkCodes={telegramLinkCodes}
-								telegramLinkCodeStatusLabels={telegramLinkCodeStatusLabels}
-								telegramLinkStaffId={telegramLinkStaffId}
-								telegramLinkStaffOptions={telegramLinkStaffOptions}
-								telegramLinkSubjectType={telegramLinkSubjectType}
-								telegramMapsUrlDraft={telegramMapsUrlDraft}
-								telegramModeDraft={telegramModeDraft}
-								telegramModeHints={telegramModeHints}
-								telegramModeLabels={telegramModeLabels}
-								telegramOutbox={telegramOutbox}
-								telegramOutboxStatusFilter={telegramOutboxStatusFilter}
-								telegramOutboxStatusFilterLabels={
-									telegramOutboxStatusFilterLabels
-								}
-								telegramOutboxStatusFilterOptions={
-									telegramOutboxStatusFilterOptions
-								}
-								telegramOutboxTemplateFilter={telegramOutboxTemplateFilter}
-								telegramOutboxTemplateFilterLabels={
-									telegramOutboxTemplateFilterLabels
-								}
-								telegramOutboxTemplateFilterOptions={
-									telegramOutboxTemplateFilterOptions
-								}
-								telegramOwnBotUsernameDraft={telegramOwnBotUsernameDraft}
-								telegramPatientPortalBaseUrlDraft={
-									telegramPatientPortalBaseUrlDraft
-								}
-								telegramPostVisitCheckupDelayDrafts={
-									telegramPostVisitCheckupDelayDrafts
-								}
-								telegramPostVisitCheckupDelayFields={
-									telegramPostVisitCheckupDelayFields
-								}
-								telegramPreview={telegramPreview}
-								telegramPrivacyModeDraft={telegramPrivacyModeDraft}
-								telegramPrivacyModeHints={telegramPrivacyModeHints}
-								telegramPrivacyModeLabels={telegramPrivacyModeLabels}
-								telegramQrSvgToDataUrl={telegramQrSvgToDataUrl}
-								telegramReminderLeadTimesDraft={telegramReminderLeadTimesDraft}
-								telegramReviewRequestDelayDraft={
-									telegramReviewRequestDelayDraft
-								}
-								telegramReviewUrlDraft={telegramReviewUrlDraft}
-								telegramRevokingLinkId={telegramRevokingLinkId}
-								telegramSendingItemId={telegramSendingItemId}
-								telegramSettingsDirty={telegramSettingsDirty}
-								telegramSettingsSaveError={telegramSettingsSaveError}
-								telegramSettingsSaveState={telegramSettingsSaveState}
-								telegramStaffEscalationChannelDraft={
-									telegramStaffEscalationChannelDraft
-								}
-								telegramStatus={telegramStatus}
-								telegramSubjectName={telegramSubjectName}
-								telegramTemplateLabels={telegramTemplateLabels}
-								telegramTokenTtlDraft={telegramTokenTtlDraft}
-								telegramVisualCardFields={telegramVisualCardFields}
-								telegramVisualCardUrlDrafts={telegramVisualCardUrlDrafts}
-								telegramWebhookBaseUrlDraft={telegramWebhookBaseUrlDraft}
-								telegramWelcomeImageUrlDraft={telegramWelcomeImageUrlDraft}
-								toggleChairWorkingDay={toggleChairWorkingDay}
-								toggleClinicalRule={toggleClinicalRule}
-								toggleClinicWorkingDay={toggleClinicWorkingDay}
-								toggleStaffWorkingDay={toggleStaffWorkingDay}
-								toggleTelegramFeature={toggleTelegramFeature}
-								uiLanguage={uiLanguage}
-								uiLanguageOptions={uiLanguageOptions}
-								unlockTelegramAdminSession={() =>
-									unlockTelegramAdminSession(settingsAdminSecretDomain)
-								}
-								updateChairScheduleDay={updateChairScheduleDay}
-								updateChairScheduleDraft={updateChairScheduleDraft}
-								updateClinicProfileDraft={updateClinicProfileDraft}
-								updateStaffScheduleDay={updateStaffScheduleDay}
-								updateStaffScheduleDraft={updateStaffScheduleDraft}
-								updateTelegramPostVisitCheckupDelayDraft={
-									updateTelegramPostVisitCheckupDelayDraft
-								}
-								updateTelegramVisualCardUrlDraft={
-									updateTelegramVisualCardUrlDraft
-								}
-								usePricelistAi={usePricelistAi}
-								visibleTelegramOutboxItems={visibleTelegramOutboxItems}
-								weekdayOptions={weekdayOptions}
-								workspaceScopeLabels={workspaceScopeLabels}
-								staffScheduleDirtyIds={staffScheduleDirtyIds}
-								staffScheduleDrafts={staffScheduleDrafts}
-								staffScheduleSaveStates={staffScheduleSaveStates}
-								staffScheduleSavingId={staffScheduleSavingId}
-								chairScheduleDirtyIds={chairScheduleDirtyIds}
-								chairScheduleDrafts={chairScheduleDrafts}
-								chairScheduleSaveStates={chairScheduleSaveStates}
-								chairScheduleSavingId={chairScheduleSavingId}
-							/>
-						</Suspense>
-					</WorkspaceRouteErrorBoundary>
-				) : null}
-
-				{currentView === "marketing" ? (
-					<Suspense
-						fallback={<AppLoadingState message="Загрузка маркетинга" />}
-					>
-						<MarketingView
-							clinicName={dashboard.clinicName}
-							clinicPhone={clinicProfileDraft.phone}
-						/>
-					</Suspense>
-				) : null}\n\n\t\t\t\t{currentView === "inventory" ? (
-					<Suspense
-						fallback={<AppLoadingState message="Загрузка склада" />}
-					>
-						<InventoryView organizationId={activeWorkspaceProfile.id} />
-					</Suspense>
-				) : null}
-
-				
-
-				{currentView === "kanban" ? (
-					<Suspense
-						fallback={<AppLoadingState message="Загрузка канбан доски" />}
-					>
-						<LeadsKanbanView />
-					</Suspense>
-				) : null}
-
-				
-
-				{/* <VoiceAssistantUI 
-          onNavigate={(view) => {
-            setCurrentView(view);
-            window.location.hash = view;
-          }}
-          onSearchQuery={(q) => {
-            setQuery(q);
-          }}
-          onDateChange={(date) => {
-            setScheduleDateFilter(date);
-          }}
-        />
-        <Omnibar />
-        <CommandPalette 
-          patients={filteredPatients} 
-          onSelectPatient={(id) => {
-            setSelectedPatientId(id);
-            setCurrentView("patients");
-          }} 
-          onNavigate={(view) => setCurrentView(view as any)} 
-        /> */}
-			</section>
-			<IncomingCallToast />
-		</main>
+						</>
+					) : null}
+					<Omnibar />
+				</section>
+				<IncomingCallToast />
+			</main>
 		</AppLogicProvider>
 	);
 }

@@ -6,32 +6,28 @@ import type {
 	ScheduleSuggestion,
 	StaffRole,
 } from "@dental/shared";
-import { Bot, Mic, Plus, ShieldCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { Bot, Mic, Plus, ShieldCheck, CalendarPlus } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { AppointmentScheduleDraft } from "./AppHelpers";
 import { ClinicalScheduler } from "./components/ClinicalScheduler";
 import { showToast } from "./components/GlobalToast";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { AppointmentCard } from "./components/schedule/AppointmentCard";
 import { NewAppointmentForm } from "./components/schedule/NewAppointmentForm";
+import { ObzvonStickyList } from "./components/schedule/ObzvonStickyList";
+import { ScheduleFilterStrip } from "./components/schedule/ScheduleFilterStrip";
+import { ScheduleShiftSummary } from "./components/schedule/ScheduleShiftSummary";
+import { WaitlistDrawer } from "./components/schedule/WaitlistDrawer";
+import { useAppLogicContext } from "./contexts/AppLogicContext";
 import { DictationHints } from "./DictationHints";
 import { smartBookingParser } from "./lib/smartBookingParser";
 import { motionSafeScrollIntoView } from "./motionPreference";
 import { SmartParsePreview } from "./SmartParsePreview";
 import { useScheduleStore } from "./store/scheduleStore";
 import { useSettingsStore } from "./store/settingsStore";
-
-type AppointmentScheduleDraft = {
-	patientId: string;
-	doctorUserId: string;
-	assistantUserId: string;
-	chairId: string;
-	status: Appointment["status"];
-	startsAt: string;
-	endsAt: string;
-	reason: string;
-	comment: string;
-};
+import { useWorkspaceProfile } from "./hooks/useWorkspaceProfile";
 
 type AppointmentScheduleSaveState = "idle" | "saving" | "saved" | "error";
 type TextFieldChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
@@ -42,63 +38,7 @@ const activeVisitLockedAppointmentStatuses = new Set<Appointment["status"]>([
 	"no_show",
 ]);
 
-type ScheduleViewProps = {
-	appointmentLabels: Record<Appointment["status"], string>;
-	appointmentReadinessById: Map<string, AppointmentReadiness>;
-	appointmentReadinessLabels: Record<AppointmentReadiness["state"], string>;
-	appointmentScheduleDraftFromAppointment: (
-		appointment: Appointment,
-	) => AppointmentScheduleDraft;
-	closeAppointmentEditor: (appointmentId: string) => void;
-	createAppointmentFromDraft: () => Promise<boolean>;
-	dashboard: Dashboard;
-	editingAppointmentId: string | null;
-	formatTime: (value: string) => string;
-	fromDateTimeLocalValue: (value: string, timeZone?: string | null) => string;
-	lockScheduleAdminSession: () => void;
-	newAppointmentError: string | null;
-	normalizedAppointmentStatus: (
-		value: unknown,
-		fallback?: Appointment["status"],
-	) => Appointment["status"];
-	normalizedAppointmentStatusFilter: (
-		value: unknown,
-	) => Appointment["status"] | "all";
-	openAppointmentEditor: (appointment: Appointment) => void;
-	patientName: (
-		patients: Dashboard["patients"],
-		patientId: string | null,
-	) => string;
-	recommendedActionPriorityLabels: Record<
-		ScheduleSuggestion["priority"],
-		string
-	>;
-	resetNewAppointmentDraft: () => void;
-	saveAppointmentSchedule: (
-		appointmentId: string,
-		options?: { closeEditorOnSave?: boolean },
-	) => Promise<boolean>;
-
-	shiftWarnings: Dashboard["shiftIntelligence"]["scheduleWarnings"];
-	sortedAppointments: Appointment[];
-	staffRoleLabels: Record<StaffRole, string>;
-	scheduleAdminSecretDraft: string;
-	scheduleAdminSecretSession: string;
-	toDateTimeLocalValue: (value: string, timeZone?: string | null) => string;
-	unlockScheduleAdminSession: () => void;
-	updateAppointmentScheduleDraft: <K extends keyof AppointmentScheduleDraft>(
-		appointmentId: string,
-		key: K,
-		value: AppointmentScheduleDraft[K],
-	) => void;
-	updateNewAppointmentDraft: <K extends keyof AppointmentScheduleDraft>(
-		key: K,
-		value: AppointmentScheduleDraft[K],
-	) => void;
-	visibleScheduleSuggestions: ScheduleSuggestion[];
-};
-
-export function ScheduleView(props: ScheduleViewProps) {
+export function ScheduleView() {
 	const {
 		scheduleDoctorFilterId,
 		scheduleAssistantFilterId,
@@ -156,7 +96,6 @@ export function ScheduleView(props: ScheduleViewProps) {
 		editingAppointmentId,
 		formatTime,
 		fromDateTimeLocalValue,
-		lockScheduleAdminSession,
 		newAppointmentError,
 		normalizedAppointmentStatus,
 		normalizedAppointmentStatusFilter,
@@ -173,15 +112,20 @@ export function ScheduleView(props: ScheduleViewProps) {
 		updateAppointmentScheduleDraft,
 		updateNewAppointmentDraft,
 		visibleScheduleSuggestions,
-	} = props;
+		lockTelegramAdminSession,
+	} = useAppLogicContext();
+	const lockScheduleAdminSession = () => lockTelegramAdminSession("schedule");
 	const {
 		setScheduleAdminSecretDraft,
 		scheduleAdminSecretDraft,
 		scheduleAdminSecretSession,
 	} = useSettingsStore();
 	const [showShiftAnalytics, setShowShiftAnalytics] = useState(false);
+	const [showWaitlist, setShowWaitlist] = useState(false);
 	const [showCreateForm, setShowCreateForm] = useState(false);
 	const [useManualSelects, setUseManualSelects] = useState(false);
+	const [showFreeDoctorsOnly, setShowFreeDoctorsOnly] = useState(false);
+	const workspaceFlags = useWorkspaceProfile();
 
 	const adminSecretReady = scheduleAdminSecretDraft.trim().length > 0;
 
@@ -244,100 +188,39 @@ export function ScheduleView(props: ScheduleViewProps) {
 			});
 		});
 	};
-	const highestUtilizationLoad = (loads: ResourceLoad[]) =>
-		loads.reduce<ResourceLoad | null>((highestLoad, load) => {
-			if (
-				!highestLoad ||
-				load.utilizationPercent > highestLoad.utilizationPercent
-			)
-				return load;
-			return highestLoad;
-		}, null);
-	const busiestDoctorLoad = highestUtilizationLoad(
-		dashboard.shiftIntelligence.doctorLoads,
-	);
-	const busiestChairLoad = highestUtilizationLoad(
-		dashboard.shiftIntelligence.chairLoads,
-	);
-	const activeScheduleFilterCount = [
-		scheduleDateFilter.trim(),
-		scheduleStatusFilter !== "all" ? scheduleStatusFilter : null,
-	].filter((value): value is string => Boolean(value)).length;
-	const scheduleFilteredSummary = [
-		sortedAppointments.length
-			? `видно записей: ${sortedAppointments.length}`
-			: "записи скрыты фильтрами",
-		activeScheduleFilterCount
-			? `фильтров: ${activeScheduleFilterCount}`
-			: "фильтры не ограничивают",
-		shiftWarnings.length
-			? `предупреждений: ${shiftWarnings.length}`
-			: "срочных предупреждений нет",
-	].join(" · ");
-	const scheduleLoadSummaryCards = [
-		{
-			id: "doctor",
-			title: "Самый загруженный врач",
-			value: busiestDoctorLoad
-				? `${busiestDoctorLoad.utilizationPercent}%`
-				: "нет загрузки",
-			detail: busiestDoctorLoad
-				? `${busiestDoctorLoad.title}: ${busiestDoctorLoad.appointmentCount} записей, ${busiestDoctorLoad.bookedMinutes} мин.`
-				: "смена не заполнена",
-		},
-		{
-			id: "chair",
-			title: "Самое занятое кресло",
-			value: busiestChairLoad
-				? `${busiestChairLoad.utilizationPercent}%`
-				: "нет загрузки",
-			detail: busiestChairLoad
-				? `${busiestChairLoad.title}: ${busiestChairLoad.appointmentCount} записей, ${busiestChairLoad.nextFreeAt ? `свободно с ${formatTime(busiestChairLoad.nextFreeAt)}` : "окон нет"}`
-				: "кресла не загружены",
-		},
-		{
-			id: "visible",
-			title: "На экране",
-			value: `${sortedAppointments.length}`,
-			detail: activeScheduleFilterCount
-				? `активных фильтров: ${activeScheduleFilterCount}`
-				: "показана вся очередь",
-		},
-		{
-			id: "control",
-			title: "Контроль",
-			value: shiftWarnings.length ? `${shiftWarnings.length}` : "0",
-			detail: shiftWarnings[0]?.title ?? "нет срочных предупреждений",
-		},
-	];
 
 	return (
-		<div className="panel schedule-panel" id="schedule">
+		<motion.div
+			className="panel schedule-panel glass-panel"
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4 }}
+			id="schedule"
+		>
 			<div className="panel-heading">
 				<h2>Расписание приемов</h2>
-				<div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+				<div className="flex-row gap-sm align-center">
 					<button
 						className="primary-button schedule-create-btn"
 						type="button"
 						onClick={focusNewAppointmentEditor}
-						style={{
-							minHeight: "30px",
-							padding: "0 12px",
-							fontSize: "12px",
-							display: "flex",
-							alignItems: "center",
-							gap: "4px",
-						}}
 					>
-						<Plus size={14} /> + Запись
+						<CalendarPlus size={16} />
+						Новая запись
 					</button>
 					<button
 						className="secondary-button"
 						type="button"
 						onClick={() => setShowShiftAnalytics(!showShiftAnalytics)}
-						style={{ minHeight: "30px", padding: "0 12px", fontSize: "12px" }}
 					>
 						{showShiftAnalytics ? "Скрыть аналитику" : "Показать аналитику"}
+					</button>
+					<button
+						className="secondary-button"
+						type="button"
+						onClick={() => setShowWaitlist(true)}
+					>
+						Лист ожидания
 					</button>
 					<button
 						className="text-button"
@@ -348,190 +231,24 @@ export function ScheduleView(props: ScheduleViewProps) {
 					</button>
 				</div>
 			</div>
-			{showShiftAnalytics && (
-				<div className="schedule-command-grid">
-					<article>
-						<span>Врачи</span>
-						<strong>{dashboard.shiftIntelligence.doctorLoads.length}</strong>
-						<p>
-							{dashboard.shiftIntelligence.doctorLoads
-								.map(
-									(load: ResourceLoad) =>
-										`${load.title.split(" ")[0]} ${load.utilizationPercent}%`,
-								)
-								.join(" · ")}
-						</p>
-					</article>
-					<article>
-						<span>Ассистенты</span>
-						<strong>{dashboard.shiftIntelligence.assistantLoads.length}</strong>
-						<p>
-							{dashboard.shiftIntelligence.assistantLoads
-								.map(
-									(load: ResourceLoad) =>
-										`${load.title.split(" ")[0]} ${load.utilizationPercent}%`,
-								)
-								.join(" · ") || "не назначены"}
-						</p>
-					</article>
-					<article>
-						<span>Кресла</span>
-						<strong>{dashboard.shiftIntelligence.chairLoads.length}</strong>
-						<p>
-							{dashboard.shiftIntelligence.chairLoads
-								.map(
-									(load: ResourceLoad) =>
-										`${load.title} ${load.utilizationPercent}%`,
-								)
-								.join(" · ")}
-						</p>
-					</article>
-					<article>
-						<span>Контроль</span>
-						<strong>{shiftWarnings.length}</strong>
-						<p>{shiftWarnings[0]?.title ?? "нет срочных предупреждений"}</p>
-					</article>
-				</div>
-			)}
-			<section
-				className="schedule-shift-summary"
-				data-testid="schedule-shift-summary"
-				aria-label="Короткая сводка смены"
-				aria-live="polite"
-				style={{
-					display: "flex",
-					gap: "8px",
-					flexWrap: "wrap",
-					alignItems: "center",
-				}}
-			>
-				{sortedAppointments.length > 0 ? (
-					<span className="status-pill status-confirmed">
-						Записей: {sortedAppointments.length}
-					</span>
-				) : (
-					<span className="status-pill status-cancelled">Нет записей</span>
-				)}
-				{activeScheduleFilterCount > 0 ? (
-					<span className="status-pill status-arrived">
-						Фильтров: {activeScheduleFilterCount}
-					</span>
-				) : null}
-				{shiftWarnings.length > 0 ? (
-					<span className="status-pill status-overdue">
-						Предупреждений: {shiftWarnings.length}
-					</span>
-				) : (
-					<span className="status-pill status-completed">Ок</span>
-				)}
-				{showShiftAnalytics && (
-					<div
-						className="schedule-shift-summary-grid"
-						style={{ width: "100%", marginTop: "12px" }}
-					>
-						{scheduleLoadSummaryCards.map((card) => (
-							<article key={card.id}>
-								<span>{card.title}</span>
-								<strong>{card.value}</strong>
-								<p>{card.detail}</p>
-							</article>
-						))}
-					</div>
-				)}
-			</section>
-			<div
-				className="schedule-filter-strip"
-				aria-label="Сохраненные фильтры расписания"
-				style={{
-					display: "flex",
-					gap: "8px",
-					flexWrap: "wrap",
-					alignItems: "center",
-					padding: "12px 16px",
-					borderBottom: "1px solid var(--slate-100)",
-				}}
-			>
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						gap: "8px",
-						borderRight: "1px solid var(--slate-200)",
-						paddingRight: "12px",
-						marginRight: "4px",
-					}}
-				>
-					<input
-						type="date"
-						value={scheduleDateFilter}
-						onChange={(event: TextFieldChangeEvent) =>
-							setScheduleDateFilter(event.target.value)
-						}
-						style={{
-							border: "none",
-							background: "transparent",
-							fontSize: "14px",
-							fontWeight: 600,
-							color: "var(--slate-800)",
-							outline: "none",
-							cursor: "pointer",
-						}}
-					/>
-				</div>
-
-				<button
-					type="button"
-					className={`quick-chip ${!scheduleDoctorFilterId && !scheduleChairFilterId ? "active" : ""}`}
-					onClick={resetScheduleFilters}
-				>
-					Все записи
-				</button>
-
-				{dashboard.clinicSettings.profile.mode !== "solo_doctor" &&
-					dashboard.clinicSettings.staff
-						.filter(
-							(member) =>
-								member.active &&
-								(member.role === "doctor" || member.role === "owner"),
-						)
-						.map((member) => (
-							<button
-								key={member.id}
-								type="button"
-								className={`quick-chip ${scheduleDoctorFilterId === member.id ? "active" : ""}`}
-								onClick={() =>
-									setScheduleDoctorFilterId(
-										scheduleDoctorFilterId === member.id ? null : member.id,
-									)
-								}
-							>
-								{member.fullName.split(" ")[0]}
-							</button>
-						))}
-
-				{dashboard.clinicSettings.chairs
-					.filter((chair) => chair.active)
-					.map((chair) => (
-						<button
-							key={chair.id}
-							type="button"
-							className={`quick-chip ${scheduleChairFilterId === chair.id ? "active" : ""}`}
-							onClick={() =>
-								setScheduleChairFilterId(
-									scheduleChairFilterId === chair.id ? null : chair.id,
-								)
-							}
-						>
-							{chair.name}
-						</button>
-					))}
-			</div>
-			<details className="schedule-secret-collapsible">
-				<summary>🔐 Разблокировать сохранение расписания</summary>
-				<div
-					className="appointment-editor schedule-admin-unlock"
-					aria-label="Доступ к сохранению расписания"
-				>
+			<ScheduleShiftSummary
+				dashboard={dashboard}
+				sortedAppointments={sortedAppointments}
+				shiftWarnings={shiftWarnings}
+				showShiftAnalytics={showShiftAnalytics}
+				formatTime={formatTime}
+			/>
+			<ScheduleFilterStrip
+				dashboard={dashboard}
+				sortedAppointments={sortedAppointments}
+				showFreeDoctorsOnly={showFreeDoctorsOnly}
+				setShowFreeDoctorsOnly={setShowFreeDoctorsOnly}
+				resetScheduleFilters={resetScheduleFilters}
+			/>
+			{/* 🔐 Admin Unlock Collapsible */}
+			<details className="schedule-secret-collapsible glass-panel" aria-label="Доступ к сохранению расписания">
+				<summary><span>🔐</span> Разблокировать сохранение расписания</summary>
+				<div className="appointment-editor schedule-admin-unlock">
 					{!scheduleAdminSecretSession ? (
 						<>
 							<label className="form-span-2">
@@ -611,14 +328,13 @@ export function ScheduleView(props: ScheduleViewProps) {
 					)}
 				</div>
 			</details>
-
 			<NewAppointmentForm
 				dashboard={dashboard}
 				appointmentLabels={appointmentLabels}
 				newAppointmentDraft={newAppointmentDraft}
 				newAppointmentSaveState={newAppointmentSaveState}
 				newAppointmentError={newAppointmentError}
-				updateNewAppointmentDraft={updateNewAppointmentDraft as any}
+				updateNewAppointmentDraft={updateNewAppointmentDraft}
 				createAppointmentFromDraft={createAppointmentFromDraft}
 				resetNewAppointmentDraft={resetNewAppointmentDraft}
 				toDateTimeLocalValue={toDateTimeLocalValue}
@@ -626,18 +342,49 @@ export function ScheduleView(props: ScheduleViewProps) {
 				useManualSelects={useManualSelects}
 				setUseManualSelects={setUseManualSelects}
 			/>
-
 			<ClinicalScheduler
 				appointments={sortedAppointments}
 				dashboard={dashboard}
+				onAppointmentClick={openAppointmentEditor}
 				onSlotClick={(date, time, chairId) => {
-					const draft = newAppointmentDraft;
-					if (!draft) return;
-					// Pre-fill
-					showToast("Выбрано время " + time, "info");
+					const localTimeStr = `${date}T${time}:00`;
+					const startsAtIso = new Date(localTimeStr).toISOString();
+					const endsAtIso = new Date(
+						new Date(localTimeStr).getTime() + 3600000,
+					).toISOString();
+
+					updateNewAppointmentDraft("startsAt", startsAtIso);
+					updateNewAppointmentDraft("endsAt", endsAtIso);
+					updateNewAppointmentDraft("chairId", chairId);
+
+					focusNewAppointmentEditor();
+					showToast("Слот выбран, заполните форму", "info");
+				}}
+				onSlotDrop={(date, time, chairId, data) => {
+					if (data?.type === "waitlist_item" && data.item) {
+						const { item } = data;
+						const localTimeStr = `${date}T${time}:00`;
+						const startsAtIso = new Date(localTimeStr).toISOString();
+						const endsAtIso = new Date(
+							new Date(localTimeStr).getTime() + 3600000,
+						).toISOString();
+
+						updateNewAppointmentDraft("patientId", item.patientId);
+						if (item.preferredDoctorId) {
+							updateNewAppointmentDraft("doctorUserId", item.preferredDoctorId);
+						}
+						updateNewAppointmentDraft("startsAt", startsAtIso);
+						updateNewAppointmentDraft("endsAt", endsAtIso);
+						updateNewAppointmentDraft("chairId", chairId);
+
+						focusNewAppointmentEditor();
+						showToast(
+							`Пациент ${item.patientName || ""} перенесен из листа ожидания. Завершите запись.`,
+							"success",
+						);
+					}
 				}}
 			/>
-
 			<div className="schedule-timeline timeline">
 				{sortedAppointments.map((appointment) => {
 					const draft =
@@ -706,9 +453,7 @@ export function ScheduleView(props: ScheduleViewProps) {
 							patientName={patientName}
 							openAppointmentEditor={openAppointmentEditor}
 							closeAppointmentEditor={closeAppointmentEditor}
-							updateAppointmentScheduleDraft={
-								updateAppointmentScheduleDraft as any
-							}
+							updateAppointmentScheduleDraft={updateAppointmentScheduleDraft}
 							saveAppointmentSchedule={saveAppointmentSchedule}
 							normalizedAppointmentStatus={normalizedAppointmentStatus}
 							toDateTimeLocalValue={toDateTimeLocalValue}
@@ -722,39 +467,23 @@ export function ScheduleView(props: ScheduleViewProps) {
 				})}
 				{sortedAppointments.length === 0 ? (
 					<article
-						className="schedule-empty-state actionable-empty-state"
+						className="schedule-empty-state actionable-empty-state glass-panel flex-column align-center"
 						data-testid="schedule-empty-state"
 						aria-label="Пустое расписание"
-						style={{
-							textAlign: "center",
-							padding: "32px 20px",
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-						}}
+						style={{ padding: "32px 20px", textAlign: "center", gap: "16px" }}
 					>
 						<Plus
 							size={40}
-							style={{ color: "var(--muted)", marginBottom: "16px" }}
+							className="text-muted"
 						/>
-						<h4
-							style={{
-								margin: "0 0 8px 0",
-								fontSize: "1.1rem",
-								color: "var(--ink)",
-							}}
-						>
+						<h4 className="text-primary m-0">
 							Расписание пусто
 						</h4>
 						<p
 							role="status"
 							aria-live="polite"
-							style={{
-								margin: "0 0 20px 0",
-								fontSize: "0.95rem",
-								color: "var(--muted)",
-								maxWidth: "300px",
-							}}
+							className="text-muted"
+							style={{ maxWidth: "300px" }}
 						>
 							Нажмите [+ Создать Запись], чтобы записать первого пациента.
 						</p>
@@ -768,7 +497,16 @@ export function ScheduleView(props: ScheduleViewProps) {
 					</article>
 				) : null}
 			</div>
-		</div>
+			<WaitlistDrawer
+				isOpen={showWaitlist}
+				onClose={() => setShowWaitlist(false)}
+				updateNewAppointmentDraft={updateNewAppointmentDraft}
+				focusNewAppointmentEditor={focusNewAppointmentEditor}
+			/>
+			{workspaceFlags.hasTasks && (
+				<ObzvonStickyList dashboard={dashboard} />
+			)}
+		</motion.div>
 	);
 }
 

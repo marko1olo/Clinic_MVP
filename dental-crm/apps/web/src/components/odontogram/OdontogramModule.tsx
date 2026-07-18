@@ -9,12 +9,147 @@ import {
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWebsocket } from "../../hooks/useWebsocket";
+import { usePatientStore } from "../../store/patientStore";
+import { showToast } from "../GlobalToast";
 import { ToothChart, type ToothData, type ToothState } from "./ToothChart";
 import { ToothHistoryChronicle } from "./ToothHistoryChronicle";
 import { TreatmentEstimator } from "./TreatmentEstimator";
 import { VoiceDictationOverlay } from "./VoiceDictationOverlay";
 import "./odontogram.css";
+
+const SurfaceSelector = ({
+	selected,
+	onChange,
+}: {
+	selected: string[];
+	onChange: (newSelected: string[]) => void;
+}) => {
+	const toggle = (surface: string) => {
+		if (selected.includes(surface)) {
+			onChange(selected.filter((s) => s !== surface));
+		} else {
+			onChange([...selected, surface]);
+		}
+	};
+
+	return (
+		<div className="flex justify-center mb-4">
+			<svg
+				width="100"
+				height="100"
+				viewBox="0 0 100 100"
+				className="drop-shadow-md cursor-pointer group"
+			>
+				{/* Top (B/V) */}
+				<polygon
+					points="0,0 100,0 70,30 30,30"
+					fill={selected.includes("B") ? "#3b82f6" : "#27272a"}
+					stroke="#3f3f46"
+					strokeWidth="2"
+					onClick={() => toggle("B")}
+					className="hover:fill-blue-400 transition-colors duration-200"
+				/>
+				<text
+					x="50"
+					y="18"
+					fill="white"
+					fontSize="12"
+					fontWeight="bold"
+					textAnchor="middle"
+					pointerEvents="none"
+				>
+					B
+				</text>
+
+				{/* Bottom (L/P) */}
+				<polygon
+					points="30,70 70,70 100,100 0,100"
+					fill={selected.includes("L") ? "#3b82f6" : "#27272a"}
+					stroke="#3f3f46"
+					strokeWidth="2"
+					onClick={() => toggle("L")}
+					className="hover:fill-blue-400 transition-colors duration-200"
+				/>
+				<text
+					x="50"
+					y="90"
+					fill="white"
+					fontSize="12"
+					fontWeight="bold"
+					textAnchor="middle"
+					pointerEvents="none"
+				>
+					L
+				</text>
+
+				{/* Left (M) */}
+				<polygon
+					points="0,0 30,30 30,70 0,100"
+					fill={selected.includes("M") ? "#3b82f6" : "#27272a"}
+					stroke="#3f3f46"
+					strokeWidth="2"
+					onClick={() => toggle("M")}
+					className="hover:fill-blue-400 transition-colors duration-200"
+				/>
+				<text
+					x="12"
+					y="54"
+					fill="white"
+					fontSize="12"
+					fontWeight="bold"
+					textAnchor="middle"
+					pointerEvents="none"
+				>
+					M
+				</text>
+
+				{/* Right (D) */}
+				<polygon
+					points="100,0 70,30 70,70 100,100"
+					fill={selected.includes("D") ? "#3b82f6" : "#27272a"}
+					stroke="#3f3f46"
+					strokeWidth="2"
+					onClick={() => toggle("D")}
+					className="hover:fill-blue-400 transition-colors duration-200"
+				/>
+				<text
+					x="88"
+					y="54"
+					fill="white"
+					fontSize="12"
+					fontWeight="bold"
+					textAnchor="middle"
+					pointerEvents="none"
+				>
+					D
+				</text>
+
+				{/* Center (O) */}
+				<polygon
+					points="30,30 70,30 70,70 30,70"
+					fill={selected.includes("O") ? "#3b82f6" : "#27272a"}
+					stroke="#3f3f46"
+					strokeWidth="2"
+					onClick={() => toggle("O")}
+					className="hover:fill-blue-400 transition-colors duration-200"
+				/>
+				<text
+					x="50"
+					y="54"
+					fill="white"
+					fontSize="12"
+					fontWeight="bold"
+					textAnchor="middle"
+					pointerEvents="none"
+				>
+					O
+				</text>
+			</svg>
+		</div>
+	);
+};
 
 export const OdontogramModule = ({
 	patientId,
@@ -23,6 +158,7 @@ export const OdontogramModule = ({
 	patientId: string;
 	pediatricMode?: boolean | undefined;
 }) => {
+	const { odontogramUseSurfaces } = useAppLogicContext();
 	const [teethData, setTeethData] = useState<ToothData[]>([]);
 	const [menuConfig, setMenuConfig] = useState<{
 		toothNumber: number;
@@ -39,6 +175,7 @@ export const OdontogramModule = ({
 	);
 	const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 	const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
+	const [activeSurfaces, setActiveSurfaces] = useState<string[]>([]);
 	const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
 	const containerRef = React.useRef<HTMLDivElement>(null);
@@ -126,9 +263,20 @@ export const OdontogramModule = ({
 				const existingIdx = next.findIndex((x) => x.toothNumber === t);
 				if (existingIdx > -1) {
 					const item = next[existingIdx];
-					if (item) item.state = state;
+					if (item) {
+						item.state = state;
+						if (activeSurfaces.length > 0) {
+							item.surfaces = [...activeSurfaces];
+						} else {
+							delete item.surfaces;
+						}
+					}
 				} else {
-					next.push({ toothNumber: t, state });
+					const newItem: ToothData = { toothNumber: t, state };
+					if (activeSurfaces.length > 0) {
+						newItem.surfaces = [...activeSurfaces];
+					}
+					next.push(newItem);
 				}
 			}
 			return next;
@@ -143,11 +291,40 @@ export const OdontogramModule = ({
 			headers: denteAdminSecretRequestHeaders({
 				"Content-Type": "application/json",
 			}),
-			body: JSON.stringify({ toothNumbers, state }),
+			body: JSON.stringify({
+				toothNumbers,
+				state,
+				surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
+			}),
 		});
+
+		// Push suggestion to global state for ComparativePlannerDashboard
+		const { addPendingPlanSuggestion } = usePatientStore.getState();
+		for (const t of toothNumbers) {
+			if (
+				state === "Caries" ||
+				state === "Pulpitis" ||
+				state === "Planned_Implant" ||
+				state === "Missing" ||
+				state === "Crown"
+			) {
+				addPendingPlanSuggestion({
+					toothNumber: t,
+					state,
+					surfaces: activeSurfaces.length > 0 ? [...activeSurfaces] : undefined,
+					suggestedAt: new Date().toISOString(),
+				});
+			}
+		}
+
+		setActiveSurfaces([]);
 	};
 
-	const handleToothClick = (toothNumber: number, rect: DOMRect) => {
+	const handleToothClick = (
+		toothNumber: number,
+		rect: DOMRect,
+		surface?: string,
+	) => {
 		if (isMultiSelectMode) {
 			// Toggle selection, don't open menu yet
 			setSelectedTeeth((prev) =>
@@ -157,12 +334,44 @@ export const OdontogramModule = ({
 			);
 			setMenuConfig(null);
 		} else {
-			// If we clicked on an unselected tooth while having a selection, clear it
 			let activeSelection = selectedTeeth;
+			let currentSurfaces = activeSurfaces;
+
+			// If surfaces are disabled, ignore surface clicks entirely
+			if (!odontogramUseSurfaces) {
+				surface = undefined;
+			}
+
+			// If we clicked on an unselected tooth while having a selection, clear it
 			if (!selectedTeeth.includes(toothNumber)) {
 				activeSelection = [toothNumber];
 				setSelectedTeeth(activeSelection);
+
+				// Pre-select existing surfaces for the newly selected tooth
+				const existing = teethData.find(
+					(t) => t.toothNumber === activeSelection[0],
+				);
+				if (existing && existing.surfaces) {
+					currentSurfaces = [...existing.surfaces];
+				} else {
+					currentSurfaces = [];
+				}
 			}
+
+			// If a specific surface was clicked, toggle it
+			if (surface && activeSelection.length === 1) {
+				if (currentSurfaces.includes(surface)) {
+					currentSurfaces = currentSurfaces.filter((s) => s !== surface);
+				} else {
+					currentSurfaces = [...currentSurfaces, surface];
+				}
+			}
+
+			if (activeSelection.length !== 1) {
+				currentSurfaces = [];
+			}
+
+			setActiveSurfaces(currentSurfaces);
 
 			const isUpperJaw =
 				toothNumber < 30 || (toothNumber >= 51 && toothNumber <= 65);
@@ -201,23 +410,22 @@ export const OdontogramModule = ({
 	};
 
 	return (
-		<div className="flex flex-col lg:flex-row items-start gap-6 w-full h-full p-6 bg-zinc-50/40 dark:bg-zinc-950/40 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl shadow-2xl text-slate-900 dark:text-zinc-100">
+		<div className="odontogram-module">
 			<div
-				className="flex-2 min-w-0 flex flex-col gap-6 relative w-full"
+				className="odontogram-chart-area"
 				ref={containerRef}
 			>
-				<div className="flex gap-4 p-4 items-center bg-zinc-100/30 dark:bg-zinc-900/30 border-b border-zinc-200/50 dark:border-zinc-800/50 rounded-t-xl">
-					<label className="flex items-center gap-2 cursor-pointer select-none">
+				<div className="odontogram-toolbar">
+					<label className="toolbar-checkbox">
 						<input
 							type="checkbox"
 							checked={isPediatricMode}
 							onChange={(e) => setIsPediatricMode(e.target.checked)}
-							className="accent-indigo-500"
 						/>
-						<span className="text-sm font-medium">Детский прикус</span>
+						<span>Детский прикус</span>
 					</label>
 					<label
-						className={`flex items-center gap-2 cursor-pointer select-none ${isMultiSelectMode ? "text-indigo-600 dark:text-indigo-400" : ""}`}
+						className={`toolbar-checkbox ${isMultiSelectMode ? "active" : ""}`}
 					>
 						<input
 							type="checkbox"
@@ -229,7 +437,7 @@ export const OdontogramModule = ({
 							}}
 							className="accent-indigo-500"
 						/>
-						<span className="text-sm font-medium">Групповой выбор (Shift)</span>
+						<span>Групповой выбор (Shift)</span>
 					</label>
 				</div>
 				<ToothChart
@@ -237,6 +445,7 @@ export const OdontogramModule = ({
 					pediatricMode={isPediatricMode}
 					selectedTeeth={selectedTeeth}
 					onToothClick={handleToothClick}
+					useSurfaces={odontogramUseSurfaces}
 				/>
 
 				{/* Radial Menu via Portal — avoids backdrop-filter stack */}
@@ -256,7 +465,7 @@ export const OdontogramModule = ({
 								onClick={() => setMenuConfig(null)}
 							/>
 							<div
-								className={`absolute grid grid-cols-2 gap-2 p-3 w-[254px] bg-zinc-950/40 backdrop-blur-md border border-zinc-800/50 shadow-2xl rounded-2xl`}
+								className="tooth-radial-menu"
 								style={
 									{
 										left: menuConfig.x,
@@ -307,44 +516,52 @@ export const OdontogramModule = ({
 									</svg>
 								)}
 
-								<div className="col-span-2 text-center mb-2 text-sm font-bold text-zinc-100">
+								<div className="radial-menu-title">
 									{selectedTeeth.length > 1
 										? `Выбрано: ${selectedTeeth.length} зубов`
 										: `Зуб ${menuConfig.toothNumber}`}
 								</div>
+								{selectedTeeth.length === 1 && (
+									<div className="radial-menu-full-row">
+										<SurfaceSelector
+											selected={activeSurfaces}
+											onChange={setActiveSurfaces}
+										/>
+									</div>
+								)}
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Caries")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
+									className="tooth-menu-btn caries"
 								>
 									Кариес
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Pulpitis")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+									className="tooth-menu-btn pulpitis"
 								>
 									Пульпит
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Missing")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-zinc-800/40 text-zinc-400 border-zinc-700/30 hover:bg-zinc-800/60"
+									className="tooth-menu-btn missing"
 								>
 									Отсутствует
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Crown")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
+									className="tooth-menu-btn crown"
 								>
 									Коронка
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Implant")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20"
+									className="tooth-menu-btn implant"
 								>
 									Имплантат
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Healthy")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+									className="tooth-menu-btn filled"
 								>
 									Здоров
 								</button>
@@ -353,7 +570,7 @@ export const OdontogramModule = ({
 										setHistoryTooth(menuConfig.toothNumber);
 										setMenuConfig(null);
 									}}
-									className="col-span-2 flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20"
+									className="tooth-menu-btn radial-menu-full-row"
 								>
 									<History className="w-4 h-4 inline mr-2" /> История зуба
 								</button>
@@ -371,7 +588,7 @@ export const OdontogramModule = ({
 				)}
 			</div>
 
-			<div className="flex-1 min-w-[320px] max-w-[480px] flex flex-col w-full relative">
+			<div className="odontogram-treatment-area">
 				<TreatmentEstimator patientId={patientId} currentTeeth={teethData} />
 
 				{/* Floating Voice Dictation Button */}
@@ -418,7 +635,7 @@ export const OdontogramModule = ({
 							if (data && data.action === "update_tooth" && data.payload) {
 								const { code, state } = data.payload;
 								updateToothState([parseInt(code)], state || "caries");
-								alert(`AI: Зуб ${code} обновлен (${state})`);
+								showToast(`AI: Зуб ${code} обновлен (${state})`, "success");
 							} else if (
 								data &&
 								data.toothUpdates &&
@@ -427,15 +644,19 @@ export const OdontogramModule = ({
 								data.toothUpdates.forEach((tu: any) => {
 									updateToothState([parseInt(tu.code)], tu.state);
 								});
-								alert(
+								showToast(
 									`AI: Зубы обновлены: ${data.toothUpdates.map((t: any) => t.code).join(", ")}`,
+									"success",
 								);
 							} else {
-
+								showToast("AI: Команда не распознана", "warning");
 							}
+						} else {
+							showToast("Ошибка при обращении к серверу ИИ", "error");
 						}
 					} catch (e) {
 						console.error("Dictation parse failed", e);
+						showToast("Не удалось обработать голосовую команду", "error");
 					}
 				}}
 			/>

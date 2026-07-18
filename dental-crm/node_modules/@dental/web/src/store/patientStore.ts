@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
 	defaultUiPreferences,
+	denteAdminSecretRequestHeaders,
 	emptyPatientAdministrativeProfileDraft,
 	emptyPatientCoreDraft,
 	loadUiPreferences,
@@ -23,6 +24,32 @@ export type ToothStatus =
 export interface PatientStore {
 	odontogramState: Record<number, ToothStatus>;
 	setToothStatus: (toothNumber: number, status: ToothStatus) => void;
+	loadOdontogram: (patientId: string) => Promise<void>;
+	saveToothStatus: (
+		patientId: string,
+		toothNumber: number | number[],
+		status: ToothStatus,
+	) => Promise<void>;
+
+	anamnesisDraft: {
+		allergies: string[];
+		systemicDiseases: string[];
+		hasCriticalAlerts: boolean;
+		medications: string[];
+		pregnancyStatus: string;
+		criticalAlertNote: string;
+	};
+	setAnamnesisDraft: (
+		val:
+			| PatientStore["anamnesisDraft"]
+			| ((
+					prev: PatientStore["anamnesisDraft"],
+			  ) => PatientStore["anamnesisDraft"]),
+	) => void;
+	anamnesisSaveState: "idle" | "saving" | "saved" | "error";
+	setAnamnesisSaveState: (val: "idle" | "saving" | "saved" | "error") => void;
+	loadAnamnesis: (patientId: string) => Promise<void>;
+	saveAnamnesis: (patientId: string) => Promise<void>;
 
 	selectedPatientId: string | null;
 	setSelectedPatientId: (
@@ -82,15 +109,152 @@ export interface PatientStore {
 	newRulePatientText: string;
 	setNewRulePatientText: (val: string | ((prev: string) => string)) => void;
 
+	pendingPlanSuggestions: any[];
+	addPendingPlanSuggestion: (item: any) => void;
+	clearPendingPlanSuggestions: () => void;
+
 	reset: () => void;
 }
 
 export const usePatientStore = create<PatientStore>((set) => ({
+	pendingPlanSuggestions: [],
+	addPendingPlanSuggestion: (item) =>
+		set((state) => ({
+			pendingPlanSuggestions: [...state.pendingPlanSuggestions, item],
+		})),
+	clearPendingPlanSuggestions: () => set({ pendingPlanSuggestions: [] }),
+
 	odontogramState: {},
 	setToothStatus: (toothNumber, status) =>
 		set((state) => ({
 			odontogramState: { ...state.odontogramState, [toothNumber]: status },
 		})),
+	loadOdontogram: async (patientId) => {
+		try {
+			const res = await fetch(`/api/patients/${patientId}/tooth-states`, {
+				headers: denteAdminSecretRequestHeaders(),
+			});
+			if (res.ok) {
+				const data = await res.json();
+				const newState: Record<number, ToothStatus> = {};
+				const mapBackendToFrontend: Record<string, ToothStatus> = {
+					Healthy: "Healthy",
+					Caries: "Caries",
+					Filled: "Filling",
+					Missing: "Missing",
+					Implant: "Implant",
+					Crown: "Crown",
+					Pulpitis: "Caries",
+					Planned_Implant: "Implant",
+				};
+				for (const item of data) {
+					if (item.toothNumber && item.state) {
+						newState[item.toothNumber] =
+							mapBackendToFrontend[item.state] || "Healthy";
+					}
+				}
+				set({ odontogramState: newState });
+			}
+		} catch (e) {
+			console.error("Failed to load odontogram", e);
+		}
+	},
+	saveToothStatus: async (patientId, toothNumber, status) => {
+		const teeth = Array.isArray(toothNumber) ? toothNumber : [toothNumber];
+
+		// Optimistic update
+		set((state) => {
+			const nextOdontogram = { ...state.odontogramState };
+			for (const t of teeth) {
+				nextOdontogram[t] = status;
+			}
+			return { odontogramState: nextOdontogram };
+		});
+
+		try {
+			const mapFrontendToBackend: Record<ToothStatus, string> = {
+				Healthy: "Healthy",
+				Caries: "Caries",
+				Filling: "Filled",
+				Missing: "Missing",
+				Implant: "Implant",
+				Crown: "Crown",
+			};
+			await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
+				method: "POST",
+				headers: denteAdminSecretRequestHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					toothNumbers: teeth,
+					state: mapFrontendToBackend[status] || "Healthy",
+				}),
+			});
+		} catch (e) {
+			console.error("Failed to save tooth status", e);
+		}
+	},
+
+	anamnesisDraft: {
+		allergies: [],
+		systemicDiseases: [],
+		hasCriticalAlerts: false,
+		medications: [],
+		pregnancyStatus: "none",
+		criticalAlertNote: "",
+	},
+	setAnamnesisDraft: (val) =>
+		set((state) => ({
+			anamnesisDraft:
+				typeof val === "function" ? val(state.anamnesisDraft) : val,
+		})),
+	anamnesisSaveState: "idle",
+	setAnamnesisSaveState: (val) => set({ anamnesisSaveState: val }),
+	loadAnamnesis: async (patientId) => {
+		try {
+			const res = await fetch(`/api/patients/${patientId}/anamnesis`, {
+				headers: denteAdminSecretRequestHeaders(),
+			});
+			if (res.ok) {
+				const data = await res.json();
+				set({
+					anamnesisDraft: {
+						allergies: data.allergies || [],
+						systemicDiseases: data.systemicDiseases || [],
+						hasCriticalAlerts: data.hasCriticalAlerts || false,
+						medications: data.medications || [],
+						pregnancyStatus: data.pregnancyStatus || "none",
+						criticalAlertNote: data.criticalAlertNote || "",
+					},
+					anamnesisSaveState: "idle",
+				});
+			}
+		} catch (e) {
+			console.error("Failed to load anamnesis", e);
+		}
+	},
+	saveAnamnesis: async (patientId) => {
+		set({ anamnesisSaveState: "saving" });
+		try {
+			const draft = usePatientStore.getState().anamnesisDraft;
+			const res = await fetch(`/api/patients/${patientId}/anamnesis`, {
+				method: "PUT",
+				headers: denteAdminSecretRequestHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify(draft),
+			});
+			if (res.ok) {
+				set({ anamnesisSaveState: "saved" });
+				setTimeout(() => set({ anamnesisSaveState: "idle" }), 3000);
+			} else {
+				set({ anamnesisSaveState: "error" });
+			}
+		} catch (e) {
+			console.error("Failed to save anamnesis", e);
+			set({ anamnesisSaveState: "error" });
+		}
+	},
 
 	selectedPatientId: initialUiPreferences.selectedPatientId ?? null,
 	setSelectedPatientId: (val) =>

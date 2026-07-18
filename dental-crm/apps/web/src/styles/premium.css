@@ -1,0 +1,223 @@
+/* 
+ * ULTRA-PREMIUM SICK UI OVERRIDES 
+ * UI UX PRO MAX - Deep Glassmorphism, dynamic gradients, micro-animations
+ */
+
+:root,
+[data-theme="dark"] {
+	--bg-app: #030305;
+	--glass-panel: rgba(15, 15, 20, 0.45);
+	--glass-border: rgba(255, 255, 255, 0.05);
+	--glass-shadow:
+		0 16px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+	--glass-blur: blur(40px);
+	--teal-glow: 0 0 30px rgba(45, 212, 191, 0.25);
+	--active-item-bg: linear-gradient(
+		135deg,
+		rgba(45, 212, 191, 0.15),
+		rgba(13, 148, 136, 0.05)
+	);
+	--active-item-border: rgba(45, 212, 191, 0.4);
+
+	--text-primary: #ffffff;
+	--text-secondary: #94a3b8;
+
+	--mesh-bg-1: radial-gradient(
+		circle at 10% 20%,
+		rgba(13, 148, 136, 0.12) 0px,
+		transparent 40%
+	);
+	--mesh-bg-2: radial-gradient(
+		circle at 90% 80%,
+		rgba(59, 130, 246, 0.08) 0px,
+		transparent 40%
+	);
+	--mesh-bg-3: radial-gradient(
+		circle at 50% 50%,
+		rgba(139, 92, 246, 0.05) 0px,
+		transparent 50%
+	);
+}
+
+[data-theme="light"] {
+	--bg-app: #f4f4f6;
+	--glass-panel: rgba(255, 255, 255, 0.65);
+	--glass-border: rgba(255, 255, 255, 0.9);
+	--glass-shadow:
+		0 16px 40px rgba(31, 38, 135, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+	--glass-blur: blur(30px);
+	--teal-glow: 0 0 30px rgba(13, 148, 136, 0.15);
+	--active-item-bg: linear-gradient(
+		135deg,
+		rgba(13, 148, 136, 0.08),
+		rgba(13, 148, 136, 0.02)
+	);
+	--active-item-border: rgba(13, 148, 136, 0.5);
+
+	--text-primary: #0f172a;
+	--text-secondary: #64748b;
+
+	--mesh-bg-1: radial-gradient(
+		circle at 0% 0%,
+		rgba(13, 148, 136, 0.08) 0px,
+		transparent 50%
+	);
+	--mesh-bg-2: radial-gradient(
+		circle at 100% 100%,
+		rgba(59, 130, 246, 0.05) 0px,
+		transparent 50%
+	);
+	--mesh-bg-3: radial-gradient(
+		circle at 50% 50%,
+		rgba(139, 92, 246, 0.03) 0px,
+		transparent 50%
+	);
+}
+
+/* Base Body Background with Mesh Gradients */
+body {
+	background-color: var(--bg-app) !important;
+	background-image:
+		var(--mesh-bg-1), var(--mesh-bg-2), var(--mesh-bg-3) !important;
+	background-attachment: fixed !important;
+	color: var(--text-primary) !important;
+}
+
+/* Sidebar Redesign - Glassmorphism */
+.sidebar,
+.app-shell .sidebar {
+	background: var(--glass-panel) !important;
+	backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	-webkit-backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	border-right: 1px solid var(--glass-border) !important;
+	box-shadow: var(--glass-shadow) !important;
+}
+
+/* Sidebar Nav Items Redesign */
+.nav-item {
+	background: transparent !important;
+	border: 1px solid transparent !important;
+	transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+	color: var(--text-secondary) !important;
+}
+
+.nav-item:hover {
+	background: rgba(255, 255, 255, 0.05) !important;
+	transform: translateX(4px) !important;
+	border: 1px solid var(--glass-border) !important;
+	color: var(--text-primary) !important;
+}
+
+.nav-item.active {
+	background: var(--active-item-bg) !important;
+	border: 1px solid var(--active-item-border) !important;
+	box-shadow: var(--teal-glow) !important;
+	color: #fff !important;
+	text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+	transform: scale(1.02) !important;
+}
+
+.nav-item.active .nav-label,
+.nav-item.active svg,
+.nav-item.active .nav-copy small,
+.nav-item:hover .nav-copy small {
+	color: #fff !important;
+	opacity: 0.9 !important;
+}
+
+.nav-copy small {
+	color: var(--text-secondary) !important;
+}
+
+/* Cards & Panels */
+.onboarding-shell,
+.boot-unlock-form,
+.app-notice,
+.workspace-continuity-strip {
+	background: var(--glass-panel) !important;
+	backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	-webkit-backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	border: 1px solid var(--glass-border) !important;
+	box-shadow: var(--glass-shadow) !important;
+	border-radius: 16px !important;
+	transition:
+		transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+		box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.onboarding-shell:hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="light"] .onboarding-shell:hover {
+	box-shadow: 0 16px 48px 0 rgba(31, 38, 135, 0.15) !important;
+}
+
+/* Remove clunky active left border */
+.nav-item.active::before {
+	display: none !important;
+}
+
+/* Mobile Bottom Nav Fixes */
+@media (max-width: 860px) {
+	.sidebar,
+	.app-shell .sidebar {
+		border-right: none !important;
+		border-top: 1px solid var(--glass-border) !important;
+		border-radius: 20px 20px 0 0 !important;
+		padding-bottom: env(safe-area-inset-bottom) !important;
+	}
+
+	.nav-item {
+		min-height: auto !important;
+		padding: 8px 4px !important;
+	}
+
+	.nav-item.active {
+		transform: translateY(-2px) !important;
+		border-bottom: 2px solid var(--active-item-border) !important;
+		box-shadow: none !important;
+	}
+
+	.nav-item .nav-copy {
+		display: none !important; /* Hide subtext on mobile to save space */
+	}
+
+	.nav-label {
+		font-size: 11px !important;
+		font-weight: 600 !important;
+		white-space: nowrap !important;
+		overflow: hidden !important;
+		text-overflow: ellipsis !important;
+		max-width: 60px !important; /* Force truncation if needed */
+	}
+}
+
+.mode-fit-card,
+.role-queue-card,
+.patient-summary-card,
+.patient-insight-panel,
+.glass-panel,
+.card,
+article {
+	background: var(--glass-panel) !important;
+	backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	-webkit-backdrop-filter: var(--glass-blur) saturate(180%) !important;
+	border: 1px solid var(--glass-border) !important;
+	box-shadow: var(--glass-shadow) !important;
+	border-radius: 16px !important;
+	transition:
+		transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+		box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.mode-fit-card:hover,
+.role-queue-card:hover,
+.patient-summary-card:hover,
+.card:hover,
+.glass-panel:hover {
+	box-shadow:
+		var(--glass-shadow),
+		0 12px 30px rgba(0, 0, 0, 0.15) !important;
+}

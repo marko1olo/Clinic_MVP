@@ -32,17 +32,45 @@ export const PatientJourneyTimeline: React.FC<{
 			.filter((a) => a.patientId === patientId)
 			.map((a) => ({
 				id: a.id,
-				timestamp: a.plannedStart,
+				timestamp: a.startsAt,
 				type: "appointment",
 				title: `Прием: ${a.status === "completed" ? "Завершен" : a.status}`,
-				description: `Врач: ${a.doctorId} | Диагноз: ${a.diagnosis || "Нет"}`,
+				description: `Врач: ${a.doctorUserId} | Причина: ${a.reason || "Нет"}`,
 				status: a.status === "completed" ? "Completed" : "Draft",
-				actionUrl: `/patients/${patientId}/visit/${a.id}`,
+				actionUrl: "#visit",
 			}));
+
+		const payments: any[] = dashboard?.payments || [];
+		const paymentEvents: JourneyEvent[] = payments
+			.filter((p) => p.patientId === patientId)
+			.map((p) => ({
+				id: p.id,
+				timestamp: p.paidAt || p.createdAt,
+				type: "transaction",
+				title: `Оплата (${p.method})`,
+				description: `Сумма: ${p.amountRub.toLocaleString("ru-RU")} ₽`,
+				amount: p.amountRub,
+				status: p.status,
+				actionUrl: `#finance`,
+			}));
+
+		const insights: any[] = dashboard?.patientInsights || [];
+		const insightEvents: JourneyEvent[] = insights
+			.filter((i) => i.patientId === patientId)
+			.map((i) => ({
+				id: i.id || Math.random().toString(),
+				timestamp: i.createdAt || new Date().toISOString(),
+				type: "medical_alert",
+				title: `Аналитика: ${i.category === "churn_risk" ? "Риск оттока" : i.category === "unscheduled_treatment" ? "Незапланированное лечение" : i.category}`,
+				description: i.reason,
+				status: i.riskLevel,
+			}));
+
+		const allEvents = [...visitEvents, ...paymentEvents, ...insightEvents];
 
 		// Sort by timestamp
 		setEvents(
-			visitEvents.sort(
+			allEvents.sort(
 				(a, b) =>
 					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
 			),
@@ -52,6 +80,22 @@ export const PatientJourneyTimeline: React.FC<{
 			setEvents([]);
 		};
 	}, [patientId, dashboard?.appointments]);
+
+	// Real Zeigarnik Effect Progress Calculation
+	const planItems =
+		dashboard?.treatmentPlanItems?.filter((i) => i.patientId === patientId) ||
+		[];
+	const activeItems = planItems.filter((i) => i.status !== "cancelled");
+	const completedItems = activeItems.filter((i) => i.status === "completed");
+
+	const totalItemsCount = activeItems.length;
+	const completedItemsCount = completedItems.length;
+	const progressPercentage =
+		totalItemsCount > 0
+			? Math.round((completedItemsCount / totalItemsCount) * 100)
+			: 0;
+
+	const showProgress = totalItemsCount > 0 && progressPercentage < 100;
 
 	const getIcon = (type: string) => {
 		switch (type) {
@@ -78,23 +122,33 @@ export const PatientJourneyTimeline: React.FC<{
 			</div>
 
 			{/* Эффект Зейгарник: Прогресс-бар лечения */}
-			<div className="zeigarnik-progress-container">
-				<div className="progress-header">
-					<span className="progress-title">
-						План лечения: Ортопедия (Фаза 2)
-					</span>
-					<span className="progress-percentage text-emerald-400">37%</span>
+			{showProgress && (
+				<div className="zeigarnik-progress-container">
+					<div className="progress-header">
+						<span className="progress-title">План лечения: Общий прогресс</span>
+						<span className="progress-percentage text-emerald-400">
+							{progressPercentage}%
+						</span>
+					</div>
+					<div className="progress-bar-bg">
+						<div
+							className="progress-bar-fill"
+							style={{ width: `${progressPercentage}%` }}
+						></div>
+					</div>
+					<p className="progress-hint">
+						Пройдено {completedItemsCount} процедуры из {totalItemsCount}.
+						Следующий визит приблизит вас к завершению плана!
+					</p>
 				</div>
-				<div className="progress-bar-bg">
-					<div className="progress-bar-fill" style={{ width: "37%" }}></div>
-				</div>
-				<p className="progress-hint">
-					Пройдено 3 процедуры из 8. Следующий визит приблизит вас к завершению
-					плана!
-				</p>
-			</div>
+			)}
 
 			<div className="timeline-track">
+				{events.length === 0 && (
+					<div className="empty-state text-zinc-500 text-sm py-4">
+						Нет зарегистрированных событий пациента.
+					</div>
+				)}
 				{events.map((evt, index) => {
 					// Эффект Края (Serial Position Effect): выделяем первый и последний элементы
 					const isFirst = index === 0;

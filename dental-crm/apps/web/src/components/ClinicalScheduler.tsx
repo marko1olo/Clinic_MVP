@@ -1,18 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { denteAdminSecretRequestHeaders } from "../AppHelpers.js";
 import { showToast } from "./GlobalToast.js";
 import "./ClinicalScheduler.css";
-
-interface AppointmentSlot {
-	id: string;
-	time: string;
-	patientName: string;
-	type: "therapy" | "orthopedics" | "consultation";
-	hasCriticalAlert: boolean;
-	labStatus?: "delivered" | "in_progress" | "none" | "ready";
-	duration?: number;
-	alert?: string;
-}
+import { useWorkspaceProfileStore } from "../hooks/useWorkspaceProfile";
 
 interface CrosshairState {
 	rowIdx: number;
@@ -23,106 +13,34 @@ export const ClinicalScheduler: React.FC<any> = ({
 	appointments,
 	dashboard,
 	onSlotClick,
+	onSlotDrop,
+	onAppointmentClick,
 }) => {
 	const [crosshair, setCrosshair] = useState<CrosshairState | null>(null);
-	const [popoverSlot, setPopoverSlot] = useState<{
-		time: string;
-		chair: string;
-	} | null>(null);
-	const [patientSearch, setPatientSearch] = useState("");
 	const [isMobile, setIsMobile] = useState(false);
 	const [mobileChairId, setMobileChairId] = useState<string | null>(null);
-	const searchRef = useRef<HTMLInputElement>(null);
-
-	// Patients for dropdown search
-	const [patientsList, setPatientsList] = useState<any[]>([]);
 
 	useEffect(() => {
-		fetch("/api/patients", { headers: denteAdminSecretRequestHeaders() })
-			.then((res) => res.json())
-			.then((data) => {
-				if (Array.isArray(data)) setPatientsList(data);
-			})
-			.catch(console.error);
-
 		const checkMobile = () => setIsMobile(window.innerWidth < 768);
 		checkMobile();
 		window.addEventListener("resize", checkMobile);
 		return () => window.removeEventListener("resize", checkMobile);
 	}, []);
 
-	useEffect(() => {
-		if (popoverSlot && searchRef.current) {
-			requestAnimationFrame(() => searchRef.current?.focus());
-		}
-	}, [popoverSlot]);
-
 	const handleCellLeave = useCallback(() => {
 		setCrosshair(null);
 	}, []);
 
-	const handleEmptyClick = useCallback((time: string, chair: string) => {
-		setPatientSearch("");
-		setPopoverSlot({ time, chair });
-	}, []);
-
-	const handleCreateAppointment = async (patientId: string) => {
-		if (!popoverSlot) return;
-
-		// Parse time
-		const today = new Date();
-		const dateStr = today.toISOString().split("T")[0];
-		const startsAt = new Date(
-			`${dateStr}T${popoverSlot.time}:00`,
-		).toISOString();
-
-		// Add 1 hour duration
-		const endsAt = new Date(
-			new Date(startsAt).getTime() + 3600000,
-		).toISOString();
-
-		// Default doctor is the first doctor in staff
-		const staff = dashboard?.clinicSettings?.staff || [];
-		const firstDoctor = staff.find(
-			(s: any) => s.role === "doctor" || s.role === "Врач",
-		);
-
-		try {
-			const res = await fetch("/api/appointments", {
-				method: "POST",
-				headers: denteAdminSecretRequestHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					patientId,
-					chairId: popoverSlot.chair,
-					doctorUserId: firstDoctor?.id,
-					startsAt,
-					endsAt,
-					status: "planned",
-				}),
-			});
-
-			if (!res.ok) {
-				if (res.status === 409) {
-					showToast(
-						"Этот слот только что был занят другим администратором. Выберите другое время.",
-						"error",
-					);
-				} else {
-					showToast(`Ошибка сервера: ${res.status}`, "error");
-				}
-				return;
+	const handleEmptyClick = useCallback(
+		(time: string, chair: string) => {
+			if (onSlotClick) {
+				const today = new Date();
+				const dateStr = today.toISOString().split("T")[0];
+				onSlotClick(dateStr, time, chair);
 			}
-
-			showToast("Запись успешно создана!", "success");
-			setPopoverSlot(null);
-			// Let websocket or parent component refresh data
-		} catch (e) {
-			console.error(e);
-			showToast("Ошибка при создании записи", "error");
-		}
-	};
+		},
+		[onSlotClick],
+	);
 
 	const workingHours = dashboard?.clinicSettings?.profile?.workingHours || [];
 	let minStart = "09:00";
@@ -171,45 +89,147 @@ export const ClinicalScheduler: React.FC<any> = ({
 		}
 	}, [isMobile, activeChairs, mobileChairId]);
 
+	if (!dashboard || !appointments) {
+		return (
+			<div className="clinical-scheduler skeleton-container" style={{ minHeight: "400px", opacity: 0.6, pointerEvents: "none" }}>
+				<div className="scheduler-header">
+					<div style={{ width: "200px", height: "28px", background: "var(--line, #e2e8f0)", borderRadius: "6px" }} />
+				</div>
+				<div className="scheduler-grid-wrap" style={{ background: "var(--line-light, #eff2f5)", height: "300px", marginTop: "20px", borderRadius: "12px" }} />
+			</div>
+		);
+	}
+
+	const workspaceFlags = useWorkspaceProfileStore();
+	
+	const clinicMode = dashboard?.clinicSettings?.profile?.mode || "network_clinic";
+	const isSmallCabinet = clinicMode === "solo_doctor" || clinicMode === "one_chair";
+
 	const displayedChairs =
-		isMobile && mobileChairId
-			? activeChairs.filter((c: any) => c.id === mobileChairId)
-			: activeChairs;
+		(!workspaceFlags.hasMultipleChairs || isSmallCabinet) && activeChairs.length > 0
+			? [activeChairs[0]]
+			: isMobile && mobileChairId
+				? activeChairs.filter((c: any) => c.id === mobileChairId)
+				: activeChairs;
 
 	const chairsCount = displayedChairs.length;
 	const isSingleChair = chairsCount === 1;
-	const rowStyle = { gridTemplateColumns: `60px repeat(${chairsCount}, 1fr)` };
 
-	const searchResults =
-		patientSearch.length > 0
-			? patientsList.filter(
-					(p) =>
-						p.fullName?.toLowerCase().includes(patientSearch.toLowerCase()) ||
-						p.phone?.includes(patientSearch),
-				)
-			: [];
+	const freeDoctors =
+		dashboard?.shiftIntelligence?.doctorLoads?.filter(
+			(dl: any) => dl.utilizationPercent < 50 || dl.state === "under_utilized",
+		) || [];
+
+	const getAppointmentGridPosition = (appt: any) => {
+		if (!appt.startsAt || !appt.endsAt) return null;
+
+		const startsAt = new Date(appt.startsAt);
+		const endsAt = new Date(appt.endsAt);
+
+		const startH = startsAt.getHours();
+		const startM = startsAt.getMinutes();
+		const endH = endsAt.getHours();
+		const endM = endsAt.getMinutes();
+
+		const startMinutes = startH * 60 + startM;
+		const endMinutes = endH * 60 + endM;
+
+		const minParts = minStart.split(":").map(Number);
+		const gridStartMinutes = (minParts[0] || 9) * 60 + (minParts[1] || 0);
+
+		const offsetSlots = Math.max(
+			0,
+			Math.floor((startMinutes - gridStartMinutes) / 30),
+		);
+		const durationSlots = Math.max(
+			1,
+			Math.ceil((endMinutes - startMinutes) / 30),
+		);
+
+		return {
+			startRow: offsetSlots + 2, // +1 for CSS Grid 1-index, +1 for Header Row = +2
+			span: durationSlots,
+		};
+	};
+
+	const CurrentTimeIndicator = () => {
+		const [currentTime, setCurrentTime] = useState(new Date());
+
+		useEffect(() => {
+			const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+			return () => clearInterval(interval);
+		}, []);
+
+		const hours = currentTime.getHours();
+		const minutes = currentTime.getMinutes();
+		const currentMinutes = hours * 60 + minutes;
+
+		const minParts = minStart.split(":").map(Number);
+		const gridStartMinutes = (minParts[0] || 9) * 60 + (minParts[1] || 0);
+		const maxParts = maxEnd.split(":").map(Number);
+		const gridEndMinutes = (maxParts[0] || 18) * 60 + (maxParts[1] || 0);
+
+		if (currentMinutes < gridStartMinutes || currentMinutes >= gridEndMinutes) return null;
+
+		const offsetSlots = (currentMinutes - gridStartMinutes) / 30;
+		const rowStart = Math.floor(offsetSlots) + 2;
+		const fraction = offsetSlots - Math.floor(offsetSlots);
+		const topOffset = fraction * 44; // 44px is gridAutoRows height
+
+		return (
+			<div
+				className="sg-current-time-line"
+				style={{
+					gridRow: rowStart,
+					gridColumn: "1 / -1",
+					top: `${topOffset}px`,
+				}}
+			>
+				<div className="sg-current-time-dot"></div>
+			</div>
+		);
+	};
 
 	return (
 		<div className="clinical-scheduler">
 			<div className="scheduler-header">
-				<h3>Ежедневное расписание</h3>
+				<div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+					<h3>Ежедневное расписание</h3>
+					{freeDoctors.length > 0 && (
+						<div className="free-doctors-locator">
+							<span className="free-doctors-label">
+								Свободные окна:
+							</span>
+							{freeDoctors.map((doc: any) => (
+								<div
+									key={doc.id}
+									className="free-doctor-badge"
+									onClick={() =>
+										onSlotClick &&
+										onSlotClick(
+											new Date().toISOString().split("T")[0],
+											doc.nextFreeAt || "10:00",
+											"",
+										)
+									}
+									title="Записать к врачу"
+								>
+									<span className="free-doctor-dot" />
+									{doc.title.split(" ")[0]} ({doc.utilizationPercent}%)
+								</div>
+							))}
+						</div>
+					)}
+				</div>
 				<div className="date-picker">Сегодня</div>
 			</div>
 
 			{isMobile && activeChairs.length > 1 && (
 				<div style={{ padding: "0 16px 16px" }}>
 					<select
+						className="mobile-chair-selector"
 						value={mobileChairId || activeChairs[0].id}
 						onChange={(e) => setMobileChairId(e.target.value)}
-						style={{
-							width: "100%",
-							padding: "12px",
-							borderRadius: "8px",
-							border: "1px solid var(--line)",
-							background: "var(--paper)",
-							fontSize: "16px",
-							color: "var(--ink)",
-						}}
 					>
 						{activeChairs.map((c: any) => (
 							<option key={c.id} value={c.id}>
@@ -220,127 +240,158 @@ export const ClinicalScheduler: React.FC<any> = ({
 				</div>
 			)}
 
-			{/* Crosshair grid */}
 			<div className="scheduler-grid-wrap" onMouseLeave={handleCellLeave}>
-				{/* Chair headers */}
-				{!isSingleChair && (
-					<div className="sg-row sg-header-row" style={rowStyle}>
-						<div className="sg-time-cell" />
-						{displayedChairs.map((chair: any, ci: number) => (
+				<div
+					className="sg-grid-body"
+					style={{
+						display: "grid",
+						gridTemplateColumns: `60px repeat(${chairsCount}, minmax(180px, 1fr))`,
+						gridAutoRows: "44px",
+					}}
+				>
+					{/* Headers */}
+					{!isSingleChair && (
+						<div className="sg-corner" style={{ gridRow: 1, gridColumn: 1 }} />
+					)}
+					{!isSingleChair &&
+						displayedChairs.map((chair: any, ci: number) => (
 							<div
 								key={chair.id}
 								className={`sg-chair-header ${crosshair && crosshair.colIdx === ci ? "sg-col-highlight" : ""}`}
+								style={{ gridRow: 1, gridColumn: ci + 2 }}
 							>
 								{chair.name}
 							</div>
 						))}
-					</div>
-				)}
 
-				{TIME_SLOTS.map((time, ri) => (
-					<div key={time} className="sg-row" style={rowStyle}>
-						{/* Time label */}
-						<div
-							className={`sg-time-cell ${crosshair && crosshair.rowIdx === ri ? "sg-row-highlight-label" : ""}`}
-						>
-							{time}
-						</div>
+					{/* Background cells (time labels and empty clickable areas) */}
+					{TIME_SLOTS.map((time, ri) => (
+						<React.Fragment key={time}>
+							<div
+								className={`sg-time-cell ${crosshair && crosshair.rowIdx === ri ? "sg-row-highlight-label" : ""}`}
+								style={{ gridRow: ri + 2, gridColumn: 1 }}
+							>
+								{time}
+							</div>
 
-						{displayedChairs.map((chair: any, ci: number) => {
-							const appt = (appointments || []).find((a: any) => {
-								if (a.chairId !== chair.id) return false;
-								if (!a.startsAt) return false;
-								const apptTime = new Date(a.startsAt);
-								const h = apptTime.getHours().toString().padStart(2, "0");
-								const m = apptTime.getMinutes().toString().padStart(2, "0");
-								return `${h}:${m}` === time;
-							});
-
-							return (
+							{displayedChairs.map((chair: any, ci: number) => (
 								<div
-									key={chair.id}
-									className={`sg-cell ${!appt ? "sg-cell--empty" : "sg-cell--filled"} 
-                    ${crosshair && crosshair.rowIdx === ri && crosshair.colIdx === ci ? "sg-cell-highlight" : ""}
-                    ${crosshair && (crosshair.rowIdx === ri || crosshair.colIdx === ci) ? "sg-row-highlight" : ""}
-                  `}
+									key={`${time}-${chair.id}`}
+									className={`sg-cell sg-cell--empty ${crosshair && crosshair.rowIdx === ri && crosshair.colIdx === ci ? "sg-cell-highlight" : ""} ${crosshair && (crosshair.rowIdx === ri || crosshair.colIdx === ci) ? "sg-row-highlight" : ""}`}
+									style={{ gridRow: ri + 2, gridColumn: ci + 2 }}
 									onMouseEnter={() => setCrosshair({ rowIdx: ri, colIdx: ci })}
-									onClick={() => {
-										if (!appt) handleEmptyClick(time, chair.id);
+									onClick={() => handleEmptyClick(time, chair.id)}
+									onDragOver={(e) => {
+										e.preventDefault(); // Allow drop
+										e.dataTransfer.dropEffect = "copy";
+										setCrosshair({ rowIdx: ri, colIdx: ci });
+									}}
+									onDrop={(e) => {
+										e.preventDefault();
+										setCrosshair(null);
+										if (onSlotDrop) {
+											const today = new Date().toISOString().split("T")[0];
+											try {
+												const dataStr =
+													e.dataTransfer.getData("application/json");
+												if (dataStr) {
+													const data = JSON.parse(dataStr);
+													onSlotDrop(today, time, chair.id, data);
+												}
+											} catch (err) {
+												console.error("Drop failed", err);
+											}
+										}
 									}}
 								>
-									{appt && (
-										<div className="sg-appt-card sg-appt-therapy">
-											<div className="sg-appt-title">
-												{appt.patient?.fullName || "Пациент DB"}
-											</div>
-											<div className="sg-appt-meta">{appt.status}</div>
-										</div>
-									)}
+									<div className="sg-cell-plus">+</div>
 								</div>
-							);
-						})}
-					</div>
-				))}
-			</div>
+							))}
+						</React.Fragment>
+					))}
 
-			{/* Quick-Book Popover */}
-			{popoverSlot && (
-				<div
-					className="sg-popover-backdrop"
-					onClick={() => setPopoverSlot(null)}
-				>
-					<div className="sg-popover" onClick={(e) => e.stopPropagation()}>
-						<div className="sg-popover-header">
-							<span>
-								Новая запись —{" "}
-								{
-									displayedChairs.find((c: any) => c.id === popoverSlot.chair)
-										?.name
-								}
-								, {popoverSlot.time}
-							</span>
-							<button
-								className="sg-popover-close"
-								onClick={() => setPopoverSlot(null)}
+					<CurrentTimeIndicator />
+
+					{/* Appointments Overlay */}
+					{(appointments || []).map((appt: any) => {
+						const pos = getAppointmentGridPosition(appt);
+						if (!pos) return null;
+
+						const colIdx = displayedChairs.findIndex(
+							(c: any) => c.id === appt.chairId,
+						);
+						if (colIdx === -1) return null; // Not in view
+
+						// Resolve patient from dashboard
+						const patient = dashboard?.patients?.find(
+							(p: any) => p.id === appt.patientId,
+						);
+
+						// Resolve readiness from dashboard
+						const readiness = dashboard?.appointmentReadiness?.find(
+							(r: any) => r.appointmentId === appt.id,
+						);
+
+						return (
+							<div
+								key={appt.id}
+								className="sg-appt-card-wrapper"
+								style={{
+									gridRow: `${pos.startRow} / span ${pos.span}`,
+									gridColumn: colIdx + 2,
+								}}
 							>
-								✕
-							</button>
-						</div>
-						<div className="sg-popover-body">
-							<label className="sg-popover-label">Поиск пациента</label>
-							<input
-								ref={searchRef}
-								className="sg-popover-search"
-								type="text"
-								placeholder="ФИО или телефон..."
-								value={patientSearch}
-								onChange={(e) => setPatientSearch(e.target.value)}
-							/>
-							{patientSearch.length > 0 && searchResults.length > 0 && (
-								<div className="sg-popover-results">
-									{searchResults.map((p) => (
-										<div
-											key={p.id}
-											className="sg-popover-result-item"
-											onClick={() => handleCreateAppointment(p.id)}
-										>
-											{p.fullName} ({p.phone})
-										</div>
-									))}
-								</div>
-							)}
-							{patientSearch.length > 0 && searchResults.length === 0 && (
 								<div
-									className="sg-popover-results"
-									style={{ padding: "10px", color: "#888" }}
+									className={`sg-appt-card sg-appt-${appt.type || "therapy"} sg-appt-status-${appt.status || "planned"}`}
+									onClick={(e) => {
+										e.stopPropagation();
+										if (onAppointmentClick) onAppointmentClick(appt);
+									}}
+									style={{ position: "relative" }}
 								>
-									Не найдено.
+									<div className="sg-appt-title">
+										{patient?.fullName || "Неизвестный пациент"}
+									</div>
+									<div className="sg-appt-meta-status">{appt.status}</div>
+									<div className="sg-appt-time">
+										{new Date(appt.startsAt).toLocaleTimeString([], {
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+										{" - "}
+										{new Date(appt.endsAt).toLocaleTimeString([], {
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+									</div>
+
+									{/* Status Lights (Светофоры) */}
+									<div className="sg-appt-status-lights">
+										{readiness?.state === "ready" && (
+											<span
+												className="sg-status-dot green"
+												title={readiness.nextAction}
+											/>
+										)}
+										{readiness?.state === "needs_attention" && (
+											<span
+												className="sg-status-dot yellow"
+												title={readiness.nextAction}
+											/>
+										)}
+										{readiness?.state === "blocked" && (
+											<span
+												className="sg-status-dot red"
+												title={readiness.nextAction}
+											/>
+										)}
+									</div>
 								</div>
-							)}
-						</div>
-					</div>
+							</div>
+						);
+					})}
 				</div>
-			)}
+			</div>
 		</div>
 	);
 };

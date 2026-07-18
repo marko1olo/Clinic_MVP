@@ -12,7 +12,9 @@ export type LazyWorkspaceView =
 	| "visit"
 	| "imaging"
 	| "marketing"
-	| "scanner";
+	| "scanner"
+	| "inventory"
+	| "payroll";
 
 type WorkspaceRouteErrorBoundaryProps = PropsWithChildren<{
 	label: string;
@@ -78,7 +80,10 @@ export class WorkspaceRouteErrorBoundary extends Component<
 					role="alert"
 					aria-live="assertive"
 				>
-					<div className="flex flex-col items-center justify-center p-8 rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-md shadow-xl text-center max-w-sm">
+					<div 
+						className="rounded-2xl shadow-xl text-center max-w-sm"
+						style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px", border: "1px solid var(--color-danger-muted, #fca5a5)", background: "var(--paper)" }}
+					>
 						<svg
 							className="w-12 h-12 text-red-500/80 mb-4"
 							fill="none"
@@ -96,26 +101,37 @@ export class WorkspaceRouteErrorBoundary extends Component<
 						<p className="text-sm opacity-70 mb-6">
 							Не удалось загрузить этот раздел.
 						</p>
-						<button
-							className="px-6 py-2.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
-							type="button"
-							onClick={() => this.setState({ hasError: false, detail: "" })}
-						>
-							<svg
-								className="w-4 h-4"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
+						<div className="flex gap-2">
+							<button
+								className="transition-all duration-200"
+								style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 24px", borderRadius: "999px", background: "var(--color-danger-muted, #fee2e2)", color: "var(--color-danger, #ef4444)", border: "none" }}
+								type="button"
+								onClick={() => this.setState({ hasError: false, detail: "" })}
 							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-								/>
-							</svg>
-							Повторить
-						</button>
+								<svg
+									className="w-4 h-4"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+									/>
+								</svg>
+								Повторить
+							</button>
+							<button
+								className="transition-all duration-200"
+								style={{ padding: "10px 24px", borderRadius: "999px", background: "var(--paper-strong)", color: "var(--ink)", border: "1px solid var(--line)" }}
+								type="button"
+								onClick={requestDenteStaleWorkspaceRefresh}
+							>
+								Обновить страницу
+							</button>
+						</div>
 					</div>
 				</section>
 			);

@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -13,7 +13,11 @@ const familyPaymentSchema = z.object({
 	organizationId: z.string().uuid().optional(),
 	patientId: z.string().uuid(),
 	familyGroupId: z.string().uuid(),
-	amountRub: z.number().positive(),
+	// The payments ledger stores whole rubles (integer column), so a family-wallet
+	// payment must be an integer too. Allowing fractional amounts here would debit
+	// the wallet by e.g. 100.50 while recording a rounded 101 — drifting the two
+	// balances apart over time.
+	amountRub: z.number().int().positive(),
 	documentId: z.string().uuid().optional(),
 	visitId: z.string().uuid().optional(),
 });
@@ -66,6 +70,48 @@ async function familyMembersForOrganization(
 }
 
 export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
+	// GET /api/finance/family - search families
+	app.get("/api/finance/family", async (req, reply) => {
+		const organizationId = await requireResolvedOrganizationId(
+			req,
+			reply,
+			"family finance read",
+		);
+		if (!organizationId) return;
+
+		const { search } = req.query as { search?: string };
+		const families = await db
+			.select({
+				id: familyGroups.id,
+				name: familyGroups.name,
+				balance: familyGroups.balance,
+				headPatientId: familyGroups.headPatientId,
+				organizationId: familyGroups.organizationId,
+				createdAt: familyGroups.createdAt,
+				updatedAt: familyGroups.updatedAt,
+				headPatientName: patients.fullName,
+				headPatientPhone: patients.phone,
+			})
+			.from(familyGroups)
+			.leftJoin(patients, eq(familyGroups.headPatientId, patients.id))
+			.where(
+				search
+					? and(
+							eq(familyGroups.organizationId, organizationId),
+							or(
+								ilike(familyGroups.name, `%${search}%`),
+								ilike(patients.phone, `%${search}%`),
+								ilike(patients.fullName, `%${search}%`),
+							),
+						)
+					: eq(familyGroups.organizationId, organizationId),
+			)
+			.orderBy(desc(familyGroups.createdAt))
+			.limit(20);
+
+		return families;
+	});
+
 	// GET /api/finance/family/:familyGroupId — fetch family group and members
 	app.get("/api/finance/family/:familyGroupId", async (req, reply) => {
 		const organizationId = await requireResolvedOrganizationId(
@@ -355,8 +401,9 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 					.values({
 						organizationId,
 						patientId: payload.patientId,
-						amountRub: Math.round(payload.amountRub),
-						method: "family_wallet", // family_wallet
+						// Validated as an integer above; debit and record match exactly.
+						amountRub: payload.amountRub,
+						method: "family_wallet",
 						documentId: payload.documentId,
 						visitId: payload.visitId,
 						status: "paid",

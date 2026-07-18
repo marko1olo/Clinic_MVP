@@ -1,6 +1,6 @@
 {
-  "id": "e7f4b809-3c7f-4139-93cb-d0c218c1d027",
-  "prevId": "77188dd8-b2da-44c6-b682-50a5242b4faa",
+  "id": "18e4a613-c2fd-475a-a624-dfa125359c21",
+  "prevId": "b7b363c8-335b-469f-804e-3017b6cc5315",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5586,6 +5586,128 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.inventory_transactions": {
+      "name": "inventory_transactions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visit_id": {
+          "name": "visit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inventory_item_id": {
+          "name": "inventory_item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_changed": {
+          "name": "quantity_changed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_cost_rub": {
+          "name": "unit_cost_rub",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_type": {
+          "name": "transaction_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "inventory_transactions_organization_id_organizations_id_fk": {
+          "name": "inventory_transactions_organization_id_organizations_id_fk",
+          "tableFrom": "inventory_transactions",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inventory_transactions_visit_id_visits_id_fk": {
+          "name": "inventory_transactions_visit_id_visits_id_fk",
+          "tableFrom": "inventory_transactions",
+          "tableTo": "visits",
+          "columnsFrom": [
+            "visit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inventory_transactions_inventory_item_id_inventory_items_id_fk": {
+          "name": "inventory_transactions_inventory_item_id_inventory_items_id_fk",
+          "tableFrom": "inventory_transactions",
+          "tableTo": "inventory_items",
+          "columnsFrom": [
+            "inventory_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inventory_transactions_user_id_users_id_fk": {
+          "name": "inventory_transactions_user_id_users_id_fk",
+          "tableFrom": "inventory_transactions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.lab_orders": {
       "name": "lab_orders",
       "schema": "",
@@ -6034,7 +6156,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "default": "'в‚Ѕ'"
+          "default": "'₽'"
         },
         "theme_color": {
           "name": "theme_color",
@@ -6052,6 +6174,12 @@
         "stamp_url": {
           "name": "stamp_url",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marketing_data": {
+          "name": "marketing_data",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -7205,6 +7333,128 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.protocol_templates": {
+      "name": "protocol_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "specialty": {
+          "name": "specialty",
+          "type": "dental_specialty",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visit_reason": {
+          "name": "visit_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_duration_minutes": {
+          "name": "default_duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "complaint_prompt": {
+          "name": "complaint_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "objective_template": {
+          "name": "objective_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "diagnosis_hints": {
+          "name": "diagnosis_hints",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "treatment_plan_template": {
+          "name": "treatment_plan_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "required_documents": {
+          "name": "required_documents",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "suggested_imaging": {
+          "name": "suggested_imaging",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "safety_warnings": {
+          "name": "safety_warnings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "protocol_templates_organization_id_organizations_id_fk": {
+          "name": "protocol_templates_organization_id_organizations_id_fk",
+          "tableFrom": "protocol_templates",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.scheduler_reservations": {
       "name": "scheduler_reservations",
       "schema": "",
@@ -7499,6 +7749,69 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.signed_outpatient_cards": {
+      "name": "signed_outpatient_cards",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "visit_id": {
+          "name": "visit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doctor_id": {
+          "name": "doctor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_id": {
+          "name": "patient_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signature_base64": {
+          "name": "signature_base64",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "thumbprint": {
+          "name": "thumbprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signature_provider": {
+          "name": "signature_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_at": {
+          "name": "signed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.sterilization_logs": {
       "name": "sterilization_logs",
       "schema": "",
@@ -7600,6 +7913,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'Healthy'"
+        },
+        "surfaces": {
+          "name": "surfaces",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_synced": {
           "name": "is_synced",
@@ -8538,6 +8857,12 @@
         },
         "treatment_description": {
           "name": "treatment_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "crypto_signature_pkcs7": {
+          "name": "crypto_signature_pkcs7",
           "type": "text",
           "primaryKey": false,
           "notNull": false

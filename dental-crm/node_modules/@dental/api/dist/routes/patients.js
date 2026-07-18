@@ -1,5 +1,8 @@
 import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema, } from "@dental/shared";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
+import { db } from "../db/client.js";
+import { patientReclamations, taskTickets } from "../db/schema.js";
+import { eq, desc, and } from "drizzle-orm";
 const patientCreateValidationMessage = "Пациент не создан: заполните ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientUpdateValidationMessage = "Пациент не обновлен: проверьте ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientAdministrativeValidationMessage = "Административный профиль не сохранен: проверьте документы, согласия, страховку и данные представителя.";
@@ -71,7 +74,7 @@ function hasIncompleteRepresentativeIdentity(value) {
     return (!hasText(value.legalRepresentativeFullName) ||
         !hasText(value.legalRepresentativeRelationship));
 }
-import { createPatientInDb, getPatientsFromDb, updatePatientAdministrativeProfileInDb, updatePatientInDb, } from "../db/patientsQuery.js";
+import { createPatientInDb, getPatientAnamnesisFromDb, getPatientsFromDb, updatePatientAdministrativeProfileInDb, updatePatientAnamnesisInDb, updatePatientInDb, } from "../db/patientsQuery.js";
 export async function registerPatientRoutes(app) {
     app.get("/api/patients", async (request, reply) => {
         const orgId = await requireResolvedOrganizationId(request, reply, "patients read");
@@ -158,6 +161,241 @@ export async function registerPatientRoutes(app) {
         catch (e) {
             console.error("[Patients] Update profile error:", e);
             return sendPatientNotFound(reply);
+        }
+    });
+    app.get("/api/patients/:patientId/anamnesis", async (request, reply) => {
+        const orgId = await requireResolvedOrganizationId(request, reply, "patient anamnesis read");
+        if (!orgId)
+            return;
+        const params = request.params;
+        if (!params.patientId)
+            return sendPatientRouteValidationError(reply);
+        try {
+            const anamnesis = await getPatientAnamnesisFromDb(params.patientId, orgId);
+            return (anamnesis || {
+                allergies: [],
+                systemicDiseases: [],
+                hasCriticalAlerts: false,
+                medications: [],
+                pregnancyStatus: null,
+                criticalAlertNote: null,
+            });
+        }
+        catch (e) {
+            console.error("[Patients] Get anamnesis error:", e);
+            return sendPatientNotFound(reply);
+        }
+    });
+    app.put("/api/patients/:patientId/anamnesis", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "patient anamnesis update");
+        if (!orgId)
+            return;
+        const params = request.params;
+        if (!params.patientId)
+            return sendPatientRouteValidationError(reply);
+        try {
+            const input = request.body; // Allow relaxed parsing for now
+            const updated = await updatePatientAnamnesisInDb(params.patientId, orgId, {
+                allergies: Array.isArray(input?.allergies)
+                    ? input.allergies
+                    : undefined,
+                systemicDiseases: Array.isArray(input?.systemicDiseases)
+                    ? input.systemicDiseases
+                    : undefined,
+                hasCriticalAlerts: typeof input?.hasCriticalAlerts === "boolean"
+                    ? input.hasCriticalAlerts
+                    : undefined,
+                medications: Array.isArray(input?.medications)
+                    ? input.medications
+                    : undefined,
+                pregnancyStatus: typeof input?.pregnancyStatus === "string" || input?.pregnancyStatus === null
+                    ? input.pregnancyStatus
+                    : undefined,
+                criticalAlertNote: typeof input?.criticalAlertNote === "string" || input?.criticalAlertNote === null
+                    ? input.criticalAlertNote
+                    : undefined,
+            });
+            // null => patient is not in this org; don't silently no-op cross-org writes.
+            if (!updated)
+                return sendPatientNotFound(reply);
+            return updated;
+        }
+        catch (e) {
+            console.error("[Patients] Update anamnesis error:", e);
+            return sendPatientNotFound(reply);
+        }
+    });
+    app.get("/api/patients/:patientId/reclamations", async (request, reply) => {
+        const orgId = await requireResolvedOrganizationId(request, reply, "read reclamations");
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        try {
+            const rows = await db
+                .select()
+                .from(patientReclamations)
+                .where(eq(patientReclamations.patientId, patientId))
+                .orderBy(desc(patientReclamations.createdAt));
+            return rows;
+        }
+        catch (e) {
+            console.error("Reclamations GET error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.post("/api/patients/:patientId/reclamations", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "create reclamation");
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        const { doctorId, complicationDetails, proposedAction } = request.body;
+        try {
+            const [reclamation] = await db.insert(patientReclamations).values({
+                patientId,
+                doctorId,
+                complicationDetails,
+                proposedAction,
+                status: "under_review",
+            }).returning();
+            return reclamation;
+        }
+        catch (e) {
+            console.error("Reclamations POST error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.put("/api/patients/:patientId/reclamations/:reclamationId", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "update reclamation");
+        if (!orgId)
+            return;
+        const { patientId, reclamationId } = request.params;
+        const { status, proposedAction } = request.body;
+        try {
+            const updateData = {};
+            if (status !== undefined)
+                updateData.status = status;
+            if (proposedAction !== undefined)
+                updateData.proposedAction = proposedAction;
+            if (status === "resolved")
+                updateData.resolvedAt = new Date();
+            const [reclamation] = await db.update(patientReclamations)
+                .set(updateData)
+                .where(and(eq(patientReclamations.id, reclamationId), eq(patientReclamations.patientId, patientId)))
+                .returning();
+            if (!reclamation)
+                return reply.code(404).send({ error: "NotFound" });
+            return reclamation;
+        }
+        catch (e) {
+            console.error("Reclamations PUT error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.delete("/api/patients/:patientId/reclamations/:reclamationId", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "delete reclamation");
+        if (!orgId)
+            return;
+        const { patientId, reclamationId } = request.params;
+        try {
+            const [reclamation] = await db.delete(patientReclamations)
+                .where(and(eq(patientReclamations.id, reclamationId), eq(patientReclamations.patientId, patientId)))
+                .returning();
+            if (!reclamation)
+                return reply.code(404).send({ error: "NotFound" });
+            return { success: true };
+        }
+        catch (e) {
+            console.error("Reclamations DELETE error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.get("/api/patients/:patientId/tickets", async (request, reply) => {
+        const orgId = await requireResolvedOrganizationId(request, reply, "read tickets");
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        try {
+            const rows = await db
+                .select()
+                .from(taskTickets)
+                .where(eq(taskTickets.patientId, patientId))
+                .orderBy(desc(taskTickets.createdAt));
+            return rows;
+        }
+        catch (e) {
+            console.error("Task Tickets GET error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.post("/api/patients/:patientId/tickets", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "create ticket");
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        const { assignedToId, title, description, priority } = request.body;
+        try {
+            const [ticket] = await db.insert(taskTickets).values({
+                patientId,
+                assignedToId,
+                title,
+                description,
+                priority: priority || "normal",
+                status: "pending",
+            }).returning();
+            return ticket;
+        }
+        catch (e) {
+            console.error("Task Tickets POST error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.put("/api/patients/:patientId/tickets/:ticketId", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "update ticket");
+        if (!orgId)
+            return;
+        const { patientId, ticketId } = request.params;
+        const { assignedToId, title, description, priority, status } = request.body;
+        try {
+            const updateData = { updatedAt: new Date() };
+            if (assignedToId !== undefined)
+                updateData.assignedToId = assignedToId;
+            if (title !== undefined)
+                updateData.title = title;
+            if (description !== undefined)
+                updateData.description = description;
+            if (priority !== undefined)
+                updateData.priority = priority;
+            if (status !== undefined)
+                updateData.status = status;
+            const [ticket] = await db.update(taskTickets)
+                .set(updateData)
+                .where(and(eq(taskTickets.id, ticketId), eq(taskTickets.patientId, patientId)))
+                .returning();
+            if (!ticket)
+                return reply.code(404).send({ error: "NotFound" });
+            return ticket;
+        }
+        catch (e) {
+            console.error("Task Tickets PUT error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
+        }
+    });
+    app.delete("/api/patients/:patientId/tickets/:ticketId", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "delete ticket");
+        if (!orgId)
+            return;
+        const { patientId, ticketId } = request.params;
+        try {
+            const [ticket] = await db.delete(taskTickets)
+                .where(and(eq(taskTickets.id, ticketId), eq(taskTickets.patientId, patientId)))
+                .returning();
+            if (!ticket)
+                return reply.code(404).send({ error: "NotFound" });
+            return { success: true };
+        }
+        catch (e) {
+            console.error("Task Tickets DELETE error:", e);
+            return reply.code(500).send({ error: "DatabaseError" });
         }
     });
 }

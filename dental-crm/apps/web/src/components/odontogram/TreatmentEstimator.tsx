@@ -3,6 +3,8 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { showToast } from "../GlobalToast.js";
 import { SignaturePad } from "../SignaturePad";
 import { type ToothData, ToothState } from "./ToothChart";
 
@@ -42,6 +44,67 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 	const [showSignModal, setShowSignModal] = useState(false);
 	const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
 
+	const { dashboard } = useAppLogicContext();
+	const [activeContract, setActiveContract] = useState<any | null>(null);
+
+	const patient = dashboard?.patients?.find((p: any) => p.id === patientId);
+	const insuranceContractId =
+		patient?.insuranceContractId ||
+		patient?.administrativeProfile?.insuranceContractId;
+
+	useEffect(() => {
+		if (!insuranceContractId) {
+			setActiveContract(null);
+			return;
+		}
+
+		fetch(`/api/insurance/contracts/${insuranceContractId}`, {
+			headers: denteAdminSecretRequestHeaders(),
+		})
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data) => {
+				setActiveContract(data);
+			})
+			.catch((err) => {
+				console.error("Failed to load active insurance contract", err);
+				setActiveContract(null);
+			});
+	}, [insuranceContractId]);
+
+	const getCoverageInfo = (item: PlanItem) => {
+		if (!activeContract) return null;
+
+		let pct = 0;
+		const nameLower = item.name.toLowerCase();
+		const isHygiene =
+			nameLower.includes("гигиен") || nameLower.includes("чистк");
+
+		if (isHygiene) {
+			pct = activeContract.coverageHygienePct;
+		} else if (item.phase === 1) {
+			pct = activeContract.coverageTherapyPct;
+		} else if (item.phase === 2) {
+			pct = activeContract.coverageSurgeryPct;
+		} else if (item.phase === 3) {
+			pct = activeContract.coverageOrthoPct;
+		}
+
+		if (pct === 0) {
+			return {
+				covered: false,
+				pct: 0,
+				label: "Вне покрытия ДМС",
+				copayPct: 100,
+			};
+		}
+		return {
+			covered: true,
+			pct,
+			label: `Покрытие ДМС ${pct}%`,
+			copayPct: 100 - pct,
+		};
+	};
+
 	useEffect(() => {
 		let active = true;
 		setPlanId(null);
@@ -74,6 +137,93 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 			let newItems = [...prevItems];
 			let changed = false;
 
+			const catalog = dashboard?.serviceCatalog || [];
+
+			// Helper to find service by category and keywords
+			const findService = (
+				category: string,
+				isBaby: boolean,
+				keywords: string[],
+			) => {
+				const candidates = catalog.filter((s) => s.category === category);
+				let best = candidates.find((s) =>
+					keywords.some((k) => s.title.toLowerCase().includes(k)),
+				);
+				if (!best && candidates.length > 0) best = candidates[0]; // fallback to any in category
+				return best;
+			};
+
+			const cariesServiceBaby = findService("therapy", true, [
+				"кариес",
+				"молочн",
+			]) || {
+				id: "service_caries_01",
+				title: "Лечение кариеса (молочный зуб)",
+				priceRub: 4000,
+			};
+			const cariesServiceAdult = findService("therapy", false, [
+				"кариес",
+				"восстановл",
+			]) || {
+				id: "service_caries_01",
+				title: "Лечение кариеса (восстановление)",
+				priceRub: 5500,
+			};
+
+			const pulpitisServiceBaby = findService("therapy", true, [
+				"пульпит",
+				"молочн",
+				"эндо",
+			]) || {
+				id: "service_endo_pulpitis",
+				title: "Эндодонтическое лечение (молочный зуб)",
+				priceRub: 6000,
+			};
+			const pulpitisServiceAdult = findService("therapy", false, [
+				"пульпит",
+				"эндо",
+			]) || {
+				id: "service_endo_pulpitis",
+				title: "Эндодонтическое лечение (Пульпит)",
+				priceRub: 12500,
+			};
+
+			const implantService = findService("surgery", false, [
+				"имплант",
+				"установка",
+			]) || {
+				id: "service_implant_osstem",
+				title: "Установка имплантата",
+				priceRub: 35000,
+			};
+			const guideService = findService("surgery", false, [
+				"шаблон",
+				"хирург",
+			]) || {
+				id: "service_surgery_guide",
+				title: "Хирургический шаблон",
+				priceRub: 12000,
+			};
+
+			const crownBaby = findService("prosthetics", true, [
+				"коронка",
+				"детск",
+				"молочн",
+			]) || {
+				id: "service_crown_zirconia",
+				title: "Коронка детская стандартная",
+				priceRub: 5000,
+			};
+			const crownAdult = findService("prosthetics", false, [
+				"коронка",
+				"циркон",
+				"керамик",
+			]) || {
+				id: "service_crown_zirconia",
+				title: "Коронка из диоксида циркония",
+				priceRub: 28000,
+			};
+
 			// 1. Remove auto-items for teeth that no longer have that state
 			const itemsToRemove: number[] = [];
 			newItems.forEach((item, idx) => {
@@ -85,22 +235,27 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 					itemsToRemove.push(idx);
 					return;
 				}
-				if (item.priceId === "service_caries_01" && tooth.state !== "Caries")
+				if (
+					(item.priceId === cariesServiceBaby.id ||
+						item.priceId === cariesServiceAdult.id) &&
+					tooth.state !== "Caries"
+				)
 					itemsToRemove.push(idx);
 				if (
-					(item.priceId === "service_implant_osstem" ||
-						item.priceId === "service_surgery_guide") &&
+					(item.priceId === implantService.id ||
+						item.priceId === guideService.id) &&
 					tooth.state !== "Planned_Implant" &&
 					tooth.state !== "Implant"
 				)
 					itemsToRemove.push(idx);
 				if (
-					item.priceId === "service_endo_pulpitis" &&
+					(item.priceId === pulpitisServiceBaby.id ||
+						item.priceId === pulpitisServiceAdult.id) &&
 					tooth.state !== "Pulpitis"
 				)
 					itemsToRemove.push(idx);
 				if (
-					item.priceId === "service_crown_zirconia" &&
+					(item.priceId === crownBaby.id || item.priceId === crownAdult.id) &&
 					tooth.state !== "Crown"
 				)
 					itemsToRemove.push(idx);
@@ -114,23 +269,25 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 			// 2. Add missing auto-items
 			currentTeeth.forEach((t) => {
 				const isBaby = t.toothNumber > 50;
+				const surfaceSuffix =
+					t.surfaces && t.surfaces.length > 0
+						? ` (Поверхности: ${t.surfaces.join(", ")})`
+						: "";
+
 				if (t.state === "Caries") {
+					const svc = isBaby ? cariesServiceBaby : cariesServiceAdult;
 					if (
 						!newItems.find(
-							(i) =>
-								i.toothNumber === t.toothNumber &&
-								i.priceId === "service_caries_01",
+							(i) => i.toothNumber === t.toothNumber && i.priceId === svc.id,
 						)
 					) {
 						newItems.push({
 							isAuto: true,
 							toothNumber: t.toothNumber,
-							priceId: "service_caries_01",
-							name: isBaby
-								? "Лечение кариеса (молочный зуб)"
-								: "Лечение кариеса (восстановление)",
+							priceId: svc.id,
+							name: svc.title + surfaceSuffix,
 							quantity: 1,
-							price: isBaby ? 4000 : 5500,
+							price: svc.priceRub,
 							discount: 0,
 							phase: 1,
 						});
@@ -143,26 +300,26 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 						!newItems.find(
 							(i) =>
 								i.toothNumber === t.toothNumber &&
-								i.priceId === "service_implant_osstem",
+								i.priceId === implantService.id,
 						)
 					) {
 						newItems.push({
 							isAuto: true,
 							toothNumber: t.toothNumber,
-							priceId: "service_implant_osstem",
-							name: "Установка имплантата Osstem TSIII",
+							priceId: implantService.id,
+							name: implantService.title,
 							quantity: 1,
-							price: 35000,
+							price: implantService.priceRub,
 							discount: 0,
 							phase: 2,
 						});
 						newItems.push({
 							isAuto: true,
 							toothNumber: t.toothNumber,
-							priceId: "service_surgery_guide",
-							name: "Хирургический шаблон",
+							priceId: guideService.id,
+							name: guideService.title,
 							quantity: 1,
-							price: 12000,
+							price: guideService.priceRub,
 							discount: 0,
 							phase: 2,
 						});
@@ -170,22 +327,19 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 					}
 				}
 				if (t.state === "Pulpitis") {
+					const svc = isBaby ? pulpitisServiceBaby : pulpitisServiceAdult;
 					if (
 						!newItems.find(
-							(i) =>
-								i.toothNumber === t.toothNumber &&
-								i.priceId === "service_endo_pulpitis",
+							(i) => i.toothNumber === t.toothNumber && i.priceId === svc.id,
 						)
 					) {
 						newItems.push({
 							isAuto: true,
 							toothNumber: t.toothNumber,
-							priceId: "service_endo_pulpitis",
-							name: isBaby
-								? "Эндодонтическое лечение (молочный зуб)"
-								: "Эндодонтическое лечение (Пульпит)",
+							priceId: svc.id,
+							name: svc.title + surfaceSuffix,
 							quantity: 1,
-							price: isBaby ? 6000 : 12500,
+							price: svc.priceRub,
 							discount: 0,
 							phase: 1,
 						});
@@ -193,22 +347,19 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 					}
 				}
 				if (t.state === "Crown") {
+					const svc = isBaby ? crownBaby : crownAdult;
 					if (
 						!newItems.find(
-							(i) =>
-								i.toothNumber === t.toothNumber &&
-								i.priceId === "service_crown_zirconia",
+							(i) => i.toothNumber === t.toothNumber && i.priceId === svc.id,
 						)
 					) {
 						newItems.push({
 							isAuto: true,
 							toothNumber: t.toothNumber,
-							priceId: "service_crown_zirconia",
-							name: isBaby
-								? "Коронка детская стандартная"
-								: "Коронка из диоксида циркония",
+							priceId: svc.id,
+							name: svc.title,
 							quantity: 1,
-							price: isBaby ? 5000 : 28000,
+							price: svc.priceRub,
 							discount: 0,
 							phase: 3,
 						});
@@ -219,15 +370,18 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 
 			return changed ? newItems : prevItems;
 		});
-	}, [currentTeeth]);
+	}, [currentTeeth, dashboard?.serviceCatalog]);
 
 	useEffect(() => {
-		const t = items.reduce(
-			(acc, curr) => acc + (curr.price * curr.quantity - curr.discount),
-			0,
-		);
+		const t = items.reduce((acc, curr) => {
+			const coverage = getCoverageInfo(curr);
+			const price = coverage
+				? (curr.price * coverage.copayPct) / 100
+				: curr.price;
+			return acc + (price * curr.quantity - curr.discount);
+		}, 0);
 		setTotal(t);
-	}, [items]);
+	}, [items, activeContract]);
 
 	const savePlan = async () => {
 		setIsSaving(true);
@@ -250,9 +404,13 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 				if (data.plan?.items) setItems(data.plan.items);
 				if (data.plan?.patientSignature !== undefined)
 					setSignatureUrl(data.plan.patientSignature);
+				showToast("План лечения успешно сохранен!", "success");
+			} else {
+				showToast(data.message || "Ошибка сохранения плана лечения", "error");
 			}
 		} catch (e) {
 			console.error(e);
+			showToast("Не удалось сохранить план лечения", "error");
 		} finally {
 			setIsSaving(false);
 		}
@@ -271,24 +429,24 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 	const phases = [1, 2, 3];
 
 	return (
-		<div className="flex flex-col h-full bg-zinc-50/40 dark:bg-zinc-950/40 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl shadow-xl overflow-hidden text-slate-900 dark:text-zinc-100">
-			<div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100/30 dark:bg-zinc-900/30">
-				<h2 className="flex items-center gap-2 text-lg font-bold">
+		<div className="treatment-estimator">
+			<div className="estimator-header">
+				<h2 className="estimator-title">
 					<FileText
 						size={18}
-						className="text-indigo-500 dark:text-indigo-400"
+						style={{ color: "#6366f1" }}
 					/>
 					План лечения
 				</h2>
-				<div className="flex gap-2">
+				<div className="estimator-actions">
 					{signatureUrl && (
-						<span className="px-3 py-1 text-xs font-bold text-emerald-700 bg-emerald-100/50 dark:bg-emerald-500/20 dark:text-emerald-400 rounded-full border border-emerald-200/50 dark:border-emerald-500/30 flex items-center">
+						<span className="status-signed">
 							ПОДПИСАНО
 						</span>
 					)}
 					<button
 						onClick={() => setShowSignModal(true)}
-						className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-zinc-100/50 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors"
+						className="btn-secondary"
 					>
 						<PenTool size={14} />
 						Подписать
@@ -296,7 +454,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 					<button
 						onClick={savePlan}
 						disabled={isSaving}
-						className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 border border-indigo-500 rounded-lg shadow-md shadow-indigo-500/20 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+						className="btn-primary"
 					>
 						<Save size={14} />
 						{isSaving ? "Сохранение..." : "Сохранить"}
@@ -304,19 +462,16 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 				</div>
 			</div>
 
-			<div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+			<div className="estimator-content custom-scrollbar">
 				{items.length === 0 && (
-					<div className="flex flex-col items-center justify-center p-8 mx-2 my-8 rounded-2xl border border-dashed border-zinc-300/50 dark:border-zinc-700/50 bg-zinc-50/30 dark:bg-zinc-900/20 backdrop-blur-sm text-center">
-						<div className="p-5 mb-4 rounded-full bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_30px_5px_rgba(99,102,241,0.1)] dark:shadow-[0_0_30px_5px_rgba(99,102,241,0.1)] border border-indigo-500/10 dark:border-indigo-500/20">
-							<Calculator
-								size={40}
-								className="text-indigo-500 dark:text-indigo-400 opacity-40"
-							/>
+					<div className="empty-state-card">
+						<div className="empty-state-icon-wrapper">
+							<Calculator size={40} />
 						</div>
-						<h4 className="text-base font-bold text-slate-800 dark:text-zinc-100 mb-2">
+						<h4 className="empty-state-title">
 							План лечения пуст
 						</h4>
-						<p className="text-sm leading-relaxed text-slate-500 dark:text-zinc-400 max-w-[320px]">
+						<p className="empty-state-desc">
 							Кликните на любой зуб на схеме слева, выберите патологию, и
 							система автоматически подберет оптимальный набор процедур из
 							прайс-листа
@@ -354,8 +509,59 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 														<span className="plan-item-name">{item.name}</span>
 													</div>
 													<div className="plan-item-price-quantity">
-														{item.price.toLocaleString("ru-RU")} ₽ x{" "}
-														{item.quantity}
+														{(() => {
+															const coverage = getCoverageInfo(item);
+															if (coverage && !coverage.covered) {
+																return (
+																	<span className="price-tag-uncovered">
+																		<span>
+																			{item.price.toLocaleString("ru-RU")} ₽
+																		</span>
+																		<span className="price-badge-uncovered">
+																			Вне покрытия ДМС
+																		</span>
+																	</span>
+																);
+															}
+															if (coverage && coverage.pct < 100) {
+																const copayPrice =
+																	(item.price * coverage.copayPct) / 100;
+																return (
+																	<span className="price-tag-covered">
+																		<span className="price-strike">
+																			{item.price.toLocaleString("ru-RU")} ₽
+																		</span>
+																		<span className="price-copay">
+																			{copayPrice.toLocaleString("ru-RU")} ₽
+																		</span>
+																		<span className="price-badge-covered">
+																			Со-оплата {coverage.copayPct}%
+																		</span>
+																	</span>
+																);
+															}
+															if (coverage && coverage.pct === 100) {
+																return (
+																	<span className="price-tag-covered">
+																		<span className="price-strike">
+																			{item.price.toLocaleString("ru-RU")} ₽
+																		</span>
+																		<span className="price-copay">
+																			0 ₽
+																		</span>
+																		<span className="price-badge-covered">
+																			ДМС 100%
+																		</span>
+																	</span>
+																);
+															}
+															return (
+																<span>
+																	{item.price.toLocaleString("ru-RU")} ₽ x{" "}
+																	{item.quantity}
+																</span>
+															);
+														})()}
 													</div>
 												</div>
 												<button
@@ -379,8 +585,15 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 													<option value={3}>Этап III: Ортопедия</option>
 												</select>
 												<span className="plan-item-total-price">
-													{(item.price * item.quantity).toLocaleString("ru-RU")}{" "}
-													₽
+													{(() => {
+														const coverage = getCoverageInfo(item);
+														const price = coverage
+															? (item.price * coverage.copayPct) / 100
+															: item.price;
+														return (price * item.quantity).toLocaleString(
+															"ru-RU",
+														);
+													})()} ₽
 												</span>
 											</div>
 										</div>
@@ -392,13 +605,13 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 				})}
 			</div>
 
-			<div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100/30 dark:bg-zinc-900/30">
-				<div className="text-sm font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+			<div className="estimator-footer">
+				<div className="estimator-footer-label">
 					Итого по плану:
 				</div>
-				<div className="text-xl font-bold text-slate-900 dark:text-zinc-100 flex items-baseline gap-1">
+				<div className="estimator-total">
 					{total.toLocaleString("ru-RU")}{" "}
-					<span className="text-sm font-medium text-slate-500 dark:text-zinc-500">
+					<span>
 						₽
 					</span>
 				</div>
@@ -413,6 +626,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 								onSign={(dataUrl) => {
 									setSignatureUrl(dataUrl);
 									setShowSignModal(false);
+									showToast("Подпись добавлена. Нажмите 'Сохранить'.", "info");
 								}}
 								onCancel={() => setShowSignModal(false)}
 							/>

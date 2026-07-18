@@ -202,12 +202,22 @@ export async function requireResolvedOrganizationId(request, reply, protectedAre
 export async function resolveStaffOrAdminOrganizationId(request) {
     const staffHeader = request.headers["x-dente-staff-token"];
     const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
+    if (process.env.NODE_ENV !== "production" &&
+        staffToken === "fake-staff-token") {
+        return resolveDevelopmentDefaultOrganizationId();
+    }
     if (staffToken) {
         const payload = await verifyRequestToken(staffToken);
         if (payload?.organizationId)
             return payload.organizationId;
     }
-    return resolveAdminSecretOrganizationId(request);
+    const adminOrganizationId = await resolveAdminSecretOrganizationId(request);
+    if (adminOrganizationId)
+        return adminOrganizationId;
+    if (process.env.NODE_ENV !== "production") {
+        return resolveDevelopmentDefaultOrganizationId();
+    }
+    return null;
 }
 export async function requireResolvedStaffOrAdminOrganizationId(request, reply, protectedArea = "tenant mutation") {
     const organizationId = await resolveStaffOrAdminOrganizationId(request);

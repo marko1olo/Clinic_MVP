@@ -1375,6 +1375,30 @@ export const clinicProfileSchema = z.object({
     themeColor: z.string().default("teal"),
     logoUrl: z.string().nullable().optional(),
     stampUrl: z.string().nullable().optional(),
+    marketingData: z.record(z.any()).nullable().optional(),
+    hasAssistants: z.boolean().default(true),
+    hasMultipleChairs: z.boolean().default(true),
+    hasDentalLab: z.boolean().default(true),
+    hasInsuranceCoPay: z.boolean().default(true),
+    hasInstallments: z.boolean().default(true),
+    hasOrthodontics: z.boolean().default(true),
+    hasGnathology: z.boolean().default(false),
+    hasTasks: z.boolean().default(true),
+    hasReclamations: z.boolean().default(true),
+    workspacePreset: z.string().default("enterprise"),
+    onboardingCompleted: z.boolean().default(false),
+    hasPediatricMode: z.boolean().default(false),
+    isOmniRole: z.boolean().default(false),
+    hasPayrollModule: z.boolean().default(true),
+    hasMarketingModule: z.boolean().default(true),
+    hasAnalyticsModule: z.boolean().default(true),
+    hasCsoScanner: z.boolean().default(false),
+    hasLeadsKanban: z.boolean().default(false),
+    hasOmnichannel: z.boolean().default(false),
+    hasInventoryModule: z.boolean().default(true),
+    aiEnableTreatmentPlan: z.boolean().default(true),
+    aiEnableRecommendations: z.boolean().default(true),
+    aiEnableDocuments: z.boolean().default(true),
 });
 export const staffMemberSchema = z.object({
     id: z.string().uuid(),
@@ -1457,6 +1481,8 @@ export const clinicSettingsSchema = z.object({
     roleAccessPolicies: z.array(roleAccessPolicySchema),
     modeHints: z.array(z.string()),
     soloDoctorMode: z.boolean().optional(),
+    marketingSettings: z.any().optional(),
+    reportingSettings: z.any().optional(),
 });
 export const workloadStateSchema = z.enum([
     "idle",
@@ -1539,6 +1565,25 @@ export const serviceCatalogItemSchema = z.object({
     durationMinutes: z.number().int().positive(),
     taxDeductible: z.boolean(),
     active: z.boolean(),
+});
+export const createServiceCatalogItemSchema = z.object({
+    title: z.string().min(1),
+    category: serviceCategorySchema,
+    specialty: dentalSpecialtySchema,
+    basePriceRub: z.number().int().nonnegative(),
+    durationMinutes: z.number().int().positive(),
+    taxDeductible: z.boolean(),
+    code: z.string().optional()
+});
+export const updateServiceCatalogItemSchema = z.object({
+    title: z.string().min(1).optional(),
+    category: serviceCategorySchema.optional(),
+    specialty: dentalSpecialtySchema.optional(),
+    basePriceRub: z.number().int().nonnegative().optional(),
+    durationMinutes: z.number().int().positive().optional(),
+    taxDeductible: z.boolean().optional(),
+    active: z.boolean().optional(),
+    code: z.string().optional()
 });
 export const pricelistSourceKindSchema = z.enum([
     "text",
@@ -1767,14 +1812,26 @@ const createClinicalRuleBaseSchema = z.object({
     action: clinicalRuleActionSchema,
     severity: clinicalRuleSeveritySchema,
     ownerRole: staffRoleSchema,
-    triggerServiceIds: z.array(clinicalRuleServiceIdSchema).min(1).max(80).transform((arr) => Array.from(new Set(arr))),
-    requiredServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]).transform((arr) => Array.from(new Set(arr))),
+    triggerServiceIds: z
+        .array(clinicalRuleServiceIdSchema)
+        .min(1)
+        .max(80)
+        .transform((arr) => Array.from(new Set(arr))),
+    requiredServiceIds: z
+        .array(clinicalRuleServiceIdSchema)
+        .max(80)
+        .default([])
+        .transform((arr) => Array.from(new Set(arr))),
     requiresCompletedServiceIds: z
         .array(clinicalRuleServiceIdSchema)
         .max(80)
         .default([])
         .transform((arr) => Array.from(new Set(arr))),
-    blockedServiceIds: z.array(clinicalRuleServiceIdSchema).max(80).default([]).transform((arr) => Array.from(new Set(arr))),
+    blockedServiceIds: z
+        .array(clinicalRuleServiceIdSchema)
+        .max(80)
+        .default([])
+        .transform((arr) => Array.from(new Set(arr))),
     condition: z.string().trim().max(500).nullable().optional(),
     warningText: z.string().trim().min(1).max(700),
     patientText: z.string().trim().min(1).max(700),
@@ -1815,8 +1872,10 @@ export const updateClinicalRuleSchema = createClinicalRuleBaseSchema
         }
     }
     if (input.action === "block_service") {
-        if ((input.blockedServiceIds && input.blockedServiceIds.length === 0) &&
-            (input.requiresCompletedServiceIds && input.requiresCompletedServiceIds.length === 0)) {
+        if (input.blockedServiceIds &&
+            input.blockedServiceIds.length === 0 &&
+            input.requiresCompletedServiceIds &&
+            input.requiresCompletedServiceIds.length === 0) {
             context.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: ["blockedServiceIds"],
@@ -1886,6 +1945,7 @@ export const billingSummarySchema = z.object({
     draftDocumentAmountRub: z.number().int().nonnegative(),
     openTreatmentItems: z.number().int().nonnegative(),
     unpaidDocuments: z.number().int().nonnegative(),
+    insuranceCoverageRub: z.number().int().nonnegative().default(0),
 });
 export const communicationTemplateSchema = z.object({
     id: z.string(),
@@ -2342,6 +2402,11 @@ const patientAdministrativeTextSchema = z
     .max(500)
     .nullable()
     .default(null);
+const orthodonticProgressSchema = z.object({
+    currentAligner: z.number().int().min(1).default(1),
+    totalAligners: z.number().int().min(1).default(40),
+    startDate: z.string().default(() => new Date().toISOString().split("T")[0] || ""),
+});
 const patientAdministrativeProfileBaseSchema = z.object({
     identityDocument: z.string().trim().max(240).nullable().default(null),
     taxpayerInn: z
@@ -2353,6 +2418,7 @@ const patientAdministrativeProfileBaseSchema = z.object({
     registrationAddress: patientAdministrativeTextSchema,
     residentialAddress: patientAdministrativeTextSchema,
     insurancePolicyNumber: z.string().trim().max(120).nullable().default(null),
+    insuranceContractId: z.string().trim().uuid().nullable().optional(),
     snils: z.string().trim().max(40).nullable().default(null),
     legalRepresentativeFullName: z
         .string()
@@ -2384,6 +2450,7 @@ const patientAdministrativeProfileBaseSchema = z.object({
     preferredAppointmentEnd: clockTimeSchema.nullable().default(null),
     preferredAppointmentNote: patientAdministrativeTextSchema,
     dataProcessingBasisNote: patientAdministrativeTextSchema,
+    orthodonticProgress: orthodonticProgressSchema.nullable().default(null),
 });
 export const patientAdministrativeProfileSchema = patientAdministrativeProfileBaseSchema.superRefine((value, context) => {
     if (value.preferredAppointmentStart &&
@@ -2406,6 +2473,8 @@ export const patientSchema = z.object({
     phone: z.string().nullable(),
     email: z.string().email().nullable(),
     notes: z.string().nullable(),
+    insuranceContractId: z.string().uuid().nullable().optional(),
+    insurancePolicyNumber: z.string().nullable().optional(),
     administrativeProfile: patientAdministrativeProfileSchema
         .nullable()
         .default(null),
@@ -2630,6 +2699,11 @@ export const visitSchema = z.object({
     doctorSummary: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    diary: z.object({
+        id: z.string().uuid(),
+        complications: z.string().nullable(),
+        comorbidities: z.string().nullable(),
+    }).nullable().optional(),
 });
 export const patientIntakePregnancyStatusSchema = z.enum([
     "not_applicable",
@@ -3518,7 +3592,7 @@ export const treatmentPlanPayloadSchema = z.object({
     diagnosisSummary: z.string().trim().min(1).max(700),
     teethOrArea: z.string().trim().min(1).max(240),
     clinicalToothRows: clinicalToothRowsSchema,
-    treatmentGoals: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
+    treatmentGoals: z.array(z.string().trim().max(300)).max(12),
     plannedStages: z
         .array(z.object({
         stageName: z.string().trim().min(1).max(180),
@@ -3535,14 +3609,13 @@ export const treatmentPlanPayloadSchema = z.object({
         .min(1)
         .max(24),
     estimatedTotalRub: z.number().int().nonnegative(),
-    alternatives: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
+    alternatives: z.array(z.string().trim().max(300)).max(12),
     risksAndLimitations: z
-        .array(z.string().trim().min(1).max(300))
-        .min(1)
+        .array(z.string().trim().max(300))
         .max(16),
-    prognosisAndLimits: z.string().trim().min(1).max(900),
-    controlPlan: z.string().trim().min(1).max(700),
-    doctorFullName: z.string().trim().min(1).max(240),
+    prognosisAndLimits: z.string().trim().max(900).nullable().optional(),
+    controlPlan: z.string().trim().max(700).nullable().optional(),
+    doctorFullName: z.string().trim().max(240).nullable().optional(),
     plannedAt: documentDateLikeStringSchema,
     patientQuestionsAnswered: z.literal(true),
     planRequiresSeparateConsent: z.literal(true),
@@ -4126,6 +4199,19 @@ export const auditEventSchema = z.object({
     reason: z.string().nullable(),
     createdAt: z.string(),
 });
+export const insuranceContractSchema = z.object({
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    companyName: z.string(),
+    policyNumberMask: z.string().nullable().optional(),
+    coverageTherapyPct: z.number().default(0),
+    coverageSurgeryPct: z.number().default(0),
+    coverageOrthoPct: z.number().default(0),
+    coverageHygienePct: z.number().default(0),
+    annualLimitRub: z.number().nullable().optional(),
+    isActive: z.boolean().default(true),
+    createdAt: z.string(),
+});
 export const dashboardSchema = z.object({
     clinicName: z.string(),
     todayIso: z.string(),
@@ -4158,6 +4244,7 @@ export const dashboardSchema = z.object({
     speechProviders: z.array(speechProviderSchema),
     auditEvents: z.array(auditEventSchema),
     complianceWarnings: z.array(z.string()),
+    insuranceContracts: z.array(insuranceContractSchema).default([]),
 });
 export const createPatientSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
@@ -4165,6 +4252,8 @@ export const createPatientSchema = z.object({
     phone: patientPhoneInputSchema,
     email: z.string().trim().email().nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
+    insuranceContractId: z.string().uuid().nullable().optional(),
+    insurancePolicyNumber: z.string().trim().max(255).nullable().optional(),
     administrativeProfile: patientAdministrativeProfileSchema
         .nullable()
         .optional(),
@@ -4175,6 +4264,9 @@ export const updatePatientSchema = z.object({
     phone: patientPhoneInputSchema,
     email: z.string().trim().email().nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
+    insuranceContractId: z.string().uuid().nullable().optional(),
+    insurancePolicyNumber: z.string().trim().max(255).nullable().optional(),
+    familyGroupId: z.string().uuid().nullable().optional(),
 });
 export const updatePatientAdministrativeProfileSchema = patientAdministrativeProfileBaseSchema
     .partial()
@@ -4244,6 +4336,7 @@ export const updateClinicProfileSchema = z.object({
     themeColor: z.string().max(100).optional(),
     logoUrl: z.string().url().nullable().optional(),
     stampUrl: z.string().url().nullable().optional(),
+    marketingData: z.record(z.any()).nullable().optional(),
 });
 export const createStaffMemberSchema = z.object({
     fullName: z.string().trim().min(1).max(240),
@@ -4251,7 +4344,21 @@ export const createStaffMemberSchema = z.object({
     specialties: z.array(dentalSpecialtySchema).min(1).default(["universal"]),
     phone: z.string().trim().max(80).nullable().optional(),
     email: z.string().trim().email().max(240).nullable().optional(),
+    commissionRate: z.number().min(0).max(100).optional(),
     workingHours: staffWorkingHoursSchema.nullable().optional(),
+});
+export const updateStaffMemberSchema = z.object({
+    fullName: z.string().trim().min(2).max(120).optional(),
+    role: staffRoleSchema.optional(),
+    specialties: z.array(dentalSpecialtySchema).optional(),
+    phone: z.string().trim().max(40).nullable().optional(),
+    email: z.string().trim().email().max(240).nullable().optional(),
+    commissionRate: z.number().min(0).max(100).optional(),
+    active: z.boolean().optional(),
+    canSignMedicalRecords: z.boolean().optional(),
+    canManageMoney: z.boolean().optional(),
+    canManageImports: z.boolean().optional(),
+    color: z.string().optional(),
 });
 export const updateStaffWorkingHoursSchema = z.object({
     workingHours: staffWorkingHoursSchema,
@@ -5749,6 +5856,13 @@ export const visitNoteDraftQualitySchema = z.object({
     missingCriticalFields: z.array(z.string()),
     nextAction: z.string(),
 });
+export const visitServiceItemSchema = z.object({
+    serviceId: z.string().uuid(),
+    title: z.string(),
+    quantity: z.number().min(1),
+    priceRub: z.number(),
+    toothCode: z.string().nullable().optional()
+});
 export const visitNoteDraftSchema = z.object({
     complaint: z.string().nullable(),
     anamnesis: z.string().nullable(),
@@ -5757,6 +5871,7 @@ export const visitNoteDraftSchema = z.object({
     treatmentPlan: z.string().nullable(),
     quality: visitNoteDraftQualitySchema.optional(),
     warnings: z.array(z.string()),
+    completedServices: z.array(visitServiceItemSchema).optional(),
 });
 export const visitDraftAutosaveSchema = z.object({
     visitId: z.string().uuid(),
@@ -7793,6 +7908,7 @@ export const uiPreferencesSchema = z.object({
     onboardingDismissedAt: z.string().nullable().default(null),
     onboardingStep: onboardingStepSchema.default("intro"),
     onboardingDraftMode: z.boolean().default(false),
+    odontogramUseSurfaces: z.boolean().default(false),
     savedAt: z.string().default(""),
 });
 export const uiPreferencesInputSchema = uiPreferencesSchema
@@ -8449,4 +8565,43 @@ export const messengerConnectionStatusSchema = z.object({
     channel: messengerChannelSchema,
     connected: z.boolean(),
     detail: z.string().nullable(),
+});
+export const visitFlowStepStatusSchema = z.enum(["pending", "running", "success", "error", "skipped"]);
+export const visitFlowResultSchema = z.object({
+    draft: z.object({
+        status: visitFlowStepStatusSchema,
+        message: z.string().nullable(),
+        data: visitNoteDraftSchema.nullable()
+    }),
+    plan: z.object({
+        status: visitFlowStepStatusSchema,
+        message: z.string().nullable(),
+        data: treatmentPlanPayloadSchema.nullable()
+    }),
+    recommendations: z.object({
+        status: visitFlowStepStatusSchema,
+        message: z.string().nullable(),
+        data: postVisitRecommendationsPayloadSchema.nullable()
+    }),
+    documents: z.object({
+        status: visitFlowStepStatusSchema,
+        message: z.string().nullable(),
+        data: z.any().nullable()
+    }),
+    overallStatus: z.enum(["success", "partial", "error"])
+});
+export const visitFlowRequestSchema = z.object({
+    patientId: z.string().uuid(),
+    transcript: z.string().trim().min(1).max(80_000),
+    specialty: dentalSpecialtySchema.default("universal"),
+    source: z.enum(["voice", "typed", "image"]).default("voice"),
+    completedServices: z.array(visitServiceItemSchema).optional(),
+    doctorFullName: z.string().trim().min(1).max(180).optional(),
+    planPayload: treatmentPlanPayloadSchema.optional().nullable(),
+    recommendationsPayload: postVisitRecommendationsPayloadSchema.optional().nullable(),
+    orchestratorConfig: z.object({
+        enablePlan: z.boolean().default(true),
+        enableRecommendations: z.boolean().default(true),
+        enableDocuments: z.boolean().default(true),
+    }).optional(),
 });

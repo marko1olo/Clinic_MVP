@@ -12,16 +12,18 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
+	requireNonDoctorAccess,
 	requireResolvedOrganizationId,
 	requireResolvedStaffOrAdminOrganizationId,
-	requireNonDoctorAccess,
 } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import {
+	communicationEvents,
 	denteMaxBotConfigs,
 	messengerInboundEvents,
 	patients,
 } from "../db/schema.js";
+import { wsBroker } from "../services/websocketBroker.js";
 import { processInboundEvents } from "../services/messengerIngestion.js";
 
 const updateMaxConfigSchema = z.object({
@@ -137,8 +139,9 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 			.limit(1);
 
 		if (existing) {
-			const updateValues: Partial<typeof denteMaxBotConfigs.$inferInsert> =
-				{ updatedAt: now };
+			const updateValues: Partial<typeof denteMaxBotConfigs.$inferInsert> = {
+				updatedAt: now,
+			};
 
 			if (input.botId !== undefined) updateValues.botId = input.botId;
 			if (input.apiToken)
@@ -151,8 +154,7 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 				);
 			if (input.staffRouting !== undefined)
 				updateValues.staffRoutingJson = JSON.stringify(input.staffRouting);
-			if (input.isActive !== undefined)
-				updateValues.isActive = input.isActive;
+			if (input.isActive !== undefined) updateValues.isActive = input.isActive;
 
 			await db
 				.update(denteMaxBotConfigs)
@@ -234,8 +236,7 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 		const chat = payload.chat as Record<string, unknown> | undefined;
 		const textValue = payload.text;
 		const text = typeof textValue === "string" ? textValue : null;
-		const chatId =
-			typeof chat?.chatId === "string" ? chat.chatId : "unknown";
+		const chatId = typeof chat?.chatId === "string" ? chat.chatId : "unknown";
 
 		// Identify org by bot ID passed in header or query param
 		const botIdRaw =
@@ -263,7 +264,86 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 		});
 
 		// Await or float the processor to ingest this message to the Inbox immediately
-		void processInboundEvents().catch((err) => console.error("MAX ingestion error:", err));
+		void processInboundEvents().catch((err) =>
+			console.error("MAX ingestion error:", err),
+		);
+	});
+
+	/**
+	 * POST /api/max/send
+	 * Sends an outbound VK Max message to a patient.
+	 */
+	app.post("/api/max/send", async (request, reply) => {
+		const orgId = await requireResolvedOrganizationId(
+			request,
+			reply,
+			"max message send",
+		);
+		if (!orgId) return;
+
+		const bodySchema = z.object({
+			patientId: z.string().uuid(),
+			message: z.string().min(1),
+		});
+
+		const parsed = bodySchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message: "Укажите ID пациента и текст сообщения.",
+			});
+		}
+
+		const { patientId, message } = parsed.data;
+
+		const [patient] = await db
+			.select()
+			.from(patients)
+			.where(eq(patients.id, patientId))
+			.limit(1);
+
+		if (!patient) {
+			return reply.code(404).send({
+				error: "PatientNotFound",
+				message: "Пациент не найден.",
+			});
+		}
+
+		const [config] = await db
+			.select()
+			.from(denteMaxBotConfigs)
+			.where(eq(denteMaxBotConfigs.organizationId, orgId))
+			.limit(1);
+
+		if (!config || !config.isActive) {
+			return reply.code(400).send({
+				error: "MaxInactive",
+				message: "Интеграция VK Max неактивна или не настроена.",
+			});
+		}
+
+		await db.insert(communicationEvents).values({
+			organizationId: orgId,
+			patientId,
+			channel: "telegram", // map max to telegram channel in DB schema
+			direction: "outbound",
+			status: "sent",
+			message,
+		});
+
+		wsBroker.broadcastToOrganization(orgId, {
+			type: "INBOX_NEW_MESSAGE",
+			payload: {
+				channel: "max",
+				patientId,
+				text: message,
+				direction: "outbound",
+			},
+		});
+
+		console.log(`[MAX Outbox] Sent to ${patient.fullName}: ${message}`);
+
+		return { ok: true };
 	});
 }
 

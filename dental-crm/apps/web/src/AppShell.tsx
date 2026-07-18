@@ -4,6 +4,7 @@ import {
 	lazy,
 	type ReactNode,
 	Suspense,
+	useEffect,
 } from "react";
 
 const DentalWorkspace = lazy(() =>
@@ -13,11 +14,36 @@ const OnboardingPreviewPage = lazy(() =>
 	import("./OnboardingPreview").then((m) => ({ default: m.OnboardingPreview })),
 );
 const PublicBookingWidgetPage = lazy(() =>
-	import("./pages/PublicBookingWidget").then((m) => ({ default: m.PublicBookingWidget })),
+	import("./pages/PublicBookingWidget").then((m) => ({
+		default: m.PublicBookingWidget,
+	})),
 );
 
 import { GlobalToast } from "./components/GlobalToast";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
+
+function useHighContrastTheme() {
+	useEffect(() => {
+		const handleStorage = () => {
+			const isHighContrast =
+				localStorage.getItem("dente_high_contrast") === "true";
+			if (isHighContrast) {
+				document.documentElement.classList.add("theme-accessibility");
+			} else {
+				document.documentElement.classList.remove("theme-accessibility");
+			}
+		};
+		// Initial check
+		handleStorage();
+		// Listen for changes from settings
+		window.addEventListener("storage", handleStorage);
+		window.addEventListener("dente:theme-change", handleStorage);
+		return () => {
+			window.removeEventListener("storage", handleStorage);
+			window.removeEventListener("dente:theme-change", handleStorage);
+		};
+	}, []);
+}
 
 function OfflineQueueManager() {
 	useOfflineQueue();
@@ -83,6 +109,8 @@ class AppShellErrorBoundary extends Component<
 }
 
 export function AppShell() {
+	useHighContrastTheme();
+
 	// Dev-only preview route — no auth, no dashboard needed
 	const isPreview =
 		typeof window !== "undefined" &&

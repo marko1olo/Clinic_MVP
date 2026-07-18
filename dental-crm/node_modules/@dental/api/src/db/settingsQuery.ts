@@ -7,7 +7,7 @@ import type {
 	UiPreferences,
 	UpdateClinicProfileInput,
 } from "@dental/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 
@@ -117,10 +117,34 @@ export async function getClinicSettingsFromDb(
 		updatedAt: org.updatedAt.toISOString(),
 		specializations: (org.specializations as any) || [],
 		workingHours: (org.workingHours as any) || null,
-		currency: org.currency || "₽",
+		currency: org.currency && org.currency !== "???" ? org.currency : "₽",
 		themeColor: org.themeColor || "teal",
-		logoUrl: org.logoUrl || null,
-		stampUrl: org.stampUrl || null,
+		logoUrl: org.logoUrl || undefined,
+		stampUrl: org.stampUrl || undefined,
+		marketingData: org.marketingData as any,
+		hasAssistants: (org as any).hasAssistants ?? true,
+		hasMultipleChairs: (org as any).hasMultipleChairs ?? true,
+		hasDentalLab: (org as any).hasDentalLab ?? true,
+		hasInsuranceCoPay: (org as any).hasInsuranceCoPay ?? true,
+		hasInstallments: (org as any).hasInstallments ?? true,
+		hasOrthodontics: (org as any).hasOrthodontics ?? true,
+		hasGnathology: (org as any).hasGnathology ?? false,
+		hasTasks: (org as any).hasTasks ?? true,
+		hasReclamations: (org as any).hasReclamations ?? true,
+		workspacePreset: (org as any).workspacePreset ?? "enterprise",
+		onboardingCompleted: (org as any).onboardingCompleted ?? false,
+		hasPediatricMode: (org as any).hasPediatricMode ?? false,
+		isOmniRole: (org as any).isOmniRole ?? false,
+		hasPayrollModule: (org as any).hasPayrollModule ?? true,
+		hasMarketingModule: (org as any).hasMarketingModule ?? true,
+		hasAnalyticsModule: (org as any).hasAnalyticsModule ?? true,
+		hasCsoScanner: (org as any).hasCsoScanner ?? false,
+		hasLeadsKanban: (org as any).hasLeadsKanban ?? false,
+		hasOmnichannel: (org as any).hasOmnichannel ?? false,
+		hasInventoryModule: (org as any).hasInventoryModule ?? true,
+		aiEnableTreatmentPlan: (org as any).aiEnableTreatmentPlan ?? true,
+		aiEnableRecommendations: (org as any).aiEnableRecommendations ?? true,
+		aiEnableDocuments: (org as any).aiEnableDocuments ?? true,
 	};
 
 	return {
@@ -169,9 +193,45 @@ export async function getClinicSettingsFromDb(
 		})),
 		integrationPresets: [],
 		workspaceProfiles: [],
-		roleAccessPolicies: [],
+		roleAccessPolicies: [
+			{
+				role: "doctor",
+				title: "Врач",
+				scope: "personal",
+				defaultSection: "schedule",
+				canRead: ["schedule", "patients", "visit", "documents", "imaging"],
+				canWrite: ["patients", "visit", "documents", "imaging"],
+				restricted: ["finance", "settings"],
+				requiresApprovalFor: ["delete_patient", "change_price"],
+				auditEvents: ["login", "view_patient"],
+			},
+			{
+				role: "administrator",
+				title: "Администратор",
+				scope: "clinic",
+				defaultSection: "schedule",
+				canRead: ["schedule", "patients", "finance", "communications"],
+				canWrite: ["schedule", "patients", "finance", "communications"],
+				restricted: ["settings", "visit", "imaging"],
+				requiresApprovalFor: ["delete_patient", "refund"],
+				auditEvents: ["login", "create_patient", "delete_patient"],
+			},
+			{
+				role: "owner",
+				title: "Владелец",
+				scope: "clinic",
+				defaultSection: "schedule",
+				canRead: ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "communications", "settings"],
+				canWrite: ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "communications", "settings"],
+				restricted: [],
+				requiresApprovalFor: [],
+				auditEvents: ["login"],
+			}
+		],
 		modeHints: [],
 		soloDoctorMode: false,
+		marketingSettings: clinic?.marketingSettings || null,
+		reportingSettings: clinic?.reportingSettings || null,
 	};
 }
 
@@ -187,6 +247,79 @@ export async function updateClinicModeInDb(
 		.from(schema.organizations)
 		.where(eq(schema.organizations.id, organizationId))
 		.limit(1);
+
+	let modeFlags: any = {};
+	if (mode === "solo_doctor") {
+		modeFlags = {
+			hasAssistants: false,
+			hasMultipleChairs: false,
+			hasDentalLab: false,
+			hasInsuranceCoPay: false,
+			hasInstallments: false,
+			hasOrthodontics: false,
+			hasTasks: true,
+			hasReclamations: false,
+			hasPayrollModule: false,
+			hasMarketingModule: false,
+			hasAnalyticsModule: false,
+			hasCsoScanner: false,
+			hasLeadsKanban: false,
+			hasOmnichannel: false,
+			hasInventoryModule: false,
+			workspacePreset: "solo_therapist",
+		};
+	} else if (mode === "one_chair") {
+		modeFlags = {
+			hasAssistants: true,
+			hasMultipleChairs: false,
+			hasDentalLab: false,
+			hasInsuranceCoPay: false,
+			hasInstallments: true,
+			hasOrthodontics: true,
+			hasTasks: true,
+			hasReclamations: true,
+			hasPayrollModule: false,
+			hasMarketingModule: false,
+			hasAnalyticsModule: false,
+			hasInventoryModule: true,
+			workspacePreset: "prosthodontist",
+		};
+	} else if (mode === "small_clinic") {
+		modeFlags = {
+			hasAssistants: true,
+			hasMultipleChairs: true,
+			hasDentalLab: true,
+			hasInsuranceCoPay: true,
+			hasInstallments: true,
+			hasOrthodontics: true,
+			hasTasks: true,
+			hasReclamations: true,
+			hasPayrollModule: true,
+			hasMarketingModule: false,
+			hasAnalyticsModule: true,
+			hasInventoryModule: true,
+			workspacePreset: "family_clinic",
+		};
+	} else if (mode === "network_clinic") {
+		modeFlags = {
+			hasAssistants: true,
+			hasMultipleChairs: true,
+			hasDentalLab: true,
+			hasInsuranceCoPay: true,
+			hasInstallments: true,
+			hasOrthodontics: true,
+			hasTasks: true,
+			hasReclamations: true,
+			hasPayrollModule: true,
+			hasMarketingModule: true,
+			hasAnalyticsModule: true,
+			hasCsoScanner: true,
+			hasLeadsKanban: true,
+			hasOmnichannel: true,
+			hasInventoryModule: true,
+			workspacePreset: "enterprise",
+		};
+	}
 
 	if (org) {
 		const currentMode = org.clinicMode;
@@ -205,7 +338,10 @@ export async function updateClinicModeInDb(
 		const isUsingPreset =
 			savedDuration === undefined || savedDuration === currentModePreset;
 
-		const updateData: any = { clinicMode: mode };
+		const updateData: any = {
+			clinicMode: mode,
+			...modeFlags,
+		};
 		if (isUsingPreset) {
 			updateData.clinicSchedule = {
 				...currentSchedule,
@@ -220,7 +356,10 @@ export async function updateClinicModeInDb(
 	} else {
 		await db
 			.update(schema.organizations)
-			.set({ clinicMode: mode })
+			.set({
+				clinicMode: mode,
+				...modeFlags,
+			})
 			.where(eq(schema.organizations.id, organizationId));
 	}
 }
@@ -275,6 +414,8 @@ export async function updateClinicProfileInDb(
 		updateData.signatoryName = input.signatoryName;
 	if (input.signatoryTitle !== undefined)
 		updateData.signatoryTitle = input.signatoryTitle;
+	if (input.marketingData !== undefined)
+		updateData.marketingData = input.marketingData;
 
 	if (
 		input.scheduleDefaults !== undefined ||
@@ -311,14 +452,86 @@ export async function createStaffMemberInDb(
 	organizationId: string,
 	input: CreateStaffMemberInput,
 ) {
-	await db.insert(schema.users).values({
-		organizationId,
-		fullName: input.fullName,
-		role: input.role,
-		phone: input.phone || null,
-		email: input.email || null,
-		isActive: true,
-		workingHours: input.workingHours,
+	await db.transaction(async (tx) => {
+		const result = await tx.insert(schema.users).values({
+			organizationId,
+			fullName: input.fullName,
+			role: input.role,
+			phone: input.phone || null,
+			email: input.email || null,
+			isActive: true,
+			workingHours: input.workingHours,
+		}).returning({ id: schema.users.id });
+		
+		const user = result[0];
+
+		if (user && input.commissionRate !== undefined) {
+			await tx.insert(schema.doctorCommissions).values({
+				organizationId,
+				userId: user.id,
+				specialty: "universal",
+				serviceCategory: "therapy",
+				commissionPct: input.commissionRate,
+				isActive: true,
+			});
+		}
+	});
+}
+
+export async function updateStaffMemberInDb(
+	organizationId: string,
+	staffId: string,
+	updates: Partial<{
+		fullName: string | undefined;
+		role: string | undefined;
+		specialties: string[] | undefined;
+		phone: string | null | undefined;
+		email: string | null | undefined;
+		active: boolean | undefined;
+		canSignMedicalRecords: boolean | undefined;
+		canManageMoney: boolean | undefined;
+		canManageImports: boolean | undefined;
+		color: string | undefined;
+		commissionRate: number | undefined;
+	}>,
+) {
+	const { commissionRate, ...userUpdates } = updates;
+	await db.transaction(async (tx) => {
+		if (Object.keys(userUpdates).length > 0) {
+			await tx
+				.update(schema.users)
+				.set({ ...userUpdates, updatedAt: sql`now()` })
+				.where(
+					and(
+						eq(schema.users.id, staffId),
+						eq(schema.users.organizationId, organizationId),
+					),
+				);
+		}
+
+		if (commissionRate !== undefined) {
+			const existing = await tx.select({ id: schema.doctorCommissions.id }).from(schema.doctorCommissions).where(
+				and(
+					eq(schema.doctorCommissions.userId, staffId),
+					eq(schema.doctorCommissions.organizationId, organizationId),
+				)
+			).limit(1);
+
+			if (existing.length > 0 && existing[0]) {
+				await tx.update(schema.doctorCommissions)
+					.set({ commissionPct: commissionRate, isActive: true })
+					.where(eq(schema.doctorCommissions.id, existing[0].id));
+			} else {
+				await tx.insert(schema.doctorCommissions).values({
+					organizationId,
+					userId: staffId,
+					specialty: "universal",
+					serviceCategory: "therapy",
+					commissionPct: commissionRate,
+					isActive: true,
+				});
+			}
+		}
 	});
 }
 
@@ -410,6 +623,47 @@ export async function updateChairWorkingHoursInDb(
 	await db
 		.update(schema.clinicChairs)
 		.set({ workingHours })
+		.where(
+			and(
+				eq(schema.clinicChairs.id, chairId),
+				eq(schema.clinicChairs.organizationId, organizationId),
+			),
+		);
+}
+
+export async function deleteChairInDb(organizationId: string, chairId: string) {
+	// First check if chair exists
+	const [chair] = await db
+		.select()
+		.from(schema.clinicChairs)
+		.where(
+			and(
+				eq(schema.clinicChairs.id, chairId),
+				eq(schema.clinicChairs.organizationId, organizationId),
+			),
+		)
+		.limit(1);
+
+	if (!chair) throw new Error("Кресло не найдено.");
+
+	// Check if any appointments exist for this chair
+	const activeAppointments = await db
+		.select({ id: schema.appointments.id })
+		.from(schema.appointments)
+		.where(
+			and(
+				eq(schema.appointments.chairId, chairId),
+				eq(schema.appointments.organizationId, organizationId)
+			)
+		)
+		.limit(1);
+
+	if (activeAppointments.length > 0) {
+		throw new Error("Невозможно удалить кресло, так как к нему привязаны записи пациентов.");
+	}
+
+	await db
+		.delete(schema.clinicChairs)
 		.where(
 			and(
 				eq(schema.clinicChairs.id, chairId),

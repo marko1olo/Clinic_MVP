@@ -192,6 +192,44 @@ export async function registerAdvancedBillingRoutes(app) {
             if (visit.patientId !== patientId)
                 return sendBillingPaymentScopeError(reply, 409, "Прием счета относится к другому пациенту.");
         }
+        let totalInsuranceAmount = 0;
+        let totalPatientAmount = 0;
+        let insuranceContract = null;
+        if (patient.insuranceContractId) {
+            const [contract] = await db
+                .select()
+                .from(schema.insuranceContracts)
+                .where(eq(schema.insuranceContracts.id, patient.insuranceContractId));
+            if (contract?.isActive)
+                insuranceContract = contract;
+        }
+        if (Array.isArray(items)) {
+            for (const item of items) {
+                const itemTotal = Number(item.price || item.priceRub || 0) * Number(item.quantity || 1);
+                let insurancePct = 0;
+                if (insuranceContract && item.serviceId) {
+                    const [svc] = await db
+                        .select({ category: schema.serviceCatalogItems.category })
+                        .from(schema.serviceCatalogItems)
+                        .where(eq(schema.serviceCatalogItems.id, item.serviceId));
+                    const cat = svc?.category || "other";
+                    if (cat === "therapy" || cat === "consultation" || cat === "periodontology")
+                        insurancePct = insuranceContract.coverageTherapyPct;
+                    else if (cat === "surgery")
+                        insurancePct = insuranceContract.coverageSurgeryPct;
+                    else if (cat === "orthodontics" || cat === "prosthetics")
+                        insurancePct = insuranceContract.coverageOrthoPct;
+                    else if (cat === "hygiene")
+                        insurancePct = insuranceContract.coverageHygienePct;
+                }
+                const covered = itemTotal * (insurancePct / 100);
+                totalInsuranceAmount += covered;
+                totalPatientAmount += (itemTotal - covered);
+            }
+        }
+        else {
+            totalPatientAmount = Number(totalAmount);
+        }
         const [invoice] = await db
             .insert(schema.patientInvoices)
             .values({
@@ -200,6 +238,8 @@ export async function registerAdvancedBillingRoutes(app) {
             visitId: visitId || null,
             itemsJson: Array.isArray(items) ? items : [],
             totalAmountRub: String(totalAmount),
+            insuranceAmountRub: String(totalInsuranceAmount),
+            patientAmountRub: String(totalPatientAmount),
             status: "unpaid",
         })
             .returning();
@@ -277,19 +317,44 @@ export async function registerAdvancedBillingRoutes(app) {
             createdAt: schema.patientInvoices.createdAt,
             doctorId: schema.visitDiaries.doctorId,
             doctorName: schema.users.fullName,
+            commissionPct: schema.doctorCommissions.commissionPct,
         })
             .from(schema.patientInvoices)
             .leftJoin(schema.visitDiaries, eq(schema.patientInvoices.visitId, schema.visitDiaries.visitId))
             .leftJoin(schema.users, eq(schema.visitDiaries.doctorId, schema.users.id))
+            .leftJoin(schema.doctorCommissions, and(eq(schema.doctorCommissions.userId, schema.visitDiaries.doctorId), eq(schema.doctorCommissions.isActive, true)))
             .where(and(eq(schema.patientInvoices.status, "paid"), eq(schema.patientInvoices.organizationId, orgId)))
             .orderBy(schema.patientInvoices.createdAt);
-        const MATERIAL_COST_RATE = 0.15;
-        const COMMISSION_RATE = 0.3;
+        const visitIds = rows.map((r) => r.visitId).filter(Boolean);
+        let materialCostsByVisit = {};
+        if (visitIds.length > 0) {
+            const { inArray } = await import("drizzle-orm");
+            const txs = await db
+                .select({
+                visitId: schema.inventoryTransactions.visitId,
+                quantityChanged: schema.inventoryTransactions.quantityChanged,
+                unitCostRub: schema.inventoryTransactions.unitCostRub,
+            })
+                .from(schema.inventoryTransactions)
+                .where(and(inArray(schema.inventoryTransactions.visitId, visitIds), eq(schema.inventoryTransactions.organizationId, orgId)));
+            for (const t of txs) {
+                if (!t.visitId)
+                    continue;
+                // deductions are negative quantityChanged, so Math.abs gives the consumed amount
+                const cost = Math.abs(t.quantityChanged) * parseFloat(String(t.unitCostRub));
+                materialCostsByVisit[t.visitId] = (materialCostsByVisit[t.visitId] || 0) + cost;
+            }
+        }
         const payouts = rows.map((row) => {
             const revenue = parseFloat(String(row.totalAmountRub ?? 0));
-            const materialCost = +(revenue * MATERIAL_COST_RATE).toFixed(2);
+            const realMaterialCost = row.visitId ? (materialCostsByVisit[row.visitId] || 0) : 0;
+            const materialCost = +(realMaterialCost).toFixed(2);
             const netBase = revenue - materialCost;
-            const netPayout = +(netBase * COMMISSION_RATE).toFixed(2);
+            const docCommissionPct = row.commissionPct != null
+                ? parseFloat(String(row.commissionPct))
+                : 30.0;
+            const commissionRate = docCommissionPct / 100;
+            const netPayout = +(netBase * commissionRate).toFixed(2);
             return {
                 id: row.id,
                 visitId: row.visitId,
@@ -297,7 +362,7 @@ export async function registerAdvancedBillingRoutes(app) {
                 doctorName: row.doctorName ?? "Врач не указан",
                 revenue,
                 materialCost,
-                commissionRate: +(COMMISSION_RATE * 100),
+                commissionRate: docCommissionPct,
                 netPayout,
                 date: row.createdAt,
             };
@@ -390,5 +455,61 @@ export async function registerAdvancedBillingRoutes(app) {
             .where(and(eq(schema.cash_shifts.id, shiftId), eq(schema.cash_shifts.organizationId, orgId)))
             .returning();
         return reply.code(200).send(closedShift);
+    });
+    app.get("/api/patients/:patientId/installments", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply);
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        const rows = await db
+            .select()
+            .from(schema.paymentInstallments)
+            .where(and(eq(schema.paymentInstallments.patientId, patientId), eq(schema.paymentInstallments.status, "pending")))
+            .orderBy(schema.paymentInstallments.dueDate);
+        return reply.code(200).send(rows);
+    });
+    app.post("/api/patients/:patientId/installments", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "billing installment create");
+        if (!orgId)
+            return;
+        const { patientId } = request.params;
+        const { installments, treatmentPlanId } = request.body;
+        if (!Array.isArray(installments) || installments.length === 0) {
+            return reply.code(400).send({
+                error: "BillingValidationError",
+                message: "Передайте список платежей рассрочки.",
+            });
+        }
+        const patient = await getPatientForBilling(orgId, patientId);
+        if (!patient) {
+            return reply.code(404).send({
+                error: "PatientNotFound",
+                message: "Пациент для рассрочки не найден.",
+            });
+        }
+        // Delete existing pending installments for this patient
+        await db.transaction(async (tx) => {
+            await tx
+                .delete(schema.paymentInstallments)
+                .where(and(eq(schema.paymentInstallments.patientId, patientId), eq(schema.paymentInstallments.status, "pending")));
+            // Insert new installments
+            for (const inst of installments) {
+                const amount = parseFloat(String(inst.amount));
+                const dueDate = new Date(inst.dueDate);
+                if (!Number.isFinite(amount) ||
+                    amount <= 0 ||
+                    !Number.isFinite(dueDate.getTime())) {
+                    throw new Error("Неверные параметры платежа рассрочки.");
+                }
+                await tx.insert(schema.paymentInstallments).values({
+                    patientId,
+                    treatmentPlanId: treatmentPlanId || "00000000-0000-0000-0000-000000000000",
+                    amountRub: amount.toString(),
+                    dueDate,
+                    status: "pending",
+                });
+            }
+        });
+        return reply.code(200).send({ success: true });
     });
 }

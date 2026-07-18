@@ -5,11 +5,15 @@
  */
 
 import {
+	Activity,
+	Blocks,
 	CheckCircle2,
 	CreditCard,
 	FlaskConical,
 	LayoutGrid,
 	Loader2,
+	MessageSquare,
+	Server,
 	ShieldPlus,
 	Stethoscope,
 	Users,
@@ -33,6 +37,23 @@ interface FeatureToggleDef {
 		| "hasDentalLab"
 		| "hasInsuranceCoPay"
 		| "hasInstallments"
+		| "hasPayrollModule"
+		| "hasMarketingModule"
+		| "hasAnalyticsModule"
+		| "hasCsoScanner"
+		| "hasLeadsKanban"
+		| "hasOmnichannel"
+		| "hasOrthodontics"
+		| "hasGnathology"
+		| "hasTasks"
+		| "hasReclamations"
+		| "hasPediatricMode"
+		| "hasInventoryModule"
+		| "aiEnableTreatmentPlan"
+		| "aiEnableRecommendations"
+		| "aiEnableDocuments"
+		| "hasEngineeringStatus"
+		| "hasClinicalRules"
 	>;
 	label: string;
 	description: string;
@@ -80,6 +101,141 @@ const FEATURE_TOGGLES: FeatureToggleDef[] = [
 			"Отключите, если не предлагаете рассрочку — из сметы удалится калькулятор и слайдер ежемесячных платежей.",
 		icon: <CreditCard size={20} />,
 		color: "hsl(340 75% 60%)",
+	},
+	{
+		key: "hasPayrollModule",
+		label: "Модуль «Зарплаты и комиссии»",
+		description:
+			"Отключите, если вы работаете один или считаете зарплаты в другой программе.",
+		icon: <LayoutGrid size={20} />,
+		color: "hsl(140 70% 45%)",
+	},
+	{
+		key: "hasMarketingModule",
+		label: "Модуль «Маркетинг»",
+		description:
+			"Отключите, если не ведете рекламные кампании и не используете воронку конверсий.",
+		icon: <Users size={20} />,
+		color: "hsl(35 90% 55%)",
+	},
+	{
+		key: "hasAnalyticsModule",
+		label: "Модуль «Аналитика»",
+		description:
+			"Отключите для максимального упрощения интерфейса, если вам не нужны сложные отчеты.",
+		icon: <LayoutGrid size={20} />,
+		color: "hsl(280 80% 65%)",
+	},
+	{
+		key: "hasOrthodontics",
+		label: "Ортодонтия",
+		description: "Лечение на брекет-системах и элайнерах.",
+		icon: <ShieldPlus size={20} />,
+		color: "hsl(200 80% 50%)",
+	},
+	{
+		key: "hasGnathology",
+		label: "Гнатология и Остеопатия",
+		description: "Специализированные протоколы для диагностики и лечения ВНЧС.",
+		icon: <Stethoscope size={20} />,
+		color: "hsl(180 80% 40%)",
+	},
+	{
+		key: "hasTasks",
+		label: "Задачи по пациентам",
+		description:
+			"Включает функционал поручений (тикетов) для администраторов и врачей прямо в карточке.",
+		icon: <CheckCircle2 size={20} />,
+		color: "hsl(100 70% 45%)",
+	},
+	{
+		key: "hasReclamations",
+		label: "Рекламации и осложнения",
+		description:
+			"Включает модуль фиксации жалоб, осложнений и гарантийных случаев.",
+		icon: <XCircle size={20} />,
+		color: "hsl(350 80% 60%)",
+	},
+	{
+		key: "hasPediatricMode",
+		label: "Детский прием",
+		description:
+			"Включает детскую зубную формулу (молочные зубы) и специальные детские протоколы.",
+		icon: <CheckCircle2 size={20} />,
+		color: "hsl(320 70% 60%)",
+	},
+	{
+		key: "hasInventoryModule",
+		label: "Складской учет (Inventory)",
+		description:
+			"Учет расходных материалов, контроль остатков и планирование закупок.",
+		icon: <LayoutGrid size={20} />,
+		color: "hsl(220 80% 50%)",
+	},
+	{
+		key: "hasCsoScanner",
+		label: "Сканнер лотков (ЦСО)",
+		description:
+			"Модуль стерилизации: учет медицинских лотков, сканирование штрих-кодов и контроль сроков.",
+		icon: <CheckCircle2 size={20} />,
+		color: "hsl(210 80% 50%)",
+	},
+	{
+		key: "hasLeadsKanban",
+		label: "Канбан Лидов (CRM)",
+		description:
+			"Воронка продаж: учет потенциальных пациентов, статусы сделок и контроль первичных записей.",
+		icon: <LayoutGrid size={20} />,
+		color: "hsl(25 80% 50%)",
+	},
+	{
+		key: "hasOmnichannel",
+		label: "Омниканальная Почта",
+		description:
+			"Единый инбокс для мессенджеров (WhatsApp, Telegram) и email для общения с пациентами.",
+		icon: <MessageSquare size={20} />,
+		color: "hsl(200 80% 45%)",
+	},
+
+	{
+		key: "aiEnableTreatmentPlan",
+		label: "AI: Генерация планов лечения",
+		description:
+			"Нейросеть автоматически формирует персонализированный план лечения на основе диктовки.",
+		icon: <Blocks size={20} />,
+		color: "hsl(280 80% 65%)",
+	},
+	{
+		key: "aiEnableRecommendations",
+		label: "AI: Выдача рекомендаций",
+		description:
+			"Нейросеть автоматически подбирает и персонализирует рекомендации после приёма.",
+		icon: <Blocks size={20} />,
+		color: "hsl(280 80% 65%)",
+	},
+	{
+		key: "aiEnableDocuments",
+		label: "AI: Подбор ИДС и документов",
+		description:
+			"Нейросеть автоматически предлагает необходимые юридические документы для подписания.",
+		icon: <Blocks size={20} />,
+		color: "hsl(280 80% 65%)",
+	},
+	{
+		key: "hasEngineeringStatus",
+		label: "Инженерный статус (Отладка)",
+		description:
+			"Отображает полоску статуса синхронизации черновиков и техническую отладку. Отключите для частного кабинета, чтобы не перегружать интерфейс.",
+		icon: <Server size={20} />,
+		color: "hsl(215 16% 47%)",
+	},
+	{
+		key: "hasClinicalRules",
+		label: "Клинические правила и протоколы",
+		description:
+			"Сложная система валидации приёма и стандартов лечения. Отключите, если у вас частная практика без жестких регламентов.",
+		icon: <Activity size={20} />,
+		color: "hsl(348 83% 47%)",
 	},
 ];
 

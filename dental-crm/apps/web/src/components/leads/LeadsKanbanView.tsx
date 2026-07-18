@@ -1,16 +1,24 @@
+import { AnimatePresence, motion } from "framer-motion";
 import {
 	Calendar,
 	CalendarClock,
 	ChevronRight,
+	DollarSign,
+	Edit2,
+	Filter,
 	Globe,
 	Handshake,
 	Phone,
 	Plus,
+	Search,
 	Trash2,
 	X,
+	MessageSquare,
+	ListTodo,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWebsocket } from "../../hooks/useWebsocket";
 import { type Lead, useLeadsStore } from "../../store/leadsStore";
 import { useThemeStore } from "../../store/themeStore";
@@ -24,7 +32,7 @@ const COLUMNS: {
 }[] = [
 	{
 		id: "new",
-		label: "Новые лиды",
+		label: "Новые",
 		color: "rgba(59, 130, 246, 0.2)",
 		icon: <Plus size={16} />,
 	},
@@ -48,18 +56,31 @@ const COLUMNS: {
 	},
 	{
 		id: "trash",
-		label: "Мусор",
+		label: "Отказ",
 		color: "rgba(239, 68, 68, 0.2)",
 		icon: <Trash2 size={16} />,
 	},
 ];
 
 export function LeadsKanbanView() {
-	const { leads, fetchLeads, updateLeadStatus, isLoading } = useLeadsStore();
-	const themeMode = useThemeStore((s) => s.themeMode);
+	const {
+		leads,
+		fetchLeads,
+		updateLeadStatus,
+		updateLeadDetails,
+		addLead,
+		isLoading,
+	} = useLeadsStore();
+	const { auth } = useAppLogicContext();
 	const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+	const [selectedLeadForDrawer, setSelectedLeadForDrawer] = useState<Lead | null>(null);
+	const [newNote, setNewNote] = useState("");
 
-	// Modal State
+	// Filters
+	const [searchQuery, setSearchQuery] = useState("");
+	const [sourceFilter, setSourceFilter] = useState("");
+
+	// Convert Modal State
 	const [isConvertOpen, setIsConvertOpen] = useState(false);
 	const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
 	const [staff, setStaff] = useState<any[]>([]);
@@ -69,6 +90,16 @@ export function LeadsKanbanView() {
 	const [selectedChairId, setSelectedChairId] = useState("");
 	const [appointmentDate, setAppointmentDate] = useState("");
 	const [appointmentTime, setAppointmentTime] = useState("10:00");
+
+	// Edit/Add Modal State
+	const [isEditOpen, setIsEditOpen] = useState(false);
+	const [editingLeadId, setEditingLeadId] = useState<string | null>(null);
+	const [editForm, setEditForm] = useState<Partial<Lead>>({
+		name: "",
+		phone: "",
+		source: "",
+		expectedRevenue: "",
+	});
 
 	const { lastMessage } = useWebsocket(
 		import.meta.env.VITE_WS_URL ?? "ws://localhost:4100/api/ws/schedule",
@@ -87,13 +118,10 @@ export function LeadsKanbanView() {
 	useEffect(() => {
 		fetchLeads();
 
-		// Load metadata for conversion modal
 		async function loadMeta() {
 			try {
 				const userRes = await fetch("/api/auth/user/me", {
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-					},
+					headers: auth.denteClinicalReadHeaders(),
 				});
 				if (userRes.ok) {
 					const userData = await userRes.json();
@@ -102,9 +130,7 @@ export function LeadsKanbanView() {
 					);
 				}
 				const dbRes = await fetch("/api/dashboard", {
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-					},
+					headers: auth.denteClinicalReadHeaders(),
 				});
 				if (dbRes.ok) {
 					const dashboard = await dbRes.json();
@@ -165,10 +191,9 @@ export function LeadsKanbanView() {
 		try {
 			const res = await fetch(`/api/leads/${convertingLeadId}/convert`, {
 				method: "POST",
-				headers: {
+				headers: auth.denteClinicalReadHeaders({
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-				},
+				}),
 				body: JSON.stringify({
 					appointmentStart: startDateTime.toISOString(),
 					appointmentEnd: endDateTime.toISOString(),
@@ -180,10 +205,9 @@ export function LeadsKanbanView() {
 			});
 
 			if (!res.ok) throw new Error("Failed to convert lead");
-			showToast("Лид успешно записан на прием", "success");
+			showToast("Лид успешно записан на прием (Создан Пациент)", "success");
 			setIsConvertOpen(false);
 			setConvertingLeadId(null);
-			// Manually trigger refresh in store or locally update to consult_booked
 			updateLeadStatus(convertingLeadId, "consult_booked");
 			fetchLeads();
 		} catch (e) {
@@ -191,6 +215,65 @@ export function LeadsKanbanView() {
 			showToast("Ошибка записи лида", "error");
 		}
 	};
+
+	const openEditModal = (lead?: Lead) => {
+		if (lead) {
+			setEditingLeadId(lead.id);
+			setEditForm({
+				name: lead.name,
+				phone: lead.phone || "",
+				source: lead.source || "",
+				expectedRevenue: lead.expectedRevenue || "",
+			});
+		} else {
+			setEditingLeadId("new");
+			setEditForm({ name: "", phone: "", source: "", expectedRevenue: "" });
+		}
+		setIsEditOpen(true);
+	};
+
+	const handleEditSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		try {
+			const payload = {
+				name: editForm.name || "Без имени",
+				phone: editForm.phone || "",
+				source: editForm.source || "",
+				expectedRevenue: editForm.expectedRevenue
+					? String(editForm.expectedRevenue)
+					: "",
+			};
+
+			if (editingLeadId === "new") {
+				await addLead(payload);
+				showToast("Новый лид добавлен", "success");
+			} else if (editingLeadId) {
+				await updateLeadDetails(editingLeadId, payload);
+				showToast("Лид обновлен", "success");
+			}
+			setIsEditOpen(false);
+		} catch (e) {
+			showToast("Ошибка сохранения", "error");
+		}
+	};
+
+	const filteredLeads = useMemo(() => {
+		return leads.filter((l) => {
+			const q = searchQuery.toLowerCase();
+			const matchesSearch =
+				!q || l.name?.toLowerCase().includes(q) || l.phone?.includes(q);
+			const matchesSource = !sourceFilter || l.source === sourceFilter;
+			return matchesSearch && matchesSource;
+		});
+	}, [leads, searchQuery, sourceFilter]);
+
+	const uniqueSources = useMemo(() => {
+		const s = new Set<string>();
+		leads.forEach((l) => {
+			if (l.source) s.add(l.source);
+		});
+		return Array.from(s);
+	}, [leads]);
 
 	if (isLoading && leads.length === 0) {
 		return (
@@ -227,43 +310,100 @@ export function LeadsKanbanView() {
 				boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
 			}}
 		>
+			{/* HEADER & FILTERS */}
 			<div
 				style={{
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "space-between",
 					marginBottom: 24,
+					flexWrap: "wrap",
+					gap: 16,
 				}}
 			>
-				<h2
-					style={{
-						margin: 0,
-						fontSize: 24,
-						fontWeight: 600,
-						color: "var(--ink)",
-						display: "flex",
-						alignItems: "center",
-						gap: 12,
-					}}
-				>
-					Воронка Пациентов
-					<span
+				<div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+					<h2
 						style={{
-							fontSize: 12,
-							padding: "4px 8px",
-							background: "var(--teal)",
-							color: "#fff",
-							borderRadius: 12,
+							margin: 0,
+							fontSize: 24,
+							fontWeight: 600,
+							color: "var(--ink)",
+							display: "flex",
+							alignItems: "center",
+							gap: 12,
 						}}
 					>
-						PRO
-					</span>
-				</h2>
-				<button className="primary-button" onClick={() => fetchLeads()}>
-					Обновить
-				</button>
+						Воронка Пациентов
+						<span
+							style={{
+								fontSize: 12,
+								padding: "4px 8px",
+								background: "var(--teal)",
+								color: "#fff",
+								borderRadius: 12,
+							}}
+						>
+							PRO
+						</span>
+					</h2>
+					<button className="primary-button" onClick={() => openEditModal()}>
+						<Plus size={16} /> Новый лид
+					</button>
+				</div>
+
+				<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+					<div style={{ position: "relative" }}>
+						<Search
+							size={16}
+							color="var(--muted)"
+							style={{ position: "absolute", left: 10, top: 10 }}
+						/>
+						<input
+							type="text"
+							placeholder="Поиск по имени или телефону..."
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							style={{
+								padding: "8px 12px 8px 32px",
+								borderRadius: 8,
+								border: `1px solid ${borderColor}`,
+								background: colBg,
+								color: "var(--ink)",
+								minWidth: 240,
+							}}
+						/>
+					</div>
+					<div style={{ position: "relative" }}>
+						<Filter
+							size={16}
+							color="var(--muted)"
+							style={{ position: "absolute", left: 10, top: 10 }}
+						/>
+						<select
+							value={sourceFilter}
+							onChange={(e) => setSourceFilter(e.target.value)}
+							style={{
+								padding: "8px 12px 8px 32px",
+								borderRadius: 8,
+								border: `1px solid ${borderColor}`,
+								background: colBg,
+								color: "var(--ink)",
+								appearance: "none",
+								minWidth: 140,
+							}}
+						>
+							<option value="">Все источники</option>
+							{uniqueSources.map((s) => (
+								<option key={s} value={s}>
+									{s}
+								</option>
+							))}
+						</select>
+					</div>
+				</div>
 			</div>
 
+			{/* KANBAN BOARD */}
 			<div
 				style={{
 					display: "flex",
@@ -274,7 +414,11 @@ export function LeadsKanbanView() {
 				}}
 			>
 				{COLUMNS.map((col) => {
-					const columnLeads = leads.filter((l) => l.status === col.id);
+					const columnLeads = filteredLeads.filter((l) => l.status === col.id);
+					const columnRevenue = columnLeads.reduce(
+						(acc, l) => acc + (Number(l.expectedRevenue) || 0),
+						0,
+					);
 
 					return (
 						<div
@@ -295,52 +439,80 @@ export function LeadsKanbanView() {
 							<div
 								style={{
 									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
+									flexDirection: "column",
+									gap: 8,
 									marginBottom: "16px",
 									paddingBottom: "12px",
 									borderBottom: `1px solid ${borderColor}`,
 								}}
 							>
 								<div
-									style={{ display: "flex", alignItems: "center", gap: "8px" }}
+									style={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "space-between",
+									}}
 								>
 									<div
 										style={{
-											width: 32,
-											height: 32,
-											borderRadius: 8,
-											background: col.color,
 											display: "flex",
 											alignItems: "center",
-											justifyContent: "center",
-											color: "var(--ink)",
+											gap: "8px",
 										}}
 									>
-										{col.icon}
+										<div
+											style={{
+												width: 32,
+												height: 32,
+												borderRadius: 8,
+												background: col.color,
+												display: "flex",
+												alignItems: "center",
+												justifyContent: "center",
+												color: "var(--ink)",
+											}}
+										>
+											{col.icon}
+										</div>
+										<h3
+											style={{
+												margin: 0,
+												fontSize: 16,
+												fontWeight: 600,
+												color: "var(--ink)",
+											}}
+										>
+											{col.label}
+										</h3>
 									</div>
-									<h3
+									<span
 										style={{
-											margin: 0,
-											fontSize: 16,
-											fontWeight: 500,
-											color: "var(--ink)",
+											fontSize: 13,
+											fontWeight: 600,
+											color: "var(--muted)",
+											background: "var(--line)",
+											padding: "2px 8px",
+											borderRadius: 12,
 										}}
 									>
-										{col.label}
-									</h3>
+										{columnLeads.length}
+									</span>
 								</div>
-								<span
-									style={{
-										fontSize: 13,
-										color: "var(--muted)",
-										background: "var(--line)",
-										padding: "2px 8px",
-										borderRadius: 12,
-									}}
-								>
-									{columnLeads.length}
-								</span>
+								{columnRevenue > 0 && (
+									<div
+										style={{
+											fontSize: 13,
+											color: "var(--teal)",
+											fontWeight: 500,
+											display: "flex",
+											alignItems: "center",
+											gap: 4,
+										}}
+									>
+										<DollarSign size={14} />{" "}
+										{columnRevenue.toLocaleString("ru-RU")} ₽
+									</div>
+								)}
 							</div>
 
 							<div
@@ -352,91 +524,121 @@ export function LeadsKanbanView() {
 									gap: "12px",
 								}}
 							>
-								{columnLeads.map((lead) => (
-									<div
-										key={lead.id}
-										draggable
-										onDragStart={(e) => handleDragStart(e, lead.id)}
-										style={{
-											background: cardBg,
-											padding: "16px",
-											borderRadius: "12px",
-											cursor: "grab",
-											border: `1px solid ${borderColor}`,
-											boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-											opacity: draggedLeadId === lead.id ? 0.5 : 1,
-											transform:
-												draggedLeadId === lead.id ? "scale(0.98)" : "scale(1)",
-											transition: "transform 0.2s",
-										}}
-									>
-										<div
+								<AnimatePresence>
+									{columnLeads.map((lead) => (
+										<motion.div
+											layout
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											exit={{ opacity: 0, scale: 0.95 }}
+											key={lead.id}
+											draggable
+											onDragStart={(e: any) => handleDragStart(e, lead.id)}
+											onClick={() => setSelectedLeadForDrawer(lead)}
 											style={{
-												display: "flex",
-												justifyContent: "space-between",
-												alignItems: "flex-start",
-												marginBottom: "8px",
+												background: cardBg,
+												padding: "16px",
+												borderRadius: "12px",
+												cursor: "grab",
+												border: `1px solid ${borderColor}`,
+												boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+												opacity: draggedLeadId === lead.id ? 0.5 : 1,
+												transform:
+													draggedLeadId === lead.id
+														? "scale(0.98)"
+														: "scale(1)",
+												transition: "box-shadow 0.2s",
+											}}
+											whileHover={{
+												y: -2,
+												boxShadow: "0 8px 16px rgba(0,0,0,0.08)",
 											}}
 										>
-											<strong style={{ fontSize: 15, color: "var(--ink)" }}>
-												{lead.name}
-											</strong>
-											<ChevronRight size={16} color="var(--muted)" />
-										</div>
-
-										{lead.phone && (
 											<div
 												style={{
 													display: "flex",
-													alignItems: "center",
-													gap: 6,
-													fontSize: 13,
-													color: "var(--muted)",
-													marginBottom: 4,
+													justifyContent: "space-between",
+													alignItems: "flex-start",
+													marginBottom: "8px",
 												}}
 											>
-												<Phone size={12} /> {lead.phone}
+												<strong
+													style={{
+														fontSize: 15,
+														color: "var(--ink)",
+														display: "flex",
+														alignItems: "center",
+														gap: 6,
+													}}
+												>
+													{lead.name}
+												</strong>
+												<Edit2
+													size={14}
+													color="var(--muted)"
+													style={{ opacity: 0.5 }}
+												/>
 											</div>
-										)}
 
-										<div
-											style={{
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "space-between",
-												marginTop: "12px",
-											}}
-										>
-											{lead.source && (
+											{lead.phone && (
 												<div
 													style={{
 														display: "flex",
 														alignItems: "center",
-														gap: 4,
-														fontSize: 11,
-														color: "var(--teal)",
-														background: "rgba(59, 130, 246, 0.1)",
-														padding: "2px 6px",
-														borderRadius: 4,
+														gap: 6,
+														fontSize: 13,
+														color: "var(--muted)",
+														marginBottom: 4,
 													}}
 												>
-													<Globe size={10} /> {lead.source}
+													<Phone size={12} /> {lead.phone}
 												</div>
 											)}
-											{lead.expectedRevenue ? (
-												<div
-													style={{
-														fontSize: 12,
-														fontWeight: 600,
-														color: "var(--ink)",
-													}}
-												>
-													{lead.expectedRevenue} ₽
-												</div>
-											) : null}
-										</div>
-									</div>
-								))}
+
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													justifyContent: "space-between",
+													marginTop: "12px",
+												}}
+											>
+												{lead.source ? (
+													<div
+														style={{
+															display: "flex",
+															alignItems: "center",
+															gap: 4,
+															fontSize: 11,
+															color: "var(--teal)",
+															background: "rgba(59, 130, 246, 0.1)",
+															padding: "2px 6px",
+															borderRadius: 4,
+														}}
+													>
+														<Globe size={10} /> {lead.source}
+													</div>
+												) : (
+													<div />
+												)}
+												{lead.expectedRevenue ? (
+													<div
+														style={{
+															fontSize: 12,
+															fontWeight: 600,
+															color: "var(--ink)",
+															background: "var(--paper-soft)",
+															padding: "2px 6px",
+															borderRadius: 4,
+														}}
+													>
+														{lead.expectedRevenue} ₽
+													</div>
+												) : null}
+											</div>
+										</motion.div>
+									))}
+								</AnimatePresence>
 
 								{columnLeads.length === 0 && (
 									<div
@@ -458,6 +660,7 @@ export function LeadsKanbanView() {
 				})}
 			</div>
 
+			{/* CONVERT MODAL */}
 			{isConvertOpen && (
 				<div
 					style={{
@@ -471,7 +674,9 @@ export function LeadsKanbanView() {
 						backdropFilter: "blur(4px)",
 					}}
 				>
-					<div
+					<motion.div
+						initial={{ opacity: 0, scale: 0.95 }}
+						animate={{ opacity: 1, scale: 1 }}
 						style={{
 							background: cardBg,
 							borderRadius: 16,
@@ -635,7 +840,317 @@ export function LeadsKanbanView() {
 								Подтвердить запись
 							</button>
 						</form>
+					</motion.div>
+				</div>
+			)}
+
+			
+			{/* LEAD DRAWER */}
+			<AnimatePresence>
+				{selectedLeadForDrawer && (
+					<div
+						style={{
+							position: "fixed",
+							inset: 0,
+							zIndex: 90,
+							display: "flex",
+							justifyContent: "flex-end",
+							background: "rgba(0,0,0,0.3)",
+							backdropFilter: "blur(2px)",
+						}}
+						onClick={(e) => { if(e.target === e.currentTarget) setSelectedLeadForDrawer(null) }}
+					>
+						<motion.div
+							initial={{ x: "100%" }}
+							animate={{ x: 0 }}
+							exit={{ x: "100%" }}
+							transition={{ type: "spring", damping: 25, stiffness: 200 }}
+							style={{
+								width: "400px",
+								maxWidth: "100%",
+								background: cardBg,
+								borderLeft: `1px solid ${borderColor}`,
+								boxShadow: "-10px 0 30px rgba(0,0,0,0.1)",
+								height: "100%",
+								display: "flex",
+								flexDirection: "column",
+								overflow: "hidden"
+							}}
+						>
+							<div style={{ padding: 24, borderBottom: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+								<div>
+									<h2 style={{ margin: 0, fontSize: 22, color: "var(--ink)", display: "flex", alignItems: "center", gap: 8 }}>
+										{selectedLeadForDrawer.name}
+									</h2>
+									<div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+										{selectedLeadForDrawer.phone && (
+											<span style={{ fontSize: 14, color: "var(--muted)", display: "flex", alignItems: "center", gap: 4 }}>
+												<Phone size={14} /> {selectedLeadForDrawer.phone}
+											</span>
+										)}
+										{selectedLeadForDrawer.source && (
+											<span style={{ fontSize: 14, color: "var(--teal)", display: "flex", alignItems: "center", gap: 4 }}>
+												<Globe size={14} /> {selectedLeadForDrawer.source}
+											</span>
+										)}
+									</div>
+								</div>
+								<button onClick={() => setSelectedLeadForDrawer(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+									<X size={24} />
+								</button>
+							</div>
+
+							<div style={{ padding: 24, display: "flex", gap: 12, borderBottom: `1px solid ${borderColor}` }}>
+								<button 
+									className="primary-button" 
+									style={{ flex: 1, justifyContent: "center" }}
+									onClick={() => {
+										setSelectedLeadForDrawer(null);
+										window.location.hash = "inbox";
+									}}
+								>
+									<MessageSquare size={16} /> Написать
+								</button>
+								<button 
+									className="secondary-button" 
+									style={{ flex: 1, justifyContent: "center" }}
+									onClick={() => {
+										openEditModal(selectedLeadForDrawer);
+									}}
+								>
+									<Edit2 size={16} /> Изменить
+								</button>
+							</div>
+
+							<div style={{ flex: 1, overflowY: "auto", padding: 24, background: colBg }}>
+								<h3 style={{ margin: "0 0 16px 0", fontSize: 16, color: "var(--ink)", display: "flex", alignItems: "center", gap: 8 }}>
+									<ListTodo size={18} /> История работы
+								</h3>
+								
+								<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+									{(selectedLeadForDrawer.notes || []).map((note, i) => (
+										<div key={i} style={{ background: cardBg, padding: 12, borderRadius: 12, border: `1px solid ${borderColor}` }}>
+											<p style={{ margin: 0, fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>{note.text}</p>
+											<span style={{ fontSize: 11, color: "var(--muted)", display: "block", marginTop: 8 }}>
+												{new Date(note.date).toLocaleString("ru-RU")}
+											</span>
+										</div>
+									))}
+									{(!selectedLeadForDrawer.notes || selectedLeadForDrawer.notes.length === 0) && (
+										<div style={{ textAlign: "center", padding: 24, color: "var(--muted)", fontSize: 13, border: `1px dashed ${borderColor}`, borderRadius: 12 }}>
+											История пуста. Добавьте первый комментарий.
+										</div>
+									)}
+								</div>
+							</div>
+
+							<div style={{ padding: 20, borderTop: `1px solid ${borderColor}`, background: cardBg }}>
+								<div style={{ display: "flex", gap: 8 }}>
+									<input 
+										type="text" 
+										placeholder="Добавить комментарий..." 
+										value={newNote}
+										onChange={e => setNewNote(e.target.value)}
+										onKeyDown={e => {
+											if (e.key === "Enter" && newNote.trim()) {
+												const updatedNotes = [...(selectedLeadForDrawer.notes || []), { text: newNote.trim(), date: new Date().toISOString() }];
+												updateLeadDetails(selectedLeadForDrawer.id, { notes: updatedNotes });
+												setSelectedLeadForDrawer({ ...selectedLeadForDrawer, notes: updatedNotes });
+												setNewNote("");
+											}
+										}}
+										style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: `1px solid ${borderColor}`, outline: "none", fontSize: 14, background: colBg }}
+									/>
+									<button 
+										className="primary-button" 
+										disabled={!newNote.trim()}
+										onClick={() => {
+											if (newNote.trim()) {
+												const updatedNotes = [...(selectedLeadForDrawer.notes || []), { text: newNote.trim(), date: new Date().toISOString() }];
+												updateLeadDetails(selectedLeadForDrawer.id, { notes: updatedNotes });
+												setSelectedLeadForDrawer({ ...selectedLeadForDrawer, notes: updatedNotes });
+												setNewNote("");
+											}
+										}}
+									>
+										Добавить
+									</button>
+								</div>
+							</div>
+						</motion.div>
 					</div>
+				)}
+			</AnimatePresence>
+
+			{/* EDIT / ADD MODAL */}
+			{isEditOpen && (
+				<div
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 100,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						background: "rgba(0,0,0,0.5)",
+						backdropFilter: "blur(4px)",
+					}}
+				>
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						style={{
+							background: cardBg,
+							borderRadius: 16,
+							padding: 24,
+							width: 400,
+							maxWidth: "90%",
+							border: `1px solid ${borderColor}`,
+							boxShadow: "0 24px 48px rgba(0,0,0,0.2)",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "space-between",
+								marginBottom: 20,
+							}}
+						>
+							<h3
+								style={{
+									margin: 0,
+									fontSize: 18,
+									fontWeight: 600,
+									color: "var(--ink)",
+									display: "flex",
+									alignItems: "center",
+									gap: 8,
+								}}
+							>
+								<Edit2 size={20} color="var(--teal)" />
+								{editingLeadId === "new"
+									? "Добавить лида"
+									: "Редактировать лида"}
+							</h3>
+							<button
+								onClick={() => setIsEditOpen(false)}
+								style={{
+									background: "none",
+									border: "none",
+									color: "var(--muted)",
+									cursor: "pointer",
+								}}
+							>
+								<X size={20} />
+							</button>
+						</div>
+
+						<form
+							onSubmit={handleEditSubmit}
+							style={{ display: "flex", flexDirection: "column", gap: 16 }}
+						>
+							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+								<label style={{ fontSize: 13, color: "var(--muted)" }}>
+									Имя пациента / лида
+								</label>
+								<input
+									type="text"
+									value={editForm.name}
+									onChange={(e) =>
+										setEditForm({ ...editForm, name: e.target.value })
+									}
+									placeholder="Иван Иванов"
+									style={{
+										padding: 10,
+										borderRadius: 8,
+										border: `1px solid ${borderColor}`,
+										background: colBg,
+										color: "var(--ink)",
+									}}
+									required
+								/>
+							</div>
+
+							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+								<label style={{ fontSize: 13, color: "var(--muted)" }}>
+									Телефон
+								</label>
+								<input
+									type="tel"
+									value={editForm.phone}
+									onChange={(e) =>
+										setEditForm({ ...editForm, phone: e.target.value })
+									}
+									placeholder="+7 (999) 123-45-67"
+									style={{
+										padding: 10,
+										borderRadius: 8,
+										border: `1px solid ${borderColor}`,
+										background: colBg,
+										color: "var(--ink)",
+									}}
+								/>
+							</div>
+
+							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+								<label style={{ fontSize: 13, color: "var(--muted)" }}>
+									Источник (Откуда пришел)
+								</label>
+								<input
+									type="text"
+									value={editForm.source}
+									onChange={(e) =>
+										setEditForm({ ...editForm, source: e.target.value })
+									}
+									placeholder="Instagram, Сайт, Рекомендация..."
+									style={{
+										padding: 10,
+										borderRadius: 8,
+										border: `1px solid ${borderColor}`,
+										background: colBg,
+										color: "var(--ink)",
+									}}
+								/>
+							</div>
+
+							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+								<label style={{ fontSize: 13, color: "var(--muted)" }}>
+									Ожидаемая выручка (₽)
+								</label>
+								<input
+									type="text"
+									value={editForm.expectedRevenue}
+									onChange={(e) =>
+										setEditForm({
+											...editForm,
+											expectedRevenue: e.target.value,
+										})
+									}
+									placeholder="15000"
+									style={{
+										padding: 10,
+										borderRadius: 8,
+										border: `1px solid ${borderColor}`,
+										background: colBg,
+										color: "var(--ink)",
+									}}
+								/>
+							</div>
+
+							<button
+								type="submit"
+								className="primary-button"
+								style={{
+									marginTop: 8,
+									width: "100%",
+									justifyContent: "center",
+								}}
+							>
+								Сохранить
+							</button>
+						</form>
+					</motion.div>
 				</div>
 			)}
 		</div>

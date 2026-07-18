@@ -2,24 +2,14 @@ import type { Appointment, Dashboard } from "@dental/shared";
 import { Bot, Plus } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useState } from "react";
+import type { AppointmentScheduleDraft } from "../../AppHelpers";
 import { DictationHints } from "../../DictationHints";
+import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { smartBookingParser } from "../../lib/smartBookingParser";
 import { SmartParsePreview } from "../../SmartParsePreview";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
 
 type TextFieldChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
-
-export type AppointmentScheduleDraft = {
-	patientId: string;
-	doctorUserId: string;
-	assistantUserId: string;
-	chairId: string;
-	startsAt: string;
-	endsAt: string;
-	reason: string;
-	comment: string;
-	status: string;
-};
 
 export type NewAppointmentFormProps = {
 	dashboard: Dashboard;
@@ -27,7 +17,10 @@ export type NewAppointmentFormProps = {
 	newAppointmentDraft: AppointmentScheduleDraft;
 	newAppointmentSaveState: string;
 	newAppointmentError: string | null;
-	updateNewAppointmentDraft: (key: string, value: unknown) => void;
+	updateNewAppointmentDraft: <K extends keyof AppointmentScheduleDraft>(
+		key: K,
+		value: AppointmentScheduleDraft[K],
+	) => void;
 	createAppointmentFromDraft: () => Promise<boolean>;
 	resetNewAppointmentDraft: () => void;
 	toDateTimeLocalValue: (value: string, timeZone?: string | null) => string;
@@ -58,19 +51,24 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 	const [smartParsedData, setSmartParsedData] = useState<any>(null);
 	const [showHints, setShowHints] = useState(false);
 
+	const workspaceFlags = useWorkspaceProfile();
+
 	const newAppointmentStartsAtMs = Date.parse(newAppointmentDraft.startsAt);
 	const newAppointmentEndsAtMs = Date.parse(newAppointmentDraft.endsAt);
 	const newAppointmentMissingSteps = [
 		!newAppointmentDraft.patientId ? "выберите пациента" : null,
 		!newAppointmentDraft.doctorUserId ? "выберите врача" : null,
 		dashboard.clinicSettings.profile.mode !== "solo_doctor" &&
+		workspaceFlags.hasAssistants &&
 		dashboard.clinicSettings.staff.some(
 			(s) => s.role === "assistant" && s.active,
 		) &&
 		!newAppointmentDraft.assistantUserId
 			? "выберите ассистента"
 			: null,
-		!newAppointmentDraft.chairId ? "выберите кресло" : null,
+		workspaceFlags.hasMultipleChairs && !newAppointmentDraft.chairId
+			? "выберите кресло"
+			: null,
 		!newAppointmentDraft.startsAt.trim() ? "укажите начало приема" : null,
 		newAppointmentDraft.startsAt.trim() &&
 		!Number.isFinite(newAppointmentStartsAtMs)
@@ -160,20 +158,26 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 						</option>
 					))}
 				</select>
-				<select
-					value={newAppointmentDraft.assistantUserId || ""}
-					onChange={(e) =>
-						updateNewAppointmentDraft("assistantUserId", e.target.value)
-					}
-				>
-					<option value="">-- Выберите ассистента --</option>
-					<option value="">-- Нет ассистента --</option>
-					{dashboard.clinicSettings.staff.map((m) => (
-						<option key={m.id} value={m.id}>
-							{m.fullName}
-						</option>
-					))}
-				</select>
+				{workspaceFlags.hasAssistants && (
+					<select
+						value={newAppointmentDraft.assistantUserId || ""}
+						onChange={(e) =>
+							updateNewAppointmentDraft("assistantUserId", e.target.value)
+						}
+					>
+						<option value="">-- выбрать ассистента --</option>
+						<option value="">-- без ассистента --</option>
+						{dashboard.clinicSettings.staff.map(
+							(m) =>
+								m.role === "assistant" &&
+								m.active && (
+									<option key={m.id} value={m.id}>
+										{m.fullName}
+									</option>
+								),
+						)}
+					</select>
+				)}
 				<select
 					value={newAppointmentDraft.chairId || ""}
 					onChange={(e) => updateNewAppointmentDraft("chairId", e.target.value)}
@@ -255,13 +259,19 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 					}}
 				>
 					<Bot size={18} color="var(--brand-600)" style={{ flexShrink: 0 }} />
-					<div style={{ position: "relative", flex: 1 }}>
+					<div
+						style={{ position: "relative", flex: 1 }}
+						onBlur={(e) => {
+							if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+								setShowHints(false);
+							}
+						}}
+					>
 						<input
 							type="text"
 							value={smartInputText}
 							placeholder="Например: Петров на чистку завтра в 12:30 (Нажмите Enter)"
 							onFocus={() => setShowHints(true)}
-							onBlur={() => setTimeout(() => setShowHints(false), 200)}
 							onChange={(e) => setSmartInputText(e.target.value)}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" && smartInputText.trim()) {
@@ -562,54 +572,66 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 							)}
 						</div>
 
-						{dashboard.clinicSettings.profile.mode !== "solo_doctor" && (
+						{workspaceFlags.hasAssistants &&
+							dashboard.clinicSettings.staff.some(
+								(m) => m.role === "assistant" && m.active,
+							) && (
+								<div className="form-field">
+									<span className="appointment-editor-label">Ассистент</span>
+									<div className="appointment-editor-chips">
+										<button
+											type="button"
+											className={`quick-chip ${!newAppointmentDraft.assistantUserId ? "active" : ""}`}
+											onClick={() =>
+												updateNewAppointmentDraft("assistantUserId", "")
+											}
+										>
+											Без ассистента
+										</button>
+										{dashboard.clinicSettings.staff
+											.filter((m) => m.role === "assistant" && m.active)
+											.map((member) => (
+												<button
+													key={member.id}
+													type="button"
+													className={`quick-chip ${newAppointmentDraft.assistantUserId === member.id ? "active" : ""}`}
+													onClick={() =>
+														updateNewAppointmentDraft(
+															"assistantUserId",
+															newAppointmentDraft.assistantUserId === member.id
+																? ""
+																: member.id,
+														)
+													}
+												>
+													{member.fullName}
+												</button>
+											))}
+									</div>
+								</div>
+							)}
+
+						{workspaceFlags.hasMultipleChairs && (
 							<div>
-								<span className="appointment-editor-label">Ассистент</span>
+								<span className="appointment-editor-label">Кресло</span>
 								<div className="appointment-editor-chips">
-									{dashboard.clinicSettings.staff
-										.filter(
-											(member) => member.active && member.role === "assistant",
-										)
-										.map((member) => (
+									{dashboard.clinicSettings.chairs
+										.filter((chair) => chair.active)
+										.map((chair) => (
 											<button
-												key={member.id}
+												key={chair.id}
 												type="button"
-												className={`quick-chip ${newAppointmentDraft.assistantUserId === member.id ? "active" : ""}`}
+												className={`quick-chip ${newAppointmentDraft.chairId === chair.id ? "active" : ""}`}
 												onClick={() =>
-													updateNewAppointmentDraft(
-														"assistantUserId",
-														newAppointmentDraft.assistantUserId === member.id
-															? ""
-															: member.id,
-													)
+													updateNewAppointmentDraft("chairId", chair.id)
 												}
 											>
-												{member.fullName}
+												{chair.name}
 											</button>
 										))}
 								</div>
 							</div>
 						)}
-
-						<div>
-							<span className="appointment-editor-label">Кресло</span>
-							<div className="appointment-editor-chips">
-								{dashboard.clinicSettings.chairs
-									.filter((chair) => chair.active)
-									.map((chair) => (
-										<button
-											key={chair.id}
-											type="button"
-											className={`quick-chip ${newAppointmentDraft.chairId === chair.id ? "active" : ""}`}
-											onClick={() =>
-												updateNewAppointmentDraft("chairId", chair.id)
-											}
-										>
-											{chair.name}
-										</button>
-									))}
-							</div>
-						</div>
 
 						<div>
 							<span className="appointment-editor-label">Статус</span>
@@ -649,11 +671,13 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 								"Осмотр",
 								"Профгигиена",
 								"Консультация",
-								"Брекеты",
-								"Коронка",
+								workspaceFlags.hasOrthodontics && "Брекеты",
+								workspaceFlags.hasDentalLab && "Коронка",
 								"КЛКТ",
 								"Имплантация",
-							].map((chip) => (
+							]
+								.filter((chip): chip is string => Boolean(chip))
+								.map((chip) => (
 								<button
 									key={chip}
 									type="button"

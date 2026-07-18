@@ -85,6 +85,7 @@ export async function register(app) {
         const issuedHtml = renderDocumentHtml(issuedDocumentCandidate, patient, renderContext);
         const document = await issueGeneratedDocumentInDb(orgId, id, {
             issuedAt,
+            issuedByUserId: request.user?.id || null,
             releaseJournalEntry,
             snapshotHtml: issuedHtml,
             signatureAttestation,

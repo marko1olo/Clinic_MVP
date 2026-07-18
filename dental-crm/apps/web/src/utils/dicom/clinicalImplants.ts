@@ -9,6 +9,10 @@ export interface VirtualImplant {
 	color?: string; // Hex color
 	toothFdi?: number; // FDI tooth number for crown mockup (e.g. 46)
 	system?: "osstem" | "straumann" | "nobel" | "bredent" | "mdi" | "other";
+	/** Surgical guide sleeve parameters. Defaults: 5mm height, 5mm diameter, 9mm offset */
+	sleeveHeightMm?: number;
+	sleeveDiameterMm?: number;
+	sleeveOffsetMm?: number;
 }
 
 export interface NerveCanal {
@@ -58,10 +62,10 @@ export const ClinicalStore = {
 				}),
 			);
 		}
-		// Hardcoded tooth 46 for e2e testing purposes and demo integration
+		// Use actual tooth FDI if available, fallback to 46 for untargeted drops
 		window.dispatchEvent(
 			new CustomEvent("clinical-implant-placed", {
-				detail: { toothNumber: 46, implantId: implant.id },
+				detail: { toothNumber: implant.toothFdi || 46, implantId: implant.id },
 			}),
 		);
 		this.notify();

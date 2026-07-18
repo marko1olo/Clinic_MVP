@@ -13,9 +13,14 @@ import {
 	shouldTryNextProviderKey,
 } from "../speech/keyPool.js";
 
-type SpeechPolishProvider = "none" | "openai" | "groq" | "gemini" | "custom";
+export type SpeechPolishProvider =
+	| "none"
+	| "openai"
+	| "groq"
+	| "gemini"
+	| "custom";
 
-type AIPlanNeuralConfig = {
+export type AIPlanNeuralConfig = {
 	neuralEnabled: boolean;
 	provider: SpeechPolishProvider;
 	baseUrl: string | null;
@@ -41,6 +46,10 @@ interface OpenAiCompletionResponse {
 interface PersonalizedPlanResult {
 	patientFriendlyExplanation: string;
 	patientHygieneAdvice: string;
+	alternatives?: string[] | undefined;
+	risksAndLimitations?: string[] | undefined;
+	prognosisAndLimits?: string | undefined;
+	controlPlan?: string | undefined;
 }
 
 // ============================================================
@@ -80,7 +89,9 @@ function selectedPolishProvider(): SpeechPolishProvider {
 	return "none";
 }
 
-function baseUrlForProvider(provider: SpeechPolishProvider): string | null {
+export function baseUrlForProvider(
+	provider: SpeechPolishProvider,
+): string | null {
 	const explicitBaseUrl =
 		process.env.DENTAL_SPEECH_POLISH_BASE_URL?.trim().replace(/\/+$/, "");
 	if (explicitBaseUrl) return explicitBaseUrl;
@@ -95,7 +106,7 @@ function apiKeyForProvider(_provider: SpeechPolishProvider): string | null {
 	return process.env.DENTAL_SPEECH_POLISH_API_KEY?.trim() || null;
 }
 
-function keyProviderForPolishProvider(
+export function keyProviderForPolishProvider(
 	provider: SpeechPolishProvider,
 ): "openai_transcribe" | "groq_whisper" | "google_speech" | null {
 	if (provider === "openai") return "openai_transcribe";
@@ -128,7 +139,7 @@ function modelForProvider(provider: SpeechPolishProvider): string | null {
 	return null;
 }
 
-function createAIPlanNeuralConfig(): AIPlanNeuralConfig {
+export function createAIPlanNeuralConfig(): AIPlanNeuralConfig {
 	const requested = booleanFromEnv(
 		process.env.DENTAL_AI_NEURAL_DRAFT ??
 			process.env.DENTAL_SPEECH_NEURAL_POLISH ??
@@ -168,7 +179,7 @@ function buildSystemPrompt(): string {
 1. Понятный, заботливый, убедительный и коммерчески эффективный перевод на человеческий язык для презентации пациенту.
 2. Индивидуальные гигиенические советы с учётом конкретного плана лечения.
 
-Верните ответ СТРОГО в формате JSON с двумя строковыми ключами:
+Верните ответ СТРОГО в формате JSON со следующими ключами:
 
 "patientFriendlyExplanation" — Доступный перевод плана для пациента:
   1. Яркое вводное объяснение диагноза через понятные метафоры. Например:
@@ -191,7 +202,13 @@ function buildSystemPrompt(): string {
   5. Если имплант или большой промежуток без зуба: использовать специальные суперфлоссы или ершики для чистки под мостом/под имплантом.
 
 Базовые правила гигиены DENTE для интеграции в ответ:
-${DEFAULT_HYGIENE_GUIDELINES}`;
+${DEFAULT_HYGIENE_GUIDELINES}
+
+Дополнительно, сгенерируйте следующие массивы и строки для медицинского протокола:
+"alternatives" — Массив строк (1-10 элементов). Альтернативные методы лечения (например, "Имплантация", "Съемный протез", "Отсутствие лечения с риском потери кости").
+"risksAndLimitations" — Массив строк (1-10 элементов). Возможные риски и ограничения (например, "Риск отторжения имплантата", "Возможна аллергия", "Отек 3 дня").
+"prognosisAndLimits" — Строка. Прогноз лечения и его пределы (например, "Благоприятный при соблюдении гигиены").
+"controlPlan" — Строка. План контрольных осмотров (например, "Осмотр через 6 месяцев, КЛКТ через 1 год").`;
 }
 
 async function callOpenAiCompatiblePlanPersonalize(input: {
@@ -272,6 +289,10 @@ ${input.payload.plannedStages.map((s) => `  * ${s.stageName}: ${s.plannedService
 			parsed.patientFriendlyExplanation ?? "",
 		).trim(),
 		patientHygieneAdvice: String(parsed.patientHygieneAdvice ?? "").trim(),
+		alternatives: Array.isArray(parsed.alternatives) ? parsed.alternatives : undefined,
+		risksAndLimitations: Array.isArray(parsed.risksAndLimitations) ? parsed.risksAndLimitations : undefined,
+		prognosisAndLimits: parsed.prognosisAndLimits ? String(parsed.prognosisAndLimits).trim() : undefined,
+		controlPlan: parsed.controlPlan ? String(parsed.controlPlan).trim() : undefined,
 	};
 }
 

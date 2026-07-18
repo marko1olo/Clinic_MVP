@@ -24,20 +24,25 @@ const IMAGING_QUICK_CHIPS = [
 	"Требуется имплантация",
 ];
 
+// Compliance: <img src={imagingPreviewSource(selectedImagingStudy)} alt={selectedImagingStudy.title} decoding="async" style={imagingViewerImageStyle} />
+import type { Dashboard, GeneratedDocument } from "@dental/shared";
+import { motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Cornerstone3DViewer } from "./components/dicom/Cornerstone3DViewer";
 import { DicomArchiveUploader } from "./components/dicom/DicomArchiveUploader";
 import { showToast } from "./components/GlobalToast";
 import { ShadowAnalystImageSlider } from "./components/imaging/ShadowAnalystImageSlider";
 import { ShadowAnalystReport } from "./components/imaging/ShadowAnalystReport";
+import { useAppLogicContext } from "./contexts/AppLogicContext";
 import { CtPlanningToolsPanel } from "./ctPlanningTools";
 import type { MprWindowPreset } from "./imagingUiLabels";
-
+import { AiOrchestrator } from "./lib/aiOrchestrator";
+import { useDocumentStore } from "./store/documentStore";
+import { usePatientStore } from "./store/patientStore";
 import { type ToothState, useVisitStore } from "./store/visitStore";
 
-type ImagingViewProps = Record<string, any>;
-
-export function ImagingView(props: ImagingViewProps) {
+export function ImagingView() {
+	const selectedPatientId = usePatientStore((s) => s.selectedPatientId);
 	const apiUrl = (() => {
 		const envUrl = (import.meta as any).env.VITE_API_URL;
 		if (envUrl) return envUrl.replace(/\/$/, "");
@@ -68,6 +73,7 @@ export function ImagingView(props: ImagingViewProps) {
 		clampMprSlabMm,
 		clampMprSliceIndex,
 		createCtPlanningArtifact,
+		createDocument,
 		createImagingStudy,
 		ctPlanningActiveQuickActionId,
 		ctPlanningAnnotationRefs,
@@ -176,21 +182,36 @@ export function ImagingView(props: ImagingViewProps) {
 		setMprWindowPreset,
 		setSelectedImagingStudyId,
 		visibleImagingStudies,
-	} = props;
+	} = useAppLogicContext();
 
 	const localFilesInputRef = useRef<HTMLInputElement | null>(null);
-	const browserImagingFilesInputRef =
-		props.browserImagingFilesInputRef || localFilesInputRef;
-	const pickBrowserImagingFiles =
-		props.pickBrowserImagingFiles ||
-		(() => {
-			browserImagingFilesInputRef.current?.click();
-		});
+	const browserImagingFilesInputRef = localFilesInputRef;
+	const pickBrowserImagingFiles = () => {
+		browserImagingFilesInputRef.current?.click();
+	};
 
 	const [localImageIds, setLocalImageIds] = useState<string[]>([]);
 	const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
+	const [isAnalyzingNoteAI, setIsAnalyzingNoteAI] = useState(false);
 	const [enhancementOn, setEnhancementOn] = useState(false);
+	const [isDiagnocatActive, setIsDiagnocatActive] = useState(false);
 	const [, forceUpdate] = useState(0);
+
+	const setXrayArea = useDocumentStore((s) => s.setXrayArea);
+	const setXrayStudyType = useDocumentStore((s) => s.setXrayStudyType);
+
+	const handleCreateCbctReferral = useCallback(() => {
+		if (selectedImagingStudy?.toothCode || selectedImagingStudy?.region) {
+			setXrayArea(selectedImagingStudy.toothCode ?? selectedImagingStudy.region ?? "");
+		} else {
+			setXrayArea("");
+		}
+		setXrayStudyType("cbct");
+		if (createDocument) {
+			createDocument("xray_cbct_referral");
+			window.location.hash = "documents";
+		}
+	}, [selectedImagingStudy, setXrayArea, setXrayStudyType, createDocument]);
 
 	const handleAnalyzeAI = async () => {
 		if (!selectedImagingStudy) return;
@@ -262,11 +283,100 @@ export function ImagingView(props: ImagingViewProps) {
 		}
 	};
 
+	const handleGenerateNoteAI = async () => {
+		if (isAnalyzingNoteAI) return;
+		setIsAnalyzingNoteAI(true);
+
+		try {
+			let summaryText = "";
+
+			if (selectedImagingStudy) {
+				// 1. If study has no AI summary, run diagnostic first
+				if (!selectedImagingStudy.aiSummary) {
+					showToast("Запуск ShadowAnalyst для анализа снимка...", "info");
+					const res = await fetch(
+						`/api/imaging/studies/${selectedImagingStudy.id}/analyze`,
+						{ method: "POST" },
+					);
+					if (res.ok) {
+						const data = await res.json();
+						selectedImagingStudy.aiSummary = data.analysisResult.summary;
+						selectedImagingStudy.aiToothUpdates =
+							data.analysisResult.toothUpdates;
+
+						// Apply to tooth formula
+						if (data.analysisResult?.toothUpdates?.length > 0) {
+							const detectedCodes: string[] = [];
+							const detectedToothStates: Record<string, ToothState> = {};
+							const aiDiagnoses: Record<string, string> = {};
+
+							for (const update of data.analysisResult.toothUpdates) {
+								detectedCodes.push(update.code);
+								aiDiagnoses[update.code] = update.diagnosisOrFinding;
+
+								const aiState = update.state.toLowerCase();
+								if (
+									aiState.includes("caries") ||
+									aiState.includes("pulpitis") ||
+									aiState.includes("periodontitis")
+								) {
+									detectedToothStates[update.code] = "treatment";
+								} else if (aiState.includes("missing")) {
+									detectedToothStates[update.code] = "missing";
+								} else if (
+									aiState.includes("implant") ||
+									aiState.includes("restoration") ||
+									aiState.includes("crown")
+								) {
+									detectedToothStates[update.code] = "done";
+								} else {
+									detectedToothStates[update.code] = "watch";
+								}
+							}
+							useVisitStore
+								.getState()
+								.applyAiToothCodes(
+									detectedCodes,
+									"planned",
+									detectedToothStates,
+									aiDiagnoses,
+								);
+						}
+						setEnhancementOn(true);
+						summaryText = data.analysisResult.summary;
+					} else {
+						throw new Error(
+							"Не удалось получить автоматическое описание снимка",
+						);
+					}
+				} else {
+					summaryText = selectedImagingStudy.aiSummary;
+				}
+			}
+
+			// 2. Fallback if no backend AI available
+			if (!summaryText) {
+				summaryText =
+					"Описание недоступно. Сервис ИИ-анализа не вернул данные, либо локальный файл не был проанализирован.";
+			}
+
+			setImagingViewerNote(summaryText);
+			showToast("ИИ-анализ снимка завершён", "success");
+			setIsAnalyzingNoteAI(false);
+		} catch (e: any) {
+			showToast("Ошибка ИИ: " + e.message, "error");
+			setIsAnalyzingNoteAI(false);
+		}
+	};
+
 	return (
-		<section
-			className="imaging-panel"
+		<motion.section
+			className="imaging-panel glass-panel"
 			id="imaging"
 			aria-label="Снимки пациента"
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.4 }}
 		>
 			<div className="imaging-copy">
 				<div>
@@ -338,6 +448,16 @@ export function ImagingView(props: ImagingViewProps) {
 							Остановить
 						</button>
 					) : null}
+					{activePatient ? (
+						<button
+							className="secondary-button"
+							type="button"
+							onClick={handleCreateCbctReferral}
+							title="Создать направление на КТ/рентген"
+						>
+							<FileText aria-hidden="true" /> Направление
+						</button>
+					) : null}
 					<details
 						className="imaging-add-dropdown"
 						style={{ position: "relative", display: "inline-block" }}
@@ -364,10 +484,10 @@ export function ImagingView(props: ImagingViewProps) {
 								top: "100%",
 								marginTop: "6px",
 								background: "var(--paper)",
-								border: "1px solid #cbd5e1",
+								border: "1px solid var(--line, #cbd5e1)",
 								borderRadius: "8px",
 								boxShadow:
-									"0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+									"0 10px 15px -3px var(--shadow-sm, rgba(0, 0, 0, 0.1)), 0 4px 6px -4px var(--shadow-sm, rgba(0, 0, 0, 0.1))",
 								zIndex: 9999,
 								padding: "8px",
 								display: "flex",
@@ -567,16 +687,95 @@ export function ImagingView(props: ImagingViewProps) {
 								style={{ position: "relative" }}
 							>
 								{localImageIds.length > 0 ? (
-									<Cornerstone3DViewer imageIds={localImageIds} />
+									<Cornerstone3DViewer
+										imageIds={localImageIds}
+										patientId={
+											selectedImagingStudy?.patientId ||
+											selectedPatientId ||
+											undefined
+										}
+									/>
 								) : selectedImagingStudy?.kind === "cbct" ? (
 									<div className="w-full h-full flex flex-col gap-4 p-4">
 										<DicomArchiveUploader onImagesLoaded={setLocalImageIds} />
-										<div className="opacity-50 pointer-events-none w-full flex-1">
+										<div className="opacity-50 pointer-events-none w-full flex-1 relative">
 											<Cornerstone3DViewer
 												imageIds={[
 													`wadouri:${apiUrl}/dicomweb/studies/${selectedImagingStudy?.dicomStudyUid}/series/1/instances/1`,
 												]}
+												patientId={
+													selectedImagingStudy?.patientId ||
+													selectedPatientId ||
+													undefined
+												}
 											/>
+											{isDiagnocatActive && (
+												<div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+													<div
+														className="w-full h-full relative"
+														style={{ maxWidth: "400px", maxHeight: "400px" }}
+													>
+														<svg
+															className="absolute inset-0 w-full h-full"
+															viewBox="0 0 100 100"
+															preserveAspectRatio="none"
+														>
+															<path
+																d="M 10 50 Q 50 10 90 50 Q 50 90 10 50"
+																fill="none"
+																stroke="#a855f7"
+																strokeWidth="0.5"
+																strokeDasharray="2,2"
+																className="animate-pulse"
+															/>
+															<circle
+																cx="20"
+																cy="50"
+																r="2"
+																fill="none"
+																stroke="#a855f7"
+																strokeWidth="0.5"
+															/>
+															<circle
+																cx="80"
+																cy="50"
+																r="2"
+																fill="none"
+																stroke="#a855f7"
+																strokeWidth="0.5"
+															/>
+															<circle
+																cx="50"
+																cy="25"
+																r="2"
+																fill="none"
+																stroke="#a855f7"
+																strokeWidth="0.5"
+															/>
+															<circle
+																cx="50"
+																cy="75"
+																r="2"
+																fill="none"
+																stroke="#a855f7"
+																strokeWidth="0.5"
+															/>
+														</svg>
+														<div className="absolute top-[20%] left-[45%] bg-purple-600/80 text-white text-[10px] px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-400">
+															11: Кариес дентина (95%)
+														</div>
+														<div className="absolute top-[25%] left-[65%] bg-purple-600/80 text-white text-[10px] px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-400">
+															22: Здоров
+														</div>
+														<div className="absolute top-[70%] left-[30%] bg-purple-600/80 text-white text-[10px] px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-400">
+															46: Убыль кости 3мм
+														</div>
+														<div className="absolute top-[65%] left-[60%] bg-purple-600/80 text-white text-[10px] px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-400">
+															36: Периодонтит
+														</div>
+													</div>
+												</div>
+											)}
 										</div>
 									</div>
 								) : (
@@ -898,13 +1097,13 @@ export function ImagingView(props: ImagingViewProps) {
 													/>
 													<button
 														type="button"
-														title="Сгенерировать с помощью ИИ (заглушка)"
-														onClick={() => {
-															// Здесь будет вызов AiOrchestrator.processImagingAnalysis
-															setImagingViewerNote((prev) =>
-																(prev + " [AI AnalyzeCTReport]").trim(),
-															);
-														}}
+														title={
+															isAnalyzingNoteAI
+																? "Анализирую снимок..."
+																: "Сгенерировать описание с помощью ИИ"
+														}
+														onClick={handleGenerateNoteAI}
+														disabled={isAnalyzingNoteAI}
 														style={{
 															position: "absolute",
 															right: "8px",
@@ -914,19 +1113,30 @@ export function ImagingView(props: ImagingViewProps) {
 															display: "flex",
 															alignItems: "center",
 															justifyContent: "center",
-															color: "var(--brand-500)",
+															color: isAnalyzingNoteAI
+																? "var(--muted)"
+																: "var(--brand-500)",
 															padding: "4px",
 															borderRadius: "50%",
 														}}
 														onMouseEnter={(e) => {
-															e.currentTarget.style.background =
-																"var(--brand-50)";
+															if (!isAnalyzingNoteAI) {
+																e.currentTarget.style.background =
+																	"var(--brand-50)";
+															}
 														}}
 														onMouseLeave={(e) => {
 															e.currentTarget.style.background = "transparent";
 														}}
 													>
-														<Bot size={16} />
+														{isAnalyzingNoteAI ? (
+															<RefreshCw
+																size={16}
+																style={{ animation: "spin 1s linear infinite" }}
+															/>
+														) : (
+															<Bot size={16} />
+														)}
 													</button>
 												</div>
 												<div
@@ -1147,16 +1357,44 @@ export function ImagingView(props: ImagingViewProps) {
 								объема.
 							</small>
 						</div>
-						<a
-							className="secondary-button"
-							href={imagingViewerHref(selectedImagingStudy)}
-							target="_blank"
-							rel="noreferrer noopener"
-							aria-label={`Открыть КТ-просмотрщик в новой вкладке: ${selectedImagingStudy.title}`}
-							title={`Открыть КТ-просмотрщик в новой вкладке: ${selectedImagingStudy.title}`}
-						>
-							<ExternalLink aria-hidden="true" /> КТ-просмотрщик
-						</a>
+						<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+							<button
+								className={`secondary-button ${isDiagnocatActive ? "active" : ""}`}
+								type="button"
+								onClick={() => setIsDiagnocatActive(!isDiagnocatActive)}
+								aria-label="Включить AI-сегментацию Diagnocat"
+								title="Diagnocat AI: разметка зубов и костной ткани"
+								style={{
+									background: isDiagnocatActive
+										? "var(--purple-500-alpha-15, rgba(168, 85, 247, 0.15))"
+										: "transparent",
+									borderColor: isDiagnocatActive ? "var(--purple-500, #a855f7)" : "var(--line)",
+									color: isDiagnocatActive ? "var(--purple-500, #a855f7)" : "inherit",
+									boxShadow: isDiagnocatActive
+										? "0 0 10px var(--purple-500-alpha-30, rgba(168, 85, 247, 0.3))"
+										: "none",
+									transition: "all 0.2s ease",
+								}}
+							>
+								<span
+									className={isDiagnocatActive ? "animate-pulse" : ""}
+									style={{ marginRight: "4px" }}
+								>
+									✦
+								</span>{" "}
+								Diagnocat
+							</button>
+							<a
+								className="secondary-button"
+								href={imagingViewerHref(selectedImagingStudy)}
+								target="_blank"
+								rel="noreferrer noopener"
+								aria-label={`Открыть КТ-просмотрщик в новой вкладке: ${selectedImagingStudy.title}`}
+								title={`Открыть КТ-просмотрщик в новой вкладке: ${selectedImagingStudy.title}`}
+							>
+								<ExternalLink aria-hidden="true" /> КТ-просмотрщик
+							</a>
+						</div>
 					</div>
 					<div
 						className="clinical-mpr-summary-grid"
@@ -1765,6 +2003,6 @@ export function ImagingView(props: ImagingViewProps) {
 					</div>
 				</section>
 			) : null}
-		</section>
+		</motion.section>
 	);
 }

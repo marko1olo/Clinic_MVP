@@ -1,6 +1,6 @@
 import { clinicalRuleEvaluationInputSchema, clinicalRuleEvaluationResponseSchema, clinicalRuleSchema, createClinicalRuleSchema, updateClinicalRuleSchema, } from "@dental/shared";
 import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
-import { createClinicalRuleInDb, evaluateClinicalRulesInDb, updateClinicalRuleInDb, } from "../db/clinicalQuery.js";
+import { createClinicalRuleInDb, evaluateClinicalRulesInDb, updateClinicalRuleInDb, deleteClinicalRuleInDb, } from "../db/clinicalQuery.js";
 const clinicalRuleEvaluationValidationMessage = "Ошибка валидации: запрос не соответствует формату.";
 const clinicalRuleMutationValidationMessage = "Ошибка валидации: данные правила некорректны.";
 function parseClinicalPayload(schema, value) {
@@ -71,6 +71,16 @@ export async function registerClinicalRoutes(app) {
             });
         }
         return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
+    });
+    app.delete("/api/clinical/rules/:ruleId", async (request, reply) => {
+        if (!(await requireClinicalMutationAccess(request, reply, "clinical rule delete")))
+            return;
+        const params = request.params;
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+        await deleteClinicalRuleInDb(orgId, params.ruleId);
+        return reply.send({ success: true });
     });
     app.post("/api/clinical/post-op-care", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "trigger post op care")))

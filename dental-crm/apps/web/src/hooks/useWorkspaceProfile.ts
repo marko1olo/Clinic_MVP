@@ -15,11 +15,29 @@ export interface WorkspaceFeatureFlags {
 	hasDentalLab: boolean;
 	hasInsuranceCoPay: boolean;
 	hasInstallments: boolean;
+	hasOrthodontics: boolean;
+	hasGnathology: boolean;
+	hasTasks: boolean;
+	hasReclamations: boolean;
 	workspacePreset: string;
 	onboardingCompleted: boolean;
 	hasPediatricMode: boolean;
 	isOmniRole: boolean;
 	numberOfDoctors: number;
+	hasPayrollModule: boolean;
+	hasMarketingModule: boolean;
+	hasAnalyticsModule: boolean;
+	hasCsoScanner: boolean;
+	hasLeadsKanban: boolean;
+	hasOmnichannel: boolean;
+	hasInventoryModule: boolean;
+	aiEnableTreatmentPlan: boolean;
+	aiEnableRecommendations: boolean;
+	aiEnableDocuments: boolean;
+	hasEngineeringStatus: boolean;
+	hasClinicalRules: boolean;
+	hasReferralModule: boolean;
+	hasBpmWorkflows: boolean;
 }
 
 interface WorkspaceProfileStore extends WorkspaceFeatureFlags {
@@ -38,11 +56,29 @@ const DEFAULT_FLAGS: WorkspaceFeatureFlags = {
 	hasDentalLab: true,
 	hasInsuranceCoPay: true,
 	hasInstallments: true,
+	hasOrthodontics: true,
+	hasGnathology: false,
+	hasTasks: true,
+	hasReclamations: true,
 	workspacePreset: "enterprise",
 	onboardingCompleted: false,
 	hasPediatricMode: false,
 	isOmniRole: false,
 	numberOfDoctors: 4,
+	hasPayrollModule: true,
+	hasMarketingModule: true,
+	hasAnalyticsModule: true,
+	hasCsoScanner: false,
+	hasLeadsKanban: false,
+	hasOmnichannel: false,
+	hasInventoryModule: true,
+	aiEnableTreatmentPlan: true,
+	aiEnableRecommendations: true,
+	aiEnableDocuments: true,
+	hasEngineeringStatus: false,
+	hasClinicalRules: false,
+	hasReferralModule: false,
+	hasBpmWorkflows: false,
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -72,9 +108,27 @@ export const useWorkspaceProfileStore = create<WorkspaceProfileStore>()(
 				hasDentalLab: s.hasDentalLab,
 				hasInsuranceCoPay: s.hasInsuranceCoPay,
 				hasInstallments: s.hasInstallments,
+				hasOrthodontics: s.hasOrthodontics,
+				hasGnathology: s.hasGnathology ?? false,
+				hasTasks: s.hasTasks,
+				hasReclamations: s.hasReclamations,
 				workspacePreset: s.workspacePreset,
 				onboardingCompleted: s.onboardingCompleted,
 				numberOfDoctors: s.numberOfDoctors,
+				hasPayrollModule: s.hasPayrollModule,
+				hasMarketingModule: s.hasMarketingModule,
+				hasAnalyticsModule: s.hasAnalyticsModule,
+				hasCsoScanner: s.hasCsoScanner,
+				hasLeadsKanban: s.hasLeadsKanban,
+				hasOmnichannel: s.hasOmnichannel,
+				hasInventoryModule: s.hasInventoryModule,
+				aiEnableTreatmentPlan: s.aiEnableTreatmentPlan,
+				aiEnableRecommendations: s.aiEnableRecommendations,
+				aiEnableDocuments: s.aiEnableDocuments,
+				hasEngineeringStatus: s.hasEngineeringStatus,
+				hasClinicalRules: s.hasClinicalRules,
+				hasReferralModule: s.hasReferralModule,
+				hasBpmWorkflows: s.hasBpmWorkflows,
 			}),
 		},
 	),
@@ -99,14 +153,54 @@ export async function applyWorkspacePreset(
 		hasPediatricMode?: boolean;
 	},
 ): Promise<WorkspaceFeatureFlags> {
-	const res = await fetch(`/api/workspace/preset/${presetName}`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(extraData || {}),
-	});
-	if (!res.ok) throw new Error(`Failed to apply preset: ${presetName}`);
-	const body = await res.json();
-	const flags = body.flags as WorkspaceFeatureFlags;
+	let flags: WorkspaceFeatureFlags;
+	
+	try {
+		const res = await fetch(`/api/workspace/preset/${presetName}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(extraData || {}),
+		});
+		if (!res.ok) throw new Error(`Failed to apply preset: ${presetName}`);
+		const body = await res.json();
+		flags = body.flags as WorkspaceFeatureFlags;
+	} catch (error) {
+		console.warn("Failed to fetch preset from server, using local fallback:", error);
+		// Local fallback for offline/MVP mode
+		const baseFlags = { ...useWorkspaceProfileStore.getState() };
+		
+		if (presetName === "solo") {
+			baseFlags.hasAssistants = false;
+			baseFlags.hasMultipleChairs = false;
+			baseFlags.hasPayrollModule = false;
+			baseFlags.hasMarketingModule = false;
+			baseFlags.hasOrthodontics = false;
+			baseFlags.hasGnathology = false;
+			baseFlags.hasTasks = false;
+			baseFlags.numberOfDoctors = 1;
+		} else if (presetName === "clinic") {
+			baseFlags.hasAssistants = true;
+			baseFlags.hasMultipleChairs = true;
+			baseFlags.hasPayrollModule = true;
+			baseFlags.hasMarketingModule = true;
+			baseFlags.hasAnalyticsModule = true;
+			baseFlags.hasTasks = true;
+			baseFlags.numberOfDoctors = 4;
+		} else if (presetName === "enterprise") {
+			baseFlags.hasAssistants = true;
+			baseFlags.hasMultipleChairs = true;
+			baseFlags.hasDentalLab = true;
+			baseFlags.hasPayrollModule = true;
+			baseFlags.hasMarketingModule = true;
+			baseFlags.hasAnalyticsModule = true;
+			baseFlags.hasTasks = true;
+			baseFlags.hasOrthodontics = true;
+			baseFlags.numberOfDoctors = 10;
+		}
+		
+		baseFlags.workspacePreset = presetName;
+		flags = baseFlags;
+	}
 
 	if (extraData?.hasPediatricMode !== undefined) {
 		flags.hasPediatricMode = extraData.hasPediatricMode;
@@ -129,15 +223,20 @@ export async function applyWorkspacePreset(
 export async function saveWorkspaceFlags(
 	partial: Partial<WorkspaceFeatureFlags>,
 ): Promise<void> {
-	await fetch("/api/workspace/profile", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(partial),
-	});
-	// Update local store
+	try {
+		await fetch("/api/workspace/profile", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(partial),
+		});
+	} catch (error) {
+		console.warn("Failed to sync workspace flags with server, updating locally only:", error);
+	}
+	
+	// Update local store regardless of server response for MVP offline capability
 	const store = useWorkspaceProfileStore.getState();
 	for (const [k, v] of Object.entries(partial)) {
-		store.setFlag(k as keyof WorkspaceFeatureFlags, v as boolean | string);
+		store.setFlag(k as keyof WorkspaceFeatureFlags, v as boolean | string | number);
 	}
 }
 

@@ -1,5 +1,9 @@
+import { RecallScheduler } from "./services/recallScheduler.js";
 import "dotenv/config";
+import fs from "node:fs";
 import net from "node:net";
+import nodePath from "node:path";
+import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 import cors from "@fastify/cors";
 import fastifyMultipart from "@fastify/multipart";
@@ -25,9 +29,11 @@ import { registerImagingRoutes } from "./routes/imaging.js";
 import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
 import { registerImportRoutes } from "./routes/imports.js";
 import { registerIngestionRoutes } from "./routes/ingestion.js";
+import { registerInsuranceRoutes } from "./routes/insurance.js";
 import { inventoryRoutes } from "./routes/inventory.js";
 import { registerLabRoutes } from "./routes/lab.js";
 import { registerLeadsRoutes } from "./routes/leads.js";
+import { registerWaitlistRoutes } from "./routes/waitlist.js";
 import { registerMaxRoutes } from "./routes/max.js";
 import { registerOdontogramRoutes } from "./routes/odontogram.js";
 import { registerPatientRoutes } from "./routes/patients.js";
@@ -60,6 +66,41 @@ import { startWatchdog } from "./watchdog.js";
 loadAdditionalServerEnv();
 startWatchdog();
 // startNotificationWorker();
+/**
+ * Runs all .sql files in src/db/migrations/ at server startup.
+ * Uses IF NOT EXISTS guards so it's idempotent on existing databases.
+ */
+async function runPendingMigrations() {
+    const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
+    const migrationsDir = nodePath.resolve(__dirname, "./db/migrations");
+    if (!fs.existsSync(migrationsDir))
+        return;
+    const files = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith(".sql"))
+        .sort();
+    for (const file of files) {
+        const sql = fs.readFileSync(nodePath.join(migrationsDir, file), "utf8");
+        const statements = sql
+            .split(/;(\r?\n|$)/)
+            .map((s) => s.replace(/--[^\n]*/g, "").trim())
+            .filter(Boolean);
+        for (const stmt of statements) {
+            try {
+                await db.$client.exec(stmt);
+            }
+            catch (err) {
+                if (err?.message?.includes("already exists") ||
+                    err?.message?.includes("duplicate column")) {
+                    // Column already exists — that's fine
+                }
+                else {
+                    console.warn(`[Migrations] ${file}: ${err?.message?.slice(0, 120)}`);
+                }
+            }
+        }
+    }
+}
 async function checkProxyPortDirectly(proxyUrlString) {
     return new Promise((resolve) => {
         try {
@@ -235,12 +276,15 @@ export async function createDenteApiApp(options = {}) {
         service: "dental-crm-api",
         time: new Date().toISOString(),
     }));
+    // Apply pending schema migrations on every startup (idempotent)
+    await runPendingMigrations();
     await registerAiRoutes(app);
     await registerBillingRoutes(app);
     await registerAdvancedBillingRoutes(app);
     await app.register(telephonyRoutes, { prefix: "/api/telephony" });
     await app.register(portalRoutes, { prefix: "/api/portal" });
     await app.register(inventoryRoutes, { prefix: "/api/inventory" });
+    await registerInsuranceRoutes(app);
     await registerClinicalRoutes(app);
     await registerCommunicationRoutes(app);
     await registerDashboardRoutes(app);
@@ -267,6 +311,7 @@ export async function createDenteApiApp(options = {}) {
     await registerMaxRoutes(app);
     await registerVisitRoutes(app);
     await registerLeadsRoutes(app);
+    await registerWaitlistRoutes(app);
     await registerSterilizationRoutes(app);
     await registerFamilyFinanceRoutes(app);
     await registerDicomwebRoutes(app);
@@ -285,9 +330,13 @@ export async function createDenteApiApp(options = {}) {
         startBiAnalyticsWorker();
         startSyncEngine(db.$client); // assuming db exposes pglite
         startBackupDaemon();
+        const recallWorkerTimer = setInterval(() => {
+            RecallScheduler.processOsteointegrationRecalls().catch(console.error);
+        }, 1000 * 60 * 60 * 24); // Run once a day
+        RecallScheduler.processOsteointegrationRecalls().catch(console.error); // Run once on startup
         app.addHook("onClose", async () => {
             // telegramOutboxDueWorker.stop();
-            // clearInterval(recallWorkerTimer);
+            clearInterval(recallWorkerTimer);
             stopSyncEngine();
             stopBackupDaemon();
         });
@@ -313,4 +362,5 @@ if (process.argv[1] &&
     import.meta.url === pathToFileURL(process.argv[1]).href) {
     await startDenteApiServer();
 }
+// trigger restart
 // trigger restart

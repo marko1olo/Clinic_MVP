@@ -1,3 +1,4 @@
+import { saveVisitSignatureInDb } from "../db/visitsQuery.js";
 import { acceptVisitDraftResponseSchema, acceptVisitDraftSchema, visitDraftAutosaveRequestSchema, visitDraftAutosaveResponseSchema, } from "@dental/shared";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 const visitDraftAutosaveValidationMessage = "Черновик приема не сохранен: передайте пациента, специальность, текст приема или заполненные поля черновика.";
@@ -48,7 +49,10 @@ function sendVisitDraftMutationError(error, reply, operation) {
         message: visitDraftMutationRejectedMessage,
     });
 }
-import { acceptVisitDraftInDb, getVisitDraftAutosaveFromDb, upsertVisitDraftAutosaveInDb, } from "../db/visitsQuery.js";
+import { acceptVisitDraftInDb, getVisitDraftAutosaveFromDb, upsertVisitDraftAutosaveInDb, getVisitGnathologyFromDb, upsertVisitGnathologyInDb, } from "../db/visitsQuery.js";
+import { createPatientInDb } from "../db/patientsQuery.js";
+import { appointments } from "../db/schema.js";
+import { db } from "../db/client.js";
 export async function registerVisitRoutes(app) {
     app.get("/api/visits/:visitId/draft/autosave", async (request, reply) => {
         const orgId = await requireResolvedOrganizationId(request, reply, "visit draft autosave read");
@@ -98,6 +102,111 @@ export async function registerVisitRoutes(app) {
         }
         catch (error) {
             return sendVisitDraftMutationError(error, reply, "accept");
+        }
+    });
+    app.post("/api/visits/quick", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "quick consult");
+        if (!orgId)
+            return;
+        try {
+            const userContext = request.user;
+            const userId = userContext?.id ?? null;
+            // Fallback to a zero-UUID or just null if your DB requires a valid user
+            // Ideally, doctorUserId should be userId
+            const finalDoctorId = userId || "00000000-0000-0000-0000-000000000000";
+            const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const patient = await createPatientInDb(orgId, {
+                fullName: `Быстрый прием (${uniqueSuffix})`,
+                birthDate: null,
+                phone: null,
+            });
+            const startsAt = new Date();
+            const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+            const [appointment] = await db.insert(appointments).values({
+                organizationId: orgId,
+                patientId: patient.id,
+                doctorUserId: finalDoctorId,
+                status: "in_treatment",
+                startsAt,
+                endsAt,
+                reason: "Быстрый прием (без паспорта)",
+            }).returning();
+            if (!appointment) {
+                return reply.code(500).send({ error: "Failed to create appointment" });
+            }
+            return reply.code(201).send({
+                patientId: patient.id,
+                appointmentId: appointment.id,
+            });
+        }
+        catch (error) {
+            console.error("[QuickConsult] Error:", error);
+            return reply.code(500).send({ error: "QuickConsultFailed" });
+        }
+    });
+    app.post("/api/visits/:visitId/draft/sign", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "visit sign");
+        if (!orgId)
+            return;
+        const { visitId } = request.params;
+        const payload = request.body;
+        if (!payload.signatureBase64 || !payload.thumbprint || !payload.signatureProvider) {
+            return reply.code(400).send({ error: "Missing signature payload data" });
+        }
+        try {
+            const userContext = request.user;
+            const userId = userContext?.id ?? "00000000-0000-0000-0000-000000000000";
+            await saveVisitSignatureInDb({
+                visitId,
+                doctorId: userId,
+                patientId: payload.patientId, // Passed from frontend for linking
+                signatureBase64: payload.signatureBase64,
+                thumbprint: payload.thumbprint,
+                signatureProvider: payload.signatureProvider
+            });
+            return reply.send({ success: true, message: "Signed successfully" });
+        }
+        catch (error) {
+            return reply.code(500).send({ error: "Internal error saving signature" });
+        }
+    });
+    app.get("/api/visits/:visitId/gnathology", async (request, reply) => {
+        const orgId = await requireResolvedOrganizationId(request, reply, "read gnathology");
+        if (!orgId)
+            return;
+        const { visitId } = request.params;
+        try {
+            const gnathology = await getVisitGnathologyFromDb(visitId);
+            return reply.send(gnathology || {});
+        }
+        catch (error) {
+            return reply.code(500).send({ error: "Internal error reading gnathology" });
+        }
+    });
+    app.put("/api/visits/:visitId/gnathology", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "update gnathology");
+        if (!orgId)
+            return;
+        const { visitId } = request.params;
+        const payload = request.body;
+        if (!payload.patientId) {
+            return reply.code(400).send({ error: "Missing patientId" });
+        }
+        try {
+            const data = {
+                occlusionType: payload.occlusionType,
+                jawShift: payload.jawShift,
+                tmjState: payload.tmjState,
+                osteopathicStatus: payload.osteopathicStatus,
+            };
+            if (payload.mouthOpeningMm) {
+                data.mouthOpeningMm = Number(payload.mouthOpeningMm);
+            }
+            await upsertVisitGnathologyInDb(visitId, payload.patientId, data);
+            return reply.send({ success: true });
+        }
+        catch (error) {
+            return reply.code(500).send({ error: "Internal error saving gnathology" });
         }
     });
 }

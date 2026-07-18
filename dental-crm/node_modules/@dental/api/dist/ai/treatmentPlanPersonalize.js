@@ -30,7 +30,7 @@ function selectedPolishProvider() {
         return "custom";
     return "none";
 }
-function baseUrlForProvider(provider) {
+export function baseUrlForProvider(provider) {
     const explicitBaseUrl = process.env.DENTAL_SPEECH_POLISH_BASE_URL?.trim().replace(/\/+$/, "");
     if (explicitBaseUrl)
         return explicitBaseUrl;
@@ -45,7 +45,7 @@ function baseUrlForProvider(provider) {
 function apiKeyForProvider(_provider) {
     return process.env.DENTAL_SPEECH_POLISH_API_KEY?.trim() || null;
 }
-function keyProviderForPolishProvider(provider) {
+export function keyProviderForPolishProvider(provider) {
     if (provider === "openai")
         return "openai_transcribe";
     if (provider === "groq")
@@ -72,7 +72,7 @@ function modelForProvider(provider) {
         return explicitModel;
     return null;
 }
-function createAIPlanNeuralConfig() {
+export function createAIPlanNeuralConfig() {
     const requested = booleanFromEnv(process.env.DENTAL_AI_NEURAL_DRAFT ??
         process.env.DENTAL_SPEECH_NEURAL_POLISH ??
         "true");
@@ -105,7 +105,7 @@ function buildSystemPrompt() {
 1. Понятный, заботливый, убедительный и коммерчески эффективный перевод на человеческий язык для презентации пациенту.
 2. Индивидуальные гигиенические советы с учётом конкретного плана лечения.
 
-Верните ответ СТРОГО в формате JSON с двумя строковыми ключами:
+Верните ответ СТРОГО в формате JSON со следующими ключами:
 
 "patientFriendlyExplanation" — Доступный перевод плана для пациента:
   1. Яркое вводное объяснение диагноза через понятные метафоры. Например:
@@ -128,7 +128,13 @@ function buildSystemPrompt() {
   5. Если имплант или большой промежуток без зуба: использовать специальные суперфлоссы или ершики для чистки под мостом/под имплантом.
 
 Базовые правила гигиены DENTE для интеграции в ответ:
-${DEFAULT_HYGIENE_GUIDELINES}`;
+${DEFAULT_HYGIENE_GUIDELINES}
+
+Дополнительно, сгенерируйте следующие массивы и строки для медицинского протокола:
+"alternatives" — Массив строк (1-10 элементов). Альтернативные методы лечения (например, "Имплантация", "Съемный протез", "Отсутствие лечения с риском потери кости").
+"risksAndLimitations" — Массив строк (1-10 элементов). Возможные риски и ограничения (например, "Риск отторжения имплантата", "Возможна аллергия", "Отек 3 дня").
+"prognosisAndLimits" — Строка. Прогноз лечения и его пределы (например, "Благоприятный при соблюдении гигиены").
+"controlPlan" — Строка. План контрольных осмотров (например, "Осмотр через 6 месяцев, КЛКТ через 1 год").`;
 }
 async function callOpenAiCompatiblePlanPersonalize(input) {
     if (!input.config.baseUrl || !input.config.modelName) {
@@ -189,6 +195,10 @@ ${input.payload.plannedStages.map((s) => `  * ${s.stageName}: ${s.plannedService
     return {
         patientFriendlyExplanation: String(parsed.patientFriendlyExplanation ?? "").trim(),
         patientHygieneAdvice: String(parsed.patientHygieneAdvice ?? "").trim(),
+        alternatives: Array.isArray(parsed.alternatives) ? parsed.alternatives : undefined,
+        risksAndLimitations: Array.isArray(parsed.risksAndLimitations) ? parsed.risksAndLimitations : undefined,
+        prognosisAndLimits: parsed.prognosisAndLimits ? String(parsed.prognosisAndLimits).trim() : undefined,
+        controlPlan: parsed.controlPlan ? String(parsed.controlPlan).trim() : undefined,
     };
 }
 const DENTAL_AI_CASCADING_MODELS = [

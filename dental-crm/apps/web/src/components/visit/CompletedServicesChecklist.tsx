@@ -7,37 +7,40 @@ export const CompletedServicesChecklist: React.FC = () => {
 
 	// We only show items that are NOT cancelled
 	const planItems = React.useMemo(() => {
-		return activeTreatmentPlanItems.filter(
-			(item) => item.status !== "cancelled",
+		return (activeTreatmentPlanItems || []).filter(
+			(item: any) => item.status !== "cancelled",
 		);
 	}, [activeTreatmentPlanItems]);
 
-	const completedServices = visitNoteForm.completedServices || [];
+	const completedServices: any[] = visitNoteForm.completedServices || [];
 
 	const handleToggle = (item: any) => {
+		// Dashboard maps: serviceId = item.serviceId, toothCode = item.toothCode (string or null)
+		const key = item.serviceId ?? item.id;
+		const toothCode = item.toothCode ?? null;
+
 		const isCompleted = completedServices.some(
-			(cs: any) =>
-				cs.serviceId === item.priceId &&
-				cs.toothCode === (item.toothNumber ? String(item.toothNumber) : null),
+			(cs: any) => cs.serviceId === key && cs.toothCode === toothCode,
 		);
 
 		let newServices = [...completedServices];
 		if (isCompleted) {
 			newServices = newServices.filter(
-				(cs: any) =>
-					!(
-						cs.serviceId === item.priceId &&
-						cs.toothCode ===
-							(item.toothNumber ? String(item.toothNumber) : null)
-					),
+				(cs: any) => !(cs.serviceId === key && cs.toothCode === toothCode),
 			);
 		} else {
+			const serviceTitle =
+				item.snapshotServiceName || item.title || key;
+			const unitPrice = item.unitPriceRub || 0;
+			const discount = item.discountRub || 0;
+			const total = Math.max(0, unitPrice * item.quantity - discount);
+
 			newServices.push({
-				serviceId: item.priceId,
-				title: item.priceId, // We should use real service title, but we might only have priceId here if it's not joined. Actually we should look up service name!
+				serviceId: key,
+				title: serviceTitle,
 				quantity: item.quantity,
-				priceRub: Number(item.price),
-				toothCode: item.toothNumber ? String(item.toothNumber) : null,
+				priceRub: total,
+				toothCode,
 			});
 		}
 
@@ -85,11 +88,10 @@ export const CompletedServicesChecklist: React.FC = () => {
 					<path d="M9 11l3 3L22 4" />
 					<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
 				</svg>
-				Оказанные услуги (списание материалов)
+				Выполненные услуги (план приёма)
 			</strong>
 			<p style={{ fontSize: "0.8rem", color: "var(--slate-500)", margin: 0 }}>
-				Отметьте услуги, выполненные на данном приеме. Материалы будут списаны
-				автоматически при подписании дневника.
+				Отметьте услуги, выполненные на этом приёме. Сумма подставится в оплату.
 			</p>
 
 			<div
@@ -102,13 +104,19 @@ export const CompletedServicesChecklist: React.FC = () => {
 					paddingRight: "0.5rem",
 				}}
 			>
-				{planItems.map((item) => {
+				{planItems.map((item: any) => {
+					const key = item.serviceId ?? item.id;
+					const toothCode = item.toothCode ?? null;
 					const isCompleted = completedServices.some(
-						(cs: any) =>
-							cs.serviceId === item.priceId &&
-							cs.toothCode ===
-								(item.toothNumber ? String(item.toothNumber) : null),
+						(cs: any) => cs.serviceId === key && cs.toothCode === toothCode,
 					);
+
+					const serviceTitle =
+						item.snapshotServiceName || item.title || key;
+					const unitPrice = item.unitPriceRub || 0;
+					const discount = item.discountRub || 0;
+					const lineTotal = Math.max(0, unitPrice * item.quantity - discount);
+
 					return (
 						<label
 							key={item.id}
@@ -137,9 +145,7 @@ export const CompletedServicesChecklist: React.FC = () => {
 									accentColor: "var(--brand-600)",
 								}}
 							/>
-							<div
-								style={{ flex: 1, display: "flex", flexDirection: "column" }}
-							>
+							<div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 								<span
 									style={{
 										fontSize: "0.85rem",
@@ -147,14 +153,12 @@ export const CompletedServicesChecklist: React.FC = () => {
 										color: "var(--slate-800)",
 									}}
 								>
-									{item.priceId}{" "}
-									{item.toothNumber ? `(Зуб ${item.toothNumber})` : ""}
+									{serviceTitle}{" "}
+									{toothCode ? `(зуб ${toothCode})` : ""}
 								</span>
-								<span
-									style={{ fontSize: "0.75rem", color: "var(--slate-500)" }}
-								>
-									Количество: {item.quantity} | Сумма:{" "}
-									{Number(item.price) * item.quantity} ₽
+								<span style={{ fontSize: "0.75rem", color: "var(--slate-500)" }}>
+									Кол-во: {item.quantity} | Итого:{" "}
+									{lineTotal.toLocaleString("ru-RU")} ₽
 								</span>
 							</div>
 						</label>

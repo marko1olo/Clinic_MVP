@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+/**
+ * DEV-ONLY SEED SCRIPT
+ * --------------------
+ * This script is used for demonstration and local database seeding.
+ * It uses randomUUID() for studyId and seriesId because it's a dev tool, 
+ * NOT a production DICOM ingestion path. In production, these IDs 
+ * must be derived from actual DICOM tags (StudyInstanceUID/SeriesInstanceUID).
+ */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import dicomParser from "dicom-parser";
@@ -45,7 +53,7 @@ export async function parseAndIngestDicomFile(
 		const insertStudyQuery = db
 			.insert(imagingStudies)
 			.values({
-				id: randomUUID(),
+				id: randomUUID(), // DEMO-MOCK
 				organizationId,
 				patientId,
 				kind: "cbct",
@@ -62,9 +70,9 @@ export async function parseAndIngestDicomFile(
 		const insertSeriesQuery = db
 			.insert(imagingSeries)
 			.values({
-				id: randomUUID(),
+				id: randomUUID(), // DEMO-MOCK
 				organizationId,
-				studyId: randomUUID(), // mock
+				studyId: randomUUID(), // DEMO-MOCK
 				dicomSeriesUid,
 				seriesNumber,
 				modality,
@@ -76,9 +84,9 @@ export async function parseAndIngestDicomFile(
 		const insertInstanceQuery = db
 			.insert(imagingInstances)
 			.values({
-				id: randomUUID(),
+				id: randomUUID(), // DEMO-MOCK
 				organizationId,
-				seriesId: randomUUID(), // mock
+				seriesId: randomUUID(), // DEMO-MOCK
 				dicomSopInstanceUid,
 				instanceNumber,
 				sopClassUid,

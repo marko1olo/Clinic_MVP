@@ -1,6 +1,7 @@
 import { and, eq, lte } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { outgoingNotifications } from "../db/schema.js";
+import { outgoingNotifications, denteTelegramChatLinks, denteTelegramBotConfigs } from "../db/schema.js";
+import { sendTelegramTextMessage } from "../telegramTransport.js";
 
 export async function scheduleNotification(input: {
 	organizationId: string;
@@ -41,10 +42,44 @@ export async function processNotificationQueue() {
 			.limit(10);
 
 		for (const notif of pending) {
-			// Mock sending logic
-			const messageText =
-				(notif.payload as Record<string, unknown>)?.text ||
-				JSON.stringify(notif.payload);
+			const messageText: string =
+				String((notif.payload as Record<string, unknown>)?.text ?? JSON.stringify(notif.payload));
+
+			let deliveryStatus = "failed";
+			let failureReason = "skipped: no telegram bot token configured or patient not linked";
+
+			// Try to find telegram link
+			const chatLink = await db.query.denteTelegramChatLinks.findFirst({
+				where: and(
+					eq(denteTelegramChatLinks.subjectId, notif.patientId),
+					eq(denteTelegramChatLinks.status, "active")
+				),
+			});
+
+			if (chatLink && chatLink.chatTransportRef) {
+				const botConfig = await db.query.denteTelegramBotConfigs.findFirst({
+					where: eq(denteTelegramBotConfigs.organizationId, notif.organizationId),
+				});
+				
+				// tokenSecretRef stores the key reference; in production this would be resolved
+				// from a secrets manager. Here we fall back to env var directly.
+				const token: string | undefined = process.env.DENTE_TELEGRAM_BOT_TOKEN || botConfig?.tokenSecretRef || undefined;
+				
+				if (token) {
+					const res = await sendTelegramTextMessage({
+						botToken: token,
+						chatId: chatLink.chatTransportRef as string,
+						text: messageText,
+					});
+					
+					if (res.ok) {
+						deliveryStatus = "sent";
+						failureReason = "";
+					} else {
+						failureReason = `telegram_error: ${res.errorClass}`;
+					}
+				}
+			}
 
 			console.log(
 				`\n${colors.gray}--- [OUTGOING MESSAGE GATEWAY] ---${colors.reset}`,
@@ -54,13 +89,17 @@ export async function processNotificationQueue() {
 			);
 			console.log(`${colors.neonGreen}TYPE:${colors.reset} ${notif.type}`);
 			console.log(`${colors.neonGreen}MESSAGE:${colors.reset} ${messageText}`);
+			console.log(`${colors.neonGreen}STATUS:${colors.reset} ${deliveryStatus} ${failureReason ? `(${failureReason})` : ""}`);
 			console.log(
 				`${colors.gray}----------------------------------${colors.reset}\n`,
 			);
 
 			await db
 				.update(outgoingNotifications)
-				.set({ status: "sent", sentAt: new Date() })
+				.set({ 
+					status: deliveryStatus as any, 
+					sentAt: deliveryStatus === "sent" ? new Date() : null 
+				})
 				.where(eq(outgoingNotifications.id, notif.id));
 		}
 	} catch (e) {

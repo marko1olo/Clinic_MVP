@@ -127,5 +127,41 @@ class TestSEOAgent(unittest.TestCase):
         mock_post.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
+
+    def test_get_groq_api_key_cached(self):
+        import clinic_admin.seo_agent
+        original_cache = clinic_admin.seo_agent._cached_groq_keys
+        try:
+            clinic_admin.seo_agent._cached_groq_keys = ["cached1", "cached2"]
+            with patch('clinic_admin.seo_agent.random.choice') as mock_choice:
+                mock_choice.return_value = "cached1"
+                result = get_groq_api_key()
+                self.assertEqual(result, "cached1")
+                mock_choice.assert_called_once_with(["cached1", "cached2"])
+        finally:
+            clinic_admin.seo_agent._cached_groq_keys = original_cache
+
+    def test_get_groq_api_key_cached_empty(self):
+        import clinic_admin.seo_agent
+        original_cache = clinic_admin.seo_agent._cached_groq_keys
+        try:
+            clinic_admin.seo_agent._cached_groq_keys = []
+            result = get_groq_api_key()
+            self.assertIsNone(result)
+        finally:
+            clinic_admin.seo_agent._cached_groq_keys = original_cache
+
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_generate_seo_response_missing_api_key_error(self, mock_get_api_key):
+        # Setup: Return None to simulate missing API key
+        mock_get_api_key.return_value = None
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertEqual(result, "Ошибка: Не найден API ключ Groq в конфигурации.")
+        mock_get_api_key.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()

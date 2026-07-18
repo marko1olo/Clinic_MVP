@@ -10,7 +10,6 @@ os.environ["INITIAL_ADMINS"] = admins
 os.environ["INITIAL_DOCTORS"] = doctors
 
 # We need to wipe db because if they exist it's a bit different
-import sqlite3
 if os.path.exists("bot_users.db"):
     os.remove("bot_users.db")
 

@@ -72,10 +72,10 @@ def init_db():
         )
     """)
     # Migration for older databases
-    try:
+    cursor.execute("PRAGMA table_info(scans)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "ai_image" not in columns:
         cursor.execute("ALTER TABLE scans ADD COLUMN ai_image TEXT")
-    except sqlite3.OperationalError:
-        pass
         
     conn.commit()
     conn.close()

@@ -1,4 +1,6 @@
 import os
+import re
+
 import sys
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -13,6 +15,8 @@ from PIL import Image
 from openai import OpenAI
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+
+THINK_TAG_PATTERN = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
 
 # Config Defaults
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
@@ -143,8 +147,7 @@ def analyze_image(file_path):
                 if response.choices and len(response.choices) > 0:
                     val = response.choices[0].message.content
                     if val:
-                        import re
-                        first_report = re.sub(r"<think>.*?</think>", "", val, flags=re.DOTALL).strip()
+                        first_report = THINK_TAG_PATTERN.sub("", val).strip()
                         success = True
                         break
             except Exception as e:

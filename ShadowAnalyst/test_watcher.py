@@ -3,7 +3,8 @@ import base64
 import tempfile
 import shutil
 import unittest
-from io import BytesIO
+import sys
+from io import BytesIO, StringIO
 from PIL import Image
 from unittest.mock import patch, MagicMock
 
@@ -313,6 +314,39 @@ class TestWatcher(unittest.TestCase):
         # Should exhaust keys because none return a valid message
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
+
+    @patch('ShadowAnalyst.watcher.threading.Timer')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    @patch('ShadowAnalyst.watcher.os.path.exists')
+    @patch('ShadowAnalyst.watcher.publish_result')
+    @patch('ShadowAnalyst.watcher.analyze_image')
+    def test_do_process_marked_file_replace_exception(self, mock_analyze, mock_publish, mock_exists, mock_replace, mock_timer):
+        # Setup mocks
+        mock_analyze.return_value = ("mock_marked.jpg", "Mock findings")
+        mock_exists.return_value = True
+
+        def replace_side_effect(src, dst):
+            if src == "mock_marked.jpg":
+                raise Exception("Mock move error")
+            return None
+
+        mock_replace.side_effect = replace_side_effect
+
+        # Redirect stdout
+        captured_output = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured_output
+        try:
+            watcher._do_process("dummy.jpg")
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured_output.getvalue()
+
+        # Verify exception block handles it and prints the error message
+        self.assertIn("[!] Ошибка перемещения размеченного файла: Mock move error", output)
+        self.assertIn("Файлы перемещены в", output)
+
 
 if __name__ == '__main__':
     unittest.main()

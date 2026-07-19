@@ -2,7 +2,6 @@ import unittest
 import os
 import tempfile
 from unittest.mock import patch
-import sqlite3
 
 from gui.database import (
     init_db,

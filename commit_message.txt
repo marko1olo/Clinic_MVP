@@ -1,8 +1,6 @@
-⚡ Optimize regex compilation in analyzer
+🧹 [code health improvement] Remove unused json import in generate_json.py
 
-💡 **What:** The optimization implemented moves the regex compilation out of the inner event loop and to the module level.
-🎯 **Why:** The performance problem it solves is unnecessary CPU cycles wasted on compiling a complex regex inside the event loop whenever a successful AI analysis occurs. By moving the compilation to a constant (`THINK_TAG_PATTERN`), we avoid the overhead of `re.compile` on every match.
-📊 **Measured Improvement:** We ran a benchmark on the regex expression against the baseline format. Over 100,000 runs on a test string with extensive `<think>` tags:
-- Baseline: 0.8525 seconds
-- Optimized: 0.7140 seconds
-- Improvement: 16.26% speedup.
+🎯 **What:** Removed unused json import in generate_json.py
+💡 **Why:** Cleans up namespace and improves maintainability
+✅ **Verification:** Verified file contents and ran the full test suite
+✨ **Result:** Cleaner code without changing behavior.

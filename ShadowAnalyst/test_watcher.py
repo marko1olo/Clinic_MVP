@@ -365,6 +365,42 @@ class TestWatcher(unittest.TestCase):
         with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
             watcher._do_process('dummy.jpg')
 
+    @patch('paho.mqtt.client.Client')
+    @patch('ShadowAnalyst.watcher.MQTT_USER', 'user')
+    @patch('ShadowAnalyst.watcher.MQTT_PASS', 'pass')
+    @patch('ShadowAnalyst.watcher.MQTT_HOST', 'localhost')
+    @patch('ShadowAnalyst.watcher.MQTT_PORT', 1883)
+    @patch('ShadowAnalyst.watcher.TOPIC_XRAY_RESULT', 'topic')
+    def test_publish_result_success(self, mock_client_class):
+        mock_client = mock_client_class.return_value
+        import json
+
+        watcher.publish_result("test.jpg", "No cavities")
+
+        mock_client.username_pw_set.assert_called_with('user', 'pass')
+        mock_client.connect.assert_called_with('localhost', 1883, 5)
+
+        expected_payload = json.dumps({
+            "file": "test.jpg",
+            "findings": "No cavities"
+        }, ensure_ascii=False)
+        mock_client.publish.assert_called_with('topic', expected_payload)
+        mock_client.disconnect.assert_called_once()
+
+    @patch('paho.mqtt.client.Client')
+    @patch('ShadowAnalyst.watcher.MQTT_USER', 'user')
+    @patch('ShadowAnalyst.watcher.MQTT_PASS', 'pass')
+    @patch('ShadowAnalyst.watcher.MQTT_HOST', 'localhost')
+    @patch('ShadowAnalyst.watcher.MQTT_PORT', 1883)
+    @patch('ShadowAnalyst.watcher.TOPIC_XRAY_RESULT', 'topic')
+    def test_publish_result_exception(self, mock_client_class):
+        mock_client = mock_client_class.return_value
+        mock_client.connect.side_effect = Exception("Connection Refused")
+
+        with patch('builtins.print') as mock_print:
+            watcher.publish_result("test.jpg", "No cavities")
+            mock_print.assert_called_with("Ошибка отправки MQTT: Connection Refused")
+
 if __name__ == '__main__':
     unittest.main()
 

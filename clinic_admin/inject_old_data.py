@@ -23,16 +23,10 @@ def _insert_patients(c, new_patients_data):
     if not new_patients_data:
         return []
 
-    c.executemany(
-        "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?)",
-        new_patients_data
-    )
+    query = "INSERT INTO patients (name, phone, created_at) VALUES " + ", ".join(["(?, ?, ?)"] * len(new_patients_data)) + " RETURNING id"
+    params = [item for sublist in new_patients_data for item in sublist]
 
-    inserted_names = [p[0] for p in new_patients_data]
-    c.execute(
-        "SELECT id FROM patients WHERE name IN (SELECT value FROM json_each(?))",
-        (json.dumps(inserted_names),)
-    )
+    c.execute(query, params)
     return [row[0] for row in c.fetchall()]
 
 def _insert_appointments(c, inserted_ids, now):

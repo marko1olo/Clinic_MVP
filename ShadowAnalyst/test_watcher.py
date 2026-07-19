@@ -314,6 +314,37 @@ class TestWatcher(unittest.TestCase):
         self.assertIsNone(marked_path)
         self.assertIn("все ключи исчерпаны", report)
 
+    @patch('ShadowAnalyst.watcher.threading.Timer')
+    @patch('ShadowAnalyst.watcher.publish_result')
+    @patch('ShadowAnalyst.watcher.analyze_image')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    @patch('ShadowAnalyst.watcher.os.path.exists')
+    def test_do_process_marked_file_replace_exception(self, mock_exists, mock_replace, mock_analyze, mock_publish, mock_timer):
+        mock_analyze.return_value = ('dummy_marked.jpg', 'findings')
+        mock_exists.return_value = True
+
+        def replace_side_effect(src, dst):
+            if src == 'dummy_marked.jpg':
+                raise Exception("Test replace exception")
+
+        mock_replace.side_effect = replace_side_effect
+
+        with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher._do_process('dummy.jpg')
+
+            mock_print.assert_any_call("    [!] Ошибка перемещения размеченного файла: Test replace exception")
+
+    @patch('ShadowAnalyst.watcher.threading.Timer')
+    @patch('ShadowAnalyst.watcher.publish_result')
+    @patch('ShadowAnalyst.watcher.analyze_image')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    def test_do_process_file_not_found_error(self, mock_replace, mock_analyze, mock_publish, mock_timer):
+        mock_analyze.return_value = (None, 'findings')
+        mock_replace.side_effect = FileNotFoundError("File moved")
+
+        with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher._do_process('dummy.jpg')
+
 if __name__ == '__main__':
     unittest.main()
 

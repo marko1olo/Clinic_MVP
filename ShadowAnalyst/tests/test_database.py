@@ -241,5 +241,30 @@ class TestDatabase(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_init_db_migration_error_path(self):
+        from unittest.mock import MagicMock
+        with patch('gui.database.sqlite3.connect') as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_connect.return_value = mock_conn
+
+            # Setup fetchall to return columns WITHOUT ai_image so ALTER TABLE triggers
+            mock_cursor.fetchall.return_value = [
+                (0, 'id', 'INTEGER', 1, None, 1),
+                (1, 'patient_name', 'TEXT', 0, None, 0)
+            ]
+
+            def execute_side_effect(query, *args, **kwargs):
+                if "ALTER TABLE scans ADD COLUMN ai_image TEXT" in query:
+                    raise sqlite3.OperationalError("duplicate column name: ai_image")
+            mock_cursor.execute.side_effect = execute_side_effect
+
+            init_db()
+
+            mock_cursor.execute.assert_any_call("ALTER TABLE scans ADD COLUMN ai_image TEXT")
+            mock_conn.commit.assert_called_once()
+            mock_conn.close.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()

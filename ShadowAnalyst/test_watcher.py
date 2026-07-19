@@ -47,7 +47,7 @@ class TestWatcher(unittest.TestCase):
 
     def test_prepare_image_normal(self):
         # Create a small RGB image
-        img = Image.new('RGB', (100, 100), color = 'red')
+        img = Image.new('RGB', (100, 100), color=(255, 0, 0))
         img_path = os.path.join(self.tmp_dir, "normal.jpg")
         img.save(img_path)
 
@@ -66,7 +66,7 @@ class TestWatcher(unittest.TestCase):
 
     def test_prepare_image_resize(self):
         # Create a large image that needs resizing
-        img = Image.new('RGB', (2000, 1500), color = 'blue')
+        img = Image.new('RGB', (2000, 1500), color=(0, 0, 255))
         img_path = os.path.join(self.tmp_dir, "large.jpg")
         img.save(img_path)
 

@@ -10,6 +10,7 @@ import base64
 import random
 import threading
 import functools
+import concurrent.futures
 from io import BytesIO
 from PIL import Image
 from openai import OpenAI
@@ -293,10 +294,11 @@ def watch_loop():
     
     # Process existing files first
     try:
-        for filename in os.listdir(WATCH_DIR):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                file_path = os.path.join(WATCH_DIR, filename)
-                threading.Thread(target=process_single_file, args=(file_path,), daemon=True).start()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            for filename in os.listdir(WATCH_DIR):
+                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                    file_path = os.path.join(WATCH_DIR, filename)
+                    executor.submit(process_single_file, file_path)
     except Exception as e:
         print(f"Ошибка при проверке существующих файлов: {e}")
 

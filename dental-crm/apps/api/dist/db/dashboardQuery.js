@@ -332,6 +332,10 @@ export async function getDashboardFromDb(organizationId) {
         .select()
         .from(schema.patientInvoices)
         .where(eq(schema.patientInvoices.organizationId, organizationId));
+    const commTasks = await db
+        .select()
+        .from(schema.communicationTasks)
+        .where(eq(schema.communicationTasks.organizationId, organizationId));
     const treatmentItems = await db
         .select()
         .from(schema.treatmentItems)
@@ -671,7 +675,25 @@ export async function getDashboardFromDb(organizationId) {
             insuranceCoverageRub: 0,
         },
         communicationTemplates: [],
-        communicationTasks: [],
+        communicationTasks: commTasks.map((t) => ({
+            id: t.id,
+            organizationId: t.organizationId,
+            patientId: t.patientId,
+            appointmentId: t.appointmentId,
+            visitId: t.visitId,
+            documentId: t.documentId,
+            assignedRole: t.assignedRole,
+            channel: t.channel,
+            intent: t.intent,
+            status: t.status,
+            priority: t.priority,
+            dueAt: nullableIso(t.dueAt),
+            title: t.title,
+            body: t.body,
+            workflowCode: t.workflowCode,
+            lastEventAt: nullableIso(t.lastEventAt),
+            createdAt: iso(t.createdAt),
+        })),
         communicationEvents: [],
         communicationSummary: {
             openTasks: 0,

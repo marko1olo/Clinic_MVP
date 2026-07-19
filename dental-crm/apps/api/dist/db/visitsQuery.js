@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 import { signedOutpatientCards, visitGnathology } from "./schema.js";
@@ -381,4 +381,10 @@ export async function upsertVisitGnathologyInDb(visitId, patientId, data) {
             updatedAt: new Date(),
         });
     }
+}
+export async function getVisitsByIdsInDb(organizationId, ids) {
+    if (ids.length === 0)
+        return [];
+    const res = await db.select().from(schema.visits).where(and(eq(schema.visits.organizationId, organizationId), inArray(schema.visits.id, ids)));
+    return res;
 }

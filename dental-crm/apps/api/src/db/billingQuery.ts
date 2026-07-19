@@ -1,5 +1,5 @@
 import type { CreatePaymentInput, Payment } from "@dental/shared";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 
@@ -296,5 +296,73 @@ export async function recalculateInvoiceStatusForVisit(organizationId: string, v
 			.update(schema.patientInvoices)
 			.set({ status: newStatus as any, updatedAt: new Date() })
 			.where(eq(schema.patientInvoices.id, invoice.id));
+}
+
+export async function calculatePatientBalanceInDb(organizationId: string, patientId: string): Promise<number> {
+	// 1. Sum of all invoices (planned)
+	const [invoiceResult] = await db
+		.select({ total: sql<number>`SUM(${schema.patientInvoices.totalAmountRub})` })
+		.from(schema.patientInvoices)
+		.where(
+			and(
+				eq(schema.patientInvoices.organizationId, organizationId),
+				eq(schema.patientInvoices.patientId, patientId)
+			)
+		);
+	
+	const plannedRub = Number(invoiceResult?.total ?? 0);
+
+	// 2. Sum of all payments
+	const [paymentResult] = await db
+		.select({ total: sql<number>`SUM(${schema.payments.amountRub})` })
+		.from(schema.payments)
+		.where(
+			and(
+				eq(schema.payments.organizationId, organizationId),
+				eq(schema.payments.patientId, patientId),
+				eq(schema.payments.status, "paid")
+			)
+		);
+	
+	const paidRub = Number(paymentResult?.total ?? 0);
+
+	return Math.max(0, plannedRub - paidRub);
+}
+
+export async function calculatePatientsBalancesInDb(organizationId: string): Promise<Map<string, number>> {
+	const balances = new Map<string, number>();
+
+	const invoices = await db
+		.select({ 
+			patientId: schema.patientInvoices.patientId, 
+			total: sql<number>`SUM(${schema.patientInvoices.totalAmountRub})` 
+		})
+		.from(schema.patientInvoices)
+		.where(eq(schema.patientInvoices.organizationId, organizationId))
+		.groupBy(schema.patientInvoices.patientId);
+
+	for (const inv of invoices) {
+		balances.set(inv.patientId, Number(inv.total));
 	}
+
+	const payments = await db
+		.select({ 
+			patientId: schema.payments.patientId, 
+			total: sql<number>`SUM(${schema.payments.amountRub})` 
+		})
+		.from(schema.payments)
+		.where(
+			and(
+				eq(schema.payments.organizationId, organizationId),
+				eq(schema.payments.status, "paid")
+			)
+		)
+		.groupBy(schema.payments.patientId);
+
+	for (const pay of payments) {
+		const current = balances.get(pay.patientId) ?? 0;
+		balances.set(pay.patientId, Math.max(0, current - Number(pay.total)));
+	}
+
+	return balances;
 }

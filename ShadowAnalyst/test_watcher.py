@@ -295,6 +295,26 @@ class TestWatcher(unittest.TestCase):
 
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
+    def test_analyze_image_general_error(self, mock_openai_class, mock_prepare_image):
+        mock_prepare_image.return_value = "data:image/jpeg;base64,dummybase64"
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        # Client throws a generic exception
+        mock_client.chat.completions.create.side_effect = Exception("Some unknown error")
+
+        with patch('ShadowAnalyst.watcher.GOOGLE_API_KEYS', ['gkey1']), \
+             patch('ShadowAnalyst.watcher.GROQ_API_KEYS', ['groqkey1']):
+            marked_path, report = watcher.analyze_image("dummy.jpg")
+
+        self.assertIsNone(marked_path)
+        self.assertIn("Сбой ИИ-анализа: все ключи исчерпаны", report)
+        self.assertIn("Some unknown error", report)
+        self.assertEqual(mock_openai_class.call_count, 2)
+
+    @patch('ShadowAnalyst.watcher.prepare_image')
+    @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_empty_choices(self, mock_openai_class, mock_prepare_image):
         mock_prepare_image.return_value = "data:image/jpeg;base64,dummybase64"
 

@@ -556,8 +556,7 @@ function extractDicomFieldValue(line, labels) {
     }
     return null;
 }
-async function matchPatient(orgId, patientName, phone) {
-    const patients = await getPatientsFromDb(orgId);
+function matchPatient(patients, patientName, phone) {
     const normalizedName = patientName?.trim().toLowerCase();
     return patients.find((patient) => {
         const patientPhone = normalizePhone(patient.phone);
@@ -567,7 +566,7 @@ async function matchPatient(orgId, patientName, phone) {
             patient.fullName.trim().toLowerCase() === normalizedName);
     });
 }
-async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
+async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients) {
     const phone = extractPhone(line);
     const filePath = extractFilePath(line);
     const date = normalizeDate(line.match(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/)?.[0] ?? null);
@@ -583,7 +582,7 @@ async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName)
         .filter((part) => /^[A-Za-zА-Яа-яЁё-]{2,}$/.test(part))
         .slice(0, 4)
         .join(" ") || null;
-    const patient = await matchPatient(orgId, patientName, phone);
+    const patient = matchPatient(patients, patientName, phone);
     const warnings = [];
     if (!patient)
         warnings.push("Пациент не найден, нужно сопоставление");
@@ -631,9 +630,10 @@ export async function parseImagingManifest(orgId, input) {
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => headerAliases[normalizeHeader(cell)] ?? null);
     const hasHeader = headers.some(Boolean);
+    const patients = await getPatientsFromDb(orgId);
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+            return await parseManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName, patients);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
@@ -654,7 +654,7 @@ export async function parseImagingManifest(orgId, input) {
             else
                 draft[field] = value;
         });
-        const patient = await matchPatient(orgId, draft.patientName ?? null, draft.phone ?? null);
+        const patient = matchPatient(patients, draft.patientName ?? null, draft.phone ?? null);
         const kind = draft.kind ?? detectKind(draft.filePath ?? "");
         const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", input.sourceKind);
         const warnings = [];
@@ -2789,8 +2789,8 @@ function buildDicomSeriesGroups(rows) {
         };
     });
 }
-async function parseDicomManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
-    const base = await parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName);
+async function parseDicomManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients) {
+    const base = await parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients);
     const modality = normalizeModality(extractDicomFieldValue(line, ["modality", "0008,0060", "\\(0008,0060\\)"]));
     const studyInstanceUid = extractDicomUid(line, [
         "StudyInstanceUID",
@@ -2930,9 +2930,10 @@ export async function parseDicomSeriesManifest(orgId, input) {
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => dicomHeaderAliases[normalizeHeader(cell)] ?? null);
     const hasHeader = headers.some(Boolean);
+    const patients = await getPatientsFromDb(orgId);
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseDicomManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+            return await parseDicomManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName, patients);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
@@ -2969,8 +2970,8 @@ export async function parseDicomSeriesManifest(orgId, input) {
             else
                 draft[field] = value;
         });
-        const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName);
-        const patient = await matchPatient(orgId, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
+        const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName, patients);
+        const patient = matchPatient(patients, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
         const modality = draft.modality ?? lineFallback.modality;
         const kind = draft.kind ??
             modalityToKind(modality, `${draft.studyDescription ?? ""} ${draft.seriesDescription ?? ""}`) ??

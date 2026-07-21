@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
+import { calculatePatientBalanceInDb, calculatePatientsBalancesInDb } from "./billingQuery.js";
 export async function getPatientByIdFromDb(organizationId, id) {
     const [p] = await db
         .select()
@@ -20,7 +21,7 @@ export async function getPatientByIdFromDb(organizationId, id) {
         insuranceContractId: p.insuranceContractId,
         insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: await calculatePatientBalanceInDb(organizationId, id),
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
     };
@@ -30,6 +31,7 @@ export async function getPatientsFromDb(organizationId) {
         .select()
         .from(schema.patients)
         .where(eq(schema.patients.organizationId, organizationId));
+    const balances = await calculatePatientsBalancesInDb(organizationId);
     return pts.map((p) => ({
         id: p.id,
         organizationId: p.organizationId,
@@ -42,7 +44,7 @@ export async function getPatientsFromDb(organizationId) {
         insuranceContractId: p.insuranceContractId,
         insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: balances.get(p.id) ?? 0,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
     }));

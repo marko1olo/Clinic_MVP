@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, inArray } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 export async function createAppointmentInDb(organizationId, input, txContext = db) {
@@ -32,6 +32,21 @@ export async function createAppointmentInDb(organizationId, input, txContext = d
             .returning();
         if (!created)
             throw new Error("Failed to insert appointment");
+        if (created.patientId && (created.status === "scheduled" || created.status === "confirmed" || created.status === "arrived")) {
+            const scheduledAt = new Date(created.startsAt);
+            scheduledAt.setHours(scheduledAt.getHours() - 24);
+            const now = new Date();
+            if (scheduledAt > now) {
+                await tx.insert(schema.outgoingNotifications).values({
+                    organizationId: created.organizationId,
+                    patientId: created.patientId,
+                    type: "appointment_reminder",
+                    payload: { appointmentId: created.id },
+                    status: "pending",
+                    scheduledAt,
+                });
+            }
+        }
         return {
             id: created.id,
             organizationId: created.organizationId,
@@ -118,6 +133,43 @@ export async function updateAppointmentInDb(organizationId, appointmentId, input
             .returning();
         if (!updated)
             throw new Error("Failed to update appointment");
+        // Always clear pending reminders for this appointment
+        await tx
+            .delete(schema.outgoingNotifications)
+            .where(and(eq(schema.outgoingNotifications.organizationId, organizationId), eq(schema.outgoingNotifications.type, "appointment_reminder"), eq(schema.outgoingNotifications.status, "pending"), sql `payload->>'appointmentId' = ${updated.id}`));
+        // Re-schedule if it's still a valid upcoming appointment
+        if (updated.patientId && (updated.status === "scheduled" || updated.status === "confirmed" || updated.status === "arrived")) {
+            const scheduledAt = new Date(updated.startsAt);
+            scheduledAt.setHours(scheduledAt.getHours() - 24);
+            const now = new Date();
+            if (scheduledAt > now) {
+                await tx.insert(schema.outgoingNotifications).values({
+                    organizationId: updated.organizationId,
+                    patientId: updated.patientId,
+                    type: "appointment_reminder",
+                    payload: { appointmentId: updated.id },
+                    status: "pending",
+                    scheduledAt,
+                });
+            }
+        }
+        if (input.status === "no_show" && existing.status !== "no_show" && updated.patientId) {
+            const dueAt = new Date();
+            dueAt.setHours(dueAt.getHours() + 1); // Follow up in 1 hour
+            await tx.insert(schema.communicationTasks).values({
+                organizationId,
+                patientId: updated.patientId,
+                appointmentId: updated.id,
+                assignedRole: "admin",
+                channel: "phone",
+                intent: "retention",
+                status: "needs_call",
+                priority: "high",
+                dueAt,
+                title: "Уточнить причину неявки",
+                body: "Пациент не явился на прием. Необходимо связаться и предложить перенос записи.",
+            });
+        }
         return {
             id: updated.id,
             organizationId: updated.organizationId,
@@ -468,4 +520,10 @@ async function assertAppointmentCanBeScheduled(organizationId, candidate, tx = d
         }
         throw new Error("Кресло уже занято другой записью в это время");
     }
+}
+export async function getAppointmentsByIdsInDb(organizationId, ids) {
+    if (ids.length === 0)
+        return [];
+    const res = await db.select().from(schema.appointments).where(and(eq(schema.appointments.organizationId, organizationId), inArray(schema.appointments.id, ids)));
+    return res;
 }

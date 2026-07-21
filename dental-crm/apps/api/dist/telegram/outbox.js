@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { communicationTasks, denteTelegramChatLinks, denteTelegramOutboxDeliveryReceipts, } from "../db/schema.js";
 import { getDenteTelegramBotSettings } from "./config.js";
@@ -47,14 +47,22 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
         .from(denteTelegramChatLinks)
         .where(and(eq(denteTelegramChatLinks.organizationId, organizationId), eq(denteTelegramChatLinks.subjectType, "staff"), eq(denteTelegramChatLinks.status, "active")));
     const digestDate = now.toISOString().split("T")[0];
+    const allDigestIds = activeStaffLinks.map((link) => `staff_digest:${link.subjectId}:${digestDate}`);
+    const sentDigestIds = new Set();
+    if (allDigestIds.length > 0) {
+        const existingReceipts = await db
+            .select({ outboxItemId: denteTelegramOutboxDeliveryReceipts.outboxItemId })
+            .from(denteTelegramOutboxDeliveryReceipts)
+            .where(and(inArray(denteTelegramOutboxDeliveryReceipts.outboxItemId, allDigestIds), eq(denteTelegramOutboxDeliveryReceipts.status, "sent")));
+        for (const receipt of existingReceipts) {
+            if (receipt.outboxItemId) {
+                sentDigestIds.add(receipt.outboxItemId);
+            }
+        }
+    }
     for (const link of activeStaffLinks) {
         const digestId = `staff_digest:${link.subjectId}:${digestDate}`;
-        // Check if already sent today
-        const [existing] = await db
-            .select()
-            .from(denteTelegramOutboxDeliveryReceipts)
-            .where(and(eq(denteTelegramOutboxDeliveryReceipts.outboxItemId, digestId), eq(denteTelegramOutboxDeliveryReceipts.status, "sent")))
-            .limit(1);
+        const existing = sentDigestIds.has(digestId);
         if (!existing) {
             items.push({
                 id: digestId,

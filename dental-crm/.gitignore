@@ -84,3 +84,4 @@ temp-test-db/
 
 script.js
 *.bak
+apps/web/node_modules/

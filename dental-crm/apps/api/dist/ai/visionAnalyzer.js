@@ -272,7 +272,7 @@ async function runCascade(slots, prompt, imageBase64, extraUserText, minLength =
 // ──────────────────────────────────────────────────────────────────────────────
 // JSON extraction helper (handles markdown fences)
 // ──────────────────────────────────────────────────────────────────────────────
-function extractJson(text) {
+export function extractJson(text) {
     // Strip <think>...</think> if present (Qwen-style)
     const cleaned = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
     // Try direct parse

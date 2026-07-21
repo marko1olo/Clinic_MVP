@@ -43,7 +43,7 @@ function listBackupFiles() {
 function fileNameOf(filePath) {
     return path.basename(filePath);
 }
-async function rawFileHash(filePath) {
+export async function rawFileHash(filePath) {
     if (!fs.existsSync(filePath))
         return null;
     try {

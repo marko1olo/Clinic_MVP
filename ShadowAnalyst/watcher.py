@@ -145,12 +145,8 @@ def _try_model_with_keys(model_name, provider, image_b64):
 
     return None, last_err
 
-def analyze_image(file_path):
-    """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
-    image_b64 = prepare_image(file_path)
-    if not image_b64:
-        return None, "Ошибка обработки файла"
-
+def _run_model_cascade(image_b64):
+    """Прогоняет картинку по каскаду моделей, возвращает (None, report) при успехе."""
     # Default cascade sequence
     models_with_providers = [
         ("gemini-3.5-flash", "gemini"),
@@ -169,6 +165,14 @@ def analyze_image(file_path):
             last_err = err
 
     return None, f"Сбой ИИ-анализа: все ключи исчерпаны. Ошибка: {last_err}"
+
+def analyze_image(file_path):
+    """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
+    image_b64 = prepare_image(file_path)
+    if not image_b64:
+        return None, "Ошибка обработки файла"
+
+    return _run_model_cascade(image_b64)
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""

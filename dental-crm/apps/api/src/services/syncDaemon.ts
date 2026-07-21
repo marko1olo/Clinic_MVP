@@ -254,7 +254,7 @@ export async function runSyncCycle(): Promise<SyncReport> {
 					localMap.set(l.id, l);
 				}
 
-				for (const record of cloudRecords) {
+				const operations = cloudRecords.map(async (record) => {
 					const local = localMap.get(record.id);
 					if (!local) {
 						// New record from cloud -> Insert locally
@@ -302,7 +302,9 @@ export async function runSyncCycle(): Promise<SyncReport> {
 								.where(eq(table.id, record.id));
 						}
 					}
-				}
+				});
+
+				await Promise.all(operations);
 			};
 
 			await mergeTable(patients, cloud.patients, "patients");

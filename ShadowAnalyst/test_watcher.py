@@ -112,6 +112,65 @@ class TestWatcher(unittest.TestCase):
         # Assert
         self.assertIsNone(result)
 
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_success(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Analysis result"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertEqual(result, "Analysis result")
+        mock_client.chat.completions.create.assert_called_once_with(
+            model="test-model",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "test prompt"},
+                        {"type": "image_url", "image_url": {"url": "base64img"}}
+                    ]
+                }
+            ]
+        )
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_strips_think_tags(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "<think>Internal thoughts</think>Analysis result"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertEqual(result, "Analysis result")
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_empty_choices(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = []
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertIsNone(result)
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_no_content(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = None
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertIsNone(result)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_success(self, mock_openai_class, mock_prepare_image):

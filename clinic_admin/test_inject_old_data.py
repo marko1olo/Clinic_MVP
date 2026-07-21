@@ -11,11 +11,9 @@ class TestInjectOldData(unittest.TestCase):
 
         # Save original DB_FILE values
         self.original_db_file_database = clinic_admin.database.DB_FILE
-        self.original_db_file_inject = clinic_admin.inject_old_data.DB_FILE
 
         # Point the database to the temporary file
         clinic_admin.database.DB_FILE = self.db_path
-        clinic_admin.inject_old_data.DB_FILE = self.db_path
 
         # Initialize the database to create tables
         clinic_admin.database.init_db()
@@ -23,7 +21,6 @@ class TestInjectOldData(unittest.TestCase):
     def tearDown(self):
         # Restore original DB_FILE values
         clinic_admin.database.DB_FILE = self.original_db_file_database
-        clinic_admin.inject_old_data.DB_FILE = self.original_db_file_inject
 
         # Close and remove the temporary file
         os.close(self.db_fd)

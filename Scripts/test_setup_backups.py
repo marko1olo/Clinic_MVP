@@ -201,5 +201,39 @@ class TestSetupBackups(unittest.TestCase):
         self.assertEqual(mock_ssh.call_count, 4)
         mock_client.close.assert_called_once()
 
+    @patch('sys.exit')
+    @patch('paramiko.SSHClient')
+    def test_main_execution_missing_host(self, MockSSHClient, mock_exit):
+        # We want to make sure it exits immediately, so we mock sys.exit to raise an exception
+        # to stop execution, otherwise main() continues and fails because mock client isn't fully mocked
+        mock_exit.side_effect = SystemExit
+        env_vars = {
+            'VPS_USER': 'testuser',
+            'VPS_PASSWORD': 'testpassword'
+        }
+
+        with patch.dict('os.environ', env_vars, clear=True):
+            from Scripts.setup_backups import main
+            with self.assertRaises(SystemExit):
+                main()
+
+        mock_exit.assert_called_once_with('ERROR: VPS_HOST environment variable is not set.')
+
+    @patch('sys.exit')
+    @patch('paramiko.SSHClient')
+    def test_main_execution_missing_auth(self, MockSSHClient, mock_exit):
+        mock_exit.side_effect = SystemExit
+        env_vars = {
+            'VPS_HOST': '127.0.0.1',
+            'VPS_USER': 'testuser'
+        }
+
+        with patch.dict('os.environ', env_vars, clear=True):
+            from Scripts.setup_backups import main
+            with self.assertRaises(SystemExit):
+                main()
+
+        mock_exit.assert_called_once_with('ERROR: VPS_PASSWORD or VPS_KEY_PATH environment variable is required.')
+
 if __name__ == '__main__':
     unittest.main()

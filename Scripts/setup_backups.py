@@ -19,10 +19,15 @@ def ssh(client, cmd, desc="", timeout=60):
         stderr.close()
 
 def main():
-    host = os.environ.get('VPS_HOST', '62.84.100.97')
+    host = os.environ.get('VPS_HOST')
+    if not host:
+        sys.exit('ERROR: VPS_HOST environment variable is not set.')
     user = os.environ.get('VPS_USER', 'root')
     password = os.environ.get('VPS_PASSWORD')
     key_path = os.environ.get('VPS_KEY_PATH')
+
+    if not password and not key_path:
+        sys.exit('ERROR: VPS_PASSWORD or VPS_KEY_PATH environment variable is required.')
 
     client = paramiko.SSHClient()
     client.load_system_host_keys()

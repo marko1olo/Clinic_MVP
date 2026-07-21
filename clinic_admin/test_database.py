@@ -56,6 +56,16 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(sqlite3.Error):
             clinic_admin.database.get_connection()
 
+
+    @patch('sqlite3.connect')
+    def test_get_connection_generic_exception(self, mock_connect):
+        # Setup mock to raise a generic exception
+        mock_connect.side_effect = Exception("Mocked generic error")
+
+        # Verify that the exception is propagated when get_connection is called
+        with self.assertRaises(Exception) as context:
+            clinic_admin.database.get_connection()
+
     def test_init_db(self):
         # Initialize the database
         clinic_admin.database.init_db()

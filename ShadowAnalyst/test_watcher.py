@@ -140,6 +140,17 @@ class TestWatcher(unittest.TestCase):
         mock_openai_class.assert_called_once()
         mock_client.chat.completions.create.assert_called_once()
 
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_gemini_client(self, mock_get_openai_client):
+        test_api_key = "test_gemini_key_123"
+        result = watcher.make_gemini_client(test_api_key)
+
+        mock_get_openai_client.assert_called_once_with(
+            test_api_key,
+            "https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        self.assertEqual(result, mock_get_openai_client.return_value)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_rate_limit_retry(self, mock_openai_class, mock_prepare_image):

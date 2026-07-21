@@ -154,6 +154,73 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(scans[0]['contrast'], 105)
         self.assertEqual(scans[0]['summary'], "Test summary")
 
+    def test_save_scan_defaults(self):
+        data = {}
+        scan_id = save_scan(data)
+        self.assertIsNotNone(scan_id)
+
+        scans = get_all_scans()
+        self.assertEqual(len(scans), 1)
+        scan = scans[0]
+        self.assertEqual(scan['patient_name'], "")
+        self.assertIsNone(scan['patient_age'])
+        self.assertEqual(scan['patient_gender'], "Не указан")
+        self.assertEqual(scan['original_image'], "")
+        self.assertEqual(scan['enhanced_image'], "")
+        self.assertEqual(scan['ai_image'], "")
+        self.assertEqual(scan['brightness'], 100)
+        self.assertEqual(scan['contrast'], 100)
+        self.assertEqual(bool(scan['inverted']), False)
+        self.assertEqual(scan['scale'], 1.0)
+        self.assertEqual(scan['translate_x'], 0.0)
+        self.assertEqual(scan['translate_y'], 0.0)
+        self.assertEqual(scan['slider_position'], 50.0)
+        self.assertEqual(scan['summary'], "")
+        self.assertEqual(scan['report'], "")
+        self.assertEqual(scan['audio_url'], "")
+
+    def test_save_scan_all_fields(self):
+        data = {
+            "patient_name": "Test Patient",
+            "patient_age": 45,
+            "patient_gender": "Female",
+            "original_image": "orig.png",
+            "enhanced_image": "enh.png",
+            "ai_image": "ai.png",
+            "brightness": 120,
+            "contrast": 110,
+            "inverted": True,
+            "scale": 1.5,
+            "translate_x": 10.0,
+            "translate_y": -5.0,
+            "slider_position": 75.0,
+            "summary": "Test Summary",
+            "report": "Test Report",
+            "audio_url": "test_audio.mp3"
+        }
+        scan_id = save_scan(data)
+        self.assertIsNotNone(scan_id)
+
+        scans = get_all_scans()
+        self.assertEqual(len(scans), 1)
+        scan = scans[0]
+        self.assertEqual(scan['patient_name'], "Test Patient")
+        self.assertEqual(scan['patient_age'], 45)
+        self.assertEqual(scan['patient_gender'], "Female")
+        self.assertEqual(scan['original_image'], "orig.png")
+        self.assertEqual(scan['enhanced_image'], "enh.png")
+        self.assertEqual(scan['ai_image'], "ai.png")
+        self.assertEqual(scan['brightness'], 120)
+        self.assertEqual(scan['contrast'], 110)
+        self.assertEqual(bool(scan['inverted']), True)
+        self.assertEqual(scan['scale'], 1.5)
+        self.assertEqual(scan['translate_x'], 10.0)
+        self.assertEqual(scan['translate_y'], -5.0)
+        self.assertEqual(scan['slider_position'], 75.0)
+        self.assertEqual(scan['summary'], "Test Summary")
+        self.assertEqual(scan['report'], "Test Report")
+        self.assertEqual(scan['audio_url'], "test_audio.mp3")
+
     def test_update_scan(self):
         data = {
             "patient_name": "Jane Doe",
@@ -255,6 +322,7 @@ class TestDatabase(unittest.TestCase):
                 (1, 'patient_name', 'TEXT', 0, None, 0)
             ]
 
+            import sqlite3
             def execute_side_effect(query, *args, **kwargs):
                 if "ALTER TABLE scans ADD COLUMN ai_image TEXT" in query:
                     raise sqlite3.OperationalError("duplicate column name: ai_image")

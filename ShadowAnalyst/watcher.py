@@ -10,7 +10,7 @@ import base64
 import random
 import threading
 import functools
-import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from PIL import Image
 from openai import OpenAI
@@ -301,7 +301,7 @@ def watch_loop():
     
     # Process existing files first
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             for filename in os.listdir(WATCH_DIR):
                 if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
                     file_path = os.path.join(WATCH_DIR, filename)

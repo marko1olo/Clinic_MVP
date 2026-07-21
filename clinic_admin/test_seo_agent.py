@@ -197,5 +197,67 @@ class TestSEOAgent(unittest.TestCase):
         self.assertEqual(result, "Ошибка: Не найден API ключ Groq в конфигурации.")
         mock_get_api_key.assert_called_once()
 
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_httperror_handling(self, mock_get_api_key, mock_post):
+        # Setup: Simulate HTTPError from raise_for_status
+        from requests.exceptions import HTTPError
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = HTTPError("404 Client Error")
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: 404 Client Error"))
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    @patch('os.getenv')
+    def test_clinic_phone_env_variable(self, mock_getenv, mock_get_api_key, mock_post):
+        # Setup: Mock environment variable
+        mock_getenv.side_effect = lambda key, default=None: "+1 (800) 123-4567" if key == "CLINIC_PHONE" else default
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [
+                {"message": {"content": "Ответ"}}
+            ]
+        }
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Bad doctor.")
+
+        # Verify
+        called_args, called_kwargs = mock_post.call_args
+        payload = called_kwargs["json"]
+        system_prompt = payload["messages"][0]["content"]
+        self.assertIn("+1 (800) 123-4567", system_prompt)
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_empty_choices_list(self, mock_get_api_key, mock_post):
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": []
+        }
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("list index out of range", result)
+
 if __name__ == '__main__':
     unittest.main()

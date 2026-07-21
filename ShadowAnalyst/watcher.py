@@ -95,10 +95,10 @@ def get_openai_client(api_key, base_url, timeout=30.0):
     )
 
 def make_groq_client(api_key: str) -> OpenAI:
-    return get_openai_client(api_key, "https://api.groq.com/openai/v1")
+    return get_openai_client(api_key, base_url="https://api.groq.com/openai/v1")
 
 def make_gemini_client(api_key: str) -> OpenAI:
-    return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
+    return get_openai_client(api_key, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
 
 def _query_model(client, model_name, image_b64):
     response = client.chat.completions.create(

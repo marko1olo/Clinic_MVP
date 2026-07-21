@@ -20,6 +20,20 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_groq_client(self, mock_get_openai_client):
+        mock_get_openai_client.return_value = MagicMock()
+        client = watcher.make_groq_client("test_groq_key")
+        mock_get_openai_client.assert_called_once_with("test_groq_key", base_url="https://api.groq.com/openai/v1")
+        self.assertEqual(client, mock_get_openai_client.return_value)
+
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_gemini_client(self, mock_get_openai_client):
+        mock_get_openai_client.return_value = MagicMock()
+        client = watcher.make_gemini_client("test_gemini_key")
+        mock_get_openai_client.assert_called_once_with("test_gemini_key", base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+        self.assertEqual(client, mock_get_openai_client.return_value)
+
     @patch('ShadowAnalyst.watcher.os.makedirs')
     def test_setup_dirs_success(self, mock_makedirs):
         # Patching WATCH_DIR and PROCESSED_DIR just to be sure we check the right values

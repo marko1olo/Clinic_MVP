@@ -69,6 +69,19 @@ class TestParseFindings(unittest.TestCase):
         self.assertEqual(body, [])
         self.assertEqual(alert, ["Зуб 11: кариес!", "Зуб 12: (воспаление)"])
 
+    def test_parse_findings_invalid_type(self):
+        # Test non-string inputs
+        with self.assertRaises(AttributeError):
+            parse_findings(123)
+        with self.assertRaises(AttributeError):
+            parse_findings(["Зуб 11"])
+
+    def test_parse_findings_whitespace_only(self):
+        # Test whitespace-only string
+        body, alert = parse_findings("   ")
+        self.assertEqual(body, ["   "])
+        self.assertEqual(alert, [])
+
 
 if __name__ == '__main__':
     unittest.main()

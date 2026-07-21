@@ -106,7 +106,6 @@ import {
 } from "./hooks/useWorkspaceProfile";
 import { useAppStore } from "./store/appStore";
 import { useDocumentStore } from "./store/documentStore";
-import { useThemeStore } from "./store/themeStore";
 import { useAppLogic } from "./useAppLogic";
 
 function WebSocketManager() {
@@ -1139,11 +1138,6 @@ export function App() {
 
 	const selectedPatientId = usePatientStore((s) => s.selectedPatientId);
 	const workspaceProfile = useWorkspaceProfileStore();
-	const themeMode = useThemeStore((s) => s.themeMode);
-	const isDark =
-		themeMode === "dark" ||
-		(themeMode === "auto" &&
-			(new Date().getHours() < 7 || new Date().getHours() >= 19));
 
 	// Load workspace feature flags once on mount
 	useEffect(() => {
@@ -2162,7 +2156,7 @@ export function App() {
 		}
 		// Restore staff user profile from token on page refresh
 		const staffToken = localStorage.getItem("dente_staff_token");
-		if (staffToken && (!activeStaffUser || activeStaffUser.name === "Screenshot Bot")) {
+		if (staffToken && !activeStaffUser) {
 			fetch("/api/auth/user/me", {
 				headers: { "x-dente-staff-token": staffToken },
 			})
@@ -2349,16 +2343,15 @@ export function App() {
 	}
 
 	// Show onboarding wizard on first run (after dashboard is loaded)
-	if (workspaceProfile.loaded && (!workspaceProfile.onboardingCompleted || localStorage.getItem("force_onboarding") === "true")) {
+	if (workspaceProfile.loaded && !workspaceProfile.onboardingCompleted) {
 		return (
 			<AppLogicProvider value={appLogicProps}>
 				<OnboardingSetupWizard
-					isDark={isDark}
+					isDark={true}
 					onComplete={() => {
 						useWorkspaceProfileStore
 							.getState()
 							.setFlag("onboardingCompleted", true);
-						loadWorkspaceProfile();
 						loadDashboard();
 					}}
 				/>
@@ -2379,7 +2372,6 @@ export function App() {
 					currentView={currentView}
 					onViewIntent={preloadWorkspaceView}
 					role={selectedWorkspaceRole}
-					clinicMode={dashboard?.clinicSettings?.profile?.mode || "network_clinic"}
 				/>
 
 				<section

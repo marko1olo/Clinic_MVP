@@ -1,8 +1,8 @@
 import { clinicalRuleEvaluationInputSchema, clinicalRuleEvaluationResponseSchema, clinicalRuleSchema, createClinicalRuleSchema, updateClinicalRuleSchema, } from "@dental/shared";
 import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
-import { createClinicalRuleInDb, evaluateClinicalRulesInDb, updateClinicalRuleInDb, deleteClinicalRuleInDb, } from "../db/clinicalQuery.js";
-const clinicalRuleEvaluationValidationMessage = "Ошибка валидации: запрос не соответствует формату.";
-const clinicalRuleMutationValidationMessage = "Ошибка валидации: данные правила некорректны.";
+import { createClinicalRuleInDb, deleteClinicalRuleInDb, evaluateClinicalRulesInDb, updateClinicalRuleInDb, } from "../db/clinicalQuery.js";
+const clinicalRuleEvaluationValidationMessage = "Клинические правила не проверены: передайте пациента, визит и факты приема.";
+const clinicalRuleMutationValidationMessage = "Клиническое правило не сохранено: заполните название, условие и действие правила.";
 function parseClinicalPayload(schema, value) {
     const parsed = schema.safeParse(value);
     if (!parsed.success)
@@ -27,6 +27,10 @@ export async function registerClinicalRoutes(app) {
                 message: "Организация не определена",
             });
         }
+        if (process.env.DENTAL_STATE_PERSISTENCE === "off") {
+            const { evaluateClinicalRules } = await import("../sampleData.js");
+            return clinicalRuleEvaluationResponseSchema.parse(evaluateClinicalRules(input));
+        }
         return clinicalRuleEvaluationResponseSchema.parse(await evaluateClinicalRulesInDb(orgId, input));
     });
     app.post("/api/clinical/rules", async (request, reply) => {
@@ -45,6 +49,10 @@ export async function registerClinicalRoutes(app) {
                 error: "OrganizationRequired",
                 message: "Организация не определена",
             });
+        }
+        if (process.env.DENTAL_STATE_PERSISTENCE === "off") {
+            const { createClinicalRule } = await import("../sampleData.js");
+            return clinicalRuleSchema.parse(createClinicalRule(input));
         }
         return clinicalRuleSchema.parse(await createClinicalRuleInDb(orgId, input));
     });
@@ -70,6 +78,18 @@ export async function registerClinicalRoutes(app) {
                 message: "Организация не определена",
             });
         }
+        if (process.env.DENTAL_STATE_PERSISTENCE === "off") {
+            const { updateClinicalRule } = await import("../sampleData.js");
+            try {
+                return clinicalRuleSchema.parse(updateClinicalRule({ ...input, id: params.ruleId }));
+            }
+            catch (e) {
+                return reply.code(404).send({
+                    error: "ClinicalRuleNotFound",
+                    message: "Правило не найдено",
+                });
+            }
+        }
         return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
     });
     app.delete("/api/clinical/rules/:ruleId", async (request, reply) => {
@@ -78,7 +98,23 @@ export async function registerClinicalRoutes(app) {
         const params = request.params;
         const orgId = await resolveOrganizationId(request);
         if (!orgId)
-            return reply.code(403).send({ error: "OrganizationRequired", message: "Организация не определена" });
+            return reply.code(403).send({
+                error: "OrganizationRequired",
+                message: "Организация не определена",
+            });
+        if (process.env.DENTAL_STATE_PERSISTENCE === "off") {
+            const { deleteClinicalRule } = await import("../sampleData.js");
+            try {
+                deleteClinicalRule(params.ruleId);
+                return reply.code(204).send();
+            }
+            catch (e) {
+                return reply.code(404).send({
+                    error: "ClinicalRuleNotFound",
+                    message: "Правило не найдено",
+                });
+            }
+        }
         await deleteClinicalRuleInDb(orgId, params.ruleId);
         return reply.send({ success: true });
     });

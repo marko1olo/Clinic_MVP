@@ -1,4 +1,4 @@
-import { aiRecognitionJobResponseSchema, aiRecognitionJobSchema, createAiRecognitionJobSchema, treatmentPlanPayloadSchema, visitNoteDraftRequestSchema, visitNoteDraftSchema, visitFlowRequestSchema, visitFlowResultSchema, } from "@dental/shared";
+import { aiRecognitionJobResponseSchema, aiRecognitionJobSchema, createAiRecognitionJobSchema, treatmentPlanPayloadSchema, visitFlowRequestSchema, visitFlowResultSchema, visitNoteDraftRequestSchema, visitNoteDraftSchema, } from "@dental/shared";
 import { z } from "zod";
 import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
 import { parseDictationWithLLM } from "../ai/dictationParser.js";
@@ -185,16 +185,17 @@ export async function registerAiRoutes(app) {
                 result?.toothUpdates &&
                 result.toothUpdates.length > 0) {
                 // We link coordinates to the first mentioned tooth, or multiple if needed
-                for (const update of result.toothUpdates) {
-                    await db.insert(imagingAnnotations).values({
-                        organizationId: volumeContext.organizationId,
-                        patientId: volumeContext.patientId,
-                        studyId: volumeContext.studyId,
-                        annotationType: "tooth",
-                        toothCode: update.code,
-                        coordinates: volumeContext.coordinates || null,
-                        notes: result.emkUpdates?.complaint || update.state,
-                    });
+                const values = result.toothUpdates.map((update) => ({
+                    organizationId: volumeContext.organizationId,
+                    patientId: volumeContext.patientId,
+                    studyId: volumeContext.studyId,
+                    annotationType: "tooth",
+                    toothCode: update.code,
+                    coordinates: volumeContext.coordinates || null,
+                    notes: result.emkUpdates?.complaint || update.state,
+                }));
+                if (values.length > 0) {
+                    await db.insert(imagingAnnotations).values(values);
                 }
             }
             return reply.send(result);
@@ -246,29 +247,37 @@ export async function registerAiRoutes(app) {
             const { sql, and, eq, lt } = await import("drizzle-orm");
             const { appointments, patientInvoices, visits, treatmentItems } = await import("../db/schema.js");
             // Run all queries in parallel for speed
-            const [unpaidResult, cancelResult, noShowResult, visitResult, completedResult, openResult] = await Promise.all([
+            const [unpaidResult, cancelResult, noShowResult, visitResult, completedResult, openResult,] = await Promise.all([
                 // 1. Debt factor
-                db.select({ amount: sql `COALESCE(SUM(total_amount_rub::numeric), 0)::int` })
+                db
+                    .select({
+                    amount: sql `COALESCE(SUM(total_amount_rub::numeric), 0)::int`,
+                })
                     .from(patientInvoices)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId} AND status = 'unpaid'`),
                 // 2. Cancellation history
-                db.select({ count: sql `COUNT(*)::int` })
+                db
+                    .select({ count: sql `COUNT(*)::int` })
                     .from(appointments)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId} AND status = 'cancelled'`),
                 // 3. No-show history
-                db.select({ count: sql `COUNT(*)::int` })
+                db
+                    .select({ count: sql `COUNT(*)::int` })
                     .from(appointments)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId} AND status = 'no_show'`),
                 // 4. Total visits (loyalty signal — more visits = more reliable)
-                db.select({ count: sql `COUNT(*)::int` })
+                db
+                    .select({ count: sql `COUNT(*)::int` })
                     .from(visits)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId}`),
                 // 5. Completed treatment items (plan adherence)
-                db.select({ count: sql `COUNT(*)::int` })
+                db
+                    .select({ count: sql `COUNT(*)::int` })
                     .from(treatmentItems)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId} AND status = 'completed'`),
                 // 6. Open (pending) treatment items
-                db.select({ count: sql `COUNT(*)::int` })
+                db
+                    .select({ count: sql `COUNT(*)::int` })
                     .from(treatmentItems)
                     .where(sql `organization_id = ${orgId} AND patient_id = ${patientId} AND status != 'completed' AND status != 'cancelled'`),
             ]);
@@ -279,7 +288,13 @@ export async function registerAiRoutes(app) {
             const completedItems = completedResult[0]?.count || 0;
             const openItems = openResult[0]?.count || 0;
             // Score calculation (0-100)
-            const debtScore = totalDebt > 10000 ? 35 : totalDebt > 5000 ? 20 : totalDebt > 1000 ? 10 : 0;
+            const debtScore = totalDebt > 10000
+                ? 35
+                : totalDebt > 5000
+                    ? 20
+                    : totalDebt > 1000
+                        ? 10
+                        : 0;
             const cancelScore = Math.min(cancels * 12, 30);
             const noShowScore = Math.min(noShows * 20, 40);
             // Loyalty discount: long-term patients are lower risk

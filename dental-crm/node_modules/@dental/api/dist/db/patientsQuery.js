@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { calculatePatientBalanceInDb, calculatePatientsBalancesInDb, } from "./billingQuery.js";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 export async function getPatientByIdFromDb(organizationId, id) {
@@ -20,7 +21,7 @@ export async function getPatientByIdFromDb(organizationId, id) {
         insuranceContractId: p.insuranceContractId,
         insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: await calculatePatientBalanceInDb(organizationId, id),
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
     };
@@ -30,6 +31,7 @@ export async function getPatientsFromDb(organizationId) {
         .select()
         .from(schema.patients)
         .where(eq(schema.patients.organizationId, organizationId));
+    const balances = await calculatePatientsBalancesInDb(organizationId);
     return pts.map((p) => ({
         id: p.id,
         organizationId: p.organizationId,
@@ -42,7 +44,7 @@ export async function getPatientsFromDb(organizationId) {
         insuranceContractId: p.insuranceContractId,
         insurancePolicyNumber: p.insurancePolicyNumber,
         administrativeProfile: p.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: balances.get(p.id) ?? 0,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
     }));
@@ -112,7 +114,7 @@ export async function updatePatientInDb(organizationId, patientId, input) {
         insuranceContractId: updated.insuranceContractId,
         insurancePolicyNumber: updated.insurancePolicyNumber,
         administrativeProfile: updated.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: await calculatePatientBalanceInDb(organizationId, patientId),
         createdAt: updated.createdAt.toISOString(),
         updatedAt: updated.updatedAt.toISOString(),
     };
@@ -142,7 +144,7 @@ export async function updatePatientAdministrativeProfileInDb(organizationId, pat
         insuranceContractId: updated.insuranceContractId,
         insurancePolicyNumber: updated.insurancePolicyNumber,
         administrativeProfile: updated.administrativeProfile,
-        balanceRub: 0,
+        balanceRub: await calculatePatientBalanceInDb(organizationId, patientId),
         createdAt: updated.createdAt.toISOString(),
         updatedAt: updated.updatedAt.toISOString(),
     };

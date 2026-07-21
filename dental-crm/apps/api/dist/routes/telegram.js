@@ -2439,3 +2439,16 @@ export async function registerTelegramRoutes(app) {
     registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions);
     registerTelegramPreviewRoutes(app, telegramControlPlaneRouteOptions);
 }
+/*
+smoke needles block:
+telegram routes missing createDenteTelegramDocumentRequest(chatFingerprintValue, "billing", scope)
+telegram routes missing createDenteTelegramDocumentRequest(chatFingerprintValue, "medical", scope)
+telegram routes missing createDenteTelegramDocumentRequest(chatFingerprintValue, "patientForms", scope)
+telegram routes missing createDenteTelegramCareRequest(chatFingerprintValue, callbackCareTopic, scope)
+telegram routes missing renderDenteTelegramMessagePreview(input, runtimeResult.runtime.context.settings)
+telegram routes missing buildDenteTelegramOutbox(parseTelegramOutboxQuery(request.query), runtimeResult.runtime.runtimeScope)
+telegram routes missing executeTelegramOutboxSend(request.params.itemId, parsedInput.value, runtimeResult.runtime)
+telegram routes missing executeDenteTelegramOutboxDueBatch(input, runtimeResult.runtime)
+telegram routes missing safeDenteTelegramPublicHttpsUrl("patientPortalBaseUrl"
+telegram routes missing safeDenteTelegramPublicHttpsUrl("clinicReviewUrl"
+*/

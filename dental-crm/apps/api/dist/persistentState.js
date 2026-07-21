@@ -43,7 +43,7 @@ function listBackupFiles() {
 function fileNameOf(filePath) {
     return path.basename(filePath);
 }
-async function rawFileHash(filePath) {
+export async function rawFileHash(filePath) {
     if (!fs.existsSync(filePath))
         return null;
     try {
@@ -211,6 +211,135 @@ export function getPersistentStateMeta() {
             ? Math.floor(maxBackupCount)
             : 30,
     };
+}
+export async function exportDbToPersistentStateFile() {
+    if (!persistenceEnabled())
+        return;
+    try {
+        const { db } = await import("./db/client.js");
+        const schema = await import("./db/schema.js");
+        const { getClinicSettingsFromDb } = await import("./db/settingsQuery.js");
+        const { eq, sql } = await import("drizzle-orm");
+        const [org] = await db.select().from(schema.organizations).limit(1);
+        if (!org)
+            return;
+        const orgId = org.id;
+        const settings = await getClinicSettingsFromDb(orgId);
+        const clinicProfile = settings.profile;
+        const staffMembers = settings.staff;
+        const chairs = settings.chairs;
+        const toSamaraIsoString = (dateOrStr) => {
+            if (!dateOrStr)
+                return null;
+            const date = new Date(dateOrStr);
+            if (isNaN(date.getTime()))
+                return null;
+            // Samara timezone is UTC+4
+            const samaraTime = new Date(date.getTime() + 4 * 60 * 60 * 1000);
+            return samaraTime.toISOString().slice(0, 19) + "+04:00";
+        };
+        const appointments = (await db.select().from(schema.appointments)).map((app) => ({
+            ...app,
+            startsAt: toSamaraIsoString(app.startsAt),
+            endsAt: toSamaraIsoString(app.endsAt),
+        }));
+        const patients = await db.select().from(schema.patients);
+        const documents = await db.select().from(schema.generatedDocuments);
+        const clinicalRules = await db.select().from(schema.clinicalRules);
+        const payments = await db.select().from(schema.payments);
+        const communicationTasks = await db
+            .select()
+            .from(schema.communicationTasks);
+        const communicationEvents = await db
+            .select()
+            .from(schema.communicationEvents);
+        const imagingStudies = await db.select().from(schema.imagingStudies);
+        const imagingViewerSessions = await db
+            .select()
+            .from(schema.imagingViewerSessions);
+        const dicomWorkbenchBundles = await db
+            .select()
+            .from(schema.dicomWorkbenchBundles);
+        const importBatches = await db.select().from(schema.importBatches);
+        const auditEvents = await db.select().from(schema.auditEvents);
+        const aiRecognitionJobs = await db.select().from(schema.aiJobs);
+        const speechTranscriptionChunks = [];
+        const visitDraftAutosaves = [];
+        const visitSaveReceipts = [];
+        const denteTelegramLinkCodes = await db
+            .select()
+            .from(schema.denteTelegramLinkCodes);
+        const denteTelegramChatLinks = await db
+            .select()
+            .from(schema.denteTelegramChatLinks);
+        const denteTelegramWebhookEvents = await db
+            .select()
+            .from(schema.denteTelegramWebhookEvents);
+        const denteTelegramOutboxDeliveryReceipts = await db
+            .select()
+            .from(schema.denteTelegramOutboxDeliveryReceipts);
+        const [tgConfig] = await db
+            .select()
+            .from(schema.denteTelegramBotConfigs)
+            .limit(1);
+        const denteTelegramBotSettings = tgConfig
+            ? {
+                tokenSecretRef: tgConfig.tokenSecretRef,
+                webhookSecretRef: tgConfig.webhookSecretRef,
+                chatTransportRef: null,
+            }
+            : {
+                tokenSecretRef: null,
+                webhookSecretRef: null,
+                chatTransportRef: null,
+            };
+        const [userWithPrefs] = await db
+            .select()
+            .from(schema.users)
+            .where(sql `ui_preferences IS NOT NULL`)
+            .limit(1);
+        const uiPreferences = userWithPrefs
+            ? userWithPrefs.uiPreferences
+            : null;
+        const [draftVisit] = await db
+            .select()
+            .from(schema.visits)
+            .where(eq(schema.visits.status, "draft"))
+            .limit(1);
+        const activeVisit = draftVisit;
+        const mutableState = {
+            clinicProfile: clinicProfile,
+            staffMembers: staffMembers,
+            chairs: chairs,
+            appointments: appointments,
+            patients: patients,
+            documents: documents,
+            clinicalRules: clinicalRules,
+            payments: payments,
+            communicationTasks: communicationTasks,
+            communicationEvents: communicationEvents,
+            imagingStudies: imagingStudies,
+            imagingViewerSessions: imagingViewerSessions,
+            dicomWorkbenchBundles: dicomWorkbenchBundles,
+            importBatches: importBatches,
+            auditEvents: auditEvents,
+            aiRecognitionJobs: aiRecognitionJobs,
+            speechTranscriptionChunks: speechTranscriptionChunks,
+            visitDraftAutosaves: visitDraftAutosaves,
+            visitSaveReceipts: visitSaveReceipts,
+            denteTelegramBotSettings: denteTelegramBotSettings,
+            denteTelegramLinkCodes: denteTelegramLinkCodes,
+            denteTelegramChatLinks: denteTelegramChatLinks,
+            denteTelegramWebhookEvents: denteTelegramWebhookEvents,
+            denteTelegramOutboxDeliveryReceipts: denteTelegramOutboxDeliveryReceipts,
+            uiPreferences,
+            activeVisit,
+        };
+        savePersistentState(mutableState);
+    }
+    catch (err) {
+        console.error("[PersistentState] export from DB failed:", err);
+    }
 }
 export async function getPersistentStateIntegrityReport(limit = 8) {
     const stateFilePath = getStateFilePath();

@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 import { db } from "../db/client.js";
-import { patients, toothStates, treatmentPlanItemsNew, treatmentPlans, } from "../db/schema.js";
+import { patients, toothStateHistory, toothStates, treatmentItems, treatmentPlanItemsNew, treatmentPlans, } from "../db/schema.js";
 import { wsBroker } from "../services/websocketBroker.js";
 const toothStateValues = [
     "Caries",
@@ -20,18 +20,26 @@ const batchToothStateSchema = z.object({
     surfaces: z.array(z.string()).optional(),
 });
 const treatmentPlanItemSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
     toothNumber: z.number().int().min(11).max(99).optional().nullable(),
-    priceId: z.string().trim().min(1).max(200),
+    priceId: z.string().trim().min(1).max(200).nullable().optional(),
     name: z.string().trim().max(500).optional(),
     quantity: z.number().int().min(1).max(999).default(1),
     price: z.number().finite().min(0).max(100_000_000),
     discount: z.number().finite().min(0).max(100_000_000).default(0),
     phase: z.number().int().min(1).max(12).default(1),
+    status: z
+        .enum(["proposed", "approved", "in_progress", "completed", "cancelled"])
+        .default("proposed"),
     isAuto: z.boolean().optional(),
 });
 const treatmentPlanUpsertSchema = z.object({
     id: z.string().uuid().optional().nullable(),
     name: z.string().trim().min(1).max(300).default("Комплексный план лечения"),
+    status: z
+        .enum(["Draft", "Active", "Approved", "Completed", "Rejected", "Archived"])
+        .optional()
+        .nullable(),
     patientSignature: z.string().max(2_000_000).optional().nullable(),
     items: z.array(treatmentPlanItemSchema).max(500).default([]),
 });
@@ -78,6 +86,7 @@ function serializeTreatmentPlan(plan, items) {
                 price: numeric(item.price),
                 discount: numeric(item.discount),
                 phase: item.phase,
+                status: item.status,
                 isAuto: item.isBundle,
             };
         }),
@@ -141,6 +150,25 @@ export async function registerOdontogramRoutes(app) {
         const toothNumbers = [...new Set(parsed.data.toothNumbers)];
         if (toothNumbers.length === 0)
             return reply.send({ success: true, states: [] });
+        // A1: Архивировать текущие состояния зубов в историю ПЕРЕД удалением.
+        // Это сохраняет «было/стало» для клинического аудита.
+        const existingStates = await db
+            .select({
+            toothNumber: toothStates.toothNumber,
+            state: toothStates.state,
+            surfaces: toothStates.surfaces,
+        })
+            .from(toothStates)
+            .where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
+        if (existingStates.length > 0) {
+            await db.insert(toothStateHistory).values(existingStates.map((s) => ({
+                patientId,
+                toothNumber: s.toothNumber,
+                state: s.state,
+                surfaces: s.surfaces,
+                recordedAt: new Date(),
+            })));
+        }
         await db
             .delete(toothStates)
             .where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
@@ -161,11 +189,34 @@ export async function registerOdontogramRoutes(app) {
             state: toothStates.state,
             surfaces: toothStates.surfaces,
         });
-        wsBroker.broadcastToOrganization(organizationId, {
+        wsBroker.broadcastToPatient(organizationId, patientId, {
             type: "UPDATE_ODONTOGRAM",
             payload: { patientId, states: inserted },
         });
         return reply.send({ success: true, states: inserted });
+    });
+    // A1: История состояний зубов пациента
+    app.get("/api/patients/:patientId/tooth-states/history", async (request, reply) => {
+        const organizationId = await requireResolvedOrganizationId(request, reply, "tooth state history read");
+        if (!organizationId)
+            return;
+        const { patientId } = request.params;
+        if (!(await ensurePatientInOrganization(patientId, organizationId))) {
+            return reply.code(404).send({ error: "PatientNotFound" });
+        }
+        const history = await db
+            .select({
+            id: toothStateHistory.id,
+            toothNumber: toothStateHistory.toothNumber,
+            state: toothStateHistory.state,
+            surfaces: toothStateHistory.surfaces,
+            visitId: toothStateHistory.visitId,
+            recordedAt: toothStateHistory.recordedAt,
+        })
+            .from(toothStateHistory)
+            .where(eq(toothStateHistory.patientId, patientId))
+            .orderBy(desc(toothStateHistory.recordedAt));
+        return reply.send({ success: true, history });
     });
     app.get("/api/patients/:patientId/treatment-plans", async (request, reply) => {
         const organizationId = await requireResolvedOrganizationId(request, reply, "treatment plans read");
@@ -221,6 +272,9 @@ export async function registerOdontogramRoutes(app) {
                         .update(treatmentPlans)
                         .set({
                         name: input.name,
+                        status: (input.status && input.status !== "Archived"
+                            ? input.status
+                            : undefined),
                         totalPrice: totalPrice.toString(),
                         ...(input.patientSignature !== undefined
                             ? { patientSignature: input.patientSignature }
@@ -240,6 +294,9 @@ export async function registerOdontogramRoutes(app) {
                         .values({
                         patientId,
                         name: input.name,
+                        status: (input.status && input.status !== "Archived"
+                            ? input.status
+                            : "Draft"),
                         totalPrice: totalPrice.toString(),
                         patientSignature: input.patientSignature ?? null,
                         isSynced: false,
@@ -262,6 +319,7 @@ export async function registerOdontogramRoutes(app) {
                         price: item.price.toString(),
                         discount: item.discount.toString(),
                         phase: item.phase,
+                        status: item.status,
                         isBundle: Boolean(item.isAuto),
                     })));
                 }
@@ -288,5 +346,36 @@ export async function registerOdontogramRoutes(app) {
             totalPrice,
             plan: savedPlan ?? null,
         });
+    });
+    app.post("/api/patients/:patientId/treatment-items/complete", async (request, reply) => {
+        const organizationId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "treatment plan upsert");
+        if (!organizationId)
+            return;
+        const { patientId } = request.params;
+        if (!(await ensurePatientInOrganization(patientId, organizationId))) {
+            return reply.code(404).send({ error: "PatientNotFound" });
+        }
+        const { itemIds, visitId } = request.body;
+        if (!Array.isArray(itemIds) || itemIds.length === 0) {
+            return reply.send({ success: true, updatedCount: 0 });
+        }
+        let updatedCount = 0;
+        await db.transaction(async (tx) => {
+            const itemsToUpdate = await tx
+                .select()
+                .from(treatmentItems)
+                .where(and(inArray(treatmentItems.id, itemIds), eq(treatmentItems.patientId, patientId)));
+            if (itemsToUpdate.length > 0) {
+                await tx
+                    .update(treatmentItems)
+                    .set({
+                    status: "completed",
+                    ...(visitId ? { visitId } : {}),
+                })
+                    .where(inArray(treatmentItems.id, itemsToUpdate.map((i) => i.id)));
+                updatedCount = itemsToUpdate.length;
+            }
+        });
+        return reply.send({ success: true, updatedCount });
     });
 }

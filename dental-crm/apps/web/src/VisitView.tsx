@@ -12,7 +12,6 @@ import {
 	Sparkles,
 } from "lucide-react";
 import React, { Suspense, useEffect, useState } from "react";
-import { usePatientStore } from "./store/patientStore";
 import { createPortal } from "react-dom";
 import { ClinicalRulePanel } from "./ClinicalRulePanel";
 import { showToast } from "./components/GlobalToast";
@@ -22,15 +21,10 @@ import { LabOrdersPanel } from "./components/schedule/LabOrdersPanel";
 import { CompletedServicesChecklist } from "./components/visit/CompletedServicesChecklist";
 import { GnathologyForm } from "./components/visit/GnathologyForm";
 import { SignCardDialog } from "./components/visit/SignCardDialog";
-import { VisitDictation } from "./components/visit/VisitDictation";
-import { VisitEmkTab } from "./components/visit/VisitEmkTab";
 import { VisitDiagnosticsTab } from "./components/visit/VisitDiagnosticsTab";
+import { VisitDictation } from "./components/visit/VisitDictation";
 import { VisitFlowProgress } from "./components/visit/VisitFlowProgress";
-import { CheckoutDrawer } from "./components/finance/CheckoutDrawer";
-import { PaymentCapture } from "./PaymentCapture";
-import { formatCurrencyNumeric } from "./utils/inputSanitation";
 import { VisitHeader } from "./components/visit/VisitHeader";
-import { VisitDocsOverlay } from "./components/visit/VisitDocsOverlay";
 import { VisitOdontogramTab } from "./components/visit/VisitOdontogramTab";
 import { VisitPrimaryActions } from "./components/visit/VisitPrimaryActions";
 import { VisitSafetyStrip } from "./components/visit/VisitSafetyStrip";
@@ -46,12 +40,10 @@ import { useVisitStore } from "./store/visitStore";
 import { getToothConfig, getToothPath } from "./utils/toothGeometry";
 import "./styles/VisitView.css";
 import { VisitToothMap } from "./components/visit/VisitToothMap";
+import { VisitEmkTab } from "./components/visit/VisitEmkTab";
 import { VisitToothContextMenu } from "./components/visit/VisitToothContextMenu";
-import { VisitTabNavigation, VisitTabType } from "./components/visit/VisitTabNavigation";
-import { VisitConclusionTab } from "./components/visit/VisitConclusionTab";
 
 export function VisitView() {
-	const anamnesisDraft = usePatientStore((s) => s.anamnesisDraft);
 	const workspaceFlags = useWorkspaceProfile();
 	const {
 		acceptDraftToVisit,
@@ -97,49 +89,6 @@ export function VisitView() {
 		openVisitWarningAction,
 		pendingSpeechChunkCount,
 		pendingSpeechFlushActionLabel,
-
-		// Finance variables
-		isPaymentSaving,
-		createDocument: onCreateDocument,
-		recordPayment: onRecordPayment,
-		paymentAmount,
-		paymentFeedback,
-		paymentFiscalCashierName,
-		paymentFiscalFd,
-		paymentFiscalFn,
-		paymentFiscalFpd,
-		paymentFiscalReceiptIssuedAt,
-		paymentFiscalReceiptNumber,
-		paymentFiscalReceiptUrl,
-		paymentMethod,
-		paymentMethodLabels,
-		paymentPatientContextMessage,
-		paymentPatientContextReady,
-		paymentPayerBirthDate,
-		paymentPayerFullName,
-		paymentPayerIdentityDocument,
-		paymentPayerInn,
-		paymentPayerRelationship,
-		paymentTaxDeductionCode,
-		setPaymentAmount,
-		setPaymentFiscalCashierName,
-		setPaymentFiscalFd,
-		setPaymentFiscalFn,
-		setPaymentFiscalFpd,
-		setPaymentFiscalReceiptIssuedAt,
-		setPaymentFiscalReceiptNumber,
-		setPaymentFiscalReceiptUrl,
-		setPaymentMethod,
-		setPaymentPayerBirthDate,
-		setPaymentPayerFullName,
-		setPaymentPayerIdentityDocument,
-		setPaymentPayerInn,
-		setPaymentPayerRelationship,
-		setPaymentTaxDeductionCode,
-		patientBillingSummary: billingSummary,
-		documentPatient,
-		activeVisitCompletedAmountRub,
-
 		pendingSpeechFlushActionTitle,
 		pendingVisitSaveCount,
 		polishTranscript,
@@ -194,22 +143,17 @@ export function VisitView() {
 		visitSaveReceiptText,
 		visitWarnings,
 		visitWorkflowSteps,
-		addTreatmentPlanItem,
-		removeTreatmentPlanItem,
-		auth,
-		loadDashboard,
 	} = useAppLogicContext();
 
-	const [activeVisitTab, setActiveVisitTab] = useState<VisitTabType>("diary");
+	const [activeVisitTab, setActiveVisitTab] = useState<
+		"diary" | "odontogram" | "diagnostics" | "conclusion"
+	>("diary");
 	const [activeEmkTab, setActiveEmkTab] = useState("all");
 	const [showHints, setShowHints] = useState(false);
 	const [showSmartPreview, setShowSmartPreview] = useState(false);
 	const [smartParsedData, setSmartParsedData] = useState<any>(null);
 	const [isSignDialogOpen, setIsSignDialogOpen] = useState(false);
 	const [isSigned, setIsSigned] = useState(false);
-	
-	const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-	const [isDocsOpen, setIsDocsOpen] = useState(false);
 
 	// ZTL (Зуботехническая Лаборатория) Form State
 	const [ztlLab, setZtlLab] = useState("");
@@ -220,18 +164,7 @@ export function VisitView() {
 	const [ztlComment, setZtlComment] = useState("");
 
 	useEffect(() => {
-		const handleOpenPayment = () => {
-			if (activeVisitCompletedAmountRub > 0) {
-				setPaymentAmount(formatCurrencyNumeric(String(activeVisitCompletedAmountRub)));
-			}
-			setIsPaymentOpen(true);
-		};
-		const handleOpenDocs = () => setIsDocsOpen(true);
-		window.addEventListener("open-visit-payment", handleOpenPayment);
-		window.addEventListener("open-visit-docs", handleOpenDocs);
 		return () => {
-			window.removeEventListener("open-visit-payment", handleOpenPayment);
-			window.removeEventListener("open-visit-docs", handleOpenDocs);
 			// Memory Optimization: Flush heavy visit states on unmount
 			useVisitStore.getState().reset();
 		};
@@ -273,77 +206,13 @@ export function VisitView() {
 		setSelectedToothForMenu(null);
 	};
 
-	const handleApplyMaterial = async (materialLabel: string, textTemplate: string, service?: any) => {
+	const handleApplyMaterial = (materialLabel: string, textTemplate: string) => {
 		if (!selectedToothForMenu) return;
-
-		// ── ALLERGY CHECK (Safety) ──
-		const allergies = anamnesisDraft?.allergies || [];
-		const isAllergic = allergies.some(
-			(a) =>
-				materialLabel.toLowerCase().includes(a.toLowerCase()) ||
-				(service?.title && service.title.toLowerCase().includes(a.toLowerCase()))
-		);
-
-		if (isAllergic) {
-			const proceed = window.confirm(
-				`⚠️ ВНИМАНИЕ: БЕЗОПАСНОСТЬ ПАЦИЕНТА!\n\nУ пациента зафиксирована аллергия, которая может пересекаться с назначаемым препаратом/материалом (${materialLabel}).\n\nИзвестные аллергии: ${allergies.join(", ")}\n\nВы УВЕРЕНЫ, что хотите назначить это?`
-			);
-			if (!proceed) return;
-		}
-
 		setToothState(selectedToothForMenu.code, "planned" as any);
 		appendToEMKField(
 			"treatmentPlan",
 			`Зуб ${selectedToothForMenu.code}: ${textTemplate} — ${materialLabel}`,
 		);
-		if (service) {
-			const newItem = {
-				id: crypto.randomUUID(),
-				patientId: activePatient.id,
-				visitId: dashboard?.activeVisit?.id || "draft",
-				serviceId: service.id,
-				snapshotServiceName: service.title,
-				toothCode: selectedToothForMenu.code,
-				quantity: 1,
-				unitPriceRub: service.basePriceRub || 0,
-				discountRub: 0,
-				status: "planned",
-				priceRub: service.basePriceRub || 0,
-			};
-			addTreatmentPlanItem(newItem);
-			
-			// Robust save to backend
-			try {
-				const res = await fetch(`/api/patients/${activePatient.id}/treatment-plans`, {
-					method: "POST",
-					headers: auth.denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
-					body: JSON.stringify({
-						name: `Лечение зуба ${selectedToothForMenu.code}`,
-						items: [{
-							toothNumber: parseInt(selectedToothForMenu.code, 10),
-							priceId: service.id,
-							name: service.title,
-							price: service.basePriceRub || 0,
-							quantity: 1,
-							discount: 0
-						}]
-					})
-				});
-				if (res.ok) {
-					const data = await res.json();
-					// The backend returns an array of inserted items, or the plan itself.
-					// Let's assume it returns { success: true, planId: ... }
-					// For robust synchronization, we can just reload the dashboard.
-					void loadDashboard();
-				} else {
-					throw new Error("Failed to save treatment plan");
-				}
-			} catch (err) {
-				removeTreatmentPlanItem(newItem.id);
-				showToast("Не удалось сохранить назначение, повторите", "error");
-				console.error("Failed to save treatment plan:", err);
-			}
-		}
 		setSelectedToothForMenu(null);
 	};
 
@@ -438,7 +307,61 @@ export function VisitView() {
 					{workspaceFlags.hasEngineeringStatus && <VisitSafetyStrip />}
 				</div>
 
-				<VisitTabNavigation activeTab={activeVisitTab} onTabChange={setActiveVisitTab} />
+				<div
+					className="visit-tabs-navigation"
+					style={{
+						display: "flex",
+						gap: "8px",
+						borderBottom: "1px solid var(--glass-border)",
+						marginBottom: "24px",
+						padding: "0 24px",
+						position: "relative",
+					}}
+				>
+					{[
+						{ id: "diary", label: "Осмотр" },
+						{ id: "odontogram", label: "Зубная формула и Дневник" },
+						{ id: "diagnostics", label: "Снимки и Анализы" },
+						{ id: "conclusion", label: "Заключение" },
+					].map((tab) => (
+						<button
+							key={tab.id}
+							type="button"
+							className={`nav-item ${activeVisitTab === tab.id ? "active" : ""}`}
+							onClick={() => setActiveVisitTab(tab.id as any)}
+							style={{
+								padding: "12px 20px",
+								background: "transparent",
+								border: "none",
+								cursor: "pointer",
+								fontWeight: activeVisitTab === tab.id ? 700 : 500,
+								color:
+									activeVisitTab === tab.id
+										? "var(--text-primary)"
+										: "var(--text-secondary)",
+								position: "relative",
+								transition: "color 0.2s",
+							}}
+						>
+							{tab.label}
+							{activeVisitTab === tab.id && (
+								<motion.div
+									layoutId="visit-tab-indicator"
+									style={{
+										position: "absolute",
+										bottom: -1,
+										left: 0,
+										right: 0,
+										height: 3,
+										background: "var(--teal)",
+										borderRadius: "3px 3px 0 0",
+										boxShadow: "0 0 10px rgba(13, 148, 136, 0.5)",
+									}}
+								/>
+							)}
+						</button>
+					))}
+				</div>
 
 				<div style={{ display: activeVisitTab === "diary" ? "block" : "none" }}>
 					<VisitSpecialtyFocus />
@@ -474,34 +397,204 @@ export function VisitView() {
 					<VisitDiagnosticsTab />
 				</div>
 
-				{activeVisitTab === "conclusion" && (
-					<VisitConclusionTab
-						isSignDialogOpen={isSignDialogOpen}
-						setIsSignDialogOpen={setIsSignDialogOpen}
-						isSigned={isSigned}
-						workspaceFlags={workspaceFlags}
-						dashboard={dashboard}
-						activePatient={activePatient}
-						selectedProtocolTemplate={selectedProtocolTemplate}
-						specialtyLabels={specialtyLabels}
-						specialtiesWithTemplates={specialtiesWithTemplates}
-						selectedSpecialty={selectedSpecialty}
-						setSelectedSpecialty={setSelectedSpecialty}
-						setSelectedProtocolId={setSelectedProtocolId}
-						imagingKindLabels={imagingKindLabels}
-						specialtyProtocolTemplates={specialtyProtocolTemplates}
-						applyProtocolTemplate={applyProtocolTemplate}
-						activeVisitClinicalRuleEvaluations={activeVisitClinicalRuleEvaluations}
-						clinicalRuleActionLabels={clinicalRuleActionLabels}
-						serviceTitle={serviceTitle}
-						clinicalRuleSeverityLabels={clinicalRuleSeverityLabels}
-						staffRoleLabels={staffRoleLabels}
-						activeVisitClinicalRuleSummary={activeVisitClinicalRuleSummary}
-						visitCloseChecklist={visitCloseChecklist}
-						primaryVisitWarning={primaryVisitWarning}
-						setActiveVisitTab={setActiveVisitTab}
+				<details
+					className="protocol-library"
+					aria-label="Шаблоны приема по специальности"
+				>
+					<summary className="protocol-summary">
+						<div>
+							<h3>Шаблон приема</h3>
+							<p>
+								{selectedProtocolTemplate?.title ??
+									"Выберите специальность и шаблон"}
+							</p>
+						</div>
+						<span>
+							{selectedProtocolTemplate
+								? specialtyLabels[selectedProtocolTemplate.specialty]
+								: dashboard.protocolTemplates.length}
+						</span>
+					</summary>
+					<div className="protocol-head">
+						<div>
+							<h3>Шаблон приема</h3>
+							<p>
+								Выбор специальности меняет протокол, снимки, документы и
+								предупреждения.
+							</p>
+						</div>
+						<span>{dashboard.protocolTemplates.length}</span>
+					</div>
+					<div className="specialty-strip">
+						{specialtiesWithTemplates.map((specialty) => (
+							<button
+								className={selectedSpecialty === specialty ? "active" : ""}
+								key={specialty}
+								type="button"
+								aria-pressed={selectedSpecialty === specialty}
+								onClick={() => {
+									setSelectedSpecialty(specialty);
+									setSelectedProtocolId(null);
+								}}
+							>
+								{specialtyLabels[specialty]}
+							</button>
+						))}
+					</div>
+					{selectedProtocolTemplate ? (
+						<article className="protocol-card">
+							<div>
+								<strong>{selectedProtocolTemplate.title}</strong>
+								<p>
+									{selectedProtocolTemplate.defaultDurationMinutes} мин · снимки{" "}
+									{selectedProtocolTemplate.suggestedImaging
+										.map((kind) => imagingKindLabels[kind])
+										.join(", ")}
+								</p>
+							</div>
+							<div className="protocol-template-list">
+								{specialtyProtocolTemplates.map((template) => (
+									<button
+										className={
+											selectedProtocolTemplate.id === template.id
+												? "active"
+												: ""
+										}
+										key={template.id}
+										type="button"
+										aria-pressed={selectedProtocolTemplate.id === template.id}
+										onClick={() => setSelectedProtocolId(template.id)}
+									>
+										{template.visitReason}
+									</button>
+								))}
+							</div>
+							<ul>
+								{selectedProtocolTemplate.safetyWarnings.map((warning) => (
+									<li key={warning}>{warning}</li>
+								))}
+							</ul>
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => applyProtocolTemplate(selectedProtocolTemplate)}
+							>
+								<ClipboardCheck aria-hidden="true" /> Заполнить диктовку
+							</button>
+						</article>
+					) : null}
+				</details>
+
+				{workspaceFlags.hasClinicalRules && (
+					<details className="clinical-rules-toggle">
+						<summary>
+							📋 Клинические рекомендации
+							{activeVisitClinicalRuleEvaluations?.length
+								? ` (${activeVisitClinicalRuleEvaluations.length})`
+								: ""}
+						</summary>
+						<div style={{ marginTop: "1rem" }}>
+							<ClinicalRulePanel
+								actionLabels={clinicalRuleActionLabels}
+								context="visit"
+								// evaluations={activeVisitClinicalRuleEvaluations}
+								evaluations={
+									dashboard?.clinicSettings?.profile?.mode === "solo_doctor"
+										? activeVisitClinicalRuleEvaluations.filter(
+												(e: any) => e.ownerRole !== "assistant",
+											)
+										: activeVisitClinicalRuleEvaluations
+								}
+								serviceTitle={serviceTitle}
+								severityLabels={clinicalRuleSeverityLabels}
+								staffRoleLabels={staffRoleLabels}
+								summary={activeVisitClinicalRuleSummary}
+							/>
+						</div>
+					</details>
+				)}
+
+				{activePatient?.id && workspaceFlags.hasDentalLab && (
+					<LabOrdersPanel patientId={activePatient.id} />
+				)}
+
+				{workspaceFlags.hasGnathology && (
+					<GnathologyForm
+						visitId={dashboard?.activeVisit?.id ?? null}
+						patientId={activePatient?.id ?? null}
 					/>
 				)}
+
+				{visitCloseChecklist ? (
+					<div
+						className="close-checklist"
+						aria-label="Предупреждения перед закрытием приема"
+					>
+						<div className="close-checklist-head">
+							<div>
+								<h3>Закрытие приема</h3>
+								<p>
+									{primaryVisitWarning?.actionLabel ??
+										visitCloseChecklist.nextAction}
+								</p>
+							</div>
+							<span className={visitCloseChecklist.readyToSign ? "ready" : ""}>
+								{visitCloseChecklist.readyToSign
+									? "готово"
+									: `${visitCloseChecklist.score}%`}
+							</span>
+						</div>
+						{visitCloseChecklist.items
+							.filter((task: any) =>
+								dashboard?.clinicSettings?.profile?.mode === "solo_doctor"
+									? task.ownerRole !== "assistant"
+									: true,
+							)
+							.map((task: any) => (
+								<button
+									className={`close-task ${task.ready ? "done" : ""} ${task.blocking && !task.ready ? "blocking" : ""}`}
+									key={task.id}
+									type="button"
+									onClick={() => {
+										const section = task.section.replace("#", "");
+										if (
+											[
+												"diary",
+												"odontogram",
+												"diagnostics",
+												"conclusion",
+											].includes(section)
+										) {
+											setActiveVisitTab(section as any);
+										} else if (
+											section === "dictation" ||
+											section === "emk" ||
+											section === "smart-preview"
+										) {
+											setActiveVisitTab("diary");
+										}
+										setTimeout(() => {
+											const el = document.getElementById(section);
+											if (el)
+												el.scrollIntoView({
+													behavior: "smooth",
+													block: "start",
+												});
+										}, 50);
+									}}
+								>
+									<CheckCircle2 aria-hidden="true" />
+									<div>
+										<strong>{task.title}</strong>
+										<p>{task.detail}</p>
+										<small>
+											{staffRoleLabels[task.ownerRole]} · {task.actionLabel}
+										</small>
+									</div>
+								</button>
+							))}
+					</div>
+				) : null}
 			</motion.div>
 
 			{/* ═══════════════════════════════════════════════════════════════
@@ -528,66 +621,6 @@ export function VisitView() {
 					showToast("Прием подписан", "success");
 				}}
 			/>
-			<CheckoutDrawer isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)}>
-				<PaymentCapture
-					remainingDebt={billingSummary?.totalDueRub}
-					visitTotalDue={activeVisitCompletedAmountRub}
-					amount={paymentAmount}
-					feedback={paymentFeedback}
-					fiscalCashierName={paymentFiscalCashierName}
-					fiscalFd={paymentFiscalFd}
-					fiscalFn={paymentFiscalFn}
-					fiscalFpd={paymentFiscalFpd}
-					fiscalReceiptIssuedAt={paymentFiscalReceiptIssuedAt}
-					fiscalReceiptNumber={paymentFiscalReceiptNumber}
-					fiscalReceiptUrl={paymentFiscalReceiptUrl}
-					isSaving={isPaymentSaving}
-					method={paymentMethod}
-					methodLabels={paymentMethodLabels}
-					onAmountChange={(v) => setPaymentAmount(formatCurrencyNumeric(v))}
-					onFiscalCashierNameChange={setPaymentFiscalCashierName}
-					onFiscalFdChange={setPaymentFiscalFd}
-					onFiscalFnChange={setPaymentFiscalFn}
-					onFiscalFpdChange={setPaymentFiscalFpd}
-					onFiscalReceiptIssuedAtChange={setPaymentFiscalReceiptIssuedAt}
-					onFiscalReceiptNumberChange={setPaymentFiscalReceiptNumber}
-					onFiscalReceiptUrlChange={setPaymentFiscalReceiptUrl}
-					onMethodChange={setPaymentMethod}
-					onPayerBirthDateChange={setPaymentPayerBirthDate}
-					onPayerFullNameChange={setPaymentPayerFullName}
-					onPayerIdentityDocumentChange={setPaymentPayerIdentityDocument}
-					onPayerInnChange={setPaymentPayerInn}
-					onPayerRelationshipChange={setPaymentPayerRelationship}
-					onSubmit={() => {
-						onRecordPayment();
-						// Delay closing to show success visual feedback inside PaymentCapture
-						setTimeout(() => setIsPaymentOpen(false), 800);
-					}}
-					onTaxDeductionCodeChange={setPaymentTaxDeductionCode}
-					patientContextMessage={paymentPatientContextMessage}
-					patientContextReady={paymentPatientContextReady}
-					patientId={documentPatient?.id}
-					patientDefaults={{
-						birthDate: documentPatient?.birthDate ?? null,
-						fullName: documentPatient?.fullName ?? null,
-						identityDocument: documentPatient?.administrativeProfile?.identityDocument ?? null,
-						taxpayerInn: documentPatient?.administrativeProfile?.taxpayerInn ?? null,
-					}}
-					payerBirthDate={paymentPayerBirthDate}
-					payerFullName={paymentPayerFullName}
-					payerIdentityDocument={paymentPayerIdentityDocument}
-					payerInn={paymentPayerInn}
-					payerRelationship={paymentPayerRelationship}
-					taxDeductionCode={paymentTaxDeductionCode}
-				/>
-			</CheckoutDrawer>
-			{isDocsOpen && onCreateDocument && (
-				<VisitDocsOverlay 
-					onClose={() => setIsDocsOpen(false)}
-					patientName={activePatient.fullName}
-					createDocument={onCreateDocument}
-				/>
-			)}
 		</>
 	);
 }

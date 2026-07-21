@@ -3,8 +3,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import net from "node:net";
 import nodePath from "node:path";
-import { fileURLToPath } from "node:url";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import cors from "@fastify/cors";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyWebsocket from "@fastify/websocket";
@@ -33,10 +32,10 @@ import { registerInsuranceRoutes } from "./routes/insurance.js";
 import { inventoryRoutes } from "./routes/inventory.js";
 import { registerLabRoutes } from "./routes/lab.js";
 import { registerLeadsRoutes } from "./routes/leads.js";
-import { registerWaitlistRoutes } from "./routes/waitlist.js";
 import { registerMaxRoutes } from "./routes/max.js";
 import { registerOdontogramRoutes } from "./routes/odontogram.js";
 import { registerPatientRoutes } from "./routes/patients.js";
+import { payrollRoutes } from "./routes/payroll.js";
 import { portalRoutes } from "./routes/portal.js";
 import { registerPricelistRoutes } from "./routes/pricelist.js";
 import { registerPublicBookingRoutes } from "./routes/publicBooking.js";
@@ -52,11 +51,13 @@ import registerTemplateRoutes from "./routes/templates.js";
 import registerToothHistoryRoutes from "./routes/toothHistory.js";
 import { registerVisitRoutes } from "./routes/visits.js";
 import { registerVkRoutes } from "./routes/vk.js";
+import { registerWaitlistRoutes } from "./routes/waitlist.js";
 import { registerWhatsappRoutes } from "./routes/whatsapp.js";
 import { workspaceProfileRoutes } from "./routes/workspaceProfile.js";
 import { registerXrayRoutes } from "./routes/xray.js";
 import { startBackupDaemon, stopBackupDaemon, } from "./services/backupWorker.js";
 import { startBiAnalyticsWorker } from "./services/biAnalyticsWorker.js";
+import { startNotificationWorker } from "./services/notificationWorker.js";
 import { startSyncEngine, stopSyncEngine } from "./services/syncEngine.js";
 import { wsBroker } from "./services/websocketBroker.js";
 import { getProxyAgent } from "./speech/keyPool.js";
@@ -65,7 +66,7 @@ import { repairMojibakeText } from "./text/repairMojibake.js";
 import { startWatchdog } from "./watchdog.js";
 loadAdditionalServerEnv();
 startWatchdog();
-// startNotificationWorker();
+startNotificationWorker(); // БЛОК B: обработчик очереди outgoing_notifications (10s interval)
 /**
  * Runs all .sql files in src/db/migrations/ at server startup.
  * Uses IF NOT EXISTS guards so it's idempotent on existing databases.
@@ -238,6 +239,7 @@ export async function createDenteApiApp(options = {}) {
         wsBroker.addClient(connection, orgId, patientId);
     });
     app.setErrorHandler((error, _request, reply) => {
+        console.error("API SERVER ERROR:", error?.stack || error?.message || String(error));
         const logPath = process.env.ERROR_LOG_PATH;
         if (logPath) {
             import("node:fs").then((m) => m.appendFileSync(logPath, (error?.stack || error?.message || String(error)) +
@@ -284,6 +286,7 @@ export async function createDenteApiApp(options = {}) {
     await app.register(telephonyRoutes, { prefix: "/api/telephony" });
     await app.register(portalRoutes, { prefix: "/api/portal" });
     await app.register(inventoryRoutes, { prefix: "/api/inventory" });
+    await app.register(payrollRoutes, { prefix: "/api/payroll" });
     await registerInsuranceRoutes(app);
     await registerClinicalRoutes(app);
     await registerCommunicationRoutes(app);
@@ -326,7 +329,6 @@ export async function createDenteApiApp(options = {}) {
     await registerFilesRoutes(app);
     await workspaceProfileRoutes(app);
     if (options.startTelegramWorker !== false) {
-        // const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
         startBiAnalyticsWorker();
         startSyncEngine(db.$client); // assuming db exposes pglite
         startBackupDaemon();
@@ -339,6 +341,13 @@ export async function createDenteApiApp(options = {}) {
             clearInterval(recallWorkerTimer);
             stopSyncEngine();
             stopBackupDaemon();
+            try {
+                const { exportDbToPersistentStateFile } = await import("./persistentState.js");
+                await exportDbToPersistentStateFile();
+            }
+            catch (e) {
+                console.error("Failed to export state file on close:", e);
+            }
         });
     }
     return app;

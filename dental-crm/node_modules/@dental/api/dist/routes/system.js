@@ -504,7 +504,9 @@ function buildCbctMprPlan(readiness) {
             planStep(1, "Сначала разобрать список серии", "system", "metadata_preview", true, false, "Предпросмотр папки, архива или списка снимков читает заголовки и группирует исследования/серии до открытия тяжелых данных."),
             planStep(2, dicom
                 ? "Использовать локальный КТ-обработчик"
-                : ohif ? "Открыть внешний просмотр" : "Остаться в режиме метаданных", "system", primaryPath, true, false, dicom
+                : ohif
+                    ? "Открыть внешний просмотр"
+                    : "Остаться в режиме метаданных", "system", primaryPath, true, false, dicom
                 ? "Локальный обработчик может взять на себя подготовку серии, быструю загрузку КТ-срезов и панорамную реконструкцию вне обычной оболочки CRM."
                 : ohif
                     ? "CRM передает план запуска и состояние инструментов; исходные снимки остаются у просмотрщика."
@@ -749,10 +751,13 @@ export async function registerSystemRoutes(app) {
         if (lowerName.includes("infodent") || lowerText.includes("infodent")) {
             detectedKind = "Infodent";
         }
-        else if (lowerName.includes("dent4windows") || lowerName.includes("d4w") || lowerText.includes("dental4windows")) {
+        else if (lowerName.includes("dent4windows") ||
+            lowerName.includes("d4w") ||
+            lowerText.includes("dental4windows")) {
             detectedKind = "Dental4Windows";
         }
-        else if (lowerName.includes("cliniccards") || lowerText.includes("cliniccards")) {
+        else if (lowerName.includes("cliniccards") ||
+            lowerText.includes("cliniccards")) {
             detectedKind = "ClinicCards";
         }
         else if (lowerName.includes("stomx") || lowerText.includes("stomx")) {
@@ -760,7 +765,10 @@ export async function registerSystemRoutes(app) {
         }
         const parsedPatients = [];
         if (fileText.trim()) {
-            const lines = fileText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            const lines = fileText
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean);
             if (lines.length > 0) {
                 const firstLine = lines[0];
                 if (firstLine) {
@@ -769,15 +777,26 @@ export async function registerSystemRoutes(app) {
                         separator = ",";
                     else if (firstLine.includes("\t"))
                         separator = "\t";
-                    const headers = firstLine.split(separator).map(h => h.trim().toLowerCase());
-                    const nameIdx = headers.findIndex(h => h.includes("фио") || h.includes("пациент") || h.includes("name") || h.includes("fio"));
-                    const phoneIdx = headers.findIndex(h => h.includes("телефон") || h.includes("phone") || h.includes("tel") || h.includes("номер"));
-                    const birthIdx = headers.findIndex(h => h.includes("рождени") || h.includes("birth") || h.includes("dob") || h.includes("дата"));
+                    const headers = firstLine
+                        .split(separator)
+                        .map((h) => h.trim().toLowerCase());
+                    const nameIdx = headers.findIndex((h) => h.includes("фио") ||
+                        h.includes("пациент") ||
+                        h.includes("name") ||
+                        h.includes("fio"));
+                    const phoneIdx = headers.findIndex((h) => h.includes("телефон") ||
+                        h.includes("phone") ||
+                        h.includes("tel") ||
+                        h.includes("номер"));
+                    const birthIdx = headers.findIndex((h) => h.includes("рождени") ||
+                        h.includes("birth") ||
+                        h.includes("dob") ||
+                        h.includes("дата"));
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i];
                         if (!line)
                             continue;
-                        const cols = line.split(separator).map(c => c.trim());
+                        const cols = line.split(separator).map((c) => c.trim());
                         let fullName = "";
                         let phone = "";
                         let birthDate = "";
@@ -799,7 +818,9 @@ export async function registerSystemRoutes(app) {
                         else if (cols[2]) {
                             birthDate = cols[2];
                         }
-                        if (fullName && fullName.split(/\s+/).length >= 2 && /^[А-Яа-яЁё\s.-]+$/.test(fullName)) {
+                        if (fullName &&
+                            fullName.split(/\s+/).length >= 2 &&
+                            /^[А-Яа-яЁё\s.-]+$/.test(fullName)) {
                             parsedPatients.push({ fullName, phone, birthDate });
                         }
                     }
@@ -822,9 +843,72 @@ export async function registerSystemRoutes(app) {
             }
         }
         if (parsedPatients.length < 5) {
-            const firstNames = ["Иван", "Александр", "Сергей", "Дмитрий", "Алексей", "Андрей", "Михаил", "Роман", "Артем", "Владимир", "Елена", "Ольга", "Наталья", "Екатерина", "Анна", "Татьяна", "Мария", "Ирина", "Светлана", "Юлия"];
-            const middleNames = ["Иванович", "Александрович", "Сергеевич", "Дмитриевич", "Алексеевич", "Андреевич", "Михайлович", "Романович", "Владимирович", "Николаевич", "Петровна", "Александровна", "Сергеевна", "Дмитриевна", "Алексеевна", "Андреевна", "Михайловна", "Романовна", "Владимировна", "Николаевна"];
-            const lastNames = ["Иванов", "Петров", "Смирнов", "Сергеев", "Кузнецов", "Веселов", "Козлов", "Лебедев", "Новиков", "Морозов", "Иванова", "Петрова", "Смирнова", "Сергеева", "Кузнецова", "Веселова", "Козлова", "Лебедева", "Новикова", "Морозова"];
+            const firstNames = [
+                "Иван",
+                "Александр",
+                "Сергей",
+                "Дмитрий",
+                "Алексей",
+                "Андрей",
+                "Михаил",
+                "Роман",
+                "Артем",
+                "Владимир",
+                "Елена",
+                "Ольга",
+                "Наталья",
+                "Екатерина",
+                "Анна",
+                "Татьяна",
+                "Мария",
+                "Ирина",
+                "Светлана",
+                "Юлия",
+            ];
+            const middleNames = [
+                "Иванович",
+                "Александрович",
+                "Сергеевич",
+                "Дмитриевич",
+                "Алексеевич",
+                "Андреевич",
+                "Михайлович",
+                "Романович",
+                "Владимирович",
+                "Николаевич",
+                "Петровна",
+                "Александровна",
+                "Сергеевна",
+                "Дмитриевна",
+                "Алексеевна",
+                "Андреевна",
+                "Михайловна",
+                "Романовна",
+                "Владимировна",
+                "Николаевна",
+            ];
+            const lastNames = [
+                "Иванов",
+                "Петров",
+                "Смирнов",
+                "Сергеев",
+                "Кузнецов",
+                "Веселов",
+                "Козлов",
+                "Лебедев",
+                "Новиков",
+                "Морозов",
+                "Иванова",
+                "Петрова",
+                "Смирнова",
+                "Сергеева",
+                "Кузнецова",
+                "Веселова",
+                "Козлова",
+                "Лебедева",
+                "Новикова",
+                "Морозова",
+            ];
             const generatedCount = 15;
             for (let i = 0; i < generatedCount; i++) {
                 const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -834,7 +918,10 @@ export async function registerSystemRoutes(app) {
                 let finalMn = mn;
                 let finalLn = ln;
                 if (isFemaleName) {
-                    finalMn = mn.replace("ович", "овна").replace("евич", "евна").replace("ич", "на");
+                    finalMn = mn
+                        .replace("ович", "овна")
+                        .replace("евич", "евна")
+                        .replace("ич", "на");
                     finalLn = ln + "а";
                 }
                 else {
@@ -859,27 +946,29 @@ export async function registerSystemRoutes(app) {
             "Жалобы на кратковременные боли от холодного и сладкого в зубе на верхней челюсти.",
             "Жалобы на кровоточивость десен при чистке зубов и неприятный запах изо рта.",
             "Жалобы на косметический дефект передних зубов, стираемость эмали.",
-            "Жалобы на отсутствие зуба на нижней челюсти слева, затрудненное жевание."
+            "Жалобы на отсутствие зуба на нижней челюсти слева, затрудненное жевание.",
         ];
         const diagnoses = [
             "К02.1 - Кариес дентина (средний кариес 36 зуба)",
             "К02.1 - Кариес дентина (глубокий кариес 14 зуба)",
             "К04.0 - Пульпит острый очаговый 24 зуба",
             "К05.1 - Хронический простой маргинальный гингивит",
-            "К08.1 - Потеря зубов вследствие несчастного случая, удаления или локальной болезни десен"
+            "К08.1 - Потеря зубов вследствие несчастного случая, удаления или локальной болезни десен",
         ];
         const treatments = [
             "Проведена анестезия Septanest 1:100000. Препарирование полости, медикаментозная обработка Chlorhexidine 2%. Постановка светоотверждаемой пломбы Filtek. Шлифовка, полировка.",
             "Профессиональная гигиена полости рта: снятие зубных отложений ультразвуком, AirFlow полировка пастой Detartrine. Аппликация фторлаком.",
             "Проведено препарирование, раскрытие полости зуба, ампутация коронковой пульпы. Медикаментозная обработка, постановка временной пломбы Dentin-paste.",
-            "Консультация ортопеда, составлен план лечения. Рекомендована установка металлокерамической коронки."
+            "Консультация ортопеда, составлен план лечения. Рекомендована установка металлокерамической коронки.",
         ];
         for (let i = 0; i < insertLimit; i++) {
             const p = parsedPatients[i];
             if (!p)
                 continue;
             try {
-                const [newPatient] = await db.insert(patients).values({
+                const [newPatient] = await db
+                    .insert(patients)
+                    .values({
                     organizationId,
                     fullName: p.fullName,
                     phone: p.phone || null,
@@ -887,7 +976,8 @@ export async function registerSystemRoutes(app) {
                     status: "active",
                     isSynced: false,
                     version: 1,
-                }).returning({ id: patients.id });
+                })
+                    .returning({ id: patients.id });
                 if (newPatient) {
                     insertedCount++;
                     const numVisits = 1 + Math.floor(Math.random() * 2);

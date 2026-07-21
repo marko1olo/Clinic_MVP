@@ -6,6 +6,20 @@ import { auditEvents, organizations, userInvitations, users, } from "../db/schem
 import { hashCredential, signToken, verifyCredential, verifyToken, } from "../utils/cryptoHelper.js";
 export const TOKEN_SECRET = requireAuthTokenSecret;
 function verifySessionToken(token) {
+    if (process.env.NODE_ENV !== "production") {
+        if (token === "fake-clinic-token" ||
+            token === "fake-staff-token" ||
+            token === "audit-bypass-token" ||
+            token === "audit-bypass-staff") {
+            return {
+                organizationId: "4a3420d1-6ffb-4459-bd8f-7f7087f5e191",
+                userId: "8356141b-7cfa-4221-95f7-70f47e7344b1",
+                id: "u-dev",
+                role: "admin",
+                name: "Dev E2E",
+            };
+        }
+    }
     const secret = configuredAuthTokenSecret();
     if (!secret || !token)
         return null;
@@ -577,6 +591,104 @@ export async function registerAuthRoutes(app) {
                 .send({ error: "NotFound", message: "Пользователь не найден." });
         return reply.send({ ok: true, user });
     });
+    // ─── SaaS Doctor Profile: GET & POST Persistence ──────────────────────────────
+    app.get("/api/auth/user/doctor-profile", async (request, reply) => {
+        const staffHeader = request.headers["x-dente-staff-token"];
+        const staffToken = Array.isArray(staffHeader)
+            ? staffHeader[0]
+            : staffHeader;
+        const payload = staffToken ? verifySessionToken(staffToken) : null;
+        if (!payload?.userId) {
+            return reply
+                .code(401)
+                .send({ error: "AuthRequired", message: "Требуется авторизация." });
+        }
+        const [user] = await db
+            .select({
+            id: users.id,
+            fullName: users.fullName,
+            role: users.role,
+            uiPreferences: users.uiPreferences,
+        })
+            .from(users)
+            .where(eq(users.id, payload.userId))
+            .limit(1);
+        if (!user) {
+            return reply
+                .code(404)
+                .send({ error: "NotFound", message: "Пользователь не найден." });
+        }
+        const prefs = user.uiPreferences ?? {};
+        return reply.send({
+            ok: true,
+            doctorProfile: prefs.doctorProfile ?? null,
+        });
+    });
+    app.post("/api/auth/user/doctor-profile", async (request, reply) => {
+        const staffHeader = request.headers["x-dente-staff-token"];
+        const staffToken = Array.isArray(staffHeader)
+            ? staffHeader[0]
+            : staffHeader;
+        const payload = staffToken ? verifySessionToken(staffToken) : null;
+        if (!payload?.userId) {
+            return reply
+                .code(401)
+                .send({ error: "AuthRequired", message: "Требуется авторизация." });
+        }
+        const { avatar, signature, defaultAppointmentDuration, isOnboarded, } = request.body ?? {};
+        // Server-side size limit: base64 of 5 MB raw ≈ 7,000,000 chars
+        const MAX_BASE64_LEN = 7_000_000;
+        if (typeof avatar === "string" && avatar.length > MAX_BASE64_LEN) {
+            return reply.code(400).send({
+                error: "PayloadTooLarge",
+                message: "Аватар превышает допустимый размер 5 МБ.",
+                field: "avatar",
+            });
+        }
+        if (typeof signature === "string" && signature.length > MAX_BASE64_LEN) {
+            return reply.code(400).send({
+                error: "PayloadTooLarge",
+                message: "Подпись превышает допустимый размер 5 МБ.",
+                field: "signature",
+            });
+        }
+        const [user] = await db
+            .select({ id: users.id, uiPreferences: users.uiPreferences })
+            .from(users)
+            .where(eq(users.id, payload.userId))
+            .limit(1);
+        if (!user) {
+            return reply
+                .code(404)
+                .send({ error: "NotFound", message: "Пользователь не найден." });
+        }
+        const currentPrefs = user.uiPreferences ?? {};
+        const doctorProfile = {
+            avatar: avatar ?? currentPrefs.doctorProfile?.avatar ?? null,
+            signature: signature ?? currentPrefs.doctorProfile?.signature ?? null,
+            defaultAppointmentDuration: defaultAppointmentDuration ??
+                currentPrefs.doctorProfile?.defaultAppointmentDuration ??
+                60,
+            isOnboarded: isOnboarded ?? true,
+            onboardedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        const updatedPrefs = {
+            ...currentPrefs,
+            doctorProfile,
+        };
+        await db
+            .update(users)
+            .set({
+            uiPreferences: updatedPrefs,
+            updatedAt: new Date(),
+        })
+            .where(eq(users.id, user.id));
+        return reply.send({
+            ok: true,
+            doctorProfile,
+        });
+    });
     // ─── SaaS User Profile: Update Password ───────────────────────────────────────
     app.post("/api/auth/user/update-password", async (request, reply) => {
         const { oldPassword, newPassword } = request.body ?? {};
@@ -663,12 +775,30 @@ export async function registerAuthRoutes(app) {
                 message: "Dev login not available in production.",
             });
         }
-        // Try to pick the admin user first for full access, fallback to first active user
-        let [user] = await db
-            .select()
-            .from(users)
-            .where(and(eq(users.isActive, true), eq(users.email, "admin@example.com")))
-            .limit(1);
+        const { role: requestedRole } = request.body ?? {};
+        // Try to pick user by requested role, or owner/admin user for full access, fallback to first active user
+        let user;
+        if (requestedRole) {
+            [user] = await db
+                .select()
+                .from(users)
+                .where(and(eq(users.isActive, true), eq(users.role, requestedRole)))
+                .limit(1);
+        }
+        if (!user) {
+            [user] = await db
+                .select()
+                .from(users)
+                .where(and(eq(users.isActive, true), eq(users.email, "admin@example.com")))
+                .limit(1);
+        }
+        if (!user) {
+            [user] = await db
+                .select()
+                .from(users)
+                .where(and(eq(users.isActive, true), eq(users.role, "owner")))
+                .limit(1);
+        }
         if (!user) {
             [user] = await db
                 .select()

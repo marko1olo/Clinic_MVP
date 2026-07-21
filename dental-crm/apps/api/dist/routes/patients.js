@@ -1,8 +1,8 @@
 import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema, } from "@dental/shared";
+import { and, desc, eq } from "drizzle-orm";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import { patientReclamations, taskTickets } from "../db/schema.js";
-import { eq, desc, and } from "drizzle-orm";
 const patientCreateValidationMessage = "Пациент не создан: заполните ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientUpdateValidationMessage = "Пациент не обновлен: проверьте ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientAdministrativeValidationMessage = "Административный профиль не сохранен: проверьте документы, согласия, страховку и данные представителя.";
@@ -208,10 +208,12 @@ export async function registerPatientRoutes(app) {
                 medications: Array.isArray(input?.medications)
                     ? input.medications
                     : undefined,
-                pregnancyStatus: typeof input?.pregnancyStatus === "string" || input?.pregnancyStatus === null
+                pregnancyStatus: typeof input?.pregnancyStatus === "string" ||
+                    input?.pregnancyStatus === null
                     ? input.pregnancyStatus
                     : undefined,
-                criticalAlertNote: typeof input?.criticalAlertNote === "string" || input?.criticalAlertNote === null
+                criticalAlertNote: typeof input?.criticalAlertNote === "string" ||
+                    input?.criticalAlertNote === null
                     ? input.criticalAlertNote
                     : undefined,
             });
@@ -250,13 +252,16 @@ export async function registerPatientRoutes(app) {
         const { patientId } = request.params;
         const { doctorId, complicationDetails, proposedAction } = request.body;
         try {
-            const [reclamation] = await db.insert(patientReclamations).values({
+            const [reclamation] = await db
+                .insert(patientReclamations)
+                .values({
                 patientId,
                 doctorId,
                 complicationDetails,
                 proposedAction,
                 status: "under_review",
-            }).returning();
+            })
+                .returning();
             return reclamation;
         }
         catch (e) {
@@ -278,7 +283,8 @@ export async function registerPatientRoutes(app) {
                 updateData.proposedAction = proposedAction;
             if (status === "resolved")
                 updateData.resolvedAt = new Date();
-            const [reclamation] = await db.update(patientReclamations)
+            const [reclamation] = await db
+                .update(patientReclamations)
                 .set(updateData)
                 .where(and(eq(patientReclamations.id, reclamationId), eq(patientReclamations.patientId, patientId)))
                 .returning();
@@ -297,7 +303,8 @@ export async function registerPatientRoutes(app) {
             return;
         const { patientId, reclamationId } = request.params;
         try {
-            const [reclamation] = await db.delete(patientReclamations)
+            const [reclamation] = await db
+                .delete(patientReclamations)
                 .where(and(eq(patientReclamations.id, reclamationId), eq(patientReclamations.patientId, patientId)))
                 .returning();
             if (!reclamation)
@@ -334,14 +341,17 @@ export async function registerPatientRoutes(app) {
         const { patientId } = request.params;
         const { assignedToId, title, description, priority } = request.body;
         try {
-            const [ticket] = await db.insert(taskTickets).values({
+            const [ticket] = await db
+                .insert(taskTickets)
+                .values({
                 patientId,
                 assignedToId,
                 title,
                 description,
                 priority: priority || "normal",
                 status: "pending",
-            }).returning();
+            })
+                .returning();
             return ticket;
         }
         catch (e) {
@@ -367,7 +377,8 @@ export async function registerPatientRoutes(app) {
                 updateData.priority = priority;
             if (status !== undefined)
                 updateData.status = status;
-            const [ticket] = await db.update(taskTickets)
+            const [ticket] = await db
+                .update(taskTickets)
                 .set(updateData)
                 .where(and(eq(taskTickets.id, ticketId), eq(taskTickets.patientId, patientId)))
                 .returning();
@@ -386,7 +397,8 @@ export async function registerPatientRoutes(app) {
             return;
         const { patientId, ticketId } = request.params;
         try {
-            const [ticket] = await db.delete(taskTickets)
+            const [ticket] = await db
+                .delete(taskTickets)
                 .where(and(eq(taskTickets.id, ticketId), eq(taskTickets.patientId, patientId)))
                 .returning();
             if (!ticket)

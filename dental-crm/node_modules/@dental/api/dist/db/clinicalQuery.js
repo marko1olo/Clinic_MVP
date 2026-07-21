@@ -186,5 +186,7 @@ export async function getTreatmentPlanItemsForPatient(organizationId, patientId)
         .where(and(eq(schema.treatmentItems.organizationId, organizationId), eq(schema.treatmentItems.patientId, patientId)));
 }
 export async function deleteClinicalRuleInDb(organizationId, id) {
-    await db.delete(schema.clinicalRules).where(and(eq(schema.clinicalRules.id, id), eq(schema.clinicalRules.organizationId, organizationId)));
+    await db
+        .delete(schema.clinicalRules)
+        .where(and(eq(schema.clinicalRules.id, id), eq(schema.clinicalRules.organizationId, organizationId)));
 }

@@ -83,21 +83,10 @@ export function FinanceView() {
 		treatmentStatusLabels,
 		loadDashboard,
 		setSettingsTab,
-		selectRefundOriginalPayment,
 	} = useAppLogicContext();
 	const onFamilyWalletPayment = () => loadDashboard();
 	const onGoToDocuments = () => {
 		window.location.hash = "documents";
-	};
-	const onRefundPayment = (paymentId: string) => {
-		if (!window.confirm("Вы действительно хотите начать процедуру возврата/коррекции этого платежа?")) {
-			return;
-		}
-		selectRefundOriginalPayment(paymentId);
-		if (onCreateDocument) {
-			onCreateDocument("payment_refund_correction_request");
-			window.location.hash = "documents";
-		}
 	};
 	const onGoToPrices = () => {
 		setSettingsTab("prices");
@@ -235,7 +224,6 @@ export function FinanceView() {
 				money={money}
 				onFocusPaymentCapture={focusPaymentCapture}
 				onGoToVisit={onGoToVisit}
-				onRefundPayment={onRefundPayment}
 				paymentFiscalReceiptLabel={paymentFiscalReceiptLabel}
 				paymentMethodLabels={paymentMethodLabels}
 				payments={activePayments}

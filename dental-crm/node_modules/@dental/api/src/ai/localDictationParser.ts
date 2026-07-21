@@ -440,13 +440,10 @@ function extractEmkSections(text: string, updates: EmkUpdates) {
 function expandToothRanges(text: string): string[] {
 	const allTeeth = new Set<string>();
 
-	const matches = text.match(/все зубы|обе челюсти|санаци|верхняя челюсть|вч|нижняя челюсть|нч|фронтальн|зона улыбки/g);
-	const found = new Set(matches || []);
-
 	if (
-		found.has("все зубы") ||
-		found.has("обе челюсти") ||
-		found.has("санаци")
+		text.includes("все зубы") ||
+		text.includes("обе челюсти") ||
+		text.includes("санаци")
 	) {
 		for (let i = 11; i <= 18; i++) allTeeth.add(i.toString());
 		for (let i = 21; i <= 28; i++) allTeeth.add(i.toString());
@@ -455,17 +452,17 @@ function expandToothRanges(text: string): string[] {
 		return Array.from(allTeeth);
 	}
 
-	if (found.has("верхняя челюсть") || found.has("вч")) {
+	if (text.includes("верхняя челюсть") || text.includes("вч")) {
 		for (let i = 11; i <= 18; i++) allTeeth.add(i.toString());
 		for (let i = 21; i <= 28; i++) allTeeth.add(i.toString());
 	}
 
-	if (found.has("нижняя челюсть") || found.has("нч")) {
+	if (text.includes("нижняя челюсть") || text.includes("нч")) {
 		for (let i = 31; i <= 38; i++) allTeeth.add(i.toString());
 		for (let i = 41; i <= 48; i++) allTeeth.add(i.toString());
 	}
 
-	if (found.has("фронтальн") || found.has("зона улыбки")) {
+	if (text.includes("фронтальн") || text.includes("зона улыбки")) {
 		for (let i = 11; i <= 13; i++) allTeeth.add(i.toString());
 		for (let i = 21; i <= 23; i++) allTeeth.add(i.toString());
 		for (let i = 31; i <= 33; i++) allTeeth.add(i.toString());

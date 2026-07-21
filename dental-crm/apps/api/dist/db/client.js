@@ -7,8 +7,8 @@ import * as schema from "./schema.js";
 import "dotenv/config";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// DB path at apps/api/dente-db
-const dbPath = path.resolve(__dirname, "../../dente-db");
+// DB path at apps/api/dente-db (or in-memory when DENTAL_STATE_PERSISTENCE === "off")
+const dbPath = process.env.DENTAL_STATE_PERSISTENCE === "off" ? undefined : path.resolve(__dirname, "../../dente-db");
 export const client = new PGlite(dbPath, {
     extensions: {
         electric: electricSync(),

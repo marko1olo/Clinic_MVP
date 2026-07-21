@@ -338,7 +338,7 @@ async function runCascade(
 // ──────────────────────────────────────────────────────────────────────────────
 // JSON extraction helper (handles markdown fences)
 // ──────────────────────────────────────────────────────────────────────────────
-export function extractJson(text: string): any {
+function extractJson(text: string): any {
 	// Strip <think>...</think> if present (Qwen-style)
 	const cleaned = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
 

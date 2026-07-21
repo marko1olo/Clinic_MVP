@@ -1,7 +1,8 @@
 import { desc, eq } from "drizzle-orm";
-import { db } from "./client.js";
-import * as schema from "./schema.js";
 import { protocolTemplates as sampleProtocolTemplates } from "../sampleData.js";
+import { db } from "./client.js";
+import { evaluateClinicalRulesInDb } from "./clinicalQuery.js";
+import * as schema from "./schema.js";
 const validClinicModes = new Set([
     "solo_doctor",
     "one_chair",
@@ -332,6 +333,10 @@ export async function getDashboardFromDb(organizationId) {
         .select()
         .from(schema.patientInvoices)
         .where(eq(schema.patientInvoices.organizationId, organizationId));
+    const commTasks = await db
+        .select()
+        .from(schema.communicationTasks)
+        .where(eq(schema.communicationTasks.organizationId, organizationId));
     const treatmentItems = await db
         .select()
         .from(schema.treatmentItems)
@@ -362,6 +367,29 @@ export async function getDashboardFromDb(organizationId) {
             .where(eq(schema.visitDiaries.visitId, activeVisit.id));
         activeVisitDiary = diary ?? null;
     }
+    let activeVisitEvaluations = [];
+    let evaluatedRulesCount = 0;
+    let unresolvedRulesCount = 0;
+    if (activeVisit) {
+        const activeVisitItems = treatmentItems.filter((item) => item.visitId === activeVisit.id);
+        const patientCompletedItems = treatmentItems.filter((item) => item.patientId === activeVisit.patientId && item.status === "completed");
+        const serviceIds = activeVisitItems
+            .map((item) => item.serviceId)
+            .filter((id) => Boolean(id));
+        const completedServiceIds = patientCompletedItems
+            .map((item) => item.serviceId)
+            .filter((id) => Boolean(id));
+        if (serviceIds.length > 0) {
+            const evaluationResponse = await evaluateClinicalRulesInDb(organizationId, {
+                patientId: activeVisit.patientId,
+                serviceIds,
+                completedServiceIds,
+            });
+            activeVisitEvaluations = evaluationResponse.evaluations;
+            evaluatedRulesCount = evaluationResponse.summary.evaluatedRules;
+            unresolvedRulesCount = evaluationResponse.summary.unresolved;
+        }
+    }
     const paidPayments = payments.filter((payment) => payment.status === "paid");
     const totalPaidRub = paidPayments.reduce((sum, payment) => sum + money(payment.amountRub), 0);
     const totalInvoiceRub = invoices.reduce((sum, invoice) => sum + money(invoice.totalAmountRub), 0);
@@ -383,9 +411,6 @@ export async function getDashboardFromDb(organizationId) {
     for (const invoice of invoices)
         plannedByPatient.set(invoice.patientId, (plannedByPatient.get(invoice.patientId) ?? 0) +
             money(invoice.totalAmountRub));
-    for (const document of documents)
-        plannedByPatient.set(document.patientId, (plannedByPatient.get(document.patientId) ?? 0) +
-            money(document.totalAmountRub));
     const mode = normalizeClinicMode(org.clinicMode);
     const specializations = safeStringArray(org.specializations).map(normalizeSpecialty);
     const workingHours = safeObject(org.workingHours);
@@ -552,11 +577,13 @@ export async function getDashboardFromDb(organizationId) {
                 doctorSummary: activeVisit.doctorSummary,
                 createdAt: iso(activeVisit.createdAt),
                 updatedAt: iso(activeVisit.updatedAt),
-                diary: activeVisitDiary ? {
-                    id: activeVisitDiary.id,
-                    complications: activeVisitDiary.complications,
-                    comorbidities: activeVisitDiary.comorbidities,
-                } : null,
+                diary: activeVisitDiary
+                    ? {
+                        id: activeVisitDiary.id,
+                        complications: activeVisitDiary.complications,
+                        comorbidities: activeVisitDiary.comorbidities,
+                    }
+                    : null,
             }
             : null,
         visitCloseChecklist: activeVisit
@@ -625,15 +652,15 @@ export async function getDashboardFromDb(organizationId) {
             clinicalWarnings: parseStringArrayWithWarning(scenario.clinicalWarningsJson, `treatment_scenarios.${scenario.id}.clinicalWarningsJson`, warnings),
             active: scenario.isActive,
         })),
-        clinicalRuleEvaluations: [],
+        clinicalRuleEvaluations: activeVisitEvaluations,
         clinicalRuleSummary: {
             activeRules: clinicalRules.filter((rule) => rule.isActive).length,
-            evaluatedRules: 0,
-            unresolved: 0,
-            blockers: clinicalRules.filter((rule) => rule.isActive && rule.severity === "blocker").length,
-            warnings: clinicalRules.filter((rule) => rule.isActive && rule.severity === "warning").length,
-            requiredServices: clinicalRules.filter((rule) => rule.isActive && rule.action === "add_required_service").length,
-            coveredRules: 0,
+            evaluatedRules: evaluatedRulesCount,
+            unresolved: unresolvedRulesCount,
+            blockers: activeVisitEvaluations.filter((e) => !e.resolved && e.severity === "blocker").length,
+            warnings: activeVisitEvaluations.filter((e) => !e.resolved && e.severity === "warning").length,
+            requiredServices: activeVisitEvaluations.filter((e) => !e.resolved && e.action === "add_required_service").length,
+            coveredRules: activeVisitEvaluations.filter((e) => e.resolved).length,
         },
         payments: payments.map((payment) => ({
             id: payment.id,
@@ -671,7 +698,25 @@ export async function getDashboardFromDb(organizationId) {
             insuranceCoverageRub: 0,
         },
         communicationTemplates: [],
-        communicationTasks: [],
+        communicationTasks: commTasks.map((t) => ({
+            id: t.id,
+            organizationId: t.organizationId,
+            patientId: t.patientId,
+            appointmentId: t.appointmentId,
+            visitId: t.visitId,
+            documentId: t.documentId,
+            assignedRole: t.assignedRole,
+            channel: t.channel,
+            intent: t.intent,
+            status: t.status,
+            priority: t.priority,
+            dueAt: nullableIso(t.dueAt),
+            title: t.title,
+            body: t.body,
+            workflowCode: t.workflowCode,
+            lastEventAt: nullableIso(t.lastEventAt),
+            createdAt: iso(t.createdAt),
+        })),
         communicationEvents: [],
         communicationSummary: {
             openTasks: 0,

@@ -59,25 +59,6 @@ async function migrate() {
 		medicalLicenseIssuedAt: state.clinicProfile.medicalLicenseIssuedAt,
 		medicalLicenseIssuer: state.clinicProfile.medicalLicenseIssuer,
 		onboardingCompleted: true,
-		// Explicitly copy over feature flags to avoid database defaults overlay issues
-		hasAssistants: state.clinicProfile.hasAssistants ?? true,
-		hasMultipleChairs: state.clinicProfile.hasMultipleChairs ?? true,
-		hasDentalLab: state.clinicProfile.hasDentalLab ?? true,
-		hasInsuranceCoPay: state.clinicProfile.hasInsuranceCoPay ?? true,
-		hasInstallments: state.clinicProfile.hasInstallments ?? true,
-		hasOrthodontics: state.clinicProfile.hasOrthodontics ?? true,
-		hasTasks: state.clinicProfile.hasTasks ?? true,
-		hasReclamations: state.clinicProfile.hasReclamations ?? true,
-		hasPediatricMode: state.clinicProfile.hasPediatricMode ?? false,
-		isOmniRole: state.clinicProfile.isOmniRole ?? false,
-		workspacePreset: state.clinicProfile.workspacePreset ?? "enterprise",
-		hasPayrollModule: state.clinicProfile.hasPayrollModule ?? true,
-		hasMarketingModule: state.clinicProfile.hasMarketingModule ?? true,
-		hasAnalyticsModule: state.clinicProfile.hasAnalyticsModule ?? true,
-		hasInventoryModule: state.clinicProfile.hasInventoryModule ?? true,
-		aiEnableTreatmentPlan: state.clinicProfile.aiEnableTreatmentPlan ?? true,
-		aiEnableRecommendations: state.clinicProfile.aiEnableRecommendations ?? true,
-		aiEnableDocuments: state.clinicProfile.aiEnableDocuments ?? true,
 	});
 
 	console.log("🏥 Migrating Clinics (Default)");
@@ -178,8 +159,8 @@ async function migrate() {
 	}
 
 	console.log(`📄 Migrating ${state.documents.length} Documents...`);
-	if (state.documents.length > 0) {
-		const docValues = state.documents.map((doc: any) => ({
+	for (const doc of state.documents) {
+		await db.insert(schema.generatedDocuments).values({
 			id: doc.id,
 			organizationId: orgId,
 			patientId: doc.patientId,
@@ -191,8 +172,7 @@ async function migrate() {
 			payloadJson: doc.payload ? JSON.stringify(doc.payload) : null,
 			issuedAt: doc.issuedAt ? new Date(doc.issuedAt) : null,
 			createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
-		}));
-		await db.insert(schema.generatedDocuments).values(docValues);
+		});
 	}
 
 	console.log(`⚖️ Migrating ${state.clinicalRules.length} Clinical Rules...`);

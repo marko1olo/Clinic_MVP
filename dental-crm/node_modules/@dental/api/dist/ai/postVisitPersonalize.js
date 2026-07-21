@@ -1,5 +1,5 @@
 import { fetchWithProviderTimeout, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, shouldTryNextProviderKey, } from "../speech/keyPool.js";
-import { createAIPlanNeuralConfig, baseUrlForProvider, keyProviderForPolishProvider, } from "./treatmentPlanPersonalize.js";
+import { baseUrlForProvider, createAIPlanNeuralConfig, keyProviderForPolishProvider, } from "./treatmentPlanPersonalize.js";
 const DENTAL_AI_CASCADING_MODELS = [
     { provider: "gemini", model: "gemini-2.5-flash" },
     { provider: "gemini", model: "gemini-3-flash" },
@@ -63,11 +63,21 @@ async function callOpenAiCompatiblePostVisit(input) {
     }
     return {
         allowedAfter: Array.isArray(parsed.allowedAfter) ? parsed.allowedAfter : [],
-        temporaryRestrictions: Array.isArray(parsed.temporaryRestrictions) ? parsed.temporaryRestrictions : [],
-        medicationAndRinsePlan: Array.isArray(parsed.medicationAndRinsePlan) ? parsed.medicationAndRinsePlan : [],
-        hygieneInstructions: Array.isArray(parsed.hygieneInstructions) ? parsed.hygieneInstructions : [],
-        nutritionInstructions: Array.isArray(parsed.nutritionInstructions) ? parsed.nutritionInstructions : [],
-        urgentWarningSigns: Array.isArray(parsed.urgentWarningSigns) ? parsed.urgentWarningSigns : [],
+        temporaryRestrictions: Array.isArray(parsed.temporaryRestrictions)
+            ? parsed.temporaryRestrictions
+            : [],
+        medicationAndRinsePlan: Array.isArray(parsed.medicationAndRinsePlan)
+            ? parsed.medicationAndRinsePlan
+            : [],
+        hygieneInstructions: Array.isArray(parsed.hygieneInstructions)
+            ? parsed.hygieneInstructions
+            : [],
+        nutritionInstructions: Array.isArray(parsed.nutritionInstructions)
+            ? parsed.nutritionInstructions
+            : [],
+        urgentWarningSigns: Array.isArray(parsed.urgentWarningSigns)
+            ? parsed.urgentWarningSigns
+            : [],
         telegramSummary: String(parsed.telegramSummary || "").trim(),
     };
 }
@@ -115,7 +125,8 @@ export async function personalizePostVisitRecommendations(payload) {
     }
     // Fallback across providers
     for (const fallback of DENTAL_AI_CASCADING_MODELS) {
-        if (fallback.provider === config.provider && fallback.model === config.modelName)
+        if (fallback.provider === config.provider &&
+            fallback.model === config.modelName)
             continue;
         try {
             const fallbackBaseUrl = baseUrlForProvider(fallback.provider);
@@ -127,7 +138,13 @@ export async function personalizePostVisitRecommendations(payload) {
             if (!keyCandidate)
                 continue;
             const result = await callOpenAiCompatiblePostVisit({
-                config: { ...config, provider: fallback.provider, baseUrl: fallbackBaseUrl, keyProviderId: fallbackKeyProviderId, modelName: fallback.model },
+                config: {
+                    ...config,
+                    provider: fallback.provider,
+                    baseUrl: fallbackBaseUrl,
+                    keyProviderId: fallbackKeyProviderId,
+                    modelName: fallback.model,
+                },
                 payload,
                 apiKey: keyCandidate.value,
             });

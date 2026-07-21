@@ -20,10 +20,19 @@ export async function saveUiPreferencesInDb(organizationId, prefs) {
         .limit(1);
     if (!user)
         throw new Error("No users found to save preferences to.");
+    const currentPrefs = user.uiPreferences;
+    if (currentPrefs && currentPrefs.savedAt && prefs.savedAt) {
+        const currentSavedAt = new Date(currentPrefs.savedAt).getTime();
+        const incomingSavedAt = new Date(prefs.savedAt).getTime();
+        if (incomingSavedAt < currentSavedAt) {
+            return currentPrefs;
+        }
+    }
     await db
         .update(schema.users)
         .set({ uiPreferences: prefs })
         .where(and(eq(schema.users.id, user.id), eq(schema.users.organizationId, organizationId)));
+    return prefs;
 }
 export async function getClinicSettingsFromDb(organizationId) {
     const [org] = await db
@@ -208,12 +217,32 @@ export async function getClinicSettingsFromDb(organizationId) {
                 title: "Владелец",
                 scope: "clinic",
                 defaultSection: "schedule",
-                canRead: ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "communications", "settings"],
-                canWrite: ["shift", "schedule", "patients", "imaging", "visit", "documents", "finance", "communications", "settings"],
+                canRead: [
+                    "shift",
+                    "schedule",
+                    "patients",
+                    "imaging",
+                    "visit",
+                    "documents",
+                    "finance",
+                    "communications",
+                    "settings",
+                ],
+                canWrite: [
+                    "shift",
+                    "schedule",
+                    "patients",
+                    "imaging",
+                    "visit",
+                    "documents",
+                    "finance",
+                    "communications",
+                    "settings",
+                ],
                 restricted: [],
                 requiresApprovalFor: [],
                 auditEvents: ["login"],
-            }
+            },
         ],
         modeHints: [],
         soloDoctorMode: false,
@@ -420,7 +449,9 @@ export async function updateClinicProfileInDb(organizationId, input) {
 }
 export async function createStaffMemberInDb(organizationId, input) {
     await db.transaction(async (tx) => {
-        const result = await tx.insert(schema.users).values({
+        const result = await tx
+            .insert(schema.users)
+            .values({
             organizationId,
             fullName: input.fullName,
             role: input.role,
@@ -428,7 +459,8 @@ export async function createStaffMemberInDb(organizationId, input) {
             email: input.email || null,
             isActive: true,
             workingHours: input.workingHours,
-        }).returning({ id: schema.users.id });
+        })
+            .returning({ id: schema.users.id });
         const user = result[0];
         if (user && input.commissionRate !== undefined) {
             await tx.insert(schema.doctorCommissions).values({
@@ -452,9 +484,14 @@ export async function updateStaffMemberInDb(organizationId, staffId, updates) {
                 .where(and(eq(schema.users.id, staffId), eq(schema.users.organizationId, organizationId)));
         }
         if (commissionRate !== undefined) {
-            const existing = await tx.select({ id: schema.doctorCommissions.id }).from(schema.doctorCommissions).where(and(eq(schema.doctorCommissions.userId, staffId), eq(schema.doctorCommissions.organizationId, organizationId))).limit(1);
+            const existing = await tx
+                .select({ id: schema.doctorCommissions.id })
+                .from(schema.doctorCommissions)
+                .where(and(eq(schema.doctorCommissions.userId, staffId), eq(schema.doctorCommissions.organizationId, organizationId)))
+                .limit(1);
             if (existing.length > 0 && existing[0]) {
-                await tx.update(schema.doctorCommissions)
+                await tx
+                    .update(schema.doctorCommissions)
                     .set({ commissionPct: commissionRate, isActive: true })
                     .where(eq(schema.doctorCommissions.id, existing[0].id));
             }

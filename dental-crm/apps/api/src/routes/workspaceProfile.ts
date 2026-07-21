@@ -310,49 +310,40 @@ async function seedDemoDataForPreset(
 				phone: "+79305556677",
 			},
 		];
-
-			if (patientDefs.length > 0) {
-				const patients = await db
+		for (const p of patientDefs) {
+			const [patient] = await db
 				.insert(schema.patients)
-					.values(
-						patientDefs.map((p) => ({
-							organizationId,
-							fullName: p.fullName,
-							birthDate: p.birthDate,
-							phone: p.phone,
-							isSynced: false,
-							version: 1,
-						}))
-					)
+				.values({
+					organizationId,
+					fullName: p.fullName,
+					birthDate: p.birthDate,
+					phone: p.phone,
+					isSynced: false,
+					version: 1,
+				})
 				.returning({ id: schema.patients.id });
-
-				if (patients.length > 0) {
-					// Add a visit with caries treatment plan
-					await db.insert(schema.visits).values(
-						patients.map((patient) => ({
-							organizationId,
-							patientId: patient.id,
-							status: "signed" as const,
-							complaint: "Боль в нижней правой челюсти на холодное",
-							diagnosis: "Средний кариес 46 зуба",
-							treatmentPlan:
-								"Анестезия, препарирование, пломба светового отверждения (композит).",
-							doctorSummary:
-								"Проведено лечение среднего кариеса 46 зуба по протоколу.",
-						}))
-					);
-					// Add an appointment
-					await db.insert(schema.appointments).values(
-						patients.map((patient) => ({
-							organizationId,
-							patientId: patient.id,
-							status: "planned" as const,
-							startsAt: new Date(Date.now() + 86400000),
-							endsAt: new Date(Date.now() + 86400000 + 3600000),
-							reason: "Лечение кариеса 47 зуба",
-						}))
-					);
-				}
+			if (!patient) continue;
+			// Add a visit with caries treatment plan
+			await db.insert(schema.visits).values({
+				organizationId,
+				patientId: patient.id,
+				status: "signed",
+				complaint: "Боль в нижней правой челюсти на холодное",
+				diagnosis: "Средний кариес 46 зуба",
+				treatmentPlan:
+					"Анестезия, препарирование, пломба светового отверждения (композит).",
+				doctorSummary:
+					"Проведено лечение среднего кариеса 46 зуба по протоколу.",
+			});
+			// Add an appointment
+			await db.insert(schema.appointments).values({
+				organizationId,
+				patientId: patient.id,
+				status: "planned",
+				startsAt: new Date(Date.now() + 86400000),
+				endsAt: new Date(Date.now() + 86400000 + 3600000),
+				reason: "Лечение кариеса 47 зуба",
+			});
 		}
 	}
 
@@ -369,62 +360,54 @@ async function seedDemoDataForPreset(
 				phone: "+79509876543",
 			},
 		];
-
-			if (patientDefs.length > 0) {
-				const patients = await db
+		for (const p of patientDefs) {
+			const [patient] = await db
 				.insert(schema.patients)
-					.values(
-						patientDefs.map((p) => ({
-							organizationId,
-							fullName: p.fullName,
-							birthDate: p.birthDate,
-							phone: p.phone,
-							isSynced: false,
-							version: 1,
-						}))
-					)
+				.values({
+					organizationId,
+					fullName: p.fullName,
+					birthDate: p.birthDate,
+					phone: p.phone,
+					isSynced: false,
+					version: 1,
+				})
 				.returning({ id: schema.patients.id });
+			if (!patient) continue;
+			// Add a visit with prosthetic plan
+			const [visit] = await db
+				.insert(schema.visits)
+				.values({
+					organizationId,
+					patientId: patient.id,
+					status: "draft",
+					complaint: "Отсутствует зуб, эстетический дефект",
+					diagnosis: "Частичная вторичная адентия 24 зуба",
+					treatmentPlan:
+						"Снятие слепков. Изготовление коронки из диоксида циркония на имплантате 24.",
+				})
+				.returning({ id: schema.visits.id });
 
-				if (patients.length > 0) {
-					// Add a visit with prosthetic plan
-					await db.insert(schema.visits).values(
-						patients.map((patient) => ({
-							organizationId,
-							patientId: patient.id,
-							status: "draft" as const,
-							complaint: "Отсутствует зуб, эстетический дефект",
-							diagnosis: "Частичная вторичная адентия 24 зуба",
-							treatmentPlan:
-								"Снятие слепков. Изготовление коронки из диоксида циркония на имплантате 24.",
-						}))
-					);
+			// Add clinical tasks for lab orders
+			await db.insert(schema.clinicalTasks).values({
+				organizationId,
+				patientId: patient.id,
+				taskType: "dental_lab_order",
+				status: "in_progress",
+				title: "Изготовление циркониевой коронки",
+				description:
+					"Цвет A2, транслуцентный край. Отправлено в фрезерный центр.",
+				dueAt: new Date(Date.now() + 86400000 * 5),
+			});
 
-					// Add clinical tasks for lab orders
-					await db.insert(schema.clinicalTasks).values(
-						patients.map((patient) => ({
-							organizationId,
-							patientId: patient.id,
-							taskType: "dental_lab_order" as const,
-							status: "in_progress" as const,
-							title: "Изготовление циркониевой коронки",
-							description:
-								"Цвет A2, транслуцентный край. Отправлено в фрезерный центр.",
-							dueAt: new Date(Date.now() + 86400000 * 5),
-						}))
-					);
-
-					// Add an appointment
-					await db.insert(schema.appointments).values(
-						patients.map((patient) => ({
-							organizationId,
-							patientId: patient.id,
-							status: "planned" as const,
-							startsAt: new Date(Date.now() + 86400000 * 2),
-							endsAt: new Date(Date.now() + 86400000 * 2 + 3600000),
-							reason: "Примерка каркаса",
-						}))
-					);
-				}
+			// Add an appointment
+			await db.insert(schema.appointments).values({
+				organizationId,
+				patientId: patient.id,
+				status: "planned",
+				startsAt: new Date(Date.now() + 86400000 * 2),
+				endsAt: new Date(Date.now() + 86400000 * 2 + 3600000),
+				reason: "Примерка каркаса",
+			});
 		}
 	}
 }
@@ -586,10 +569,6 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
 		) {
 			await db.transaction(async (tx) => {
 				// 1. Update organizations
-				// Smart mapping based on Practice Type and Specializations
-				const isSolo = payload.practiceType === "solo";
-				const isSmallClinic = payload.practiceType === "small_clinic";
-
 				await tx
 					.update(schema.organizations)
 					.set({
@@ -600,34 +579,25 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
 						inn: payload.legal?.inn || null,
 						ogrn: payload.legal?.ogrn || null,
 						legalAddress: payload.legal?.address || null,
-
-						// Smart Mapping from New Payload
-						hasAssistants: !isSolo,
+						hasAssistants: true,
+						hasDentalLab: payload.modules?.lab || false,
 						hasMultipleChairs: (payload.chairs || 1) > 1,
-						
-						hasDentalLab: payload.equipment?.lab || false,
-						hasInventoryModule: payload.equipment?.inventory || false,
-						
-						hasInsuranceCoPay: payload.services?.insurance || false,
-						hasInstallments: payload.services?.installments || false,
-						
-						hasPediatricMode: payload.specs?.includes("pediatrics") || false,
-						hasOrthodontics: payload.specs?.includes("orthodontics") || false,
-						
-						hasTasks: payload.growth?.crm ?? true,
-						hasReclamations: true,
-						hasMarketingModule: payload.growth?.omnichannel || false,
-						hasAnalyticsModule: payload.growth?.analytics || false,
-						hasPayrollModule: isSmallClinic,
-
-						aiEnableTreatmentPlan: true,
-						aiEnableRecommendations: true,
-						aiEnableDocuments: true,
-
-						requiresMigration: payload.migrationStatus === "analyzing",
-						workspacePreset: isSolo ? "solo_therapist" : "custom",
-						clinicMode: isSolo ? "solo_doctor" : isSmallClinic ? "small_clinic" : "small_clinic",
-
+						hasInsuranceCoPay: payload.modules?.dms || false,
+						hasInstallments: payload.modules?.installments || false,
+						hasOrthodontics: true,
+hasTasks: true,
+hasReclamations: true,
+hasPediatricMode: payload.specs?.includes("pediatrics") || false,
+						requiresMigration: payload.requiresMigration || false,
+						workspacePreset: "custom",
+						clinicMode: (payload.chairs || 1) === 1 ? "solo_doctor" : "small_clinic",
+						hasPayrollModule: (payload.chairs || 1) > 1,
+						hasMarketingModule: false,
+						hasAnalyticsModule: (payload.chairs || 1) > 1,
+						hasInventoryModule: true,
+						aiEnableTreatmentPlan: payload.modules?.aiTreatmentPlan ?? true,
+						aiEnableRecommendations: payload.modules?.aiRecommendations ?? true,
+						aiEnableDocuments: payload.modules?.aiDocuments ?? true,
 						workingHours: [
 							{
 								day: "monday",
@@ -810,14 +780,6 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
 					priceRub: number;
 					category: ServiceCategory;
 				}[] = [
-					{
-						organizationId,
-						code: "B01.065.001",
-						title: "Прием (осмотр, консультация) врача-стоматолога первичный",
-						basePriceRub: 1500,
-						priceRub: 1500,
-						category: "consultation",
-					},
 					{
 						organizationId,
 						code: "A16.07.000",

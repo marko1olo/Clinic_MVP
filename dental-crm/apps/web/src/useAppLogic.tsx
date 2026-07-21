@@ -872,7 +872,6 @@ import {
 	type AppView,
 	appViews,
 	getFilteredAppViews,
-	filterViewsByFlags,
 	viewLabels,
 	WorkspaceSidebar,
 	WorkspaceTopbar,
@@ -2671,7 +2670,6 @@ export function useAppLogic(): any {
 		openAppointmentEditor,
 		markAppointmentScheduleDirty,
 		updateAppointmentScheduleDraft,
-		moveAppointment,
 		newAppointmentPreferenceDefaults,
 		updateNewAppointmentDraft,
 		resetNewAppointmentDraft,
@@ -4121,10 +4119,9 @@ export function useAppLogic(): any {
 		);
 		const saveTimer = window.setTimeout(
 			() => {
-				dirtyAppointmentIds.forEach(
-					(appointmentId) =>
-						void saveAppointmentSchedule(appointmentId, { closeEditorOnSave: false }),
-				);
+				dirtyAppointmentIds.forEach((appointmentId) => {
+					void saveAppointmentSchedule(appointmentId, { closeEditorOnSave: false });
+				});
 			},
 			appointmentRetryingErrors ? 5000 : 1200,
 		);
@@ -4300,12 +4297,10 @@ export function useAppLogic(): any {
 	}, []);
 
 	useEffect(() => {
-		const flags = useWorkspaceProfileStore.getState();
-		const allowedViews = filterViewsByFlags(getFilteredAppViews(selectedWorkspaceRole), flags);
-		if (!allowedViews.includes(currentView) && allowedViews.length > 0) {
-			const fallback = allowedViews[0]!;
-			setCurrentView(fallback);
-			window.location.hash = fallback;
+		const allowedViews = getFilteredAppViews(selectedWorkspaceRole);
+		if (!allowedViews.includes(currentView)) {
+			setCurrentView("shift");
+			window.location.hash = "shift";
 		}
 	}, [selectedWorkspaceRole, currentView]);
 
@@ -4867,23 +4862,12 @@ export function useAppLogic(): any {
 		selectedReleaseSourceRequestDocumentId,
 	]);
 
-	const [localTreatmentPlanItems, setLocalTreatmentPlanItems] = useState<any[]>([]);
-
 	const activeTreatmentPlanItems = useMemo(() => {
-		if (!dashboard || !documentPatient) return localTreatmentPlanItems;
-		const remoteItems = (dashboard.treatmentPlanItems || []).filter(
+		if (!dashboard || !documentPatient) return [];
+		return (dashboard.treatmentPlanItems || []).filter(
 			(item) => item.patientId === documentPatient.id,
 		);
-		return [...remoteItems, ...localTreatmentPlanItems];
-	}, [dashboard, documentPatient?.id, localTreatmentPlanItems]);
-
-	const addTreatmentPlanItem = (item: any) => {
-		setLocalTreatmentPlanItems((prev) => [...prev, item]);
-	};
-
-	const removeTreatmentPlanItem = (itemId: string) => {
-		setLocalTreatmentPlanItems((prev) => prev.filter((i) => i.id !== itemId));
-	};
+	}, [dashboard, documentPatient?.id]);
 
 	const inferredTreatmentArea = useMemo(() => {
 		const toothCodes = activeTreatmentPlanItems
@@ -4957,23 +4941,6 @@ export function useAppLogic(): any {
 			(payment) => payment.patientId === documentPatient.id,
 		);
 	}, [dashboard, documentPatient?.id]);
-
-	const activeVisitCompletedAmountRub = useMemo(() => {
-		if (!activeTreatmentPlanItems || !visitNoteForm.completedServices) return 0;
-		return visitNoteForm.completedServices.reduce((sum: number, cs: any) => {
-			const matchedItem = activeTreatmentPlanItems.find(
-				(i: any) =>
-					(i.serviceId ?? i.id) === cs.serviceId &&
-					(i.toothCode ?? null) === cs.toothCode,
-			);
-			if (matchedItem) {
-				const unitPrice = matchedItem.unitPriceRub || 0;
-				const discount = matchedItem.discountRub || 0;
-				return sum + Math.max(0, unitPrice * matchedItem.quantity - discount);
-			}
-			return sum;
-		}, 0);
-	}, [activeTreatmentPlanItems, visitNoteForm.completedServices]);
 
 	const patientBillingSummary = useMemo<Dashboard["billingSummary"]>(() => {
 		if (!dashboard || !documentPatient)
@@ -12383,31 +12350,6 @@ export function useAppLogic(): any {
 		}
 	}
 
-	async function completeTreatmentPlanItems(itemIds: string[]) {
-		if (!documentPatient) return;
-		try {
-			const response = await fetch(
-				`/api/patients/${documentPatient.id}/treatment-items/complete`,
-				{
-					method: "POST",
-					headers: auth.denteClinicalMutationHeaders({
-						"Content-Type": "application/json",
-					}),
-					body: JSON.stringify({
-						itemIds,
-						visitId: dashboard?.activeVisit?.id,
-					}),
-				},
-			);
-			if (!response.ok) {
-				console.error("Failed to complete treatment plan items", await response.text());
-			}
-		} catch (error) {
-			console.error("Error completing treatment plan items", error);
-		}
-	}
-
-
 	async function recordPayment() {
 		setPaymentFeedback("");
 		if (isPaymentSaving) {
@@ -12593,20 +12535,6 @@ export function useAppLogic(): any {
 			setPaymentPayerRelationship("пациент");
 			setPaymentTaxDeductionCode("");
 			await loadDashboard();
-			// Fire-and-forget: mark checked services as completed in DB
-			const completedItemIds = activeTreatmentPlanItems
-				.filter((item: any) =>
-					(visitNoteForm.completedServices || []).some(
-						(cs: any) =>
-							cs.serviceId === (item.serviceId ?? item.id) &&
-							cs.toothCode === (item.toothCode ?? null),
-					),
-				)
-				.map((item) => item.id)
-				.filter(Boolean);
-			if (completedItemIds.length > 0) {
-				completeTreatmentPlanItems(completedItemIds);
-			}
 			setPaymentFeedback(
 				`Оплата ${money(amountRub)} записана для ${documentPatient.fullName}. Фискальные и налоговые поля очищены для следующего платежа.`,
 			);
@@ -13413,7 +13341,6 @@ export function useAppLogic(): any {
 	return {
 		...telegramSettingsModule,
 		...auth,
-		auth,
 		acceptDraftToVisit,
 		activeAppointment,
 		activeChair,
@@ -13435,9 +13362,6 @@ export function useAppLogic(): any {
 		activeSettingsTabButtonRef,
 		activeSpeechProviderHealth,
 		activeTreatmentPlanItems,
-		activeVisitCompletedAmountRub,
-		addTreatmentPlanItem,
-		removeTreatmentPlanItem,
 		activeTreatmentPlanScenarios,
 		activeUsableDocuments,
 		activeVisitClinicalRuleEvaluations,
@@ -14003,7 +13927,6 @@ export function useAppLogic(): any {
 		recognitionText,
 		recommendedActionPriorityLabels,
 		reconnectDicomWorkbenchFromCurrentFolder,
-		completeTreatmentPlanItems,
 		recordPayment,
 		refreshBrowserContinuity,
 		refreshSpeechRuntime,
@@ -14313,7 +14236,6 @@ export function useAppLogic(): any {
 		uiPreferencesSyncError,
 		undoTranscriptClear,
 		updateAppointmentScheduleDraft,
-		moveAppointment,
 		updateChairScheduleDay,
 		updateChairScheduleDraft,
 		updateClinicProfileDraft,

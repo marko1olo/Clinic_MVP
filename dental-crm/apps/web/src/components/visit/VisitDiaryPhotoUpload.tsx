@@ -1,7 +1,6 @@
 import { Camera, Paperclip } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { showToast } from "../GlobalToast";
 
 interface Attachment {
 	id: string;
@@ -74,7 +73,7 @@ export const VisitDiaryPhotoUpload: React.FC<VisitDiaryPhotoUploadProps> = ({
 				await onUpload(compressedBlob, file.name, "image/jpeg");
 			}
 		} catch (err: any) {
-			showToast(`Ошибка загрузки фото: ${err.message}`, "error");
+			alert(`Ошибка загрузки фото: ${err.message}`);
 		} finally {
 			setIsUploading(false);
 			e.target.value = "";

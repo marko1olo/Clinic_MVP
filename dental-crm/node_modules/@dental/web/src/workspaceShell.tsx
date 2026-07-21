@@ -143,7 +143,6 @@ export function getFilteredAppViews(role: StaffRole): AppView[] {
 			"visit",
 			"documents",
 			"communications",
-			"payroll",
 		];
 	}
 	if (role === "assistant") {
@@ -207,8 +206,6 @@ export function filterViewsByFlags(
 		filtered = filtered.filter((v) => v !== "scanner");
 	if (!flags.hasLeadsKanban)
 		filtered = filtered.filter((v) => v !== "leads");
-	if (!flags.hasTasks)
-		filtered = filtered.filter((v) => v !== "communications");
 	if (!flags.hasOmnichannel)
 		filtered = filtered.filter((v) => v !== "inbox");
 	if (!flags.hasInventoryModule)
@@ -220,15 +217,13 @@ export function WorkspaceSidebar({
 	currentView,
 	onViewIntent,
 	role,
-	clinicMode = "network_clinic",
 }: {
 	currentView: AppView;
 	onViewIntent?: WorkspaceViewIntentHandler;
 	role: StaffRole;
-	clinicMode?: string;
 }) {
 	const flags = useWorkspaceProfile();
-	let allowedViews = filterViewsByFlags(getFilteredAppViews(role), flags);
+	const allowedViews = filterViewsByFlags(getFilteredAppViews(role), flags);
 
 	return (
 		<aside className="sidebar" aria-label="Навигация">
@@ -305,7 +300,6 @@ export function WorkspaceTopbar({
 }: WorkspaceTopbarProps) {
 	const themeMode = useThemeStore((s) => s.themeMode);
 	const setThemeMode = useThemeStore((s) => s.setThemeMode);
-	const flags = useWorkspaceProfile();
 
 	const [actualTheme, setActualTheme] = useState<"light" | "dark">("dark");
 
@@ -329,6 +323,7 @@ export function WorkspaceTopbar({
 			document.documentElement.classList.remove("dark");
 			document.body.classList.remove("theme-dark");
 		}
+		localStorage.setItem("dente_theme", actualTheme);
 	}, [actualTheme]);
 
 	const toggleTheme = () => {
@@ -420,7 +415,7 @@ export function WorkspaceTopbar({
 					</button>
 				) : null}
 
-				{flags.hasTasks && (
+				{useWorkspaceProfile().hasTasks && (
 					<button
 						aria-label="Задачи"
 						className="icon-button"
@@ -437,7 +432,7 @@ export function WorkspaceTopbar({
 									top: "-4px",
 									right: "-4px",
 									background: "var(--amber)",
-									color: "var(--amber-contrast, white)",
+									color: "#fff",
 									fontSize: "10px",
 									fontWeight: "bold",
 									padding: "2px 4px",
@@ -506,7 +501,7 @@ export function WorkspaceTopbar({
 						type="button"
 						title="Заблокировать сессию"
 						onClick={onLockSession}
-						style={{ color: "var(--red, #ef4444)" }}
+						style={{ color: "#ef4444" }}
 					>
 						<Lock aria-hidden="true" size={20} />
 					</button>

@@ -2597,7 +2597,7 @@ async function readWindowsMigrationWorkstationSignalValues(
 		}>;
 	const rxPattern =
 		"sidexis|sirona|romexis|planmeca|vatech|ezdent|carestream|kodak|morita|idixel|i-dixel|veraview|newtom|new tom|nnt|myray|cefla|owandy|quickvision|quick vision|dexis|kavo|ka vo|gendex|acteon|sopro|sopix|pspix|x-mind|x mind|ondemand|invivo|cliniview|dbswin|vistasoft|digora|soredex|trophy|visiodent|mediadent|vixwin|sopro|schick|dtx|3shape|medit|exocad|firebird|interbase|sqlite|mssql|sql|dbf|dbase|foxpro|clipper|paradox|1cv8|1c|cliniccards|dental|stomatology|opendental|open dental|dentrix|eaglesoft|patterson|infoclinica|infodent|dentasoft|clinic365|sycret|secret dent|adenta|dentcrm24|clientix|klientix|medods|dentaltap|istom|qstoma|macdent|stombox|medangel|medialog|arnica|ident|stomx|dicom|pacs|rvg|xray|cbct|opg";
-	if (!/^[a-zA-Z0-9_ \-]+(\|[a-zA-Z0-9_ \-]+)*$/.test(rxPattern)) {
+	if (!/^[a-zA-Z0-9_| -]+$/.test(rxPattern)) {
 		throw new Error("Invalid characters in migration rxPattern");
 	}
 	const script = [
@@ -2617,7 +2617,9 @@ async function readWindowsMigrationWorkstationSignalValues(
 		"foreach ($s in $services) { if ($s) { $rows += [pscustomobject]@{ channel='service'; value=[string]$s } } }",
 		"foreach ($a in $apps) { if ($a) { $rows += [pscustomobject]@{ channel='installed_app'; value=[string]$a } } }",
 		"foreach ($l in $shortcuts) { if ($l) { $rows += [pscustomobject]@{ channel='shortcut'; value=[string]$l } } }",
+		"$rows | ConvertTo-Json -Compress",
 	].join("; ");
+	const encodedScript = Buffer.from(script, "utf16le").toString("base64");
 	try {
 		const psPath = path.join(
 			process.env.WINDIR || "C:\\Windows",
@@ -2626,29 +2628,23 @@ async function readWindowsMigrationWorkstationSignalValues(
 			"v1.0",
 			"powershell.exe",
 		);
-		const stdout = await new Promise<string>((resolve, reject) => {
-			const child = execFile(
-				psPath,
-				["-NoProfile", "-NonInteractive", "-Command", "-"],
-				{
-					timeout: 2500,
-					maxBuffer: 160 * 1024,
-					windowsHide: true,
-					env: { ...process.env, MIGRATION_RX: rxPattern },
-				},
-				(error, stdoutStr) => {
-					if (error) {
-						reject(error);
-					} else {
-						resolve(stdoutStr);
-					}
-				},
-			);
-			if (child.stdin) {
-				child.stdin.write(script);
-				child.stdin.end();
-			}
-		});
+		const { stdout } = await execFileAsync(
+			psPath,
+			[
+				"-NoProfile",
+				"-NonInteractive",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-EncodedCommand",
+				encodedScript,
+			],
+			{
+				timeout: 2500,
+				maxBuffer: 160 * 1024,
+				windowsHide: true,
+				env: { ...process.env, MIGRATION_RX: rxPattern },
+			},
+		);
 		if (!stdout.trim()) return [];
 		const parsed = JSON.parse(stdout);
 		const rows = Array.isArray(parsed) ? parsed : [parsed];
@@ -3078,7 +3074,9 @@ async function readWindowsMigrationMappedRoots(warnings: Set<string>) {
 		"$ErrorActionPreference='SilentlyContinue'",
 		"$roots = @()",
 		"Get-PSDrive -PSProvider FileSystem | Select-Object -First 80 | ForEach-Object { $roots += [pscustomobject]@{ root=[string]$_.Root; displayRoot=[string]$_.DisplayRoot } }",
+		"$roots | ConvertTo-Json -Compress",
 	].join("; ");
+	const encodedScript = Buffer.from(script, "utf16le").toString("base64");
 	try {
 		const psPath = path.join(
 			process.env.WINDIR || "C:\\Windows",
@@ -3087,28 +3085,22 @@ async function readWindowsMigrationMappedRoots(warnings: Set<string>) {
 			"v1.0",
 			"powershell.exe",
 		);
-		const stdout = await new Promise<string>((resolve, reject) => {
-			const child = execFile(
-				psPath,
-				["-NoProfile", "-NonInteractive", "-Command", "-"],
-				{
-					timeout: 1600,
-					maxBuffer: 80 * 1024,
-					windowsHide: true,
-				},
-				(error, stdoutStr) => {
-					if (error) {
-						reject(error);
-					} else {
-						resolve(stdoutStr);
-					}
-				},
-			);
-			if (child.stdin) {
-				child.stdin.write(script);
-				child.stdin.end();
-			}
-		});
+		const { stdout } = await execFileAsync(
+			psPath,
+			[
+				"-NoProfile",
+				"-NonInteractive",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-EncodedCommand",
+				encodedScript,
+			],
+			{
+				timeout: 1600,
+				maxBuffer: 80 * 1024,
+				windowsHide: true,
+			},
+		);
 		if (!stdout.trim()) return [];
 		const parsed = JSON.parse(stdout);
 		const rows = Array.isArray(parsed) ? parsed : [parsed];

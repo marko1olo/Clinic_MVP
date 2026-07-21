@@ -15,16 +15,10 @@ export const ClinicalScheduler: React.FC<any> = ({
 	onSlotClick,
 	onSlotDrop,
 	onAppointmentClick,
-	viewMode = "day",
-	currentDate = new Date().toISOString().split("T")[0],
-	onSetDate,
-	onSetViewMode,
 }) => {
 	const [crosshair, setCrosshair] = useState<CrosshairState | null>(null);
 	const [isMobile, setIsMobile] = useState(false);
 	const [mobileChairId, setMobileChairId] = useState<string | null>(null);
-	const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-	const [hoveredApptId, setHoveredApptId] = useState<string | null>(null);
 
 	useEffect(() => {
 		const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -95,60 +89,23 @@ export const ClinicalScheduler: React.FC<any> = ({
 		}
 	}, [isMobile, activeChairs, mobileChairId]);
 
-	if (!dashboard || !appointments) {
-		return (
-			<div className="clinical-scheduler skeleton-container" style={{ minHeight: "400px", opacity: 0.6, pointerEvents: "none" }}>
-				<div className="scheduler-header">
-					<div style={{ width: "200px", height: "28px", background: "var(--line, #e2e8f0)", borderRadius: "6px" }} />
-				</div>
-				<div className="scheduler-grid-wrap" style={{ background: "var(--line-light, #eff2f5)", height: "300px", marginTop: "20px", borderRadius: "12px" }} />
-			</div>
-		);
-	}
-
 	const workspaceFlags = useWorkspaceProfileStore();
-	
-	const clinicMode = dashboard?.clinicSettings?.profile?.mode || "network_clinic";
-	const isSmallCabinet = clinicMode === "solo_doctor" || clinicMode === "one_chair";
-
 	const displayedChairs =
-		(!workspaceFlags.hasMultipleChairs || isSmallCabinet) && activeChairs.length > 0
+		!workspaceFlags.hasMultipleChairs && activeChairs.length > 0
 			? [activeChairs[0]]
 			: isMobile && mobileChairId
 				? activeChairs.filter((c: any) => c.id === mobileChairId)
 				: activeChairs;
 
-	const isWeekView = viewMode === "week";
-	
-	const getWeekDays = (dateStr: string) => {
-		const curr = new Date(dateStr);
-		const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
-		const days: string[] = [];
-		for(let i=0; i<7; i++) {
-			const d = new Date(curr);
-			d.setDate(first + i);
-			days.push(d.toISOString().substring(0, 10));
-		}
-		return days;
-	};
-
-	const weekDays = isWeekView ? getWeekDays(currentDate) : [];
-	
-	const columns = isWeekView 
-		? weekDays.map(d => ({ 
-			id: d, 
-			name: new Date(d).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' }) 
-		  }))
-		: displayedChairs;
-
-	const columnsCount = columns.length;
-	const isSingleColumn = columnsCount === 1;
+	const chairsCount = displayedChairs.length;
+	const isSingleChair = chairsCount === 1;
 
 	const freeDoctors =
 		dashboard?.shiftIntelligence?.doctorLoads?.filter(
 			(dl: any) => dl.utilizationPercent < 50 || dl.state === "under_utilized",
 		) || [];
 
+	// Helper to calculate grid row start and span
 	const getAppointmentGridPosition = (appt: any) => {
 		if (!appt.startsAt || !appt.endsAt) return null;
 
@@ -181,82 +138,46 @@ export const ClinicalScheduler: React.FC<any> = ({
 		};
 	};
 
-	const occupiedCells = React.useMemo(() => {
-		const cells = new Set<string>();
-		(appointments || []).forEach((appt: any) => {
-			const pos = getAppointmentGridPosition(appt);
-			if (!pos) return;
-			const colId = isWeekView ? appt.startsAt.substring(0, 10) : appt.chairId;
-			for (let r = 0; r < pos.span; r++) {
-				cells.add(`${pos.startRow + r}-${colId}`);
-			}
-		});
-		return cells;
-	}, [appointments, minStart, isWeekView]);
-
-	const CurrentTimeIndicator = () => {
-		const [currentTime, setCurrentTime] = useState(new Date());
-
-		useEffect(() => {
-			const interval = setInterval(() => setCurrentTime(new Date()), 60000);
-			return () => clearInterval(interval);
-		}, []);
-
-		const hours = currentTime.getHours();
-		const minutes = currentTime.getMinutes();
-		const currentMinutes = hours * 60 + minutes;
-
-		const minParts = minStart.split(":").map(Number);
-		const gridStartMinutes = (minParts[0] || 9) * 60 + (minParts[1] || 0);
-		const maxParts = maxEnd.split(":").map(Number);
-		const gridEndMinutes = (maxParts[0] || 18) * 60 + (maxParts[1] || 0);
-
-		if (currentMinutes < gridStartMinutes || currentMinutes >= gridEndMinutes) return null;
-
-		const offsetSlots = (currentMinutes - gridStartMinutes) / 30;
-		const rowStart = Math.floor(offsetSlots) + 2;
-		const fraction = offsetSlots - Math.floor(offsetSlots);
-		const topOffset = fraction * 44; // 44px is gridAutoRows height
-
-		return (
-			<div
-				className="sg-current-time-line"
-				style={{
-					gridRow: rowStart,
-					gridColumn: "1 / -1",
-					top: `${topOffset}px`,
-				}}
-			>
-				<div className="sg-current-time-dot"></div>
-			</div>
-		);
-	};
-
 	return (
 		<div className="clinical-scheduler">
 			<div className="scheduler-header">
-				<div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "16px", flex: 1 }}>
+				<div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
 					<h3>Ежедневное расписание</h3>
-					
-					{/* Status Legend */}
-					<div className="sg-status-legend">
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-planned" /> Запланирован</span>
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-confirmed" /> Подтвержден</span>
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-arrived" /> Пришел</span>
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-in_treatment" /> В кресле</span>
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-completed" /> Завершен</span>
-						<span className="sg-legend-item"><span className="sg-legend-dot sg-appt-status-cancelled" /> Отменен</span>
-					</div>
-
-					{freeDoctors.length > 0 && !isSmallCabinet && (
-						<div className="free-doctors-locator">
-							<span className="free-doctors-label">
+					{freeDoctors.length > 0 && (
+						<div
+							className="free-doctors-locator"
+							style={{
+								display: "flex",
+								gap: "8px",
+								alignItems: "center",
+								marginLeft: "8px",
+							}}
+						>
+							<span
+								style={{
+									fontSize: "12px",
+									color: "var(--text-secondary)",
+									fontWeight: 500,
+								}}
+							>
 								Свободные окна:
 							</span>
 							{freeDoctors.map((doc: any) => (
 								<div
 									key={doc.id}
-									className="free-doctor-badge"
+									style={{
+										display: "flex",
+										alignItems: "center",
+										gap: "4px",
+										background: "rgba(16, 185, 129, 0.1)",
+										border: "1px solid rgba(16, 185, 129, 0.2)",
+										color: "var(--ink)",
+										padding: "4px 8px",
+										borderRadius: "16px",
+										fontSize: "12px",
+										fontWeight: 500,
+										cursor: "pointer",
+									}}
 									onClick={() =>
 										onSlotClick &&
 										onSlotClick(
@@ -267,31 +188,38 @@ export const ClinicalScheduler: React.FC<any> = ({
 									}
 									title="Записать к врачу"
 								>
-									<span className="free-doctor-dot" />
+									<span
+										style={{
+											width: "6px",
+											height: "6px",
+											borderRadius: "50%",
+											background: "#10b981",
+											boxShadow: "0 0 6px rgba(16, 185, 129, 0.6)",
+										}}
+									/>
 									{doc.title.split(" ")[0]} ({doc.utilizationPercent}%)
 								</div>
 							))}
 						</div>
 					)}
 				</div>
-				<div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-					<button 
-						className="secondary-button" 
-						style={{ padding: "4px 8px", fontSize: "12px", height: "auto" }}
-						onClick={() => setDensity(d => d === "comfortable" ? "compact" : "comfortable")}
-					>
-						{density === "comfortable" ? "Компактный вид" : "Комфортный вид"}
-					</button>
-					<div className="date-picker">Сегодня</div>
-				</div>
+				<div className="date-picker">Сегодня</div>
 			</div>
 
-			{isMobile && !isWeekView && activeChairs.length > 1 && (
+			{isMobile && activeChairs.length > 1 && (
 				<div style={{ padding: "0 16px 16px" }}>
 					<select
-						className="mobile-chair-selector"
 						value={mobileChairId || activeChairs[0].id}
 						onChange={(e) => setMobileChairId(e.target.value)}
+						style={{
+							width: "100%",
+							padding: "12px",
+							borderRadius: "8px",
+							border: "1px solid var(--line)",
+							background: "var(--paper)",
+							fontSize: "16px",
+							color: "var(--ink)",
+						}}
 					>
 						{activeChairs.map((c: any) => (
 							<option key={c.id} value={c.id}>
@@ -305,31 +233,24 @@ export const ClinicalScheduler: React.FC<any> = ({
 			<div className="scheduler-grid-wrap" onMouseLeave={handleCellLeave}>
 				<div
 					className="sg-grid-body"
-					data-density={density}
 					style={{
 						display: "grid",
-						gridTemplateColumns: `60px repeat(${columnsCount}, minmax(180px, 1fr))`,
+						gridTemplateColumns: `60px repeat(${chairsCount}, minmax(180px, 1fr))`,
 						gridAutoRows: "44px",
 					}}
 				>
 					{/* Headers */}
-					{!isSingleColumn && (
+					{!isSingleChair && (
 						<div className="sg-corner" style={{ gridRow: 1, gridColumn: 1 }} />
 					)}
-					{!isSingleColumn &&
-						columns.map((col: any, ci: number) => (
+					{!isSingleChair &&
+						displayedChairs.map((chair: any, ci: number) => (
 							<div
-								key={col.id}
+								key={chair.id}
 								className={`sg-chair-header ${crosshair && crosshair.colIdx === ci ? "sg-col-highlight" : ""}`}
-								style={{ gridRow: 1, gridColumn: ci + 2, cursor: isWeekView ? "pointer" : "default" }}
-								onClick={() => {
-									if (isWeekView && onSetDate && onSetViewMode) {
-										onSetDate(col.id);
-										onSetViewMode("day");
-									}
-								}}
+								style={{ gridRow: 1, gridColumn: ci + 2 }}
 							>
-								{col.name}
+								{chair.name}
 							</div>
 						))}
 
@@ -343,45 +264,29 @@ export const ClinicalScheduler: React.FC<any> = ({
 								{time}
 							</div>
 
-							{columns.map((col: any, ci: number) => {
-								const isOccupied = occupiedCells.has(`${ri + 2}-${col.id}`);
-								const isCrosshairHere = crosshair && crosshair.rowIdx === ri && crosshair.colIdx === ci;
-								let dragClass = "";
-								if (isCrosshairHere) {
-									dragClass = isOccupied ? "sg-cell-highlight-invalid" : "sg-cell-highlight-valid";
-								}
-
-								return (
+							{displayedChairs.map((chair: any, ci: number) => (
 								<div
-									key={`${time}-${col.id}`}
-									className={`sg-cell sg-cell--empty ${isCrosshairHere ? "sg-cell-highlight" : ""} ${crosshair && (crosshair.rowIdx === ri || crosshair.colIdx === ci) ? "sg-row-highlight" : ""} ${dragClass}`}
+									key={`${time}-${chair.id}`}
+									className={`sg-cell sg-cell--empty ${crosshair && crosshair.rowIdx === ri && crosshair.colIdx === ci ? "sg-cell-highlight" : ""} ${crosshair && (crosshair.rowIdx === ri || crosshair.colIdx === ci) ? "sg-row-highlight" : ""}`}
 									style={{ gridRow: ri + 2, gridColumn: ci + 2 }}
 									onMouseEnter={() => setCrosshair({ rowIdx: ri, colIdx: ci })}
-									onClick={() => {
-										if (!isOccupied) {
-											const dateVal = isWeekView ? col.id : currentDate;
-											const chairVal = isWeekView ? (activeChairs[0]?.id || "") : col.id;
-											if (onSlotClick) onSlotClick(dateVal, time, chairVal);
-										}
-									}}
+									onClick={() => handleEmptyClick(time, chair.id)}
 									onDragOver={(e) => {
 										e.preventDefault(); // Allow drop
-										e.dataTransfer.dropEffect = isOccupied ? "none" : "copy";
+										e.dataTransfer.dropEffect = "copy";
 										setCrosshair({ rowIdx: ri, colIdx: ci });
 									}}
 									onDrop={(e) => {
 										e.preventDefault();
 										setCrosshair(null);
-										if (isOccupied) return;
 										if (onSlotDrop) {
-											const dateVal = isWeekView ? col.id : currentDate;
-											const chairVal = isWeekView ? (activeChairs[0]?.id || "") : col.id;
+											const today = new Date().toISOString().split("T")[0];
 											try {
 												const dataStr =
 													e.dataTransfer.getData("application/json");
 												if (dataStr) {
 													const data = JSON.parse(dataStr);
-													onSlotDrop(dateVal, time, chairVal, data);
+													onSlotDrop(today, time, chair.id, data);
 												}
 											} catch (err) {
 												console.error("Drop failed", err);
@@ -389,24 +294,20 @@ export const ClinicalScheduler: React.FC<any> = ({
 										}
 									}}
 								>
-									{!isOccupied && <div className="sg-cell-plus">+</div>}
+									<div className="sg-cell-plus">+</div>
 								</div>
-								);
-							})}
+							))}
 						</React.Fragment>
 					))}
-
-					<CurrentTimeIndicator />
 
 					{/* Appointments Overlay */}
 					{(appointments || []).map((appt: any) => {
 						const pos = getAppointmentGridPosition(appt);
 						if (!pos) return null;
 
-						const colIdx = isWeekView 
-							? columns.findIndex((c: any) => c.id === appt.startsAt.substring(0, 10))
-							: columns.findIndex((c: any) => c.id === appt.chairId);
-							
+						const colIdx = displayedChairs.findIndex(
+							(c: any) => c.id === appt.chairId,
+						);
 						if (colIdx === -1) return null; // Not in view
 
 						// Resolve patient from dashboard
@@ -419,19 +320,6 @@ export const ClinicalScheduler: React.FC<any> = ({
 							(r: any) => r.appointmentId === appt.id,
 						);
 
-						// Resolve doctor from dashboard
-						const doctor = dashboard?.clinicSettings?.staff?.find(
-							(m: any) => m.id === appt.doctorUserId,
-						);
-
-						const tooltipTitle = [
-							`Пациент: ${patient?.fullName || "Неизвестно"}`,
-							`Врач: ${doctor?.fullName || "Не назначен"}`,
-							`Услуга: ${appt.reason || "Не указана"}`,
-							`Телефон: ${patient?.phone || "Не указан"}`,
-							appt.comment ? `Комментарий: ${appt.comment}` : ""
-						].filter(Boolean).join("\n");
-
 						return (
 							<div
 								key={appt.id}
@@ -440,11 +328,9 @@ export const ClinicalScheduler: React.FC<any> = ({
 									gridRow: `${pos.startRow} / span ${pos.span}`,
 									gridColumn: colIdx + 2,
 								}}
-								onMouseEnter={() => setHoveredApptId(appt.id)}
-								onMouseLeave={() => setHoveredApptId(null)}
 							>
 								<div
-									className={`sg-appt-card sg-appt-${appt.type || "therapy"} sg-appt-status-${appt.status || "planned"}`}
+									className={`sg-appt-card sg-appt-${appt.type || "therapy"}`}
 									onClick={(e) => {
 										e.stopPropagation();
 										if (onAppointmentClick) onAppointmentClick(appt);
@@ -454,10 +340,7 @@ export const ClinicalScheduler: React.FC<any> = ({
 									<div className="sg-appt-title">
 										{patient?.fullName || "Неизвестный пациент"}
 									</div>
-									<div className="sg-appt-meta">
-										{doctor?.fullName?.split(" ")[0] || "Без врача"}
-										{appt.reason ? ` · ${appt.reason}` : ""}
-									</div>
+									<div className="sg-appt-meta">{appt.status}</div>
 									<div className="sg-appt-time">
 										{new Date(appt.startsAt).toLocaleTimeString([], {
 											hour: "2-digit",
@@ -469,24 +352,6 @@ export const ClinicalScheduler: React.FC<any> = ({
 											minute: "2-digit",
 										})}
 									</div>
-
-									{/* Custom Popover Tooltip */}
-									{hoveredApptId === appt.id && (
-										<div className="sg-appt-popover glass-panel">
-											<div className="sg-popover-header">
-												<strong>{patient?.fullName || "Неизвестный пациент"}</strong>
-												<span className="sg-popover-time">
-													{new Date(appt.startsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(appt.endsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-												</span>
-											</div>
-											<div className="sg-popover-body">
-												{patient?.phone && <div>📞 {patient.phone}</div>}
-												<div>👨‍⚕️ {doctor?.fullName || "Врач не назначен"}</div>
-												{appt.reason && <div>⚕️ {appt.reason}</div>}
-												{appt.comment && <div className="sg-popover-comment">📝 {appt.comment}</div>}
-											</div>
-										</div>
-									)}
 
 									{/* Status Lights (Светофоры) */}
 									<div className="sg-appt-status-lights">

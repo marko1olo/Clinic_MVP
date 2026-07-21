@@ -1,5 +1,5 @@
 import { createPaymentSchema, documentKindMetadata, paymentSchema, } from "@dental/shared";
-import { and, eq, gte, sum } from "drizzle-orm";
+import { and, desc, eq, gte, sum } from "drizzle-orm";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
 import { createPaymentInDb, findPaymentByClientMutationIdInDb, getDocumentForBilling, getPatientForBilling, getVisitForBilling, } from "../db/billingQuery.js";
 import { db } from "../db/client.js";
@@ -213,7 +213,9 @@ export async function registerAdvancedBillingRoutes(app) {
                         .from(schema.serviceCatalogItems)
                         .where(eq(schema.serviceCatalogItems.id, item.serviceId));
                     const cat = svc?.category || "other";
-                    if (cat === "therapy" || cat === "consultation" || cat === "periodontology")
+                    if (cat === "therapy" ||
+                        cat === "consultation" ||
+                        cat === "periodontology")
                         insurancePct = insuranceContract.coverageTherapyPct;
                     else if (cat === "surgery")
                         insurancePct = insuranceContract.coverageSurgeryPct;
@@ -224,7 +226,7 @@ export async function registerAdvancedBillingRoutes(app) {
                 }
                 const covered = itemTotal * (insurancePct / 100);
                 totalInsuranceAmount += covered;
-                totalPatientAmount += (itemTotal - covered);
+                totalPatientAmount += itemTotal - covered;
             }
         }
         else {
@@ -326,7 +328,7 @@ export async function registerAdvancedBillingRoutes(app) {
             .where(and(eq(schema.patientInvoices.status, "paid"), eq(schema.patientInvoices.organizationId, orgId)))
             .orderBy(schema.patientInvoices.createdAt);
         const visitIds = rows.map((r) => r.visitId).filter(Boolean);
-        let materialCostsByVisit = {};
+        const materialCostsByVisit = {};
         if (visitIds.length > 0) {
             const { inArray } = await import("drizzle-orm");
             const txs = await db
@@ -342,13 +344,16 @@ export async function registerAdvancedBillingRoutes(app) {
                     continue;
                 // deductions are negative quantityChanged, so Math.abs gives the consumed amount
                 const cost = Math.abs(t.quantityChanged) * parseFloat(String(t.unitCostRub));
-                materialCostsByVisit[t.visitId] = (materialCostsByVisit[t.visitId] || 0) + cost;
+                materialCostsByVisit[t.visitId] =
+                    (materialCostsByVisit[t.visitId] || 0) + cost;
             }
         }
         const payouts = rows.map((row) => {
             const revenue = parseFloat(String(row.totalAmountRub ?? 0));
-            const realMaterialCost = row.visitId ? (materialCostsByVisit[row.visitId] || 0) : 0;
-            const materialCost = +(realMaterialCost).toFixed(2);
+            const realMaterialCost = row.visitId
+                ? materialCostsByVisit[row.visitId] || 0
+                : 0;
+            const materialCost = +realMaterialCost.toFixed(2);
             const netBase = revenue - materialCost;
             const docCommissionPct = row.commissionPct != null
                 ? parseFloat(String(row.commissionPct))
@@ -400,6 +405,18 @@ export async function registerAdvancedBillingRoutes(app) {
         })
             .returning();
         return reply.code(200).send(shift);
+    });
+    app.get("/api/finance/shift/active", async (request, reply) => {
+        const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "finance shift active");
+        if (!orgId)
+            return;
+        const [activeShift] = await db
+            .select()
+            .from(schema.cash_shifts)
+            .where(and(eq(schema.cash_shifts.organizationId, orgId), eq(schema.cash_shifts.status, "Open")))
+            .orderBy(desc(schema.cash_shifts.openedAt))
+            .limit(1);
+        return reply.code(200).send(activeShift || null);
     });
     app.post("/api/finance/shift/close", async (request, reply) => {
         const orgId = await requireResolvedStaffOrAdminOrganizationId(request, reply, "finance shift close");
@@ -492,6 +509,9 @@ export async function registerAdvancedBillingRoutes(app) {
             await tx
                 .delete(schema.paymentInstallments)
                 .where(and(eq(schema.paymentInstallments.patientId, patientId), eq(schema.paymentInstallments.status, "pending")));
+            await tx
+                .delete(schema.outgoingNotifications)
+                .where(and(eq(schema.outgoingNotifications.patientId, patientId), eq(schema.outgoingNotifications.type, "installment_reminder"), eq(schema.outgoingNotifications.status, "pending")));
             // Insert new installments
             for (const inst of installments) {
                 const amount = parseFloat(String(inst.amount));
@@ -508,8 +528,87 @@ export async function registerAdvancedBillingRoutes(app) {
                     dueDate,
                     status: "pending",
                 });
+                const reminderDate = new Date(dueDate);
+                reminderDate.setDate(reminderDate.getDate() - 3);
+                await tx.insert(schema.outgoingNotifications).values({
+                    organizationId: orgId,
+                    patientId,
+                    type: "installment_reminder",
+                    payload: {
+                        text: `Уважаемый пациент! Напоминаем о плановом платеже по рассрочке (${amount} руб.) до ${dueDate.toLocaleDateString("ru-RU")}.`,
+                    },
+                    scheduledAt: reminderDate,
+                    status: "pending",
+                });
             }
         });
         return reply.code(200).send({ success: true });
+    });
+    app.get("/api/billing/export/payments.csv", async (request, reply) => {
+        const orgId = await requireResolvedOrganizationId(request, reply, "billing export payments");
+        if (!orgId)
+            return;
+        const paymentsList = await db
+            .select({
+            id: schema.payments.id,
+            paidAt: schema.payments.paidAt,
+            amountRub: schema.payments.amountRub,
+            method: schema.payments.method,
+            status: schema.payments.status,
+            fiscalReceiptNumber: schema.payments.fiscalReceiptNumber,
+            taxDeductionCode: schema.payments.taxDeductionCode,
+            note: schema.payments.note,
+            patientFullName: schema.patients.fullName,
+        })
+            .from(schema.payments)
+            .leftJoin(schema.patients, eq(schema.payments.patientId, schema.patients.id))
+            .where(eq(schema.payments.organizationId, orgId))
+            .orderBy(desc(schema.payments.paidAt));
+        const methodLabels = {
+            card: "Безналичный расчет (карта)",
+            cash: "Наличные",
+            sbp: "СБП",
+            bank_transfer: "Расчетный счет",
+        };
+        const statusLabels = {
+            paid: "Оплачено",
+            refunded: "Возврат",
+            pending: "Ожидает",
+        };
+        function csvCell(val) {
+            if (val === null || val === undefined)
+                return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+        }
+        const headers = [
+            "ID Платежа",
+            "Дата и время",
+            "Пациент",
+            "Сумма (руб)",
+            "Способ оплаты",
+            "Статус",
+            "Чек ФД/ФН",
+            "Код вычета ИФНС",
+            "Примечание",
+        ];
+        const rows = paymentsList.map((p) => [
+            p.id,
+            p.paidAt ? new Date(p.paidAt).toISOString() : "",
+            p.patientFullName || "Пациент не указан",
+            p.amountRub,
+            methodLabels[p.method] || p.method,
+            statusLabels[p.status] || p.status,
+            p.fiscalReceiptNumber || "",
+            p.taxDeductionCode || "",
+            p.note || "",
+        ]);
+        const csvContent = headers.map(csvCell).join(";") +
+            "\n" +
+            rows.map((row) => row.map(csvCell).join(";")).join("\n");
+        return reply
+            .type("text/csv; charset=utf-8")
+            .header("Content-Disposition", 'attachment; filename="accounting_payments_report.csv"')
+            .send(`\uFEFF${csvContent}`);
     });
 }

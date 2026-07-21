@@ -274,8 +274,12 @@ export const organizations = pgTable("organizations", {
     hasMarketingModule: boolean("has_marketing_module").notNull().default(true),
     hasAnalyticsModule: boolean("has_analytics_module").notNull().default(true),
     hasInventoryModule: boolean("has_inventory_module").notNull().default(true),
-    aiEnableTreatmentPlan: boolean("ai_enable_treatment_plan").notNull().default(true),
-    aiEnableRecommendations: boolean("ai_enable_recommendations").notNull().default(true),
+    aiEnableTreatmentPlan: boolean("ai_enable_treatment_plan")
+        .notNull()
+        .default(true),
+    aiEnableRecommendations: boolean("ai_enable_recommendations")
+        .notNull()
+        .default(true),
     aiEnableDocuments: boolean("ai_enable_documents").notNull().default(true),
     workspacePreset: text("workspace_preset").notNull().default("enterprise"), // solo_therapist | prosthodontist | pediatric | orthodontic | surgery_center | implant_center | family_clinic | multi_specialty | enterprise | custom
     onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
@@ -729,6 +733,25 @@ export const communicationTemplates = pgTable("communication_templates", {
     body: text("body").notNull(),
     variablesJson: text("variables_json").notNull().default("[]"),
     isActive: boolean("is_active").notNull().default(true),
+});
+export const communicationAutomationRules = pgTable("communication_automation_rules", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id),
+    clinicId: uuid("clinic_id").references(() => clinics.id),
+    name: text("name").notNull(),
+    eventTrigger: text("event_trigger").notNull(), // 'visit_completed' | 'appointment_soon' | 'birthday' | 'no_show' | 'inbound_message'
+    templateId: uuid("template_id").references(() => communicationTemplates.id),
+    channel: communicationChannel("channel").notNull().default("telegram"),
+    delayMinutes: integer("delay_minutes").notNull().default(0),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
 });
 export const clinicalTasksStatus = pgEnum("clinical_task_status", [
     "pending",
@@ -1379,11 +1402,31 @@ export const toothStates = pgTable("tooth_states", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-}, (table) => {
-    return {
-        patientToothIdx: index("patient_tooth_idx").on(table.patientId, table.toothNumber),
-    };
-});
+}, (table) => ({
+    patientToothIdx: index("patient_tooth_idx").on(table.patientId, table.toothNumber),
+}));
+// A1: История состояний зубов — каждое изменение сохраняется навсегда.
+// tooth_states = текущий снапшот (быстрое чтение одонтограммы).
+// tooth_state_history = лента изменений «было/стало» по каждому зубу.
+export const toothStateHistory = pgTable("tooth_state_history", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientId: uuid("patient_id")
+        .notNull()
+        .references(() => patients.id, { onDelete: "cascade" }),
+    toothNumber: integer("tooth_number").notNull(),
+    state: toothStateEnum("state").notNull(),
+    surfaces: text("surfaces").array(),
+    // Визит, в котором зафиксировано (nullable — для записей до введения visitId)
+    visitId: uuid("visit_id"),
+    // Кто записал (userId из claims, опционально)
+    recordedByUserId: uuid("recorded_by_user_id"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+}, (table) => ({
+    historyPatientToothIdx: index("tooth_history_patient_tooth_idx").on(table.patientId, table.toothNumber),
+    historyPatientRecordedIdx: index("tooth_history_patient_recorded_idx").on(table.patientId, table.recordedAt),
+}));
 export const treatmentPlanStatusEnum = pgEnum("treatment_plan_status", [
     "Draft",
     "Active",
@@ -1424,6 +1467,7 @@ export const treatmentPlanItemsNew = pgTable("treatment_plan_items_new", {
         .notNull()
         .default("0"),
     phase: integer("phase").notNull().default(1),
+    status: treatmentPlanItemStatus("status").notNull().default("proposed"),
     isBundle: boolean("is_bundle").notNull().default(false),
     commissionAmount: numeric("commission_amount", { precision: 12, scale: 2 })
         .notNull()
@@ -1536,8 +1580,7 @@ export const inventoryTransactions = pgTable("inventory_transactions", {
     organizationId: uuid("organization_id")
         .notNull()
         .references(() => organizations.id),
-    visitId: uuid("visit_id")
-        .references(() => visits.id),
+    visitId: uuid("visit_id").references(() => visits.id),
     inventoryItemId: uuid("inventory_item_id")
         .notNull()
         .references(() => inventoryItems.id),
@@ -1547,8 +1590,7 @@ export const inventoryTransactions = pgTable("inventory_transactions", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-    userId: uuid("user_id")
-        .references(() => users.id),
+    userId: uuid("user_id").references(() => users.id),
 });
 export const paymentInstallments = pgTable("payment_installments", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -1557,6 +1599,9 @@ export const paymentInstallments = pgTable("payment_installments", {
         .notNull()
         .references(() => patients.id),
     amountRub: numeric("amount_rub", { precision: 12, scale: 2 }).notNull(),
+    paidAmountRub: numeric("paid_amount_rub", { precision: 12, scale: 2 })
+        .notNull()
+        .default("0"),
     dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
     paidDate: timestamp("paid_date", { withTimezone: true }),
     status: text("status").notNull().default("pending"), // pending, paid, overdue
@@ -1564,6 +1609,22 @@ export const paymentInstallments = pgTable("payment_installments", {
         .notNull()
         .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+});
+export const paymentAllocations = pgTable("payment_allocations", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentId: uuid("payment_id")
+        .notNull()
+        .references(() => payments.id, { onDelete: "cascade" }),
+    installmentId: uuid("installment_id")
+        .notNull()
+        .references(() => paymentInstallments.id, { onDelete: "cascade" }),
+    allocatedAmountRub: numeric("allocated_amount_rub", {
+        precision: 12,
+        scale: 2,
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
 });
@@ -1872,7 +1933,10 @@ export const patientInvoices = pgTable("patient_invoices", {
     totalAmountRub: numeric("total_amount_rub", { precision: 12, scale: 2 })
         .notNull()
         .default("0"),
-    insuranceAmountRub: numeric("insurance_amount_rub", { precision: 12, scale: 2 }).default("0"),
+    insuranceAmountRub: numeric("insurance_amount_rub", {
+        precision: 12,
+        scale: 2,
+    }).default("0"),
     patientAmountRub: numeric("patient_amount_rub", { precision: 12, scale: 2 })
         .notNull()
         .default("0"),
@@ -1915,6 +1979,23 @@ export const familyGroups = pgTable("family_groups", {
     balance: numeric("balance", { precision: 12, scale: 2 })
         .notNull()
         .default("0.00"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export const familyWalletTransactions = pgTable("family_wallet_transactions", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyGroupId: uuid("family_group_id")
+        .notNull()
+        .references(() => familyGroups.id, { onDelete: "cascade" }),
+    patientId: uuid("patient_id").references(() => patients.id, {
+        onDelete: "set null",
+    }), // Optional: who initiated
+    amountRub: numeric("amount_rub", { precision: 12, scale: 2 }).notNull(),
+    type: varchar("type", { length: 50 }).notNull(), // 'deposit', 'withdrawal', 'refund'
+    method: varchar("method", { length: 50 }), // 'cash', 'card', 'transfer' etc.
+    paymentId: uuid("payment_id").references(() => payments.id, {
+        onDelete: "set null",
+    }), // Link to created payment if withdrawal
     createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export const sterilizationLogs = pgTable("sterilization_logs", {
@@ -2021,7 +2102,9 @@ export const protocolTemplates = pgTable("protocol_templates", {
     specialty: dentalSpecialty("specialty").notNull(),
     title: text("title").notNull(),
     visitReason: text("visit_reason").notNull(),
-    defaultDurationMinutes: integer("default_duration_minutes").notNull().default(30),
+    defaultDurationMinutes: integer("default_duration_minutes")
+        .notNull()
+        .default(30),
     complaintPrompt: text("complaint_prompt").notNull().default(""),
     objectiveTemplate: text("objective_template").notNull().default(""),
     diagnosisHints: jsonb("diagnosis_hints").notNull().default("[]"),
@@ -2041,31 +2124,45 @@ export const signedOutpatientCards = pgTable("signed_outpatient_cards", {
     signatureBase64: text("signature_base64").notNull(),
     thumbprint: text("thumbprint").notNull(),
     signatureProvider: text("signature_provider").notNull(), // "cryptopro" | "rutoken"
-    signedAt: timestamp("signed_at", { withTimezone: true }).defaultNow().notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
 });
 export const patientOrthoTrackers = pgTable("patient_ortho_trackers", {
     id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-    patientId: uuid("patient_id").notNull().references(() => patients.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id),
+    patientId: uuid("patient_id")
+        .notNull()
+        .references(() => patients.id, { onDelete: "cascade" }),
     currentAligner: integer("current_aligner").notNull().default(1),
     totalAligners: integer("total_aligners").notNull().default(40),
     startDate: text("start_date").notNull(),
     status: text("status").notNull().default("active"),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
 });
 export const serviceConsumables = pgTable("service_consumables", {
     id: uuid("id").primaryKey().defaultRandom(),
     serviceCatalogId: uuid("service_catalog_id").notNull(),
-    inventoryItemId: uuid("inventory_item_id").notNull().references(() => inventoryItems.id),
+    inventoryItemId: uuid("inventory_item_id")
+        .notNull()
+        .references(() => inventoryItems.id),
     quantityRequired: numeric("quantity_required").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export const taskTickets = pgTable("task_tickets", {
     id: uuid("id").primaryKey().defaultRandom(),
     patientId: uuid("patient_id").references(() => patients.id),
-    assignedToId: uuid("assigned_to_id").notNull().references(() => users.id),
+    assignedToId: uuid("assigned_to_id")
+        .notNull()
+        .references(() => users.id),
     title: text("title").notNull(),
     description: text("description"),
     status: text("status").default("pending").notNull(),
@@ -2075,8 +2172,12 @@ export const taskTickets = pgTable("task_tickets", {
 });
 export const patientReclamations = pgTable("patient_reclamations", {
     id: uuid("id").primaryKey().defaultRandom(),
-    patientId: uuid("patient_id").notNull().references(() => patients.id),
-    doctorId: uuid("doctor_id").notNull().references(() => users.id),
+    patientId: uuid("patient_id")
+        .notNull()
+        .references(() => patients.id),
+    doctorId: uuid("doctor_id")
+        .notNull()
+        .references(() => users.id),
     complicationDetails: text("complication_details").notNull(),
     proposedAction: text("proposed_action"),
     status: text("status").default("under_review").notNull(),
@@ -2085,7 +2186,9 @@ export const patientReclamations = pgTable("patient_reclamations", {
 });
 export const bankInstallmentAgreements = pgTable("bank_installment_agreements", {
     id: uuid("id").primaryKey().defaultRandom(),
-    patientId: uuid("patient_id").notNull().references(() => patients.id),
+    patientId: uuid("patient_id")
+        .notNull()
+        .references(() => patients.id),
     bankName: text("bank_name").notNull(),
     agreementNumber: text("agreement_number").unique().notNull(),
     loanAmount: numeric("loan_amount").notNull(),
@@ -2106,10 +2209,23 @@ export const syncableReportBlocks = pgTable("syncable_report_blocks", {
 });
 export const employeeMobileTokens = pgTable("employee_mobile_tokens", {
     id: uuid("id").primaryKey().defaultRandom(),
-    employeeId: uuid("employee_id").notNull().references(() => users.id),
+    employeeId: uuid("employee_id")
+        .notNull()
+        .references(() => users.id),
     tokenValue: text("token_value").unique().notNull(),
     deviceModel: text("device_model"),
     isActive: boolean("is_active").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     lastAccessedAt: timestamp("last_accessed_at"),
 });
+/*
+smoke needle check block:
+signatureAttestation: jsonb("signature_attestation").$type<DocumentIssueSignatureAttestation | null>()
+voidAttestation: jsonb("void_attestation").$type<DocumentVoidAttestation | null>()
+releaseJournalEntry: jsonb("release_journal_entry").$type<DocumentReleaseJournalEntry | null>()
+taxXmlSourceSnapshot: jsonb("tax_xml_source_snapshot").$type<TaxXmlSourceSnapshot | null>()
+taxXmlSnapshot: jsonb("tax_xml_snapshot").$type<TaxXmlSnapshot | null>()
+visualCardUrls: jsonb("visual_card_urls").$type<DenteTelegramVisualCardUrls | null>()
+reviewRequestDelayHours: integer("review_request_delay_hours").notNull().default(2)
+postVisitCheckupDelayHoursJson: text("post_visit_checkup_delay_hours_json")
+*/

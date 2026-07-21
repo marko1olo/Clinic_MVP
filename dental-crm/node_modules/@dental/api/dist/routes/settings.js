@@ -1,10 +1,10 @@
-import { chairSchema, clinicSettingsSchema, createChairSchema, createStaffMemberSchema, staffMemberSchema, uiPreferencesInputSchema, uiPreferencesSchema, updateChairWorkingHoursSchema, updateClinicModeSchema, updateClinicProfileSchema, updateStaffMemberSchema, updateStaffWorkingHoursSchema, createServiceCatalogItemSchema, updateServiceCatalogItemSchema, } from "@dental/shared";
-import { eq, and } from "drizzle-orm";
+import { chairSchema, clinicSettingsSchema, createChairSchema, createServiceCatalogItemSchema, createStaffMemberSchema, staffMemberSchema, uiPreferencesInputSchema, uiPreferencesSchema, updateChairWorkingHoursSchema, updateClinicModeSchema, updateClinicProfileSchema, updateServiceCatalogItemSchema, updateStaffMemberSchema, updateStaffWorkingHoursSchema, } from "@dental/shared";
+import { and, eq } from "drizzle-orm";
 import { resolveOrganizationId } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
-import { createChairInDb, deleteChairInDb, createStaffMemberInDb, getClinicSettingsFromDb, getUiPreferencesFromDb, saveUiPreferencesInDb, updateChairWorkingHoursInDb, updateClinicModeInDb, updateClinicProfileInDb, updateStaffCredentialsInDb, updateStaffMemberInDb, updateStaffWorkingHoursInDb, } from "../db/settingsQuery.js";
-import { getProtocolTemplatesFromDb, createProtocolTemplateInDb, updateProtocolTemplateInDb, deleteProtocolTemplateInDb, } from "../db/settingsProtocolsQuery.js";
+import { createProtocolTemplateInDb, deleteProtocolTemplateInDb, getProtocolTemplatesFromDb, updateProtocolTemplateInDb, } from "../db/settingsProtocolsQuery.js";
+import { createChairInDb, createStaffMemberInDb, deleteChairInDb, getClinicSettingsFromDb, getUiPreferencesFromDb, saveUiPreferencesInDb, updateChairWorkingHoursInDb, updateClinicModeInDb, updateClinicProfileInDb, updateStaffCredentialsInDb, updateStaffMemberInDb, updateStaffWorkingHoursInDb, } from "../db/settingsQuery.js";
 import { repairMojibakeDeep } from "../text/repairMojibake.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
@@ -175,6 +175,15 @@ async function requireSettingsAccess(request, reply) {
     return org.id;
 }
 export async function registerSettingsRoutes(app) {
+    app.addHook("onClose", async () => {
+        try {
+            const { exportDbToPersistentStateFile } = await import("../persistentState.js");
+            await exportDbToPersistentStateFile();
+        }
+        catch (e) {
+            console.error("Failed to export state file on close:", e);
+        }
+    });
     app.get("/api/settings/protocols", async (request, reply) => {
         const orgId = await requireSettingsAccess(request, reply);
         if (!orgId)
@@ -271,12 +280,12 @@ export async function registerSettingsRoutes(app) {
                 message: uiPreferencesValidationMessage,
             });
         }
-        await saveUiPreferencesInDb(orgId, {
+        const saved = await saveUiPreferencesInDb(orgId, {
             ...input,
             version: 1,
             savedAt: input.savedAt ?? new Date().toISOString(),
         });
-        return uiPreferencesSchema.parse({ ...input, version: 1 });
+        return uiPreferencesSchema.parse(saved);
     });
     app.post("/api/settings/clinic/mode", async (request, reply) => {
         const orgId = await requireSettingsAccess(request, reply);
@@ -493,7 +502,10 @@ export async function registerSettingsRoutes(app) {
         const orgId = await resolveOrganizationId(request);
         if (!orgId)
             return reply.code(401).send({ error: "Unauthorized" });
-        const wfs = await db.select().from(schema.clinicWorkflows).where(eq(schema.clinicWorkflows.organizationId, orgId));
+        const wfs = await db
+            .select()
+            .from(schema.clinicWorkflows)
+            .where(eq(schema.clinicWorkflows.organizationId, orgId));
         return { workflows: wfs };
     });
     app.post("/api/clinic/workflows", async (request, reply) => {
@@ -503,12 +515,15 @@ export async function registerSettingsRoutes(app) {
         const body = request.body;
         if (!body.name || !body.trigger)
             return reply.code(400).send({ error: "Missing name or trigger" });
-        const [wf] = await db.insert(schema.clinicWorkflows).values({
+        const [wf] = await db
+            .insert(schema.clinicWorkflows)
+            .values({
             organizationId: orgId,
             name: body.name,
             trigger: body.trigger,
             active: body.active || false,
-        }).returning();
+        })
+            .returning();
         return reply.code(201).send({ workflow: wf });
     });
     app.post("/api/clinic/workflows/:id/toggle", async (request, reply) => {
@@ -517,7 +532,8 @@ export async function registerSettingsRoutes(app) {
             return reply.code(401).send({ error: "Unauthorized" });
         const { id } = request.params;
         const { active } = request.body;
-        await db.update(schema.clinicWorkflows)
+        await db
+            .update(schema.clinicWorkflows)
             .set({ active, updatedAt: new Date() })
             .where(and(eq(schema.clinicWorkflows.id, id), eq(schema.clinicWorkflows.organizationId, orgId)));
         return { success: true };
@@ -527,7 +543,8 @@ export async function registerSettingsRoutes(app) {
         if (!orgId)
             return reply.code(401).send({ error: "Unauthorized" });
         const { id } = request.params;
-        await db.delete(schema.clinicWorkflows)
+        await db
+            .delete(schema.clinicWorkflows)
             .where(and(eq(schema.clinicWorkflows.id, id), eq(schema.clinicWorkflows.organizationId, orgId)));
         return { success: true };
     });
@@ -537,7 +554,8 @@ export async function registerSettingsRoutes(app) {
         if (!orgId)
             return;
         const body = request.body;
-        await db.update(schema.clinics)
+        await db
+            .update(schema.clinics)
             .set({ marketingSettings: body })
             .where(eq(schema.clinics.organizationId, orgId));
         return { success: true };
@@ -548,7 +566,8 @@ export async function registerSettingsRoutes(app) {
         if (!orgId)
             return;
         const body = request.body;
-        await db.update(schema.clinics)
+        await db
+            .update(schema.clinics)
             .set({ reportingSettings: body })
             .where(eq(schema.clinics.organizationId, orgId));
         return { success: true };
@@ -558,10 +577,14 @@ export async function registerSettingsRoutes(app) {
         if (!orgId)
             return;
         const token = "DENTE-" + require("crypto").randomBytes(16).toString("hex");
-        const [clinic] = await db.select({ reportingSettings: schema.clinics.reportingSettings }).from(schema.clinics).where(eq(schema.clinics.organizationId, orgId));
+        const [clinic] = await db
+            .select({ reportingSettings: schema.clinics.reportingSettings })
+            .from(schema.clinics)
+            .where(eq(schema.clinics.organizationId, orgId));
         const settings = (clinic?.reportingSettings || {});
         settings.apiToken = token;
-        await db.update(schema.clinics)
+        await db
+            .update(schema.clinics)
             .set({ reportingSettings: settings })
             .where(eq(schema.clinics.organizationId, orgId));
         return { token };
@@ -618,7 +641,9 @@ export async function registerSettingsRoutes(app) {
         const input = parseSettingsPayload(createServiceCatalogItemSchema, request.body);
         if (!input)
             return reply.code(400).send({ error: "Invalid payload" });
-        const result = await db.insert(schema.serviceCatalogItems).values({
+        const result = await db
+            .insert(schema.serviceCatalogItems)
+            .values({
             organizationId,
             title: input.title,
             code: input.code || "",
@@ -629,7 +654,8 @@ export async function registerSettingsRoutes(app) {
             durationMinutes: input.durationMinutes,
             taxDeductible: input.taxDeductible,
             isActive: true,
-        }).returning();
+        })
+            .returning();
         return reply.send({ success: true, item: result[0] });
     });
     app.put("/api/settings/catalog/:serviceId", async (request, reply) => {
@@ -662,11 +688,52 @@ export async function registerSettingsRoutes(app) {
         if (Object.keys(updateData).length === 0) {
             return reply.send({ success: true });
         }
-        const result = await db.update(schema.serviceCatalogItems)
+        const result = await db
+            .update(schema.serviceCatalogItems)
             .set(updateData)
             .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)))
             .returning();
         return reply.send({ success: true, item: result[0] });
+    });
+    app.get("/api/settings/catalog/debug", async (request, reply) => {
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return reply.code(401).send({ error: "Unauthorized" });
+        const items = await db
+            .select()
+            .from(schema.serviceCatalogItems)
+            .where(eq(schema.serviceCatalogItems.organizationId, organizationId));
+        return reply.send(items);
+    });
+    app.post("/api/settings/catalog/bulk-index", async (request, reply) => {
+        const organizationId = await resolveOrganizationId(request);
+        if (!organizationId)
+            return;
+        const { percentage, category } = request.body;
+        if (typeof percentage !== "number" || !Number.isFinite(percentage)) {
+            return reply.code(400).send({ error: "Invalid percentage" });
+        }
+        // Fetch items for this organization (filtered by category if specified)
+        let condition = eq(schema.serviceCatalogItems.organizationId, organizationId);
+        if (category && category !== "all") {
+            condition = and(eq(schema.serviceCatalogItems.organizationId, organizationId), eq(schema.serviceCatalogItems.category, category));
+        }
+        const items = await db
+            .select()
+            .from(schema.serviceCatalogItems)
+            .where(condition);
+        for (const item of items) {
+            const newBasePrice = Math.max(0, Math.round(item.basePriceRub * (1 + percentage / 100)));
+            const newPrice = Math.max(0, Math.round(item.priceRub * (1 + percentage / 100)));
+            await db
+                .update(schema.serviceCatalogItems)
+                .set({
+                basePriceRub: newBasePrice,
+                priceRub: newPrice,
+            })
+                .where(eq(schema.serviceCatalogItems.id, item.id));
+        }
+        return reply.send({ success: true, count: items.length });
     });
     app.delete("/api/settings/catalog/:serviceId", async (request, reply) => {
         const organizationId = await resolveOrganizationId(request);
@@ -675,14 +742,16 @@ export async function registerSettingsRoutes(app) {
         const { serviceId } = request.params;
         // Attempt to delete. Will fail automatically with FK constraint if used in invoices/treatments
         try {
-            await db.delete(schema.serviceCatalogItems)
+            await db
+                .delete(schema.serviceCatalogItems)
                 .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)));
             return reply.send({ success: true });
         }
         catch (error) {
             console.error("Delete catalog item error", error);
             // Fallback: Soft delete if FK constraint fails
-            await db.update(schema.serviceCatalogItems)
+            await db
+                .update(schema.serviceCatalogItems)
                 .set({ isActive: false })
                 .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)));
             return reply.send({ success: true, softDeleted: true });

@@ -12,9 +12,7 @@ export type LazyWorkspaceView =
 	| "visit"
 	| "imaging"
 	| "marketing"
-	| "scanner"
-	| "inventory"
-	| "payroll";
+	| "scanner";
 
 type WorkspaceRouteErrorBoundaryProps = PropsWithChildren<{
 	label: string;
@@ -80,10 +78,7 @@ export class WorkspaceRouteErrorBoundary extends Component<
 					role="alert"
 					aria-live="assertive"
 				>
-					<div 
-						className="rounded-2xl shadow-xl text-center max-w-sm"
-						style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px", border: "1px solid var(--color-danger-muted, #fca5a5)", background: "var(--paper)" }}
-					>
+					<div className="flex flex-col items-center justify-center p-8 rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-md shadow-xl text-center max-w-sm">
 						<svg
 							className="w-12 h-12 text-red-500/80 mb-4"
 							fill="none"
@@ -103,8 +98,7 @@ export class WorkspaceRouteErrorBoundary extends Component<
 						</p>
 						<div className="flex gap-2">
 							<button
-								className="transition-all duration-200"
-								style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 24px", borderRadius: "999px", background: "var(--color-danger-muted, #fee2e2)", color: "var(--color-danger, #ef4444)", border: "none" }}
+								className="px-6 py-2.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
 								type="button"
 								onClick={() => this.setState({ hasError: false, detail: "" })}
 							>
@@ -124,8 +118,7 @@ export class WorkspaceRouteErrorBoundary extends Component<
 								Повторить
 							</button>
 							<button
-								className="transition-all duration-200"
-								style={{ padding: "10px 24px", borderRadius: "999px", background: "var(--paper-strong)", color: "var(--ink)", border: "1px solid var(--line)" }}
+								className="px-6 py-2.5 rounded-full bg-[#1e293b] border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all duration-200"
 								type="button"
 								onClick={requestDenteStaleWorkspaceRefresh}
 							>

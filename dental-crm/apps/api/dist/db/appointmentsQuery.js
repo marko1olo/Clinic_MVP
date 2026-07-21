@@ -1,4 +1,5 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { triggerAutomationRules } from "../services/automationRulesEngine.js";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 export async function createAppointmentInDb(organizationId, input, txContext = db) {
@@ -32,6 +33,22 @@ export async function createAppointmentInDb(organizationId, input, txContext = d
             .returning();
         if (!created)
             throw new Error("Failed to insert appointment");
+        // appointment_soon: запускаем движок автоматизации (правила из реестра)
+        if (created.patientId &&
+            (created.status === "planned" ||
+                created.status === "confirmed" ||
+                created.status === "arrived")) {
+            const startsAtDate = new Date(created.startsAt);
+            const dateText = startsAtDate.toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "long",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            setImmediate(() => {
+                triggerAutomationRules(created.organizationId, "appointment_soon", created.patientId, { appointmentId: created.id, dateText }).catch((e) => console.error("[AutomationEngine] appointment_soon create error:", e));
+            });
+        }
         return {
             id: created.id,
             organizationId: created.organizationId,
@@ -118,6 +135,59 @@ export async function updateAppointmentInDb(organizationId, appointmentId, input
             .returning();
         if (!updated)
             throw new Error("Failed to update appointment");
+        // Очищаем ранее запланированные напоминания appointment_soon для этой записи
+        await tx
+            .delete(schema.outgoingNotifications)
+            .where(and(eq(schema.outgoingNotifications.organizationId, organizationId), eq(schema.outgoingNotifications.type, "appointment_soon"), eq(schema.outgoingNotifications.status, "pending"), sql `payload->>'appointmentId' = ${updated.id}`));
+        // appointment_soon: перезапускаем правила, если запись ещё активна
+        if (updated.patientId &&
+            (updated.status === "planned" ||
+                updated.status === "confirmed" ||
+                updated.status === "arrived")) {
+            const startsAtDate = new Date(updated.startsAt);
+            const dateText = startsAtDate.toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "long",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            setImmediate(() => {
+                triggerAutomationRules(updated.organizationId, "appointment_soon", updated.patientId, { appointmentId: updated.id, dateText }).catch((e) => console.error("[AutomationEngine] appointment_soon update error:", e));
+            });
+        }
+        // no_show: CRM-задача для ручного звонка + движок авто-правил (смс/telegram по шаблону)
+        if (input.status === "no_show" &&
+            existing.status !== "no_show" &&
+            updated.patientId) {
+            const [patient] = await tx
+                .select({ fullName: schema.patients.fullName })
+                .from(schema.patients)
+                .where(eq(schema.patients.id, updated.patientId))
+                .limit(1);
+            const patientName = patient?.fullName || "пациентом";
+            const dueAt = new Date();
+            dueAt.setHours(dueAt.getHours() + 1); // Follow up in 1 hour
+            // CRM-задача для администратора (позвонить вручную)
+            await tx.insert(schema.communicationTasks).values({
+                organizationId,
+                patientId: updated.patientId,
+                appointmentId: updated.id,
+                assignedRole: "administrator",
+                channel: "phone",
+                intent: "recall",
+                status: "needs_call",
+                priority: "high",
+                dueAt,
+                title: `Выяснить причину неявки пациентом ${patientName}`,
+                body: `Пациент ${patientName} не явился на прием. Необходимо связаться и предложить перенос записи.`,
+            });
+            // Движок автоматизации: авто-уведомление по настроенным правилам no_show
+            setImmediate(() => {
+                triggerAutomationRules(organizationId, "no_show", updated.patientId, {
+                    appointmentId: updated.id,
+                }).catch((e) => console.error("[AutomationEngine] no_show error:", e));
+            });
+        }
         return {
             id: updated.id,
             organizationId: updated.organizationId,
@@ -468,4 +538,13 @@ async function assertAppointmentCanBeScheduled(organizationId, candidate, tx = d
         }
         throw new Error("Кресло уже занято другой записью в это время");
     }
+}
+export async function getAppointmentsByIdsInDb(organizationId, ids) {
+    if (ids.length === 0)
+        return [];
+    const res = await db
+        .select()
+        .from(schema.appointments)
+        .where(and(eq(schema.appointments.organizationId, organizationId), inArray(schema.appointments.id, ids)));
+    return res;
 }

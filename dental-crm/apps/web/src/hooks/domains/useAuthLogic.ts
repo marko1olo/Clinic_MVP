@@ -211,14 +211,6 @@ export function useAuthLogic({
 	const settingsAdminSecretDomain: AdminSecretUnlockDomain =
 		settingsTab === "telegram" ? "telegram" : "settings";
 
-	function currentOrganizationId(): string {
-		return (
-			dashboard?.clinicSettings?.id ??
-			localStorage.getItem("dente_organization_id") ??
-			""
-		);
-	}
-
 	return {
 		activeWorkspaceProfile,
 		settingsAdminSecretDomain,
@@ -236,6 +228,5 @@ export function useAuthLogic({
 		lockTelegramAdminSession,
 		revokeObjectUrlIfNeeded,
 		revokeObjectUrlMap,
-		currentOrganizationId,
 	};
 }

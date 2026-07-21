@@ -142,9 +142,12 @@ async function requireScheduleMutationAccess(request, reply) {
     });
     return false;
 }
+import { and, eq } from "drizzle-orm";
 import { resolveExplicitOrganizationId, resolveOrganizationId, } from "../accessGuard.js";
 import { createAppointmentInDb, updateAppointmentInDb, } from "../db/appointmentsQuery.js";
+import { db } from "../db/client.js";
 import { getDashboardFromDb } from "../db/dashboardQuery.js";
+import { appointments, visits } from "../db/schema.js";
 import { wsBroker } from "../services/websocketBroker.js";
 export async function registerScheduleRoutes(app) {
     async function createAppointmentHandler(request, reply) {
@@ -214,4 +217,88 @@ export async function registerScheduleRoutes(app) {
     }
     app.patch("/api/appointments/:appointmentId", updateAppointmentHandler);
     app.put("/api/schedule/appointments/:appointmentId", updateAppointmentHandler);
+    app.post("/api/appointments/:appointmentId/start-visit", async (request, reply) => {
+        const orgId = await resolveOrganizationId(request);
+        if (!orgId)
+            return reply.code(401).send({ error: "AuthExpired" });
+        const params = request.params;
+        if (!params.appointmentId) {
+            return reply
+                .code(400)
+                .send({ error: "AppointmentRouteValidationError" });
+        }
+        try {
+            const [appointment] = await db
+                .select()
+                .from(appointments)
+                .where(and(eq(appointments.id, params.appointmentId), eq(appointments.organizationId, orgId)))
+                .limit(1);
+            if (!appointment) {
+                return reply.code(404).send({ error: "AppointmentNotFound" });
+            }
+            // Check if there's already an active visit
+            const [existingVisit] = await db
+                .select()
+                .from(visits)
+                .where(and(eq(visits.appointmentId, params.appointmentId), eq(visits.status, "draft"), eq(visits.organizationId, orgId)))
+                .limit(1);
+            if (existingVisit) {
+                return reply.code(200).send({
+                    patientId: existingVisit.patientId,
+                    appointmentId: existingVisit.appointmentId,
+                    visitId: existingVisit.id,
+                });
+            }
+            // Update appointment status to in_treatment if it's not completed
+            if (appointment.status !== "completed" &&
+                appointment.status !== "no_show") {
+                await db
+                    .update(appointments)
+                    .set({ status: "in_treatment" })
+                    .where(eq(appointments.id, params.appointmentId));
+            }
+            const userContext = request.user;
+            const userId = userContext?.id ?? null;
+            const finalDoctorId = appointment.doctorUserId ||
+                userId ||
+                "00000000-0000-0000-0000-000000000000";
+            if (!appointment.patientId) {
+                return reply.code(400).send({
+                    error: "AppointmentRouteValidationError",
+                    message: "У записи нет пациента",
+                });
+            }
+            // Create the visit
+            const [visit] = await db
+                .insert(visits)
+                .values({
+                organizationId: orgId,
+                patientId: appointment.patientId,
+                appointmentId: appointment.id,
+                status: "draft",
+            })
+                .returning();
+            if (!visit) {
+                return reply.code(500).send({
+                    error: "StartVisitFailed",
+                    message: "Не удалось создать приём в БД",
+                });
+            }
+            // Notify dashboard
+            const dashboard = await getDashboardFromDb(orgId);
+            wsBroker.broadcastToOrganization(orgId, {
+                type: "UPDATE_CALENDAR",
+                payload: dashboardSchema.parse(dashboard),
+            });
+            return reply.code(201).send({
+                patientId: visit.patientId,
+                appointmentId: visit.appointmentId,
+                visitId: visit.id,
+            });
+        }
+        catch (error) {
+            console.error("[StartVisit] Error:", error);
+            return reply.code(500).send({ error: "StartVisitFailed" });
+        }
+    });
 }

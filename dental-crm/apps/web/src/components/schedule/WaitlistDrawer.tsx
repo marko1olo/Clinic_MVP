@@ -1,8 +1,8 @@
-import { Calendar, CheckCircle2, Trash2, UserPlus, X } from"lucide-react";
-import type React from"react";
-import { useEffect, useState } from"react";
-import { useAppLogicContext } from"../../contexts/AppLogicContext";
-import { showToast } from"../GlobalToast";
+import { Calendar, CheckCircle2, Trash2, UserPlus, X } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { showToast } from "../GlobalToast";
 
 interface WaitlistItem {
 	id: string;
@@ -11,7 +11,7 @@ interface WaitlistItem {
 	patientPhone: string | null;
 	preferredDoctorId: string | null;
 	preferredDoctorName: string | null;
-	priorityLevel:"high" |"medium" |"low";
+	priorityLevel: "high" | "medium" | "low";
 	preferredTimeRanges: any;
 	status: string;
 	createdAt: string;
@@ -37,12 +37,13 @@ export function WaitlistDrawer({
 	// Form State
 	const [selectedPatientId, setSelectedPatientId] = useState("");
 	const [preferredDoctorId, setPreferredDoctorId] = useState("");
-	const [priorityLevel, setPriorityLevel] = useState<"high" |"medium" |"low">("medium",
+	const [priorityLevel, setPriorityLevel] = useState<"high" | "medium" | "low">(
+		"medium",
 	);
 
 	const staff = dashboard?.clinicSettings?.staff || [];
 	const doctors = staff.filter(
-		(s: any) => s.role ==="doctor" || s.role ==="Врач" || s.role ==="admin",
+		(s: any) => s.role === "doctor" || s.role === "Врач" || s.role === "admin",
 	);
 	const patientsList = dashboard?.patients || [];
 
@@ -72,14 +73,15 @@ export function WaitlistDrawer({
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!selectedPatientId) {
-			showToast("Выберите пациента","error");
+			showToast("Выберите пациента", "error");
 			return;
 		}
 
 		try {
 			const res = await fetch("/api/waitlist", {
-				method:"POST",
-				headers: auth.denteClinicalReadHeaders({"Content-Type":"application/json",
+				method: "POST",
+				headers: auth.denteClinicalReadHeaders({
+					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
 					patientId: selectedPatientId,
@@ -90,17 +92,17 @@ export function WaitlistDrawer({
 			});
 
 			if (res.ok) {
-				showToast("Пациент добавлен в лист ожидания","success");
+				showToast("Пациент добавлен в лист ожидания", "success");
 				setSelectedPatientId("");
 				setPreferredDoctorId("");
 				setPriorityLevel("medium");
 				fetchWaitlist();
 			} else {
 				const err = await res.json().catch(() => ({}));
-				showToast(err.message ||"Ошибка добавления","error");
+				showToast(err.message || "Ошибка добавления", "error");
 			}
 		} catch (e) {
-			showToast("Системная ошибка","error");
+			showToast("Системная ошибка", "error");
 		}
 	};
 
@@ -108,17 +110,17 @@ export function WaitlistDrawer({
 		if (!window.confirm("Удалить запись из листа ожидания?")) return;
 		try {
 			const res = await fetch(`/api/waitlist/${id}`, {
-				method:"DELETE",
+				method: "DELETE",
 				headers: auth.denteClinicalReadHeaders(),
 			});
 			if (res.ok) {
-				showToast("Запись удалена","success");
+				showToast("Запись удалена", "success");
 				fetchWaitlist();
 			} else {
-				showToast("Ошибка удаления","error");
+				showToast("Ошибка удаления", "error");
 			}
 		} catch (e) {
-			showToast("Системная ошибка","error");
+			showToast("Системная ошибка", "error");
 		}
 	};
 
@@ -130,7 +132,8 @@ export function WaitlistDrawer({
 		}
 
 		// Trigger click to open form if hidden
-		const formWrapper = document.querySelector<HTMLElement>(".appointment-create-wrapper",
+		const formWrapper = document.querySelector<HTMLElement>(
+			".appointment-create-wrapper",
 		);
 		const toggleBtn =
 			formWrapper?.querySelector<HTMLButtonElement>(".text-button");
@@ -145,7 +148,8 @@ export function WaitlistDrawer({
 		// Auto-remove/fulfill waitlist item after booking or let the user complete it
 		// The user can now mark it as completed using the CheckCircle2 button, avoiding orphaned waitlist entries.
 		showToast(
-			`Пациент ${item.patientName ||""} выбран. Укажите время записи.`,"success",
+			`Пациент ${item.patientName || ""} выбран. Укажите время записи.`,
+			"success",
 		);
 	};
 
@@ -154,15 +158,15 @@ export function WaitlistDrawer({
 	if (!isOpen) return null;
 
 	const priorityColors = {
-		high:"bg-red-500/20 text-red-400 border border-red-500/30",
-		medium:"bg-amber-500/20 text-amber-400 border border-amber-500/30",
-		low:"  border",
+		high: "bg-red-500/20 text-red-400 border border-red-500/30",
+		medium: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+		low: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
 	};
 
 	const priorityLabels = {
-		high:"Высокий",
-		medium:"Средний",
-		low:"Низкий",
+		high: "Высокий",
+		medium: "Средний",
+		low: "Низкий",
 	};
 
 	if (isMinimized) {
@@ -170,11 +174,10 @@ export function WaitlistDrawer({
 			<div className="fixed bottom-4 right-4 z-50">
 				<button
 					onClick={() => setIsMinimized(false)}
-					className="border  shadow-xl rounded-lg p-3 flex items-center gap-3 transition-colors"
-					style={{ background:"var(--paper)", color:"var(--ink)" }}
+					className="bg-[#1e293b] border border-slate-600 shadow-xl rounded-lg p-3 flex items-center gap-3 hover:bg-slate-800 transition-colors"
 				>
 					<Calendar className="w-5 h-5 text-teal-400" />
-					<span className="font-medium">
+					<span className="text-slate-100 font-medium">
 						Лист ожидания (Свернут)
 					</span>
 				</button>
@@ -185,12 +188,9 @@ export function WaitlistDrawer({
 	return (
 		<div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
 			<div className="absolute inset-0" onClick={onClose} />
-			<div 
-				className="relative w-full max-w-md h-full border-l  shadow-2xl flex flex-col z-10 animate-slide-in"
-				style={{ background:"var(--paper)", color:"var(--ink)" }}
-			>
+			<div className="relative w-full max-w-md h-full bg-[#1e293b] border-l border-slate-700/80 shadow-2xl flex flex-col z-10 text-slate-100 animate-slide-in">
 				{/* Header */}
-				<div className="p-6 border-b  flex items-center justify-between">
+				<div className="p-6 border-b border-slate-700/60 flex items-center justify-between">
 					<div className="flex items-center gap-3">
 						<Calendar className="w-5 h-5 text-teal-400" />
 						<h3 className="text-lg font-semibold tracking-wide">
@@ -200,7 +200,7 @@ export function WaitlistDrawer({
 					<div className="flex items-center gap-1">
 						<button
 							onClick={() => setIsMinimized(true)}
-							className="p-1 rounded-full  hover: hover: transition-colors"
+							className="p-1 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
 							title="Свернуть окно"
 						>
 							<svg
@@ -219,7 +219,7 @@ export function WaitlistDrawer({
 						</button>
 						<button
 							onClick={onClose}
-							className="p-1 rounded-full  hover: hover: transition-colors"
+							className="p-1 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
 						>
 							<X className="w-5 h-5" />
 						</button>
@@ -231,22 +231,21 @@ export function WaitlistDrawer({
 					{/* Add to Waitlist Form */}
 					<form
 						onSubmit={handleAdd}
-						className="rounded-xl p-4 border  space-y-4"
+						className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/40 space-y-4"
 					>
-						<h4 className="text-sm font-semibold  flex items-center gap-2">
+						<h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
 							<UserPlus className="w-4 h-4 text-teal-400" />
 							Добавить в очередь
 						</h4>
 
 						<div className="space-y-1">
-							<label className="text-xs  font-medium">
+							<label className="text-xs text-slate-400 font-medium">
 								Пациент *
 							</label>
 							<select
 								value={selectedPatientId}
 								onChange={(e) => setSelectedPatientId(e.target.value)}
-								className="w-full border  rounded-lg p-2 text-sm focus:outline-none focus:border-teal-500"
-								style={{ background:"var(--paper)", color:"var(--ink)" }}
+								className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-teal-500"
 								required
 							>
 								<option value="">-- Выберите пациента --</option>
@@ -259,14 +258,13 @@ export function WaitlistDrawer({
 						</div>
 
 						<div className="space-y-1">
-							<label className="text-xs  font-medium">
+							<label className="text-xs text-slate-400 font-medium">
 								Желаемый врач
 							</label>
 							<select
 								value={preferredDoctorId}
 								onChange={(e) => setPreferredDoctorId(e.target.value)}
-								className="w-full border  rounded-lg p-2 text-sm focus:outline-none focus:border-teal-500"
-								style={{ background:"var(--paper)", color:"var(--ink)" }}
+								className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-teal-500"
 							>
 								<option value="">-- Любой врач --</option>
 								{doctors.map((d: any) => (
@@ -278,23 +276,23 @@ export function WaitlistDrawer({
 						</div>
 
 						<div className="space-y-1">
-							<label className="text-xs  font-medium">
+							<label className="text-xs text-slate-400 font-medium">
 								Приоритет
 							</label>
 							<div className="flex gap-2">
-								{(["low","medium","high"] as const).map((p) => (
+								{(["low", "medium", "high"] as const).map((p) => (
 									<button
 										key={p}
 										type="button"
 										onClick={() => setPriorityLevel(p)}
 										className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all ${
 											priorityLevel === p
-												? p ==="high"
-													?"bg-red-500/20 border-red-500 text-red-400"
-													: p ==="medium"
-														?"bg-amber-500/20 border-amber-500 text-amber-400"
-														:""
-												:"   hover:"
+												? p === "high"
+													? "bg-red-500/20 border-red-500 text-red-400"
+													: p === "medium"
+														? "bg-amber-500/20 border-amber-500 text-amber-400"
+														: "bg-slate-500/25 border-slate-400 text-slate-200"
+												: "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"
 										}`}
 									>
 										{priorityLabels[p]}
@@ -305,8 +303,7 @@ export function WaitlistDrawer({
 
 						<button
 							type="submit"
-							className="w-full py-2 bg-teal-500 font-bold rounded-lg text-sm transition-colors shadow-md shadow-teal-500/10"
-							style={{ background:"var(--teal)", color:"var(--paper)" }}
+							className="w-full py-2 bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-[#1e293b] font-bold rounded-lg text-sm transition-colors shadow-md shadow-teal-500/10"
 						>
 							Добавить в очередь
 						</button>
@@ -314,16 +311,16 @@ export function WaitlistDrawer({
 
 					{/* Waitlist queue */}
 					<div className="space-y-3">
-						<h4 className="text-xs font-bold uppercase tracking-wider">
+						<h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
 							Пациенты в очереди ({items.length})
 						</h4>
 
 						{isLoading && items.length === 0 ? (
-							<div className="text-center py-8  text-sm">
+							<div className="text-center py-8 text-slate-400 text-sm">
 								Загрузка...
 							</div>
 						) : items.length === 0 ? (
-							<div className="text-center py-8  text-sm border border-dashed  rounded-xl">
+							<div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-700/80 rounded-xl">
 								Очередь ожидания пуста
 							</div>
 						) : (
@@ -333,20 +330,21 @@ export function WaitlistDrawer({
 										key={item.id}
 										draggable
 										onDragStart={(e) => {
-											e.dataTransfer.setData("application/json",
-												JSON.stringify({ type:"waitlist_item", item }),
+											e.dataTransfer.setData(
+												"application/json",
+												JSON.stringify({ type: "waitlist_item", item }),
 											);
-											e.dataTransfer.effectAllowed ="copy";
+											e.dataTransfer.effectAllowed = "copy";
 										}}
-										className="border  rounded-xl p-4 flex flex-col gap-3 hover:border-teal-500/50 cursor-grab active:cursor-grabbing transition-colors"
+										className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 flex flex-col gap-3 hover:border-teal-500/50 cursor-grab active:cursor-grabbing transition-colors"
 									>
 										<div className="flex justify-between items-start">
 											<div>
-												<h5 className="font-semibold text-sm">
-													{item.patientName ||"Неизвестный пациент"}
+												<h5 className="font-semibold text-sm text-slate-100">
+													{item.patientName || "Неизвестный пациент"}
 												</h5>
 												{item.patientPhone && (
-													<p className="text-xs  mt-0.5">
+													<p className="text-xs text-slate-400 mt-0.5">
 														{item.patientPhone}
 													</p>
 												)}
@@ -359,8 +357,8 @@ export function WaitlistDrawer({
 										</div>
 
 										{item.preferredDoctorName && (
-											<div className="text-xs  flex gap-1">
-												<span className="font-medium">
+											<div className="text-xs text-slate-400 flex gap-1">
+												<span className="font-medium text-slate-500">
 													Врач:
 												</span>
 												<span>{item.preferredDoctorName}</span>
@@ -380,18 +378,18 @@ export function WaitlistDrawer({
 														const res = await fetch(
 															`/api/waitlist/${item.id}`,
 															{
-																method:"DELETE",
+																method: "DELETE",
 																headers: auth.denteClinicalReadHeaders(),
 															},
 														);
 														if (res.ok) {
-															showToast("Заявка выполнена","success");
+															showToast("Заявка выполнена", "success");
 															fetchWaitlist();
 														} else {
-															showToast("Ошибка при выполнении","error");
+															showToast("Ошибка при выполнении", "error");
 														}
 													} catch (e) {
-														showToast("Системная ошибка","error");
+														showToast("Системная ошибка", "error");
 													}
 												}}
 												className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 transition-colors"

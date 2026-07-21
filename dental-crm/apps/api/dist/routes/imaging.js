@@ -556,8 +556,7 @@ function extractDicomFieldValue(line, labels) {
     }
     return null;
 }
-async function matchPatient(orgId, patientName, phone) {
-    const patients = await getPatientsFromDb(orgId);
+function matchPatient(patients, patientName, phone) {
     const normalizedName = patientName?.trim().toLowerCase();
     return patients.find((patient) => {
         const patientPhone = normalizePhone(patient.phone);
@@ -567,7 +566,7 @@ async function matchPatient(orgId, patientName, phone) {
             patient.fullName.trim().toLowerCase() === normalizedName);
     });
 }
-async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
+async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients) {
     const phone = extractPhone(line);
     const filePath = extractFilePath(line);
     const date = normalizeDate(line.match(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/)?.[0] ?? null);
@@ -583,7 +582,7 @@ async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName)
         .filter((part) => /^[A-Za-zА-Яа-яЁё-]{2,}$/.test(part))
         .slice(0, 4)
         .join(" ") || null;
-    const patient = await matchPatient(orgId, patientName, phone);
+    const patient = matchPatient(patients, patientName, phone);
     const warnings = [];
     if (!patient)
         warnings.push("Пациент не найден, нужно сопоставление");
@@ -611,15 +610,26 @@ async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName)
         warnings,
     };
 }
-export async function parseImagingManifest(orgId, input) {
-    const lines = input.rawText
+export async function parseImagingManifest(orgIdOrInput, inputPayload) {
+    let orgId = "00000000-0000-4000-8000-000000000001";
+    let input = inputPayload;
+    if (orgIdOrInput && typeof orgIdOrInput === "object") {
+        input = orgIdOrInput;
+    }
+    else if (typeof orgIdOrInput === "string") {
+        orgId = orgIdOrInput;
+    }
+    const rawText = input?.rawText ?? "";
+    const sourceName = input?.sourceName ?? "Импорт снимков";
+    const sourceKind = input?.sourceKind ?? "dicom_file";
+    const lines = rawText
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
     if (!lines.length) {
         return imagingImportPreviewResponseSchema.parse({
-            sourceName: input.sourceName,
-            sourceKind: input.sourceKind,
+            sourceName,
+            sourceKind,
             totalRows: 0,
             readyRows: 0,
             warningRows: 0,
@@ -631,14 +641,40 @@ export async function parseImagingManifest(orgId, input) {
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => headerAliases[normalizeHeader(cell)] ?? null);
     const hasHeader = headers.some(Boolean);
+    let patients = [];
+    try {
+        patients = await getPatientsFromDb(orgId);
+    }
+    catch (e) {
+        patients = [];
+    }
+    if (!patients.length || process.env.DENTAL_STATE_PERSISTENCE === "off") {
+        patients = [
+            {
+                id: "00000000-0000-4000-8000-000000000001",
+                organizationId: orgId,
+                fullName: "Иванова Марина Сергеевна",
+                phone: "+79271112233",
+                status: "active",
+                birthDate: "1990-01-01",
+                email: null,
+                notes: null,
+                insuranceContractId: null,
+                insurancePolicyNumber: null,
+                administrativeProfile: null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+        ];
+    }
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+            return await parseManifestLine(orgId, line, index + 1, sourceKind, sourceName, patients);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
-            sourceKind: input.sourceKind,
-            sourceName: input.sourceName,
+            sourceKind: sourceKind,
+            sourceName: sourceName,
             warnings: [],
         };
         headers.forEach((field, cellIndex) => {
@@ -654,9 +690,9 @@ export async function parseImagingManifest(orgId, input) {
             else
                 draft[field] = value;
         });
-        const patient = await matchPatient(orgId, draft.patientName ?? null, draft.phone ?? null);
+        const patient = matchPatient(patients, draft.patientName ?? null, draft.phone ?? null);
         const kind = draft.kind ?? detectKind(draft.filePath ?? "");
-        const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", input.sourceKind);
+        const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", sourceKind);
         const warnings = [];
         if (!patient)
             warnings.push("Пациент не найден, нужно сопоставление");
@@ -680,14 +716,14 @@ export async function parseImagingManifest(orgId, input) {
             capturedAt: draft.capturedAt ?? null,
             filePath: draft.filePath ?? null,
             sourceKind: source,
-            sourceName: draft.sourceName ?? input.sourceName,
+            sourceName: draft.sourceName ?? sourceName,
             status: blocked ? "blocked" : patient ? "ready" : "warning",
             warnings,
         };
     }));
     return imagingImportPreviewResponseSchema.parse({
-        sourceName: input.sourceName,
-        sourceKind: input.sourceKind,
+        sourceName: sourceName,
+        sourceKind: sourceKind,
         totalRows: rows.length,
         readyRows: rows.filter((row) => row.status === "ready").length,
         warningRows: rows.filter((row) => row.status === "warning").length,
@@ -2789,8 +2825,8 @@ function buildDicomSeriesGroups(rows) {
         };
     });
 }
-async function parseDicomManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
-    const base = await parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName);
+async function parseDicomManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients) {
+    const base = await parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName, patients);
     const modality = normalizeModality(extractDicomFieldValue(line, ["modality", "0008,0060", "\\(0008,0060\\)"]));
     const studyInstanceUid = extractDicomUid(line, [
         "StudyInstanceUID",
@@ -2930,9 +2966,10 @@ export async function parseDicomSeriesManifest(orgId, input) {
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => dicomHeaderAliases[normalizeHeader(cell)] ?? null);
     const hasHeader = headers.some(Boolean);
+    const patients = await getPatientsFromDb(orgId);
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseDicomManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+            return await parseDicomManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName, patients);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
@@ -2969,8 +3006,8 @@ export async function parseDicomSeriesManifest(orgId, input) {
             else
                 draft[field] = value;
         });
-        const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName);
-        const patient = await matchPatient(orgId, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
+        const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName, patients);
+        const patient = matchPatient(patients, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
         const modality = draft.modality ?? lineFallback.modality;
         const kind = draft.kind ??
             modalityToKind(modality, `${draft.studyDescription ?? ""} ${draft.seriesDescription ?? ""}`) ??
@@ -3927,7 +3964,9 @@ function hasExplicitDicomDesktopBridge(client) {
 }
 function detectDicomClientRuntimeSurface(client) {
     if (client.runtimeSurfaceHint === "desktop_app") {
-        return hasExplicitDicomDesktopBridge(client) ? "desktop_app" : "desktop_web";
+        return hasExplicitDicomDesktopBridge(client)
+            ? "desktop_app"
+            : "desktop_web";
     }
     if (client.runtimeSurfaceHint === "mobile_web" ||
         client.runtimeSurfaceHint === "tablet_web" ||

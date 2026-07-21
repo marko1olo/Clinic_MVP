@@ -64,12 +64,12 @@ export function AuthArtBackground() {
 		<div
 			aria-hidden="true"
 			style={{
-				position: "fixed",
+				position: "absolute",
 				top: 0,
 				left: 0,
 				right: 0,
 				bottom: 0,
-				zIndex: 0,
+				zIndex: -1,
 				overflow: "hidden",
 				backgroundColor: selectedArt.dominantColor,
 			}}
@@ -86,19 +86,12 @@ export function AuthArtBackground() {
 					backgroundPosition: "center",
 					filter: "blur(20px)",
 					transform: "scale(1.1)", // prevent blurry edges
-					opacity: loaded ? 0 : 1,
-					transition: "opacity 0.6s ease-in-out",
 				}}
 			/>
 			<picture>
 				{selectedArt.avif && <source srcSet={`/auth-art/${selectedArt.avif}`} type="image/avif" />}
 				{selectedArt.webp && <source srcSet={`/auth-art/${selectedArt.webp}`} type="image/webp" />}
 				<img
-					ref={(el) => {
-						if (el?.complete) {
-							setLoaded(true);
-						}
-					}}
 					src={`/auth-art/${selectedArt.webp || selectedArt.avif}`}
 					alt=""
 					onLoad={() => setLoaded(true)}
@@ -108,7 +101,7 @@ export function AuthArtBackground() {
 						objectFit: "cover",
 						objectPosition: "center",
 						opacity: loaded ? 1 : 0,
-						transition: "opacity 0.6s ease-in-out",
+						transition: "opacity 1.5s ease-in-out",
 					}}
 				/>
 			</picture>

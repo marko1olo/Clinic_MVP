@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { and, desc, eq } from "drizzle-orm";
+import { rollbackPaymentAllocationsInDb } from "./billingQuery.js";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 function documentSnapshotPath(documentId) {
@@ -98,21 +99,32 @@ const documentTitles = {
 };
 export async function createGeneratedDocumentInDb(organizationId, input) {
     const title = input.title?.trim() || documentTitles[input.kind] || "Документ";
-    const [record] = await db
-        .insert(schema.generatedDocuments)
-        .values({
-        organizationId,
-        patientId: input.patientId,
-        visitId: input.visitId || null,
-        kind: input.kind,
-        title: title.length > 240 ? title.slice(0, 240) : title,
-        status: "draft",
-        totalAmountRub: input.totalAmountRub ?? null,
-        taxYear: input.taxYear ?? null,
-        taxPayerInn: input.taxPayerInn ?? null,
-        payloadJson: input.payload ? JSON.stringify(input.payload) : null,
-    })
-        .returning();
+    const [record] = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+            .insert(schema.generatedDocuments)
+            .values({
+            organizationId,
+            patientId: input.patientId,
+            visitId: input.visitId || null,
+            kind: input.kind,
+            title: title.length > 240 ? title.slice(0, 240) : title,
+            status: "draft",
+            totalAmountRub: input.totalAmountRub ?? null,
+            taxYear: input.taxYear ?? null,
+            taxPayerInn: input.taxPayerInn ?? null,
+            payloadJson: input.payload ? JSON.stringify(input.payload) : null,
+        })
+            .returning();
+        if (inserted &&
+            input.kind === "payment_refund_correction_request" &&
+            input.payload?.paymentRefundCorrection?.selectedPaymentIds) {
+            for (const paymentId of input.payload.paymentRefundCorrection
+                .selectedPaymentIds) {
+                await rollbackPaymentAllocationsInDb(paymentId, tx);
+            }
+        }
+        return [inserted];
+    });
     if (!record)
         throw new Error("Failed to create document");
     await recordAuditEvent({
@@ -184,7 +196,7 @@ export async function voidGeneratedDocumentInDb(organizationId, documentId, opti
         .set({
         status: "voided",
         voidedAt: options.voidedAt ? new Date(options.voidedAt) : new Date(),
-        voidedByUserId: "doctor",
+        voidedByUserId: options.voidedByUserId || null,
         voidAttestation: options.voidAttestation || null,
     })
         .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)))

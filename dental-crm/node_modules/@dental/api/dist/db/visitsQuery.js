@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { triggerAutomationRules } from "../services/automationRulesEngine.js";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 import { signedOutpatientCards, visitGnathology } from "./schema.js";
@@ -119,6 +120,12 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
         if (!updatedVisit) {
             throw new Error("Конфликт версий: не удалось сохранить изменения.");
         }
+        if (visit.appointmentId) {
+            await tx
+                .update(schema.appointments)
+                .set({ status: "completed" })
+                .where(eq(schema.appointments.id, visit.appointmentId));
+        }
         // --- 1. Блокировка дневника (visitDiaries.isLocked = true) & 2. Крипто-хэш ---
         const diaryHash = hashTranscript(`${visit.id}|${visit.patientId}|${input.draft.anamnesis ?? ""}|${input.draft.objectiveStatus ?? ""}|${input.draft.treatmentPlan ?? ""}`);
         const [existingDiary] = await tx
@@ -166,20 +173,32 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
             diaryIdToLog = newDiary?.id;
         }
         // --- 3. Статус услуг 'Выполнено' & 4. Списание материалов ---
-        if (input.draft.completedServices && input.draft.completedServices.length > 0) {
-            await tx.delete(schema.treatmentItems).where(eq(schema.treatmentItems.visitId, visit.id));
-            await tx.insert(schema.treatmentItems).values(input.draft.completedServices.map(s => ({
+        if (input.draft.completedServices &&
+            input.draft.completedServices.length > 0) {
+            await tx
+                .delete(schema.treatmentItems)
+                .where(eq(schema.treatmentItems.visitId, visit.id));
+            await tx.insert(schema.treatmentItems).values(input.draft.completedServices.map((s) => ({
                 organizationId,
                 patientId: visit.patientId,
                 visitId: visit.id,
                 serviceId: s.serviceId,
                 title: s.title,
                 quantity: String(s.quantity),
-                priceRub: s.priceRub,
-                unitPriceRub: s.priceRub,
+                priceRub: Number(s.priceRub),
+                unitPriceRub: Number(s.priceRub),
                 status: "completed",
                 toothCode: s.toothCode || null,
             })));
+            // A4: Замыкаем контур - помечаем элементы плана лечения как выполненные
+            for (const s of input.draft.completedServices) {
+                if (s.planItemId) {
+                    await tx
+                        .update(schema.treatmentPlanItemsNew)
+                        .set({ status: "completed" })
+                        .where(eq(schema.treatmentPlanItemsNew.id, s.planItemId));
+                }
+            }
         }
         const tItems = await tx
             .select()
@@ -188,10 +207,16 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
         let totalInvoiceAmount = 0;
         let totalInsuranceAmount = 0;
         let totalPatientAmount = 0;
-        const [patientRecord] = await tx.select().from(schema.patients).where(eq(schema.patients.id, visit.patientId));
+        const [patientRecord] = await tx
+            .select()
+            .from(schema.patients)
+            .where(eq(schema.patients.id, visit.patientId));
         let insuranceContract = null;
         if (patientRecord?.insuranceContractId) {
-            const [contract] = await tx.select().from(schema.insuranceContracts).where(eq(schema.insuranceContracts.id, patientRecord.insuranceContractId));
+            const [contract] = await tx
+                .select()
+                .from(schema.insuranceContracts)
+                .where(eq(schema.insuranceContracts.id, patientRecord.insuranceContractId));
             if (contract?.isActive)
                 insuranceContract = contract;
         }
@@ -205,43 +230,20 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 totalInvoiceAmount += itemTotal;
                 let category = "other";
                 if (item.serviceId) {
-                    const [service] = await tx.select({ category: schema.serviceCatalogItems.category }).from(schema.serviceCatalogItems).where(eq(schema.serviceCatalogItems.id, item.serviceId));
+                    const [service] = await tx
+                        .select({ category: schema.serviceCatalogItems.category })
+                        .from(schema.serviceCatalogItems)
+                        .where(eq(schema.serviceCatalogItems.id, item.serviceId));
                     if (service)
                         category = service.category;
-                    const rules = await tx
-                        .select()
-                        .from(schema.procedureMaterialRules)
-                        .where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
-                    for (const rule of rules) {
-                        const [inv] = await tx
-                            .select()
-                            .from(schema.inventoryItems)
-                            .where(eq(schema.inventoryItems.id, rule.inventoryItemId))
-                            .for("update");
-                        if (inv) {
-                            const qtyToDeduct = Number(rule.quantityToDeduct) * Number(item.quantity);
-                            if (inv.stockQuantity < qtyToDeduct) {
-                                throw new Error(`Недостаточно материалов: ${inv.name}`);
-                            }
-                            await tx
-                                .update(schema.inventoryItems)
-                                .set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
-                                .where(eq(schema.inventoryItems.id, inv.id));
-                            await tx.insert(schema.inventoryTransactions).values({
-                                organizationId,
-                                inventoryItemId: inv.id,
-                                transactionType: "deduction",
-                                quantityChanged: -qtyToDeduct,
-                                unitCostRub: inv.unitCostRub || "0",
-                                userId,
-                                visitId: visit.id,
-                            });
-                        }
-                    }
+                    // Inventory deduction is now deferred to deductVisitInventoryIdempotent
+                    // which will be called outside the loop to handle all items at once.
                 }
                 let insurancePct = 0;
                 if (insuranceContract) {
-                    if (category === "therapy" || category === "consultation" || category === "periodontology")
+                    if (category === "therapy" ||
+                        category === "consultation" ||
+                        category === "periodontology")
                         insurancePct = insuranceContract.coverageTherapyPct;
                     else if (category === "surgery")
                         insurancePct = insuranceContract.coverageSurgeryPct;
@@ -252,25 +254,26 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 }
                 const covered = itemTotal * (insurancePct / 100);
                 totalInsuranceAmount += covered;
-                totalPatientAmount += (itemTotal - covered);
+                totalPatientAmount += itemTotal - covered;
             }
             // --- Выставление счета пациенту ---
-            if (totalInvoiceAmount > 0) {
-                await tx.insert(schema.patientInvoices).values({
-                    organizationId,
-                    patientId: visit.patientId,
-                    visitId: visit.id,
-                    totalAmountRub: totalInvoiceAmount.toFixed(2),
-                    insuranceAmountRub: totalInsuranceAmount.toFixed(2),
-                    patientAmountRub: totalPatientAmount.toFixed(2),
-                    status: "unpaid",
-                    itemsJson: JSON.stringify(tItems.map((i) => ({
-                        title: i.title,
-                        quantity: i.quantity,
-                        priceRub: i.priceRub,
-                    }))),
-                });
-            }
+        }
+        // Process idempotent inventory deduction for all completed items
+        await deductVisitInventoryIdempotent(tx, organizationId, visit.id, userId || "SYSTEM");
+        if (totalInvoiceAmount > 0) {
+            await tx.insert(schema.patientInvoices).values({
+                organizationId,
+                patientId: visit.patientId,
+                visitId: visit.id,
+                totalAmountRub: totalInvoiceAmount.toFixed(2),
+                insuranceAmountRub: totalInsuranceAmount.toFixed(2),
+                patientAmountRub: totalPatientAmount.toFixed(2),
+                itemsJson: JSON.stringify(tItems.map((i) => ({
+                    title: i.title,
+                    quantity: i.quantity,
+                    priceRub: i.priceRub,
+                }))),
+            });
         }
         // --- 5. Начисление комиссии врачу ---
         if (userId && totalInvoiceAmount > 0) {
@@ -298,7 +301,7 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
             entityType: "visit_diary",
             entityId: diaryIdToLog ?? "UNKNOWN",
         });
-        // Smart Aftercare Generator
+        // Smart Aftercare Generator: CRM-задача для сложных случаев (остаётся для ручного позвонка админом)
         const treatmentText = (input.draft.treatmentPlan || "").toLowerCase();
         const isComplicated = treatmentText.includes("имплантат") ||
             treatmentText.includes("удаление") ||
@@ -318,6 +321,13 @@ export async function acceptVisitDraftInDb(organizationId, userId, input) {
                 title: "Контроль самочувствия (Post-Op Care)",
                 body: `Связаться с пациентом для контроля самочувствия после сложного лечения (${now.toLocaleDateString("ru-RU")}). Уточнить наличие боли, отека, температуры. Напомнить о приеме назначенных препаратов.`,
                 botConfigId: "default",
+            });
+        }
+        // visit_completed: движок автоматизации из реестра правил
+        if (visit.patientId) {
+            const dateText = now.toLocaleDateString("ru-RU");
+            setImmediate(() => {
+                triggerAutomationRules(organizationId, "visit_completed", visit.patientId, { visitId: visit.id, dateText }).catch((e) => console.error("[AutomationEngine] visit_completed error:", e));
             });
         }
         return { acceptedVisitId: visit.id, newRevision };
@@ -380,5 +390,68 @@ export async function upsertVisitGnathologyInDb(visitId, patientId, data) {
             createdAt: new Date(),
             updatedAt: new Date(),
         });
+    }
+}
+export async function getVisitsByIdsInDb(organizationId, ids) {
+    if (ids.length === 0)
+        return [];
+    const res = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.organizationId, organizationId), inArray(schema.visits.id, ids)));
+    return res;
+}
+export async function deductVisitInventoryIdempotent(tx, organizationId, visitId, userId) {
+    // 1. Check if deduction already happened for this visit to ensure idempotency
+    const [existingDeduction] = await tx
+        .select()
+        .from(schema.inventoryTransactions)
+        .where(and(eq(schema.inventoryTransactions.visitId, visitId), eq(schema.inventoryTransactions.transactionType, "visit_deduction")))
+        .limit(1);
+    if (existingDeduction) {
+        // Already deducted, do nothing
+        return;
+    }
+    // 2. Fetch completed treatment items for this visit
+    const tItems = await tx
+        .select()
+        .from(schema.treatmentItems)
+        .where(and(eq(schema.treatmentItems.visitId, visitId), eq(schema.treatmentItems.status, "completed")));
+    if (!tItems || tItems.length === 0)
+        return;
+    // 3. Deduct materials
+    for (const item of tItems) {
+        if (!item.serviceId)
+            continue;
+        const rules = await tx
+            .select()
+            .from(schema.procedureMaterialRules)
+            .where(eq(schema.procedureMaterialRules.serviceId, item.serviceId));
+        for (const rule of rules) {
+            const [inv] = await tx
+                .select()
+                .from(schema.inventoryItems)
+                .where(eq(schema.inventoryItems.id, rule.inventoryItemId))
+                .for("update");
+            if (inv) {
+                const qtyToDeduct = Number(rule.quantityToDeduct) * Number(item.quantity);
+                if (inv.stockQuantity < qtyToDeduct) {
+                    throw new Error(`Недостаточно материалов: ${inv.name}`);
+                }
+                await tx
+                    .update(schema.inventoryItems)
+                    .set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
+                    .where(eq(schema.inventoryItems.id, inv.id));
+                await tx.insert(schema.inventoryTransactions).values({
+                    organizationId,
+                    inventoryItemId: inv.id,
+                    transactionType: "visit_deduction",
+                    quantityChanged: -qtyToDeduct,
+                    unitCostRub: inv.unitCostRub || "0",
+                    userId,
+                    visitId: visitId,
+                });
+            }
+        }
     }
 }

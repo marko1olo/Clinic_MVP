@@ -195,10 +195,18 @@ ${input.payload.plannedStages.map((s) => `  * ${s.stageName}: ${s.plannedService
     return {
         patientFriendlyExplanation: String(parsed.patientFriendlyExplanation ?? "").trim(),
         patientHygieneAdvice: String(parsed.patientHygieneAdvice ?? "").trim(),
-        alternatives: Array.isArray(parsed.alternatives) ? parsed.alternatives : undefined,
-        risksAndLimitations: Array.isArray(parsed.risksAndLimitations) ? parsed.risksAndLimitations : undefined,
-        prognosisAndLimits: parsed.prognosisAndLimits ? String(parsed.prognosisAndLimits).trim() : undefined,
-        controlPlan: parsed.controlPlan ? String(parsed.controlPlan).trim() : undefined,
+        alternatives: Array.isArray(parsed.alternatives)
+            ? parsed.alternatives
+            : undefined,
+        risksAndLimitations: Array.isArray(parsed.risksAndLimitations)
+            ? parsed.risksAndLimitations
+            : undefined,
+        prognosisAndLimits: parsed.prognosisAndLimits
+            ? String(parsed.prognosisAndLimits).trim()
+            : undefined,
+        controlPlan: parsed.controlPlan
+            ? String(parsed.controlPlan).trim()
+            : undefined,
     };
 }
 const DENTAL_AI_CASCADING_MODELS = [

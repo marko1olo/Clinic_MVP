@@ -47,6 +47,7 @@ export async function register(app) {
                 ...voidAttestationInput,
                 voidedAt,
             },
+            voidedByUserId: request.user?.id || null,
         });
         if (!document) {
             return reply

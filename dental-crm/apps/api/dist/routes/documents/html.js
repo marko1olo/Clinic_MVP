@@ -1,6 +1,7 @@
 import { requireClinicalReadAccess, requireResolvedOrganizationId, } from "../../accessGuard.js";
 import { getDocumentById, readIssuedDocumentSnapshot, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
+import { getClinicSettingsFromDb } from "../../db/settingsQuery.js";
 import { renderDocumentHtml, } from "../../documents/renderDocument.js";
 import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentIssueBlockReason, documentIssueChainBlockReason, documentRenderContext, documentRequiresIssuedArchive, issuedArchiveIntegrityError, } from "../documents.js";
 export async function register(app) {
@@ -38,7 +39,13 @@ export async function register(app) {
         const requestHost = request.headers.host ?? "127.0.0.1:4100";
         const requestProto = request.headers["x-forwarded-proto"] ?? "http";
         const origin = `${requestProto}://${requestHost}`;
-        const renderContext = { ...documentRenderContext(), origin };
+        const clinicSettings = await getClinicSettingsFromDb(orgId);
+        const clinicProfile = clinicSettings.profile;
+        const renderContext = {
+            ...documentRenderContext(),
+            origin,
+            clinicProfile: clinicProfile || undefined,
+        };
         const blockReason = documentIssueBlockReason(document, patient, renderContext) ??
             documentIssueChainBlockReason(document);
         if (blockReason) {

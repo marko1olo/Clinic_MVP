@@ -133,7 +133,7 @@ export const clinicProfile = {
     hasOmnichannel: false,
     hasTasks: true,
     hasReclamations: true,
-    workspacePreset: 'enterprise',
+    workspacePreset: "enterprise",
     onboardingCompleted: false,
     hasPediatricMode: false,
     isOmniRole: false,

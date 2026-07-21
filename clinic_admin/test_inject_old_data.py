@@ -147,5 +147,17 @@ class TestInjectOldData(unittest.TestCase):
 
         conn.close()
 
+
+    def test_main_execution(self):
+        import runpy
+        import os
+        from unittest.mock import patch
+        import io
+
+        with patch.dict(os.environ, {"DB_FILE": self.db_path}):
+            with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+                runpy.run_path('clinic_admin/inject_old_data.py', run_name='__main__')
+                self.assertIn("Dummy marketing data injected.", mock_stdout.getvalue())
+
 if __name__ == "__main__":
     unittest.main()

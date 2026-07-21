@@ -365,6 +365,69 @@ class TestWatcher(unittest.TestCase):
         with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
             watcher._do_process('dummy.jpg')
 
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_keyboard_interrupt(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class, mock_process):
+        mock_listdir.return_value = ['test1.jpg', 'test2.txt']
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_setup_dirs.assert_called_once()
+            mock_process.assert_called_once_with(os.path.join('/tmp/mock_watch', 'test1.jpg'))
+            mock_observer_instance.schedule.assert_called_once()
+            mock_observer_instance.start.assert_called_once()
+            mock_observer_instance.stop.assert_called_once()
+            mock_observer_instance.join.assert_called_once()
+
+            mock_print.assert_any_call("Остановка.")
+
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_general_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_listdir.return_value = []
+        mock_sleep.side_effect = Exception("General error")
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_setup_dirs.assert_called_once()
+            mock_observer_instance.schedule.assert_called_once()
+            mock_observer_instance.start.assert_called_once()
+            mock_observer_instance.stop.assert_called_once()
+            mock_observer_instance.join.assert_called_once()
+
+            mock_print.assert_any_call("Глобальная ошибка: General error")
+
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_listdir_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_listdir.side_effect = Exception("Listdir error")
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_print.assert_any_call("Ошибка при проверке существующих файлов: Listdir error")
+            mock_observer_instance.start.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()
 

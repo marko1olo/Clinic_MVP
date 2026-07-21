@@ -365,6 +365,48 @@ class TestWatcher(unittest.TestCase):
         with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
             watcher._do_process('dummy.jpg')
 
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    def test_xray_handler_on_created_ignores_directory(self, mock_process):
+        handler = watcher.XRayHandler()
+        event_dir = MagicMock()
+        event_dir.is_directory = True
+
+        handler.on_created(event_dir)
+
+        mock_process.assert_not_called()
+
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    def test_xray_handler_on_created_processes_file(self, mock_process):
+        handler = watcher.XRayHandler()
+        event_jpg = MagicMock()
+        event_jpg.is_directory = False
+        event_jpg.src_path = "test.jpg"
+
+        handler.on_created(event_jpg)
+
+        mock_process.assert_called_once_with("test.jpg")
+
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    def test_xray_handler_on_modified_ignores_directory(self, mock_process):
+        handler = watcher.XRayHandler()
+        event_dir = MagicMock()
+        event_dir.is_directory = True
+
+        handler.on_modified(event_dir)
+
+        mock_process.assert_not_called()
+
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    def test_xray_handler_on_modified_processes_file(self, mock_process):
+        handler = watcher.XRayHandler()
+        event_jpg = MagicMock()
+        event_jpg.is_directory = False
+        event_jpg.src_path = "test.jpg"
+
+        handler.on_modified(event_jpg)
+
+        mock_process.assert_called_once_with("test.jpg")
+
 if __name__ == '__main__':
     unittest.main()
 

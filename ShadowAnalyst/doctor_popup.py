@@ -135,13 +135,19 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Error parsing message: {e}")
 
-def run_mqtt(app):
+def setup_mqtt_client(app):
+    """Configures and returns the MQTT client."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'app': app})
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.on_connect = on_connect
     client.on_message = on_message
+    return client
+
+def run_mqtt(app):
+    # Connect to MQTT and subscribe to notifications
+    client = setup_mqtt_client(app)
     
     while True:
         try:

@@ -108,3 +108,4 @@ secrets.json
 keys.json
 test_watch_dir
 .coverage
+node_modules/

@@ -781,24 +781,36 @@ async function assertClinicScheduleDefaultsCoverExistingAppointments(
 
 	const activeApps = await getActiveAppointments(organizationId);
 
-	const blockingAppointment = activeApps.find((app) => {
-		if (app.endsAt.getTime() < Date.now()) return false;
+	const nowCache = Date.now();
+	let blockingAppointment: any = undefined;
+	for (let i = 0; i < activeApps.length; i++) {
+		const app = activeApps[i];
+		if (!app || app.endsAt.getTime() < nowCache) continue;
 		if (
-			!["planned", "confirmed", "arrived", "in_treatment"].includes(app.status)
+			app.status !== "planned" &&
+			app.status !== "confirmed" &&
+			app.status !== "arrived" &&
+			app.status !== "in_treatment"
 		)
-			return false;
+			continue;
 
 		const startParts = appointmentClinicTimeParts(app.startsAt, timezone);
-		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
-
 		if (!schedule.workingDays.includes(startParts.weekday)) {
-			return true;
+			blockingAppointment = app;
+			break;
 		}
-		if (startParts.minute < opensAt || endParts.minute > closesAt) {
-			return true;
+
+		if (startParts.minute < opensAt) {
+			blockingAppointment = app;
+			break;
 		}
-		return false;
-	});
+
+		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
+		if (endParts.minute > closesAt) {
+			blockingAppointment = app;
+			break;
+		}
+	}
 
 	if (blockingAppointment) {
 		throw new Error(
@@ -817,31 +829,44 @@ async function assertStaffScheduleCoversExistingAppointments(
 
 	const activeApps = await getActiveAppointments(organizationId);
 
-	const blockingAppointment = activeApps.find((app) => {
-		if (app.endsAt.getTime() < Date.now()) return false;
+	const nowCache = Date.now();
+	let blockingAppointment: any = undefined;
+	for (let i = 0; i < activeApps.length; i++) {
+		const app = activeApps[i];
+		if (!app || app.endsAt.getTime() < nowCache) continue;
 		if (
-			!["planned", "confirmed", "arrived", "in_treatment"].includes(app.status)
+			app.status !== "planned" &&
+			app.status !== "confirmed" &&
+			app.status !== "arrived" &&
+			app.status !== "in_treatment"
 		)
-			return false;
+			continue;
 		if (app.doctorUserId !== staffId && app.assistantUserId !== staffId)
-			return false;
+			continue;
 
 		const startParts = appointmentClinicTimeParts(app.startsAt, timezone);
-		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
-
 		const workingDay = workingHours.find(
 			(day) => day.weekday === startParts.weekday,
 		);
 		if (!workingDay || !workingDay.enabled) {
-			return true;
+			blockingAppointment = app;
+			break;
 		}
+
 		const opensAt = clockToMinutes(workingDay.start);
 		const closesAt = clockToMinutes(workingDay.end);
-		if (startParts.minute < opensAt || endParts.minute > closesAt) {
-			return true;
+
+		if (startParts.minute < opensAt) {
+			blockingAppointment = app;
+			break;
 		}
-		return false;
-	});
+
+		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
+		if (endParts.minute > closesAt) {
+			blockingAppointment = app;
+			break;
+		}
+	}
 
 	if (blockingAppointment) {
 		throw new Error(
@@ -860,30 +885,43 @@ async function assertChairScheduleCoversExistingAppointments(
 
 	const activeApps = await getActiveAppointments(organizationId);
 
-	const blockingAppointment = activeApps.find((app) => {
-		if (app.endsAt.getTime() < Date.now()) return false;
+	const nowCache = Date.now();
+	let blockingAppointment: any = undefined;
+	for (let i = 0; i < activeApps.length; i++) {
+		const app = activeApps[i];
+		if (!app || app.endsAt.getTime() < nowCache) continue;
 		if (
-			!["planned", "confirmed", "arrived", "in_treatment"].includes(app.status)
+			app.status !== "planned" &&
+			app.status !== "confirmed" &&
+			app.status !== "arrived" &&
+			app.status !== "in_treatment"
 		)
-			return false;
-		if (app.chairId !== chairId) return false;
+			continue;
+		if (app.chairId !== chairId) continue;
 
 		const startParts = appointmentClinicTimeParts(app.startsAt, timezone);
-		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
-
 		const workingDay = workingHours.find(
 			(day) => day.weekday === startParts.weekday,
 		);
 		if (!workingDay || !workingDay.enabled) {
-			return true;
+			blockingAppointment = app;
+			break;
 		}
+
 		const opensAt = clockToMinutes(workingDay.start);
 		const closesAt = clockToMinutes(workingDay.end);
-		if (startParts.minute < opensAt || endParts.minute > closesAt) {
-			return true;
+
+		if (startParts.minute < opensAt) {
+			blockingAppointment = app;
+			break;
 		}
-		return false;
-	});
+
+		const endParts = appointmentClinicTimeParts(app.endsAt, timezone);
+		if (endParts.minute > closesAt) {
+			blockingAppointment = app;
+			break;
+		}
+	}
 
 	if (blockingAppointment) {
 		throw new Error(

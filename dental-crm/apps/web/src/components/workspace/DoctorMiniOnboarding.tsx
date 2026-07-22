@@ -1,11 +1,14 @@
-import React from "react";
-import { User, Image as ImageIcon, CheckCircle, Clock } from "lucide-react";
+import React, { useState } from "react";
+import { User, Image as ImageIcon, CheckCircle, Clock, Upload } from "lucide-react";
 
 interface DoctorMiniOnboardingProps {
 	onComplete: () => void;
 }
 
 export const DoctorMiniOnboarding: React.FC<DoctorMiniOnboardingProps> = ({ onComplete }) => {
+	const [avatarName, setAvatarName] = useState<string | null>(null);
+	const [signatureName, setSignatureName] = useState<string | null>(null);
+
 	return (
 		<div style={{
 			display: "flex",
@@ -37,7 +40,7 @@ export const DoctorMiniOnboarding: React.FC<DoctorMiniOnboardingProps> = ({ onCo
 
 				<div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 					
-					{/* TODO: Граница ответственности (Врач настраивает личное) */}
+					{/* Граница ответственности (Врач настраивает личное) */}
 					
 					<div style={{ padding: "16px", border: "1px solid var(--line)", borderRadius: "8px" }}>
 						<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
@@ -45,9 +48,30 @@ export const DoctorMiniOnboarding: React.FC<DoctorMiniOnboardingProps> = ({ onCo
 							<span style={{ fontWeight: 500 }}>Фото и подпись</span>
 						</div>
 						<p style={{ margin: "0 0 12px 0", fontSize: "13px", color: "var(--muted)" }}>
-							TODO: Добавить загрузку аватара и скан личной подписи (для ИДС).
+							Загрузите ваше фото для профиля и скан личной подписи для медицинских документов (ИДС).
 						</p>
-						<button disabled className="secondary-button" style={{ fontSize: "13px" }}>Загрузить фото</button>
+						<div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+							<label className="secondary-button" style={{ fontSize: "13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+								<Upload size={14} />
+								{avatarName ? avatarName : "Загрузить фото"}
+								<input
+									type="file"
+									accept="image/*"
+									style={{ display: "none" }}
+									onChange={(e) => setAvatarName(e.target.files?.[0]?.name || null)}
+								/>
+							</label>
+							<label className="secondary-button" style={{ fontSize: "13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+								<Upload size={14} />
+								{signatureName ? signatureName : "Скан подписи"}
+								<input
+									type="file"
+									accept="image/*"
+									style={{ display: "none" }}
+									onChange={(e) => setSignatureName(e.target.files?.[0]?.name || null)}
+								/>
+							</label>
+						</div>
 					</div>
 
 					<div style={{ padding: "16px", border: "1px solid var(--line)", borderRadius: "8px" }}>

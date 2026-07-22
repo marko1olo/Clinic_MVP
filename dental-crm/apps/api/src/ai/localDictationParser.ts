@@ -245,7 +245,7 @@ function extractTime(text: string): string | null {
 		if (hourMap[word]) return `${hourMap[word]}:${isQuarter ? "15" : "30"}`;
 	}
 
-	// Fix explicit word matching 'в 10 утра'
+	// Explicit word matching 'в 10 утра'
 	m = text.match(
 		/(?:в|на)\s*(\d{1,2}|[а-яё]+)(?:\s*час|утра|дня|вечера)?(?!\s*\d)/i,
 	);

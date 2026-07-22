@@ -223,7 +223,7 @@ function extractTime(text: string): string | null {
 		return `${h.toString().padStart(2, "0")}:${min}`;
 	}
 
-	// Fix 'полпервого' / 'пол первого'
+	// Handle 'полпервого' / 'пол первого'
 	m = text.match(/(пол(?:овин[аеу])?\s*|четверть\s+)([а-яё]+)/i);
 	if (m) {
 		const isQuarter = m[1].includes("четверть");

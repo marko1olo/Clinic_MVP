@@ -58,12 +58,8 @@ async def cmd_start(message: Message):
 
 @router.message(Command("status"))
 async def cmd_status(message: Message):
-    doctors_list, admins_list = await asyncio.gather(
-        asyncio.to_thread(db.get_users_by_role, 'doctor'),
-        asyncio.to_thread(db.get_users_by_role, 'admin')
-    )
-    doctors = len(doctors_list)
-    admins = len(admins_list)
+    doctors = len(await asyncio.to_thread(db.get_users_by_role, 'doctor'))
+    admins = len(await asyncio.to_thread(db.get_users_by_role, 'admin'))
     await message.answer(
         f"*Система работает* ✅\n"
         f"Врачей: {doctors}, Админов: {admins}\n"

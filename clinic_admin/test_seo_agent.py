@@ -30,6 +30,17 @@ class TestSEOAgent(unittest.TestCase):
         # Verify the exception was caught and handled correctly
         self.assertIsNone(result)
 
+    @patch('builtins.open', new_callable=mock_open, read_data='invalid json')
+    @patch('builtins.print')
+    def test_get_groq_api_key_json_parsing_failure(self, mock_print, mock_file):
+        # Call the function
+        result = get_groq_api_key()
+
+        # Verify the exception was caught, handled, printed and None returned
+        self.assertIsNone(result)
+        mock_print.assert_called_once()
+        self.assertTrue(mock_print.call_args[0][0].startswith("Error loading config: Expecting value"))
+
     @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": ["key1", "key2"]}')
     @patch('clinic_admin.seo_agent.random.choice')
     def test_get_groq_api_key_success(self, mock_choice, mock_file):

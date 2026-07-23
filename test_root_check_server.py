@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import patch
-import sys
 
 # Import the script
 import check_server

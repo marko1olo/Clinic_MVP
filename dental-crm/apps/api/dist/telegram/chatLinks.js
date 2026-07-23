@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { denteTelegramChatLinks } from "../db/schema.js";
 export async function listDenteTelegramChatLinks(organizationId, limit = 50) {
@@ -8,7 +8,7 @@ export async function listDenteTelegramChatLinks(organizationId, limit = 50) {
         .where(eq(denteTelegramChatLinks.organizationId, organizationId))
         .orderBy(desc(denteTelegramChatLinks.lastUpdateAt))
         .limit(limit);
-    return links.map((link) => ({
+    return links.map(link => ({
         id: link.id,
         organizationId: link.organizationId,
         clinicId: null,
@@ -21,7 +21,7 @@ export async function listDenteTelegramChatLinks(organizationId, limit = 50) {
         status: link.status,
         linkedAt: link.linkedAt.toISOString(),
         revokedAt: link.revokedAt?.toISOString() ?? null,
-        lastUpdateAt: link.lastUpdateAt.toISOString(),
+        lastUpdateAt: link.lastUpdateAt.toISOString()
     }));
 }
 export async function revokeDenteTelegramChatLink(organizationId, linkId) {
@@ -30,7 +30,7 @@ export async function revokeDenteTelegramChatLink(organizationId, linkId) {
         .set({
         status: "revoked",
         revokedAt: sql `CURRENT_TIMESTAMP`,
-        lastUpdateAt: sql `CURRENT_TIMESTAMP`,
+        lastUpdateAt: sql `CURRENT_TIMESTAMP`
     })
         .where(and(eq(denteTelegramChatLinks.organizationId, organizationId), eq(denteTelegramChatLinks.id, linkId), eq(denteTelegramChatLinks.status, "active")))
         .returning();
@@ -49,6 +49,6 @@ export async function revokeDenteTelegramChatLink(organizationId, linkId) {
         status: updated.status,
         linkedAt: updated.linkedAt.toISOString(),
         revokedAt: updated.revokedAt?.toISOString() ?? null,
-        lastUpdateAt: updated.lastUpdateAt.toISOString(),
+        lastUpdateAt: updated.lastUpdateAt.toISOString()
     };
 }

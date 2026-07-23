@@ -1,19 +1,10 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
-import { electricSync } from "@electric-sql/pglite-sync";
-import { drizzle } from "drizzle-orm/pglite";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "./schema.js";
 import "dotenv/config";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// DB path at apps/api/dente-db
-const dbPath = path.resolve(__dirname, "../../dente-db");
-export const client = new PGlite(dbPath, {
-	extensions: {
-		electric: electricSync(),
-	},
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm"
 });
-export const db = drizzle(client, { schema });
+
+export const db = drizzle(pool, { schema });

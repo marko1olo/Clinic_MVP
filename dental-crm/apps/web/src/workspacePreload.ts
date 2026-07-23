@@ -18,7 +18,6 @@ const workspaceViewPreloaders: Partial<
 	inventory: () => import("./components/InventoryView"),
 	scanner: () => import("./ScannerView"),
 	inbox: () => import("./components/OmnichannelInboxView"),
-	payroll: () => import("./PayrollView"),
 };
 
 const idleWorkspacePreloadPlan: Partial<Record<AppView, AppView[]>> = {

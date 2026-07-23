@@ -1,10 +1,6 @@
 import { numberFromEnv } from "./keyPool.js";
 const promptVersion = "dental-stt-prompt-v10-2026-06-06";
-const promptProviders = [
-    "groq_whisper",
-    "openai_transcribe",
-    "google_speech",
-];
+const promptProviders = ["groq_whisper", "openai_transcribe", "google_speech"];
 const baseTerms = [
     "FDI 11-48",
     "зуб 11",
@@ -147,7 +143,7 @@ const baseTerms = [
     "surgical guide",
     "iTero",
     "Medit",
-    "3Shape",
+    "3Shape"
 ];
 const specialtyTerms = {
     therapist: [
@@ -181,7 +177,7 @@ const specialtyTerms = {
         "коффердам",
         "caries",
         "pulpitis",
-        "periodontitis",
+        "periodontitis"
     ],
     orthopedist: [
         "коронка",
@@ -194,7 +190,7 @@ const specialtyTerms = {
         "прикус",
         "окклюзия",
         "lithium disilicate",
-        "zirconia",
+        "zirconia"
     ],
     surgeon: [
         "удаление",
@@ -207,7 +203,7 @@ const specialtyTerms = {
         "абсцесс",
         "ретинированный зуб",
         "дистопированный зуб",
-        "PRF",
+        "PRF"
     ],
     orthodontist: [
         "брекеты",
@@ -219,7 +215,7 @@ const specialtyTerms = {
         "трема",
         "класс Энгля",
         "Damon",
-        "Invisalign",
+        "Invisalign"
     ],
     periodontist: [
         "пародонтальный карман",
@@ -229,7 +225,7 @@ const specialtyTerms = {
         "фуркация",
         "гингива",
         "пародонтит",
-        "мукозит",
+        "мукозит"
     ],
     hygienist: [
         "скейлинг",
@@ -238,7 +234,7 @@ const specialtyTerms = {
         "реминерализация",
         "биопленка",
         "индекс гигиены",
-        "пигментированный налет",
+        "пигментированный налет"
     ],
     pediatric: [
         "молочный зуб",
@@ -246,7 +242,7 @@ const specialtyTerms = {
         "герметизация фиссур",
         "адаптация",
         "серебрение",
-        "аппликационная анестезия",
+        "аппликационная анестезия"
     ],
     implantologist: [
         "имплантат",
@@ -255,7 +251,7 @@ const specialtyTerms = {
         "синус-лифтинг",
         "костная пластика",
         "навигационная хирургия",
-        "хирургический шаблон",
+        "хирургический шаблон"
     ],
     radiologist: [
         "периапикальный очаг",
@@ -266,21 +262,12 @@ const specialtyTerms = {
         "панорамная реконструкция",
         "резорбция",
         "киста",
-        "гранулема",
+        "гранулема"
     ],
-    universal: [
-        "осмотр",
-        "жалобы",
-        "анамнез",
-        "объективный статус",
-        "диагноз со слов врача",
-        "план лечения",
-    ],
+    universal: ["осмотр", "жалобы", "анамнез", "объективный статус", "диагноз со слов врача", "план лечения"]
 };
 function promptEnabled() {
-    const value = (process.env.DENTAL_STT_DENTAL_PROMPT ?? "on")
-        .trim()
-        .toLowerCase();
+    const value = (process.env.DENTAL_STT_DENTAL_PROMPT ?? "on").trim().toLowerCase();
     return !["0", "off", "false", "no"].includes(value);
 }
 function maxPromptChars() {
@@ -299,12 +286,7 @@ function uniqueTerms(values) {
 function promptTermsForSpecialty(specialty) {
     const criticalBaseTerms = baseTerms.slice(0, 40);
     const specialtyList = specialtyTerms[specialty] ?? specialtyTerms.universal;
-    return uniqueTerms([
-        ...criticalBaseTerms,
-        ...specialtyList,
-        ...customTerms(),
-        ...baseTerms.slice(40),
-    ]).slice(0, 72);
+    return uniqueTerms([...criticalBaseTerms, ...specialtyList, ...customTerms(), ...baseTerms.slice(40)]).slice(0, 72);
 }
 function sourceHint(source) {
     if (source === "visit")
@@ -339,18 +321,15 @@ export function buildDentalSttPrompt(input) {
         "Жалобы: боль 36. Объективно: Status praesens без особенностей.",
         "Dx: Пульпит 36, периодонтит 11.",
         "Проведено: КЛКТ, RVG, ОПТГ. Изоляция коффердам, ИМО. Пломба Filtek. Выполнено.",
-        `Доп. термины: ${terms.join(", ")}.`,
+        `Доп. термины: ${terms.join(", ")}.`
     ].join(" ");
     const providerMax = input.providerId === "groq_whisper" ? 850 : maxPromptChars();
     return trimPrompt(prompt, providerMax);
 }
 export function getDentalSttPromptPolicy() {
     const terms = uniqueTerms([...baseTerms, ...customTerms()]);
-    const promptPreview = buildDentalSttPrompt({
-        providerId: "groq_whisper",
-        specialty: "universal",
-        source: "visit",
-    }) ?? "Стоматологический словарь распознавания выключен.";
+    const promptPreview = buildDentalSttPrompt({ providerId: "groq_whisper", specialty: "universal", source: "visit" }) ??
+        "Стоматологический словарь распознавания выключен.";
     const warnings = [];
     if (!promptEnabled())
         warnings.push("Стоматологический словарь распознавания выключен в серверных настройках.");
@@ -363,6 +342,6 @@ export function getDentalSttPromptPolicy() {
         maxChars: maxPromptChars(),
         termCount: terms.length,
         promptPreview,
-        warnings,
+        warnings
     };
 }

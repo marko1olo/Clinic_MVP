@@ -1,4 +1,4 @@
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, lte, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { outgoingNotifications, denteTelegramChatLinks, denteTelegramBotConfigs } from "../db/schema.js";
 import { sendTelegramTextMessage } from "../telegramTransport.js";
@@ -41,6 +41,27 @@ export async function processNotificationQueue() {
 			)
 			.limit(10);
 
+		if (pending.length === 0) {
+			return;
+		}
+
+		const uniqueOrganizationIds = Array.from(new Set(pending.map((n) => n.organizationId)));
+		const uniquePatientIds = Array.from(new Set(pending.map((n) => n.patientId)));
+
+		// Pre-fetch configs and chat links for pending notifications
+		const botConfigs = await db.query.denteTelegramBotConfigs.findMany({
+			where: inArray(denteTelegramBotConfigs.organizationId, uniqueOrganizationIds),
+		});
+		const chatLinks = await db.query.denteTelegramChatLinks.findMany({
+			where: and(
+				inArray(denteTelegramChatLinks.subjectId, uniquePatientIds),
+				eq(denteTelegramChatLinks.status, "active")
+			),
+		});
+
+		const botConfigsMap = new Map(botConfigs.map((c) => [c.organizationId, c]));
+		const chatLinksMap = new Map(chatLinks.map((l) => [l.subjectId, l]));
+
 		for (const notif of pending) {
 			const messageText: string =
 				String((notif.payload as Record<string, unknown>)?.text ?? JSON.stringify(notif.payload));
@@ -49,29 +70,22 @@ export async function processNotificationQueue() {
 			let failureReason = "skipped: no telegram bot token configured or patient not linked";
 
 			// Try to find telegram link
-			const chatLink = await db.query.denteTelegramChatLinks.findFirst({
-				where: and(
-					eq(denteTelegramChatLinks.subjectId, notif.patientId),
-					eq(denteTelegramChatLinks.status, "active")
-				),
-			});
+			const chatLink = chatLinksMap.get(notif.patientId);
 
 			if (chatLink && chatLink.chatTransportRef) {
-				const botConfig = await db.query.denteTelegramBotConfigs.findFirst({
-					where: eq(denteTelegramBotConfigs.organizationId, notif.organizationId),
-				});
-				
+				const botConfig = botConfigsMap.get(notif.organizationId);
+
 				// tokenSecretRef stores the key reference; in production this would be resolved
 				// from a secrets manager. Here we fall back to env var directly.
 				const token: string | undefined = process.env.DENTE_TELEGRAM_BOT_TOKEN || botConfig?.tokenSecretRef || undefined;
-				
+
 				if (token) {
 					const res = await sendTelegramTextMessage({
 						botToken: token,
 						chatId: chatLink.chatTransportRef as string,
 						text: messageText,
 					});
-					
+
 					if (res.ok) {
 						deliveryStatus = "sent";
 						failureReason = "";
@@ -96,9 +110,9 @@ export async function processNotificationQueue() {
 
 			await db
 				.update(outgoingNotifications)
-				.set({ 
-					status: deliveryStatus as any, 
-					sentAt: deliveryStatus === "sent" ? new Date() : null 
+				.set({
+					status: deliveryStatus as any,
+					sentAt: deliveryStatus === "sent" ? new Date() : null
 				})
 				.where(eq(outgoingNotifications.id, notif.id));
 		}

@@ -230,7 +230,30 @@ export function VisitToothMap({
 														</g>
 													) : (
 														<g>
-															<path d={geom.root} className="tooth-root"
+															<path
+																d={geom.root}
+																fill={
+																	state === "idle"
+																		? "#f8fafc"
+																		: state === "planned"
+																			? "#f0f9ff"
+																			: state === "treatment"
+																				? "#fff5f5"
+																				: state === "watch"
+																					? "#fffbeb"
+																					: "#f0fdf4"
+																}
+																stroke={
+																	state === "idle"
+																		? "#cbd5e1"
+																		: state === "planned"
+																			? "#38bdf8"
+																			: state === "treatment"
+																				? "#f87171"
+																				: state === "watch"
+																					? "#fbbf24"
+																					: "#4ade80"
+																}
 																strokeWidth="1.5"
 																strokeLinejoin="round"
 															/>
@@ -247,7 +270,30 @@ export function VisitToothMap({
 																		opacity="0.85"
 																	/>
 																)}
-															<path d={geom.crown} className="tooth-crown"
+															<path
+																d={geom.crown}
+																fill={
+																	state === "idle"
+																		? "#fff"
+																		: state === "planned"
+																			? "#e0f2fe"
+																			: state === "treatment"
+																				? "#fee2e2"
+																				: state === "watch"
+																					? "#fef3c7"
+																					: "#dcfce7"
+																}
+																stroke={
+																	state === "idle"
+																		? "#94a3b8"
+																		: state === "planned"
+																			? "#0284c7"
+																			: state === "treatment"
+																				? "#dc2626"
+																				: state === "watch"
+																					? "#d97706"
+																					: "#166534"
+																}
 																strokeWidth="2.2"
 																strokeLinejoin="round"
 															/>
@@ -338,7 +384,30 @@ export function VisitToothMap({
 														</g>
 													) : (
 														<g>
-															<path d={geom.root} className="tooth-root"
+															<path
+																d={geom.root}
+																fill={
+																	state === "idle"
+																		? "#f8fafc"
+																		: state === "planned"
+																			? "#f0f9ff"
+																			: state === "treatment"
+																				? "#fff5f5"
+																				: state === "watch"
+																					? "#fffbeb"
+																					: "#f0fdf4"
+																}
+																stroke={
+																	state === "idle"
+																		? "#cbd5e1"
+																		: state === "planned"
+																			? "#38bdf8"
+																			: state === "treatment"
+																				? "#f87171"
+																				: state === "watch"
+																					? "#fbbf24"
+																					: "#4ade80"
+																}
 																strokeWidth="1.5"
 																strokeLinejoin="round"
 															/>
@@ -355,7 +424,30 @@ export function VisitToothMap({
 																		opacity="0.85"
 																	/>
 																)}
-															<path d={geom.crown} className="tooth-crown"
+															<path
+																d={geom.crown}
+																fill={
+																	state === "idle"
+																		? "#fff"
+																		: state === "planned"
+																			? "#e0f2fe"
+																			: state === "treatment"
+																				? "#fee2e2"
+																				: state === "watch"
+																					? "#fef3c7"
+																					: "#dcfce7"
+																}
+																stroke={
+																	state === "idle"
+																		? "#94a3b8"
+																		: state === "planned"
+																			? "#0284c7"
+																			: state === "treatment"
+																				? "#dc2626"
+																				: state === "watch"
+																					? "#d97706"
+																					: "#166534"
+																}
 																strokeWidth="2.2"
 																strokeLinejoin="round"
 															/>
@@ -459,7 +551,30 @@ export function VisitToothMap({
 														</g>
 													) : (
 														<g>
-															<path d={geom.root} className="tooth-root"
+															<path
+																d={geom.root}
+																fill={
+																	state === "idle"
+																		? "#f8fafc"
+																		: state === "planned"
+																			? "#f0f9ff"
+																			: state === "treatment"
+																				? "#fff5f5"
+																				: state === "watch"
+																					? "#fffbeb"
+																					: "#f0fdf4"
+																}
+																stroke={
+																	state === "idle"
+																		? "#cbd5e1"
+																		: state === "planned"
+																			? "#38bdf8"
+																			: state === "treatment"
+																				? "#f87171"
+																				: state === "watch"
+																					? "#fbbf24"
+																					: "#4ade80"
+																}
 																strokeWidth="1.5"
 																strokeLinejoin="round"
 															/>
@@ -476,7 +591,30 @@ export function VisitToothMap({
 																		opacity="0.85"
 																	/>
 																)}
-															<path d={geom.crown} className="tooth-crown"
+															<path
+																d={geom.crown}
+																fill={
+																	state === "idle"
+																		? "#fff"
+																		: state === "planned"
+																			? "#e0f2fe"
+																			: state === "treatment"
+																				? "#fee2e2"
+																				: state === "watch"
+																					? "#fef3c7"
+																					: "#dcfce7"
+																}
+																stroke={
+																	state === "idle"
+																		? "#94a3b8"
+																		: state === "planned"
+																			? "#0284c7"
+																			: state === "treatment"
+																				? "#dc2626"
+																				: state === "watch"
+																					? "#d97706"
+																					: "#166534"
+																}
 																strokeWidth="2.2"
 																strokeLinejoin="round"
 															/>
@@ -568,7 +706,30 @@ export function VisitToothMap({
 														</g>
 													) : (
 														<g>
-															<path d={geom.root} className="tooth-root"
+															<path
+																d={geom.root}
+																fill={
+																	state === "idle"
+																		? "#f8fafc"
+																		: state === "planned"
+																			? "#f0f9ff"
+																			: state === "treatment"
+																				? "#fff5f5"
+																				: state === "watch"
+																					? "#fffbeb"
+																					: "#f0fdf4"
+																}
+																stroke={
+																	state === "idle"
+																		? "#cbd5e1"
+																		: state === "planned"
+																			? "#38bdf8"
+																			: state === "treatment"
+																				? "#f87171"
+																				: state === "watch"
+																					? "#fbbf24"
+																					: "#4ade80"
+																}
 																strokeWidth="1.5"
 																strokeLinejoin="round"
 															/>
@@ -585,7 +746,30 @@ export function VisitToothMap({
 																		opacity="0.85"
 																	/>
 																)}
-															<path d={geom.crown} className="tooth-crown"
+															<path
+																d={geom.crown}
+																fill={
+																	state === "idle"
+																		? "#fff"
+																		: state === "planned"
+																			? "#e0f2fe"
+																			: state === "treatment"
+																				? "#fee2e2"
+																				: state === "watch"
+																					? "#fef3c7"
+																					: "#dcfce7"
+																}
+																stroke={
+																	state === "idle"
+																		? "#94a3b8"
+																		: state === "planned"
+																			? "#0284c7"
+																			: state === "treatment"
+																				? "#dc2626"
+																				: state === "watch"
+																					? "#d97706"
+																					: "#166534"
+																}
 																strokeWidth="2.2"
 																strokeLinejoin="round"
 															/>

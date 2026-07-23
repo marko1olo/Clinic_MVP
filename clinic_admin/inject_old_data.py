@@ -2,12 +2,13 @@ import sqlite3
 import json
 from datetime import datetime, timedelta
 
-import os
+from clinic_admin.database import get_connection
 
-DEFAULT_DB_FILE = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "clinic.db")
-)
-DB_FILE = os.environ.get("DB_FILE", DEFAULT_DB_FILE)
+OLD_PATIENTS = [
+    ("Смирнов Алексей", "+79991234567"),
+    ("Козлова Елена", "+79123456789"),
+    ("Петров Дмитрий", "+79001112233")
+]
 
 def _get_existing_names(c, names):
     if not names:
@@ -23,11 +24,13 @@ def _insert_patients(c, new_patients_data):
     if not new_patients_data:
         return []
 
-    query = "INSERT INTO patients (name, phone, created_at) VALUES " + ", ".join(["(?, ?, ?)"] * len(new_patients_data)) + " RETURNING id"
-    params = [item for sublist in new_patients_data for item in sublist]
+    query = "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?) RETURNING id"
+    inserted_ids = []
+    for row in new_patients_data:
+        c.execute(query, row)
+        inserted_ids.append(c.fetchone()[0])
 
-    c.execute(query, params)
-    return [row[0] for row in c.fetchall()]
+    return inserted_ids
 
 def _insert_appointments(c, inserted_ids, now):
     old_date = (now - timedelta(days=210)).isoformat()
@@ -43,32 +46,26 @@ def _insert_appointments(c, inserted_ids, now):
     )
 
 def inject_dummy_data():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-
     now = datetime.now()
 
-    # Create old patients
-    old_patients = [
-        ("Смирнов Алексей", "+79991234567"),
-        ("Козлова Елена", "+79123456789"),
-        ("Петров Дмитрий", "+79001112233")
-    ]
+    with get_connection() as conn:
+        c = conn.cursor()
 
-    names = [p[0] for p in old_patients]
-    existing_names = _get_existing_names(c, names)
+        names = [p[0] for p in OLD_PATIENTS]
+        existing_names = _get_existing_names(c, names)
 
-    new_patients_data = []
-    for name, phone in old_patients:
-        if name not in existing_names:
-            new_patients_data.append((name, phone, now.isoformat()))
+        new_patients_data = [
+            (name, phone, now.isoformat())
+            for name, phone in OLD_PATIENTS
+            if name not in existing_names
+        ]
 
-    if new_patients_data:
-        inserted_ids = _insert_patients(c, new_patients_data)
-        _insert_appointments(c, inserted_ids, now)
+        if new_patients_data:
+            inserted_ids = _insert_patients(c, new_patients_data)
+            _insert_appointments(c, inserted_ids, now)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+
     print("Dummy marketing data injected.")
 
 if __name__ == "__main__":

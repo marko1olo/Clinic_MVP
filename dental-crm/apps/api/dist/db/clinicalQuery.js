@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
+import { eq, and } from "drizzle-orm";
 function parseJsonArray(jsonString) {
     if (!jsonString)
         return [];
@@ -29,14 +29,11 @@ function mapClinicalRule(record) {
         condition: record.condition,
         warningText: record.warningText,
         patientText: record.patientText,
-        active: record.isActive,
+        active: record.isActive
     };
 }
 export async function getClinicalRules(organizationId) {
-    const records = await db
-        .select()
-        .from(schema.clinicalRules)
-        .where(eq(schema.clinicalRules.organizationId, organizationId));
+    const records = await db.select().from(schema.clinicalRules).where(eq(schema.clinicalRules.organizationId, organizationId));
     return records.map(mapClinicalRule);
 }
 export async function getClinicalRuleById(organizationId, ruleId) {
@@ -57,15 +54,14 @@ function summarizeClinicalEvaluations(evaluations, activeRulesCount) {
         blockers: unresolved.filter((evaluation) => evaluation.severity === "blocker").length,
         warnings: unresolved.filter((evaluation) => evaluation.severity === "warning").length,
         requiredServices: requiredServiceIds.size,
-        coveredRules: evaluations.filter((evaluation) => evaluation.resolved)
-            .length,
+        coveredRules: evaluations.filter((evaluation) => evaluation.resolved).length
     };
 }
 export async function evaluateClinicalRulesInDb(organizationId, input) {
     const rules = await getClinicalRules(organizationId);
     const serviceIds = new Set(input.serviceIds);
     const completedServiceIds = new Set(input.completedServiceIds);
-    const activeRulesCount = rules.filter((r) => r.active).length;
+    const activeRulesCount = rules.filter(r => r.active).length;
     const evaluations = rules.flatMap((rule) => {
         if (!rule.active)
             return [];
@@ -75,13 +71,10 @@ export async function evaluateClinicalRulesInDb(organizationId, input) {
         const missingRequiredServiceIds = rule.requiredServiceIds.filter((serviceId) => !serviceIds.has(serviceId));
         const missingCompletedServiceIds = rule.requiresCompletedServiceIds.filter((serviceId) => !completedServiceIds.has(serviceId));
         const blockedServiceIds = rule.blockedServiceIds.filter((serviceId) => serviceIds.has(serviceId));
-        let resolved = missingRequiredServiceIds.length === 0 &&
-            missingCompletedServiceIds.length === 0;
+        let resolved = missingRequiredServiceIds.length === 0 && missingCompletedServiceIds.length === 0;
         let activeBlockedServiceIds = blockedServiceIds;
         if (rule.action === "block_service") {
-            const hasBlockingCondition = missingCompletedServiceIds.length > 0 ||
-                (rule.requiresCompletedServiceIds.length === 0 &&
-                    blockedServiceIds.length > 0);
+            const hasBlockingCondition = missingCompletedServiceIds.length > 0 || (rule.requiresCompletedServiceIds.length === 0 && blockedServiceIds.length > 0);
             resolved = !hasBlockingCondition;
             activeBlockedServiceIds = hasBlockingCondition ? blockedServiceIds : [];
         }
@@ -105,13 +98,13 @@ export async function evaluateClinicalRulesInDb(organizationId, input) {
                 blockedServiceIds: activeBlockedServiceIds,
                 message: rule.warningText,
                 patientMessage: rule.patientText,
-                resolved,
-            },
+                resolved
+            }
         ];
     });
     return {
         evaluations,
-        summary: summarizeClinicalEvaluations(evaluations, activeRulesCount),
+        summary: summarizeClinicalEvaluations(evaluations, activeRulesCount)
     };
 }
 export async function createClinicalRuleInDb(organizationId, input) {
@@ -132,7 +125,7 @@ export async function createClinicalRuleInDb(organizationId, input) {
         condition: input.condition || null,
         warningText: input.warningText || "",
         patientText: input.patientText || "",
-        isActive: input.active !== undefined ? input.active : true,
+        isActive: input.active !== undefined ? input.active : true
     })
         .returning();
     if (!record) {
@@ -154,23 +147,15 @@ export async function updateClinicalRuleInDb(organizationId, input) {
         action: input.action ?? existing.action,
         severity: input.severity ?? existing.severity,
         ownerRole: input.ownerRole ?? existing.ownerRole,
-        triggerServiceIdsJson: input.triggerServiceIds
-            ? JSON.stringify(input.triggerServiceIds)
-            : JSON.stringify(existing.triggerServiceIds),
-        requiredServiceIdsJson: input.requiredServiceIds
-            ? JSON.stringify(input.requiredServiceIds)
-            : JSON.stringify(existing.requiredServiceIds),
-        requiresCompletedServiceIdsJson: input.requiresCompletedServiceIds
-            ? JSON.stringify(input.requiresCompletedServiceIds)
-            : JSON.stringify(existing.requiresCompletedServiceIds),
-        blockedServiceIdsJson: input.blockedServiceIds
-            ? JSON.stringify(input.blockedServiceIds)
-            : JSON.stringify(existing.blockedServiceIds),
+        triggerServiceIdsJson: input.triggerServiceIds ? JSON.stringify(input.triggerServiceIds) : JSON.stringify(existing.triggerServiceIds),
+        requiredServiceIdsJson: input.requiredServiceIds ? JSON.stringify(input.requiredServiceIds) : JSON.stringify(existing.requiredServiceIds),
+        requiresCompletedServiceIdsJson: input.requiresCompletedServiceIds ? JSON.stringify(input.requiresCompletedServiceIds) : JSON.stringify(existing.requiresCompletedServiceIds),
+        blockedServiceIdsJson: input.blockedServiceIds ? JSON.stringify(input.blockedServiceIds) : JSON.stringify(existing.blockedServiceIds),
         condition: input.condition !== undefined ? input.condition : existing.condition,
         warningText: input.warningText ?? existing.warningText,
         patientText: input.patientText ?? existing.patientText,
         isActive: input.active ?? existing.active,
-        updatedAt: new Date(),
+        updatedAt: new Date()
     })
         .where(and(eq(schema.clinicalRules.organizationId, organizationId), eq(schema.clinicalRules.id, input.id)))
         .returning();
@@ -180,11 +165,5 @@ export async function updateClinicalRuleInDb(organizationId, input) {
     return mapClinicalRule(record);
 }
 export async function getTreatmentPlanItemsForPatient(organizationId, patientId) {
-    return await db
-        .select()
-        .from(schema.treatmentItems)
-        .where(and(eq(schema.treatmentItems.organizationId, organizationId), eq(schema.treatmentItems.patientId, patientId)));
-}
-export async function deleteClinicalRuleInDb(organizationId, id) {
-    await db.delete(schema.clinicalRules).where(and(eq(schema.clinicalRules.id, id), eq(schema.clinicalRules.organizationId, organizationId)));
+    return await db.select().from(schema.treatmentItems).where(and(eq(schema.treatmentItems.organizationId, organizationId), eq(schema.treatmentItems.patientId, patientId)));
 }

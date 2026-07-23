@@ -1,5 +1,6 @@
 import os
 import time
+import importlib
 
 # Create lots of fake admins and doctors
 num_users = 1000
@@ -14,7 +15,7 @@ if os.path.exists("bot_users.db"):
     os.remove("bot_users.db")
 
 start_time = time.time()
-import db
+importlib.import_module("db")
 end_time = time.time()
 
 print(f"Time taken: {end_time - start_time:.4f} seconds")

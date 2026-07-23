@@ -5,19 +5,19 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { documentAuditFactsSchema, documentKindMetadata, } from "@dental/shared";
+import { documentAuditFactsSchema, documentKindMetadata } from "@dental/shared";
 import { getAppointmentByIdInDb } from "../db/appointmentsQuery.js";
-import { getDocumentRenderContextFromDb, getDocumentsByPatientId, readIssuedDocumentSnapshot, } from "../db/documentQuery.js";
 import { getVisitByIdInDb } from "../db/visitsQuery.js";
-import { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason, } from "../documents/renderDocument.js";
-import { paymentIdsForTaxDocument, receiptKeysForTaxDocument, taxDocumentDuplicateSensitive, taxPaymentSnapshotTotalRub, taxPaymentsForDocumentScope, } from "../documents/taxPaymentSnapshot.js";
+import { getDocumentRenderContextFromDb, readIssuedDocumentSnapshot } from "../db/documentQuery.js";
+import { getDefaultOrganizationId, getDocumentsByPatientId } from "../db/documentQuery.js";
+import { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason } from "../documents/renderDocument.js";
+import { paymentIdsForTaxDocument, receiptKeysForTaxDocument, taxDocumentDuplicateSensitive, taxPaymentSnapshotTotalRub, taxPaymentsForDocumentScope } from "../documents/taxPaymentSnapshot.js";
 import { repairMojibakeText } from "../text/repairMojibake.js";
 export function documentAttachmentFileName(document, extension) {
     return `dente-${document.kind}-${document.id}.${extension}`;
 }
 export function documentRequiresIssuedArchive(document) {
-    return (document.status === "issued" ||
-        (document.status === "voided" && Boolean(document.issuedAt)));
+    return document.status === "issued" || (document.status === "voided" && Boolean(document.issuedAt));
 }
 export function documentHasIssuedArchiveMetadata(document) {
     return Boolean(document.issuedSnapshotSha256 && document.issuedSnapshotCreatedAt);
@@ -33,7 +33,7 @@ export function pdfBrowserCandidates() {
         "/usr/bin/microsoft-edge",
         "/usr/bin/google-chrome",
         "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium-browser"
     ].filter((candidate) => Boolean(candidate));
 }
 const allowedPdfBrowserExecutables = new Set([
@@ -45,14 +45,14 @@ const allowedPdfBrowserExecutables = new Set([
     "chromium",
     "chromium-browser",
     "chrome.exe",
-    "chrome",
+    "chrome"
 ]);
 function isSafeBrowserPath(candidate) {
-    const basename = candidate.split(/[/\\]/).pop()?.toLowerCase();
+    const basename = candidate.split(/[\/\\]/).pop()?.toLowerCase();
     return basename ? allowedPdfBrowserExecutables.has(basename) : false;
 }
 export function findPdfBrowserPath() {
-    return (pdfBrowserCandidates().find((candidate) => isSafeBrowserPath(candidate) && existsSync(candidate)) ?? null);
+    return pdfBrowserCandidates().find((candidate) => isSafeBrowserPath(candidate) && existsSync(candidate)) ?? null;
 }
 export function configuredPdfExportTimeoutMs() {
     const raw = Number(process.env.DENTE_PDF_EXPORT_TIMEOUT_MS ?? "60000");
@@ -76,19 +76,17 @@ export async function renderIssuedHtmlToPdf(html) {
     if (!browserPath) {
         return {
             ok: false,
-            error: "PDF-экспорт недоступен: на сервере клиники не найден браузер для печати документов. Укажите путь к браузеру в серверных настройках.",
+            error: "PDF-экспорт недоступен: на сервере клиники не найден браузер для печати документов. Укажите путь к браузеру в серверных настройках."
         };
     }
     const workDir = await mkdtemp(path.join(os.tmpdir(), "dente-pdf-"));
     const htmlPath = path.join(workDir, "document.html");
-    await writeFile(htmlPath, html.includes("<meta charset=")
-        ? html
-        : html.replace(/<head>/i, '<head><meta charset="utf-8">'), "utf8");
+    await writeFile(htmlPath, html.includes("<meta charset=") ? html : html.replace(/<head>/i, '<head><meta charset="utf-8">'), "utf8");
     try {
         const timeoutMs = configuredPdfExportTimeoutMs();
         const attempts = [
             { label: "headless-new", headlessFlag: "--headless=new" },
-            { label: "headless-classic", headlessFlag: "--headless" },
+            { label: "headless-classic", headlessFlag: "--headless" }
         ];
         let lastFailure = "PDF-экспорт завершился неизвестной ошибкой.";
         for (const [index, attempt] of attempts.entries()) {
@@ -114,7 +112,7 @@ export async function renderIssuedHtmlToPdf(html) {
                     "--virtual-time-budget=10000",
                     `--user-data-dir=${profileDir}`,
                     `--print-to-pdf=${pdfPath}`,
-                    pathToFileURL(htmlPath).href,
+                    pathToFileURL(htmlPath).href
                 ], { stdio: "ignore" });
                 let completed = false;
                 let timedOut = false;
@@ -136,8 +134,7 @@ export async function renderIssuedHtmlToPdf(html) {
             if (pdf)
                 return { ok: true, pdf };
             if (result.error) {
-                lastFailure =
-                    "PDF-экспорт не запустил браузер документов. Проверьте путь к браузеру в серверных настройках.";
+                lastFailure = "PDF-экспорт не запустил браузер документов. Проверьте путь к браузеру в серверных настройках.";
                 continue;
             }
             if (result.timedOut) {
@@ -145,28 +142,21 @@ export async function renderIssuedHtmlToPdf(html) {
                 continue;
             }
             if (result.code !== 0) {
-                lastFailure =
-                    "PDF-экспорт завершился с ошибкой браузера документов. Проверьте установку браузера на сервере клиники.";
+                lastFailure = "PDF-экспорт завершился с ошибкой браузера документов. Проверьте установку браузера на сервере клиники.";
                 continue;
             }
-            lastFailure =
-                "PDF-экспорт вернул поврежденный файл. Повторите выгрузку или проверьте сервер печати документов.";
+            lastFailure = "PDF-экспорт вернул поврежденный файл. Повторите выгрузку или проверьте сервер печати документов.";
         }
         return { ok: false, error: lastFailure };
     }
     catch (error) {
         return {
             ok: false,
-            error: "PDF-экспорт не завершился. Проверьте права на временную папку сервера и браузер для печати документов.",
+            error: "PDF-экспорт не завершился. Проверьте права на временную папку сервера и браузер для печати документов."
         };
     }
     finally {
-        await rm(workDir, {
-            recursive: true,
-            force: true,
-            maxRetries: 5,
-            retryDelay: 250,
-        });
+        await rm(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
     }
 }
 export function normalizedDocumentChainValue(value) {
@@ -176,32 +166,28 @@ export function normalizedTaxpayerInn(value) {
     return (value ?? "").replace(/\D+/g, "");
 }
 export function paymentAnnualTaxpayerScope(payment) {
-    const relationship = normalizeTaxApplicationRelationship(payment.payerRelationship) ??
-        normalizedDocumentChainValue(payment.payerRelationship);
+    const relationship = normalizeTaxApplicationRelationship(payment.payerRelationship) ?? normalizedDocumentChainValue(payment.payerRelationship);
     return {
         inn: normalizedTaxpayerInn(payment.payerInn),
         identityKey: [
             normalizedDocumentChainValue(payment.payerFullName),
             normalizedDocumentChainValue(payment.payerBirthDate),
             normalizedDocumentChainValue(payment.payerIdentityDocument),
-            relationship,
-        ].join("|"),
+            relationship
+        ].join("|")
     };
 }
 export function annualTaxpayerScopesForDocument(document) {
     const scopes = new Map();
     const addScope = (scope) => {
-        const key = scope.inn
-            ? `inn:${scope.inn}`
-            : `identity:${scope.identityKey}`;
+        const key = scope.inn ? `inn:${scope.inn}` : `identity:${scope.identityKey}`;
         if (scope.inn || scope.identityKey.replace(/\|/g, ""))
             scopes.set(key, scope);
     };
     for (const payment of taxPaymentsForDocumentScope(document, [])) {
         addScope(paymentAnnualTaxpayerScope(payment));
     }
-    const documentInn = normalizedTaxpayerInn(document.taxPayerInn) ||
-        normalizedTaxpayerInn(document.taxPaymentSnapshot?.taxPayerInn);
+    const documentInn = normalizedTaxpayerInn(document.taxPayerInn) || normalizedTaxpayerInn(document.taxPaymentSnapshot?.taxPayerInn);
     if (documentInn) {
         addScope({ inn: documentInn, identityKey: "" });
     }
@@ -212,9 +198,7 @@ export function annualTaxpayerScopesOverlap(left, right) {
         for (const rightScope of right) {
             if (leftScope.inn && rightScope.inn && leftScope.inn === rightScope.inn)
                 return true;
-            if (leftScope.identityKey &&
-                rightScope.identityKey &&
-                leftScope.identityKey === rightScope.identityKey)
+            if (leftScope.identityKey && rightScope.identityKey && leftScope.identityKey === rightScope.identityKey)
                 return true;
         }
     }
@@ -227,9 +211,7 @@ export async function findIssuedDuplicateTaxCertificate(document, payments) {
     const targetAnnualScopes = annualTaxpayerScopesForDocument(document);
     const targetReceiptKeys = receiptKeysForTaxDocument(document, []);
     const targetPaymentIds = paymentIdsForTaxDocument(document, []);
-    if (!targetAnnualScopes.length &&
-        !targetReceiptKeys.size &&
-        !targetPaymentIds.size)
+    if (!targetAnnualScopes.length && !targetReceiptKeys.size && !targetPaymentIds.size)
         return null;
     for (const candidate of allDocuments) {
         if (candidate.patientId !== document.patientId)
@@ -276,7 +258,7 @@ export function taxSnapshotDocument(document, snapshot) {
     return {
         ...document,
         totalAmountRub: taxPaymentSnapshotTotalRub(snapshot),
-        taxPaymentSnapshot: snapshot,
+        taxPaymentSnapshot: snapshot
     };
 }
 export function cloneSnapshotValue(value) {
@@ -285,9 +267,7 @@ export function cloneSnapshotValue(value) {
 export function taxXmlSourceSnapshotSha256(snapshot) {
     if (!snapshot)
         return null;
-    return createHash("sha256")
-        .update(JSON.stringify(snapshot), "utf8")
-        .digest("hex");
+    return createHash("sha256").update(JSON.stringify(snapshot), "utf8").digest("hex");
 }
 export function taxXmlSourceSnapshotForIssue(document, patient, snapshot, issuedAt) {
     if (document.kind !== "tax_deduction_certificate" || !snapshot)
@@ -296,7 +276,7 @@ export function taxXmlSourceSnapshotForIssue(document, patient, snapshot, issued
         createdAt: issuedAt,
         patient: cloneSnapshotValue(patient),
         clinicProfile: cloneSnapshotValue(undefined),
-        payments: snapshot.payments.map((payment) => cloneSnapshotValue(payment)),
+        payments: snapshot.payments.map((payment) => cloneSnapshotValue(payment))
     };
 }
 export function frozenTaxXmlPatient(document, fallbackPatient) {
@@ -309,9 +289,7 @@ export function frozenTaxXmlPayments(document, fallbackPayments) {
     return document.taxXmlSourceSnapshot?.payments ?? fallbackPayments;
 }
 export function releasedDocumentTypesCoveredByRequest(releasedTypes, requestedTypes) {
-    const requestedValues = new Set(requestedTypes
-        .map((item) => normalizedDocumentChainValue(item))
-        .filter(Boolean));
+    const requestedValues = new Set(requestedTypes.map((item) => normalizedDocumentChainValue(item)).filter(Boolean));
     return releasedTypes.every((item) => requestedValues.has(normalizedDocumentChainValue(item)));
 }
 export function comparableDocumentChainDate(value) {
@@ -326,9 +304,7 @@ export function comparableDocumentChainDate(value) {
     const day = Number(datePrefix[3]);
     const parsed = Date.UTC(year, month - 1, day);
     const date = new Date(parsed);
-    if (date.getUTCFullYear() !== year ||
-        date.getUTCMonth() !== month - 1 ||
-        date.getUTCDate() !== day)
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day)
         return null;
     return parsed;
 }
@@ -339,8 +315,7 @@ export function documentChainDateIsBlankOrValid(value) {
 export function documentChainDateRangeIsChronological(periodStart, periodEnd) {
     const start = comparableDocumentChainDate(periodStart);
     const end = comparableDocumentChainDate(periodEnd);
-    if (!documentChainDateIsBlankOrValid(periodStart) ||
-        !documentChainDateIsBlankOrValid(periodEnd))
+    if (!documentChainDateIsBlankOrValid(periodStart) || !documentChainDateIsBlankOrValid(periodEnd))
         return false;
     return start === null || end === null || start <= end;
 }
@@ -378,10 +353,9 @@ export function outpatientMedicalCard025uDatesAreValid(payload) {
         ...payload.ambulatorySurgeryRows.map((item) => item.date),
         ...payload.xrayDoseRows.map((item) => item.date),
         ...payload.functionalResults.map((item) => item.date),
-        ...payload.laboratoryResults.map((item) => item.date),
+        ...payload.laboratoryResults.map((item) => item.date)
     ];
-    return (dates.every(documentChainDateIsBlankOrValid) &&
-        documentChainDateRangeIsChronological(payload.periodStart, payload.periodEnd));
+    return dates.every(documentChainDateIsBlankOrValid) && documentChainDateRangeIsChronological(payload.periodStart, payload.periodEnd);
 }
 export function medicalDocumentReleaseReceiptDatesAreValid(payload) {
     const deliveredAt = comparableDocumentChainDate(payload.deliveredAt);
@@ -394,17 +368,14 @@ export function medicalDocumentReleaseReceiptDatesAreValid(payload) {
     }
     if (!documentChainDateRangeIsChronological(payload.periodStart, payload.periodEnd))
         return false;
-    if (deliveredAt !== null &&
-        accessExpiresAt !== null &&
-        accessExpiresAt < deliveredAt)
+    if (deliveredAt !== null && accessExpiresAt !== null && accessExpiresAt < deliveredAt)
         return false;
     return true;
 }
 export function releaseMaterialKindForDelivery(deliveryMethod, documentTypes = [], includeDicomSourceData = false) {
     if (deliveryMethod === "dicom_archive")
         return "dicom_archive";
-    if (includeDicomSourceData ||
-        documentTypes.some((type) => /dicom|кт|cbct|сним/i.test(type)))
+    if (includeDicomSourceData || documentTypes.some((type) => /dicom|кт|cbct|сним/i.test(type)))
         return "mixed";
     if (deliveryMethod === "other")
         return "other";
@@ -423,7 +394,7 @@ export function releaseSourceSnapshotSha256(document, scope) {
         status: document.status,
         issuedAt: document.issuedAt ?? null,
         totalAmountRub: document.totalAmountRub ?? null,
-        payload: document.payload ?? null,
+        payload: document.payload ?? null
     }), "utf8")
         .digest("hex");
 }
@@ -453,7 +424,7 @@ export async function buildMedicalDocumentReleaseJournalEntry(document, issuedAt
             retentionPolicy: `Запрос зарегистрирован в DENTE; ответственный: ${responsibleStaff}. Фактическая выдача закрывается отдельной распиской о передаче медицинской документации.`,
             sourceSnapshotSha256: releaseSourceSnapshotSha256(document, "copy_request"),
             createdAt: issuedAt,
-            createdByUserId: null,
+            createdByUserId: null
         };
     }
     if (document.kind === "medical_record_extract") {
@@ -480,7 +451,7 @@ export async function buildMedicalDocumentReleaseJournalEntry(document, issuedAt
             retentionPolicy: `Выданная выписка и отметка подписания хранятся вместе с неизменяемым HTML/PDF архивом документа; ответственный: ${responsibleStaff}.`,
             sourceSnapshotSha256: releaseSourceSnapshotSha256(document, "medical_record_extract"),
             createdAt: issuedAt,
-            createdByUserId: null,
+            createdByUserId: null
         };
     }
     if (document.kind === "medical_document_release_receipt") {
@@ -508,24 +479,21 @@ export async function buildMedicalDocumentReleaseJournalEntry(document, issuedAt
             retentionPolicy: payload.releaseChannel === "secure_link"
                 ? `Защищенная ссылка и срок доступа фиксируются в расписке${payload.accessExpiresAt ? ` до ${payload.accessExpiresAt}` : ""}; ответственный: ${responsibleStaff}.`
                 : `Факт передачи, состав документов и канал выдачи хранятся с архивной распиской DENTE; ответственный: ${responsibleStaff}.`,
-            sourceSnapshotSha256: sourceRequest?.issuedSnapshotSha256 ??
-                releaseSourceSnapshotSha256(document, "release_receipt"),
+            sourceSnapshotSha256: sourceRequest?.issuedSnapshotSha256 ?? releaseSourceSnapshotSha256(document, "release_receipt"),
             createdAt: issuedAt,
-            createdByUserId: null,
+            createdByUserId: null
         };
     }
     return null;
 }
 export function releasePeriodCoveredByRequest(release, request) {
-    if (!medicalDocumentReleaseReceiptDatesAreValid(release) ||
-        !medicalRecordCopyRequestDatesAreValid(request))
+    if (!medicalDocumentReleaseReceiptDatesAreValid(release) || !medicalRecordCopyRequestDatesAreValid(request))
         return false;
     const requestStart = comparableDocumentChainDate(request.periodStart);
     const requestEnd = comparableDocumentChainDate(request.periodEnd);
     const releaseStart = comparableDocumentChainDate(release.periodStart);
     const releaseEnd = comparableDocumentChainDate(release.periodEnd);
-    if (requestStart !== null &&
-        (releaseStart === null || releaseStart < requestStart))
+    if (requestStart !== null && (releaseStart === null || releaseStart < requestStart))
         return false;
     if (requestEnd !== null && (releaseEnd === null || releaseEnd > requestEnd))
         return false;
@@ -557,16 +525,11 @@ export function normalizeTaxApplicationRelationship(value) {
     return null;
 }
 export function paymentMatchesTaxApplication(payment, application) {
-    return (normalizedDocumentChainValue(payment.payerInn) ===
-        normalizedDocumentChainValue(application.taxpayerInn) &&
-        normalizedDocumentChainValue(payment.payerFullName) ===
-            normalizedDocumentChainValue(application.taxpayerFullName) &&
-        normalizedDocumentChainValue(payment.payerBirthDate) ===
-            normalizedDocumentChainValue(application.taxpayerBirthDate) &&
-        normalizedDocumentChainValue(payment.payerIdentityDocument) ===
-            normalizedDocumentChainValue(application.taxpayerIdentityDocument) &&
-        normalizeTaxApplicationRelationship(payment.payerRelationship) ===
-            application.relationshipToPatient);
+    return (normalizedDocumentChainValue(payment.payerInn) === normalizedDocumentChainValue(application.taxpayerInn) &&
+        normalizedDocumentChainValue(payment.payerFullName) === normalizedDocumentChainValue(application.taxpayerFullName) &&
+        normalizedDocumentChainValue(payment.payerBirthDate) === normalizedDocumentChainValue(application.taxpayerBirthDate) &&
+        normalizedDocumentChainValue(payment.payerIdentityDocument) === normalizedDocumentChainValue(application.taxpayerIdentityDocument) &&
+        normalizeTaxApplicationRelationship(payment.payerRelationship) === application.relationshipToPatient);
 }
 export function taxApplicationMatchesSelectedPayments(paymentsForDocument, application) {
     const applicationPaymentIds = application.selectedPaymentIds ?? [];
@@ -602,8 +565,7 @@ export async function hasIssuedTaxApplicationForCertificate(document) {
         if (application.requestedForm !== expectedForm)
             return false;
         if (document.taxPayerInn &&
-            normalizedDocumentChainValue(application.taxpayerInn) !==
-                normalizedDocumentChainValue(document.taxPayerInn)) {
+            normalizedDocumentChainValue(application.taxpayerInn) !== normalizedDocumentChainValue(document.taxPayerInn)) {
             return false;
         }
         if (!taxApplicationMatchesSelectedPayments(taxPayments, application))
@@ -612,18 +574,16 @@ export async function hasIssuedTaxApplicationForCertificate(document) {
     });
 }
 export function releaseReceiptMatchesCopyRequest(release, request) {
-    return (normalizedDocumentChainValue(release.recipientFullName) ===
-        normalizedDocumentChainValue(request.recipientFullName) &&
-        normalizedDocumentChainValue(release.recipientIdentityDocument) ===
-            normalizedDocumentChainValue(request.recipientIdentityDocument) &&
-        normalizedDocumentChainValue(release.recipientAuthority) ===
-            normalizedDocumentChainValue(request.recipientAuthority) &&
+    return (normalizedDocumentChainValue(release.recipientFullName) === normalizedDocumentChainValue(request.recipientFullName) &&
+        normalizedDocumentChainValue(release.recipientIdentityDocument) === normalizedDocumentChainValue(request.recipientIdentityDocument) &&
+        normalizedDocumentChainValue(release.recipientAuthority) === normalizedDocumentChainValue(request.recipientAuthority) &&
         release.releaseChannel === request.requestedFormat &&
         releasedDocumentTypesCoveredByRequest(release.documentTypes, request.requestedDocumentTypes) &&
         releasePeriodCoveredByRequest(release, request));
 }
 export async function findIssuedMedicalCopyRequestForRelease(document) {
-    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
+    const orgId = await getDefaultOrganizationId();
+    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
     const release = document.payload?.medicalDocumentReleaseReceipt;
     if (!release)
         return null;
@@ -671,20 +631,10 @@ export async function medicalRecordExtractVisitDate(organizationId, visitId) {
     const visit = await getVisitByIdInDb(organizationId, visitId);
     if (!visit)
         return null;
-    const appointment = visit.appointmentId
-        ? await getAppointmentByIdInDb(organizationId, visit.appointmentId)
-        : null;
-    return (comparableDocumentChainDate(appointment?.startsAt
-        ? typeof appointment.startsAt === "string"
-            ? appointment.startsAt
-            : appointment.startsAt.toISOString()
-        : null) ??
-        comparableDocumentChainDate(typeof visit.updatedAt === "string"
-            ? visit.updatedAt
-            : visit.updatedAt.toISOString()) ??
-        comparableDocumentChainDate(typeof visit.createdAt === "string"
-            ? visit.createdAt
-            : visit.createdAt.toISOString()));
+    const appointment = visit.appointmentId ? await getAppointmentByIdInDb(organizationId, visit.appointmentId) : null;
+    return (comparableDocumentChainDate(appointment?.startsAt ? (typeof appointment.startsAt === "string" ? appointment.startsAt : appointment.startsAt.toISOString()) : null) ??
+        comparableDocumentChainDate(typeof visit.updatedAt === "string" ? visit.updatedAt : visit.updatedAt.toISOString()) ??
+        comparableDocumentChainDate(typeof visit.createdAt === "string" ? visit.createdAt : visit.createdAt.toISOString()));
 }
 export async function signedMedicalSourceVisitsAreValid(sourceVisitIds, document, periodStartRaw, periodEndRaw) {
     const periodStart = comparableDocumentChainDate(periodStartRaw);
@@ -693,9 +643,7 @@ export async function signedMedicalSourceVisitsAreValid(sourceVisitIds, document
         return false;
     for (const visitId of sourceVisitIds) {
         const visit = await getVisitByIdInDb(document.organizationId, visitId);
-        if (!visit ||
-            visit.patientId !== document.patientId ||
-            visit.status !== "signed")
+        if (!visit || visit.patientId !== document.patientId || visit.status !== "signed")
             return false;
         const visitDate = await medicalRecordExtractVisitDate(document.organizationId, visitId);
         if (visitDate === null)
@@ -724,46 +672,36 @@ export function documentRenderContext() {
 export function apiError(message, error = "DocumentOperationRejected") {
     return {
         error,
-        message: repairMojibakeText(message),
+        message: repairMojibakeText(message)
     };
 }
 export const documentCreateValidationMessage = "Документ не создан: выберите пациента, тип документа и заполните обязательные поля формы.";
 export const documentIssueValidationMessage = "Документ не выдан: подтвердите подпись или получение, проверку личности и ответственного сотрудника.";
 export const documentVoidValidationMessage = "Документ не аннулирован: укажите причину, ответственного сотрудника, архив и проверку статуса.";
 export function objectRecord(value) {
-    return value && typeof value === "object" && !Array.isArray(value)
-        ? value
-        : null;
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 export function documentCreateValidationMessageForRequest(body) {
     const input = objectRecord(body);
     const payload = objectRecord(input?.payload);
     const application = objectRecord(payload?.taxDeductionApplication);
-    const taxpayerInn = typeof application?.taxpayerInn === "string"
-        ? application.taxpayerInn.replace(/\D+/g, "")
-        : "";
-    if (application?.requestedForm === "knd_1151156" &&
-        taxpayerInn.length > 0 &&
-        taxpayerInn.length !== 12) {
+    const taxpayerInn = typeof application?.taxpayerInn === "string" ? application.taxpayerInn.replace(/\D+/g, "") : "";
+    if (application?.requestedForm === "knd_1151156" && taxpayerInn.length > 0 && taxpayerInn.length !== 12) {
         return "Документ не создан: для заявления на КНД 1151156 нужен 12-значный ИНН физического лица.";
     }
     return documentCreateValidationMessage;
 }
 export function configuredTaxOfficeCode() {
-    return (process.env.DENTE_FNS_TAX_OFFICE_CODE?.trim() ||
-        process.env.FNS_TAX_OFFICE_CODE?.trim() ||
-        null);
+    return process.env.DENTE_FNS_TAX_OFFICE_CODE?.trim() || process.env.FNS_TAX_OFFICE_CODE?.trim() || null;
 }
 export async function documentIssueChainBlockReason(document) {
-    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
-    if (taxCertificateExpectedApplicationForm(document) &&
-        !(await hasIssuedTaxApplicationForCertificate(document))) {
+    const orgId = await getDefaultOrganizationId();
+    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
+    if (taxCertificateExpectedApplicationForm(document) && !(await hasIssuedTaxApplicationForCertificate(document))) {
         return "Перед выдачей налогового документа нужно выпустить заявление налогоплательщика с тем же годом, формой, ИНН, реквизитами плательщика и точным набором выбранных фискальных чеков.";
     }
     const copyRequest = document.payload?.medicalRecordCopyRequest;
-    if (document.kind === "medical_record_copy_request" &&
-        copyRequest &&
-        !medicalRecordCopyRequestDatesAreValid(copyRequest)) {
+    if (document.kind === "medical_record_copy_request" && copyRequest && !medicalRecordCopyRequestDatesAreValid(copyRequest)) {
         return "Запрос копии медицинских документов нельзя выдать: даты запроса или периода указаны в нераспознаваемом формате либо период указан в обратном порядке.";
     }
     const releaseReceipt = document.payload?.medicalDocumentReleaseReceipt;
@@ -775,8 +713,7 @@ export async function documentIssueChainBlockReason(document) {
             return "Перед распиской о выдаче медицинских документов нужно выбрать конкретный уже выданный запрос пациента или представителя с тем же получателем, форматом, периодом и не меньшим составом документов.";
         }
     }
-    if (document.kind === "completed_works_act" &&
-        !completedWorksActMatchesIssuedContract(document)) {
+    if (document.kind === "completed_works_act" && !completedWorksActMatchesIssuedContract(document)) {
         return "Перед выдачей акта нужно выбрать конкретный уже выданный договор платных медицинских услуг по этому пациенту и визиту.";
     }
     const card025u = document.payload?.outpatientMedicalCard025u;
@@ -784,7 +721,7 @@ export async function documentIssueChainBlockReason(document) {
         if (!outpatientMedicalCard025uDatesAreValid(card025u)) {
             return "Карту 025/у нельзя выдать: даты открытия, периода, записей или результатов указаны в нераспознаваемом формате либо период указан в обратном порядке.";
         }
-        if (!(await outpatientMedicalCard025uSourcesAreValid(card025u, document))) {
+        if (!await outpatientMedicalCard025uSourcesAreValid(card025u, document)) {
             return "Карту 025/у нельзя выдать: исходные визиты не найдены, принадлежат другому пациенту, не подписаны врачом, не входят в период карты или запись врача ссылается на отсутствующий источник.";
         }
     }
@@ -796,7 +733,7 @@ export async function documentIssueChainBlockReason(document) {
         if (!medicalRecordExtractPeriodIsChronological(extract)) {
             return "Выписку нельзя выдать: период выписки указан в обратном порядке.";
         }
-        if (!(await medicalRecordExtractSourcesAreValid(extract, document))) {
+        if (!await medicalRecordExtractSourcesAreValid(extract, document)) {
             return "Выписку нельзя выдать: один или несколько исходных приемов не найдены, принадлежат другому пациенту, еще не подписаны врачом или не входят в период выписки.";
         }
     }
@@ -804,15 +741,10 @@ export async function documentIssueChainBlockReason(document) {
 }
 export async function buildDocumentAuditFacts(document, patient) {
     const renderContext = await getDocumentRenderContextFromDb(document.organizationId, patient.id);
-    const issueBlockReason = document.status === "draft"
-        ? ((await documentIssueBlockReason(document, patient, renderContext)) ??
-            (await documentIssueChainBlockReason(document)))
-        : null;
+    const issueBlockReason = document.status === "draft" ? (await documentIssueBlockReason(document, patient, renderContext)) ?? (await documentIssueChainBlockReason(document)) : null;
     const issuedArchiveRequired = documentRequiresIssuedArchive(document);
     const issuedSnapshot = readIssuedDocumentSnapshot(document);
-    const immutableSnapshotReady = Boolean(issuedSnapshot &&
-        documentHasIssuedArchiveMetadata(document) &&
-        issuedArchiveRequired);
+    const immutableSnapshotReady = Boolean(issuedSnapshot && documentHasIssuedArchiveMetadata(document) && issuedArchiveRequired);
     const hasIssueSignatureAttestation = Boolean(document.signatureAttestation);
     const blockers = [
         issueBlockReason,
@@ -821,47 +753,33 @@ export async function buildDocumentAuditFacts(document, patient) {
             : null,
         issuedArchiveRequired && !hasIssueSignatureAttestation
             ? "Для PDF/XML выгрузки нужна отметка подписания и получения документа."
-            : null,
+            : null
     ]
         .filter((value) => Boolean(value))
         .map(repairMojibakeText);
     const warnings = [
-        document.status === "draft"
-            ? "Документ еще не выдан. HTML доступен как предпросмотр, но не как архивная копия."
-            : null,
-        document.status === "voided"
-            ? "Документ аннулирован. Архивная копия сохранена только для проверки истории выдачи."
-            : null,
-        document.status === "voided" && document.voidAttestation
-            ? `Причина аннулирования: ${document.voidAttestation.reasonText}`
-            : null,
+        document.status === "draft" ? "Документ еще не выдан. HTML доступен как предпросмотр, но не как архивная копия." : null,
+        document.status === "voided" ? "Документ аннулирован. Архивная копия сохранена только для проверки истории выдачи." : null,
+        document.status === "voided" && document.voidAttestation ? `Причина аннулирования: ${document.voidAttestation.reasonText}` : null,
         document.kind === "tax_deduction_certificate"
             ? "XML КНД выгружается как проверяемый файл данных. Подпись, отправка в ФНС и XSD-валидация должны выполняться отдельным контуром."
-            : null,
+            : null
     ]
         .filter((value) => Boolean(value))
         .map(repairMojibakeText);
     const metadata = documentKindMetadata[document.kind];
     const htmlPreviewUrl = `/api/documents/${document.id}/html`;
-    const htmlDownloadUrl = immutableSnapshotReady
-        ? `${htmlPreviewUrl}?download=1`
-        : null;
+    const htmlDownloadUrl = immutableSnapshotReady ? `${htmlPreviewUrl}?download=1` : null;
     // treatment_plan PDFs are rendered on-the-fly (no signed archive required) — available in draft too
-    const treatmentPlanPdfUrl = document.kind === "treatment_plan"
-        ? `/api/documents/${document.id}/treatment-plan-pdf`
-        : null;
-    const pdfDownloadUrl = treatmentPlanPdfUrl ??
-        (immutableSnapshotReady && hasIssueSignatureAttestation
-            ? `/api/documents/${document.id}/pdf`
-            : null);
+    const treatmentPlanPdfUrl = document.kind === "treatment_plan" ? `/api/documents/${document.id}/treatment-plan-pdf` : null;
+    const pdfDownloadUrl = treatmentPlanPdfUrl ?? (immutableSnapshotReady && hasIssueSignatureAttestation ? `/api/documents/${document.id}/pdf` : null);
     const canExportFnsXml = document.kind === "tax_deduction_certificate" &&
         document.status === "issued" &&
         immutableSnapshotReady &&
         hasIssueSignatureAttestation &&
         blockers.length === 0;
     const taxXmlSourceSnapshotDigest = taxXmlSourceSnapshotSha256(document.taxXmlSourceSnapshot);
-    const taxXmlOfficialValidationStatus = document.kind === "tax_deduction_certificate" &&
-        (taxXmlSourceSnapshotDigest || document.taxXmlSnapshot)
+    const taxXmlOfficialValidationStatus = document.kind === "tax_deduction_certificate" && Boolean(taxXmlSourceSnapshotDigest || document.taxXmlSnapshot)
         ? "external_validation_required"
         : "not_applicable";
     const taxXmlOfficialValidationNote = taxXmlOfficialValidationStatus === "external_validation_required"
@@ -878,7 +796,6 @@ export async function buildDocumentAuditFacts(document, patient) {
         issuedAt: document.issuedAt,
         issuedByUserId: document.issuedByUserId ?? null,
         signatureAttestation: document.signatureAttestation ?? null,
-        cryptoSignaturePkcs7: document.cryptoSignaturePkcs7 ?? null,
         voidAttestation: document.voidAttestation ?? null,
         releaseJournalEntry: document.releaseJournalEntry ?? null,
         generatedAt: new Date().toISOString(),
@@ -892,9 +809,7 @@ export async function buildDocumentAuditFacts(document, patient) {
         htmlPreviewUrl,
         htmlDownloadUrl,
         pdfDownloadUrl,
-        taxXmlDownloadUrl: canExportFnsXml
-            ? `/api/documents/${document.id}/tax-xml`
-            : null,
+        taxXmlDownloadUrl: canExportFnsXml ? `/api/documents/${document.id}/tax-xml` : null,
         taxXmlSourceSnapshotSha256: taxXmlSourceSnapshotDigest,
         taxXmlSnapshotSha256: document.taxXmlSnapshot?.sha256 ?? null,
         taxXmlSnapshotCreatedAt: document.taxXmlSnapshot?.createdAt ?? null,
@@ -907,25 +822,21 @@ export async function buildDocumentAuditFacts(document, patient) {
         sourceCheckedAt: metadata.sourceCheckedAt,
         sourceUrls: [...metadata.sourceUrls],
         blockers,
-        warnings,
+        warnings
     });
 }
-export { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason, };
-import { register as registerAuditFacts } from "./documents/auditFacts.js";
+export { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason };
 import { register as registerCreate } from "./documents/create.js";
-import { register as registerHtml } from "./documents/html.js";
 import { register as registerIssue } from "./documents/issue.js";
-import { register as registerPdf } from "./documents/pdf.js";
-import { register as registerSign } from "./documents/sign.js";
-import { register as registerSignUkep } from "./documents/signUkep.js";
-import { register as registerTaxXml } from "./documents/taxXml.js";
 import { register as registerVoid } from "./documents/void.js";
+import { register as registerTaxXml } from "./documents/taxXml.js";
+import { register as registerAuditFacts } from "./documents/auditFacts.js";
+import { register as registerPdf } from "./documents/pdf.js";
+import { register as registerHtml } from "./documents/html.js";
 export async function registerDocumentRoutes(app) {
     await registerCreate(app);
     await registerIssue(app);
     await registerVoid(app);
-    await registerSign(app);
-    await registerSignUkep(app);
     await registerTaxXml(app);
     await registerAuditFacts(app);
     await registerPdf(app);

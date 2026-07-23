@@ -22,7 +22,7 @@ class TestBotHandlers(unittest.IsolatedAsyncioTestCase):
              mock_get_role.return_value = None
              await cmd_start(self.message_mock)
 
-             mock_add_user.assert_called_once_with(12345, 'doctor', 'Test User')
+             mock_add_user.assert_called_once_with(12345, 'guest', 'Test User')
              self.message_mock.answer.assert_called_once()
              self.assertIn("Денталия-2", self.message_mock.answer.call_args[0][0])
 
@@ -134,6 +134,7 @@ def test_on_mqtt_message_valid_json():
 from unittest.mock import AsyncMock, patch
 from clinic_bot import bot
 
+class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
     async def test_broadcast_photo_error_handling(self):
         # Mock database call to return two users
         with patch('clinic_bot.bot.db.get_users_by_role', return_value=[123, 456]):

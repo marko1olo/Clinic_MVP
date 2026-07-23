@@ -37,6 +37,7 @@ export const PatientJourneyTimeline: React.FC<{
 				title: `Прием: ${a.status === "completed" ? "Завершен" : a.status}`,
 				description: `Врач: ${a.doctorUserId} | Причина: ${a.reason || "Нет"}`,
 				status: a.status === "completed" ? "Completed" : "Draft",
+				actionUrl: `/patients/${patientId}/visit/${a.id}`,
 			}));
 
 		const payments: any[] = dashboard?.payments || [];
@@ -50,7 +51,7 @@ export const PatientJourneyTimeline: React.FC<{
 				description: `Сумма: ${p.amountRub.toLocaleString("ru-RU")} ₽`,
 				amount: p.amountRub,
 				status: p.status,
-				actionUrl: "#finance",
+				actionUrl: `#finance`,
 			}));
 
 		const insights: any[] = dashboard?.patientInsights || [];
@@ -65,19 +66,7 @@ export const PatientJourneyTimeline: React.FC<{
 				status: i.riskLevel,
 			}));
 
-		const planItems: any[] = dashboard?.treatmentPlanItems || [];
-		const treatmentEvents: JourneyEvent[] = planItems
-			.filter((i) => i.patientId === patientId && (i.status === "completed" || i.status === "cancelled"))
-			.map((i) => ({
-				id: i.id || Math.random().toString(),
-				timestamp: i.updatedAt || i.createdAt || new Date().toISOString(),
-				type: "lab_order", // Reuse lab_order for dental procedures
-				title: `Процедура: ${i.serviceId || "Услуга"}`,
-				description: `Статус: ${i.status === "completed" ? "Выполнено" : "Отменено"}`,
-				status: i.status === "completed" ? "Completed" : "Cancelled",
-			}));
-
-		const allEvents = [...visitEvents, ...paymentEvents, ...insightEvents, ...treatmentEvents];
+		const allEvents = [...visitEvents, ...paymentEvents, ...insightEvents];
 
 		// Sort by timestamp
 		setEvents(
@@ -155,11 +144,6 @@ export const PatientJourneyTimeline: React.FC<{
 			)}
 
 			<div className="timeline-track">
-				{events.length === 0 && (
-					<div className="empty-state text-zinc-500 text-sm py-4">
-						Нет зарегистрированных событий пациента.
-					</div>
-				)}
 				{events.map((evt, index) => {
 					// Эффект Края (Serial Position Effect): выделяем первый и последний элементы
 					const isFirst = index === 0;

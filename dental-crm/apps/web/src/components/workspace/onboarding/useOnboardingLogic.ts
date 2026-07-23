@@ -14,44 +14,23 @@ export interface StaffEntry {
   canManageImports: boolean;
 }
 
-const LS_KEY = "dente-onboarding-draft-v2";
+const LS_KEY = "dente-onboarding-draft-v1";
 
 export function useOnboardingLogic(
   onComplete: () => void,
   initialIsDark: boolean = true,
 ) {
-  const [activeDark, setActiveDark] = useState(() => {
-    const stored = localStorage.getItem("dente_theme_mode");
-    if (stored === "dark") return true;
-    if (stored === "light") return false;
-    return initialIsDark;
-  });
+  const [activeDark, setActiveDark] = useState(initialIsDark);
   useEffect(() => {
     const checkDark = () => {
-      const stored = localStorage.getItem("dente_theme_mode");
-      if (stored === "dark") {
-        setActiveDark(true);
-        return;
-      }
-      if (stored === "light") {
-        setActiveDark(false);
-        return;
-      }
       setActiveDark(
         document.documentElement.classList.contains("dark") ||
-          document.documentElement.getAttribute("data-theme") === "dark" ||
-          document.body.classList.contains("theme-dark") ||
-          document.body.classList.contains("dark") ||
-          document.body.getAttribute("data-theme") === "dark",
+          document.documentElement.getAttribute("data-theme") === "dark",
       );
     };
     checkDark();
     const observer = new MutationObserver(checkDark);
     observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme"],
-    });
-    observer.observe(document.body, {
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
@@ -68,160 +47,97 @@ export function useOnboardingLogic(
     return null;
   });
 
-  const [step, setStep] = useState(savedData?.step || 0);
+  const [step, setStep] = useState(savedData?.step || 1);
   const [launching, setLaunching] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
-  // Step 0: Practice Type
-  const [practiceType, setPracticeType] = useState<"solo" | "solo_with_team" | "small_clinic">(
-    savedData?.practiceType || "solo"
-  );
-
-  // Step 1: Doctor/Owner Info
-  const [doctorName, setDoctorName] = useState(savedData?.doctorName || "Иванов И.И.");
+  // Step 1: Specializations
   const [specs, setSpecs] = useState<string[]>(savedData?.specs || ["therapy"]);
-  const [canSign, setCanSign] = useState<boolean>(savedData?.canSign ?? true);
-  
   const toggleSpec = (id: string) =>
     setSpecs((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
-  // Step 2: Team (skipped if solo)
-  const [staff, setStaff] = useState<StaffEntry[]>(
-    savedData?.staff || []
-  );
-
-  // Step 3: Workplace
-  const [chairs, setChairs] = useState(savedData?.chairs || 1);
+  // Step 2: Infrastructure
+  const [chairs, setChairs] = useState(savedData?.chairs || 3);
   const [workHours, setWorkHours] = useState<[number, number]>(
     savedData?.workHours || [9, 20],
-  );
-  const [defaultDuration, setDefaultDuration] = useState(savedData?.defaultDuration || 30);
+  ); // [start, end]
 
-  // Step 4: Services & Money
-  const [services, setServices] = useState(
-    savedData?.services || { installments: true, insurance: false }
+  // Step 3: Modules
+  const [modules, setModules] = useState(
+    savedData?.modules || {
+      lab: true,
+      dms: false,
+      installments: true,
+      egisz: false,
+      aiTreatmentPlan: true,
+      aiRecommendations: true,
+      aiDocuments: true,
+    },
   );
-  const [legal, setLegal] = useState(
-    savedData?.legal || { inn: "", ogrn: "", address: "" }
-  );
-  const toggleService = (k: keyof typeof services) =>
-    setServices((p: any) => ({ ...p, [k]: !p[k] }));
+  const toggleModule = (k: keyof typeof modules) =>
+    setModules((p: any) => ({ ...p, [k]: !p[k] }));
 
-  // Step 5: Equipment & Tools
-  const [equipment, setEquipment] = useState(
-    savedData?.equipment || {
-      xray: false,
-      lab: false,
-      microscope: false,
-      inventory: false,
-      cso: false
-    }
-  );
-  const toggleEquipment = (k: keyof typeof equipment) =>
-    setEquipment((p: any) => ({ ...p, [k]: !p[k] }));
-
-  // Step 6: Growth & CRM (hidden by default for solo)
-  const [growth, setGrowth] = useState(
-    savedData?.growth || {
-      crm: false,
-      analytics: false,
-      omnichannel: false
-    }
-  );
-  const toggleGrowth = (k: keyof typeof growth) =>
-    setGrowth((p: any) => ({ ...p, [k]: !p[k] }));
-
-  // Step 7: Branding & Migration
+  // Step 4: Branding
   const [theme, setTheme] = useState<ThemeColor>(savedData?.theme || "teal");
-  const [migrationStatus, setMigrationStatus] = useState<"idle" | "analyzing" | "done">(
-    savedData?.migrationStatus || "idle"
+
+  // Step 5: Staff
+  const [staff, setStaff] = useState<StaffEntry[]>(
+    savedData?.staff || [
+      {
+        id: "1",
+        fullName: "Иванов И.И.",
+        role: "Врач",
+        phone: "+7 (999) 000-00-00",
+        specialization: "Терапевт",
+        percentage: 25,
+        canSignMedicalRecords: true,
+        canManageMoney: false,
+        canManageImports: false,
+      },
+    ],
+  );
+
+  // Step 6: Legal
+  const [legal, setLegal] = useState(
+    savedData?.legal || { inn: "", ogrn: "", address: "" },
   );
   const [logoUploaded, setLogoUploaded] = useState(
     savedData?.logoUploaded || false,
   );
 
-  // Helper to change practice type and auto-configure defaults
-  const handleSelectPracticeType = (p: "solo" | "solo_with_team" | "small_clinic") => {
-    setPracticeType(p);
-    if (p === "solo") {
-      setChairs(1);
-      setStaff([]);
-      setEquipment(prev => ({ ...prev, inventory: false }));
-      setGrowth({ crm: false, analytics: false, omnichannel: false });
-    } else if (p === "solo_with_team") {
-      setChairs(1);
-      if (staff.length === 0) {
-        setStaff([
-          {
-            id: "2",
-            fullName: "Ассистент А.А.",
-            role: "Медсестра",
-            phone: "+7 (999) 000-00-01",
-            specialization: "Ассистент",
-            percentage: 0,
-            canSignMedicalRecords: false,
-            canManageMoney: false,
-            canManageImports: false,
-          }
-        ]);
-      }
-    } else if (p === "small_clinic") {
-      setChairs(3);
-      if (staff.length === 0) {
-        setStaff([
-          {
-            id: "2",
-            fullName: "Смирнова С.С.",
-            role: "Администратор",
-            phone: "+7 (999) 000-00-02",
-            specialization: "Ресепшн",
-            percentage: 0,
-            canSignMedicalRecords: false,
-            canManageMoney: true,
-            canManageImports: false,
-          }
-        ]);
-      }
-      setEquipment(prev => ({ ...prev, inventory: true }));
-      setGrowth(prev => ({ ...prev, analytics: true }));
-    }
-  };
+  // Step 7: Migration
+  const [migrationStatus, setMigrationStatus] = useState<
+    "idle" | "analyzing" | "done"
+  >(savedData?.migrationStatus || "idle");
 
-  // Smart defaults when specializations change
-  useEffect(() => {
-    setEquipment(prev => ({
-      ...prev,
-      xray: specs.includes("surgery") || specs.includes("orthodontics") || prev.xray,
-      lab: specs.includes("orthopedics") || specs.includes("orthodontics") || prev.lab,
-      microscope: specs.includes("therapy") || prev.microscope,
-    }));
-  }, [specs]);
-
+  // Save to LocalStorage on change
   useEffect(() => {
     localStorage.setItem(
       LS_KEY,
       JSON.stringify({
         step,
-        practiceType,
-        doctorName,
         specs,
-        canSign,
-        staff,
         chairs,
         workHours,
-        defaultDuration,
-        services,
-        legal,
-        equipment,
-        growth,
+        modules,
         theme,
+        staff,
+        legal,
+        logoUploaded,
         migrationStatus,
-        logoUploaded
       }),
     );
   }, [
-    step, practiceType, doctorName, specs, canSign, staff, chairs, workHours, 
-    defaultDuration, services, legal, equipment, growth, theme, migrationStatus, logoUploaded
+    step,
+    specs,
+    chairs,
+    workHours,
+    modules,
+    theme,
+    staff,
+    legal,
+    logoUploaded,
+    migrationStatus,
   ]);
 
   const handleLaunch = async () => {
@@ -229,19 +145,13 @@ export function useOnboardingLogic(
     setLaunching(true);
     try {
       const payload = {
-        practiceType,
-        doctorName,
         specs,
-        canSign,
-        staff,
         chairs,
         workHours,
-        defaultDuration,
-        services,
-        legal,
-        equipment,
-        growth,
+        modules,
         theme,
+        staff,
+        legal,
       };
       await fetch("/api/workspace/onboarding/complete", {
         method: "POST",
@@ -261,30 +171,25 @@ export function useOnboardingLogic(
     setStep,
     launching,
     fadeOut,
-    
-    practiceType,
-    handleSelectPracticeType,
-    
-    doctorName, setDoctorName,
-    specs, setSpecs, toggleSpec,
-    canSign, setCanSign,
-
-    staff, setStaff,
-
-    chairs, setChairs,
-    workHours, setWorkHours,
-    defaultDuration, setDefaultDuration,
-
-    services, toggleService,
-    legal, setLegal,
-
-    equipment, toggleEquipment,
-    growth, toggleGrowth,
-
-    theme, setTheme,
-    migrationStatus, setMigrationStatus,
-    logoUploaded, setLogoUploaded,
-
+    specs,
+    setSpecs,
+    toggleSpec,
+    chairs,
+    setChairs,
+    workHours,
+    setWorkHours,
+    modules,
+    toggleModule,
+    theme,
+    setTheme,
+    staff,
+    setStaff,
+    legal,
+    setLegal,
+    logoUploaded,
+    setLogoUploaded,
+    migrationStatus,
+    setMigrationStatus,
     handleLaunch,
   };
 }

@@ -30,6 +30,17 @@ class TestSEOAgent(unittest.TestCase):
         # Verify the exception was caught and handled correctly
         self.assertIsNone(result)
 
+    @patch('builtins.open', new_callable=mock_open, read_data='invalid json')
+    @patch('builtins.print')
+    def test_get_groq_api_key_json_parsing_failure(self, mock_print, mock_file):
+        # Call the function
+        result = get_groq_api_key()
+
+        # Verify the exception was caught, handled, printed and None returned
+        self.assertIsNone(result)
+        mock_print.assert_called_once()
+        self.assertTrue(mock_print.call_args[0][0].startswith("Error loading config: Expecting value"))
+
     @patch('builtins.open', new_callable=mock_open, read_data='{"groq_api_keys": ["key1", "key2"]}')
     @patch('clinic_admin.seo_agent.random.choice')
     def test_get_groq_api_key_success(self, mock_choice, mock_file):
@@ -196,6 +207,66 @@ class TestSEOAgent(unittest.TestCase):
         # Verify
         self.assertEqual(result, "Ошибка: Не найден API ключ Groq в конфигурации.")
         mock_get_api_key.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_request_http_error(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key and HTTPError
+        import requests
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Client Error")
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("404 Client Error", result)
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_request_timeout(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key and Timeout
+        import requests
+        mock_get_api_key.return_value = "fake-api-key"
+        mock_post.side_effect = requests.exceptions.Timeout("Read timed out")
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("Read timed out", result)
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+
+    @patch('clinic_admin.seo_agent.requests.post')
+    @patch('clinic_admin.seo_agent.get_groq_api_key')
+    def test_request_json_decode_error(self, mock_get_api_key, mock_post):
+        # Setup: Simulate valid API key and JSONDecodeError on response.json()
+        import requests
+        mock_get_api_key.return_value = "fake-api-key"
+
+        mock_response = MagicMock()
+        mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+        mock_post.return_value = mock_response
+
+        # Execute
+        result = generate_seo_response("Good doctor.")
+
+        # Verify
+        self.assertTrue(result.startswith("Ошибка генерации: "))
+        self.assertIn("Expecting value", result)
+        mock_get_api_key.assert_called_once()
+        mock_post.assert_called_once()
+        mock_response.raise_for_status.assert_called_once()
+        mock_response.json.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()

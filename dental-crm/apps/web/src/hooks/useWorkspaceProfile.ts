@@ -20,7 +20,6 @@ export interface WorkspaceFeatureFlags {
 	hasTasks: boolean;
 	hasReclamations: boolean;
 	workspacePreset: string;
-	clinicMode: string;
 	onboardingCompleted: boolean;
 	hasPediatricMode: boolean;
 	isOmniRole: boolean;
@@ -62,7 +61,6 @@ const DEFAULT_FLAGS: WorkspaceFeatureFlags = {
 	hasTasks: true,
 	hasReclamations: true,
 	workspacePreset: "enterprise",
-	clinicMode: "solo_doctor",
 	onboardingCompleted: false,
 	hasPediatricMode: false,
 	isOmniRole: false,

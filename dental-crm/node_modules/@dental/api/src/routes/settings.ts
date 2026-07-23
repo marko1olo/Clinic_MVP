@@ -1,812 +1,366 @@
-import {
-	chairSchema,
-	clinicSettingsSchema,
-	createChairSchema,
-	createStaffMemberSchema,
-	staffMemberSchema,
-	uiPreferencesInputSchema,
-	uiPreferencesSchema,
-	updateChairWorkingHoursSchema,
-	updateClinicModeSchema,
-	updateClinicProfileSchema,
-	updateStaffMemberSchema,
-	updateStaffWorkingHoursSchema,
-	createServiceCatalogItemSchema,
-	updateServiceCatalogItemSchema,
-} from "@dental/shared";
-import { eq, and } from "drizzle-orm";
+import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { resolveOrganizationId } from "../accessGuard.js";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
 import {
-	createChairInDb,
-	deleteChairInDb,
-	createStaffMemberInDb,
-	getClinicSettingsFromDb,
-	getUiPreferencesFromDb,
-	saveUiPreferencesInDb,
-	updateChairWorkingHoursInDb,
-	updateClinicModeInDb,
-	updateClinicProfileInDb,
-	updateStaffCredentialsInDb,
-	updateStaffMemberInDb,
-	updateStaffWorkingHoursInDb,
+  getClinicSettingsFromDb,
+  getUiPreferencesFromDb,
+  saveUiPreferencesInDb,
+  updateClinicModeInDb,
+  updateClinicProfileInDb,
+  createStaffMemberInDb,
+  updateStaffWorkingHoursInDb,
+  updateStaffCredentialsInDb,
+  createChairInDb,
+  updateChairWorkingHoursInDb
 } from "../db/settingsQuery.js";
-import {
-	getProtocolTemplatesFromDb,
-	createProtocolTemplateInDb,
-	updateProtocolTemplateInDb,
-	deleteProtocolTemplateInDb,
-} from "../db/settingsProtocolsQuery.js";
-import { repairMojibakeDeep } from "../text/repairMojibake.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
-import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import {
+  chairSchema,
+  clinicSettingsSchema,
+  createChairSchema,
+  createStaffMemberSchema,
+  staffMemberSchema,
+  uiPreferencesInputSchema,
+  uiPreferencesSchema,
+  updateClinicModeSchema,
+  updateClinicProfileSchema,
+  updateChairWorkingHoursSchema,
+  updateStaffWorkingHoursSchema
+} from "@dental/shared";
+
+import { repairMojibakeDeep } from "../text/repairMojibake.js";
 
 type SettingsPayloadSchema<T> = {
-	safeParse: (
-		value: unknown,
-	) => { success: true; data: T } | { success: false };
+  safeParse: (value: unknown) => { success: true; data: T } | { success: false };
 };
 
 const denteAdminSecretHeader = "x-dente-admin-secret";
 const uiPreferencesValidationMessage =
-	"Настройки интерфейса не сохранены: проверьте выбранную роль, разделы, фильтры и параметры рабочего места.";
-const clinicModeValidationMessage =
-	"Режим клиники не сохранен: выберите допустимый режим работы клиники.";
+  "Настройки интерфейса не сохранены: проверьте выбранную роль, разделы, фильтры и параметры рабочего места.";
+const clinicModeValidationMessage = "Режим клиники не сохранен: выберите допустимый режим работы клиники.";
 const clinicProfileValidationMessage =
-	"Профиль клиники не сохранен: проверьте название, реквизиты, лицензию, часовой пояс и рабочий график.";
+  "Профиль клиники не сохранен: проверьте название, реквизиты, лицензию, часовой пояс и рабочий график.";
 const staffCreateValidationMessage =
-	"Сотрудник не создан: заполните ФИО, роль, специальности и контактные данные в допустимом формате.";
+  "Сотрудник не создан: заполните ФИО, роль, специальности и контактные данные в допустимом формате.";
 const staffWorkingHoursValidationMessage =
-	"Расписание сотрудника не сохранено: проверьте рабочие дни, начало и окончание смены.";
+  "Расписание сотрудника не сохранено: проверьте рабочие дни, начало и окончание смены.";
 const chairCreateValidationMessage =
-	"Кресло не создано: заполните название, кабинет, оснащение и специализацию в допустимом формате.";
+  "Кресло не создано: заполните название, кабинет, оснащение и специализацию в допустимом формате.";
 const chairWorkingHoursValidationMessage =
-	"Расписание кресла не сохранено: проверьте рабочие дни, начало и окончание смены.";
-const clinicProfileTimezoneMessage =
-	"Профиль клиники не сохранен: выберите реальный часовой пояс клиники.";
+  "Расписание кресла не сохранено: проверьте рабочие дни, начало и окончание смены.";
+const clinicProfileTimezoneMessage = "Профиль клиники не сохранен: выберите реальный часовой пояс клиники.";
 const clinicProfileScheduleConflictMessage =
-	"Профиль клиники не сохранен: активные записи должны оставаться в рабочем окне клиники.";
+  "Профиль клиники не сохранен: активные записи должны оставаться в рабочем окне клиники.";
 const clinicProfileMutationRejectedMessage =
-	"Профиль клиники не сохранен: проверьте профиль, расписание и активные записи клиники.";
-const staffWorkingHoursRouteValidationMessage =
-	"Расписание сотрудника не сохранено: выберите сотрудника.";
-const staffWorkingHoursNotFoundMessage =
-	"Расписание сотрудника не сохранено: сотрудник не найден.";
+  "Профиль клиники не сохранен: проверьте профиль, расписание и активные записи клиники.";
+const staffWorkingHoursRouteValidationMessage = "Расписание сотрудника не сохранено: выберите сотрудника.";
+const staffWorkingHoursNotFoundMessage = "Расписание сотрудника не сохранено: сотрудник не найден.";
 const staffWorkingHoursConflictMessage =
-	"Расписание сотрудника не сохранено: есть активная запись за пределами нового расписания.";
+  "Расписание сотрудника не сохранено: есть активная запись за пределами нового расписания.";
 const staffWorkingHoursRejectedMessage =
-	"Расписание сотрудника не сохранено: проверьте рабочие дни и активные записи.";
-const chairWorkingHoursRouteValidationMessage =
-	"Расписание кресла не сохранено: выберите кресло.";
-const chairWorkingHoursNotFoundMessage =
-	"Расписание кресла не сохранено: кресло не найдено.";
+  "Расписание сотрудника не сохранено: проверьте рабочие дни и активные записи.";
+const chairWorkingHoursRouteValidationMessage = "Расписание кресла не сохранено: выберите кресло.";
+const chairWorkingHoursNotFoundMessage = "Расписание кресла не сохранено: кресло не найдено.";
 const chairWorkingHoursConflictMessage =
-	"Расписание кресла не сохранено: есть активная запись за пределами нового расписания.";
+  "Расписание кресла не сохранено: есть активная запись за пределами нового расписания.";
 const chairWorkingHoursRejectedMessage =
-	"Расписание кресла не сохранено: проверьте рабочие дни и активные записи.";
+  "Расписание кресла не сохранено: проверьте рабочие дни и активные записи.";
 
-function parseSettingsPayload<T>(
-	schema: SettingsPayloadSchema<T>,
-	value: unknown,
-) {
-	const parsed = schema.safeParse(value);
-	if (!parsed.success) {
-		console.error(
-			"SMOKE TEST DEBUG: parseSettingsPayload failed validation:",
-			(parsed as any).error?.format(),
-		);
-		return null;
-	}
-	return parsed.data;
+function parseSettingsPayload<T>(schema: SettingsPayloadSchema<T>, value: unknown) {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    console.error("SMOKE TEST DEBUG: parseSettingsPayload failed validation:", (parsed as any).error?.format());
+    return null;
+  }
+  return parsed.data;
 }
 
 function settingsDomainMessage(error: unknown): string {
-	if (!(error instanceof Error)) return "";
-	return repairMojibakeDeep(error.message);
+  if (!(error instanceof Error)) return "";
+  return repairMojibakeDeep(error.message);
 }
 
 function hasActiveScheduleConflict(message: string): boolean {
-	return (
-		message.includes("активная запись") || message.includes("активные записи")
-	);
+  return message.includes("активная запись") || message.includes("активные записи");
 }
 
-function clinicProfileMutationRejection(reply: FastifyReply, error: any) {
-	console.error("DEBUG profile update error:", error?.message || error);
-	if (error?.stack) console.error(error.stack);
-	const message = settingsDomainMessage(error);
-	if (message.includes("часовой пояс")) {
-		return reply.code(409).send({
-			error: "ClinicProfileMutationRejected",
-			reason: "clinic_time_zone_invalid",
-			message: clinicProfileTimezoneMessage,
-		});
-	}
-	if (hasActiveScheduleConflict(message)) {
-		return reply.code(409).send({
-			error: "ClinicProfileMutationRejected",
-			reason: "active_schedule_conflict",
-			message: clinicProfileScheduleConflictMessage,
-		});
-	}
-	return reply.code(409).send({
-		error: "ClinicProfileMutationRejected",
-		reason: "clinic_profile_rejected",
-		message: clinicProfileMutationRejectedMessage,
-	});
+function clinicProfileMutationRejection(reply: FastifyReply, error: unknown) {
+  const message = settingsDomainMessage(error);
+  if (message.includes("часовой пояс")) {
+    return reply.code(409).send({
+      error: "ClinicProfileMutationRejected",
+      reason: "clinic_time_zone_invalid",
+      message: clinicProfileTimezoneMessage
+    });
+  }
+  if (hasActiveScheduleConflict(message)) {
+    return reply.code(409).send({
+      error: "ClinicProfileMutationRejected",
+      reason: "active_schedule_conflict",
+      message: clinicProfileScheduleConflictMessage
+    });
+  }
+  return reply.code(409).send({
+    error: "ClinicProfileMutationRejected",
+    reason: "clinic_profile_rejected",
+    message: clinicProfileMutationRejectedMessage
+  });
 }
 
 function staffWorkingHoursRejection(reply: FastifyReply, error: unknown) {
-	const message = settingsDomainMessage(error);
-	if (message === "Сотрудник не найден.") {
-		return reply.code(404).send({
-			error: "StaffScheduleNotFound",
-			reason: "staff_not_found",
-			message: staffWorkingHoursNotFoundMessage,
-		});
-	}
-	if (hasActiveScheduleConflict(message)) {
-		return reply.code(409).send({
-			error: "StaffScheduleRejected",
-			reason: "active_schedule_conflict",
-			message: staffWorkingHoursConflictMessage,
-		});
-	}
-	return reply.code(409).send({
-		error: "StaffScheduleRejected",
-		reason: "schedule_rejected",
-		message: staffWorkingHoursRejectedMessage,
-	});
+  const message = settingsDomainMessage(error);
+  if (message === "Сотрудник не найден.") {
+    return reply.code(404).send({
+      error: "StaffScheduleNotFound",
+      reason: "staff_not_found",
+      message: staffWorkingHoursNotFoundMessage
+    });
+  }
+  if (hasActiveScheduleConflict(message)) {
+    return reply.code(409).send({
+      error: "StaffScheduleRejected",
+      reason: "active_schedule_conflict",
+      message: staffWorkingHoursConflictMessage
+    });
+  }
+  return reply.code(409).send({
+    error: "StaffScheduleRejected",
+    reason: "schedule_rejected",
+    message: staffWorkingHoursRejectedMessage
+  });
 }
 
 function chairWorkingHoursRejection(reply: FastifyReply, error: unknown) {
-	const message = settingsDomainMessage(error);
-	if (message === "Кресло не найдено.") {
-		return reply.code(404).send({
-			error: "ChairScheduleNotFound",
-			reason: "chair_not_found",
-			message: chairWorkingHoursNotFoundMessage,
-		});
-	}
-	if (hasActiveScheduleConflict(message)) {
-		return reply.code(409).send({
-			error: "ChairScheduleRejected",
-			reason: "active_schedule_conflict",
-			message: chairWorkingHoursConflictMessage,
-		});
-	}
-	return reply.code(409).send({
-		error: "ChairScheduleRejected",
-		reason: "schedule_rejected",
-		message: chairWorkingHoursRejectedMessage,
-	});
+  const message = settingsDomainMessage(error);
+  if (message === "Кресло не найдено.") {
+    return reply.code(404).send({
+      error: "ChairScheduleNotFound",
+      reason: "chair_not_found",
+      message: chairWorkingHoursNotFoundMessage
+    });
+  }
+  if (hasActiveScheduleConflict(message)) {
+    return reply.code(409).send({
+      error: "ChairScheduleRejected",
+      reason: "active_schedule_conflict",
+      message: chairWorkingHoursConflictMessage
+    });
+  }
+  return reply.code(409).send({
+    error: "ChairScheduleRejected",
+    reason: "schedule_rejected",
+    message: chairWorkingHoursRejectedMessage
+  });
 }
 
 function configuredSettingsAdminSecret(): string | null {
-	return process.env.DENTE_SETTINGS_ADMIN_SECRET?.trim() || null;
+  return process.env.DENTE_SETTINGS_ADMIN_SECRET?.trim() || null;
 }
 
 function settingsUnguardedMutationsAllowed(): boolean {
-	return (
-		process.env.NODE_ENV !== "production" &&
-		process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1"
-	);
+  return process.env.NODE_ENV !== "production" && process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1";
 }
 
-async function requireSettingsAccess(
-	request: FastifyRequest,
-	reply: FastifyReply,
-): Promise<string | null> {
-	const adminSecret = configuredSettingsAdminSecret();
-	let hasAccess = false;
+async function requireSettingsAccess(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
+  const adminSecret = configuredSettingsAdminSecret();
+  let hasAccess = false;
 
-	if (!adminSecret) {
-		if (settingsUnguardedMutationsAllowed()) hasAccess = true;
-		else {
-			reply.code(503).send({
-				error: "SettingsAdminSecretMissing",
-				message:
-					"На сервере не задан секрет администратора клиники для изменения настроек клиники.",
-			});
-			return null;
-		}
-	} else {
-		const providedSecret = request.headers[denteAdminSecretHeader];
-		const normalizedProvidedSecret = Array.isArray(providedSecret)
-			? providedSecret[0]
-			: providedSecret;
-		if (
-			timingSafeSecretEqual(
-				typeof normalizedProvidedSecret === "string"
-					? normalizedProvidedSecret
-					: null,
-				adminSecret,
-			)
-		) {
-			hasAccess = true;
-		} else {
-			reply.code(403).send({
-				error: "SettingsAdminSecretRequired",
-				message:
-					"Для изменения настроек клиники нужен действующий секрет администратора клиники.",
-			});
-			return null;
-		}
-	}
+  if (!adminSecret) {
+    if (settingsUnguardedMutationsAllowed()) hasAccess = true;
+    else {
+      reply.code(503).send({
+        error: "SettingsAdminSecretMissing",
+        message: "На сервере не задан секрет администратора клиники для изменения настроек клиники."
+      });
+      return null;
+    }
+  } else {
+    const providedSecret = request.headers[denteAdminSecretHeader];
+    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
+      hasAccess = true;
+    } else {
+      reply.code(403).send({
+        error: "SettingsAdminSecretRequired",
+        message: "Для изменения настроек клиники нужен действующий секрет администратора клиники."
+      });
+      return null;
+    }
+  }
 
-	// Find organization by token or fallback to MVP default
-	const organizationId = await resolveOrganizationId(request);
-	if (!organizationId) {
-		reply.code(403).send({
-			error: "OrganizationRequired",
-			message: "Organization could not be resolved",
-		});
-		return null;
-	}
-	const [org] = await db
-		.select()
-		.from(schema.organizations)
-		.where(eq(schema.organizations.id, organizationId))
-		.limit(1);
-	if (!org) {
-		reply.code(500).send({
-			error: "NoOrganizationFound",
-			message: "Не найдена организация в базе данных.",
-		});
-		return null;
-	}
-	return org.id;
+  // Find default organization (MVP assumes single org)
+  const [org] = await db.select().from(schema.organizations).limit(1);
+  if (!org) {
+    reply.code(500).send({ error: "NoOrganizationFound", message: "Не найдена организация в базе данных." });
+    return null;
+  }
+  return org.id;
 }
 
 export async function registerSettingsRoutes(app: FastifyInstance) {
-	app.get("/api/settings/protocols", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		try {
-			const templates = await getProtocolTemplatesFromDb(orgId);
-			return templates;
-		} catch (error: any) {
-			console.error("DEBUG protocols fetch error:", error);
-			return reply.code(500).send({
-				error: "ProtocolFetchFailed",
-				message: settingsDomainMessage(error),
-			});
-		}
-	});
+  app.get("/api/settings/clinic", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const settings = await getClinicSettingsFromDb(orgId);
+    return clinicSettingsSchema.parse(settings);
+  });
 
-	app.post("/api/settings/protocols", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		try {
-			const body = request.body as any;
-			const created = await createProtocolTemplateInDb(orgId, body);
-			return created;
-		} catch (error: any) {
-			console.error("DEBUG protocols create error:", error);
-			return reply.code(400).send({
-				error: "ProtocolCreateFailed",
-				message: settingsDomainMessage(error),
-			});
-		}
-	});
+  app.get("/api/settings/preferences", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const prefs = await getUiPreferencesFromDb(orgId);
+    return { preferences: prefs ? uiPreferencesSchema.parse(prefs) : null };
+  });
 
-	app.put("/api/settings/protocols/:id", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		try {
-			const params = request.params as { id: string };
-			const body = request.body as any;
-			const updated = await updateProtocolTemplateInDb(orgId, params.id, body);
-			if (!updated) {
-				return reply.code(404).send({ error: "NotFound" });
-			}
-			return updated;
-		} catch (error: any) {
-			console.error("DEBUG protocols update error:", error);
-			return reply.code(400).send({
-				error: "ProtocolUpdateFailed",
-				message: settingsDomainMessage(error),
-			});
-		}
-	});
+  app.put("/api/settings/preferences", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const input = parseSettingsPayload(uiPreferencesInputSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: uiPreferencesValidationMessage });
+    }
+    await saveUiPreferencesInDb(orgId, { ...input, version: 1, savedAt: input.savedAt ?? new Date().toISOString() });
+    return uiPreferencesSchema.parse({ ...input, version: 1 });
+  });
 
-	app.delete("/api/settings/protocols/:id", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		try {
-			const params = request.params as { id: string };
-			await deleteProtocolTemplateInDb(orgId, params.id);
-			return { success: true };
-		} catch (error: any) {
-			console.error("DEBUG protocols delete error:", error);
-			return reply.code(400).send({
-				error: "ProtocolDeleteFailed",
-				message: settingsDomainMessage(error),
-			});
-		}
-	});
+  app.post("/api/settings/clinic/mode", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const input = parseSettingsPayload(updateClinicModeSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: clinicModeValidationMessage });
+    }
+    await updateClinicModeInDb(orgId, input.mode);
+    const settings = await getClinicSettingsFromDb(orgId);
+    return clinicSettingsSchema.parse(settings);
+  });
 
-	app.get("/api/settings/clinic", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const settings = await getClinicSettingsFromDb(orgId);
-		return clinicSettingsSchema.parse(settings);
-	});
+  app.put("/api/settings/clinic/profile", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const input = parseSettingsPayload(updateClinicProfileSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "ClinicProfileValidationFailed", message: clinicProfileValidationMessage });
+    }
+    try {
+      await updateClinicProfileInDb(orgId, input);
+      const settings = await getClinicSettingsFromDb(orgId);
+      return clinicSettingsSchema.parse(settings);
+    } catch (error) {
+      return clinicProfileMutationRejection(reply, error);
+    }
+  });
 
-	app.get("/api/settings/preferences", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const prefs = await getUiPreferencesFromDb(orgId);
-		return { preferences: prefs ? uiPreferencesSchema.parse(prefs) : null };
-	});
+  app.post("/api/settings/staff", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const input = parseSettingsPayload(createStaffMemberSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: staffCreateValidationMessage });
+    }
+    await createStaffMemberInDb(orgId, input);
+    const settings = await getClinicSettingsFromDb(orgId);
+    // Find the newly created staff to return (for simplicity, we just return the full staff member object from settings list)
+    // Actually, createStaffMemberSchema expects the created object, but frontend might just refetch. We'll return the last one matching.
+    const created = settings.staff.find(s => s.fullName === input.fullName);
+    return reply.code(201).send(staffMemberSchema.parse(created));
+  });
 
-	app.put("/api/settings/preferences", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const input = parseSettingsPayload(uiPreferencesInputSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "SettingsValidationError",
-				message: uiPreferencesValidationMessage,
-			});
-		}
-		await saveUiPreferencesInDb(orgId, {
-			...input,
-			version: 1,
-			savedAt: input.savedAt ?? new Date().toISOString(),
-		});
-		return uiPreferencesSchema.parse({ ...input, version: 1 });
-	});
+  app.post("/api/settings/staff/:staffId/credentials", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const params = request.params as { staffId?: string };
+    if (!params.staffId) {
+      return reply.code(400).send({ error: "SettingsRouteValidationError", message: "ID сотрудника обязателен." });
+    }
 
-	app.post("/api/settings/clinic/mode", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const input = parseSettingsPayload(updateClinicModeSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "SettingsValidationError",
-				message: clinicModeValidationMessage,
-			});
-		}
-		await updateClinicModeInDb(orgId, input.mode);
-		const settings = await getClinicSettingsFromDb(orgId);
-		return clinicSettingsSchema.parse(settings);
-	});
+    const { email, password, pinCode } = (request.body as any) ?? {};
+    if (!email && !password && !pinCode) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: "Не переданы данные для обновления." });
+    }
 
-	app.put("/api/settings/clinic/profile", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const input = parseSettingsPayload(updateClinicProfileSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "ClinicProfileValidationFailed",
-				message: clinicProfileValidationMessage,
-			});
-		}
-		try {
-			await updateClinicProfileInDb(orgId, input);
-			const settings = await getClinicSettingsFromDb(orgId);
-			return clinicSettingsSchema.parse(settings);
-		} catch (error) {
-			return clinicProfileMutationRejection(reply, error);
-		}
-	});
+    const updates: { email?: string; passwordHash?: string; pinCodeHash?: string } = {};
+    if (email) updates.email = email.toLowerCase().trim();
+    if (password) updates.passwordHash = hashCredential(password);
+    if (pinCode) updates.pinCodeHash = hashCredential(pinCode);
 
-	app.post("/api/settings/staff", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const input = parseSettingsPayload(createStaffMemberSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "SettingsValidationError",
-				message: staffCreateValidationMessage,
-			});
-		}
-		await createStaffMemberInDb(orgId, input);
-		const settings = await getClinicSettingsFromDb(orgId);
-		// Find the newly created staff to return (for simplicity, we just return the full staff member object from settings list)
-		// Actually, createStaffMemberSchema expects the created object, but frontend might just refetch. We'll return the last one matching.
-		const created = settings.staff.find((s) => s.fullName === input.fullName);
-		return reply.code(201).send(staffMemberSchema.parse(created));
-	});
+    try {
+      await updateStaffCredentialsInDb(orgId, params.staffId, updates);
+      return reply.code(200).send({ ok: true });
+    } catch (err: any) {
+      return reply.code(500).send({ error: "InternalError", message: "Не удалось обновить доступы." });
+    }
+  });
 
-	app.post(
-		"/api/settings/staff/:staffId/credentials",
-		async (request, reply) => {
-			const orgId = await requireSettingsAccess(request, reply);
-			if (!orgId) return;
-			const params = request.params as { staffId?: string };
-			if (!params.staffId) {
-				return reply.code(400).send({
-					error: "SettingsRouteValidationError",
-					message: "ID сотрудника обязателен.",
-				});
-			}
+  app.put("/api/settings/staff/:staffId/working-hours", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const params = request.params as { staffId?: string };
+    if (!params.staffId) {
+      return reply.code(400).send({
+        error: "SettingsRouteValidationError",
+        message: staffWorkingHoursRouteValidationMessage
+      });
+    }
+    const input = parseSettingsPayload(updateStaffWorkingHoursSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: staffWorkingHoursValidationMessage });
+    }
+    try {
+      await updateStaffWorkingHoursInDb(orgId, params.staffId, input);
+      const settings = await getClinicSettingsFromDb(orgId);
+      const updated = settings.staff.find(s => s.id === params.staffId);
+      if (!updated) throw new Error("Сотрудник не найден.");
+      return staffMemberSchema.parse(updated);
+    } catch (error) {
+      return staffWorkingHoursRejection(reply, error);
+    }
+  });
 
-			const { email, password, pinCode } = (request.body as any) ?? {};
-			if (!email && !password && !pinCode) {
-				return reply.code(400).send({
-					error: "SettingsValidationError",
-					message: "Не переданы данные для обновления.",
-				});
-			}
+  app.post("/api/settings/chairs", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const input = parseSettingsPayload(createChairSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: chairCreateValidationMessage });
+    }
+    await createChairInDb(orgId, input);
+    const settings = await getClinicSettingsFromDb(orgId);
+    const created = settings.chairs.find(c => c.name === input.name);
+    return reply.code(201).send(chairSchema.parse(created));
+  });
 
-			const updates: {
-				email?: string;
-				passwordHash?: string;
-				pinCodeHash?: string;
-			} = {};
-			if (email) updates.email = email.toLowerCase().trim();
-			if (password) updates.passwordHash = hashCredential(password);
-			if (pinCode) updates.pinCodeHash = hashCredential(pinCode);
+  app.put("/api/settings/chairs/:chairId/working-hours", async (request, reply) => {
+    const orgId = await requireSettingsAccess(request, reply);
+    if (!orgId) return;
+    const params = request.params as { chairId?: string };
+    if (!params.chairId) {
+      return reply.code(400).send({
+        error: "SettingsRouteValidationError",
+        message: chairWorkingHoursRouteValidationMessage
+      });
+    }
+    const input = parseSettingsPayload(updateChairWorkingHoursSchema, request.body);
+    if (!input) {
+      return reply.code(400).send({ error: "SettingsValidationError", message: chairWorkingHoursValidationMessage });
+    }
+    try {
+      await updateChairWorkingHoursInDb(orgId, params.chairId, input);
+      const settings = await getClinicSettingsFromDb(orgId);
+      const updated = settings.chairs.find(c => c.id === params.chairId);
+      if (!updated) throw new Error("Кресло не найдено.");
+      return chairSchema.parse(updated);
+    } catch (error) {
+      return chairWorkingHoursRejection(reply, error);
+    }
+  });
 
-			try {
-				await updateStaffCredentialsInDb(orgId, params.staffId, updates);
-				return reply.code(200).send({ ok: true });
-			} catch (err: any) {
-				return reply.code(500).send({
-					error: "InternalError",
-					message: "Не удалось обновить доступы.",
-				});
-			}
-		},
-	);
+  app.post("/api/settings/reset-demo", async (request, reply) => {
+    return { success: true, message: "Демонстрационный режим больше не поддерживается (используется Postgres)." };
+  });
 
-	app.put("/api/settings/staff/:staffId", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const params = request.params as { staffId?: string };
-		if (!params.staffId) {
-			return reply.code(400).send({ error: "Missing staff ID" });
-		}
-		const input = parseSettingsPayload(updateStaffMemberSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "SettingsValidationError",
-				message: "Некорректный формат данных сотрудника",
-			});
-		}
-		try {
-			await updateStaffMemberInDb(orgId, params.staffId, input);
-			return reply.code(200).send({ ok: true });
-		} catch (error) {
-			return clinicProfileMutationRejection(reply, error);
-		}
-	});
-
-	app.put(
-		"/api/settings/staff/:staffId/working-hours",
-		async (request, reply) => {
-			const orgId = await requireSettingsAccess(request, reply);
-			if (!orgId) return;
-			const params = request.params as { staffId?: string };
-			if (!params.staffId) {
-				return reply.code(400).send({
-					error: "SettingsRouteValidationError",
-					message: staffWorkingHoursRouteValidationMessage,
-				});
-			}
-			const input = parseSettingsPayload(
-				updateStaffWorkingHoursSchema,
-				request.body,
-			);
-			if (!input) {
-				return reply.code(400).send({
-					error: "SettingsValidationError",
-					message: staffWorkingHoursValidationMessage,
-				});
-			}
-			try {
-				await updateStaffWorkingHoursInDb(
-					orgId,
-					params.staffId,
-					input.workingHours,
-				);
-				const settings = await getClinicSettingsFromDb(orgId);
-				const updated = settings.staff.find((s) => s.id === params.staffId);
-				if (!updated) throw new Error("Сотрудник не найден.");
-				return staffMemberSchema.parse(updated);
-			} catch (error) {
-				return staffWorkingHoursRejection(reply, error);
-			}
-		},
-	);
-
-	app.post("/api/settings/chairs", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const input = parseSettingsPayload(createChairSchema, request.body);
-		if (!input) {
-			return reply.code(400).send({
-				error: "SettingsValidationError",
-				message: chairCreateValidationMessage,
-			});
-		}
-		await createChairInDb(orgId, input);
-		const settings = await getClinicSettingsFromDb(orgId);
-		const created = settings.chairs.find((c) => c.name === input.name);
-		return reply.code(201).send(chairSchema.parse(created));
-	});
-
-	app.delete("/api/settings/chairs/:chairId", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const params = request.params as { chairId?: string };
-		if (!params.chairId) {
-			return reply.code(400).send({
-				error: "SettingsRouteValidationError",
-				message: "ID кресла не указан",
-			});
-		}
-		try {
-			await deleteChairInDb(orgId, params.chairId);
-			return reply.code(200).send({ success: true });
-		} catch (error: any) {
-			return reply.code(409).send({
-				error: "SettingsDeletionError",
-				message: error.message || "Ошибка при удалении кресла",
-			});
-		}
-	});
-
-	app.put(
-		"/api/settings/chairs/:chairId/working-hours",
-		async (request, reply) => {
-			const orgId = await requireSettingsAccess(request, reply);
-			if (!orgId) return;
-			const params = request.params as { chairId?: string };
-			if (!params.chairId) {
-				return reply.code(400).send({
-					error: "SettingsRouteValidationError",
-					message: chairWorkingHoursRouteValidationMessage,
-				});
-			}
-			const input = parseSettingsPayload(
-				updateChairWorkingHoursSchema,
-				request.body,
-			);
-			if (!input) {
-				return reply.code(400).send({
-					error: "SettingsValidationError",
-					message: chairWorkingHoursValidationMessage,
-				});
-			}
-			try {
-				await updateChairWorkingHoursInDb(
-					orgId,
-					params.chairId,
-					input.workingHours,
-				);
-				const settings = await getClinicSettingsFromDb(orgId);
-				const updated = settings.chairs.find((c) => c.id === params.chairId);
-				if (!updated) throw new Error("Кресло не найдено.");
-				return chairSchema.parse(updated);
-			} catch (error) {
-				return chairWorkingHoursRejection(reply, error);
-			}
-		},
-	);
-
-	// --- BPMN Workflows ---
-	app.get("/api/clinic/workflows", async (request, reply) => {
-		const orgId = await resolveOrganizationId(request);
-		if (!orgId) return reply.code(401).send({ error: "Unauthorized" });
-		const wfs = await db.select().from(schema.clinicWorkflows).where(eq(schema.clinicWorkflows.organizationId, orgId));
-		return { workflows: wfs };
-	});
-
-	app.post("/api/clinic/workflows", async (request, reply) => {
-		const orgId = await resolveOrganizationId(request);
-		if (!orgId) return reply.code(401).send({ error: "Unauthorized" });
-		const body = request.body as any;
-		if (!body.name || !body.trigger) return reply.code(400).send({ error: "Missing name or trigger" });
-		
-		const [wf] = await db.insert(schema.clinicWorkflows).values({
-			organizationId: orgId,
-			name: body.name,
-			trigger: body.trigger,
-			active: body.active || false,
-		}).returning();
-		return reply.code(201).send({ workflow: wf });
-	});
-
-	app.post("/api/clinic/workflows/:id/toggle", async (request, reply) => {
-		const orgId = await resolveOrganizationId(request);
-		if (!orgId) return reply.code(401).send({ error: "Unauthorized" });
-		const { id } = request.params as { id: string };
-		const { active } = request.body as { active: boolean };
-		
-		await db.update(schema.clinicWorkflows)
-			.set({ active, updatedAt: new Date() })
-			.where(and(eq(schema.clinicWorkflows.id, id), eq(schema.clinicWorkflows.organizationId, orgId)));
-		return { success: true };
-	});
-
-	app.delete("/api/clinic/workflows/:id", async (request, reply) => {
-		const orgId = await resolveOrganizationId(request);
-		if (!orgId) return reply.code(401).send({ error: "Unauthorized" });
-		const { id } = request.params as { id: string };
-		
-		await db.delete(schema.clinicWorkflows)
-			.where(and(eq(schema.clinicWorkflows.id, id), eq(schema.clinicWorkflows.organizationId, orgId)));
-		return { success: true };
-	});
-
-	// --- Marketing Settings ---
-	app.post("/api/clinic/marketing-settings", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const body = request.body;
-		await db.update(schema.clinics)
-			.set({ marketingSettings: body })
-			.where(eq(schema.clinics.organizationId, orgId));
-		return { success: true };
-	});
-
-	// --- Reporting Settings ---
-	app.post("/api/clinic/reporting-settings", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const body = request.body;
-		await db.update(schema.clinics)
-			.set({ reportingSettings: body })
-			.where(eq(schema.clinics.organizationId, orgId));
-		return { success: true };
-	});
-
-	app.post("/api/reporting/token/generate", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		const token = "DENTE-" + require("crypto").randomBytes(16).toString("hex");
-		
-		const [clinic] = await db.select({ reportingSettings: schema.clinics.reportingSettings }).from(schema.clinics).where(eq(schema.clinics.organizationId, orgId));
-		const settings = (clinic?.reportingSettings || {}) as any;
-		settings.apiToken = token;
-		
-		await db.update(schema.clinics)
-			.set({ reportingSettings: settings })
-			.where(eq(schema.clinics.organizationId, orgId));
-			
-		return { token };
-	});
-
-	app.post("/api/settings/reset-demo", async (request, reply) => {
-		return {
-			success: true,
-			message: "Сброс демо-данных заблокирован в целях безопасности (Postgres).",
-		};
-	});
-
-	app.post("/api/settings/reset-zero", async (request, reply) => {
-		return {
-			success: true,
-			message: "Полный сброс базы заблокирован в целях безопасности (Postgres).",
-		};
-	});
-	app.post("/api/settings/catalog-import", async (request, reply) => {
-		const orgId = await requireSettingsAccess(request, reply);
-		if (!orgId) return;
-		try {
-			const body = request.body as any;
-			if (!Array.isArray(body)) {
-				return reply.code(400).send({ error: "Expected an array of items" });
-			}
-			const toInsert = body.map((item: any) => ({
-				organizationId: orgId,
-				code: item.code || Math.random().toString(36).substring(2, 8).toUpperCase(),
-				title: item.title,
-				category: item.category || "other",
-				specialty: item.specialty || "universal",
-				basePriceRub: item.basePriceRub || item.priceRub || 0,
-				priceRub: item.priceRub || 0,
-				durationMinutes: item.durationMinutes || 30,
-			}));
-			
-			if (toInsert.length > 0) {
-				await db.insert(schema.serviceCatalogItems).values(toInsert);
-			}
-			return { success: true, count: toInsert.length };
-		} catch (error: any) {
-			console.error("DEBUG catalog import error:", error);
-			return reply.code(500).send({
-				error: "CatalogImportFailed",
-				message: settingsDomainMessage(error),
-			});
-		}
-	});
-
-	// --- Service Catalog CRUD ---
-	app.post("/api/settings/catalog", async (request, reply) => {
-		const organizationId = await resolveOrganizationId(request);
-		if (!organizationId) return;
-
-		const input = parseSettingsPayload(createServiceCatalogItemSchema, request.body) as any;
-		if (!input) return reply.code(400).send({ error: "Invalid payload" });
-
-		const result = await db.insert(schema.serviceCatalogItems).values({
-			organizationId,
-			title: input.title,
-			code: input.code || "",
-			category: input.category,
-			specialty: input.specialty,
-			basePriceRub: input.basePriceRub,
-			priceRub: input.basePriceRub, // For simplicity in this CRM logic, price matches basePrice
-			durationMinutes: input.durationMinutes,
-			taxDeductible: input.taxDeductible,
-			isActive: true,
-		}).returning();
-
-		return reply.send({ success: true, item: result[0] });
-	});
-
-	app.put("/api/settings/catalog/:serviceId", async (request, reply) => {
-		const organizationId = await resolveOrganizationId(request);
-		if (!organizationId) return;
-		
-		const { serviceId } = request.params as { serviceId: string };
-		const input = parseSettingsPayload(updateServiceCatalogItemSchema, request.body) as any;
-		if (!input) return reply.code(400).send({ error: "Invalid payload" });
-
-		const updateData: any = {};
-		if (input.title !== undefined) updateData.title = input.title;
-		if (input.code !== undefined) updateData.code = input.code;
-		if (input.category !== undefined) updateData.category = input.category;
-		if (input.specialty !== undefined) updateData.specialty = input.specialty;
-		if (input.basePriceRub !== undefined) {
-			updateData.basePriceRub = input.basePriceRub;
-			updateData.priceRub = input.basePriceRub;
-		}
-		if (input.durationMinutes !== undefined) updateData.durationMinutes = input.durationMinutes;
-		if (input.taxDeductible !== undefined) updateData.taxDeductible = input.taxDeductible;
-		if (input.active !== undefined) updateData.isActive = input.active;
-
-		if (Object.keys(updateData).length === 0) {
-			return reply.send({ success: true });
-		}
-
-		const result = await db.update(schema.serviceCatalogItems)
-			.set(updateData)
-			.where(
-				and(
-					eq(schema.serviceCatalogItems.id, serviceId),
-					eq(schema.serviceCatalogItems.organizationId, organizationId)
-				)
-			)
-			.returning();
-
-		return reply.send({ success: true, item: result[0] });
-	});
-
-	app.delete("/api/settings/catalog/:serviceId", async (request, reply) => {
-		const organizationId = await resolveOrganizationId(request);
-		if (!organizationId) return;
-		
-		const { serviceId } = request.params as { serviceId: string };
-		
-		// Attempt to delete. Will fail automatically with FK constraint if used in invoices/treatments
-		try {
-			await db.delete(schema.serviceCatalogItems)
-				.where(
-					and(
-						eq(schema.serviceCatalogItems.id, serviceId),
-						eq(schema.serviceCatalogItems.organizationId, organizationId)
-					)
-				);
-			return reply.send({ success: true });
-		} catch (error: any) {
-			console.error("Delete catalog item error", error);
-			// Fallback: Soft delete if FK constraint fails
-			await db.update(schema.serviceCatalogItems)
-				.set({ isActive: false })
-				.where(
-					and(
-						eq(schema.serviceCatalogItems.id, serviceId),
-						eq(schema.serviceCatalogItems.organizationId, organizationId)
-					)
-				);
-			return reply.send({ success: true, softDeleted: true });
-		}
-	});
+  app.post("/api/settings/reset-zero", async (request, reply) => {
+    return { success: true, message: "Очистка базы больше не поддерживается (используется Postgres)." };
+  });
 }

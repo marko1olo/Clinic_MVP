@@ -14,14 +14,13 @@
  *   STAFF_PIN           — PIN for doctors/assistants (default: 1234)
  */
 import "dotenv/config";
-import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { eq, and } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
 const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL ??
-        "postgres://dental:dental@127.0.0.1:5432/dental_crm",
+    connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm"
 });
 const db = drizzle(pool, { schema });
 // ── Demo organization data (matches sampleData.ts) ──────────────────────────
@@ -34,7 +33,7 @@ const DEMO_STAFF = [
         role: "owner",
         phone: "+7 927 555-55-55",
         email: "owner@example.com",
-        isAdmin: true,
+        isAdmin: true
     },
     {
         id: "8356141b-7cfa-4221-95f7-70f47e7344b1",
@@ -42,7 +41,7 @@ const DEMO_STAFF = [
         role: "doctor",
         phone: "+7 927 111-22-33",
         email: "doctor@example.com",
-        isAdmin: false,
+        isAdmin: false
     },
     {
         id: "93bca14f-a11d-4088-9b48-cb7a0fd4c9ef",
@@ -50,7 +49,7 @@ const DEMO_STAFF = [
         role: "administrator",
         phone: "+7 927 222-10-10",
         email: "admin@example.com",
-        isAdmin: true,
+        isAdmin: true
     },
     {
         id: "f365da0c-7094-4f80-b52d-59b7b1254791",
@@ -58,8 +57,8 @@ const DEMO_STAFF = [
         role: "assistant",
         phone: "+7 927 900-77-10",
         email: null,
-        isAdmin: false,
-    },
+        isAdmin: false
+    }
 ];
 async function seedAuth() {
     console.log("🔐 DENTE Auth Seed — starting...\n");
@@ -93,7 +92,7 @@ async function seedAuth() {
             passwordHash,
             inn: "631234567890",
             ogrn: "318631300000000",
-            email: clinicLogin,
+            email: clinicLogin
         });
         console.log(`  ✅ Organization created: ${DEMO_CLINIC_NAME} [${DEMO_ORG_ID}]`);
     }
@@ -117,7 +116,7 @@ async function seedAuth() {
                 .set({
                 pinCodeHash,
                 passwordHash: userPasswordHash,
-                isActive: true,
+                isActive: true
             })
                 .where(and(eq(schema.users.organizationId, DEMO_ORG_ID), eq(schema.users.fullName, staff.fullName)));
             console.log(`  ✅ User PIN updated: ${staff.fullName} (${staff.role}) [PIN: ${pin}]`);
@@ -132,7 +131,7 @@ async function seedAuth() {
                 email: staff.email,
                 pinCodeHash,
                 passwordHash: userPasswordHash,
-                isActive: true,
+                isActive: true
             });
             console.log(`  ✅ User created: ${staff.fullName} (${staff.role}) [PIN: ${pin}]`);
         }

@@ -1,10 +1,11 @@
 import unittest
-from ShadowAnalyst.watcher import get_openai_client, _clients_cache
+from unittest.mock import patch
+from ShadowAnalyst.watcher import get_openai_client, make_groq_client, make_gemini_client
 
 class TestGetOpenAIClient(unittest.TestCase):
     def setUp(self):
-        # Clear the cache before each test to ensure tests are isolated
-        _clients_cache.clear()
+        # Clear the lru_cache before each test to ensure tests are isolated
+        get_openai_client.cache_clear()
 
     def test_get_openai_client_caching(self):
         # Arrange
@@ -18,7 +19,7 @@ class TestGetOpenAIClient(unittest.TestCase):
 
         # Assert
         self.assertIs(client1, client2, "Clients with the same credentials should be cached and return the exact same instance")
-        self.assertEqual(len(_clients_cache), 1, "There should be only one entry in the cache")
+        self.assertEqual(get_openai_client.cache_info().currsize, 1, "There should be only one entry in the cache")
 
     def test_get_openai_client_different_args(self):
         # Act
@@ -27,7 +28,7 @@ class TestGetOpenAIClient(unittest.TestCase):
 
         # Assert
         self.assertIsNot(client1, client2, "Clients with different credentials should not be the same instance")
-        self.assertEqual(len(_clients_cache), 2, "There should be two entries in the cache")
+        self.assertEqual(get_openai_client.cache_info().currsize, 2, "There should be two entries in the cache")
 
     def test_get_openai_client_no_api_key(self):
         # Act
@@ -35,6 +36,28 @@ class TestGetOpenAIClient(unittest.TestCase):
 
         # Assert
         self.assertEqual(client.api_key, "dummy_key", "If no api_key is provided, it should default to 'dummy_key'")
+
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_groq_client(self, mock_get_openai_client):
+        # Arrange
+        api_key = "test_groq_key"
+
+        # Act
+        make_groq_client(api_key)
+
+        # Assert
+        mock_get_openai_client.assert_called_once_with(api_key, "https://api.groq.com/openai/v1")
+
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_gemini_client(self, mock_get_openai_client):
+        # Arrange
+        api_key = "test_gemini_key"
+
+        # Act
+        make_gemini_client(api_key)
+
+        # Assert
+        mock_get_openai_client.assert_called_once_with(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
 
 if __name__ == '__main__':
     unittest.main()

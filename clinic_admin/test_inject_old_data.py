@@ -11,11 +11,9 @@ class TestInjectOldData(unittest.TestCase):
 
         # Save original DB_FILE values
         self.original_db_file_database = clinic_admin.database.DB_FILE
-        self.original_db_file_inject = clinic_admin.inject_old_data.DB_FILE
 
         # Point the database to the temporary file
         clinic_admin.database.DB_FILE = self.db_path
-        clinic_admin.inject_old_data.DB_FILE = self.db_path
 
         # Initialize the database to create tables
         clinic_admin.database.init_db()
@@ -23,7 +21,6 @@ class TestInjectOldData(unittest.TestCase):
     def tearDown(self):
         # Restore original DB_FILE values
         clinic_admin.database.DB_FILE = self.original_db_file_database
-        clinic_admin.inject_old_data.DB_FILE = self.original_db_file_inject
 
         # Close and remove the temporary file
         os.close(self.db_fd)
@@ -146,6 +143,18 @@ class TestInjectOldData(unittest.TestCase):
             self.assertIn(data, fetched_data)
 
         conn.close()
+
+
+    def test_main_execution(self):
+        import runpy
+        import os
+        from unittest.mock import patch
+        import io
+
+        with patch.dict(os.environ, {"DB_FILE": self.db_path}):
+            with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+                runpy.run_path('clinic_admin/inject_old_data.py', run_name='__main__')
+                self.assertIn("Dummy marketing data injected.", mock_stdout.getvalue())
 
 if __name__ == "__main__":
     unittest.main()

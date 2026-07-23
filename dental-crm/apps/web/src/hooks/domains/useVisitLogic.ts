@@ -99,8 +99,8 @@ export function useVisitLogic({
 		visitNoteForm,
 		setVisitNoteForm,
 		visitToothStateByCode,
-		setToothState: _setToothState,
-		applyAiToothCodes: _applyAiToothCodes,
+		setToothState,
+		applyAiToothCodes,
 		lastServerDraftSavedAt,
 		setLastServerDraftSavedAt,
 		serverDraftSyncState,
@@ -148,96 +148,6 @@ export function useVisitLogic({
 		isImportDictating,
 		setIsImportDictating,
 	} = appStore;
-
-	const persistToothStateBatch = useCallback(async (patientId: string, toothNumbers: number[], state: import("../../store/visitStore").ToothState) => {
-		try {
-			await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
-				method: "POST",
-				headers: auth.denteAdminSecretRequestHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					toothNumbers,
-					state,
-				}),
-			});
-		} catch (err) {
-			console.error("Failed to persist tooth state batch", err);
-		}
-	}, [auth]);
-
-	const pendingToothStatesRef = useRef<Record<number, import("../../store/visitStore").ToothState>>({});
-	const toothStateTimeoutRef = useRef<number | null>(null);
-
-	const flushToothStates = useCallback(() => {
-		if (toothStateTimeoutRef.current) {
-			window.clearTimeout(toothStateTimeoutRef.current);
-			toothStateTimeoutRef.current = null;
-		}
-		const pending = pendingToothStatesRef.current;
-		if (Object.keys(pending).length === 0) return;
-
-		const patientId = dashboard?.activeVisit?.patientId;
-		if (!patientId || !isOnline) {
-			pendingToothStatesRef.current = {};
-			return;
-		}
-
-		const grouped: Record<string, number[]> = {};
-		for (const [codeStr, state] of Object.entries(pending)) {
-			if (!grouped[state]) grouped[state] = [];
-			grouped[state].push(parseInt(codeStr, 10));
-		}
-
-		pendingToothStatesRef.current = {};
-
-		for (const [state, nums] of Object.entries(grouped)) {
-			persistToothStateBatch(patientId, nums, state as import("../../store/visitStore").ToothState);
-		}
-	}, [dashboard?.activeVisit?.patientId, isOnline, persistToothStateBatch]);
-
-	useEffect(() => {
-		return () => {
-			flushToothStates();
-		};
-	}, [flushToothStates]);
-
-	const queueToothStatePersist = useCallback((toothNumbers: number[], state: import("../../store/visitStore").ToothState) => {
-		for (const num of toothNumbers) {
-			pendingToothStatesRef.current[num] = state;
-		}
-		if (toothStateTimeoutRef.current) {
-			window.clearTimeout(toothStateTimeoutRef.current);
-		}
-		toothStateTimeoutRef.current = window.setTimeout(() => {
-			flushToothStates();
-		}, 700);
-	}, [flushToothStates]);
-
-	const setToothState = useCallback((code: string, state: import("../../store/visitStore").ToothState) => {
-		_setToothState(code, state);
-		if (dashboard?.activeVisit?.patientId && isOnline) {
-			queueToothStatePersist([parseInt(code, 10)], state);
-		}
-	}, [_setToothState, dashboard?.activeVisit?.patientId, isOnline, queueToothStatePersist]);
-
-	const applyAiToothCodes = useCallback((
-		detectedCodes: string[],
-		primaryState?: import("../../store/visitStore").ToothState,
-		detectedToothStates?: Record<string, import("../../store/visitStore").ToothState>,
-		aiDiagnoses?: Record<string, string>,
-	) => {
-		_applyAiToothCodes(detectedCodes, primaryState, detectedToothStates, aiDiagnoses);
-		if (dashboard?.activeVisit?.patientId && isOnline) {
-			if (detectedToothStates) {
-				for (const [code, state] of Object.entries(detectedToothStates)) {
-					queueToothStatePersist([parseInt(code, 10)], state as import("../../store/visitStore").ToothState);
-				}
-			} else if (detectedCodes.length > 0) {
-				queueToothStatePersist(detectedCodes.map(c => parseInt(c, 10)), primaryState || "planned");
-			}
-		}
-	}, [_applyAiToothCodes, dashboard?.activeVisit?.patientId, isOnline, queueToothStatePersist]);
 
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -1615,8 +1525,6 @@ export function useVisitLogic({
 
 	return {
 		...visitStore,
-		setToothState,
-		applyAiToothCodes,
 		isOnline,
 		speechGatewayHealthReport,
 		speechGatewayStatus,

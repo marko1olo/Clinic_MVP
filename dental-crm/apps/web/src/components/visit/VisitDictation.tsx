@@ -5,7 +5,6 @@ import { DictationHints } from "../../DictationHints";
 import { AiOrchestrator } from "../../lib/aiOrchestrator";
 import { SmartParsePreview } from "../../SmartParsePreview";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
-import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 
 export function VisitDictation() {
 	const {
@@ -60,11 +59,6 @@ export function VisitDictation() {
 			updateVisitNoteField(field, v);
 		}
 	};
-
-	const workspaceFlags = useWorkspaceProfile();
-	// Check if AI features are globally permitted.
-	// For offline or local-only mode, we disable heavy cloud-based AI processing.
-	const canUseAi = workspaceFlags.aiEnableTreatmentPlan && workspaceFlags.aiEnableRecommendations;
 
 	return (
 		<div className="dictation-box" style={{ position: "relative" }}>
@@ -182,11 +176,62 @@ export function VisitDictation() {
 				</div>
 
 				{isServerVoiceRecording && (
-					<div className="dictation-recording-indicator">
-						<div className="dictation-wave-container">
-							<div className="skeleton-wave wave-red" />
-							<div className="skeleton-wave wave-red" style={{ animationDelay: "0.2s" }} />
-							<div className="skeleton-wave wave-red" style={{ animationDelay: "0.4s" }} />
+					<div
+						style={{
+							marginTop: "8px",
+							padding: "12px",
+							background: "var(--paper)",
+							color: "#64748b",
+							borderRadius: "8px",
+							border: "1px dashed #cbd5e1",
+							fontStyle: "italic",
+							fontSize: "14px",
+							display: "flex",
+							alignItems: "center",
+							gap: "12px",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								gap: "4px",
+								height: "16px",
+								alignItems: "center",
+							}}
+						>
+							<div
+								className="skeleton-wave"
+								style={{
+									width: "4px",
+									height: "10px",
+									background: "#ef4444",
+									borderRadius: "2px",
+									animation: "skeleton-wave 1s ease-in-out infinite",
+									animationDelay: "0s",
+								}}
+							/>
+							<div
+								className="skeleton-wave"
+								style={{
+									width: "4px",
+									height: "10px",
+									background: "#ef4444",
+									borderRadius: "2px",
+									animation: "skeleton-wave 1s ease-in-out infinite",
+									animationDelay: "0.2s",
+								}}
+							/>
+							<div
+								className="skeleton-wave"
+								style={{
+									width: "4px",
+									height: "10px",
+									background: "#ef4444",
+									borderRadius: "2px",
+									animation: "skeleton-wave 1s ease-in-out infinite",
+									animationDelay: "0.4s",
+								}}
+							/>
 						</div>
 						<span>Слушаю вас...</span>
 					</div>
@@ -276,11 +321,10 @@ export function VisitDictation() {
 					className="secondary-button"
 					type="button"
 					onClick={buildDraft}
-					disabled={isDraftLoading || !visitDraftReadyToBuild || !canUseAi}
+					disabled={isDraftLoading || !visitDraftReadyToBuild}
 					aria-describedby={
 						!visitDraftReadyToBuild ? "visit-draft-missing" : undefined
 					}
-					title={!canUseAi ? "Нейросети отключены в настройках режима" : undefined}
 				>
 					<Bot aria-hidden="true" style={{ width: "18px", height: "18px" }} />{" "}
 					{isDraftLoading ? "Собираю" : "Собрать нейро-черновик"}

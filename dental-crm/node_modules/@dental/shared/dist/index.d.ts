@@ -333,7 +333,7 @@ export declare const clinicalRuleSeveritySchema: z.ZodEnum<["info", "warning", "
 export type ClinicalRuleSeverity = z.infer<typeof clinicalRuleSeveritySchema>;
 export declare const clinicalRuleActionSchema: z.ZodEnum<["add_required_service", "block_service", "show_warning", "schedule_followup"]>;
 export type ClinicalRuleAction = z.infer<typeof clinicalRuleActionSchema>;
-export declare const paymentMethodSchema: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+export declare const paymentMethodSchema: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export declare const paymentStatusSchema: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
@@ -2566,61 +2566,6 @@ export declare const clinicProfileSchema: z.ZodObject<{
     networkEnabled: z.ZodBoolean;
     egiszEnabled: z.ZodBoolean;
     updatedAt: z.ZodString;
-    specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-    workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-        weekday: z.ZodNumber;
-        enabled: z.ZodBoolean;
-        start: z.ZodString;
-        end: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }>, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }>, "many">>>;
-    currency: z.ZodDefault<z.ZodString>;
-    themeColor: z.ZodDefault<z.ZodString>;
-    logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-    hasAssistants: z.ZodDefault<z.ZodBoolean>;
-    hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-    hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-    hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-    hasInstallments: z.ZodDefault<z.ZodBoolean>;
-    hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-    hasGnathology: z.ZodDefault<z.ZodBoolean>;
-    hasTasks: z.ZodDefault<z.ZodBoolean>;
-    hasReclamations: z.ZodDefault<z.ZodBoolean>;
-    workspacePreset: z.ZodDefault<z.ZodString>;
-    onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-    hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-    isOmniRole: z.ZodDefault<z.ZodBoolean>;
-    hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-    hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-    hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-    hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-    hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-    hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-    hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-    aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-    aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-    aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     phone: string | null;
     mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -2640,32 +2585,6 @@ export declare const clinicProfileSchema: z.ZodObject<{
     networkEnabled: boolean;
     egiszEnabled: boolean;
     updatedAt: string;
-    specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-    currency: string;
-    themeColor: string;
-    hasAssistants: boolean;
-    hasMultipleChairs: boolean;
-    hasDentalLab: boolean;
-    hasInsuranceCoPay: boolean;
-    hasInstallments: boolean;
-    hasOrthodontics: boolean;
-    hasGnathology: boolean;
-    hasTasks: boolean;
-    hasReclamations: boolean;
-    workspacePreset: string;
-    onboardingCompleted: boolean;
-    hasPediatricMode: boolean;
-    isOmniRole: boolean;
-    hasPayrollModule: boolean;
-    hasMarketingModule: boolean;
-    hasAnalyticsModule: boolean;
-    hasCsoScanner: boolean;
-    hasLeadsKanban: boolean;
-    hasOmnichannel: boolean;
-    hasInventoryModule: boolean;
-    aiEnableTreatmentPlan: boolean;
-    aiEnableRecommendations: boolean;
-    aiEnableDocuments: boolean;
     email?: string | null | undefined;
     kpp?: string | null | undefined;
     ogrn?: string | null | undefined;
@@ -2676,15 +2595,6 @@ export declare const clinicProfileSchema: z.ZodObject<{
     bankDetails?: string | null | undefined;
     signatoryName?: string | null | undefined;
     signatoryTitle?: string | null | undefined;
-    workingHours?: {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }[] | null | undefined;
-    logoUrl?: string | null | undefined;
-    stampUrl?: string | null | undefined;
-    marketingData?: Record<string, any> | null | undefined;
 }, {
     phone: string | null;
     mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -2714,41 +2624,6 @@ export declare const clinicProfileSchema: z.ZodObject<{
     bankDetails?: string | null | undefined;
     signatoryName?: string | null | undefined;
     signatoryTitle?: string | null | undefined;
-    specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    workingHours?: {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }[] | null | undefined;
-    currency?: string | undefined;
-    themeColor?: string | undefined;
-    logoUrl?: string | null | undefined;
-    stampUrl?: string | null | undefined;
-    marketingData?: Record<string, any> | null | undefined;
-    hasAssistants?: boolean | undefined;
-    hasMultipleChairs?: boolean | undefined;
-    hasDentalLab?: boolean | undefined;
-    hasInsuranceCoPay?: boolean | undefined;
-    hasInstallments?: boolean | undefined;
-    hasOrthodontics?: boolean | undefined;
-    hasGnathology?: boolean | undefined;
-    hasTasks?: boolean | undefined;
-    hasReclamations?: boolean | undefined;
-    workspacePreset?: string | undefined;
-    onboardingCompleted?: boolean | undefined;
-    hasPediatricMode?: boolean | undefined;
-    isOmniRole?: boolean | undefined;
-    hasPayrollModule?: boolean | undefined;
-    hasMarketingModule?: boolean | undefined;
-    hasAnalyticsModule?: boolean | undefined;
-    hasCsoScanner?: boolean | undefined;
-    hasLeadsKanban?: boolean | undefined;
-    hasOmnichannel?: boolean | undefined;
-    hasInventoryModule?: boolean | undefined;
-    aiEnableTreatmentPlan?: boolean | undefined;
-    aiEnableRecommendations?: boolean | undefined;
-    aiEnableDocuments?: boolean | undefined;
 }>;
 export type ClinicProfile = z.infer<typeof clinicProfileSchema>;
 export declare const staffMemberSchema: z.ZodObject<{
@@ -3036,61 +2911,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         networkEnabled: z.ZodBoolean;
         egiszEnabled: z.ZodBoolean;
         updatedAt: z.ZodString;
-        specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-        workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-            weekday: z.ZodNumber;
-            enabled: z.ZodBoolean;
-            start: z.ZodString;
-            end: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, "many">>>;
-        currency: z.ZodDefault<z.ZodString>;
-        themeColor: z.ZodDefault<z.ZodString>;
-        logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-        hasAssistants: z.ZodDefault<z.ZodBoolean>;
-        hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-        hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-        hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-        hasInstallments: z.ZodDefault<z.ZodBoolean>;
-        hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-        hasGnathology: z.ZodDefault<z.ZodBoolean>;
-        hasTasks: z.ZodDefault<z.ZodBoolean>;
-        hasReclamations: z.ZodDefault<z.ZodBoolean>;
-        workspacePreset: z.ZodDefault<z.ZodString>;
-        onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-        hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-        isOmniRole: z.ZodDefault<z.ZodBoolean>;
-        hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-        hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-        hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-        hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-        hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-        hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-        hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-        aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-        aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-        aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         phone: string | null;
         mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -3110,32 +2930,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         networkEnabled: boolean;
         egiszEnabled: boolean;
         updatedAt: string;
-        specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-        currency: string;
-        themeColor: string;
-        hasAssistants: boolean;
-        hasMultipleChairs: boolean;
-        hasDentalLab: boolean;
-        hasInsuranceCoPay: boolean;
-        hasInstallments: boolean;
-        hasOrthodontics: boolean;
-        hasGnathology: boolean;
-        hasTasks: boolean;
-        hasReclamations: boolean;
-        workspacePreset: string;
-        onboardingCompleted: boolean;
-        hasPediatricMode: boolean;
-        isOmniRole: boolean;
-        hasPayrollModule: boolean;
-        hasMarketingModule: boolean;
-        hasAnalyticsModule: boolean;
-        hasCsoScanner: boolean;
-        hasLeadsKanban: boolean;
-        hasOmnichannel: boolean;
-        hasInventoryModule: boolean;
-        aiEnableTreatmentPlan: boolean;
-        aiEnableRecommendations: boolean;
-        aiEnableDocuments: boolean;
         email?: string | null | undefined;
         kpp?: string | null | undefined;
         ogrn?: string | null | undefined;
@@ -3146,15 +2940,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }, {
         phone: string | null;
         mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -3184,41 +2969,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
-        hasAssistants?: boolean | undefined;
-        hasMultipleChairs?: boolean | undefined;
-        hasDentalLab?: boolean | undefined;
-        hasInsuranceCoPay?: boolean | undefined;
-        hasInstallments?: boolean | undefined;
-        hasOrthodontics?: boolean | undefined;
-        hasGnathology?: boolean | undefined;
-        hasTasks?: boolean | undefined;
-        hasReclamations?: boolean | undefined;
-        workspacePreset?: string | undefined;
-        onboardingCompleted?: boolean | undefined;
-        hasPediatricMode?: boolean | undefined;
-        isOmniRole?: boolean | undefined;
-        hasPayrollModule?: boolean | undefined;
-        hasMarketingModule?: boolean | undefined;
-        hasAnalyticsModule?: boolean | undefined;
-        hasCsoScanner?: boolean | undefined;
-        hasLeadsKanban?: boolean | undefined;
-        hasOmnichannel?: boolean | undefined;
-        hasInventoryModule?: boolean | undefined;
-        aiEnableTreatmentPlan?: boolean | undefined;
-        aiEnableRecommendations?: boolean | undefined;
-        aiEnableDocuments?: boolean | undefined;
     }>;
     staff: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -3480,8 +3230,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
     }>, "many">;
     modeHints: z.ZodArray<z.ZodString, "many">;
     soloDoctorMode: z.ZodOptional<z.ZodBoolean>;
-    marketingSettings: z.ZodOptional<z.ZodAny>;
-    reportingSettings: z.ZodOptional<z.ZodAny>;
 }, "strip", z.ZodTypeAny, {
     profile: {
         phone: string | null;
@@ -3502,32 +3250,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         networkEnabled: boolean;
         egiszEnabled: boolean;
         updatedAt: string;
-        specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-        currency: string;
-        themeColor: string;
-        hasAssistants: boolean;
-        hasMultipleChairs: boolean;
-        hasDentalLab: boolean;
-        hasInsuranceCoPay: boolean;
-        hasInstallments: boolean;
-        hasOrthodontics: boolean;
-        hasGnathology: boolean;
-        hasTasks: boolean;
-        hasReclamations: boolean;
-        workspacePreset: string;
-        onboardingCompleted: boolean;
-        hasPediatricMode: boolean;
-        isOmniRole: boolean;
-        hasPayrollModule: boolean;
-        hasMarketingModule: boolean;
-        hasAnalyticsModule: boolean;
-        hasCsoScanner: boolean;
-        hasLeadsKanban: boolean;
-        hasOmnichannel: boolean;
-        hasInventoryModule: boolean;
-        aiEnableTreatmentPlan: boolean;
-        aiEnableRecommendations: boolean;
-        aiEnableDocuments: boolean;
         email?: string | null | undefined;
         kpp?: string | null | undefined;
         ogrn?: string | null | undefined;
@@ -3538,15 +3260,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
     staff: {
         active: boolean;
@@ -3626,8 +3339,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
     }[];
     modeHints: string[];
     soloDoctorMode?: boolean | undefined;
-    marketingSettings?: any;
-    reportingSettings?: any;
 }, {
     profile: {
         phone: string | null;
@@ -3658,41 +3369,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
-        hasAssistants?: boolean | undefined;
-        hasMultipleChairs?: boolean | undefined;
-        hasDentalLab?: boolean | undefined;
-        hasInsuranceCoPay?: boolean | undefined;
-        hasInstallments?: boolean | undefined;
-        hasOrthodontics?: boolean | undefined;
-        hasGnathology?: boolean | undefined;
-        hasTasks?: boolean | undefined;
-        hasReclamations?: boolean | undefined;
-        workspacePreset?: string | undefined;
-        onboardingCompleted?: boolean | undefined;
-        hasPediatricMode?: boolean | undefined;
-        isOmniRole?: boolean | undefined;
-        hasPayrollModule?: boolean | undefined;
-        hasMarketingModule?: boolean | undefined;
-        hasAnalyticsModule?: boolean | undefined;
-        hasCsoScanner?: boolean | undefined;
-        hasLeadsKanban?: boolean | undefined;
-        hasOmnichannel?: boolean | undefined;
-        hasInventoryModule?: boolean | undefined;
-        aiEnableTreatmentPlan?: boolean | undefined;
-        aiEnableRecommendations?: boolean | undefined;
-        aiEnableDocuments?: boolean | undefined;
     };
     staff: {
         active: boolean;
@@ -3772,8 +3448,6 @@ export declare const clinicSettingsSchema: z.ZodObject<{
     }[];
     modeHints: string[];
     soloDoctorMode?: boolean | undefined;
-    marketingSettings?: any;
-    reportingSettings?: any;
 }>;
 export type ClinicSettings = z.infer<typeof clinicSettingsSchema>;
 export declare const workloadStateSchema: z.ZodEnum<["idle", "healthy", "tight", "overbooked"]>;
@@ -4278,61 +3952,6 @@ export declare const serviceCatalogItemSchema: z.ZodObject<{
     aliases?: string[] | undefined;
 }>;
 export type ServiceCatalogItem = z.infer<typeof serviceCatalogItemSchema>;
-export declare const createServiceCatalogItemSchema: z.ZodObject<{
-    title: z.ZodString;
-    category: z.ZodEnum<["consultation", "therapy", "surgery", "prosthetics", "orthodontics", "periodontology", "hygiene", "imaging", "documents", "other"]>;
-    specialty: z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>;
-    basePriceRub: z.ZodNumber;
-    durationMinutes: z.ZodNumber;
-    taxDeductible: z.ZodBoolean;
-    code: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    title: string;
-    category: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents";
-    specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-    basePriceRub: number;
-    durationMinutes: number;
-    taxDeductible: boolean;
-    code?: string | undefined;
-}, {
-    title: string;
-    category: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents";
-    specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-    basePriceRub: number;
-    durationMinutes: number;
-    taxDeductible: boolean;
-    code?: string | undefined;
-}>;
-export type CreateServiceCatalogItemInput = z.infer<typeof createServiceCatalogItemSchema>;
-export declare const updateServiceCatalogItemSchema: z.ZodObject<{
-    title: z.ZodOptional<z.ZodString>;
-    category: z.ZodOptional<z.ZodEnum<["consultation", "therapy", "surgery", "prosthetics", "orthodontics", "periodontology", "hygiene", "imaging", "documents", "other"]>>;
-    specialty: z.ZodOptional<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>>;
-    basePriceRub: z.ZodOptional<z.ZodNumber>;
-    durationMinutes: z.ZodOptional<z.ZodNumber>;
-    taxDeductible: z.ZodOptional<z.ZodBoolean>;
-    active: z.ZodOptional<z.ZodBoolean>;
-    code: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    active?: boolean | undefined;
-    code?: string | undefined;
-    title?: string | undefined;
-    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
-    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
-    basePriceRub?: number | undefined;
-    durationMinutes?: number | undefined;
-    taxDeductible?: boolean | undefined;
-}, {
-    active?: boolean | undefined;
-    code?: string | undefined;
-    title?: string | undefined;
-    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
-    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
-    basePriceRub?: number | undefined;
-    durationMinutes?: number | undefined;
-    taxDeductible?: boolean | undefined;
-}>;
-export type UpdateServiceCatalogItemInput = z.infer<typeof updateServiceCatalogItemSchema>;
 export declare const pricelistSourceKindSchema: z.ZodEnum<["text", "ocr_text", "photo_ocr", "spreadsheet_copy", "manual"]>;
 export type PricelistSourceKind = z.infer<typeof pricelistSourceKindSchema>;
 export declare const dentalMaterialKindSchema: z.ZodEnum<["composite", "glass_ionomer", "sealant", "ceramic", "zirconia", "lithium_disilicate", "metal_ceramic", "pmma", "metal", "titanium", "implant_system", "abutment", "bone_graft", "membrane", "aligner", "bracket", "fluoride", "whitening", "anesthetic", "imaging", "lab", "other", "unknown"]>;
@@ -5142,10 +4761,10 @@ export declare const createClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
     action: z.ZodEnum<["add_required_service", "block_service", "show_warning", "schedule_followup"]>;
     severity: z.ZodEnum<["info", "warning", "blocker"]>;
     ownerRole: z.ZodEnum<["owner", "doctor", "administrator", "assistant", "manager"]>;
-    triggerServiceIds: z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>;
-    requiredServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
-    requiresCompletedServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
-    blockedServiceIds: z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>;
+    triggerServiceIds: z.ZodArray<z.ZodString, "many">;
+    requiredServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    requiresCompletedServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    blockedServiceIds: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
     condition: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     warningText: z.ZodString;
     patientText: z.ZodString;
@@ -5212,17 +4831,17 @@ export declare const createClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
     condition?: string | null | undefined;
 }>;
 export type CreateClinicalRuleInput = z.infer<typeof createClinicalRuleSchema>;
-export declare const updateClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
+export declare const updateClinicalRuleSchema: z.ZodObject<{
     title: z.ZodOptional<z.ZodString>;
     category: z.ZodOptional<z.ZodEnum<["consultation", "therapy", "surgery", "prosthetics", "orthodontics", "periodontology", "hygiene", "imaging", "documents", "other"]>>;
     specialty: z.ZodOptional<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>>;
     action: z.ZodOptional<z.ZodEnum<["add_required_service", "block_service", "show_warning", "schedule_followup"]>>;
     severity: z.ZodOptional<z.ZodEnum<["info", "warning", "blocker"]>>;
     ownerRole: z.ZodOptional<z.ZodEnum<["owner", "doctor", "administrator", "assistant", "manager"]>>;
-    triggerServiceIds: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>>;
-    requiredServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
-    requiresCompletedServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
-    blockedServiceIds: z.ZodOptional<z.ZodEffects<z.ZodDefault<z.ZodArray<z.ZodString, "many">>, string[], string[] | undefined>>;
+    triggerServiceIds: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    requiredServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
+    requiresCompletedServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
+    blockedServiceIds: z.ZodOptional<z.ZodDefault<z.ZodArray<z.ZodString, "many">>>;
     condition: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     warningText: z.ZodOptional<z.ZodString>;
     patientText: z.ZodOptional<z.ZodString>;
@@ -5230,38 +4849,6 @@ export declare const updateClinicalRuleSchema: z.ZodEffects<z.ZodObject<{
 } & {
     id: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    id: string;
-    active?: boolean | undefined;
-    title?: string | undefined;
-    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
-    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
-    severity?: "info" | "warning" | "blocker" | undefined;
-    ownerRole?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
-    action?: "add_required_service" | "block_service" | "show_warning" | "schedule_followup" | undefined;
-    triggerServiceIds?: string[] | undefined;
-    requiredServiceIds?: string[] | undefined;
-    requiresCompletedServiceIds?: string[] | undefined;
-    blockedServiceIds?: string[] | undefined;
-    condition?: string | null | undefined;
-    warningText?: string | undefined;
-    patientText?: string | undefined;
-}, {
-    id: string;
-    active?: boolean | undefined;
-    title?: string | undefined;
-    category?: "other" | "consultation" | "therapy" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "imaging" | "documents" | undefined;
-    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
-    severity?: "info" | "warning" | "blocker" | undefined;
-    ownerRole?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
-    action?: "add_required_service" | "block_service" | "show_warning" | "schedule_followup" | undefined;
-    triggerServiceIds?: string[] | undefined;
-    requiredServiceIds?: string[] | undefined;
-    requiresCompletedServiceIds?: string[] | undefined;
-    blockedServiceIds?: string[] | undefined;
-    condition?: string | null | undefined;
-    warningText?: string | undefined;
-    patientText?: string | undefined;
-}>, {
     id: string;
     active?: boolean | undefined;
     title?: string | undefined;
@@ -5325,7 +4912,7 @@ export declare const paymentSchema: z.ZodObject<{
     visitId: z.ZodNullable<z.ZodString>;
     documentId: z.ZodNullable<z.ZodString>;
     amountRub: z.ZodNumber;
-    method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+    method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
     status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
     paidAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
@@ -5371,7 +4958,7 @@ export declare const paymentSchema: z.ZodObject<{
     createdAt: string;
     amountRub: number;
     documentId: string | null;
-    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     paidAt: string | null;
     note: string | null;
     fiscalReceiptNumber?: string | null | undefined;
@@ -5401,7 +4988,7 @@ export declare const paymentSchema: z.ZodObject<{
     createdAt: string;
     amountRub: number;
     documentId: string | null;
-    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     paidAt: string | null;
     note: string | null;
     fiscalReceiptNumber?: string | null | undefined;
@@ -5433,7 +5020,6 @@ export declare const billingSummarySchema: z.ZodObject<{
     draftDocumentAmountRub: z.ZodNumber;
     openTreatmentItems: z.ZodNumber;
     unpaidDocuments: z.ZodNumber;
-    insuranceCoverageRub: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     totalPlannedRub: number;
     totalDiscountRub: number;
@@ -5443,7 +5029,6 @@ export declare const billingSummarySchema: z.ZodObject<{
     draftDocumentAmountRub: number;
     openTreatmentItems: number;
     unpaidDocuments: number;
-    insuranceCoverageRub: number;
 }, {
     totalPlannedRub: number;
     totalDiscountRub: number;
@@ -5453,7 +5038,6 @@ export declare const billingSummarySchema: z.ZodObject<{
     draftDocumentAmountRub: number;
     openTreatmentItems: number;
     unpaidDocuments: number;
-    insuranceCoverageRub?: number | undefined;
 }>;
 export type BillingSummary = z.infer<typeof billingSummarySchema>;
 export declare const communicationTemplateSchema: z.ZodObject<{
@@ -7746,7 +7330,6 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-    insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -7758,19 +7341,6 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-    orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-        currentAligner: z.ZodDefault<z.ZodNumber>;
-        totalAligners: z.ZodDefault<z.ZodNumber>;
-        startDate: z.ZodDefault<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    }, {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    }>>>;
 }, "strip", z.ZodTypeAny, {
     identityDocument: string | null;
     taxpayerInn: string | null;
@@ -7788,19 +7358,12 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentEnd: string | null;
     preferredAppointmentNote: string | null;
     dataProcessingBasisNote: string | null;
-    orthodonticProgress: {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    } | null;
-    insuranceContractId?: string | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -7812,11 +7375,6 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    } | null | undefined;
 }>, {
     identityDocument: string | null;
     taxpayerInn: string | null;
@@ -7834,19 +7392,12 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentEnd: string | null;
     preferredAppointmentNote: string | null;
     dataProcessingBasisNote: string | null;
-    orthodonticProgress: {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    } | null;
-    insuranceContractId?: string | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -7858,11 +7409,6 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    } | null | undefined;
 }>;
 export type PatientAdministrativeProfile = z.infer<typeof patientAdministrativeProfileSchema>;
 export declare const patientSchema: z.ZodObject<{
@@ -7874,15 +7420,12 @@ export declare const patientSchema: z.ZodObject<{
     phone: z.ZodNullable<z.ZodString>;
     email: z.ZodNullable<z.ZodString>;
     notes: z.ZodNullable<z.ZodString>;
-    insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
         identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-        insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -7894,19 +7437,6 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-        orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-            currentAligner: z.ZodDefault<z.ZodNumber>;
-            totalAligners: z.ZodDefault<z.ZodNumber>;
-            startDate: z.ZodDefault<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        }, {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        }>>>;
     }, "strip", z.ZodTypeAny, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -7924,19 +7454,12 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -7948,11 +7471,6 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     }>, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -7970,19 +7488,12 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -7994,11 +7505,6 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     }>>>;
     balanceRub: z.ZodDefault<z.ZodNumber>;
     createdAt: z.ZodString;
@@ -8031,16 +7537,8 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     } | null;
     balanceRub: number;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
 }, {
     status: "active" | "archived";
     phone: string | null;
@@ -8052,15 +7550,12 @@ export declare const patientSchema: z.ZodObject<{
     fullName: string;
     notes: string | null;
     birthDate: string | null;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     administrativeProfile?: {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -8072,11 +7567,6 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     } | null | undefined;
     balanceRub?: number | undefined;
 }>;
@@ -8170,7 +7660,6 @@ export declare const appointmentSchema: z.ZodObject<{
     endsAt: z.ZodString;
     reason: z.ZodNullable<z.ZodString>;
     comment: z.ZodNullable<z.ZodString>;
-    version: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     status: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show";
     id: string;
@@ -8182,7 +7671,6 @@ export declare const appointmentSchema: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     comment: string | null;
-    version?: number | undefined;
     assistantUserId?: string | null | undefined;
 }, {
     status: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show";
@@ -8195,7 +7683,6 @@ export declare const appointmentSchema: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     comment: string | null;
-    version?: number | undefined;
     assistantUserId?: string | null | undefined;
 }>;
 export type Appointment = z.infer<typeof appointmentSchema>;
@@ -8261,12 +7748,10 @@ export declare const updateAppointmentSchema: z.ZodEffects<z.ZodObject<{
     endsAt: z.ZodOptional<z.ZodString>;
     reason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     comment: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    version: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     status?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | undefined;
     patientId?: string | null | undefined;
     reason?: string | null | undefined;
-    version?: number | undefined;
     doctorUserId?: string | null | undefined;
     assistantUserId?: string | null | undefined;
     chairId?: string | null | undefined;
@@ -8277,7 +7762,6 @@ export declare const updateAppointmentSchema: z.ZodEffects<z.ZodObject<{
     status?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | undefined;
     patientId?: string | null | undefined;
     reason?: string | null | undefined;
-    version?: number | undefined;
     doctorUserId?: string | null | undefined;
     assistantUserId?: string | null | undefined;
     chairId?: string | null | undefined;
@@ -8288,7 +7772,6 @@ export declare const updateAppointmentSchema: z.ZodEffects<z.ZodObject<{
     status?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | undefined;
     patientId?: string | null | undefined;
     reason?: string | null | undefined;
-    version?: number | undefined;
     doctorUserId?: string | null | undefined;
     assistantUserId?: string | null | undefined;
     chairId?: string | null | undefined;
@@ -8299,7 +7782,6 @@ export declare const updateAppointmentSchema: z.ZodEffects<z.ZodObject<{
     status?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | undefined;
     patientId?: string | null | undefined;
     reason?: string | null | undefined;
-    version?: number | undefined;
     doctorUserId?: string | null | undefined;
     assistantUserId?: string | null | undefined;
     chairId?: string | null | undefined;
@@ -8536,19 +8018,6 @@ export declare const visitSchema: z.ZodObject<{
     doctorSummary: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
-    diary: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-        id: z.ZodString;
-        complications: z.ZodNullable<z.ZodString>;
-        comorbidities: z.ZodNullable<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        id: string;
-        complications: string | null;
-        comorbidities: string | null;
-    }, {
-        id: string;
-        complications: string | null;
-        comorbidities: string | null;
-    }>>>;
 }, "strip", z.ZodTypeAny, {
     status: "draft" | "signed" | "voided";
     id: string;
@@ -8564,11 +8033,6 @@ export declare const visitSchema: z.ZodObject<{
     diagnosis: string | null;
     treatmentPlan: string | null;
     doctorSummary: string | null;
-    diary?: {
-        id: string;
-        complications: string | null;
-        comorbidities: string | null;
-    } | null | undefined;
 }, {
     status: "draft" | "signed" | "voided";
     id: string;
@@ -8584,11 +8048,6 @@ export declare const visitSchema: z.ZodObject<{
     treatmentPlan: string | null;
     doctorSummary: string | null;
     revision?: number | undefined;
-    diary?: {
-        id: string;
-        complications: string | null;
-        comorbidities: string | null;
-    } | null | undefined;
 }>;
 export type Visit = z.infer<typeof visitSchema>;
 export declare const patientIntakePregnancyStatusSchema: z.ZodEnum<["not_applicable", "denied", "possible", "confirmed", "lactation", "unknown"]>;
@@ -10153,12 +9612,12 @@ export declare const outpatientMedicalCard025uSpecialistVisitRecordSchema: z.Zod
     primaryDiagnosis: string;
     orders: string;
     informedConsentOrRefusal: string;
-    complications?: string | null | undefined;
-    comorbidities?: string | null | undefined;
     doctorPosition?: string | null | undefined;
     doctorSpecialty?: string | null | undefined;
     location?: string | null | undefined;
     primaryDiagnosisIcd10?: string | null | undefined;
+    complications?: string | null | undefined;
+    comorbidities?: string | null | undefined;
     externalCause?: string | null | undefined;
     healthGroup?: string | null | undefined;
     dispensaryObservation?: string | null | undefined;
@@ -10189,12 +9648,12 @@ export declare const outpatientMedicalCard025uSpecialistVisitRecordSchema: z.Zod
     primaryDiagnosis: string;
     orders: string;
     informedConsentOrRefusal: string;
-    complications?: string | null | undefined;
-    comorbidities?: string | null | undefined;
     doctorPosition?: string | null | undefined;
     doctorSpecialty?: string | null | undefined;
     location?: string | null | undefined;
     primaryDiagnosisIcd10?: string | null | undefined;
+    complications?: string | null | undefined;
+    comorbidities?: string | null | undefined;
     externalCause?: string | null | undefined;
     healthGroup?: string | null | undefined;
     dispensaryObservation?: string | null | undefined;
@@ -10375,12 +9834,12 @@ export declare const outpatientMedicalCard025uPayloadSchema: z.ZodObject<{
         primaryDiagnosis: string;
         orders: string;
         informedConsentOrRefusal: string;
-        complications?: string | null | undefined;
-        comorbidities?: string | null | undefined;
         doctorPosition?: string | null | undefined;
         doctorSpecialty?: string | null | undefined;
         location?: string | null | undefined;
         primaryDiagnosisIcd10?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
         externalCause?: string | null | undefined;
         healthGroup?: string | null | undefined;
         dispensaryObservation?: string | null | undefined;
@@ -10411,12 +9870,12 @@ export declare const outpatientMedicalCard025uPayloadSchema: z.ZodObject<{
         primaryDiagnosis: string;
         orders: string;
         informedConsentOrRefusal: string;
-        complications?: string | null | undefined;
-        comorbidities?: string | null | undefined;
         doctorPosition?: string | null | undefined;
         doctorSpecialty?: string | null | undefined;
         location?: string | null | undefined;
         primaryDiagnosisIcd10?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
         externalCause?: string | null | undefined;
         healthGroup?: string | null | undefined;
         dispensaryObservation?: string | null | undefined;
@@ -10834,12 +10293,12 @@ export declare const outpatientMedicalCard025uPayloadSchema: z.ZodObject<{
         primaryDiagnosis: string;
         orders: string;
         informedConsentOrRefusal: string;
-        complications?: string | null | undefined;
-        comorbidities?: string | null | undefined;
         doctorPosition?: string | null | undefined;
         doctorSpecialty?: string | null | undefined;
         location?: string | null | undefined;
         primaryDiagnosisIcd10?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
         externalCause?: string | null | undefined;
         healthGroup?: string | null | undefined;
         dispensaryObservation?: string | null | undefined;
@@ -11032,12 +10491,12 @@ export declare const outpatientMedicalCard025uPayloadSchema: z.ZodObject<{
         primaryDiagnosis: string;
         orders: string;
         informedConsentOrRefusal: string;
-        complications?: string | null | undefined;
-        comorbidities?: string | null | undefined;
         doctorPosition?: string | null | undefined;
         doctorSpecialty?: string | null | undefined;
         location?: string | null | undefined;
         primaryDiagnosisIcd10?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
         externalCause?: string | null | undefined;
         healthGroup?: string | null | undefined;
         dispensaryObservation?: string | null | undefined;
@@ -11343,9 +10802,9 @@ export declare const treatmentPlanPayloadSchema: z.ZodObject<{
     estimatedTotalRub: z.ZodNumber;
     alternatives: z.ZodArray<z.ZodString, "many">;
     risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-    prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    prognosisAndLimits: z.ZodString;
+    controlPlan: z.ZodString;
+    doctorFullName: z.ZodString;
     plannedAt: z.ZodEffects<z.ZodString, string, string>;
     patientQuestionsAnswered: z.ZodLiteral<true>;
     planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -11355,6 +10814,7 @@ export declare const treatmentPlanPayloadSchema: z.ZodObject<{
     customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     estimatedTotalRub: number;
+    doctorFullName: string;
     teethOrArea: string;
     clinicalToothRows: {
         status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -11380,18 +10840,18 @@ export declare const treatmentPlanPayloadSchema: z.ZodObject<{
     }[];
     alternatives: string[];
     risksAndLimitations: string[];
+    prognosisAndLimits: string;
+    controlPlan: string;
     plannedAt: string;
     patientQuestionsAnswered: true;
     planRequiresSeparateConsent: true;
     planRequiresNewApprovalOnChange: true;
-    doctorFullName?: string | null | undefined;
-    prognosisAndLimits?: string | null | undefined;
-    controlPlan?: string | null | undefined;
     patientFriendlyExplanation?: string | null | undefined;
     patientHygieneAdvice?: string | null | undefined;
     customHygieneTextOverride?: string | null | undefined;
 }, {
     estimatedTotalRub: number;
+    doctorFullName: string;
     teethOrArea: string;
     clinicalToothRows: {
         status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -11417,13 +10877,12 @@ export declare const treatmentPlanPayloadSchema: z.ZodObject<{
     }[];
     alternatives: string[];
     risksAndLimitations: string[];
+    prognosisAndLimits: string;
+    controlPlan: string;
     plannedAt: string;
     patientQuestionsAnswered: true;
     planRequiresSeparateConsent: true;
     planRequiresNewApprovalOnChange: true;
-    doctorFullName?: string | null | undefined;
-    prognosisAndLimits?: string | null | undefined;
-    controlPlan?: string | null | undefined;
     patientFriendlyExplanation?: string | null | undefined;
     patientHygieneAdvice?: string | null | undefined;
     customHygieneTextOverride?: string | null | undefined;
@@ -13178,12 +12637,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -13214,12 +12673,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -13637,12 +13096,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -13835,12 +13294,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -14243,9 +13702,9 @@ export declare const documentPayloadSchema: z.ZodObject<{
         estimatedTotalRub: z.ZodNumber;
         alternatives: z.ZodArray<z.ZodString, "many">;
         risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-        prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        prognosisAndLimits: z.ZodString;
+        controlPlan: z.ZodString;
+        doctorFullName: z.ZodString;
         plannedAt: z.ZodEffects<z.ZodString, string, string>;
         patientQuestionsAnswered: z.ZodLiteral<true>;
         planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -14255,6 +13714,7 @@ export declare const documentPayloadSchema: z.ZodObject<{
         customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         estimatedTotalRub: number;
+        doctorFullName: string;
         teethOrArea: string;
         clinicalToothRows: {
             status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -14280,18 +13740,18 @@ export declare const documentPayloadSchema: z.ZodObject<{
         }[];
         alternatives: string[];
         risksAndLimitations: string[];
+        prognosisAndLimits: string;
+        controlPlan: string;
         plannedAt: string;
         patientQuestionsAnswered: true;
         planRequiresSeparateConsent: true;
         planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
         patientFriendlyExplanation?: string | null | undefined;
         patientHygieneAdvice?: string | null | undefined;
         customHygieneTextOverride?: string | null | undefined;
     }, {
         estimatedTotalRub: number;
+        doctorFullName: string;
         teethOrArea: string;
         clinicalToothRows: {
             status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -14317,13 +13777,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
         }[];
         alternatives: string[];
         risksAndLimitations: string[];
+        prognosisAndLimits: string;
+        controlPlan: string;
         plannedAt: string;
         patientQuestionsAnswered: true;
         planRequiresSeparateConsent: true;
         planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
         patientFriendlyExplanation?: string | null | undefined;
         patientHygieneAdvice?: string | null | undefined;
         customHygieneTextOverride?: string | null | undefined;
@@ -14803,6 +14262,7 @@ export declare const documentPayloadSchema: z.ZodObject<{
 }, "strict", z.ZodTypeAny, {
     treatmentPlan?: {
         estimatedTotalRub: number;
+        doctorFullName: string;
         teethOrArea: string;
         clinicalToothRows: {
             status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -14828,13 +14288,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
         }[];
         alternatives: string[];
         risksAndLimitations: string[];
+        prognosisAndLimits: string;
+        controlPlan: string;
         plannedAt: string;
         patientQuestionsAnswered: true;
         planRequiresSeparateConsent: true;
         planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
         patientFriendlyExplanation?: string | null | undefined;
         patientHygieneAdvice?: string | null | undefined;
         customHygieneTextOverride?: string | null | undefined;
@@ -15209,12 +14668,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -15553,6 +15012,7 @@ export declare const documentPayloadSchema: z.ZodObject<{
 }, {
     treatmentPlan?: {
         estimatedTotalRub: number;
+        doctorFullName: string;
         teethOrArea: string;
         clinicalToothRows: {
             status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -15578,13 +15038,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
         }[];
         alternatives: string[];
         risksAndLimitations: string[];
+        prognosisAndLimits: string;
+        controlPlan: string;
         plannedAt: string;
         patientQuestionsAnswered: true;
         planRequiresSeparateConsent: true;
         planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
         patientFriendlyExplanation?: string | null | undefined;
         patientHygieneAdvice?: string | null | undefined;
         customHygieneTextOverride?: string | null | undefined;
@@ -15959,12 +15418,12 @@ export declare const documentPayloadSchema: z.ZodObject<{
             primaryDiagnosis: string;
             orders: string;
             informedConsentOrRefusal: string;
-            complications?: string | null | undefined;
-            comorbidities?: string | null | undefined;
             doctorPosition?: string | null | undefined;
             doctorSpecialty?: string | null | undefined;
             location?: string | null | undefined;
             primaryDiagnosisIcd10?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
             externalCause?: string | null | undefined;
             healthGroup?: string | null | undefined;
             dispensaryObservation?: string | null | undefined;
@@ -16316,7 +15775,7 @@ export declare const taxPaymentSnapshotSchema: z.ZodObject<{
         visitId: z.ZodNullable<z.ZodString>;
         documentId: z.ZodNullable<z.ZodString>;
         amountRub: z.ZodNumber;
-        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
         status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
         paidAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
@@ -16362,7 +15821,7 @@ export declare const taxPaymentSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -16392,7 +15851,7 @@ export declare const taxPaymentSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -16424,7 +15883,7 @@ export declare const taxPaymentSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -16461,7 +15920,7 @@ export declare const taxPaymentSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -16508,7 +15967,6 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: z.ZodLiteral<true>;
     clinicRepresentativeSigned: z.ZodLiteral<true>;
     note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strict", z.ZodTypeAny, {
     mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
     signedAt: string;
@@ -16521,7 +15979,6 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: true;
     clinicRepresentativeSigned: true;
     note?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
 }, {
     mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
     signedAt: string;
@@ -16534,7 +15991,6 @@ export declare const documentIssueSignatureAttestationSchema: z.ZodObject<{
     recipientSigned: true;
     clinicRepresentativeSigned: true;
     note?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
 }>;
 export type DocumentIssueSignatureAttestation = z.infer<typeof documentIssueSignatureAttestationSchema>;
 export declare const issueDocumentSchema: z.ZodObject<{
@@ -16550,7 +16006,6 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -16563,7 +16018,6 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -16576,7 +16030,6 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }>;
 }, "strict", z.ZodTypeAny, {
     signatureAttestation: {
@@ -16591,7 +16044,6 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     };
 }, {
     signatureAttestation: {
@@ -16606,7 +16058,6 @@ export declare const issueDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     };
 }>;
 export type IssueDocumentInput = z.infer<typeof issueDocumentSchema>;
@@ -16790,15 +16241,12 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         phone: z.ZodNullable<z.ZodString>;
         email: z.ZodNullable<z.ZodString>;
         notes: z.ZodNullable<z.ZodString>;
-        insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
             identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-            insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -16810,19 +16258,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-            orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-                currentAligner: z.ZodDefault<z.ZodNumber>;
-                totalAligners: z.ZodDefault<z.ZodNumber>;
-                startDate: z.ZodDefault<z.ZodString>;
-            }, "strip", z.ZodTypeAny, {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            }, {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            }>>>;
         }, "strip", z.ZodTypeAny, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -16840,19 +16275,12 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -16864,11 +16292,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         }>, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -16886,19 +16309,12 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -16910,11 +16326,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         }>>>;
         balanceRub: z.ZodDefault<z.ZodNumber>;
         createdAt: z.ZodString;
@@ -16947,16 +16358,8 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         } | null;
         balanceRub: number;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
     }, {
         status: "active" | "archived";
         phone: string | null;
@@ -16968,15 +16371,12 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         fullName: string;
         notes: string | null;
         birthDate: string | null;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         administrativeProfile?: {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -16988,11 +16388,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
     }>;
@@ -17045,61 +16440,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         networkEnabled: z.ZodBoolean;
         egiszEnabled: z.ZodBoolean;
         updatedAt: z.ZodString;
-        specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-        workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-            weekday: z.ZodNumber;
-            enabled: z.ZodBoolean;
-            start: z.ZodString;
-            end: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, "many">>>;
-        currency: z.ZodDefault<z.ZodString>;
-        themeColor: z.ZodDefault<z.ZodString>;
-        logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-        hasAssistants: z.ZodDefault<z.ZodBoolean>;
-        hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-        hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-        hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-        hasInstallments: z.ZodDefault<z.ZodBoolean>;
-        hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-        hasGnathology: z.ZodDefault<z.ZodBoolean>;
-        hasTasks: z.ZodDefault<z.ZodBoolean>;
-        hasReclamations: z.ZodDefault<z.ZodBoolean>;
-        workspacePreset: z.ZodDefault<z.ZodString>;
-        onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-        hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-        isOmniRole: z.ZodDefault<z.ZodBoolean>;
-        hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-        hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-        hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-        hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-        hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-        hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-        hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-        aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-        aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-        aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         phone: string | null;
         mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -17119,32 +16459,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         networkEnabled: boolean;
         egiszEnabled: boolean;
         updatedAt: string;
-        specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-        currency: string;
-        themeColor: string;
-        hasAssistants: boolean;
-        hasMultipleChairs: boolean;
-        hasDentalLab: boolean;
-        hasInsuranceCoPay: boolean;
-        hasInstallments: boolean;
-        hasOrthodontics: boolean;
-        hasGnathology: boolean;
-        hasTasks: boolean;
-        hasReclamations: boolean;
-        workspacePreset: string;
-        onboardingCompleted: boolean;
-        hasPediatricMode: boolean;
-        isOmniRole: boolean;
-        hasPayrollModule: boolean;
-        hasMarketingModule: boolean;
-        hasAnalyticsModule: boolean;
-        hasCsoScanner: boolean;
-        hasLeadsKanban: boolean;
-        hasOmnichannel: boolean;
-        hasInventoryModule: boolean;
-        aiEnableTreatmentPlan: boolean;
-        aiEnableRecommendations: boolean;
-        aiEnableDocuments: boolean;
         email?: string | null | undefined;
         kpp?: string | null | undefined;
         ogrn?: string | null | undefined;
@@ -17155,15 +16469,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }, {
         phone: string | null;
         mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -17193,41 +16498,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
-        hasAssistants?: boolean | undefined;
-        hasMultipleChairs?: boolean | undefined;
-        hasDentalLab?: boolean | undefined;
-        hasInsuranceCoPay?: boolean | undefined;
-        hasInstallments?: boolean | undefined;
-        hasOrthodontics?: boolean | undefined;
-        hasGnathology?: boolean | undefined;
-        hasTasks?: boolean | undefined;
-        hasReclamations?: boolean | undefined;
-        workspacePreset?: string | undefined;
-        onboardingCompleted?: boolean | undefined;
-        hasPediatricMode?: boolean | undefined;
-        isOmniRole?: boolean | undefined;
-        hasPayrollModule?: boolean | undefined;
-        hasMarketingModule?: boolean | undefined;
-        hasAnalyticsModule?: boolean | undefined;
-        hasCsoScanner?: boolean | undefined;
-        hasLeadsKanban?: boolean | undefined;
-        hasOmnichannel?: boolean | undefined;
-        hasInventoryModule?: boolean | undefined;
-        aiEnableTreatmentPlan?: boolean | undefined;
-        aiEnableRecommendations?: boolean | undefined;
-        aiEnableDocuments?: boolean | undefined;
     }>;
     payments: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -17236,7 +16506,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         visitId: z.ZodNullable<z.ZodString>;
         documentId: z.ZodNullable<z.ZodString>;
         amountRub: z.ZodNumber;
-        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
         status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
         paidAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
@@ -17282,7 +16552,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -17312,7 +16582,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -17344,7 +16614,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -17395,16 +16665,8 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         } | null;
         balanceRub: number;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
     };
     clinicProfile: {
         phone: string | null;
@@ -17425,32 +16687,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         networkEnabled: boolean;
         egiszEnabled: boolean;
         updatedAt: string;
-        specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-        currency: string;
-        themeColor: string;
-        hasAssistants: boolean;
-        hasMultipleChairs: boolean;
-        hasDentalLab: boolean;
-        hasInsuranceCoPay: boolean;
-        hasInstallments: boolean;
-        hasOrthodontics: boolean;
-        hasGnathology: boolean;
-        hasTasks: boolean;
-        hasReclamations: boolean;
-        workspacePreset: string;
-        onboardingCompleted: boolean;
-        hasPediatricMode: boolean;
-        isOmniRole: boolean;
-        hasPayrollModule: boolean;
-        hasMarketingModule: boolean;
-        hasAnalyticsModule: boolean;
-        hasCsoScanner: boolean;
-        hasLeadsKanban: boolean;
-        hasOmnichannel: boolean;
-        hasInventoryModule: boolean;
-        aiEnableTreatmentPlan: boolean;
-        aiEnableRecommendations: boolean;
-        aiEnableDocuments: boolean;
         email?: string | null | undefined;
         kpp?: string | null | undefined;
         ogrn?: string | null | undefined;
@@ -17461,15 +16697,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
 }, {
     payments: {
@@ -17481,7 +16708,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -17515,15 +16742,12 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         fullName: string;
         notes: string | null;
         birthDate: string | null;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         administrativeProfile?: {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -17535,11 +16759,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
     };
@@ -17572,41 +16791,6 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
         bankDetails?: string | null | undefined;
         signatoryName?: string | null | undefined;
         signatoryTitle?: string | null | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
-        hasAssistants?: boolean | undefined;
-        hasMultipleChairs?: boolean | undefined;
-        hasDentalLab?: boolean | undefined;
-        hasInsuranceCoPay?: boolean | undefined;
-        hasInstallments?: boolean | undefined;
-        hasOrthodontics?: boolean | undefined;
-        hasGnathology?: boolean | undefined;
-        hasTasks?: boolean | undefined;
-        hasReclamations?: boolean | undefined;
-        workspacePreset?: string | undefined;
-        onboardingCompleted?: boolean | undefined;
-        hasPediatricMode?: boolean | undefined;
-        isOmniRole?: boolean | undefined;
-        hasPayrollModule?: boolean | undefined;
-        hasMarketingModule?: boolean | undefined;
-        hasAnalyticsModule?: boolean | undefined;
-        hasCsoScanner?: boolean | undefined;
-        hasLeadsKanban?: boolean | undefined;
-        hasOmnichannel?: boolean | undefined;
-        hasInventoryModule?: boolean | undefined;
-        aiEnableTreatmentPlan?: boolean | undefined;
-        aiEnableRecommendations?: boolean | undefined;
-        aiEnableDocuments?: boolean | undefined;
     };
 }>;
 export type TaxXmlSourceSnapshot = z.infer<typeof taxXmlSourceSnapshotSchema>;
@@ -17658,7 +16842,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             visitId: z.ZodNullable<z.ZodString>;
             documentId: z.ZodNullable<z.ZodString>;
             amountRub: z.ZodNumber;
-            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
             status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
             paidAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
@@ -17704,7 +16888,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -17734,7 +16918,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -17766,7 +16950,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -17803,7 +16987,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -19097,12 +18281,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -19133,12 +18317,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -19556,12 +18740,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -19754,12 +18938,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -20162,9 +19346,9 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             estimatedTotalRub: z.ZodNumber;
             alternatives: z.ZodArray<z.ZodString, "many">;
             risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-            prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            prognosisAndLimits: z.ZodString;
+            controlPlan: z.ZodString;
+            doctorFullName: z.ZodString;
             plannedAt: z.ZodEffects<z.ZodString, string, string>;
             patientQuestionsAnswered: z.ZodLiteral<true>;
             planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -20174,6 +19358,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -20199,18 +19384,18 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
         }, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -20236,13 +19421,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -20722,6 +19906,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     }, "strict", z.ZodTypeAny, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -20747,13 +19932,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -21128,12 +20312,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -21472,6 +20656,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     }, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -21497,13 +20682,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -21878,12 +21062,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -22232,7 +21416,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -22245,7 +21428,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -22258,10 +21440,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }>>>;
-    signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -22371,15 +21550,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             phone: z.ZodNullable<z.ZodString>;
             email: z.ZodNullable<z.ZodString>;
             notes: z.ZodNullable<z.ZodString>;
-            insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
                 identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -22391,19 +21567,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-                    currentAligner: z.ZodDefault<z.ZodNumber>;
-                    totalAligners: z.ZodDefault<z.ZodNumber>;
-                    startDate: z.ZodDefault<z.ZodString>;
-                }, "strip", z.ZodTypeAny, {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                }, {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                }>>>;
             }, "strip", z.ZodTypeAny, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -22421,19 +21584,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -22445,11 +21601,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             }>, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -22467,19 +21618,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -22491,11 +21635,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             }>>>;
             balanceRub: z.ZodDefault<z.ZodNumber>;
             createdAt: z.ZodString;
@@ -22528,16 +21667,8 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             } | null;
             balanceRub: number;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
         }, {
             status: "active" | "archived";
             phone: string | null;
@@ -22549,15 +21680,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             fullName: string;
             notes: string | null;
             birthDate: string | null;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             administrativeProfile?: {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -22569,11 +21697,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
         }>;
@@ -22626,61 +21749,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             networkEnabled: z.ZodBoolean;
             egiszEnabled: z.ZodBoolean;
             updatedAt: z.ZodString;
-            specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-            workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                weekday: z.ZodNumber;
-                enabled: z.ZodBoolean;
-                start: z.ZodString;
-                end: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, "many">>>;
-            currency: z.ZodDefault<z.ZodString>;
-            themeColor: z.ZodDefault<z.ZodString>;
-            logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-            hasAssistants: z.ZodDefault<z.ZodBoolean>;
-            hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-            hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-            hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-            hasInstallments: z.ZodDefault<z.ZodBoolean>;
-            hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-            hasGnathology: z.ZodDefault<z.ZodBoolean>;
-            hasTasks: z.ZodDefault<z.ZodBoolean>;
-            hasReclamations: z.ZodDefault<z.ZodBoolean>;
-            workspacePreset: z.ZodDefault<z.ZodString>;
-            onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-            hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-            isOmniRole: z.ZodDefault<z.ZodBoolean>;
-            hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-            hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-            hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-            hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-            hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-            hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-            hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-            aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-            aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-            aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -22700,32 +21768,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -22736,15 +21778,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -22774,41 +21807,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         }>;
         payments: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -22817,7 +21815,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             visitId: z.ZodNullable<z.ZodString>;
             documentId: z.ZodNullable<z.ZodString>;
             amountRub: z.ZodNumber;
-            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
             status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
             paidAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
@@ -22863,7 +21861,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -22893,7 +21891,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -22925,7 +21923,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -22976,16 +21974,8 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             } | null;
             balanceRub: number;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
         };
         clinicProfile: {
             phone: string | null;
@@ -23006,32 +21996,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -23042,15 +22006,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }, {
         payments: {
@@ -23062,7 +22017,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -23096,15 +22051,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             fullName: string;
             notes: string | null;
             birthDate: string | null;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             administrativeProfile?: {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -23116,11 +22068,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
         };
@@ -23153,41 +22100,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         };
     }>>>;
     taxXmlSnapshot: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -23230,7 +22142,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -23243,7 +22154,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -23268,7 +22178,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -23299,6 +22209,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -23324,13 +22235,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -23705,12 +22615,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -24047,7 +22957,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             patientReason?: string | null | undefined;
         } | undefined;
     } | null | undefined;
-    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -24080,7 +22989,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -24131,16 +23040,8 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             } | null;
             balanceRub: number;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
         };
         clinicProfile: {
             phone: string | null;
@@ -24161,32 +23062,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -24197,15 +23072,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     } | null | undefined;
     taxXmlSnapshot?: {
@@ -24233,7 +23099,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -24246,7 +23111,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -24271,7 +23135,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -24302,6 +23166,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -24327,13 +23192,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -24708,12 +23572,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -25050,7 +23914,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             patientReason?: string | null | undefined;
         } | undefined;
     } | null | undefined;
-    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -25083,7 +23946,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -25117,15 +23980,12 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             fullName: string;
             notes: string | null;
             birthDate: string | null;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             administrativeProfile?: {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -25137,11 +23997,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
         };
@@ -25174,41 +24029,6 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         };
     } | null | undefined;
     taxXmlSnapshot?: {
@@ -25322,7 +24142,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             visitId: z.ZodNullable<z.ZodString>;
             documentId: z.ZodNullable<z.ZodString>;
             amountRub: z.ZodNumber;
-            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
             status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
             paidAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
@@ -25368,7 +24188,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -25398,7 +24218,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -25430,7 +24250,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -25467,7 +24287,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -26761,12 +25581,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -26797,12 +25617,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -27220,12 +26040,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -27418,12 +26238,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -27826,9 +26646,9 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             estimatedTotalRub: z.ZodNumber;
             alternatives: z.ZodArray<z.ZodString, "many">;
             risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-            prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            prognosisAndLimits: z.ZodString;
+            controlPlan: z.ZodString;
+            doctorFullName: z.ZodString;
             plannedAt: z.ZodEffects<z.ZodString, string, string>;
             patientQuestionsAnswered: z.ZodLiteral<true>;
             planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -27838,6 +26658,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -27863,18 +26684,18 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
         }, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -27900,13 +26721,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -28386,6 +27206,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     }, "strict", z.ZodTypeAny, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -28411,13 +27232,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -28792,12 +27612,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -29136,6 +27956,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     }, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -29161,13 +27982,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -29542,12 +28362,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -29896,7 +28716,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29909,7 +28728,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -29922,10 +28740,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }>>>;
-    signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -30035,15 +28850,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             phone: z.ZodNullable<z.ZodString>;
             email: z.ZodNullable<z.ZodString>;
             notes: z.ZodNullable<z.ZodString>;
-            insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
                 identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -30055,19 +28867,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-                    currentAligner: z.ZodDefault<z.ZodNumber>;
-                    totalAligners: z.ZodDefault<z.ZodNumber>;
-                    startDate: z.ZodDefault<z.ZodString>;
-                }, "strip", z.ZodTypeAny, {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                }, {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                }>>>;
             }, "strip", z.ZodTypeAny, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -30085,19 +28884,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -30109,11 +28901,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             }>, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -30131,19 +28918,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -30155,11 +28935,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             }>>>;
             balanceRub: z.ZodDefault<z.ZodNumber>;
             createdAt: z.ZodString;
@@ -30192,16 +28967,8 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             } | null;
             balanceRub: number;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
         }, {
             status: "active" | "archived";
             phone: string | null;
@@ -30213,15 +28980,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             fullName: string;
             notes: string | null;
             birthDate: string | null;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             administrativeProfile?: {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -30233,11 +28997,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
         }>;
@@ -30290,61 +29049,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             networkEnabled: z.ZodBoolean;
             egiszEnabled: z.ZodBoolean;
             updatedAt: z.ZodString;
-            specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-            workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                weekday: z.ZodNumber;
-                enabled: z.ZodBoolean;
-                start: z.ZodString;
-                end: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, "many">>>;
-            currency: z.ZodDefault<z.ZodString>;
-            themeColor: z.ZodDefault<z.ZodString>;
-            logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-            hasAssistants: z.ZodDefault<z.ZodBoolean>;
-            hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-            hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-            hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-            hasInstallments: z.ZodDefault<z.ZodBoolean>;
-            hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-            hasGnathology: z.ZodDefault<z.ZodBoolean>;
-            hasTasks: z.ZodDefault<z.ZodBoolean>;
-            hasReclamations: z.ZodDefault<z.ZodBoolean>;
-            workspacePreset: z.ZodDefault<z.ZodString>;
-            onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-            hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-            isOmniRole: z.ZodDefault<z.ZodBoolean>;
-            hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-            hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-            hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-            hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-            hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-            hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-            hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-            aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-            aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-            aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -30364,32 +29068,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -30400,15 +29078,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -30438,41 +29107,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         }>;
         payments: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -30481,7 +29115,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             visitId: z.ZodNullable<z.ZodString>;
             documentId: z.ZodNullable<z.ZodString>;
             amountRub: z.ZodNumber;
-            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+            method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
             status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
             paidAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
@@ -30527,7 +29161,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -30557,7 +29191,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -30589,7 +29223,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -30640,16 +29274,8 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd: string | null;
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
-                orthodonticProgress: {
-                    currentAligner: number;
-                    totalAligners: number;
-                    startDate: string;
-                } | null;
-                insuranceContractId?: string | null | undefined;
             } | null;
             balanceRub: number;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
         };
         clinicProfile: {
             phone: string | null;
@@ -30670,32 +29296,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -30706,15 +29306,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }, {
         payments: {
@@ -30726,7 +29317,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             createdAt: string;
             amountRub: number;
             documentId: string | null;
-            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+            method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
             paidAt: string | null;
             note: string | null;
             fiscalReceiptNumber?: string | null | undefined;
@@ -30760,15 +29351,12 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             fullName: string;
             notes: string | null;
             birthDate: string | null;
-            insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             administrativeProfile?: {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
                 registrationAddress?: string | null | undefined;
                 residentialAddress?: string | null | undefined;
                 insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 snils?: string | null | undefined;
                 legalRepresentativeFullName?: string | null | undefined;
                 legalRepresentativeRelationship?: string | null | undefined;
@@ -30780,11 +29368,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentEnd?: string | null | undefined;
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
-                orthodonticProgress?: {
-                    currentAligner?: number | undefined;
-                    totalAligners?: number | undefined;
-                    startDate?: string | undefined;
-                } | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
         };
@@ -30817,41 +29400,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         };
     }>>>;
     taxXmlSnapshot: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -30965,7 +29513,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -30978,7 +29525,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -30993,7 +29539,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         statusReviewed: true;
         correctionDocumentId?: string | null | undefined;
     } | null | undefined;
-    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -31048,7 +29593,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     issuedAt: string | null;
     taxYear?: number | null | undefined;
     taxPayerInn?: string | null | undefined;
-    cryptoSignaturePkcs7?: string | null | undefined;
     signatureAttestation?: {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -31061,7 +29605,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null | undefined;
     voidedAt?: string | null | undefined;
     voidAttestation?: {
@@ -31076,7 +29619,6 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
         replacementRequired?: boolean | undefined;
         patientOrPayerNotified?: boolean | undefined;
     } | null | undefined;
-    signatureSvg?: string | null | undefined;
     releaseJournalEntry?: {
         id: string;
         patientId: string;
@@ -31143,7 +29685,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: z.ZodLiteral<true>;
         clinicRepresentativeSigned: z.ZodLiteral<true>;
         note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -31156,7 +29697,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }, {
         mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
         signedAt: string;
@@ -31169,9 +29709,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     }>>;
-    cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     voidAttestation: z.ZodNullable<z.ZodObject<{
         reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
         reasonText: z.ZodString;
@@ -31319,7 +29857,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null;
     voidAttestation: {
         staffFullName: string;
@@ -31378,7 +29915,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     sourceNote: string;
     sourceCheckedAt: string;
     sourceUrls: string[];
-    cryptoSignaturePkcs7?: string | null | undefined;
 }, {
     status: "draft" | "voided" | "issued";
     title: string;
@@ -31403,7 +29939,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
         recipientSigned: true;
         clinicRepresentativeSigned: true;
         note?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
     } | null;
     voidAttestation: {
         staffFullName: string;
@@ -31462,7 +29997,6 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     sourceNote: string;
     sourceCheckedAt: string;
     sourceUrls: string[];
-    cryptoSignaturePkcs7?: string | null | undefined;
 }>;
 export type DocumentAuditFacts = z.infer<typeof documentAuditFactsSchema>;
 export declare const imagingStudySchema: z.ZodObject<{
@@ -31585,44 +30119,6 @@ export declare const auditEventSchema: z.ZodObject<{
     entityId: string;
 }>;
 export type AuditEvent = z.infer<typeof auditEventSchema>;
-export declare const insuranceContractSchema: z.ZodObject<{
-    id: z.ZodString;
-    organizationId: z.ZodString;
-    companyName: z.ZodString;
-    policyNumberMask: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    coverageTherapyPct: z.ZodDefault<z.ZodNumber>;
-    coverageSurgeryPct: z.ZodDefault<z.ZodNumber>;
-    coverageOrthoPct: z.ZodDefault<z.ZodNumber>;
-    coverageHygienePct: z.ZodDefault<z.ZodNumber>;
-    annualLimitRub: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    isActive: z.ZodDefault<z.ZodBoolean>;
-    createdAt: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    organizationId: string;
-    createdAt: string;
-    companyName: string;
-    coverageTherapyPct: number;
-    coverageSurgeryPct: number;
-    coverageOrthoPct: number;
-    coverageHygienePct: number;
-    isActive: boolean;
-    policyNumberMask?: string | null | undefined;
-    annualLimitRub?: number | null | undefined;
-}, {
-    id: string;
-    organizationId: string;
-    createdAt: string;
-    companyName: string;
-    policyNumberMask?: string | null | undefined;
-    coverageTherapyPct?: number | undefined;
-    coverageSurgeryPct?: number | undefined;
-    coverageOrthoPct?: number | undefined;
-    coverageHygienePct?: number | undefined;
-    annualLimitRub?: number | null | undefined;
-    isActive?: boolean | undefined;
-}>;
-export type InsuranceContract = z.infer<typeof insuranceContractSchema>;
 export declare const dashboardSchema: z.ZodObject<{
     clinicName: z.ZodString;
     todayIso: z.ZodString;
@@ -31676,61 +30172,6 @@ export declare const dashboardSchema: z.ZodObject<{
             networkEnabled: z.ZodBoolean;
             egiszEnabled: z.ZodBoolean;
             updatedAt: z.ZodString;
-            specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-            workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                weekday: z.ZodNumber;
-                enabled: z.ZodBoolean;
-                start: z.ZodString;
-                end: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, "many">>>;
-            currency: z.ZodDefault<z.ZodString>;
-            themeColor: z.ZodDefault<z.ZodString>;
-            logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-            hasAssistants: z.ZodDefault<z.ZodBoolean>;
-            hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-            hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-            hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-            hasInstallments: z.ZodDefault<z.ZodBoolean>;
-            hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-            hasGnathology: z.ZodDefault<z.ZodBoolean>;
-            hasTasks: z.ZodDefault<z.ZodBoolean>;
-            hasReclamations: z.ZodDefault<z.ZodBoolean>;
-            workspacePreset: z.ZodDefault<z.ZodString>;
-            onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-            hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-            isOmniRole: z.ZodDefault<z.ZodBoolean>;
-            hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-            hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-            hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-            hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-            hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-            hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-            hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-            aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-            aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-            aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -31750,32 +30191,6 @@ export declare const dashboardSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -31786,15 +30201,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }, {
             phone: string | null;
             mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -31824,41 +30230,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         }>;
         staff: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -32120,8 +30491,6 @@ export declare const dashboardSchema: z.ZodObject<{
         }>, "many">;
         modeHints: z.ZodArray<z.ZodString, "many">;
         soloDoctorMode: z.ZodOptional<z.ZodBoolean>;
-        marketingSettings: z.ZodOptional<z.ZodAny>;
-        reportingSettings: z.ZodOptional<z.ZodAny>;
     }, "strip", z.ZodTypeAny, {
         profile: {
             phone: string | null;
@@ -32142,32 +30511,6 @@ export declare const dashboardSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -32178,15 +30521,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         staff: {
             active: boolean;
@@ -32266,8 +30600,6 @@ export declare const dashboardSchema: z.ZodObject<{
         }[];
         modeHints: string[];
         soloDoctorMode?: boolean | undefined;
-        marketingSettings?: any;
-        reportingSettings?: any;
     }, {
         profile: {
             phone: string | null;
@@ -32298,41 +30630,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         };
         staff: {
             active: boolean;
@@ -32412,8 +30709,6 @@ export declare const dashboardSchema: z.ZodObject<{
         }[];
         modeHints: string[];
         soloDoctorMode?: boolean | undefined;
-        marketingSettings?: any;
-        reportingSettings?: any;
     }>;
     shiftIntelligence: z.ZodObject<{
         modeFit: z.ZodObject<{
@@ -32726,15 +31021,12 @@ export declare const dashboardSchema: z.ZodObject<{
         phone: z.ZodNullable<z.ZodString>;
         email: z.ZodNullable<z.ZodString>;
         notes: z.ZodNullable<z.ZodString>;
-        insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
             identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-            insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -32746,19 +31038,6 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-            orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-                currentAligner: z.ZodDefault<z.ZodNumber>;
-                totalAligners: z.ZodDefault<z.ZodNumber>;
-                startDate: z.ZodDefault<z.ZodString>;
-            }, "strip", z.ZodTypeAny, {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            }, {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            }>>>;
         }, "strip", z.ZodTypeAny, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -32776,19 +31055,12 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -32800,11 +31072,6 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         }>, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -32822,19 +31089,12 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -32846,11 +31106,6 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         }>>>;
         balanceRub: z.ZodDefault<z.ZodNumber>;
         createdAt: z.ZodString;
@@ -32883,16 +31138,8 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         } | null;
         balanceRub: number;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
     }, {
         status: "active" | "archived";
         phone: string | null;
@@ -32904,15 +31151,12 @@ export declare const dashboardSchema: z.ZodObject<{
         fullName: string;
         notes: string | null;
         birthDate: string | null;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         administrativeProfile?: {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -32924,11 +31168,6 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
     }>, "many">;
@@ -33015,7 +31254,6 @@ export declare const dashboardSchema: z.ZodObject<{
         endsAt: z.ZodString;
         reason: z.ZodNullable<z.ZodString>;
         comment: z.ZodNullable<z.ZodString>;
-        version: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         status: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show";
         id: string;
@@ -33027,7 +31265,6 @@ export declare const dashboardSchema: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         comment: string | null;
-        version?: number | undefined;
         assistantUserId?: string | null | undefined;
     }, {
         status: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show";
@@ -33040,7 +31277,6 @@ export declare const dashboardSchema: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         comment: string | null;
-        version?: number | undefined;
         assistantUserId?: string | null | undefined;
     }>, "many">;
     appointmentReadiness: z.ZodArray<z.ZodObject<{
@@ -33130,7 +31366,7 @@ export declare const dashboardSchema: z.ZodObject<{
         appointmentId: string | null;
         section: "shift" | "visit" | "imaging" | "documents" | "patients" | "schedule" | "finance" | "communications" | "settings";
     }>, "many">;
-    activeVisit: z.ZodNullable<z.ZodObject<{
+    activeVisit: z.ZodObject<{
         id: z.ZodString;
         organizationId: z.ZodString;
         patientId: z.ZodString;
@@ -33145,19 +31381,6 @@ export declare const dashboardSchema: z.ZodObject<{
         doctorSummary: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
-        diary: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-            id: z.ZodString;
-            complications: z.ZodNullable<z.ZodString>;
-            comorbidities: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        }, {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        }>>>;
     }, "strip", z.ZodTypeAny, {
         status: "draft" | "signed" | "voided";
         id: string;
@@ -33173,11 +31396,6 @@ export declare const dashboardSchema: z.ZodObject<{
         diagnosis: string | null;
         treatmentPlan: string | null;
         doctorSummary: string | null;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
     }, {
         status: "draft" | "signed" | "voided";
         id: string;
@@ -33193,13 +31411,8 @@ export declare const dashboardSchema: z.ZodObject<{
         treatmentPlan: string | null;
         doctorSummary: string | null;
         revision?: number | undefined;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
-    }>>;
-    visitCloseChecklist: z.ZodNullable<z.ZodObject<{
+    }>;
+    visitCloseChecklist: z.ZodObject<{
         visitId: z.ZodString;
         readyToSign: z.ZodBoolean;
         score: z.ZodNumber;
@@ -33270,7 +31483,7 @@ export declare const dashboardSchema: z.ZodObject<{
         score: number;
         readyToSign: boolean;
         blockingItems: number;
-    }>>;
+    }>;
     documents: z.ZodArray<z.ZodObject<Omit<{
         id: z.ZodString;
         organizationId: z.ZodString;
@@ -33296,7 +31509,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 visitId: z.ZodNullable<z.ZodString>;
                 documentId: z.ZodNullable<z.ZodString>;
                 amountRub: z.ZodNumber;
-                method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+                method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
                 status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
                 paidAt: z.ZodNullable<z.ZodString>;
                 createdAt: z.ZodString;
@@ -33342,7 +31555,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -33372,7 +31585,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -33404,7 +31617,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -33441,7 +31654,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -34735,12 +32948,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -34771,12 +32984,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -35194,12 +33407,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -35392,12 +33605,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -35800,9 +34013,9 @@ export declare const dashboardSchema: z.ZodObject<{
                 estimatedTotalRub: z.ZodNumber;
                 alternatives: z.ZodArray<z.ZodString, "many">;
                 risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-                prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                prognosisAndLimits: z.ZodString;
+                controlPlan: z.ZodString;
+                doctorFullName: z.ZodString;
                 plannedAt: z.ZodEffects<z.ZodString, string, string>;
                 patientQuestionsAnswered: z.ZodLiteral<true>;
                 planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -35812,6 +34025,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, "strip", z.ZodTypeAny, {
                 estimatedTotalRub: number;
+                doctorFullName: string;
                 teethOrArea: string;
                 clinicalToothRows: {
                     status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -35837,18 +34051,18 @@ export declare const dashboardSchema: z.ZodObject<{
                 }[];
                 alternatives: string[];
                 risksAndLimitations: string[];
+                prognosisAndLimits: string;
+                controlPlan: string;
                 plannedAt: string;
                 patientQuestionsAnswered: true;
                 planRequiresSeparateConsent: true;
                 planRequiresNewApprovalOnChange: true;
-                doctorFullName?: string | null | undefined;
-                prognosisAndLimits?: string | null | undefined;
-                controlPlan?: string | null | undefined;
                 patientFriendlyExplanation?: string | null | undefined;
                 patientHygieneAdvice?: string | null | undefined;
                 customHygieneTextOverride?: string | null | undefined;
             }, {
                 estimatedTotalRub: number;
+                doctorFullName: string;
                 teethOrArea: string;
                 clinicalToothRows: {
                     status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -35874,13 +34088,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 }[];
                 alternatives: string[];
                 risksAndLimitations: string[];
+                prognosisAndLimits: string;
+                controlPlan: string;
                 plannedAt: string;
                 patientQuestionsAnswered: true;
                 planRequiresSeparateConsent: true;
                 planRequiresNewApprovalOnChange: true;
-                doctorFullName?: string | null | undefined;
-                prognosisAndLimits?: string | null | undefined;
-                controlPlan?: string | null | undefined;
                 patientFriendlyExplanation?: string | null | undefined;
                 patientHygieneAdvice?: string | null | undefined;
                 customHygieneTextOverride?: string | null | undefined;
@@ -36360,6 +34573,7 @@ export declare const dashboardSchema: z.ZodObject<{
         }, "strict", z.ZodTypeAny, {
             treatmentPlan?: {
                 estimatedTotalRub: number;
+                doctorFullName: string;
                 teethOrArea: string;
                 clinicalToothRows: {
                     status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -36385,13 +34599,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 }[];
                 alternatives: string[];
                 risksAndLimitations: string[];
+                prognosisAndLimits: string;
+                controlPlan: string;
                 plannedAt: string;
                 patientQuestionsAnswered: true;
                 planRequiresSeparateConsent: true;
                 planRequiresNewApprovalOnChange: true;
-                doctorFullName?: string | null | undefined;
-                prognosisAndLimits?: string | null | undefined;
-                controlPlan?: string | null | undefined;
                 patientFriendlyExplanation?: string | null | undefined;
                 patientHygieneAdvice?: string | null | undefined;
                 customHygieneTextOverride?: string | null | undefined;
@@ -36766,12 +34979,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -37110,6 +35323,7 @@ export declare const dashboardSchema: z.ZodObject<{
         }, {
             treatmentPlan?: {
                 estimatedTotalRub: number;
+                doctorFullName: string;
                 teethOrArea: string;
                 clinicalToothRows: {
                     status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -37135,13 +35349,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 }[];
                 alternatives: string[];
                 risksAndLimitations: string[];
+                prognosisAndLimits: string;
+                controlPlan: string;
                 plannedAt: string;
                 patientQuestionsAnswered: true;
                 planRequiresSeparateConsent: true;
                 planRequiresNewApprovalOnChange: true;
-                doctorFullName?: string | null | undefined;
-                prognosisAndLimits?: string | null | undefined;
-                controlPlan?: string | null | undefined;
                 patientFriendlyExplanation?: string | null | undefined;
                 patientHygieneAdvice?: string | null | undefined;
                 customHygieneTextOverride?: string | null | undefined;
@@ -37516,12 +35729,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     primaryDiagnosis: string;
                     orders: string;
                     informedConsentOrRefusal: string;
-                    complications?: string | null | undefined;
-                    comorbidities?: string | null | undefined;
                     doctorPosition?: string | null | undefined;
                     doctorSpecialty?: string | null | undefined;
                     location?: string | null | undefined;
                     primaryDiagnosisIcd10?: string | null | undefined;
+                    complications?: string | null | undefined;
+                    comorbidities?: string | null | undefined;
                     externalCause?: string | null | undefined;
                     healthGroup?: string | null | undefined;
                     dispensaryObservation?: string | null | undefined;
@@ -37870,7 +36083,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: z.ZodLiteral<true>;
             clinicRepresentativeSigned: z.ZodLiteral<true>;
             note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strict", z.ZodTypeAny, {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -37883,7 +36095,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         }, {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -37896,10 +36107,7 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         }>>>;
-        signatureSvg: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        cryptoSignaturePkcs7: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         voidAttestation: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             reasonCode: z.ZodEnum<["draft_error", "issued_in_error", "patient_request", "duplicate_document", "tax_certificate_correction", "medical_release_correction", "payment_correction", "other"]>;
             reasonText: z.ZodString;
@@ -38009,15 +36217,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 phone: z.ZodNullable<z.ZodString>;
                 email: z.ZodNullable<z.ZodString>;
                 notes: z.ZodNullable<z.ZodString>;
-                insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 administrativeProfile: z.ZodDefault<z.ZodNullable<z.ZodEffects<z.ZodObject<{
                     identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                    insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                     snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -38029,19 +36234,6 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-                    orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-                        currentAligner: z.ZodDefault<z.ZodNumber>;
-                        totalAligners: z.ZodDefault<z.ZodNumber>;
-                        startDate: z.ZodDefault<z.ZodString>;
-                    }, "strip", z.ZodTypeAny, {
-                        currentAligner: number;
-                        totalAligners: number;
-                        startDate: string;
-                    }, {
-                        currentAligner?: number | undefined;
-                        totalAligners?: number | undefined;
-                        startDate?: string | undefined;
-                    }>>>;
                 }, "strip", z.ZodTypeAny, {
                     identityDocument: string | null;
                     taxpayerInn: string | null;
@@ -38059,19 +36251,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd: string | null;
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
-                    orthodonticProgress: {
-                        currentAligner: number;
-                        totalAligners: number;
-                        startDate: string;
-                    } | null;
-                    insuranceContractId?: string | null | undefined;
                 }, {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
                     registrationAddress?: string | null | undefined;
                     residentialAddress?: string | null | undefined;
                     insurancePolicyNumber?: string | null | undefined;
-                    insuranceContractId?: string | null | undefined;
                     snils?: string | null | undefined;
                     legalRepresentativeFullName?: string | null | undefined;
                     legalRepresentativeRelationship?: string | null | undefined;
@@ -38083,11 +36268,6 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd?: string | null | undefined;
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
-                    orthodonticProgress?: {
-                        currentAligner?: number | undefined;
-                        totalAligners?: number | undefined;
-                        startDate?: string | undefined;
-                    } | null | undefined;
                 }>, {
                     identityDocument: string | null;
                     taxpayerInn: string | null;
@@ -38105,19 +36285,12 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd: string | null;
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
-                    orthodonticProgress: {
-                        currentAligner: number;
-                        totalAligners: number;
-                        startDate: string;
-                    } | null;
-                    insuranceContractId?: string | null | undefined;
                 }, {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
                     registrationAddress?: string | null | undefined;
                     residentialAddress?: string | null | undefined;
                     insurancePolicyNumber?: string | null | undefined;
-                    insuranceContractId?: string | null | undefined;
                     snils?: string | null | undefined;
                     legalRepresentativeFullName?: string | null | undefined;
                     legalRepresentativeRelationship?: string | null | undefined;
@@ -38129,11 +36302,6 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd?: string | null | undefined;
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
-                    orthodonticProgress?: {
-                        currentAligner?: number | undefined;
-                        totalAligners?: number | undefined;
-                        startDate?: string | undefined;
-                    } | null | undefined;
                 }>>>;
                 balanceRub: z.ZodDefault<z.ZodNumber>;
                 createdAt: z.ZodString;
@@ -38166,16 +36334,8 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd: string | null;
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
-                    orthodonticProgress: {
-                        currentAligner: number;
-                        totalAligners: number;
-                        startDate: string;
-                    } | null;
-                    insuranceContractId?: string | null | undefined;
                 } | null;
                 balanceRub: number;
-                insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
             }, {
                 status: "active" | "archived";
                 phone: string | null;
@@ -38187,15 +36347,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 fullName: string;
                 notes: string | null;
                 birthDate: string | null;
-                insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 administrativeProfile?: {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
                     registrationAddress?: string | null | undefined;
                     residentialAddress?: string | null | undefined;
                     insurancePolicyNumber?: string | null | undefined;
-                    insuranceContractId?: string | null | undefined;
                     snils?: string | null | undefined;
                     legalRepresentativeFullName?: string | null | undefined;
                     legalRepresentativeRelationship?: string | null | undefined;
@@ -38207,11 +36364,6 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd?: string | null | undefined;
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
-                    orthodonticProgress?: {
-                        currentAligner?: number | undefined;
-                        totalAligners?: number | undefined;
-                        startDate?: string | undefined;
-                    } | null | undefined;
                 } | null | undefined;
                 balanceRub?: number | undefined;
             }>;
@@ -38264,61 +36416,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 networkEnabled: z.ZodBoolean;
                 egiszEnabled: z.ZodBoolean;
                 updatedAt: z.ZodString;
-                specializations: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-                workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                    weekday: z.ZodNumber;
-                    enabled: z.ZodBoolean;
-                    start: z.ZodString;
-                    end: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, "many">>>;
-                currency: z.ZodDefault<z.ZodString>;
-                themeColor: z.ZodDefault<z.ZodString>;
-                logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
-                hasAssistants: z.ZodDefault<z.ZodBoolean>;
-                hasMultipleChairs: z.ZodDefault<z.ZodBoolean>;
-                hasDentalLab: z.ZodDefault<z.ZodBoolean>;
-                hasInsuranceCoPay: z.ZodDefault<z.ZodBoolean>;
-                hasInstallments: z.ZodDefault<z.ZodBoolean>;
-                hasOrthodontics: z.ZodDefault<z.ZodBoolean>;
-                hasGnathology: z.ZodDefault<z.ZodBoolean>;
-                hasTasks: z.ZodDefault<z.ZodBoolean>;
-                hasReclamations: z.ZodDefault<z.ZodBoolean>;
-                workspacePreset: z.ZodDefault<z.ZodString>;
-                onboardingCompleted: z.ZodDefault<z.ZodBoolean>;
-                hasPediatricMode: z.ZodDefault<z.ZodBoolean>;
-                isOmniRole: z.ZodDefault<z.ZodBoolean>;
-                hasPayrollModule: z.ZodDefault<z.ZodBoolean>;
-                hasMarketingModule: z.ZodDefault<z.ZodBoolean>;
-                hasAnalyticsModule: z.ZodDefault<z.ZodBoolean>;
-                hasCsoScanner: z.ZodDefault<z.ZodBoolean>;
-                hasLeadsKanban: z.ZodDefault<z.ZodBoolean>;
-                hasOmnichannel: z.ZodDefault<z.ZodBoolean>;
-                hasInventoryModule: z.ZodDefault<z.ZodBoolean>;
-                aiEnableTreatmentPlan: z.ZodDefault<z.ZodBoolean>;
-                aiEnableRecommendations: z.ZodDefault<z.ZodBoolean>;
-                aiEnableDocuments: z.ZodDefault<z.ZodBoolean>;
             }, "strip", z.ZodTypeAny, {
                 phone: string | null;
                 mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -38338,32 +36435,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 networkEnabled: boolean;
                 egiszEnabled: boolean;
                 updatedAt: string;
-                specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-                currency: string;
-                themeColor: string;
-                hasAssistants: boolean;
-                hasMultipleChairs: boolean;
-                hasDentalLab: boolean;
-                hasInsuranceCoPay: boolean;
-                hasInstallments: boolean;
-                hasOrthodontics: boolean;
-                hasGnathology: boolean;
-                hasTasks: boolean;
-                hasReclamations: boolean;
-                workspacePreset: string;
-                onboardingCompleted: boolean;
-                hasPediatricMode: boolean;
-                isOmniRole: boolean;
-                hasPayrollModule: boolean;
-                hasMarketingModule: boolean;
-                hasAnalyticsModule: boolean;
-                hasCsoScanner: boolean;
-                hasLeadsKanban: boolean;
-                hasOmnichannel: boolean;
-                hasInventoryModule: boolean;
-                aiEnableTreatmentPlan: boolean;
-                aiEnableRecommendations: boolean;
-                aiEnableDocuments: boolean;
                 email?: string | null | undefined;
                 kpp?: string | null | undefined;
                 ogrn?: string | null | undefined;
@@ -38374,15 +36445,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 bankDetails?: string | null | undefined;
                 signatoryName?: string | null | undefined;
                 signatoryTitle?: string | null | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             }, {
                 phone: string | null;
                 mode: "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
@@ -38412,41 +36474,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 bankDetails?: string | null | undefined;
                 signatoryName?: string | null | undefined;
                 signatoryTitle?: string | null | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
-                hasAssistants?: boolean | undefined;
-                hasMultipleChairs?: boolean | undefined;
-                hasDentalLab?: boolean | undefined;
-                hasInsuranceCoPay?: boolean | undefined;
-                hasInstallments?: boolean | undefined;
-                hasOrthodontics?: boolean | undefined;
-                hasGnathology?: boolean | undefined;
-                hasTasks?: boolean | undefined;
-                hasReclamations?: boolean | undefined;
-                workspacePreset?: string | undefined;
-                onboardingCompleted?: boolean | undefined;
-                hasPediatricMode?: boolean | undefined;
-                isOmniRole?: boolean | undefined;
-                hasPayrollModule?: boolean | undefined;
-                hasMarketingModule?: boolean | undefined;
-                hasAnalyticsModule?: boolean | undefined;
-                hasCsoScanner?: boolean | undefined;
-                hasLeadsKanban?: boolean | undefined;
-                hasOmnichannel?: boolean | undefined;
-                hasInventoryModule?: boolean | undefined;
-                aiEnableTreatmentPlan?: boolean | undefined;
-                aiEnableRecommendations?: boolean | undefined;
-                aiEnableDocuments?: boolean | undefined;
             }>;
             payments: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -38455,7 +36482,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 visitId: z.ZodNullable<z.ZodString>;
                 documentId: z.ZodNullable<z.ZodString>;
                 amountRub: z.ZodNumber;
-                method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+                method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
                 status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
                 paidAt: z.ZodNullable<z.ZodString>;
                 createdAt: z.ZodString;
@@ -38501,7 +36528,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -38531,7 +36558,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -38563,7 +36590,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -38614,16 +36641,8 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd: string | null;
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
-                    orthodonticProgress: {
-                        currentAligner: number;
-                        totalAligners: number;
-                        startDate: string;
-                    } | null;
-                    insuranceContractId?: string | null | undefined;
                 } | null;
                 balanceRub: number;
-                insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
             };
             clinicProfile: {
                 phone: string | null;
@@ -38644,32 +36663,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 networkEnabled: boolean;
                 egiszEnabled: boolean;
                 updatedAt: string;
-                specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-                currency: string;
-                themeColor: string;
-                hasAssistants: boolean;
-                hasMultipleChairs: boolean;
-                hasDentalLab: boolean;
-                hasInsuranceCoPay: boolean;
-                hasInstallments: boolean;
-                hasOrthodontics: boolean;
-                hasGnathology: boolean;
-                hasTasks: boolean;
-                hasReclamations: boolean;
-                workspacePreset: string;
-                onboardingCompleted: boolean;
-                hasPediatricMode: boolean;
-                isOmniRole: boolean;
-                hasPayrollModule: boolean;
-                hasMarketingModule: boolean;
-                hasAnalyticsModule: boolean;
-                hasCsoScanner: boolean;
-                hasLeadsKanban: boolean;
-                hasOmnichannel: boolean;
-                hasInventoryModule: boolean;
-                aiEnableTreatmentPlan: boolean;
-                aiEnableRecommendations: boolean;
-                aiEnableDocuments: boolean;
                 email?: string | null | undefined;
                 kpp?: string | null | undefined;
                 ogrn?: string | null | undefined;
@@ -38680,15 +36673,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 bankDetails?: string | null | undefined;
                 signatoryName?: string | null | undefined;
                 signatoryTitle?: string | null | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }, {
             payments: {
@@ -38700,7 +36684,7 @@ export declare const dashboardSchema: z.ZodObject<{
                 createdAt: string;
                 amountRub: number;
                 documentId: string | null;
-                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+                method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
                 paidAt: string | null;
                 note: string | null;
                 fiscalReceiptNumber?: string | null | undefined;
@@ -38734,15 +36718,12 @@ export declare const dashboardSchema: z.ZodObject<{
                 fullName: string;
                 notes: string | null;
                 birthDate: string | null;
-                insurancePolicyNumber?: string | null | undefined;
-                insuranceContractId?: string | null | undefined;
                 administrativeProfile?: {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
                     registrationAddress?: string | null | undefined;
                     residentialAddress?: string | null | undefined;
                     insurancePolicyNumber?: string | null | undefined;
-                    insuranceContractId?: string | null | undefined;
                     snils?: string | null | undefined;
                     legalRepresentativeFullName?: string | null | undefined;
                     legalRepresentativeRelationship?: string | null | undefined;
@@ -38754,11 +36735,6 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentEnd?: string | null | undefined;
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
-                    orthodonticProgress?: {
-                        currentAligner?: number | undefined;
-                        totalAligners?: number | undefined;
-                        startDate?: string | undefined;
-                    } | null | undefined;
                 } | null | undefined;
                 balanceRub?: number | undefined;
             };
@@ -38791,41 +36767,6 @@ export declare const dashboardSchema: z.ZodObject<{
                 bankDetails?: string | null | undefined;
                 signatoryName?: string | null | undefined;
                 signatoryTitle?: string | null | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
-                hasAssistants?: boolean | undefined;
-                hasMultipleChairs?: boolean | undefined;
-                hasDentalLab?: boolean | undefined;
-                hasInsuranceCoPay?: boolean | undefined;
-                hasInstallments?: boolean | undefined;
-                hasOrthodontics?: boolean | undefined;
-                hasGnathology?: boolean | undefined;
-                hasTasks?: boolean | undefined;
-                hasReclamations?: boolean | undefined;
-                workspacePreset?: string | undefined;
-                onboardingCompleted?: boolean | undefined;
-                hasPediatricMode?: boolean | undefined;
-                isOmniRole?: boolean | undefined;
-                hasPayrollModule?: boolean | undefined;
-                hasMarketingModule?: boolean | undefined;
-                hasAnalyticsModule?: boolean | undefined;
-                hasCsoScanner?: boolean | undefined;
-                hasLeadsKanban?: boolean | undefined;
-                hasOmnichannel?: boolean | undefined;
-                hasInventoryModule?: boolean | undefined;
-                aiEnableTreatmentPlan?: boolean | undefined;
-                aiEnableRecommendations?: boolean | undefined;
-                aiEnableDocuments?: boolean | undefined;
             };
         }>>>;
         taxXmlSnapshot: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -38939,7 +36880,6 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -38952,7 +36892,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -38967,7 +36906,6 @@ export declare const dashboardSchema: z.ZodObject<{
             statusReviewed: true;
             correctionDocumentId?: string | null | undefined;
         } | null | undefined;
-        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -39022,7 +36960,6 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -39035,7 +36972,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -39050,7 +36986,6 @@ export declare const dashboardSchema: z.ZodObject<{
             replacementRequired?: boolean | undefined;
             patientOrPayerNotified?: boolean | undefined;
         } | null | undefined;
-        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -39491,7 +37426,7 @@ export declare const dashboardSchema: z.ZodObject<{
         visitId: z.ZodNullable<z.ZodString>;
         documentId: z.ZodNullable<z.ZodString>;
         amountRub: z.ZodNumber;
-        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>;
+        method: z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>;
         status: z.ZodEnum<["planned", "paid", "refunded", "voided"]>;
         paidAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
@@ -39537,7 +37472,7 @@ export declare const dashboardSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -39567,7 +37502,7 @@ export declare const dashboardSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -39598,7 +37533,6 @@ export declare const dashboardSchema: z.ZodObject<{
         draftDocumentAmountRub: z.ZodNumber;
         openTreatmentItems: z.ZodNumber;
         unpaidDocuments: z.ZodNumber;
-        insuranceCoverageRub: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         totalPlannedRub: number;
         totalDiscountRub: number;
@@ -39608,7 +37542,6 @@ export declare const dashboardSchema: z.ZodObject<{
         draftDocumentAmountRub: number;
         openTreatmentItems: number;
         unpaidDocuments: number;
-        insuranceCoverageRub: number;
     }, {
         totalPlannedRub: number;
         totalDiscountRub: number;
@@ -39618,7 +37551,6 @@ export declare const dashboardSchema: z.ZodObject<{
         draftDocumentAmountRub: number;
         openTreatmentItems: number;
         unpaidDocuments: number;
-        insuranceCoverageRub?: number | undefined;
     }>;
     communicationTemplates: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -39868,43 +37800,6 @@ export declare const dashboardSchema: z.ZodObject<{
         entityId: string;
     }>, "many">;
     complianceWarnings: z.ZodArray<z.ZodString, "many">;
-    insuranceContracts: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        organizationId: z.ZodString;
-        companyName: z.ZodString;
-        policyNumberMask: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        coverageTherapyPct: z.ZodDefault<z.ZodNumber>;
-        coverageSurgeryPct: z.ZodDefault<z.ZodNumber>;
-        coverageOrthoPct: z.ZodDefault<z.ZodNumber>;
-        coverageHygienePct: z.ZodDefault<z.ZodNumber>;
-        annualLimitRub: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-        isActive: z.ZodDefault<z.ZodBoolean>;
-        createdAt: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        id: string;
-        organizationId: string;
-        createdAt: string;
-        companyName: string;
-        coverageTherapyPct: number;
-        coverageSurgeryPct: number;
-        coverageOrthoPct: number;
-        coverageHygienePct: number;
-        isActive: boolean;
-        policyNumberMask?: string | null | undefined;
-        annualLimitRub?: number | null | undefined;
-    }, {
-        id: string;
-        organizationId: string;
-        createdAt: string;
-        companyName: string;
-        policyNumberMask?: string | null | undefined;
-        coverageTherapyPct?: number | undefined;
-        coverageSurgeryPct?: number | undefined;
-        coverageOrthoPct?: number | undefined;
-        coverageHygienePct?: number | undefined;
-        annualLimitRub?: number | null | undefined;
-        isActive?: boolean | undefined;
-    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     documents: {
         status: "draft" | "voided" | "issued";
@@ -39918,7 +37813,6 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -39931,7 +37825,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -39946,7 +37839,6 @@ export declare const dashboardSchema: z.ZodObject<{
             statusReviewed: true;
             correctionDocumentId?: string | null | undefined;
         } | null | undefined;
-        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -40018,16 +37910,8 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd: string | null;
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
-            orthodonticProgress: {
-                currentAligner: number;
-                totalAligners: number;
-                startDate: string;
-            } | null;
-            insuranceContractId?: string | null | undefined;
         } | null;
         balanceRub: number;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
     }[];
     appointments: {
         status: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show";
@@ -40040,7 +37924,6 @@ export declare const dashboardSchema: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         comment: string | null;
-        version?: number | undefined;
         assistantUserId?: string | null | undefined;
     }[];
     payments: {
@@ -40052,7 +37935,7 @@ export declare const dashboardSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -40106,32 +37989,6 @@ export declare const dashboardSchema: z.ZodObject<{
             networkEnabled: boolean;
             egiszEnabled: boolean;
             updatedAt: string;
-            specializations: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[];
-            currency: string;
-            themeColor: string;
-            hasAssistants: boolean;
-            hasMultipleChairs: boolean;
-            hasDentalLab: boolean;
-            hasInsuranceCoPay: boolean;
-            hasInstallments: boolean;
-            hasOrthodontics: boolean;
-            hasGnathology: boolean;
-            hasTasks: boolean;
-            hasReclamations: boolean;
-            workspacePreset: string;
-            onboardingCompleted: boolean;
-            hasPediatricMode: boolean;
-            isOmniRole: boolean;
-            hasPayrollModule: boolean;
-            hasMarketingModule: boolean;
-            hasAnalyticsModule: boolean;
-            hasCsoScanner: boolean;
-            hasLeadsKanban: boolean;
-            hasOmnichannel: boolean;
-            hasInventoryModule: boolean;
-            aiEnableTreatmentPlan: boolean;
-            aiEnableRecommendations: boolean;
-            aiEnableDocuments: boolean;
             email?: string | null | undefined;
             kpp?: string | null | undefined;
             ogrn?: string | null | undefined;
@@ -40142,15 +37999,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         staff: {
             active: boolean;
@@ -40230,8 +38078,6 @@ export declare const dashboardSchema: z.ZodObject<{
         }[];
         modeHints: string[];
         soloDoctorMode?: boolean | undefined;
-        marketingSettings?: any;
-        reportingSettings?: any;
     };
     shiftIntelligence: {
         modeFit: {
@@ -40364,12 +38210,7 @@ export declare const dashboardSchema: z.ZodObject<{
         diagnosis: string | null;
         treatmentPlan: string | null;
         doctorSummary: string | null;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
-    } | null;
+    };
     visitCloseChecklist: {
         visitId: string;
         nextAction: string;
@@ -40387,7 +38228,7 @@ export declare const dashboardSchema: z.ZodObject<{
         score: number;
         readyToSign: boolean;
         blockingItems: number;
-    } | null;
+    };
     imagingStudies: {
         status: "needs_review" | "failed" | "available";
         id: string;
@@ -40529,7 +38370,6 @@ export declare const dashboardSchema: z.ZodObject<{
         draftDocumentAmountRub: number;
         openTreatmentItems: number;
         unpaidDocuments: number;
-        insuranceCoverageRub: number;
     };
     communicationTemplates: {
         active: boolean;
@@ -40609,19 +38449,6 @@ export declare const dashboardSchema: z.ZodObject<{
         sourceUrl: string;
     }[];
     complianceWarnings: string[];
-    insuranceContracts: {
-        id: string;
-        organizationId: string;
-        createdAt: string;
-        companyName: string;
-        coverageTherapyPct: number;
-        coverageSurgeryPct: number;
-        coverageOrthoPct: number;
-        coverageHygienePct: number;
-        isActive: boolean;
-        policyNumberMask?: string | null | undefined;
-        annualLimitRub?: number | null | undefined;
-    }[];
 }, {
     documents: {
         status: "draft" | "voided" | "issued";
@@ -40635,7 +38462,6 @@ export declare const dashboardSchema: z.ZodObject<{
         issuedAt: string | null;
         taxYear?: number | null | undefined;
         taxPayerInn?: string | null | undefined;
-        cryptoSignaturePkcs7?: string | null | undefined;
         signatureAttestation?: {
             mode: "paper_signed" | "simple_electronic_signature" | "qualified_electronic_signature";
             signedAt: string;
@@ -40648,7 +38474,6 @@ export declare const dashboardSchema: z.ZodObject<{
             recipientSigned: true;
             clinicRepresentativeSigned: true;
             note?: string | null | undefined;
-            cryptoSignaturePkcs7?: string | null | undefined;
         } | null | undefined;
         voidedAt?: string | null | undefined;
         voidAttestation?: {
@@ -40663,7 +38488,6 @@ export declare const dashboardSchema: z.ZodObject<{
             replacementRequired?: boolean | undefined;
             patientOrPayerNotified?: boolean | undefined;
         } | null | undefined;
-        signatureSvg?: string | null | undefined;
         releaseJournalEntry?: {
             id: string;
             patientId: string;
@@ -40718,15 +38542,12 @@ export declare const dashboardSchema: z.ZodObject<{
         fullName: string;
         notes: string | null;
         birthDate: string | null;
-        insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         administrativeProfile?: {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
             registrationAddress?: string | null | undefined;
             residentialAddress?: string | null | undefined;
             insurancePolicyNumber?: string | null | undefined;
-            insuranceContractId?: string | null | undefined;
             snils?: string | null | undefined;
             legalRepresentativeFullName?: string | null | undefined;
             legalRepresentativeRelationship?: string | null | undefined;
@@ -40738,11 +38559,6 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentEnd?: string | null | undefined;
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
-            orthodonticProgress?: {
-                currentAligner?: number | undefined;
-                totalAligners?: number | undefined;
-                startDate?: string | undefined;
-            } | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
     }[];
@@ -40757,7 +38573,6 @@ export declare const dashboardSchema: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         comment: string | null;
-        version?: number | undefined;
         assistantUserId?: string | null | undefined;
     }[];
     payments: {
@@ -40769,7 +38584,7 @@ export declare const dashboardSchema: z.ZodObject<{
         createdAt: string;
         amountRub: number;
         documentId: string | null;
-        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+        method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
         paidAt: string | null;
         note: string | null;
         fiscalReceiptNumber?: string | null | undefined;
@@ -40833,41 +38648,6 @@ export declare const dashboardSchema: z.ZodObject<{
             bankDetails?: string | null | undefined;
             signatoryName?: string | null | undefined;
             signatoryTitle?: string | null | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
-            hasAssistants?: boolean | undefined;
-            hasMultipleChairs?: boolean | undefined;
-            hasDentalLab?: boolean | undefined;
-            hasInsuranceCoPay?: boolean | undefined;
-            hasInstallments?: boolean | undefined;
-            hasOrthodontics?: boolean | undefined;
-            hasGnathology?: boolean | undefined;
-            hasTasks?: boolean | undefined;
-            hasReclamations?: boolean | undefined;
-            workspacePreset?: string | undefined;
-            onboardingCompleted?: boolean | undefined;
-            hasPediatricMode?: boolean | undefined;
-            isOmniRole?: boolean | undefined;
-            hasPayrollModule?: boolean | undefined;
-            hasMarketingModule?: boolean | undefined;
-            hasAnalyticsModule?: boolean | undefined;
-            hasCsoScanner?: boolean | undefined;
-            hasLeadsKanban?: boolean | undefined;
-            hasOmnichannel?: boolean | undefined;
-            hasInventoryModule?: boolean | undefined;
-            aiEnableTreatmentPlan?: boolean | undefined;
-            aiEnableRecommendations?: boolean | undefined;
-            aiEnableDocuments?: boolean | undefined;
         };
         staff: {
             active: boolean;
@@ -40947,8 +38727,6 @@ export declare const dashboardSchema: z.ZodObject<{
         }[];
         modeHints: string[];
         soloDoctorMode?: boolean | undefined;
-        marketingSettings?: any;
-        reportingSettings?: any;
     };
     shiftIntelligence: {
         modeFit: {
@@ -41081,12 +38859,7 @@ export declare const dashboardSchema: z.ZodObject<{
         treatmentPlan: string | null;
         doctorSummary: string | null;
         revision?: number | undefined;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
-    } | null;
+    };
     visitCloseChecklist: {
         visitId: string;
         nextAction: string;
@@ -41104,7 +38877,7 @@ export declare const dashboardSchema: z.ZodObject<{
         score: number;
         readyToSign: boolean;
         blockingItems: number;
-    } | null;
+    };
     imagingStudies: {
         status: "needs_review" | "failed" | "available";
         id: string;
@@ -41246,7 +39019,6 @@ export declare const dashboardSchema: z.ZodObject<{
         draftDocumentAmountRub: number;
         openTreatmentItems: number;
         unpaidDocuments: number;
-        insuranceCoverageRub?: number | undefined;
     };
     communicationTemplates: {
         active: boolean;
@@ -41326,19 +39098,6 @@ export declare const dashboardSchema: z.ZodObject<{
         sourceUrl: string;
     }[];
     complianceWarnings: string[];
-    insuranceContracts?: {
-        id: string;
-        organizationId: string;
-        createdAt: string;
-        companyName: string;
-        policyNumberMask?: string | null | undefined;
-        coverageTherapyPct?: number | undefined;
-        coverageSurgeryPct?: number | undefined;
-        coverageOrthoPct?: number | undefined;
-        coverageHygienePct?: number | undefined;
-        annualLimitRub?: number | null | undefined;
-        isActive?: boolean | undefined;
-    }[] | undefined;
 }>;
 export type Dashboard = z.infer<typeof dashboardSchema>;
 export declare const createPatientSchema: z.ZodObject<{
@@ -41347,15 +39106,12 @@ export declare const createPatientSchema: z.ZodObject<{
     phone: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
     email: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     notes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     administrativeProfile: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodObject<{
         identityDocument: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         taxpayerInn: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         registrationAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         residentialAddress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         insurancePolicyNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-        insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         snils: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         legalRepresentativeFullName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         legalRepresentativeRelationship: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -41367,19 +39123,6 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-        orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodObject<{
-            currentAligner: z.ZodDefault<z.ZodNumber>;
-            totalAligners: z.ZodDefault<z.ZodNumber>;
-            startDate: z.ZodDefault<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        }, {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        }>>>;
     }, "strip", z.ZodTypeAny, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -41397,19 +39140,12 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -41421,11 +39157,6 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     }>, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -41443,19 +39174,12 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -41467,19 +39191,12 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     }>>>;
 }, "strip", z.ZodTypeAny, {
     fullName: string;
     phone?: string | null | undefined;
     email?: string | null | undefined;
     notes?: string | null | undefined;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     birthDate?: string | null | undefined;
     administrativeProfile?: {
         identityDocument: string | null;
@@ -41498,20 +39215,12 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd: string | null;
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
-        orthodonticProgress: {
-            currentAligner: number;
-            totalAligners: number;
-            startDate: string;
-        } | null;
-        insuranceContractId?: string | null | undefined;
     } | null | undefined;
 }, {
     fullName: string;
     phone?: string | null | undefined;
     email?: string | null | undefined;
     notes?: string | null | undefined;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     birthDate?: string | null | undefined;
     administrativeProfile?: {
         identityDocument?: string | null | undefined;
@@ -41519,7 +39228,6 @@ export declare const createPatientSchema: z.ZodObject<{
         registrationAddress?: string | null | undefined;
         residentialAddress?: string | null | undefined;
         insurancePolicyNumber?: string | null | undefined;
-        insuranceContractId?: string | null | undefined;
         snils?: string | null | undefined;
         legalRepresentativeFullName?: string | null | undefined;
         legalRepresentativeRelationship?: string | null | undefined;
@@ -41531,11 +39239,6 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentEnd?: string | null | undefined;
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
-        orthodonticProgress?: {
-            currentAligner?: number | undefined;
-            totalAligners?: number | undefined;
-            startDate?: string | undefined;
-        } | null | undefined;
     } | null | undefined;
 }>;
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
@@ -41545,27 +39248,18 @@ export declare const updatePatientSchema: z.ZodObject<{
     phone: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
     email: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     notes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    insuranceContractId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    insurancePolicyNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     phone?: string | null | undefined;
     email?: string | null | undefined;
     fullName?: string | undefined;
     notes?: string | null | undefined;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     birthDate?: string | null | undefined;
-    familyGroupId?: string | null | undefined;
 }, {
     phone?: string | null | undefined;
     email?: string | null | undefined;
     fullName?: string | undefined;
     notes?: string | null | undefined;
-    insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     birthDate?: string | null | undefined;
-    familyGroupId?: string | null | undefined;
 }>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.ZodObject<{
@@ -41574,7 +39268,6 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     registrationAddress: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     residentialAddress: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     insurancePolicyNumber: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
-    insuranceContractId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     snils: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     legalRepresentativeFullName: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     legalRepresentativeRelationship: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
@@ -41586,26 +39279,12 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentEnd: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     preferredAppointmentNote: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     dataProcessingBasisNote: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
-    orthodonticProgress: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodObject<{
-        currentAligner: z.ZodDefault<z.ZodNumber>;
-        totalAligners: z.ZodDefault<z.ZodNumber>;
-        startDate: z.ZodDefault<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    }, {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    }>>>>;
 }, "strip", z.ZodTypeAny, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -41617,18 +39296,12 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    } | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -41640,18 +39313,12 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    } | null | undefined;
 }>, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -41663,18 +39330,12 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner: number;
-        totalAligners: number;
-        startDate: string;
-    } | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
     registrationAddress?: string | null | undefined;
     residentialAddress?: string | null | undefined;
     insurancePolicyNumber?: string | null | undefined;
-    insuranceContractId?: string | null | undefined;
     snils?: string | null | undefined;
     legalRepresentativeFullName?: string | null | undefined;
     legalRepresentativeRelationship?: string | null | undefined;
@@ -41686,11 +39347,6 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentEnd?: string | null | undefined;
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
-    orthodonticProgress?: {
-        currentAligner?: number | undefined;
-        totalAligners?: number | undefined;
-        startDate?: string | undefined;
-    } | null | undefined;
 }>;
 export type UpdatePatientAdministrativeProfileInput = z.infer<typeof updatePatientAdministrativeProfileSchema>;
 export declare const updateClinicModeSchema: z.ZodObject<{
@@ -41746,38 +39402,6 @@ export declare const updateClinicProfileSchema: z.ZodObject<{
         appointmentBufferMinutes: number;
     }>>;
     egiszEnabled: z.ZodOptional<z.ZodBoolean>;
-    specializations: z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-    workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-        weekday: z.ZodNumber;
-        enabled: z.ZodBoolean;
-        start: z.ZodString;
-        end: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }>, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }, {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }>, "many">>>;
-    currency: z.ZodOptional<z.ZodString>;
-    themeColor: z.ZodOptional<z.ZodString>;
-    logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    stampUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    marketingData: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>;
 }, "strip", z.ZodTypeAny, {
     phone?: string | null | undefined;
     email?: string | null | undefined;
@@ -41803,18 +39427,6 @@ export declare const updateClinicProfileSchema: z.ZodObject<{
         appointmentBufferMinutes: number;
     } | undefined;
     egiszEnabled?: boolean | undefined;
-    specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    workingHours?: {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }[] | null | undefined;
-    currency?: string | undefined;
-    themeColor?: string | undefined;
-    logoUrl?: string | null | undefined;
-    stampUrl?: string | null | undefined;
-    marketingData?: Record<string, any> | null | undefined;
 }, {
     phone?: string | null | undefined;
     email?: string | null | undefined;
@@ -41840,18 +39452,6 @@ export declare const updateClinicProfileSchema: z.ZodObject<{
         appointmentBufferMinutes: number;
     } | undefined;
     egiszEnabled?: boolean | undefined;
-    specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    workingHours?: {
-        enabled: boolean;
-        weekday: number;
-        start: string;
-        end: string;
-    }[] | null | undefined;
-    currency?: string | undefined;
-    themeColor?: string | undefined;
-    logoUrl?: string | null | undefined;
-    stampUrl?: string | null | undefined;
-    marketingData?: Record<string, any> | null | undefined;
 }>;
 export type UpdateClinicProfileInput = z.infer<typeof updateClinicProfileSchema>;
 export declare const createStaffMemberSchema: z.ZodObject<{
@@ -41860,7 +39460,6 @@ export declare const createStaffMemberSchema: z.ZodObject<{
     specialties: z.ZodDefault<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
     phone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     email: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    commissionRate: z.ZodOptional<z.ZodNumber>;
     workingHours: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
         weekday: z.ZodNumber;
         enabled: z.ZodBoolean;
@@ -41899,60 +39498,20 @@ export declare const createStaffMemberSchema: z.ZodObject<{
         start: string;
         end: string;
     }[] | null | undefined;
-    commissionRate?: number | undefined;
 }, {
     fullName: string;
     role: "owner" | "doctor" | "administrator" | "assistant" | "manager";
     phone?: string | null | undefined;
     email?: string | null | undefined;
+    specialties?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
     workingHours?: {
         enabled: boolean;
         weekday: number;
         start: string;
         end: string;
     }[] | null | undefined;
-    specialties?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    commissionRate?: number | undefined;
 }>;
 export type CreateStaffMemberInput = z.infer<typeof createStaffMemberSchema>;
-export declare const updateStaffMemberSchema: z.ZodObject<{
-    fullName: z.ZodOptional<z.ZodString>;
-    role: z.ZodOptional<z.ZodEnum<["owner", "doctor", "administrator", "assistant", "manager"]>>;
-    specialties: z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>;
-    phone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    email: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    commissionRate: z.ZodOptional<z.ZodNumber>;
-    active: z.ZodOptional<z.ZodBoolean>;
-    canSignMedicalRecords: z.ZodOptional<z.ZodBoolean>;
-    canManageMoney: z.ZodOptional<z.ZodBoolean>;
-    canManageImports: z.ZodOptional<z.ZodBoolean>;
-    color: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    active?: boolean | undefined;
-    phone?: string | null | undefined;
-    email?: string | null | undefined;
-    fullName?: string | undefined;
-    role?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
-    specialties?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    canSignMedicalRecords?: boolean | undefined;
-    canManageMoney?: boolean | undefined;
-    canManageImports?: boolean | undefined;
-    color?: string | undefined;
-    commissionRate?: number | undefined;
-}, {
-    active?: boolean | undefined;
-    phone?: string | null | undefined;
-    email?: string | null | undefined;
-    fullName?: string | undefined;
-    role?: "owner" | "doctor" | "administrator" | "assistant" | "manager" | undefined;
-    specialties?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-    canSignMedicalRecords?: boolean | undefined;
-    canManageMoney?: boolean | undefined;
-    canManageImports?: boolean | undefined;
-    color?: string | undefined;
-    commissionRate?: number | undefined;
-}>;
-export type UpdateStaffMemberInput = z.infer<typeof updateStaffMemberSchema>;
 export declare const updateStaffWorkingHoursSchema: z.ZodObject<{
     workingHours: z.ZodArray<z.ZodEffects<z.ZodObject<{
         weekday: z.ZodNumber;
@@ -43377,12 +40936,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -43413,12 +40972,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -43836,12 +41395,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -44034,12 +41593,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -44442,9 +42001,9 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             estimatedTotalRub: z.ZodNumber;
             alternatives: z.ZodArray<z.ZodString, "many">;
             risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-            prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            prognosisAndLimits: z.ZodString;
+            controlPlan: z.ZodString;
+            doctorFullName: z.ZodString;
             plannedAt: z.ZodEffects<z.ZodString, string, string>;
             patientQuestionsAnswered: z.ZodLiteral<true>;
             planRequiresSeparateConsent: z.ZodLiteral<true>;
@@ -44454,6 +42013,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -44479,18 +42039,18 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
         }, {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -44516,13 +42076,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -45002,6 +42561,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     }, "strict", z.ZodTypeAny, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -45027,13 +42587,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -45408,12 +42967,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -45752,6 +43311,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     }, {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -45777,13 +43337,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -46158,12 +43717,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -46511,6 +44070,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -46536,13 +44096,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -46917,12 +44476,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -47270,6 +44829,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -47295,13 +44855,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -47676,12 +45235,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -48029,6 +45588,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -48054,13 +45614,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -48435,12 +45994,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -48788,6 +46347,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     payload?: {
         treatmentPlan?: {
             estimatedTotalRub: number;
+            doctorFullName: string;
             teethOrArea: string;
             clinicalToothRows: {
                 status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
@@ -48813,13 +46373,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             }[];
             alternatives: string[];
             risksAndLimitations: string[];
+            prognosisAndLimits: string;
+            controlPlan: string;
             plannedAt: string;
             patientQuestionsAnswered: true;
             planRequiresSeparateConsent: true;
             planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
             patientFriendlyExplanation?: string | null | undefined;
             patientHygieneAdvice?: string | null | undefined;
             customHygieneTextOverride?: string | null | undefined;
@@ -49194,12 +46753,12 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
                 primaryDiagnosis: string;
                 orders: string;
                 informedConsentOrRefusal: string;
-                complications?: string | null | undefined;
-                comorbidities?: string | null | undefined;
                 doctorPosition?: string | null | undefined;
                 doctorSpecialty?: string | null | undefined;
                 location?: string | null | undefined;
                 primaryDiagnosisIcd10?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
                 externalCause?: string | null | undefined;
                 healthGroup?: string | null | undefined;
                 dispensaryObservation?: string | null | undefined;
@@ -49543,7 +47102,7 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
     visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     documentId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     amountRub: z.ZodNumber;
-    method: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>>;
+    method: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>>;
     fiscalReceiptNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     fiscalReceiptIssuedAt: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>>;
     fiscalReceiptUrl: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
@@ -49580,7 +47139,7 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     patientId: string;
     amountRub: number;
-    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     visitId?: string | null | undefined;
     documentId?: string | null | undefined;
     fiscalReceiptNumber?: string | null | undefined;
@@ -49607,7 +47166,7 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
     amountRub: number;
     visitId?: string | null | undefined;
     documentId?: string | null | undefined;
-    method?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
+    method?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | undefined;
     fiscalReceiptNumber?: string | null | undefined;
     fiscalReceiptIssuedAt?: string | null | undefined;
     fiscalReceiptUrl?: string | null | undefined;
@@ -49630,7 +47189,7 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
 }>, {
     patientId: string;
     amountRub: number;
-    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    method: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     visitId?: string | null | undefined;
     documentId?: string | null | undefined;
     fiscalReceiptNumber?: string | null | undefined;
@@ -49657,7 +47216,7 @@ export declare const createPaymentSchema: z.ZodEffects<z.ZodObject<{
     amountRub: number;
     visitId?: string | null | undefined;
     documentId?: string | null | undefined;
-    method?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
+    method?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | undefined;
     fiscalReceiptNumber?: string | null | undefined;
     fiscalReceiptIssuedAt?: string | null | undefined;
     fiscalReceiptUrl?: string | null | undefined;
@@ -82359,25 +79918,6 @@ export declare const visitNoteDraftQualitySchema: z.ZodObject<{
     detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
 }>;
 export type VisitNoteDraftQuality = z.infer<typeof visitNoteDraftQualitySchema>;
-export declare const visitServiceItemSchema: z.ZodObject<{
-    serviceId: z.ZodString;
-    title: z.ZodString;
-    quantity: z.ZodNumber;
-    priceRub: z.ZodNumber;
-    toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, "strip", z.ZodTypeAny, {
-    title: string;
-    priceRub: number;
-    serviceId: string;
-    quantity: number;
-    toothCode?: string | null | undefined;
-}, {
-    title: string;
-    priceRub: number;
-    serviceId: string;
-    quantity: number;
-    toothCode?: string | null | undefined;
-}>;
 export declare const visitNoteDraftSchema: z.ZodObject<{
     complaint: z.ZodNullable<z.ZodString>;
     anamnesis: z.ZodNullable<z.ZodString>;
@@ -82413,25 +79953,6 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
         detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
     }>>;
     warnings: z.ZodArray<z.ZodString, "many">;
-    completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        serviceId: z.ZodString;
-        title: z.ZodString;
-        quantity: z.ZodNumber;
-        priceRub: z.ZodNumber;
-        toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }, {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     warnings: string[];
     complaint: string | null;
@@ -82449,13 +79970,6 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
         missingCriticalFields: string[];
         detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
     } | undefined;
-    completedServices?: {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }[] | undefined;
 }, {
     warnings: string[];
     complaint: string | null;
@@ -82473,13 +79987,6 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
         missingCriticalFields: string[];
         detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
     } | undefined;
-    completedServices?: {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }[] | undefined;
 }>;
 export type VisitNoteDraft = z.infer<typeof visitNoteDraftSchema>;
 export declare const visitDraftAutosaveSchema: z.ZodObject<{
@@ -82522,25 +80029,6 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         }>>;
         warnings: z.ZodArray<z.ZodString, "many">;
-        completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            serviceId: z.ZodString;
-            title: z.ZodString;
-            quantity: z.ZodNumber;
-            priceRub: z.ZodNumber;
-            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
         complaint: string | null;
@@ -82558,13 +80046,6 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -82582,13 +80063,6 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }>;
     baseRevision: z.ZodNullable<z.ZodNumber>;
     clientDraftId: z.ZodNullable<z.ZodString>;
@@ -82613,13 +80087,6 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82648,13 +80115,6 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82707,25 +80167,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         }>>;
         warnings: z.ZodArray<z.ZodString, "many">;
-        completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            serviceId: z.ZodString;
-            title: z.ZodString;
-            quantity: z.ZodNumber;
-            priceRub: z.ZodNumber;
-            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
         complaint: string | null;
@@ -82743,13 +80184,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -82767,13 +80201,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }>;
     baseRevision: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     clientDraftId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -82796,13 +80223,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82829,13 +80249,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82862,13 +80275,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82895,13 +80301,6 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     patientId: string;
     visitId: string;
@@ -82953,25 +80352,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             }>>;
             warnings: z.ZodArray<z.ZodString, "many">;
-            completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-                serviceId: z.ZodString;
-                title: z.ZodString;
-                quantity: z.ZodNumber;
-                priceRub: z.ZodNumber;
-                toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            }, "strip", z.ZodTypeAny, {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }, {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }>, "many">>;
         }, "strip", z.ZodTypeAny, {
             warnings: string[];
             complaint: string | null;
@@ -82989,13 +80369,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         }, {
             warnings: string[];
             complaint: string | null;
@@ -83013,13 +80386,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         }>;
         baseRevision: z.ZodNullable<z.ZodNumber>;
         clientDraftId: z.ZodNullable<z.ZodString>;
@@ -83044,13 +80410,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         };
         patientId: string;
         visitId: string;
@@ -83079,13 +80438,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         };
         patientId: string;
         visitId: string;
@@ -83116,13 +80468,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         };
         patientId: string;
         visitId: string;
@@ -83153,13 +80498,6 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
             } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
         };
         patientId: string;
         visitId: string;
@@ -83232,25 +80570,6 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         }>>;
         warnings: z.ZodArray<z.ZodString, "many">;
-        completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            serviceId: z.ZodString;
-            title: z.ZodString;
-            quantity: z.ZodNumber;
-            priceRub: z.ZodNumber;
-            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
         complaint: string | null;
@@ -83268,13 +80587,6 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -83292,13 +80604,6 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     draft: {
@@ -83318,13 +80623,6 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     warnings: string[];
     modelName: string | null;
@@ -83351,13 +80649,6 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     warnings: string[];
     modelName: string | null;
@@ -83415,25 +80706,6 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         }>>;
         warnings: z.ZodArray<z.ZodString, "many">;
-        completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            serviceId: z.ZodString;
-            title: z.ZodString;
-            quantity: z.ZodNumber;
-            priceRub: z.ZodNumber;
-            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }, {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
         complaint: string | null;
@@ -83451,13 +80723,6 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -83475,19 +80740,11 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     }>;
     doctorSummary: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     clientMutationId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     baseRevision: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     clientSavedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     draft: {
         warnings: string[];
@@ -83506,20 +80763,12 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     visitId: string;
     clientMutationId?: string | null | undefined;
     doctorSummary?: string | null | undefined;
     clientSavedAt?: string | null | undefined;
     baseRevision?: number | null | undefined;
-    instrumentTrayBarcode?: string | null | undefined;
 }, {
     draft: {
         warnings: string[];
@@ -83538,20 +80787,12 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
         } | undefined;
-        completedServices?: {
-            title: string;
-            priceRub: number;
-            serviceId: string;
-            quantity: number;
-            toothCode?: string | null | undefined;
-        }[] | undefined;
     };
     visitId: string;
     clientMutationId?: string | null | undefined;
     doctorSummary?: string | null | undefined;
     clientSavedAt?: string | null | undefined;
     baseRevision?: number | null | undefined;
-    instrumentTrayBarcode?: string | null | undefined;
 }>;
 export type AcceptVisitDraftInput = z.infer<typeof acceptVisitDraftSchema>;
 export declare const visitSaveReceiptSchema: z.ZodObject<{
@@ -83593,19 +80834,6 @@ export declare const acceptVisitDraftResponseSchema: z.ZodObject<{
         doctorSummary: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
-        diary: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-            id: z.ZodString;
-            complications: z.ZodNullable<z.ZodString>;
-            comorbidities: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        }, {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        }>>>;
     }, "strip", z.ZodTypeAny, {
         status: "draft" | "signed" | "voided";
         id: string;
@@ -83621,11 +80849,6 @@ export declare const acceptVisitDraftResponseSchema: z.ZodObject<{
         diagnosis: string | null;
         treatmentPlan: string | null;
         doctorSummary: string | null;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
     }, {
         status: "draft" | "signed" | "voided";
         id: string;
@@ -83641,11 +80864,6 @@ export declare const acceptVisitDraftResponseSchema: z.ZodObject<{
         treatmentPlan: string | null;
         doctorSummary: string | null;
         revision?: number | undefined;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
     }>;
     visitCloseChecklist: z.ZodObject<{
         visitId: z.ZodString;
@@ -83757,11 +80975,6 @@ export declare const acceptVisitDraftResponseSchema: z.ZodObject<{
         diagnosis: string | null;
         treatmentPlan: string | null;
         doctorSummary: string | null;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
     };
     visitCloseChecklist: {
         visitId: string;
@@ -83805,11 +81018,6 @@ export declare const acceptVisitDraftResponseSchema: z.ZodObject<{
         treatmentPlan: string | null;
         doctorSummary: string | null;
         revision?: number | undefined;
-        diary?: {
-            id: string;
-            complications: string | null;
-            comorbidities: string | null;
-        } | null | undefined;
     };
     visitCloseChecklist: {
         visitId: string;
@@ -84614,7 +81822,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDefaultChairId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     scheduleStatusFilter: z.ZodDefault<z.ZodUnion<[z.ZodEnum<["planned", "confirmed", "arrived", "in_treatment", "completed", "cancelled", "no_show"]>, z.ZodLiteral<"all">]>>;
     scheduleDateFilter: z.ZodDefault<z.ZodString>;
-    paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>>;
+    paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>>;
     taxDocumentYear: z.ZodDefault<z.ZodNumber>;
     selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
     taxApplicationForm: z.ZodDefault<z.ZodEnum<["knd_1151156", "legacy_2021_2023"]>>;
@@ -84645,7 +81853,6 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     onboardingDismissedAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     onboardingStep: z.ZodDefault<z.ZodEnum<["intro", "role", "clinic", "legal", "team", "sources", "telegram", "done"]>>;
     onboardingDraftMode: z.ZodDefault<z.ZodBoolean>;
-    odontogramUseSurfaces: z.ZodDefault<z.ZodBoolean>;
     savedAt: z.ZodDefault<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     version: 1;
@@ -84664,7 +81871,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDefaultChairId: string | null;
     scheduleStatusFilter: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | "all";
     scheduleDateFilter: string;
-    paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     taxDocumentYear: number;
     selectedDocumentKind: "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     taxApplicationForm: "knd_1151156" | "legacy_2021_2023";
@@ -84694,7 +81901,6 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     onboardingDismissedAt: string | null;
     onboardingStep: "legal" | "telegram" | "role" | "clinic" | "done" | "intro" | "team" | "sources";
     onboardingDraftMode: boolean;
-    odontogramUseSurfaces: boolean;
 }, {
     version?: 1 | undefined;
     ohifBaseUrl?: string | undefined;
@@ -84712,7 +81918,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDefaultChairId?: string | null | undefined;
     scheduleStatusFilter?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | "all" | undefined;
     scheduleDateFilter?: string | undefined;
-    paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
+    paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | undefined;
     taxDocumentYear?: number | undefined;
     selectedDocumentKind?: "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
     taxApplicationForm?: "knd_1151156" | "legacy_2021_2023" | undefined;
@@ -84742,7 +81948,6 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     onboardingDismissedAt?: string | null | undefined;
     onboardingStep?: "legal" | "telegram" | "role" | "clinic" | "done" | "intro" | "team" | "sources" | undefined;
     onboardingDraftMode?: boolean | undefined;
-    odontogramUseSurfaces?: boolean | undefined;
 }>;
 export type UiPreferences = z.infer<typeof uiPreferencesSchema>;
 export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
@@ -84760,7 +81965,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDefaultChairId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     scheduleStatusFilter: z.ZodDefault<z.ZodUnion<[z.ZodEnum<["planned", "confirmed", "arrived", "in_treatment", "completed", "cancelled", "no_show"]>, z.ZodLiteral<"all">]>>;
     scheduleDateFilter: z.ZodDefault<z.ZodString>;
-    paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>>;
+    paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "other"]>>;
     taxDocumentYear: z.ZodDefault<z.ZodNumber>;
     selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
     taxApplicationForm: z.ZodDefault<z.ZodEnum<["knd_1151156", "legacy_2021_2023"]>>;
@@ -84791,7 +81996,6 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     onboardingDismissedAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     onboardingStep: z.ZodDefault<z.ZodEnum<["intro", "role", "clinic", "legal", "team", "sources", "telegram", "done"]>>;
     onboardingDraftMode: z.ZodDefault<z.ZodBoolean>;
-    odontogramUseSurfaces: z.ZodDefault<z.ZodBoolean>;
     savedAt: z.ZodDefault<z.ZodString>;
 }, "version" | "savedAt"> & {
     version: z.ZodOptional<z.ZodLiteral<1>>;
@@ -84811,7 +82015,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDefaultChairId: string | null;
     scheduleStatusFilter: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | "all";
     scheduleDateFilter: string;
-    paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
+    paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance";
     taxDocumentYear: number;
     selectedDocumentKind: "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     taxApplicationForm: "knd_1151156" | "legacy_2021_2023";
@@ -84841,7 +82045,6 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     onboardingDismissedAt: string | null;
     onboardingStep: "legal" | "telegram" | "role" | "clinic" | "done" | "intro" | "team" | "sources";
     onboardingDraftMode: boolean;
-    odontogramUseSurfaces: boolean;
     version?: 1 | undefined;
     savedAt?: string | undefined;
 }, {
@@ -84861,7 +82064,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDefaultChairId?: string | null | undefined;
     scheduleStatusFilter?: "planned" | "confirmed" | "arrived" | "in_treatment" | "completed" | "cancelled" | "no_show" | "all" | undefined;
     scheduleDateFilter?: string | undefined;
-    paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
+    paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | undefined;
     taxDocumentYear?: number | undefined;
     selectedDocumentKind?: "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
     taxApplicationForm?: "knd_1151156" | "legacy_2021_2023" | undefined;
@@ -84891,7 +82094,6 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     onboardingDismissedAt?: string | null | undefined;
     onboardingStep?: "legal" | "telegram" | "role" | "clinic" | "done" | "intro" | "team" | "sources" | undefined;
     onboardingDraftMode?: boolean | undefined;
-    odontogramUseSurfaces?: boolean | undefined;
 }>;
 export type UiPreferencesInput = z.infer<typeof uiPreferencesInputSchema>;
 export declare const smartImportRequestSchema: z.ZodObject<{
@@ -84976,38 +82178,6 @@ export declare const smartImportClinicProfileSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         }>>>;
         egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-        specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-        workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-            weekday: z.ZodNumber;
-            enabled: z.ZodBoolean;
-            start: z.ZodString;
-            end: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, "many">>>>;
-        currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-        themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-        logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-        stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-        marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
     }, "strip", z.ZodTypeAny, {
         phone?: string | null | undefined;
         email?: string | null | undefined;
@@ -85033,18 +82203,6 @@ export declare const smartImportClinicProfileSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }, {
         phone?: string | null | undefined;
         email?: string | null | undefined;
@@ -85070,18 +82228,6 @@ export declare const smartImportClinicProfileSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }>;
     confidence: z.ZodNumber;
     sourceLineNumbers: z.ZodArray<z.ZodNumber, "many">;
@@ -85114,18 +82260,6 @@ export declare const smartImportClinicProfileSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
     sourceLineNumbers: number[];
 }, {
@@ -85156,18 +82290,6 @@ export declare const smartImportClinicProfileSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
     sourceLineNumbers: number[];
 }>;
@@ -85552,38 +82674,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             }>>>;
             egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-            specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-            workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                weekday: z.ZodNumber;
-                enabled: z.ZodBoolean;
-                start: z.ZodString;
-                end: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, "many">>>>;
-            currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-            themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-            logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-            stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-            marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
         }, "strip", z.ZodTypeAny, {
             phone?: string | null | undefined;
             email?: string | null | undefined;
@@ -85609,18 +82699,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }, {
             phone?: string | null | undefined;
             email?: string | null | undefined;
@@ -85646,18 +82724,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }>;
         confidence: z.ZodNumber;
         sourceLineNumbers: z.ZodArray<z.ZodNumber, "many">;
@@ -85690,18 +82756,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         sourceLineNumbers: number[];
     }, {
@@ -85732,18 +82786,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         sourceLineNumbers: number[];
     }>>;
@@ -85992,18 +83034,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         sourceLineNumbers: number[];
     } | null;
@@ -86130,18 +83160,6 @@ export declare const smartImportPreviewResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
         sourceLineNumbers: number[];
     } | null;
@@ -86399,38 +83417,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 }>>>;
                 egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-                specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-                workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                    weekday: z.ZodNumber;
-                    enabled: z.ZodBoolean;
-                    start: z.ZodString;
-                    end: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, "many">>>>;
-                currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-                themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-                logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-                stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-                marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
             }, "strip", z.ZodTypeAny, {
                 phone?: string | null | undefined;
                 email?: string | null | undefined;
@@ -86456,18 +83442,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             }, {
                 phone?: string | null | undefined;
                 email?: string | null | undefined;
@@ -86493,18 +83467,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             }>;
             confidence: z.ZodNumber;
             sourceLineNumbers: z.ZodArray<z.ZodNumber, "many">;
@@ -86537,18 +83499,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         }, {
@@ -86579,18 +83529,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         }>>;
@@ -86839,18 +83777,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         } | null;
@@ -86977,18 +83903,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         } | null;
@@ -87396,18 +84310,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         } | null;
@@ -87589,18 +84491,6 @@ export declare const smartImportCommitResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
             sourceLineNumbers: number[];
         } | null;
@@ -89575,38 +86465,6 @@ export declare const clinicPublicLookupSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         }>>>;
         egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-        specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-        workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-            weekday: z.ZodNumber;
-            enabled: z.ZodBoolean;
-            start: z.ZodString;
-            end: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }, {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }>, "many">>>>;
-        currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-        themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-        logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-        stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-        marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
     }, "strip", z.ZodTypeAny, {
         phone?: string | null | undefined;
         email?: string | null | undefined;
@@ -89632,18 +86490,6 @@ export declare const clinicPublicLookupSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }, {
         phone?: string | null | undefined;
         email?: string | null | undefined;
@@ -89669,18 +86515,6 @@ export declare const clinicPublicLookupSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     }>;
     warnings: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -89712,18 +86546,6 @@ export declare const clinicPublicLookupSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
 }, {
     source: "dadata" | "manual_public_targets";
@@ -89754,18 +86576,6 @@ export declare const clinicPublicLookupSuggestionSchema: z.ZodObject<{
             appointmentBufferMinutes: number;
         } | undefined;
         egiszEnabled?: boolean | undefined;
-        specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-        workingHours?: {
-            enabled: boolean;
-            weekday: number;
-            start: string;
-            end: string;
-        }[] | null | undefined;
-        currency?: string | undefined;
-        themeColor?: string | undefined;
-        logoUrl?: string | null | undefined;
-        stampUrl?: string | null | undefined;
-        marketingData?: Record<string, any> | null | undefined;
     };
 }>;
 export type ClinicPublicLookupSuggestion = z.infer<typeof clinicPublicLookupSuggestionSchema>;
@@ -89823,38 +86633,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             }>>>;
             egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-            specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-            workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                weekday: z.ZodNumber;
-                enabled: z.ZodBoolean;
-                start: z.ZodString;
-                end: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }, {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }>, "many">>>>;
-            currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-            themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-            logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-            stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-            marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
         }, "strip", z.ZodTypeAny, {
             phone?: string | null | undefined;
             email?: string | null | undefined;
@@ -89880,18 +86658,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }, {
             phone?: string | null | undefined;
             email?: string | null | undefined;
@@ -89917,18 +86683,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         }>;
         warnings: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
@@ -89960,18 +86714,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }, {
         source: "dadata" | "manual_public_targets";
@@ -90002,18 +86744,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }>, "many">;
     publicLookupTargets: z.ZodArray<z.ZodObject<{
@@ -90085,18 +86815,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }[];
 }, {
@@ -90144,18 +86862,6 @@ export declare const clinicPublicLookupResponseSchema: z.ZodObject<{
                 appointmentBufferMinutes: number;
             } | undefined;
             egiszEnabled?: boolean | undefined;
-            specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-            workingHours?: {
-                enabled: boolean;
-                weekday: number;
-                start: string;
-                end: string;
-            }[] | null | undefined;
-            currency?: string | undefined;
-            themeColor?: string | undefined;
-            logoUrl?: string | null | undefined;
-            stampUrl?: string | null | undefined;
-            marketingData?: Record<string, any> | null | undefined;
         };
     }[];
 }>;
@@ -93832,38 +90538,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 }>>>;
                 egiszEnabled: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-                specializations: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>, "many">>>;
-                workingHours: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodEffects<z.ZodObject<{
-                    weekday: z.ZodNumber;
-                    enabled: z.ZodBoolean;
-                    start: z.ZodString;
-                    end: z.ZodString;
-                }, "strip", z.ZodTypeAny, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }, {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }>, "many">>>>;
-                currency: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-                themeColor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-                logoUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-                stampUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-                marketingData: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>>>;
             }, "strip", z.ZodTypeAny, {
                 phone?: string | null | undefined;
                 email?: string | null | undefined;
@@ -93889,18 +90563,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             }, {
                 phone?: string | null | undefined;
                 email?: string | null | undefined;
@@ -93926,18 +90588,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             }>;
             warnings: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
@@ -93969,18 +90619,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }, {
             source: "dadata" | "manual_public_targets";
@@ -94011,18 +90649,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }>, "many">;
         publicLookupTargets: z.ZodArray<z.ZodObject<{
@@ -94094,18 +90720,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }[];
     }, {
@@ -94153,18 +90767,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }[];
     }>>;
@@ -94897,18 +91499,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }[];
     } | null;
@@ -95271,18 +91861,6 @@ export declare const migrationAutopilotResponseSchema: z.ZodObject<{
                     appointmentBufferMinutes: number;
                 } | undefined;
                 egiszEnabled?: boolean | undefined;
-                specializations?: ("therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal")[] | undefined;
-                workingHours?: {
-                    enabled: boolean;
-                    weekday: number;
-                    start: string;
-                    end: string;
-                }[] | null | undefined;
-                currency?: string | undefined;
-                themeColor?: string | undefined;
-                logoUrl?: string | null | undefined;
-                stampUrl?: string | null | undefined;
-                marketingData?: Record<string, any> | null | undefined;
             };
         }[];
     } | null;
@@ -95383,1488 +91961,6 @@ export type ImagingViewerState = any;
 export type ImagingViewerSaveState = any;
 export type MprProjection = any;
 export type MprWindowPreset = any;
-export * from "./utils/dates.js";
 export * from "./utils/strings.js";
-export declare const doctorCommissionSchema: z.ZodObject<{
-    id: z.ZodString;
-    organizationId: z.ZodString;
-    userId: z.ZodString;
-    specialization: z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>;
-    percentage: z.ZodNullable<z.ZodNumber>;
-    fixedRate: z.ZodNullable<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    organizationId: string;
-    specialization: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-    userId: string;
-    percentage: number | null;
-    fixedRate: number | null;
-}, {
-    id: string;
-    organizationId: string;
-    specialization: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-    userId: string;
-    percentage: number | null;
-    fixedRate: number | null;
-}>;
-export type DoctorCommission = z.infer<typeof doctorCommissionSchema>;
-export declare const cashShiftSchema: z.ZodObject<{
-    id: z.ZodString;
-    organizationId: z.ZodString;
-    openedByUserId: z.ZodString;
-    openedAt: z.ZodString;
-    closedAt: z.ZodNullable<z.ZodString>;
-    startingBalance: z.ZodNumber;
-    expectedClosingBalance: z.ZodNullable<z.ZodNumber>;
-    actualClosingBalance: z.ZodNullable<z.ZodNumber>;
-    status: z.ZodEnum<["Open", "Closed", "Discrepancy"]>;
-    discrepancyReason: z.ZodNullable<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    status: "Open" | "Closed" | "Discrepancy";
-    id: string;
-    organizationId: string;
-    openedAt: string;
-    openedByUserId: string;
-    closedAt: string | null;
-    startingBalance: number;
-    expectedClosingBalance: number | null;
-    actualClosingBalance: number | null;
-    discrepancyReason: string | null;
-}, {
-    status: "Open" | "Closed" | "Discrepancy";
-    id: string;
-    organizationId: string;
-    openedAt: string;
-    openedByUserId: string;
-    closedAt: string | null;
-    startingBalance: number;
-    expectedClosingBalance: number | null;
-    actualClosingBalance: number | null;
-    discrepancyReason: string | null;
-}>;
-export type CashShift = z.infer<typeof cashShiftSchema>;
-export declare const doctorAssistantSchema: z.ZodObject<{
-    doctorId: z.ZodString;
-    assistantId: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    doctorId: string;
-    assistantId: string;
-}, {
-    doctorId: string;
-    assistantId: string;
-}>;
-export type DoctorAssistant = z.infer<typeof doctorAssistantSchema>;
-export declare const messengerChannelSchema: z.ZodEnum<["telegram", "whatsapp", "max"]>;
-export type MessengerChannel = z.infer<typeof messengerChannelSchema>;
-export declare const messengerIntentSchema: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-export type MessengerIntent = z.infer<typeof messengerIntentSchema>;
-export declare const messengerRoutingRuleSchema: z.ZodObject<{
-    intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-    assignToUserId: z.ZodNullable<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-    assignToUserId: string | null;
-}, {
-    intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-    assignToUserId: string | null;
-}>;
-export type MessengerRoutingRule = z.infer<typeof messengerRoutingRuleSchema>;
-export declare const messengerStaffRoutingSchema: z.ZodObject<{
-    defaultUserId: z.ZodNullable<z.ZodString>;
-    rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-        assignToUserId: z.ZodNullable<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-        assignToUserId: string | null;
-    }, {
-        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-        assignToUserId: string | null;
-    }>, "many">>;
-}, "strip", z.ZodTypeAny, {
-    defaultUserId: string | null;
-    rules: {
-        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-        assignToUserId: string | null;
-    }[];
-}, {
-    defaultUserId: string | null;
-    rules?: {
-        intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-        assignToUserId: string | null;
-    }[] | undefined;
-}>;
-export type MessengerStaffRouting = z.infer<typeof messengerStaffRoutingSchema>;
-export declare const denteWhatsappBotConfigSchema: z.ZodObject<{
-    id: z.ZodString;
-    organizationId: z.ZodString;
-    phoneNumberId: z.ZodNullable<z.ZodString>;
-    webhookVerifyToken: z.ZodNullable<z.ZodString>;
-    enabledFeatures: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
-    staffRouting: z.ZodObject<{
-        defaultUserId: z.ZodNullable<z.ZodString>;
-        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-            assignToUserId: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }>, "many">>;
-    }, "strip", z.ZodTypeAny, {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    }, {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    }>;
-    isActive: z.ZodBoolean;
-    updatedAt: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    organizationId: string;
-    updatedAt: string;
-    enabledFeatures: string[];
-    isActive: boolean;
-    phoneNumberId: string | null;
-    webhookVerifyToken: string | null;
-    staffRouting: {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    };
-}, {
-    id: string;
-    organizationId: string;
-    updatedAt: string;
-    isActive: boolean;
-    phoneNumberId: string | null;
-    webhookVerifyToken: string | null;
-    staffRouting: {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    };
-    enabledFeatures?: string[] | undefined;
-}>;
-export type DenteWhatsappBotConfig = z.infer<typeof denteWhatsappBotConfigSchema>;
-export declare const updateDenteWhatsappBotConfigSchema: z.ZodObject<{
-    phoneNumberId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    accessToken: z.ZodOptional<z.ZodString>;
-    webhookVerifyToken: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    enabledFeatures: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-    staffRouting: z.ZodOptional<z.ZodObject<{
-        defaultUserId: z.ZodNullable<z.ZodString>;
-        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-            assignToUserId: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }>, "many">>;
-    }, "strip", z.ZodTypeAny, {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    }, {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    }>>;
-    isActive: z.ZodOptional<z.ZodBoolean>;
-}, "strip", z.ZodTypeAny, {
-    enabledFeatures?: string[] | undefined;
-    isActive?: boolean | undefined;
-    phoneNumberId?: string | null | undefined;
-    webhookVerifyToken?: string | null | undefined;
-    staffRouting?: {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    } | undefined;
-    accessToken?: string | undefined;
-}, {
-    enabledFeatures?: string[] | undefined;
-    isActive?: boolean | undefined;
-    phoneNumberId?: string | null | undefined;
-    webhookVerifyToken?: string | null | undefined;
-    staffRouting?: {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    } | undefined;
-    accessToken?: string | undefined;
-}>;
-export type UpdateDenteWhatsappBotConfigInput = z.infer<typeof updateDenteWhatsappBotConfigSchema>;
-export declare const denteMaxBotConfigSchema: z.ZodObject<{
-    id: z.ZodString;
-    organizationId: z.ZodString;
-    botId: z.ZodNullable<z.ZodString>;
-    webhookUrl: z.ZodNullable<z.ZodString>;
-    enabledFeatures: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
-    staffRouting: z.ZodObject<{
-        defaultUserId: z.ZodNullable<z.ZodString>;
-        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-            assignToUserId: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }>, "many">>;
-    }, "strip", z.ZodTypeAny, {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    }, {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    }>;
-    isActive: z.ZodBoolean;
-    updatedAt: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    organizationId: string;
-    updatedAt: string;
-    enabledFeatures: string[];
-    isActive: boolean;
-    staffRouting: {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    };
-    botId: string | null;
-    webhookUrl: string | null;
-}, {
-    id: string;
-    organizationId: string;
-    updatedAt: string;
-    isActive: boolean;
-    staffRouting: {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    };
-    botId: string | null;
-    webhookUrl: string | null;
-    enabledFeatures?: string[] | undefined;
-}>;
-export type DenteMaxBotConfig = z.infer<typeof denteMaxBotConfigSchema>;
-export declare const updateDenteMaxBotConfigSchema: z.ZodObject<{
-    botId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    apiToken: z.ZodOptional<z.ZodString>;
-    webhookUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    enabledFeatures: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-    staffRouting: z.ZodOptional<z.ZodObject<{
-        defaultUserId: z.ZodNullable<z.ZodString>;
-        rules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            intent: z.ZodEnum<["appointment_booking", "appointment_status", "document_request", "payment_question", "recall_request", "general_question", "default"]>;
-            assignToUserId: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }, {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }>, "many">>;
-    }, "strip", z.ZodTypeAny, {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    }, {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    }>>;
-    isActive: z.ZodOptional<z.ZodBoolean>;
-}, "strip", z.ZodTypeAny, {
-    enabledFeatures?: string[] | undefined;
-    isActive?: boolean | undefined;
-    staffRouting?: {
-        defaultUserId: string | null;
-        rules: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[];
-    } | undefined;
-    botId?: string | null | undefined;
-    webhookUrl?: string | null | undefined;
-    apiToken?: string | undefined;
-}, {
-    enabledFeatures?: string[] | undefined;
-    isActive?: boolean | undefined;
-    staffRouting?: {
-        defaultUserId: string | null;
-        rules?: {
-            intent: "default" | "appointment_booking" | "appointment_status" | "document_request" | "payment_question" | "recall_request" | "general_question";
-            assignToUserId: string | null;
-        }[] | undefined;
-    } | undefined;
-    botId?: string | null | undefined;
-    webhookUrl?: string | null | undefined;
-    apiToken?: string | undefined;
-}>;
-export type UpdateDenteMaxBotConfigInput = z.infer<typeof updateDenteMaxBotConfigSchema>;
-export declare const messengerConnectionStatusSchema: z.ZodObject<{
-    channel: z.ZodEnum<["telegram", "whatsapp", "max"]>;
-    connected: z.ZodBoolean;
-    detail: z.ZodNullable<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    detail: string | null;
-    channel: "whatsapp" | "telegram" | "max";
-    connected: boolean;
-}, {
-    detail: string | null;
-    channel: "whatsapp" | "telegram" | "max";
-    connected: boolean;
-}>;
-export type MessengerConnectionStatus = z.infer<typeof messengerConnectionStatusSchema>;
-export declare const visitFlowStepStatusSchema: z.ZodEnum<["pending", "running", "success", "error", "skipped"]>;
-export type VisitFlowStepStatus = z.infer<typeof visitFlowStepStatusSchema>;
-export declare const visitFlowResultSchema: z.ZodObject<{
-    draft: z.ZodObject<{
-        status: z.ZodEnum<["pending", "running", "success", "error", "skipped"]>;
-        message: z.ZodNullable<z.ZodString>;
-        data: z.ZodNullable<z.ZodObject<{
-            complaint: z.ZodNullable<z.ZodString>;
-            anamnesis: z.ZodNullable<z.ZodString>;
-            objectiveStatus: z.ZodNullable<z.ZodString>;
-            diagnosis: z.ZodNullable<z.ZodString>;
-            treatmentPlan: z.ZodNullable<z.ZodString>;
-            quality: z.ZodOptional<z.ZodObject<{
-                level: z.ZodEnum<["ready", "review", "needs_more_dictation"]>;
-                confidence: z.ZodNumber;
-                specialty: z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>;
-                detectedToothCodes: z.ZodArray<z.ZodString, "many">;
-                detectedToothStates: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodEnum<["idle", "watch", "planned", "done", "missing", "treatment"]>>>;
-                signals: z.ZodArray<z.ZodString, "many">;
-                missingCriticalFields: z.ZodArray<z.ZodString, "many">;
-                nextAction: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            }, {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            }>>;
-            warnings: z.ZodArray<z.ZodString, "many">;
-            completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-                serviceId: z.ZodString;
-                title: z.ZodString;
-                quantity: z.ZodNumber;
-                priceRub: z.ZodNumber;
-                toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            }, "strip", z.ZodTypeAny, {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }, {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }>, "many">>;
-        }, "strip", z.ZodTypeAny, {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        }, {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        }>>;
-    }, "strip", z.ZodTypeAny, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        } | null;
-    }, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        } | null;
-    }>;
-    plan: z.ZodObject<{
-        status: z.ZodEnum<["pending", "running", "success", "error", "skipped"]>;
-        message: z.ZodNullable<z.ZodString>;
-        data: z.ZodNullable<z.ZodObject<{
-            clinicalReason: z.ZodString;
-            diagnosisSummary: z.ZodString;
-            teethOrArea: z.ZodString;
-            clinicalToothRows: z.ZodArray<z.ZodObject<{
-                toothOrArea: z.ZodString;
-                surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
-                status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
-                diagnosisOrFinding: z.ZodString;
-                indication: z.ZodString;
-                plannedAction: z.ZodString;
-                prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            }, "strip", z.ZodTypeAny, {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }, {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }>, "many">;
-            treatmentGoals: z.ZodArray<z.ZodString, "many">;
-            plannedStages: z.ZodArray<z.ZodObject<{
-                stageName: z.ZodString;
-                plannedServices: z.ZodString;
-                plannedTiming: z.ZodString;
-                clinicalNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                estimatedAmountRub: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-            }, "strip", z.ZodTypeAny, {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }, {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }>, "many">;
-            estimatedTotalRub: z.ZodNumber;
-            alternatives: z.ZodArray<z.ZodString, "many">;
-            risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-            prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            plannedAt: z.ZodEffects<z.ZodString, string, string>;
-            patientQuestionsAnswered: z.ZodLiteral<true>;
-            planRequiresSeparateConsent: z.ZodLiteral<true>;
-            planRequiresNewApprovalOnChange: z.ZodLiteral<true>;
-            patientFriendlyExplanation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            patientHygieneAdvice: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        }, {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        }>>;
-    }, "strip", z.ZodTypeAny, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        } | null;
-    }, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        } | null;
-    }>;
-    recommendations: z.ZodObject<{
-        status: z.ZodEnum<["pending", "running", "success", "error", "skipped"]>;
-        message: z.ZodNullable<z.ZodString>;
-        data: z.ZodNullable<z.ZodObject<{
-            careTopic: z.ZodEnum<["extraction", "implantation", "filling_restoration", "endo", "surgery", "local_anesthesia", "hygiene", "prosthetics", "orthodontics", "periodontology", "other"]>;
-            procedureName: z.ZodString;
-            toothOrArea: z.ZodString;
-            performedAt: z.ZodEffects<z.ZodString, string, string>;
-            doctorFullName: z.ZodString;
-            allowedAfter: z.ZodArray<z.ZodString, "many">;
-            temporaryRestrictions: z.ZodArray<z.ZodString, "many">;
-            medicationAndRinsePlan: z.ZodArray<z.ZodString, "many">;
-            hygieneInstructions: z.ZodArray<z.ZodString, "many">;
-            nutritionInstructions: z.ZodArray<z.ZodString, "many">;
-            urgentWarningSigns: z.ZodArray<z.ZodString, "many">;
-            plannedFollowUpAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            clinicContactInstruction: z.ZodString;
-            telegramSummary: z.ZodString;
-            patientReceivedPrintedCopy: z.ZodLiteral<true>;
-            patientUnderstandsUrgentSigns: z.ZodLiteral<true>;
-            safeForTelegramSending: z.ZodLiteral<true>;
-        }, "strip", z.ZodTypeAny, {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        }, {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        }>>;
-    }, "strip", z.ZodTypeAny, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        } | null;
-    }, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        } | null;
-    }>;
-    documents: z.ZodObject<{
-        status: z.ZodEnum<["pending", "running", "success", "error", "skipped"]>;
-        message: z.ZodNullable<z.ZodString>;
-        data: z.ZodNullable<z.ZodAny>;
-    }, "strip", z.ZodTypeAny, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data?: any;
-    }, {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data?: any;
-    }>;
-    overallStatus: z.ZodEnum<["success", "partial", "error"]>;
-}, "strip", z.ZodTypeAny, {
-    draft: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        } | null;
-    };
-    documents: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data?: any;
-    };
-    recommendations: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        } | null;
-    };
-    overallStatus: "error" | "success" | "partial";
-    plan: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        } | null;
-    };
-}, {
-    draft: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            warnings: string[];
-            complaint: string | null;
-            anamnesis: string | null;
-            objectiveStatus: string | null;
-            diagnosis: string | null;
-            treatmentPlan: string | null;
-            quality?: {
-                specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-                level: "review" | "ready" | "needs_more_dictation";
-                confidence: number;
-                signals: string[];
-                nextAction: string;
-                detectedToothCodes: string[];
-                missingCriticalFields: string[];
-                detectedToothStates?: Record<string, "planned" | "idle" | "watch" | "done" | "missing" | "treatment"> | undefined;
-            } | undefined;
-            completedServices?: {
-                title: string;
-                priceRub: number;
-                serviceId: string;
-                quantity: number;
-                toothCode?: string | null | undefined;
-            }[] | undefined;
-        } | null;
-    };
-    documents: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data?: any;
-    };
-    recommendations: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            doctorFullName: string;
-            toothOrArea: string;
-            careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-            procedureName: string;
-            performedAt: string;
-            allowedAfter: string[];
-            temporaryRestrictions: string[];
-            medicationAndRinsePlan: string[];
-            hygieneInstructions: string[];
-            nutritionInstructions: string[];
-            urgentWarningSigns: string[];
-            clinicContactInstruction: string;
-            telegramSummary: string;
-            patientReceivedPrintedCopy: true;
-            patientUnderstandsUrgentSigns: true;
-            safeForTelegramSending: true;
-            plannedFollowUpAt?: string | null | undefined;
-        } | null;
-    };
-    overallStatus: "error" | "success" | "partial";
-    plan: {
-        message: string | null;
-        status: "running" | "skipped" | "pending" | "error" | "success";
-        data: {
-            estimatedTotalRub: number;
-            teethOrArea: string;
-            clinicalToothRows: {
-                status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-                toothOrArea: string;
-                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-                diagnosisOrFinding: string;
-                indication: string;
-                plannedAction: string;
-                prognosis?: string | null | undefined;
-                periodontalStatus?: string | null | undefined;
-                implantOrProstheticNotes?: string | null | undefined;
-                orthodonticNotes?: string | null | undefined;
-            }[];
-            clinicalReason: string;
-            diagnosisSummary: string;
-            treatmentGoals: string[];
-            plannedStages: {
-                stageName: string;
-                plannedServices: string;
-                plannedTiming: string;
-                clinicalNotes?: string | null | undefined;
-                estimatedAmountRub?: number | null | undefined;
-            }[];
-            alternatives: string[];
-            risksAndLimitations: string[];
-            plannedAt: string;
-            patientQuestionsAnswered: true;
-            planRequiresSeparateConsent: true;
-            planRequiresNewApprovalOnChange: true;
-            doctorFullName?: string | null | undefined;
-            prognosisAndLimits?: string | null | undefined;
-            controlPlan?: string | null | undefined;
-            patientFriendlyExplanation?: string | null | undefined;
-            patientHygieneAdvice?: string | null | undefined;
-            customHygieneTextOverride?: string | null | undefined;
-        } | null;
-    };
-}>;
-export type VisitFlowResult = z.infer<typeof visitFlowResultSchema>;
-export declare const visitFlowRequestSchema: z.ZodObject<{
-    patientId: z.ZodString;
-    transcript: z.ZodString;
-    specialty: z.ZodDefault<z.ZodEnum<["therapist", "orthopedist", "surgeon", "orthodontist", "periodontist", "hygienist", "pediatric", "implantologist", "radiologist", "universal"]>>;
-    source: z.ZodDefault<z.ZodEnum<["voice", "typed", "image"]>>;
-    completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        serviceId: z.ZodString;
-        title: z.ZodString;
-        quantity: z.ZodNumber;
-        priceRub: z.ZodNumber;
-        toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }, {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }>, "many">>;
-    doctorFullName: z.ZodOptional<z.ZodString>;
-    planPayload: z.ZodNullable<z.ZodOptional<z.ZodObject<{
-        clinicalReason: z.ZodString;
-        diagnosisSummary: z.ZodString;
-        teethOrArea: z.ZodString;
-        clinicalToothRows: z.ZodArray<z.ZodObject<{
-            toothOrArea: z.ZodString;
-            surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
-            status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
-            diagnosisOrFinding: z.ZodString;
-            indication: z.ZodString;
-            plannedAction: z.ZodString;
-            prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, "strip", z.ZodTypeAny, {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }, {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }>, "many">;
-        treatmentGoals: z.ZodArray<z.ZodString, "many">;
-        plannedStages: z.ZodArray<z.ZodObject<{
-            stageName: z.ZodString;
-            plannedServices: z.ZodString;
-            plannedTiming: z.ZodString;
-            clinicalNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            estimatedAmountRub: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-        }, "strip", z.ZodTypeAny, {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }, {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }>, "many">;
-        estimatedTotalRub: z.ZodNumber;
-        alternatives: z.ZodArray<z.ZodString, "many">;
-        risksAndLimitations: z.ZodArray<z.ZodString, "many">;
-        prognosisAndLimits: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        controlPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        doctorFullName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        plannedAt: z.ZodEffects<z.ZodString, string, string>;
-        patientQuestionsAnswered: z.ZodLiteral<true>;
-        planRequiresSeparateConsent: z.ZodLiteral<true>;
-        planRequiresNewApprovalOnChange: z.ZodLiteral<true>;
-        patientFriendlyExplanation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        patientHygieneAdvice: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        customHygieneTextOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        estimatedTotalRub: number;
-        teethOrArea: string;
-        clinicalToothRows: {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }[];
-        clinicalReason: string;
-        diagnosisSummary: string;
-        treatmentGoals: string[];
-        plannedStages: {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }[];
-        alternatives: string[];
-        risksAndLimitations: string[];
-        plannedAt: string;
-        patientQuestionsAnswered: true;
-        planRequiresSeparateConsent: true;
-        planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
-        patientFriendlyExplanation?: string | null | undefined;
-        patientHygieneAdvice?: string | null | undefined;
-        customHygieneTextOverride?: string | null | undefined;
-    }, {
-        estimatedTotalRub: number;
-        teethOrArea: string;
-        clinicalToothRows: {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }[];
-        clinicalReason: string;
-        diagnosisSummary: string;
-        treatmentGoals: string[];
-        plannedStages: {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }[];
-        alternatives: string[];
-        risksAndLimitations: string[];
-        plannedAt: string;
-        patientQuestionsAnswered: true;
-        planRequiresSeparateConsent: true;
-        planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
-        patientFriendlyExplanation?: string | null | undefined;
-        patientHygieneAdvice?: string | null | undefined;
-        customHygieneTextOverride?: string | null | undefined;
-    }>>>;
-    recommendationsPayload: z.ZodNullable<z.ZodOptional<z.ZodObject<{
-        careTopic: z.ZodEnum<["extraction", "implantation", "filling_restoration", "endo", "surgery", "local_anesthesia", "hygiene", "prosthetics", "orthodontics", "periodontology", "other"]>;
-        procedureName: z.ZodString;
-        toothOrArea: z.ZodString;
-        performedAt: z.ZodEffects<z.ZodString, string, string>;
-        doctorFullName: z.ZodString;
-        allowedAfter: z.ZodArray<z.ZodString, "many">;
-        temporaryRestrictions: z.ZodArray<z.ZodString, "many">;
-        medicationAndRinsePlan: z.ZodArray<z.ZodString, "many">;
-        hygieneInstructions: z.ZodArray<z.ZodString, "many">;
-        nutritionInstructions: z.ZodArray<z.ZodString, "many">;
-        urgentWarningSigns: z.ZodArray<z.ZodString, "many">;
-        plannedFollowUpAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        clinicContactInstruction: z.ZodString;
-        telegramSummary: z.ZodString;
-        patientReceivedPrintedCopy: z.ZodLiteral<true>;
-        patientUnderstandsUrgentSigns: z.ZodLiteral<true>;
-        safeForTelegramSending: z.ZodLiteral<true>;
-    }, "strip", z.ZodTypeAny, {
-        doctorFullName: string;
-        toothOrArea: string;
-        careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-        procedureName: string;
-        performedAt: string;
-        allowedAfter: string[];
-        temporaryRestrictions: string[];
-        medicationAndRinsePlan: string[];
-        hygieneInstructions: string[];
-        nutritionInstructions: string[];
-        urgentWarningSigns: string[];
-        clinicContactInstruction: string;
-        telegramSummary: string;
-        patientReceivedPrintedCopy: true;
-        patientUnderstandsUrgentSigns: true;
-        safeForTelegramSending: true;
-        plannedFollowUpAt?: string | null | undefined;
-    }, {
-        doctorFullName: string;
-        toothOrArea: string;
-        careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-        procedureName: string;
-        performedAt: string;
-        allowedAfter: string[];
-        temporaryRestrictions: string[];
-        medicationAndRinsePlan: string[];
-        hygieneInstructions: string[];
-        nutritionInstructions: string[];
-        urgentWarningSigns: string[];
-        clinicContactInstruction: string;
-        telegramSummary: string;
-        patientReceivedPrintedCopy: true;
-        patientUnderstandsUrgentSigns: true;
-        safeForTelegramSending: true;
-        plannedFollowUpAt?: string | null | undefined;
-    }>>>;
-    orchestratorConfig: z.ZodOptional<z.ZodObject<{
-        enablePlan: z.ZodDefault<z.ZodBoolean>;
-        enableRecommendations: z.ZodDefault<z.ZodBoolean>;
-        enableDocuments: z.ZodDefault<z.ZodBoolean>;
-    }, "strip", z.ZodTypeAny, {
-        enablePlan: boolean;
-        enableRecommendations: boolean;
-        enableDocuments: boolean;
-    }, {
-        enablePlan?: boolean | undefined;
-        enableRecommendations?: boolean | undefined;
-        enableDocuments?: boolean | undefined;
-    }>>;
-}, "strip", z.ZodTypeAny, {
-    source: "voice" | "typed" | "image";
-    patientId: string;
-    specialty: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal";
-    transcript: string;
-    doctorFullName?: string | undefined;
-    completedServices?: {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }[] | undefined;
-    planPayload?: {
-        estimatedTotalRub: number;
-        teethOrArea: string;
-        clinicalToothRows: {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }[];
-        clinicalReason: string;
-        diagnosisSummary: string;
-        treatmentGoals: string[];
-        plannedStages: {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }[];
-        alternatives: string[];
-        risksAndLimitations: string[];
-        plannedAt: string;
-        patientQuestionsAnswered: true;
-        planRequiresSeparateConsent: true;
-        planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
-        patientFriendlyExplanation?: string | null | undefined;
-        patientHygieneAdvice?: string | null | undefined;
-        customHygieneTextOverride?: string | null | undefined;
-    } | null | undefined;
-    recommendationsPayload?: {
-        doctorFullName: string;
-        toothOrArea: string;
-        careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-        procedureName: string;
-        performedAt: string;
-        allowedAfter: string[];
-        temporaryRestrictions: string[];
-        medicationAndRinsePlan: string[];
-        hygieneInstructions: string[];
-        nutritionInstructions: string[];
-        urgentWarningSigns: string[];
-        clinicContactInstruction: string;
-        telegramSummary: string;
-        patientReceivedPrintedCopy: true;
-        patientUnderstandsUrgentSigns: true;
-        safeForTelegramSending: true;
-        plannedFollowUpAt?: string | null | undefined;
-    } | null | undefined;
-    orchestratorConfig?: {
-        enablePlan: boolean;
-        enableRecommendations: boolean;
-        enableDocuments: boolean;
-    } | undefined;
-}, {
-    patientId: string;
-    transcript: string;
-    source?: "voice" | "typed" | "image" | undefined;
-    specialty?: "therapist" | "orthopedist" | "surgeon" | "orthodontist" | "periodontist" | "hygienist" | "pediatric" | "implantologist" | "radiologist" | "universal" | undefined;
-    doctorFullName?: string | undefined;
-    completedServices?: {
-        title: string;
-        priceRub: number;
-        serviceId: string;
-        quantity: number;
-        toothCode?: string | null | undefined;
-    }[] | undefined;
-    planPayload?: {
-        estimatedTotalRub: number;
-        teethOrArea: string;
-        clinicalToothRows: {
-            status: "planned" | "completed" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
-            toothOrArea: string;
-            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
-            diagnosisOrFinding: string;
-            indication: string;
-            plannedAction: string;
-            prognosis?: string | null | undefined;
-            periodontalStatus?: string | null | undefined;
-            implantOrProstheticNotes?: string | null | undefined;
-            orthodonticNotes?: string | null | undefined;
-        }[];
-        clinicalReason: string;
-        diagnosisSummary: string;
-        treatmentGoals: string[];
-        plannedStages: {
-            stageName: string;
-            plannedServices: string;
-            plannedTiming: string;
-            clinicalNotes?: string | null | undefined;
-            estimatedAmountRub?: number | null | undefined;
-        }[];
-        alternatives: string[];
-        risksAndLimitations: string[];
-        plannedAt: string;
-        patientQuestionsAnswered: true;
-        planRequiresSeparateConsent: true;
-        planRequiresNewApprovalOnChange: true;
-        doctorFullName?: string | null | undefined;
-        prognosisAndLimits?: string | null | undefined;
-        controlPlan?: string | null | undefined;
-        patientFriendlyExplanation?: string | null | undefined;
-        patientHygieneAdvice?: string | null | undefined;
-        customHygieneTextOverride?: string | null | undefined;
-    } | null | undefined;
-    recommendationsPayload?: {
-        doctorFullName: string;
-        toothOrArea: string;
-        careTopic: "other" | "surgery" | "prosthetics" | "orthodontics" | "periodontology" | "hygiene" | "extraction" | "implantation" | "filling_restoration" | "endo" | "local_anesthesia";
-        procedureName: string;
-        performedAt: string;
-        allowedAfter: string[];
-        temporaryRestrictions: string[];
-        medicationAndRinsePlan: string[];
-        hygieneInstructions: string[];
-        nutritionInstructions: string[];
-        urgentWarningSigns: string[];
-        clinicContactInstruction: string;
-        telegramSummary: string;
-        patientReceivedPrintedCopy: true;
-        patientUnderstandsUrgentSigns: true;
-        safeForTelegramSending: true;
-        plannedFollowUpAt?: string | null | undefined;
-    } | null | undefined;
-    orchestratorConfig?: {
-        enablePlan?: boolean | undefined;
-        enableRecommendations?: boolean | undefined;
-        enableDocuments?: boolean | undefined;
-    } | undefined;
-}>;
-export type VisitFlowRequest = z.infer<typeof visitFlowRequestSchema>;
+export * from "./utils/dates.js";
 //# sourceMappingURL=index.d.ts.map

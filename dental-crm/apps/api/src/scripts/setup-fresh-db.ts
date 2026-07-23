@@ -17,12 +17,8 @@ const DB_PATH = path.resolve(__dirname, "../../dente-db");
 console.log("[SETUP] SQL:", SQL_FILE);
 console.log("[SETUP] DB path:", DB_PATH);
 
-const DRIZZLE_DIR = path.resolve(__dirname, "../../drizzle");
-console.log("[SETUP] Drizzle directory:", DRIZZLE_DIR);
-console.log("[SETUP] DB path:", DB_PATH);
-
-if (!fs.existsSync(DRIZZLE_DIR)) {
-	console.error("[SETUP] Drizzle directory not found:", DRIZZLE_DIR);
+if (!fs.existsSync(SQL_FILE)) {
+	console.error("[SETUP] Migration SQL not found:", SQL_FILE);
 	process.exit(1);
 }
 
@@ -33,46 +29,36 @@ const db = new PGlite(DB_PATH, {
 await (db as any).waitReady;
 console.log("[SETUP] PGlite ready.");
 
-const files = fs
-	.readdirSync(DRIZZLE_DIR)
-	.filter((f) => f.endsWith(".sql"))
-	.sort();
+const rawSql = fs.readFileSync(SQL_FILE, "utf8");
 
-console.log(`[SETUP] Found ${files.length} migration files.`);
+// Split on the drizzle breakpoint marker
+const statements = rawSql
+	.split(/-->\s*statement-breakpoint/gi)
+	.map((s) => s.trim())
+	.filter(Boolean);
 
+console.log(`[SETUP] Applying ${statements.length} SQL statements...`);
 let ok = 0;
 let skipped = 0;
 let errors = 0;
-
-for (const file of files) {
-	console.log(`[SETUP] Applying migration file: ${file}`);
-	const rawSql = fs.readFileSync(path.join(DRIZZLE_DIR, file), "utf8");
-	const statements = rawSql
-		.split(/-->\s*statement-breakpoint/gi)
-		.map((s) => s.trim())
-		.filter(Boolean);
-
-	for (const stmt of statements) {
-		try {
-			await (db as any).exec(stmt);
-			ok++;
-		} catch (err: any) {
-			if (
-				err.message?.includes("already exists") ||
-				err.message?.includes("duplicate") ||
-				err.message?.includes("already a member")
-			) {
-				skipped++;
-			} else {
-				errors++;
-				console.error(`[SETUP] FAILED in ${file}:`, err.message?.slice(0, 120));
-				console.error("[STMT]:", stmt.slice(0, 200));
-			}
+for (const stmt of statements) {
+	try {
+		await (db as any).exec(stmt);
+		ok++;
+	} catch (err: any) {
+		if (
+			err.message?.includes("already exists") ||
+			err.message?.includes("duplicate")
+		) {
+			skipped++;
+		} else {
+			errors++;
+			console.error("[SETUP] FAILED:", err.message?.slice(0, 120));
+			console.error("[STMT]:", stmt.slice(0, 200));
 		}
 	}
 }
-
-console.log(`[SETUP] Migrations complete: OK=${ok} Skipped=${skipped} Errors=${errors}`);
+console.log(`[SETUP] Migration: OK=${ok} Skipped=${skipped} Errors=${errors}`);
 
 // Check if org already exists
 const existing = await (db as any).query("SELECT id FROM organizations LIMIT 1");
@@ -97,9 +83,9 @@ const password = "dente2026";
 const ownerName = "Администратор клиники";
 const ownerPin = "1234";
 
-const passwordHash = hashCredential(password);
-const pinHash = hashCredential(ownerPin);
-const ownerPasswordHash = hashCredential(password);
+const passwordHash = await hashCredential(password);
+const pinHash = await hashCredential(ownerPin);
+const ownerPasswordHash = await hashCredential(password);
 
 await (db as any).query(
 	`INSERT INTO organizations (id, name, login_id, password_hash, clinic_mode, onboarding_completed)

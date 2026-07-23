@@ -10,7 +10,7 @@ import base64
 import random
 import threading
 import functools
-import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from PIL import Image
 from openai import OpenAI
@@ -145,12 +145,8 @@ def _try_model_with_keys(model_name, provider, image_b64):
 
     return None, last_err
 
-def analyze_image(file_path):
-    """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
-    image_b64 = prepare_image(file_path)
-    if not image_b64:
-        return None, "Ошибка обработки файла"
-
+def _run_model_cascade(image_b64):
+    """Прогоняет картинку по каскаду моделей, возвращает (None, report) при успехе."""
     # Default cascade sequence
     models_with_providers = [
         ("gemini-3.5-flash", "gemini"),
@@ -169,6 +165,14 @@ def analyze_image(file_path):
             last_err = err
 
     return None, f"Сбой ИИ-анализа: все ключи исчерпаны. Ошибка: {last_err}"
+
+def analyze_image(file_path):
+    """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
+    image_b64 = prepare_image(file_path)
+    if not image_b64:
+        return None, "Ошибка обработки файла"
+
+    return _run_model_cascade(image_b64)
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
@@ -240,41 +244,48 @@ def process_single_file(file_path):
             except OSError:
                 pass
 
+def _process_and_publish(file_path, filename):
+    print(f"\n[+] Найден новый снимок: {filename}")
+    print("    Отправка в ИИ...")
+
+    start_time = time.time()
+    # Анализ ИИ и отрисовка рамок
+    marked_path, findings = analyze_image(file_path)
+    elapsed = time.time() - start_time
+    print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
+
+    # Отправка результатов
+    # Если размеченный файл создан, отправляем его имя
+    final_file_for_popup = marked_path if marked_path else file_path
+    publish_result(os.path.basename(final_file_for_popup), findings)
+
+    return marked_path
+
+def _move_files(file_path, marked_path, filename):
+    # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
+    processed_path = os.path.join(PROCESSED_DIR, filename)
+    try:
+        os.replace(file_path, processed_path)
+    except PermissionError:
+        print("    [!] Файл занят, повторная попытка через 2 сек...")
+        time.sleep(2)
+        os.replace(file_path, processed_path)
+
+    # Если есть размеченный, тоже переносим
+    if marked_path and os.path.exists(marked_path):
+        marked_filename = os.path.basename(marked_path)
+        try:
+            os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+        except Exception as e:
+            print(f"    [!] Ошибка перемещения размеченного файла: {e}")
+
+    print(f"    Файлы перемещены в {PROCESSED_DIR}")
+
 def _do_process(file_path):
     try:
         filename = os.path.basename(file_path)
-        print(f"\n[+] Найден новый снимок: {filename}")
-        print("    Отправка в ИИ...")
-
-        start_time = time.time()
-        # Анализ ИИ и отрисовка рамок
-        marked_path, findings = analyze_image(file_path)
-        elapsed = time.time() - start_time
-        print(f"    Анализ завершен за {elapsed:.1f} сек. Результат:\n{findings}")
-
-        # Отправка результатов
-        # Если размеченный файл создан, отправляем его имя
-        final_file_for_popup = marked_path if marked_path else file_path
-        publish_result(os.path.basename(final_file_for_popup), findings)
-
-        # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
-        processed_path = os.path.join(PROCESSED_DIR, filename)
-        try:
-            os.replace(file_path, processed_path)
-        except PermissionError:
-            print("    [!] Файл занят, повторная попытка через 2 сек...")
-            time.sleep(2)
-            os.replace(file_path, processed_path)
-
-        # Если есть размеченный, тоже переносим
-        if marked_path and os.path.exists(marked_path):
-            marked_filename = os.path.basename(marked_path)
-            try:
-                os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
-            except Exception as e:
-                print(f"    [!] Ошибка перемещения размеченного файла: {e}")
-
-        print(f"    Файлы перемещены в {PROCESSED_DIR}")
+        marked_path = _process_and_publish(file_path, filename)
+        _move_files(file_path, marked_path, filename)
     except FileNotFoundError:
         pass # File was already processed or moved
     except Exception as e:
@@ -301,7 +312,7 @@ def watch_loop():
     
     # Process existing files first
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             for filename in os.listdir(WATCH_DIR):
                 if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
                     file_path = os.path.join(WATCH_DIR, filename)

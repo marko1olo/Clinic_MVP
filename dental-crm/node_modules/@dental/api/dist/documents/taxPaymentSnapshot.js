@@ -1,9 +1,12 @@
 const taxDocumentSnapshotKinds = new Set([
     "tax_deduction_certificate",
     "legacy_tax_deduction_certificate",
-    "tax_deduction_registry",
+    "tax_deduction_registry"
 ]);
-const duplicateSensitiveTaxCertificateKinds = new Set(["tax_deduction_certificate", "legacy_tax_deduction_certificate"]);
+const duplicateSensitiveTaxCertificateKinds = new Set([
+    "tax_deduction_certificate",
+    "legacy_tax_deduction_certificate"
+]);
 export function taxDocumentUsesPaymentSnapshot(kind) {
     return taxDocumentSnapshotKinds.has(kind);
 }
@@ -45,8 +48,7 @@ function paymentMatchesDocumentTaxScope(document, payment) {
         payment.status === "paid" &&
         payment.amountRub > 0 &&
         taxPaymentYear(payment) === document.taxYear &&
-        (!normalizedInn(document.taxPayerInn) ||
-            normalizedInn(payment.payerInn) === normalizedInn(document.taxPayerInn)));
+        (!normalizedInn(document.taxPayerInn) || normalizedInn(payment.payerInn) === normalizedInn(document.taxPayerInn)));
 }
 export function baseTaxPaymentsForDocument(document, payments) {
     if (!document.taxYear)
@@ -54,9 +56,7 @@ export function baseTaxPaymentsForDocument(document, payments) {
     const selectedPaymentIds = selectedPaymentIdsForTaxDocument(document);
     const matchingPayments = payments.filter((payment) => paymentMatchesDocumentTaxScope(document, payment));
     if (taxDocumentUsesPaymentSnapshot(document.kind)) {
-        return selectedPaymentIds.size
-            ? matchingPayments.filter((payment) => selectedPaymentIds.has(payment.id))
-            : [];
+        return selectedPaymentIds.size ? matchingPayments.filter((payment) => selectedPaymentIds.has(payment.id)) : [];
     }
     const linkedPayments = matchingPayments.filter((payment) => payment.documentId === document.id);
     return linkedPayments.length ? linkedPayments : matchingPayments;
@@ -68,18 +68,13 @@ export function snapshotPaymentsForDocument(document) {
     return snapshot.payments.map(clonePayment);
 }
 export function taxPaymentsForDocumentScope(document, payments) {
-    return (snapshotPaymentsForDocument(document) ??
-        baseTaxPaymentsForDocument(document, payments));
+    return snapshotPaymentsForDocument(document) ?? baseTaxPaymentsForDocument(document, payments);
 }
 export function receiptKeysForTaxDocument(document, payments) {
-    return new Set(taxPaymentsForDocumentScope(document, payments)
-        .map(taxPaymentReceiptKey)
-        .filter(Boolean));
+    return new Set(taxPaymentsForDocumentScope(document, payments).map(taxPaymentReceiptKey).filter(Boolean));
 }
 export function paymentIdsForTaxDocument(document, payments) {
-    return new Set(taxPaymentsForDocumentScope(document, payments)
-        .map((payment) => payment.id)
-        .filter(Boolean));
+    return new Set(taxPaymentsForDocumentScope(document, payments).map((payment) => payment.id).filter(Boolean));
 }
 export function coveredIdentifiersForIssuedTaxCertificates(document, documents, payments) {
     const paymentIds = new Set();
@@ -113,8 +108,7 @@ export function taxPaymentsForIssueSnapshot(document, payments, documents) {
     }
     const covered = coveredIdentifiersForIssuedTaxCertificates(document, documents, payments);
     const selectedPayments = baseTaxPaymentsForDocument(document, payments);
-    return selectedPayments.filter((payment) => !covered.paymentIds.has(payment.id) &&
-        !covered.fiscalReceiptKeys.has(taxPaymentReceiptKey(payment)));
+    return selectedPayments.filter((payment) => !covered.paymentIds.has(payment.id) && !covered.fiscalReceiptKeys.has(taxPaymentReceiptKey(payment)));
 }
 export function buildTaxPaymentSnapshotForIssue(document, payments, documents) {
     if (!taxDocumentUsesPaymentSnapshot(document.kind) || !document.taxYear)
@@ -129,7 +123,7 @@ export function buildTaxPaymentSnapshotForIssue(document, payments, documents) {
         taxPayerInn: normalizedInn(document.taxPayerInn),
         paymentIds: snapshotPayments.map((payment) => payment.id),
         fiscalReceiptKeys: snapshotPayments.map(taxPaymentReceiptKey),
-        payments: snapshotPayments,
+        payments: snapshotPayments
     };
 }
 export function taxPaymentSnapshotTotalRub(snapshot) {

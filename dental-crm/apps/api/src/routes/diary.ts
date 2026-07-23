@@ -18,7 +18,6 @@ import {
 	visitDiaries,
 	visitDiaryRevisions,
 } from "../db/schema.js";
-import { deductVisitInventoryIdempotent } from "../db/visitsQuery.js";
 
 const diaryUpsertSchema = z.object({
 	visitId: z.string().uuid(),
@@ -273,7 +272,41 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 							.set({ status: "completed" as any })
 							.where(eq(treatmentItems.visitId, existing.visitId));
 
-						await deductVisitInventoryIdempotent(tx, orgId, existing.visitId, userId!);
+						for (const item of tItems) {
+							if (!item.serviceId) continue;
+							const rules = await tx
+								.select()
+								.from(procedureMaterialRules)
+								.where(eq(procedureMaterialRules.serviceId, item.serviceId));
+							for (const rule of rules) {
+								const [inv] = await tx
+									.select()
+									.from(inventoryItems)
+									.where(eq(inventoryItems.id, rule.inventoryItemId))
+									.for("update");
+								if (inv) {
+									const qtyToDeduct =
+										Number(rule.quantityToDeduct) * Number(item.quantity);
+									if (inv.stockQuantity < qtyToDeduct) {
+										throw new Error(`Недостаточно материалов: ${inv.name}`);
+									}
+									await tx
+										.update(inventoryItems)
+										.set({ stockQuantity: inv.stockQuantity - qtyToDeduct })
+										.where(eq(inventoryItems.id, inv.id));
+
+									await tx.insert(inventoryTransactions).values({
+										organizationId: orgId,
+										visitId: existing.visitId,
+										inventoryItemId: inv.id,
+										quantityChanged: -qtyToDeduct,
+										unitCostRub: inv.unitCostRub,
+										transactionType: "auto_deduct",
+										userId: userId,
+									});
+								}
+							}
+						}
 					}
 				}
 

@@ -20,6 +20,17 @@ class TestParseFindings(unittest.TestCase):
         self.assertEqual(body, ["Патологий не обнаружено. Норма."])
         self.assertEqual(alert, [])
 
+    def test_parse_findings_normal_variations(self):
+        # Test lowercase "норма", it doesn't match exactly "Норма" but it doesn't have keywords
+        body, alert = parse_findings("норма")
+        self.assertEqual(body, ["норма"])
+        self.assertEqual(alert, [])
+
+        # Test " Норма ", it doesn't match exactly "Норма"
+        body, alert = parse_findings(" Норма ")
+        self.assertEqual(body, [" Норма "])
+        self.assertEqual(alert, [])
+
     def test_parse_findings_no_alerts(self):
         # Test findings with normal text
         findings = "Зуб 11 в порядке\nЗуб 12: пломба, без патологий"
@@ -68,6 +79,19 @@ class TestParseFindings(unittest.TestCase):
         body, alert = parse_findings(findings)
         self.assertEqual(body, [])
         self.assertEqual(alert, ["Зуб 11: кариес!", "Зуб 12: (воспаление)"])
+
+    def test_parse_findings_invalid_type(self):
+        # Test non-string inputs
+        with self.assertRaises(AttributeError):
+            parse_findings(123)
+        with self.assertRaises(AttributeError):
+            parse_findings(["Зуб 11"])
+
+    def test_parse_findings_whitespace_only(self):
+        # Test whitespace-only string
+        body, alert = parse_findings("   ")
+        self.assertEqual(body, ["   "])
+        self.assertEqual(alert, [])
 
 
 if __name__ == '__main__':

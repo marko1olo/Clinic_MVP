@@ -7,12 +7,12 @@
  * GET  /api/xray/scans/:id      — один скан со всеми результатами
  * DELETE /api/xray/scans/:id    — удалить скан
  */
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { requireClinicalMutationAccess, requireClinicalReadAccess, resolveOrganizationId, } from "../accessGuard.js";
-import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { db } from "../db/client.js";
-import { patients, visits, xrayScans } from "../db/schema.js";
+import { xrayScans } from "../db/schema.js";
+import { eq } from "drizzle-orm";
+import { analyzeVisiographImage } from "../ai/visiograph.js";
+import { requireClinicalReadAccess, requireClinicalMutationAccess } from "../accessGuard.js";
 // ────────────────────────────────────────────────
 // Schemas
 // ────────────────────────────────────────────────
@@ -22,10 +22,7 @@ const createXrayScanSchema = z.object({
     imageBase64: z.string().min(100), // data:image/... base64 string or raw base64
     originalFilename: z.string().optional(),
     mimeType: z.string().optional().default("image/jpeg"),
-    kind: z
-        .enum(["periapical", "bitewing", "opg", "other"])
-        .optional()
-        .default("periapical"),
+    kind: z.enum(["periapical", "bitewing", "opg", "other"]).optional().default("periapical"),
     toothCode: z.string().optional(), // e.g. "46"
     notes: z.string().optional(),
     organizationId: z.string().uuid().optional(), // resolved from session context
@@ -53,11 +50,11 @@ const xrayScanResponseSchema = z.object({
 // ────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────
-function sendXrayScanScopeError(reply, statusCode, message) {
-    return reply.code(statusCode).send({
-        error: "XrayScanScopeError",
-        message,
-    });
+function resolveOrganizationId(request) {
+    // Real production: read from session. For now: env fallback.
+    return (request.session?.organizationId ??
+        process.env.DEFAULT_ORGANIZATION_ID ??
+        "00000000-0000-0000-0000-000000000001");
 }
 function scanToResponse(scan, includeImage = false) {
     return {
@@ -89,114 +86,36 @@ export async function registerXrayRoutes(app) {
     app.post("/api/xray/scans", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "upload xray scan")))
             return;
-        const organizationId = await resolveOrganizationId(request);
-        if (!organizationId)
-            return reply.code(403).send({ error: "OrganizationRequired" });
-        // Handle multipart upload
-        if (!request.isMultipart()) {
+        const parsed = createXrayScanSchema.safeParse(request.body);
+        if (!parsed.success) {
             return reply.code(400).send({
-                error: "MultipartRequired",
-                message: "Ожидается multipart/form-data",
+                error: "XrayScanValidationError",
+                message: "Неверный формат запроса загрузки снимка.",
             });
         }
-        const parts = request.parts();
-        let patientId = "";
-        let visitId;
-        let kind = "periapical";
-        let toothCode;
-        let notes;
-        let originalFilename = "";
-        let mimeType = "image/jpeg";
-        let storagePath = "";
-        let hasImage = false;
-        // Fastify multipart iterating
-        for await (const part of parts) {
-            if (part.type === "file") {
-                hasImage = true;
-                originalFilename = part.filename;
-                mimeType = part.mimetype;
-                // Physical storage logic
-                const crypto = await import("crypto");
-                const fs = await import("fs/promises");
-                const path = await import("path");
-                const uploadsDir = path.join(process.cwd(), "uploads", "xray");
-                await fs.mkdir(uploadsDir, { recursive: true });
-                const fileExt = path.extname(part.filename) || ".jpg";
-                const uniqueName = `${crypto.randomUUID()}${fileExt}`;
-                const absolutePath = path.join(uploadsDir, uniqueName);
-                // Use Node.js streams to save the file
-                const pump = (await import("util")).promisify((await import("stream")).pipeline);
-                const { createWriteStream } = await import("fs");
-                await pump(part.file, createWriteStream(absolutePath));
-                storagePath = `/uploads/xray/${uniqueName}`;
-            }
-            else {
-                // Field parts
-                const value = part.value;
-                if (part.fieldname === "patientId")
-                    patientId = value;
-                if (part.fieldname === "visitId" && value)
-                    visitId = value;
-                if (part.fieldname === "kind")
-                    kind = value;
-                if (part.fieldname === "toothCode" && value)
-                    toothCode = value;
-                if (part.fieldname === "notes" && value)
-                    notes = value;
-            }
-        }
-        if (!patientId) {
-            return reply
-                .code(400)
-                .send({ error: "ValidationError", message: "patientId обязателен" });
-        }
-        if (!hasImage) {
-            return reply
-                .code(400)
-                .send({ error: "ValidationError", message: "Файл снимка обязателен" });
-        }
-        const [patient] = await db
-            .select({ id: patients.id, organizationId: patients.organizationId })
-            .from(patients)
-            .where(and(eq(patients.id, patientId), eq(patients.organizationId, organizationId)))
-            .limit(1);
-        if (!patient)
-            return sendXrayScanScopeError(reply, 404, "Пациент для снимка не найден.");
-        if (visitId) {
-            const [visit] = await db
-                .select({
-                id: visits.id,
-                organizationId: visits.organizationId,
-                patientId: visits.patientId,
-            })
-                .from(visits)
-                .where(and(eq(visits.id, visitId), eq(visits.organizationId, organizationId)))
-                .limit(1);
-            if (!visit)
-                return sendXrayScanScopeError(reply, 404, "Прием для снимка не найден.");
-            if (visit.patientId !== patientId)
-                return sendXrayScanScopeError(reply, 409, "Снимок относится к приему другого пациента.");
-        }
+        const data = parsed.data;
+        const organizationId = resolveOrganizationId(request);
+        // Normalize image: ensure data URI format
+        const imageDataUri = data.imageBase64.startsWith("data:")
+            ? data.imageBase64
+            : `data:${data.mimeType};base64,${data.imageBase64}`;
         const [inserted] = await db
             .insert(xrayScans)
             .values({
             organizationId,
-            patientId,
-            visitId: visitId ?? null,
-            storagePath,
-            originalFilename,
-            mimeType,
-            kind,
-            toothCode: toothCode ?? null,
-            notes: notes ?? null,
+            patientId: data.patientId,
+            visitId: data.visitId ?? null,
+            imageDataUri,
+            originalFilename: data.originalFilename ?? null,
+            mimeType: data.mimeType,
+            kind: data.kind,
+            toothCode: data.toothCode ?? null,
+            notes: data.notes ?? null,
             status: "pending",
         })
             .returning();
         if (!inserted) {
-            return reply.code(500).send({
-                error: "InsertError",
-                message: "Не удалось сохранить снимок.",
-            });
+            return reply.code(500).send({ error: "InsertError", message: "Не удалось сохранить снимок." });
         }
         return reply.code(201).send(scanToResponse(inserted));
     });
@@ -205,36 +124,25 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "analyze xray scan")))
             return;
         const { id } = request.params;
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
-            return reply.code(403).send({ error: "OrganizationRequired" });
         const [scan] = await db
             .select()
             .from(xrayScans)
-            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)))
+            .where(eq(xrayScans.id, id))
             .limit(1);
         if (!scan) {
-            return reply
-                .code(404)
-                .send({ error: "XrayScanNotFound", message: "Снимок не найден." });
+            return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
         }
         if (!scan.imageDataUri) {
-            return reply.code(400).send({
-                error: "XrayScanNoImage",
-                message: "Снимок не содержит изображения.",
-            });
+            return reply.code(400).send({ error: "XrayScanNoImage", message: "Снимок не содержит изображения." });
         }
         if (scan.status === "analyzing") {
-            return reply.code(409).send({
-                error: "XrayScanAlreadyAnalyzing",
-                message: "Анализ уже выполняется.",
-            });
+            return reply.code(409).send({ error: "XrayScanAlreadyAnalyzing", message: "Анализ уже выполняется." });
         }
         // Mark as analyzing immediately
         await db
             .update(xrayScans)
             .set({ status: "analyzing", aiError: null })
-            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
+            .where(eq(xrayScans.id, id));
         // Run analysis async — respond immediately with 202 so the UI can poll
         reply.code(202).send({ status: "analyzing", id });
         // Background AI call
@@ -251,17 +159,14 @@ export async function registerXrayRoutes(app) {
                     aiAnalyzedAt: new Date(),
                     aiError: result.warnings.length > 0 ? result.warnings.join("; ") : null,
                 })
-                    .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
+                    .where(eq(xrayScans.id, id));
             }
             catch (err) {
                 console.error("[XRay AI] Analysis failed for scan", id, err?.message);
                 await db
                     .update(xrayScans)
-                    .set({
-                    status: "error",
-                    aiError: err?.message ?? "Неизвестная ошибка AI-анализа.",
-                })
-                    .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)));
+                    .set({ status: "error", aiError: err?.message ?? "Неизвестная ошибка AI-анализа." })
+                    .where(eq(xrayScans.id, id));
             }
         });
     });
@@ -271,17 +176,12 @@ export async function registerXrayRoutes(app) {
             return;
         const { patientId } = request.query;
         if (!patientId) {
-            return reply
-                .code(400)
-                .send({ error: "MissingPatientId", message: "Укажите patientId." });
+            return reply.code(400).send({ error: "MissingPatientId", message: "Укажите patientId." });
         }
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
-            return reply.code(403).send({ error: "OrganizationRequired" });
         const scans = await db
             .select()
             .from(xrayScans)
-            .where(and(eq(xrayScans.patientId, patientId), eq(xrayScans.organizationId, orgId)))
+            .where(eq(xrayScans.patientId, patientId))
             .orderBy(xrayScans.capturedAt);
         return scans.map((s) => scanToResponse(s, false));
     });
@@ -290,18 +190,13 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalReadAccess(request, reply, "get xray scan")))
             return;
         const { id } = request.params;
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
-            return reply.code(403).send({ error: "OrganizationRequired" });
         const [scan] = await db
             .select()
             .from(xrayScans)
-            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)))
+            .where(eq(xrayScans.id, id))
             .limit(1);
         if (!scan) {
-            return reply
-                .code(404)
-                .send({ error: "XrayScanNotFound", message: "Снимок не найден." });
+            return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
         }
         return scanToResponse(scan, true); // Include image
     });
@@ -310,17 +205,9 @@ export async function registerXrayRoutes(app) {
         if (!(await requireClinicalMutationAccess(request, reply, "delete xray scan")))
             return;
         const { id } = request.params;
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
-            return reply.code(403).send({ error: "OrganizationRequired" });
-        const result = await db
-            .delete(xrayScans)
-            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, orgId)))
-            .returning({ id: xrayScans.id });
+        const result = await db.delete(xrayScans).where(eq(xrayScans.id, id)).returning({ id: xrayScans.id });
         if (!result.length) {
-            return reply
-                .code(404)
-                .send({ error: "XrayScanNotFound", message: "Снимок не найден." });
+            return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
         }
         return reply.code(204).send();
     });
@@ -338,10 +225,7 @@ function extractSummary(report) {
     // Try to find the "Заключение:" section
     const conclusionMatch = report.match(/\*\*Заключение:\*\*\s*\n([\s\S]*?)(?:\n\n|\*\*|$)/i);
     if (conclusionMatch?.[1]) {
-        return conclusionMatch[1]
-            .replace(/^[-*\s]+/gm, "")
-            .trim()
-            .substring(0, 500);
+        return conclusionMatch[1].replace(/^[-*\s]+/gm, "").trim().substring(0, 500);
     }
     // Fallback: first 2 sentences
     const sentences = report.replace(/[#*`]/g, "").split(/(?<=[.!?])\s+/);

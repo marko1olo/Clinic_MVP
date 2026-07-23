@@ -20,6 +20,13 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_groq_client(self, mock_get_client):
+        mock_get_client.return_value = "mock_client"
+        client = watcher.make_groq_client("test_api_key")
+        self.assertEqual(client, "mock_client")
+        mock_get_client.assert_called_once_with("test_api_key", "https://api.groq.com/openai/v1")
+
     @patch('ShadowAnalyst.watcher.os.makedirs')
     def test_setup_dirs_success(self, mock_makedirs):
         # Patching WATCH_DIR and PROCESSED_DIR just to be sure we check the right values
@@ -112,6 +119,65 @@ class TestWatcher(unittest.TestCase):
         # Assert
         self.assertIsNone(result)
 
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_success(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Analysis result"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertEqual(result, "Analysis result")
+        mock_client.chat.completions.create.assert_called_once_with(
+            model="test-model",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "test prompt"},
+                        {"type": "image_url", "image_url": {"url": "base64img"}}
+                    ]
+                }
+            ]
+        )
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_strips_think_tags(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "<think>Internal thoughts</think>Analysis result"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertEqual(result, "Analysis result")
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_empty_choices(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = []
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertIsNone(result)
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_no_content(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = None
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertIsNone(result)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_success(self, mock_openai_class, mock_prepare_image):
@@ -139,6 +205,17 @@ class TestWatcher(unittest.TestCase):
         # Ensure client was created and create was called
         mock_openai_class.assert_called_once()
         mock_client.chat.completions.create.assert_called_once()
+
+    @patch('ShadowAnalyst.watcher.get_openai_client')
+    def test_make_gemini_client(self, mock_get_openai_client):
+        test_api_key = "test_gemini_key_123"
+        result = watcher.make_gemini_client(test_api_key)
+
+        mock_get_openai_client.assert_called_once_with(
+            test_api_key,
+            "https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        self.assertEqual(result, mock_get_openai_client.return_value)
 
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
@@ -364,6 +441,69 @@ class TestWatcher(unittest.TestCase):
 
         with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
             watcher._do_process('dummy.jpg')
+
+    @patch('ShadowAnalyst.watcher.process_single_file')
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_keyboard_interrupt(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class, mock_process):
+        mock_listdir.return_value = ['test1.jpg', 'test2.txt']
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_setup_dirs.assert_called_once()
+            mock_process.assert_called_once_with(os.path.join('/tmp/mock_watch', 'test1.jpg'))
+            mock_observer_instance.schedule.assert_called_once()
+            mock_observer_instance.start.assert_called_once()
+            mock_observer_instance.stop.assert_called_once()
+            mock_observer_instance.join.assert_called_once()
+
+            mock_print.assert_any_call("Остановка.")
+
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_general_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_listdir.return_value = []
+        mock_sleep.side_effect = Exception("General error")
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_setup_dirs.assert_called_once()
+            mock_observer_instance.schedule.assert_called_once()
+            mock_observer_instance.start.assert_called_once()
+            mock_observer_instance.stop.assert_called_once()
+            mock_observer_instance.join.assert_called_once()
+
+            mock_print.assert_any_call("Глобальная ошибка: General error")
+
+    @patch('ShadowAnalyst.watcher.Observer')
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.setup_dirs')
+    @patch('ShadowAnalyst.watcher.os.listdir')
+    def test_watch_loop_listdir_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_listdir.side_effect = Exception("Listdir error")
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_observer_instance = MagicMock()
+        mock_observer_class.return_value = mock_observer_instance
+
+        with patch('builtins.print') as mock_print, \
+             patch('ShadowAnalyst.watcher.WATCH_DIR', '/tmp/mock_watch'):
+            watcher.watch_loop()
+
+            mock_print.assert_any_call("Ошибка при проверке существующих файлов: Listdir error")
+            mock_observer_instance.start.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()

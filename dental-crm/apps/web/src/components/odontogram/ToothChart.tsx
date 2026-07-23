@@ -115,7 +115,9 @@ const ToothSVG = ({
 			viewBox={`${cfg.viewX} 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
 			preserveAspectRatio="none"
 			className={
-				colors.isPulsing ? "tooth-pulsing" : ""
+				colors.isPulsing
+					? "animate-pulse drop-shadow-[0_0_8px_rgba(253,224,71,0.5)]"
+					: ""
 			}
 		>
 			<g>
@@ -169,7 +171,9 @@ const ToothSVG = ({
 			viewBox={`${cfg.viewX} 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
 			preserveAspectRatio="none"
 			className={
-				colors.isPulsing ? "tooth-pulsing" : ""
+				colors.isPulsing
+					? "animate-pulse drop-shadow-[0_0_8px_rgba(253,224,71,0.5)]"
+					: ""
 			}
 		>
 			<g>
@@ -381,22 +385,22 @@ export const ToothChart: React.FC<ToothChartProps> = ({
 		<div className="tooth-chart-container" ref={containerRef}>
 			<div className="tooth-chart-header">
 				<h2 className="tooth-chart-title">
-					<Settings size={18} style={{ color: "var(--odontogram-ink-subtle)" }} />
+					<Settings size={18} className="text-zinc-400" />
 					Зубная формула (FDI)
 				</h2>
 				<div className="tooth-chart-legend">
 					<span className="tooth-chart-legend-item">
-						<div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#ef4444" }}></div> Кариес
+						<div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> Кариес
 					</span>
 					<span className="tooth-chart-legend-item">
-						<div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fbbf24" }}></div>{" "}
+						<div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>{" "}
 						Имплант
 					</span>
 					<span className="tooth-chart-legend-item">
-						<div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#60a5fa" }}></div> Коронка
+						<div className="w-2.5 h-2.5 rounded-full bg-blue-400"></div> Коронка
 					</span>
 					<span className="tooth-chart-legend-item">
-						<div className="tooth-pulsing" style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fde047" }}></div>{" "}
+						<div className="w-2.5 h-2.5 rounded-full bg-yellow-300 animate-pulse shadow-[0_0_5px_#fde047]"></div>{" "}
 						План
 					</span>
 				</div>

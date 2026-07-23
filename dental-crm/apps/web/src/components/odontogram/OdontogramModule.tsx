@@ -410,22 +410,23 @@ export const OdontogramModule = ({
 	};
 
 	return (
-		<div className="odontogram-module">
+		<div className="flex flex-col lg:flex-row items-start gap-6 w-full h-full p-6 bg-zinc-50/40 dark:bg-zinc-950/40 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl shadow-2xl text-slate-900 dark:text-zinc-100">
 			<div
-				className="odontogram-chart-area"
+				className="flex-2 min-w-0 flex flex-col gap-6 relative w-full"
 				ref={containerRef}
 			>
-				<div className="odontogram-toolbar">
-					<label className="toolbar-checkbox">
+				<div className="flex gap-4 p-4 items-center bg-zinc-100/30 dark:bg-zinc-900/30 border-b border-zinc-200/50 dark:border-zinc-800/50 rounded-t-xl">
+					<label className="flex items-center gap-2 cursor-pointer select-none">
 						<input
 							type="checkbox"
 							checked={isPediatricMode}
 							onChange={(e) => setIsPediatricMode(e.target.checked)}
+							className="accent-indigo-500"
 						/>
-						<span>Детский прикус</span>
+						<span className="text-sm font-medium">Детский прикус</span>
 					</label>
 					<label
-						className={`toolbar-checkbox ${isMultiSelectMode ? "active" : ""}`}
+						className={`flex items-center gap-2 cursor-pointer select-none ${isMultiSelectMode ? "text-indigo-600 dark:text-indigo-400" : ""}`}
 					>
 						<input
 							type="checkbox"
@@ -437,7 +438,7 @@ export const OdontogramModule = ({
 							}}
 							className="accent-indigo-500"
 						/>
-						<span>Групповой выбор (Shift)</span>
+						<span className="text-sm font-medium">Групповой выбор (Shift)</span>
 					</label>
 				</div>
 				<ToothChart
@@ -465,7 +466,7 @@ export const OdontogramModule = ({
 								onClick={() => setMenuConfig(null)}
 							/>
 							<div
-								className="tooth-radial-menu"
+								className={`absolute grid grid-cols-2 gap-2 p-3 w-[254px] bg-zinc-950/40 backdrop-blur-md border border-zinc-800/50 shadow-2xl rounded-2xl`}
 								style={
 									{
 										left: menuConfig.x,
@@ -516,13 +517,13 @@ export const OdontogramModule = ({
 									</svg>
 								)}
 
-								<div className="radial-menu-title">
+								<div className="col-span-2 text-center mb-2 text-sm font-bold text-zinc-100">
 									{selectedTeeth.length > 1
 										? `Выбрано: ${selectedTeeth.length} зубов`
 										: `Зуб ${menuConfig.toothNumber}`}
 								</div>
 								{selectedTeeth.length === 1 && (
-									<div className="radial-menu-full-row">
+									<div className="col-span-2 mb-2">
 										<SurfaceSelector
 											selected={activeSurfaces}
 											onChange={setActiveSurfaces}
@@ -531,37 +532,37 @@ export const OdontogramModule = ({
 								)}
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Caries")}
-									className="tooth-menu-btn caries"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
 								>
 									Кариес
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Pulpitis")}
-									className="tooth-menu-btn pulpitis"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
 								>
 									Пульпит
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Missing")}
-									className="tooth-menu-btn missing"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-zinc-800/40 text-zinc-400 border-zinc-700/30 hover:bg-zinc-800/60"
 								>
 									Отсутствует
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Crown")}
-									className="tooth-menu-btn crown"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
 								>
 									Коронка
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Implant")}
-									className="tooth-menu-btn implant"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20"
 								>
 									Имплантат
 								</button>
 								<button
 									onClick={() => updateToothState(selectedTeeth, "Healthy")}
-									className="tooth-menu-btn filled"
+									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
 								>
 									Здоров
 								</button>
@@ -570,7 +571,7 @@ export const OdontogramModule = ({
 										setHistoryTooth(menuConfig.toothNumber);
 										setMenuConfig(null);
 									}}
-									className="tooth-menu-btn radial-menu-full-row"
+									className="col-span-2 flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20"
 								>
 									<History className="w-4 h-4 inline mr-2" /> История зуба
 								</button>
@@ -588,7 +589,7 @@ export const OdontogramModule = ({
 				)}
 			</div>
 
-			<div className="odontogram-treatment-area">
+			<div className="flex-1 min-w-[320px] max-w-[480px] flex flex-col w-full relative">
 				<TreatmentEstimator patientId={patientId} currentTeeth={teethData} />
 
 				{/* Floating Voice Dictation Button */}

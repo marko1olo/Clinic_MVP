@@ -80,7 +80,3 @@ __pycache__/
 *.pyc
 *.pyo
 .postgres/
-temp-test-db/
-
-script.js
-*.bak

@@ -24,11 +24,13 @@ def _insert_patients(c, new_patients_data):
     if not new_patients_data:
         return []
 
-    query = "INSERT INTO patients (name, phone, created_at) VALUES " + ", ".join(["(?, ?, ?)"] * len(new_patients_data)) + " RETURNING id"
-    params = [item for sublist in new_patients_data for item in sublist]
+    query = "INSERT INTO patients (name, phone, created_at) VALUES (?, ?, ?) RETURNING id"
+    inserted_ids = []
+    for row in new_patients_data:
+        c.execute(query, row)
+        inserted_ids.append(c.fetchone()[0])
 
-    c.execute(query, params)
-    return [row[0] for row in c.fetchall()]
+    return inserted_ids
 
 def _insert_appointments(c, inserted_ids, now):
     old_date = (now - timedelta(days=210)).isoformat()

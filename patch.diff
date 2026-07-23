@@ -1,0 +1,78 @@
+--- clinic_admin/test_main.py
++++ clinic_admin/test_main.py
+@@ -48,6 +48,64 @@
+                 with TestClient(app):
+                     pass
+
++    @patch('os.environ.get')
++    def test_get_expected_credentials_success(self, mock_env_get):
++        from clinic_admin.main import _get_expected_credentials
++        def mock_env(key, default=None):
++            if key == "ADMIN_USERNAME": return "admin"
++            if key == "ADMIN_PASSWORD": return "password123"
++            return default
++        mock_env_get.side_effect = mock_env
++
++        username, password = _get_expected_credentials()
++        self.assertEqual(username, "admin")
++        self.assertEqual(password, "password123")
++
++    @patch('os.environ.get')
++    def test_get_expected_credentials_missing_password(self, mock_env_get):
++        from clinic_admin.main import _get_expected_credentials
++        from fastapi import HTTPException
++        def mock_env(key, default=None):
++            if key == "ADMIN_USERNAME": return "admin"
++            if key == "ADMIN_PASSWORD": return None
++            return default
++        mock_env_get.side_effect = mock_env
++
++        with self.assertRaises(HTTPException) as context:
++            _get_expected_credentials()
++        self.assertEqual(context.exception.status_code, 500)
++        self.assertEqual(context.exception.detail, "Admin credentials are not configured on the server")
++
++    @patch('os.environ.get')
++    def test_get_expected_credentials_missing_username(self, mock_env_get):
++        from clinic_admin.main import _get_expected_credentials
++        from fastapi import HTTPException
++        def mock_env(key, default=None):
++            if key == "ADMIN_USERNAME": return None
++            if key == "ADMIN_PASSWORD": return "password123"
++            return default
++        mock_env_get.side_effect = mock_env
++
++        with self.assertRaises(HTTPException) as context:
++            _get_expected_credentials()
++        self.assertEqual(context.exception.status_code, 500)
++        self.assertEqual(context.exception.detail, "Admin credentials are not configured on the server")
++
++    @patch('os.environ.get')
++    def test_get_expected_credentials_missing_both(self, mock_env_get):
++        from clinic_admin.main import _get_expected_credentials
++        from fastapi import HTTPException
++        def mock_env(key, default=None):
++            if key == "ADMIN_USERNAME": return None
++            if key == "ADMIN_PASSWORD": return None
++            return default
++        mock_env_get.side_effect = mock_env
++
++        with self.assertRaises(HTTPException) as context:
++            _get_expected_credentials()
++        self.assertEqual(context.exception.status_code, 500)
++        self.assertEqual(context.exception.detail, "Admin credentials are not configured on the server")
++
+     def test_read_root_unconfigured_credentials(self):
+         # temporarily delete credentials if they exist
+         u = os.environ.pop("ADMIN_USERNAME", None)
+
+--- clinic_admin/test_database.py
++++ clinic_admin/test_database.py
+@@ -3,6 +3,7 @@
+ import sqlite3
+ import os
+ import tempfile
++import clinic_admin.database
+
+ class TestDatabase(unittest.TestCase):
+     def setUp(self):

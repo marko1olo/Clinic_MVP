@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { denteTelegramLinkCodes } from "../db/schema.js";
 export async function listDenteTelegramLinkCodes(organizationId, limit = 50) {
@@ -8,7 +8,7 @@ export async function listDenteTelegramLinkCodes(organizationId, limit = 50) {
         .where(eq(denteTelegramLinkCodes.organizationId, organizationId))
         .orderBy(desc(denteTelegramLinkCodes.createdAt))
         .limit(limit);
-    return codes.map((code) => ({
+    return codes.map(code => ({
         id: code.id,
         organizationId: code.organizationId,
         clinicId: code.clinicId,
@@ -21,7 +21,7 @@ export async function listDenteTelegramLinkCodes(organizationId, limit = 50) {
         expiresAt: code.expiresAt.toISOString(),
         usedAt: code.usedAt?.toISOString() ?? null,
         createdAt: code.createdAt.toISOString(),
-        createdByUserId: code.createdByUserId,
+        createdByUserId: code.createdByUserId
     }));
 }
 export async function consumeDenteTelegramLinkCode(organizationId, codeFingerprint) {
@@ -29,7 +29,7 @@ export async function consumeDenteTelegramLinkCode(organizationId, codeFingerpri
         .update(denteTelegramLinkCodes)
         .set({
         status: "used",
-        usedAt: sql `CURRENT_TIMESTAMP`,
+        usedAt: sql `CURRENT_TIMESTAMP`
     })
         .where(and(eq(denteTelegramLinkCodes.organizationId, organizationId), eq(denteTelegramLinkCodes.codeFingerprint, codeFingerprint), eq(denteTelegramLinkCodes.status, "pending")))
         .returning();
@@ -48,6 +48,6 @@ export async function consumeDenteTelegramLinkCode(organizationId, codeFingerpri
         expiresAt: updated.expiresAt.toISOString(),
         usedAt: updated.usedAt?.toISOString() ?? null,
         createdAt: updated.createdAt.toISOString(),
-        createdByUserId: updated.createdByUserId,
+        createdByUserId: updated.createdByUserId
     };
 }

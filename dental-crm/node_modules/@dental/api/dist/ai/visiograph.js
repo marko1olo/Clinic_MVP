@@ -1,5 +1,5 @@
 import { fetch as undiciFetch } from "undici";
-import { getProviderKeyCandidates, recordProviderKeyFailure, recordProviderKeySuccess, } from "../speech/keyPool.js";
+import { getProviderKeyCandidates, recordProviderKeySuccess, recordProviderKeyFailure } from "../speech/keyPool.js";
 import { visiographSystemPrompt } from "./visiographPrompt.js";
 export async function analyzeVisiographImage(imageBase64) {
     const warnings = [];
@@ -7,30 +7,25 @@ export async function analyzeVisiographImage(imageBase64) {
     let lastError;
     let rawContent = "";
     // Clean up prefix if needed (e.g., data:image/jpeg;base64,)
-    const b64Data = imageBase64.includes(",")
-        ? imageBase64.split(",")[1]
-        : imageBase64;
+    const b64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
     const mimeType = imageBase64.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
     const imagePayload = `data:${mimeType};base64,${b64Data}`;
     for (const provider of providers) {
         const candidates = getProviderKeyCandidates(provider);
         if (!candidates.length)
             continue;
-        // Shuffle candidates for load balancing securely
-        candidates.sort(() => (crypto.getRandomValues(new Uint32Array(1))[0] || 0) / 4294967295 - 0.5);
+        // Shuffle candidates for load balancing
+        candidates.sort(() => Math.random() - 0.5);
         for (const candidate of candidates) {
             try {
                 let endpoint = "";
                 let model = "";
                 if (provider === "groq_whisper") {
                     endpoint = "https://api.groq.com/openai/v1/chat/completions";
-                    model =
-                        process.env.GROQ_VISION_MODEL ||
-                            "meta-llama/llama-4-scout-17b-16e-instruct";
+                    model = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
                 }
                 else {
-                    endpoint =
-                        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+                    endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
                     model = process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash";
                 }
                 const requestBody = {
@@ -40,31 +35,31 @@ export async function analyzeVisiographImage(imageBase64) {
                     messages: [
                         {
                             role: "system",
-                            content: visiographSystemPrompt,
+                            content: visiographSystemPrompt
                         },
                         {
                             role: "user",
                             content: [
                                 { type: "text", text: "Проанализируй этот снимок." },
-                                { type: "image_url", image_url: { url: imagePayload } },
-                            ],
-                        },
-                    ],
+                                { type: "image_url", image_url: { url: imagePayload } }
+                            ]
+                        }
+                    ]
                 };
                 const response = await undiciFetch(endpoint, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${candidate.value}`,
+                        Authorization: `Bearer ${candidate.value}`
                     },
                     body: JSON.stringify(requestBody),
-                    dispatcher: globalThis._dentalProxyAgent || undefined,
+                    dispatcher: globalThis._dentalProxyAgent || undefined
                 });
                 if (!response.ok) {
                     const text = await response.text();
                     throw new Error(`[${model}] API Error ${response.status}: ${text}`);
                 }
-                const data = (await response.json());
+                const data = await response.json();
                 rawContent = data.choices?.[0]?.message?.content || "";
                 if (!rawContent)
                     throw new Error("Empty response from model");
@@ -74,6 +69,7 @@ export async function analyzeVisiographImage(imageBase64) {
             catch (err) {
                 lastError = err;
                 recordProviderKeyFailure(provider, candidate, err);
+                continue;
             }
         }
         if (rawContent)
@@ -101,8 +97,8 @@ export async function analyzeVisiographImage(imageBase64) {
     const toothStates = resultObj?.toothStates || {};
     let report = rawContent;
     // Clean up JSON block from the report text if it's there
-    if (report.includes("```json")) {
-        report = report.split("```json")[0]?.trim() || report;
+    if (report.includes("\`\`\`json")) {
+        report = report.split("\`\`\`json")[0]?.trim() || report;
     }
     else if (report.includes("{") && report.includes("toothStates")) {
         report = report.substring(0, report.indexOf("{")).trim();
@@ -110,6 +106,6 @@ export async function analyzeVisiographImage(imageBase64) {
     return {
         report,
         toothStates,
-        warnings,
+        warnings
     };
 }

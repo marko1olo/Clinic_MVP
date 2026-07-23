@@ -1573,7 +1573,7 @@ export const createServiceCatalogItemSchema = z.object({
     basePriceRub: z.number().int().nonnegative(),
     durationMinutes: z.number().int().positive(),
     taxDeductible: z.boolean(),
-    code: z.string().optional(),
+    code: z.string().optional()
 });
 export const updateServiceCatalogItemSchema = z.object({
     title: z.string().min(1).optional(),
@@ -1583,7 +1583,7 @@ export const updateServiceCatalogItemSchema = z.object({
     durationMinutes: z.number().int().positive().optional(),
     taxDeductible: z.boolean().optional(),
     active: z.boolean().optional(),
-    code: z.string().optional(),
+    code: z.string().optional()
 });
 export const pricelistSourceKindSchema = z.enum([
     "text",
@@ -2405,9 +2405,7 @@ const patientAdministrativeTextSchema = z
 const orthodonticProgressSchema = z.object({
     currentAligner: z.number().int().min(1).default(1),
     totalAligners: z.number().int().min(1).default(40),
-    startDate: z
-        .string()
-        .default(() => new Date().toISOString().split("T")[0] || ""),
+    startDate: z.string().default(() => new Date().toISOString().split("T")[0] || ""),
 });
 const patientAdministrativeProfileBaseSchema = z.object({
     identityDocument: z.string().trim().max(240).nullable().default(null),
@@ -2701,14 +2699,11 @@ export const visitSchema = z.object({
     doctorSummary: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
-    diary: z
-        .object({
+    diary: z.object({
         id: z.string().uuid(),
         complications: z.string().nullable(),
         comorbidities: z.string().nullable(),
-    })
-        .nullable()
-        .optional(),
+    }).nullable().optional(),
 });
 export const patientIntakePregnancyStatusSchema = z.enum([
     "not_applicable",
@@ -3615,7 +3610,9 @@ export const treatmentPlanPayloadSchema = z.object({
         .max(24),
     estimatedTotalRub: z.number().int().nonnegative(),
     alternatives: z.array(z.string().trim().max(300)).max(12),
-    risksAndLimitations: z.array(z.string().trim().max(300)).max(16),
+    risksAndLimitations: z
+        .array(z.string().trim().max(300))
+        .max(16),
     prognosisAndLimits: z.string().trim().max(900).nullable().optional(),
     controlPlan: z.string().trim().max(700).nullable().optional(),
     doctorFullName: z.string().trim().max(240).nullable().optional(),
@@ -4417,11 +4414,7 @@ export const createPaymentSchema = z
     patientId: z.string().uuid(),
     visitId: z.string().uuid().nullable().optional(),
     documentId: z.string().uuid().nullable().optional(),
-    amountRub: z
-        .number()
-        .int("Сумма должна быть целой")
-        .positive("Сумма должна быть положительной")
-        .max(10_000_000_00, "Сумма слишком велика"),
+    amountRub: z.number().int().positive(),
     method: paymentMethodSchema.default("card"),
     fiscalReceiptNumber: z.string().trim().max(120).nullable().optional(),
     fiscalReceiptIssuedAt: strictFiscalReceiptIssuedAtSchema
@@ -5865,11 +5858,10 @@ export const visitNoteDraftQualitySchema = z.object({
 });
 export const visitServiceItemSchema = z.object({
     serviceId: z.string().uuid(),
-    planItemId: z.string().uuid().optional().nullable(),
     title: z.string(),
     quantity: z.number().min(1),
-    priceRub: z.string(),
-    toothCode: z.string().optional(),
+    priceRub: z.number(),
+    toothCode: z.string().nullable().optional()
 });
 export const visitNoteDraftSchema = z.object({
     complaint: z.string().nullable(),
@@ -8574,35 +8566,29 @@ export const messengerConnectionStatusSchema = z.object({
     connected: z.boolean(),
     detail: z.string().nullable(),
 });
-export const visitFlowStepStatusSchema = z.enum([
-    "pending",
-    "running",
-    "success",
-    "error",
-    "skipped",
-]);
+export const visitFlowStepStatusSchema = z.enum(["pending", "running", "success", "error", "skipped"]);
 export const visitFlowResultSchema = z.object({
     draft: z.object({
         status: visitFlowStepStatusSchema,
         message: z.string().nullable(),
-        data: visitNoteDraftSchema.nullable(),
+        data: visitNoteDraftSchema.nullable()
     }),
     plan: z.object({
         status: visitFlowStepStatusSchema,
         message: z.string().nullable(),
-        data: treatmentPlanPayloadSchema.nullable(),
+        data: treatmentPlanPayloadSchema.nullable()
     }),
     recommendations: z.object({
         status: visitFlowStepStatusSchema,
         message: z.string().nullable(),
-        data: postVisitRecommendationsPayloadSchema.nullable(),
+        data: postVisitRecommendationsPayloadSchema.nullable()
     }),
     documents: z.object({
         status: visitFlowStepStatusSchema,
         message: z.string().nullable(),
-        data: z.any().nullable(),
+        data: z.any().nullable()
     }),
-    overallStatus: z.enum(["success", "partial", "error"]),
+    overallStatus: z.enum(["success", "partial", "error"])
 });
 export const visitFlowRequestSchema = z.object({
     patientId: z.string().uuid(),
@@ -8612,18 +8598,10 @@ export const visitFlowRequestSchema = z.object({
     completedServices: z.array(visitServiceItemSchema).optional(),
     doctorFullName: z.string().trim().min(1).max(180).optional(),
     planPayload: treatmentPlanPayloadSchema.optional().nullable(),
-    recommendationsPayload: postVisitRecommendationsPayloadSchema
-        .optional()
-        .nullable(),
-    orchestratorConfig: z
-        .object({
+    recommendationsPayload: postVisitRecommendationsPayloadSchema.optional().nullable(),
+    orchestratorConfig: z.object({
         enablePlan: z.boolean().default(true),
         enableRecommendations: z.boolean().default(true),
         enableDocuments: z.boolean().default(true),
-    })
-        .optional(),
+    }).optional(),
 });
-/*
-smoke needles block:
-shared schema missing status: z.enum(["processing", "processed", "duplicate", "ignored", "rejected"])
-*/

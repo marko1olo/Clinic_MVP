@@ -1,6 +1,6 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { communicationTasks, denteTelegramChatLinks, denteTelegramOutboxDeliveryReceipts, } from "../db/schema.js";
+import { communicationTasks, denteTelegramChatLinks, denteTelegramOutboxDeliveryReceipts } from "../db/schema.js";
 import { getDenteTelegramBotSettings } from "./config.js";
 function buildOutboxItemId(source, id) {
     return `${source}:${id}`;
@@ -27,9 +27,7 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
             subjectType: "patient",
             subjectId: task.patientId,
             chatLinkId: null, // will be resolved in prepare
-            templateKind: task.intent === "review_request"
-                ? "review_request"
-                : "custom_message",
+            templateKind: task.intent === "review_request" ? "review_request" : "custom_message",
             deliveryStatus: "ready",
             scheduledAt: task.dueAt?.toISOString() ?? now.toISOString(),
             title: task.title,
@@ -38,7 +36,7 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
             photoUrl: null,
             warnings: [],
             blockedReason: null,
-            source: "communication_task",
+            source: "communication_task"
         });
     }
     // 2. Staff Daily Digest
@@ -47,24 +45,14 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
         .from(denteTelegramChatLinks)
         .where(and(eq(denteTelegramChatLinks.organizationId, organizationId), eq(denteTelegramChatLinks.subjectType, "staff"), eq(denteTelegramChatLinks.status, "active")));
     const digestDate = now.toISOString().split("T")[0];
-    const allDigestIds = activeStaffLinks.map((link) => `staff_digest:${link.subjectId}:${digestDate}`);
-    const sentDigestIds = new Set();
-    if (allDigestIds.length > 0) {
-        const existingReceipts = await db
-            .select({
-            outboxItemId: denteTelegramOutboxDeliveryReceipts.outboxItemId,
-        })
-            .from(denteTelegramOutboxDeliveryReceipts)
-            .where(and(inArray(denteTelegramOutboxDeliveryReceipts.outboxItemId, allDigestIds), eq(denteTelegramOutboxDeliveryReceipts.status, "sent")));
-        for (const receipt of existingReceipts) {
-            if (receipt.outboxItemId) {
-                sentDigestIds.add(receipt.outboxItemId);
-            }
-        }
-    }
     for (const link of activeStaffLinks) {
         const digestId = `staff_digest:${link.subjectId}:${digestDate}`;
-        const existing = sentDigestIds.has(digestId);
+        // Check if already sent today
+        const [existing] = await db
+            .select()
+            .from(denteTelegramOutboxDeliveryReceipts)
+            .where(and(eq(denteTelegramOutboxDeliveryReceipts.outboxItemId, digestId), eq(denteTelegramOutboxDeliveryReceipts.status, "sent")))
+            .limit(1);
         if (!existing) {
             items.push({
                 id: digestId,
@@ -84,7 +72,7 @@ export async function buildDenteTelegramOutboxItems(organizationId) {
                 photoUrl: null,
                 warnings: [],
                 blockedReason: null,
-                source: "staff_digest",
+                source: "staff_digest"
             });
         }
     }

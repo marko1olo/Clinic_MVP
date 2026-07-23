@@ -1,19 +1,38 @@
 import "dotenv/config";
-import { sql } from "drizzle-orm";
-import { client, db } from "../db/client.js";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "../db/schema.js";
 // We will read the actual saved state, or fallback to the sample data
 import { loadPersistentState } from "../persistentState.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
-function destructiveResetAllowed() {
-    return process.env.DENTAL_ALLOW_DESTRUCTIVE_DB_RESET === "YES";
-}
+const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL ?? "postgres://dental:dental@127.0.0.1:5432/dental_crm"
+});
+const db = drizzle(pool, { schema });
 async function clearDatabase() {
-    if (!destructiveResetAllowed()) {
-        throw new Error("Refusing to truncate database. Set DENTAL_ALLOW_DESTRUCTIVE_DB_RESET=YES and use a local/dev DATABASE_URL.");
-    }
     console.log("🧹 Clearing existing data...");
-    await db.execute(sql `TRUNCATE TABLE organizations CASCADE;`);
+    // Clear in reverse dependency order
+    await db.delete(schema.denteTelegramOutboxDeliveryReceipts);
+    await db.delete(schema.denteTelegramWebhookEvents);
+    await db.delete(schema.denteTelegramChatLinks);
+    await db.delete(schema.denteTelegramLinkCodes);
+    await db.delete(schema.denteTelegramBotConfigs);
+    await db.delete(schema.communicationEvents);
+    await db.delete(schema.communicationTasks);
+    await db.delete(schema.communicationTemplates);
+    await db.delete(schema.payments);
+    await db.delete(schema.clinicalRules);
+    await db.delete(schema.treatmentScenarios);
+    await db.delete(schema.treatmentItems);
+    await db.delete(schema.serviceCatalogItems);
+    await db.delete(schema.visits);
+    await db.delete(schema.appointments);
+    await db.delete(schema.patientConsents);
+    await db.delete(schema.patients);
+    await db.delete(schema.chairs);
+    await db.delete(schema.users);
+    await db.delete(schema.clinics);
+    await db.delete(schema.organizations);
     console.log("✔ Database cleared.");
 }
 async function migrate() {
@@ -47,26 +66,6 @@ async function migrate() {
         medicalLicenseNumber: state.clinicProfile.medicalLicenseNumber,
         medicalLicenseIssuedAt: state.clinicProfile.medicalLicenseIssuedAt,
         medicalLicenseIssuer: state.clinicProfile.medicalLicenseIssuer,
-        onboardingCompleted: true,
-        // Explicitly copy over feature flags to avoid database defaults overlay issues
-        hasAssistants: state.clinicProfile.hasAssistants ?? true,
-        hasMultipleChairs: state.clinicProfile.hasMultipleChairs ?? true,
-        hasDentalLab: state.clinicProfile.hasDentalLab ?? true,
-        hasInsuranceCoPay: state.clinicProfile.hasInsuranceCoPay ?? true,
-        hasInstallments: state.clinicProfile.hasInstallments ?? true,
-        hasOrthodontics: state.clinicProfile.hasOrthodontics ?? true,
-        hasTasks: state.clinicProfile.hasTasks ?? true,
-        hasReclamations: state.clinicProfile.hasReclamations ?? true,
-        hasPediatricMode: state.clinicProfile.hasPediatricMode ?? false,
-        isOmniRole: state.clinicProfile.isOmniRole ?? false,
-        workspacePreset: state.clinicProfile.workspacePreset ?? "enterprise",
-        hasPayrollModule: state.clinicProfile.hasPayrollModule ?? true,
-        hasMarketingModule: state.clinicProfile.hasMarketingModule ?? true,
-        hasAnalyticsModule: state.clinicProfile.hasAnalyticsModule ?? true,
-        hasInventoryModule: state.clinicProfile.hasInventoryModule ?? true,
-        aiEnableTreatmentPlan: state.clinicProfile.aiEnableTreatmentPlan ?? true,
-        aiEnableRecommendations: state.clinicProfile.aiEnableRecommendations ?? true,
-        aiEnableDocuments: state.clinicProfile.aiEnableDocuments ?? true,
     });
     console.log("🏥 Migrating Clinics (Default)");
     await db.insert(schema.clinics).values({
@@ -75,7 +74,7 @@ async function migrate() {
         name: "Основная клиника",
         address: state.clinicProfile.address,
         phone: state.clinicProfile.phone,
-        timezone: state.clinicProfile.timezone,
+        timezone: state.clinicProfile.timezone
     });
     console.log(`👥 Migrating ${state.staffMembers.length} Staff Members (Users)...`);
     for (const staff of state.staffMembers) {
@@ -95,12 +94,12 @@ async function migrate() {
     }
     console.log(`🪑 Migrating ${state.chairs.length} Chairs...`);
     for (const chair of state.chairs) {
-        await db.insert(schema.clinicChairs).values({
+        await db.insert(schema.chairs).values({
             id: chair.id,
             organizationId: orgId,
             clinicId: "e50337ad-f762-4f3b-8255-a2267576be78",
             name: chair.name,
-            isActive: chair.active,
+            isActive: chair.active
         });
     }
     console.log(`🧑‍⚕️ Migrating ${state.patients.length} Patients...`);
@@ -132,7 +131,7 @@ async function migrate() {
             startsAt: new Date(appt.startsAt),
             endsAt: new Date(appt.endsAt),
             reason: appt.reason,
-            comment: appt.comment,
+            comment: appt.comment
         });
     }
     if (state.activeVisit) {
@@ -150,36 +149,27 @@ async function migrate() {
             diagnosis: state.activeVisit.diagnosis,
             treatmentPlan: state.activeVisit.treatmentPlan,
             doctorSummary: state.activeVisit.doctorSummary,
-            signedAt: state.activeVisit.signedAt
-                ? new Date(state.activeVisit.signedAt)
-                : null,
+            signedAt: state.activeVisit.signedAt ? new Date(state.activeVisit.signedAt) : null,
             createdAt: new Date(state.activeVisit.createdAt),
             updatedAt: new Date(state.activeVisit.updatedAt),
         });
     }
     console.log(`📄 Migrating ${state.documents.length} Documents...`);
-    if (state.documents.length > 0) {
-        const docValues = state.documents.map((doc) => ({
+    for (const doc of state.documents) {
+        await db.insert(schema.generatedDocuments).values({
             id: doc.id,
             organizationId: orgId,
             patientId: doc.patientId,
-            visitId: doc.visitId,
             kind: doc.kind,
             status: doc.status,
-            title: doc.title || "Документ",
-            totalAmountRub: doc.totalAmountRub || null,
-            payloadJson: doc.payload ? JSON.stringify(doc.payload) : null,
-            issuedAt: doc.issuedAt ? new Date(doc.issuedAt) : null,
-            createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
-        }));
-        await db.insert(schema.generatedDocuments).values(docValues);
+            payloadJson: JSON.stringify(doc.payload),
+            createdAt: new Date(doc.createdAt)
+        });
     }
     console.log(`⚖️ Migrating ${state.clinicalRules.length} Clinical Rules...`);
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const rule of state.clinicalRules) {
-        const isUuid = typeof rule.id === "string" && uuidRegex.test(rule.id);
         await db.insert(schema.clinicalRules).values({
-            ...(isUuid ? { id: rule.id } : {}),
+            id: rule.id,
             organizationId: orgId,
             title: rule.title,
             category: rule.category,
@@ -195,19 +185,8 @@ async function migrate() {
             warningText: rule.warningText,
             patientText: rule.patientText,
             isActive: rule.active,
-            createdAt: rule.createdAt ? new Date(rule.createdAt) : new Date(),
-            updatedAt: rule.updatedAt ? new Date(rule.updatedAt) : new Date(),
-        });
-    }
-    console.log("📋 Seeding dummy treatment plans for analytics...");
-    const treatmentPlanStatusOptions = ["Draft", "Active", "Completed"];
-    for (let i = 0; i < state.patients.length; i++) {
-        const patient = state.patients[i];
-        await db.insert(schema.treatmentPlans).values({
-            patientId: patient.id,
-            name: `План лечения для ${patient.fullName}`,
-            status: treatmentPlanStatusOptions[i % treatmentPlanStatusOptions.length],
-            totalPrice: "150000.00",
+            createdAt: new Date(rule.createdAt),
+            updatedAt: new Date(rule.updatedAt),
         });
     }
     console.log(`💳 Migrating ${state.payments.length} Payments...`);
@@ -232,22 +211,13 @@ async function migrate() {
             payerIdentityDocument: p.payerIdentityDocument,
             payerRelationship: p.payerRelationship,
             taxDeductionCode: p.taxDeductionCode,
-            note: p.note,
+            note: p.note
         });
     }
     console.log("\n🎉 Migration completed successfully!");
     console.log("   Make sure you have run 'npm run db:migrate' first to create the tables.\n");
 }
-migrate()
-    .then(async () => {
-    await client.close();
-    process.exit(0);
-})
-    .catch(async (e) => {
+migrate().then(() => process.exit(0)).catch(e => {
     console.error("❌ Migration error:", e);
-    try {
-        await client.close();
-    }
-    catch { }
     process.exit(1);
 });

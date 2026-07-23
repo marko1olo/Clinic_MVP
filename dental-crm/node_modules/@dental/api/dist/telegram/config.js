@@ -27,7 +27,7 @@ export async function getDenteTelegramBotSettings(organizationId) {
                 billing: null,
                 care: null,
                 review: null,
-                staff: null,
+                staff: null
             },
             clinicReviewUrl: null,
             clinicMapsUrl: null,
@@ -46,12 +46,12 @@ export async function getDenteTelegramBotSettings(organizationId) {
                 prosthetics: 48,
                 orthodontics: 72,
                 periodontology: 72,
-                other: 48,
+                other: 48
             },
             allowVoiceIntake: false,
             privacyMode: "no_phi_by_default",
             staffEscalationChannel: null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
     }
     return {
@@ -71,7 +71,7 @@ export async function getDenteTelegramBotSettings(organizationId) {
             billing: null,
             care: null,
             review: null,
-            staff: null,
+            staff: null
         },
         clinicReviewUrl: config.clinicReviewUrl,
         clinicMapsUrl: config.clinicMapsUrl,
@@ -83,7 +83,7 @@ export async function getDenteTelegramBotSettings(organizationId) {
         allowVoiceIntake: config.allowVoiceIntake,
         privacyMode: config.privacyMode,
         staffEscalationChannel: config.staffEscalationChannel,
-        updatedAt: config.updatedAt.toISOString(),
+        updatedAt: config.updatedAt.toISOString()
     };
 }
 export async function updateDenteTelegramBotSettings(organizationId, input) {
@@ -94,8 +94,8 @@ export async function updateDenteTelegramBotSettings(organizationId, input) {
         ...input,
         visualCardUrls: {
             ...existingConfig.visualCardUrls,
-            ...(input.visualCardUrls ?? {}),
-        },
+            ...(input.visualCardUrls ?? {})
+        }
     };
     const [existing] = await db
         .select()
@@ -122,7 +122,7 @@ export async function updateDenteTelegramBotSettings(organizationId, input) {
             reviewRequestDelayHours: updatedSettings.reviewRequestDelayHours,
             postVisitCheckupDelayHoursJson: JSON.stringify(updatedSettings.postVisitCheckupDelayHoursByTopic),
             allowVoiceIntake: updatedSettings.allowVoiceIntake,
-            staffEscalationChannel: updatedSettings.staffEscalationChannel,
+            staffEscalationChannel: updatedSettings.staffEscalationChannel
         })
             .where(eq(denteTelegramBotConfigs.id, existing.id));
     }
@@ -146,7 +146,7 @@ export async function updateDenteTelegramBotSettings(organizationId, input) {
             reviewRequestDelayHours: updatedSettings.reviewRequestDelayHours,
             postVisitCheckupDelayHoursJson: JSON.stringify(updatedSettings.postVisitCheckupDelayHoursByTopic),
             allowVoiceIntake: updatedSettings.allowVoiceIntake,
-            staffEscalationChannel: updatedSettings.staffEscalationChannel,
+            staffEscalationChannel: updatedSettings.staffEscalationChannel
         });
     }
     return updatedSettings;

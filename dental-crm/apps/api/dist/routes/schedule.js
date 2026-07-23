@@ -1,6 +1,6 @@
-import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema, } from "@dental/shared";
-import { repairMojibakeText } from "../text/repairMojibake.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema } from "@dental/shared";
+import { repairMojibakeText } from "../text/repairMojibake.js";
 const denteAdminSecretHeader = "x-dente-admin-secret";
 const appointmentCreateValidationMessage = "Запись не создана: выберите пациента, врача, кресло, дату и время приема.";
 const appointmentUpdateValidationMessage = "Запись не обновлена: проверьте статус, время, врача, кресло и пациента.";
@@ -38,11 +38,9 @@ function classifyAppointmentRejection(error) {
         return "reference_missing";
     if (message.includes("Время окончания записи должно быть позже времени начала"))
         return "time_invalid";
-    if (message.includes("Нельзя закрыть") ||
-        message.includes("Нельзя менять пациента"))
+    if (message.includes("Нельзя закрыть") || message.includes("Нельзя менять пациента"))
         return "active_visit_locked";
-    if (message.includes("нужно выбрать") ||
-        message.includes("нужен активный пациент"))
+    if (message.includes("нужно выбрать") || message.includes("нужен активный пациент"))
         return "resource_missing";
     if (message.includes("уже есть запись") || message.includes("уже занято"))
         return "resource_overlap";
@@ -54,34 +52,22 @@ function appointmentRejectionMessage(reason, operation) {
     if (reason === "appointment_not_found")
         return appointmentNotFoundMessage;
     if (reason === "reference_missing") {
-        return operation === "create"
-            ? appointmentReferenceMissingCreateMessage
-            : appointmentReferenceMissingUpdateMessage;
+        return operation === "create" ? appointmentReferenceMissingCreateMessage : appointmentReferenceMissingUpdateMessage;
     }
     if (reason === "time_invalid")
-        return operation === "create"
-            ? appointmentTimeInvalidCreateMessage
-            : appointmentTimeInvalidUpdateMessage;
+        return operation === "create" ? appointmentTimeInvalidCreateMessage : appointmentTimeInvalidUpdateMessage;
     if (reason === "active_visit_locked")
         return appointmentActiveVisitLockedMessage;
     if (reason === "resource_missing") {
-        return operation === "create"
-            ? appointmentResourceMissingCreateMessage
-            : appointmentResourceMissingUpdateMessage;
+        return operation === "create" ? appointmentResourceMissingCreateMessage : appointmentResourceMissingUpdateMessage;
     }
     if (reason === "resource_overlap") {
-        return operation === "create"
-            ? appointmentResourceOverlapCreateMessage
-            : appointmentResourceOverlapUpdateMessage;
+        return operation === "create" ? appointmentResourceOverlapCreateMessage : appointmentResourceOverlapUpdateMessage;
     }
     if (reason === "outside_operational_hours") {
-        return operation === "create"
-            ? appointmentOutsideHoursCreateMessage
-            : appointmentOutsideHoursUpdateMessage;
+        return operation === "create" ? appointmentOutsideHoursCreateMessage : appointmentOutsideHoursUpdateMessage;
     }
-    return operation === "create"
-        ? appointmentCreateFallbackMessage
-        : appointmentUpdateFallbackMessage;
+    return operation === "create" ? appointmentCreateFallbackMessage : appointmentUpdateFallbackMessage;
 }
 function appointmentRejectionResponse(operation, error) {
     const reason = classifyAppointmentRejection(error);
@@ -90,31 +76,28 @@ function appointmentRejectionResponse(operation, error) {
             statusCode: 404,
             code: "AppointmentNotFound",
             reason,
-            message: appointmentNotFoundMessage,
+            message: appointmentNotFoundMessage
         };
     }
     return {
         statusCode: 409,
-        code: operation === "create"
-            ? "AppointmentCreateRejected"
-            : "AppointmentUpdateRejected",
+        code: operation === "create" ? "AppointmentCreateRejected" : "AppointmentUpdateRejected",
         reason,
-        message: appointmentRejectionMessage(reason, operation),
+        message: appointmentRejectionMessage(reason, operation)
     };
 }
 function sendAppointmentRejection(reply, rejection) {
     return reply.code(rejection.statusCode).send({
         code: rejection.code,
         reason: rejection.reason,
-        message: rejection.message,
+        message: rejection.message
     });
 }
 function configuredScheduleAdminSecret() {
     return process.env.DENTE_SCHEDULE_ADMIN_SECRET?.trim() || null;
 }
 function scheduleUnguardedMutationsAllowed() {
-    return (process.env.NODE_ENV !== "production" &&
-        process.env.DENTE_SCHEDULE_ALLOW_UNGUARDED_MUTATIONS === "1");
+    return process.env.NODE_ENV !== "production" && process.env.DENTE_SCHEDULE_ALLOW_UNGUARDED_MUTATIONS === "1";
 }
 async function requireScheduleMutationAccess(request, reply) {
     const adminSecret = configuredScheduleAdminSecret();
@@ -123,93 +106,69 @@ async function requireScheduleMutationAccess(request, reply) {
             return true;
         reply.code(503).send({
             error: "ScheduleAdminSecretMissing",
-            message: "На сервере не задан секрет администратора клиники для изменения расписания.",
+            message: "На сервере не задан секрет администратора клиники для изменения расписания."
         });
         return false;
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
-    const normalizedProvidedSecret = Array.isArray(providedSecret)
-        ? providedSecret[0]
-        : providedSecret;
-    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
-        ? normalizedProvidedSecret
-        : null, adminSecret)) {
+    const normalizedProvidedSecret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
         return true;
     }
     reply.code(403).send({
         error: "ScheduleAdminSecretRequired",
-        message: "Для изменения расписания нужен действующий секрет администратора клиники.",
+        message: "Для изменения расписания нужен действующий секрет администратора клиники."
     });
     return false;
 }
-import { and, eq } from "drizzle-orm";
-import { resolveExplicitOrganizationId, resolveOrganizationId, } from "../accessGuard.js";
-import { createAppointmentInDb, updateAppointmentInDb, } from "../db/appointmentsQuery.js";
-import { db } from "../db/client.js";
+import { verifyToken } from "../utils/cryptoHelper.js";
+import { TOKEN_SECRET } from "./auth.js";
 import { getDashboardFromDb } from "../db/dashboardQuery.js";
-import { appointments, visits } from "../db/schema.js";
-import { wsBroker } from "../services/websocketBroker.js";
+import { createAppointmentInDb, updateAppointmentInDb } from "../db/appointmentsQuery.js";
 export async function registerScheduleRoutes(app) {
-    async function createAppointmentHandler(request, reply) {
-        const explicitOrgId = await resolveExplicitOrganizationId(request);
-        if (explicitOrgId && !(await requireScheduleMutationAccess(request, reply)))
-            return;
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
+    app.post("/api/appointments", async (request, reply) => {
+        const clinicHeader = request.headers["x-dente-clinic-token"];
+        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
+        if (!clinicToken)
+            return reply.code(401).send({ error: "AuthRequired" });
+        const payload = verifyToken(clinicToken, TOKEN_SECRET());
+        if (!payload || !payload.organizationId)
             return reply.code(401).send({ error: "AuthExpired" });
+        const orgId = payload.organizationId;
         const input = parseSchedulePayload(createAppointmentSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
-                code: "AppointmentValidationError",
-                message: appointmentCreateValidationMessage,
-            });
+            return reply.code(400).send({ code: "AppointmentValidationError", message: appointmentCreateValidationMessage });
         }
         try {
             await createAppointmentInDb(orgId, input);
             const dashboard = await getDashboardFromDb(orgId);
-            const payload = dashboardSchema.parse(dashboard);
-            wsBroker.broadcastToOrganization(orgId, {
-                type: "UPDATE_CALENDAR",
-                payload,
-            });
-            return reply.code(201).send(payload);
+            return reply.code(201).send(dashboardSchema.parse(dashboard));
         }
         catch (error) {
             return sendAppointmentRejection(reply, appointmentRejectionResponse("create", error));
         }
-    }
-    app.post("/api/appointments", createAppointmentHandler);
-    app.post("/api/schedule/appointments", createAppointmentHandler);
+    });
     async function updateAppointmentHandler(request, reply) {
-        const explicitOrgId = await resolveExplicitOrganizationId(request);
-        if (explicitOrgId && !(await requireScheduleMutationAccess(request, reply)))
-            return;
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
+        const clinicHeader = request.headers["x-dente-clinic-token"];
+        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
+        if (!clinicToken)
+            return reply.code(401).send({ error: "AuthRequired" });
+        const payload = verifyToken(clinicToken, TOKEN_SECRET());
+        if (!payload || !payload.organizationId)
             return reply.code(401).send({ error: "AuthExpired" });
+        const orgId = payload.organizationId;
         const params = request.params;
         if (!params.appointmentId) {
-            return reply.code(400).send({
-                code: "AppointmentRouteValidationError",
-                message: appointmentMissingRouteMessage,
-            });
+            return reply.code(400).send({ code: "AppointmentRouteValidationError", message: appointmentMissingRouteMessage });
         }
         const input = parseSchedulePayload(updateAppointmentSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
-                code: "AppointmentValidationError",
-                message: appointmentUpdateValidationMessage,
-            });
+            return reply.code(400).send({ code: "AppointmentValidationError", message: appointmentUpdateValidationMessage });
         }
         try {
             await updateAppointmentInDb(orgId, params.appointmentId, input);
             const dashboard = await getDashboardFromDb(orgId);
-            const payload = dashboardSchema.parse(dashboard);
-            wsBroker.broadcastToOrganization(orgId, {
-                type: "UPDATE_CALENDAR",
-                payload,
-            });
-            return payload;
+            return dashboardSchema.parse(dashboard);
         }
         catch (error) {
             return sendAppointmentRejection(reply, appointmentRejectionResponse("update", error));
@@ -217,88 +176,4 @@ export async function registerScheduleRoutes(app) {
     }
     app.patch("/api/appointments/:appointmentId", updateAppointmentHandler);
     app.put("/api/schedule/appointments/:appointmentId", updateAppointmentHandler);
-    app.post("/api/appointments/:appointmentId/start-visit", async (request, reply) => {
-        const orgId = await resolveOrganizationId(request);
-        if (!orgId)
-            return reply.code(401).send({ error: "AuthExpired" });
-        const params = request.params;
-        if (!params.appointmentId) {
-            return reply
-                .code(400)
-                .send({ error: "AppointmentRouteValidationError" });
-        }
-        try {
-            const [appointment] = await db
-                .select()
-                .from(appointments)
-                .where(and(eq(appointments.id, params.appointmentId), eq(appointments.organizationId, orgId)))
-                .limit(1);
-            if (!appointment) {
-                return reply.code(404).send({ error: "AppointmentNotFound" });
-            }
-            // Check if there's already an active visit
-            const [existingVisit] = await db
-                .select()
-                .from(visits)
-                .where(and(eq(visits.appointmentId, params.appointmentId), eq(visits.status, "draft"), eq(visits.organizationId, orgId)))
-                .limit(1);
-            if (existingVisit) {
-                return reply.code(200).send({
-                    patientId: existingVisit.patientId,
-                    appointmentId: existingVisit.appointmentId,
-                    visitId: existingVisit.id,
-                });
-            }
-            // Update appointment status to in_treatment if it's not completed
-            if (appointment.status !== "completed" &&
-                appointment.status !== "no_show") {
-                await db
-                    .update(appointments)
-                    .set({ status: "in_treatment" })
-                    .where(eq(appointments.id, params.appointmentId));
-            }
-            const userContext = request.user;
-            const userId = userContext?.id ?? null;
-            const finalDoctorId = appointment.doctorUserId ||
-                userId ||
-                "00000000-0000-0000-0000-000000000000";
-            if (!appointment.patientId) {
-                return reply.code(400).send({
-                    error: "AppointmentRouteValidationError",
-                    message: "У записи нет пациента",
-                });
-            }
-            // Create the visit
-            const [visit] = await db
-                .insert(visits)
-                .values({
-                organizationId: orgId,
-                patientId: appointment.patientId,
-                appointmentId: appointment.id,
-                status: "draft",
-            })
-                .returning();
-            if (!visit) {
-                return reply.code(500).send({
-                    error: "StartVisitFailed",
-                    message: "Не удалось создать приём в БД",
-                });
-            }
-            // Notify dashboard
-            const dashboard = await getDashboardFromDb(orgId);
-            wsBroker.broadcastToOrganization(orgId, {
-                type: "UPDATE_CALENDAR",
-                payload: dashboardSchema.parse(dashboard),
-            });
-            return reply.code(201).send({
-                patientId: visit.patientId,
-                appointmentId: visit.appointmentId,
-                visitId: visit.id,
-            });
-        }
-        catch (error) {
-            console.error("[StartVisit] Error:", error);
-            return reply.code(500).send({ error: "StartVisitFailed" });
-        }
-    });
 }

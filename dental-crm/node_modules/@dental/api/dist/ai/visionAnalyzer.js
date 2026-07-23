@@ -1,5 +1,5 @@
+import { fetchWithProviderTimeout, keyRetryLimit, selectProviderKey, recordProviderKeySuccess, recordProviderKeyFailure, getProviderKeyCandidates } from "../speech/keyPool.js";
 import sharp from "sharp";
-import { fetchWithProviderTimeout, getProviderKeyCandidates, keyRetryLimit, recordProviderKeyFailure, recordProviderKeySuccess, selectProviderKey, } from "../speech/keyPool.js";
 // ──────────────────────────────────────────────────────────────────────────────
 // Models & endpoints
 // ──────────────────────────────────────────────────────────────────────────────
@@ -183,7 +183,9 @@ const PASS2_PROMPT = `Ты — главный редактор медицинс�
 }`;
 async function callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText, timeoutMs = 40_000) {
     const baseUrl = slot.provider === "groq" ? GROQ_BASE_URL : GEMINI_BASE_URL;
-    const userContent = [{ type: "text", text: prompt }];
+    const userContent = [
+        { type: "text", text: prompt },
+    ];
     if (extraUserText) {
         userContent.push({ type: "text", text: extraUserText });
     }
@@ -192,18 +194,18 @@ async function callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText,
         model: slot.model,
         temperature: 0.1,
         // Gemini via openai-compat does NOT support response_format on all models — skip it
-        ...(slot.provider === "groq"
-            ? { response_format: { type: "json_object" } }
-            : {}),
-        messages: [{ role: "user", content: userContent }],
+        ...(slot.provider === "groq" ? { response_format: { type: "json_object" } } : {}),
+        messages: [
+            { role: "user", content: userContent }
+        ]
     };
     const resp = await fetchWithProviderTimeout(baseUrl + "/chat/completions", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
     }, timeoutMs);
     if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText);
@@ -272,25 +274,21 @@ async function runCascade(slots, prompt, imageBase64, extraUserText, minLength =
 // ──────────────────────────────────────────────────────────────────────────────
 // JSON extraction helper (handles markdown fences)
 // ──────────────────────────────────────────────────────────────────────────────
-export function extractJson(text) {
+function extractJson(text) {
     // Strip <think>...</think> if present (Qwen-style)
     const cleaned = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
     // Try direct parse
     try {
         return JSON.parse(cleaned);
     }
-    catch {
-        /* continue */
-    }
+    catch { /* continue */ }
     // Try to find {} block
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
         try {
             return JSON.parse(match[0]);
         }
-        catch {
-            /* continue */
-        }
+        catch { /* continue */ }
     }
     throw new Error("Не удалось извлечь JSON из ответа модели");
 }
@@ -310,12 +308,7 @@ export async function analyzeImagingStudy(imageBase64) {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         const rawBuffer = Buffer.from(base64Data, "base64");
         const enhancedBuffer = await sharp(rawBuffer)
-            .resize({
-            width: 1000,
-            height: 1000,
-            fit: "inside",
-            withoutEnlargement: true,
-        })
+            .resize({ width: 1000, height: 1000, fit: "inside", withoutEnlargement: true })
             .clahe({ width: 8, height: 8, maxSlope: 2.0 })
             .sharpen({ sigma: 3.0 })
             .jpeg({ quality: 85 })
@@ -329,7 +322,7 @@ export async function analyzeImagingStudy(imageBase64) {
     // ── PASS 1: Primary analysis ──────────────────────────────────────────────
     const pass1Slots = [
         { provider: "groq", model: GROQ_VISION_MODEL },
-        { provider: "gemini", model: GEMINI_VISION_MODEL },
+        { provider: "gemini", model: GEMINI_VISION_MODEL }
     ];
     const pass1 = await runCascade(pass1Slots, PASS1_PROMPT, processedBase64, undefined, 80);
     if (!pass1) {
@@ -344,7 +337,7 @@ export async function analyzeImagingStudy(imageBase64) {
         return {
             summary: pass1.text.slice(0, 2000),
             toothUpdates: [],
-            _meta: { pass1Model: pass1Slots[pass1.slotIdx].model, pass2Model: null },
+            _meta: { pass1Model: pass1Slots[pass1.slotIdx].model, pass2Model: null }
         };
     }
     const pass1ModelName = pass1Slots[pass1.slotIdx].model;
@@ -352,11 +345,9 @@ export async function analyzeImagingStudy(imageBase64) {
     // Use the other provider for critic, or cycle to the next slot
     const pass2Slots = [
         ...pass1Slots.slice(pass1.slotIdx + 1),
-        ...pass1Slots.slice(0, pass1.slotIdx + 1),
+        ...pass1Slots.slice(0, pass1.slotIdx + 1)
     ];
-    const pass1Summary = typeof pass1Parsed.summary === "string"
-        ? pass1Parsed.summary
-        : JSON.stringify(pass1Parsed);
+    const pass1Summary = typeof pass1Parsed.summary === "string" ? pass1Parsed.summary : JSON.stringify(pass1Parsed);
     const pass2ExtraText = `Вот первичный анализ, который нужно критически проверить и улучшить:\n\n${pass1Summary}`;
     const pass2 = await runCascade(pass2Slots, PASS2_PROMPT, processedBase64, pass2ExtraText, 100);
     let finalResult = pass1Parsed;
@@ -365,10 +356,8 @@ export async function analyzeImagingStudy(imageBase64) {
         try {
             const pass2Parsed = extractJson(pass2.text);
             // Merge: prefer pass2 if it has more content
-            if (pass2Parsed.toothUpdates?.length >=
-                (pass1Parsed.toothUpdates?.length ?? 0) &&
-                (pass2Parsed.summary?.length ?? 0) >=
-                    (pass1Parsed.summary?.length ?? 0) * 0.7) {
+            if (pass2Parsed.toothUpdates?.length >= (pass1Parsed.toothUpdates?.length ?? 0) &&
+                (pass2Parsed.summary?.length ?? 0) >= (pass1Parsed.summary?.length ?? 0) * 0.7) {
                 finalResult = pass2Parsed;
             }
             pass2ModelName = pass2Slots[pass2.slotIdx]?.model ?? null;
@@ -383,14 +372,12 @@ export async function analyzeImagingStudy(imageBase64) {
             code: String(u.code ?? "unknown"),
             state: String(u.state ?? "watch"),
             diagnosisOrFinding: String(u.diagnosisOrFinding ?? ""),
-            notes: u.notes ? String(u.notes) : undefined,
+            notes: u.notes ? String(u.notes) : undefined
         }))
         : [];
     return {
-        summary: typeof finalResult.summary === "string"
-            ? finalResult.summary
-            : JSON.stringify(finalResult),
+        summary: typeof finalResult.summary === "string" ? finalResult.summary : JSON.stringify(finalResult),
         toothUpdates,
-        _meta: { pass1Model: pass1ModelName, pass2Model: pass2ModelName },
+        _meta: { pass1Model: pass1ModelName, pass2Model: pass2ModelName }
     };
 }

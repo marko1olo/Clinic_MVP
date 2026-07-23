@@ -1,18 +1,6 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
-function useSampleBillingState() {
-    return (process.env.NODE_ENV !== "production" &&
-        process.env.DENTAL_STATE_PERSISTENCE === "off");
-}
-// PostgreSQL / PGlite unique-constraint violation SQLSTATE.
-const PG_UNIQUE_VIOLATION = "23505";
-function isUniqueViolation(error) {
-    return (typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === PG_UNIQUE_VIOLATION);
-}
+import { eq, and } from "drizzle-orm";
 export async function getDefaultOrganizationId() {
     const [org] = await db.select().from(schema.organizations).limit(1);
     return org?.id || null;
@@ -20,16 +8,7 @@ export async function getDefaultOrganizationId() {
 export async function findPaymentByClientMutationIdInDb(organizationId, clientMutationId) {
     if (!clientMutationId)
         return null;
-    if (useSampleBillingState()) {
-        const { findPaymentByClientMutationId } = await import("../sampleData.js");
-        const payment = findPaymentByClientMutationId(clientMutationId);
-        return payment?.organizationId === organizationId ? payment : null;
-    }
-    const [payment] = await db
-        .select()
-        .from(schema.payments)
-        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.clientMutationId, clientMutationId)))
-        .limit(1);
+    const [payment] = await db.select().from(schema.payments).where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.clientMutationId, clientMutationId))).limit(1);
     if (!payment)
         return null;
     return {
@@ -54,102 +33,45 @@ export async function findPaymentByClientMutationIdInDb(organizationId, clientMu
         note: payment.note,
         createdAt: payment.createdAt.toISOString(),
         paidAt: payment.paidAt.toISOString(),
-        status: payment.status,
+        status: payment.status
     };
 }
 export async function getPatientForBilling(organizationId, patientId) {
-    if (useSampleBillingState()) {
-        const { patients } = await import("../sampleData.js");
-        return (patients.find((patient) => patient.organizationId === organizationId && patient.id === patientId) ?? null);
-    }
-    const [patient] = await db
-        .select()
-        .from(schema.patients)
-        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId)))
-        .limit(1);
+    const [patient] = await db.select().from(schema.patients).where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, patientId))).limit(1);
     return patient || null;
 }
 export async function getVisitForBilling(organizationId, visitId) {
-    if (useSampleBillingState()) {
-        const { findVisitById } = await import("../sampleData.js");
-        const visit = findVisitById(visitId);
-        return visit?.organizationId === organizationId ? visit : null;
-    }
-    const [visit] = await db
-        .select()
-        .from(schema.visits)
-        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, visitId)))
-        .limit(1);
+    const [visit] = await db.select().from(schema.visits).where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, visitId))).limit(1);
     return visit || null;
 }
 export async function getDocumentForBilling(organizationId, documentId) {
-    if (useSampleBillingState()) {
-        const { documents } = await import("../sampleData.js");
-        return (documents.find((document) => document.organizationId === organizationId &&
-            document.id === documentId) ?? null);
-    }
-    const [doc] = await db
-        .select()
-        .from(schema.generatedDocuments)
-        .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)))
-        .limit(1);
+    const [doc] = await db.select().from(schema.generatedDocuments).where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId))).limit(1);
     return doc || null;
 }
 export async function createPaymentInDb(organizationId, input) {
-    if (useSampleBillingState()) {
-        const { createPayment } = await import("../sampleData.js");
-        const payment = createPayment(input);
-        return { ...payment, organizationId };
-    }
-    let newPayment;
-    try {
-        newPayment = await db.transaction(async (tx) => {
-            const [inserted] = await tx
-                .insert(schema.payments)
-                .values({
-                organizationId,
-                patientId: input.patientId,
-                visitId: input.visitId || null,
-                documentId: input.documentId || null,
-                amountRub: input.amountRub,
-                method: input.method,
-                fiscalReceiptNumber: input.fiscalReceiptNumber || null,
-                fiscalReceiptIssuedAt: input.fiscalReceiptIssuedAt || null,
-                fiscalReceiptUrl: input.fiscalReceiptUrl || null,
-                fiscalReceipt: input.fiscalReceipt || null,
-                clientMutationId: input.clientMutationId || null,
-                payerFullName: input.payerFullName || null,
-                payerInn: input.payerInn || null,
-                payerBirthDate: input.payerBirthDate || null,
-                payerIdentityDocument: input.payerIdentityDocument || null,
-                payerRelationship: input.payerRelationship || null,
-                taxDeductionCode: input.taxDeductionCode || null,
-                note: input.note || null,
-                status: "paid",
-            })
-                .returning();
-            if (!inserted) {
-                throw new Error("Failed to create payment");
-            }
-            if (inserted.visitId) {
-                await recalculateInvoiceStatusForVisit(organizationId, inserted.visitId, tx);
-            }
-            // Apply payment to any pending installments for this patient
-            await applyPaymentToInstallmentsInDb(inserted.id, inserted.patientId, inserted.amountRub, tx);
-            return inserted;
-        });
-    }
-    catch (error) {
-        // Concurrent request with the same clientMutationId won the race and the
-        // (organization_id, client_mutation_id) unique index rejected this insert.
-        // Resolve idempotently by returning the row the winner already committed
-        // instead of surfacing a 500 (double-billing guard, see BILLING_AND_FINANCE.md).
-        if (isUniqueViolation(error) && input.clientMutationId) {
-            const existing = await findPaymentByClientMutationIdInDb(organizationId, input.clientMutationId);
-            if (existing)
-                return existing;
-        }
-        throw error;
+    const [newPayment] = await db.insert(schema.payments).values({
+        organizationId,
+        patientId: input.patientId,
+        visitId: input.visitId || null,
+        documentId: input.documentId || null,
+        amountRub: input.amountRub,
+        method: input.method,
+        fiscalReceiptNumber: input.fiscalReceiptNumber || null,
+        fiscalReceiptIssuedAt: input.fiscalReceiptIssuedAt || null,
+        fiscalReceiptUrl: input.fiscalReceiptUrl || null,
+        fiscalReceipt: input.fiscalReceipt || null,
+        clientMutationId: input.clientMutationId || null,
+        payerFullName: input.payerFullName || null,
+        payerInn: input.payerInn || null,
+        payerBirthDate: input.payerBirthDate || null,
+        payerIdentityDocument: input.payerIdentityDocument || null,
+        payerRelationship: input.payerRelationship || null,
+        taxDeductionCode: input.taxDeductionCode || null,
+        note: input.note || null,
+        status: "paid"
+    }).returning();
+    if (!newPayment) {
+        throw new Error("Failed to create payment");
     }
     return {
         id: newPayment.id,
@@ -173,231 +95,10 @@ export async function createPaymentInDb(organizationId, input) {
         note: newPayment.note,
         createdAt: newPayment.createdAt.toISOString(),
         paidAt: newPayment.paidAt.toISOString(),
-        status: newPayment.status,
+        status: newPayment.status
     };
 }
-export async function applyPaymentToInstallmentsInDb(paymentId, patientId, paymentAmountStr, tx = db) {
-    let remainingPaymentKopecks = Math.round(Number(paymentAmountStr) * 100);
-    if (remainingPaymentKopecks <= 0 || isNaN(remainingPaymentKopecks))
-        return;
-    // fetch all pending/partial/overdue installments for patient, ordered by dueDate ASC
-    const pendingInstallments = await tx
-        .select()
-        .from(schema.paymentInstallments)
-        .where(and(eq(schema.paymentInstallments.patientId, patientId), inArray(schema.paymentInstallments.status, [
-        "pending",
-        "overdue",
-        "partial",
-    ])))
-        .orderBy(asc(schema.paymentInstallments.dueDate))
-        .for("update"); // Lock rows to prevent race conditions
-    for (const installment of pendingInstallments) {
-        if (remainingPaymentKopecks <= 0)
-            break;
-        const totalInstallmentKopecks = Math.round(Number(installment.amountRub) * 100);
-        const currentlyPaidKopecks = Math.round(Number(installment.paidAmountRub || 0) * 100);
-        const neededKopecks = totalInstallmentKopecks - currentlyPaidKopecks;
-        if (neededKopecks > 0) {
-            const toApplyKopecks = Math.min(neededKopecks, remainingPaymentKopecks);
-            const newPaidKopecks = currentlyPaidKopecks + toApplyKopecks;
-            const newStatus = newPaidKopecks >= totalInstallmentKopecks ? "paid" : "partial";
-            await tx
-                .update(schema.paymentInstallments)
-                .set({
-                paidAmountRub: (newPaidKopecks / 100).toFixed(2),
-                status: newStatus,
-                paidDate: newStatus === "paid" ? new Date() : null,
-                updatedAt: new Date(),
-            })
-                .where(eq(schema.paymentInstallments.id, installment.id));
-            await tx.insert(schema.paymentAllocations).values({
-                paymentId,
-                installmentId: installment.id,
-                allocatedAmountRub: (toApplyKopecks / 100).toFixed(2),
-            });
-            remainingPaymentKopecks -= toApplyKopecks;
-        }
-    }
-}
 export async function getPaymentsByPatientIdInDb(organizationId, patientId) {
-    const res = await db
-        .select()
-        .from(schema.payments)
-        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.patientId, patientId)));
-    return res.map((p) => ({
-        ...p,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString(),
-    }));
-}
-export async function recalculateInvoiceStatusForVisit(organizationId, visitId, tx = db) {
-    // 1. Get total payments for this visit
-    const paymentsList = await tx
-        .select()
-        .from(schema.payments)
-        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.visitId, visitId), eq(schema.payments.status, "paid")));
-    const totalPaidRub = paymentsList.reduce((acc, p) => acc + Number(p.amountRub), 0);
-    // 2. Get the invoice for this visit
-    const [invoice] = await tx
-        .select()
-        .from(schema.patientInvoices)
-        .where(and(eq(schema.patientInvoices.organizationId, organizationId), eq(schema.patientInvoices.visitId, visitId)))
-        .limit(1);
-    if (!invoice)
-        return;
-    // 3. Determine status
-    const totalInvoiceRub = Number(invoice.totalAmountRub);
-    let newStatus = "unpaid";
-    if (totalPaidRub >= totalInvoiceRub && totalInvoiceRub > 0) {
-        newStatus = "paid";
-    }
-    else if (totalPaidRub > 0) {
-        newStatus = "partially_paid";
-    }
-    if (invoice.status !== newStatus) {
-        await tx
-            .update(schema.patientInvoices)
-            .set({
-            status: newStatus,
-            updatedAt: new Date(),
-        })
-            .where(eq(schema.patientInvoices.id, invoice.id));
-    }
-}
-export async function calculatePatientBalanceInDb(organizationId, patientId) {
-    // 1. Sum of all invoices (planned)
-    const [invoiceResult] = await db
-        .select({
-        total: sql `SUM(${schema.patientInvoices.totalAmountRub})`,
-    })
-        .from(schema.patientInvoices)
-        .where(and(eq(schema.patientInvoices.organizationId, organizationId), eq(schema.patientInvoices.patientId, patientId)));
-    const plannedRub = Number(invoiceResult?.total ?? 0);
-    // 2. Sum of all payments
-    const [paymentResult] = await db
-        .select({ total: sql `SUM(${schema.payments.amountRub})` })
-        .from(schema.payments)
-        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.patientId, patientId), eq(schema.payments.status, "paid")));
-    const paidRub = Number(paymentResult?.total ?? 0);
-    return plannedRub - paidRub;
-}
-export async function calculatePatientsBalancesInDb(organizationId) {
-    const balances = new Map();
-    const invoices = await db
-        .select({
-        patientId: schema.patientInvoices.patientId,
-        total: sql `SUM(${schema.patientInvoices.totalAmountRub})`,
-    })
-        .from(schema.patientInvoices)
-        .where(eq(schema.patientInvoices.organizationId, organizationId))
-        .groupBy(schema.patientInvoices.patientId);
-    for (const inv of invoices) {
-        balances.set(inv.patientId, Number(inv.total));
-    }
-    const payments = await db
-        .select({
-        patientId: schema.payments.patientId,
-        total: sql `SUM(${schema.payments.amountRub})`,
-    })
-        .from(schema.payments)
-        .where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.status, "paid")))
-        .groupBy(schema.payments.patientId);
-    for (const pay of payments) {
-        const current = balances.get(pay.patientId) ?? 0;
-        balances.set(pay.patientId, current - Number(pay.total));
-    }
-    return balances;
-}
-export async function rollbackPaymentAllocationsInDb(paymentId, tx = db) {
-    // 0. Check idempotency
-    const [payment] = await tx
-        .select()
-        .from(schema.payments)
-        .where(eq(schema.payments.id, paymentId));
-    if (!payment || payment.status === "refunded")
-        return;
-    // 1. Get all allocations for this payment
-    const allocations = await tx
-        .select()
-        .from(schema.paymentAllocations)
-        .where(eq(schema.paymentAllocations.paymentId, paymentId));
-    // 2. Revert installments
-    for (const alloc of allocations) {
-        const [installment] = await tx
-            .select()
-            .from(schema.paymentInstallments)
-            .where(eq(schema.paymentInstallments.id, alloc.installmentId))
-            .for("update");
-        if (installment) {
-            const currentlyPaidKopecks = Math.round(Number(installment.paidAmountRub || 0) * 100);
-            const allocatedKopecks = Math.round(Number(alloc.allocatedAmountRub) * 100);
-            const newPaidKopecks = Math.max(0, currentlyPaidKopecks - allocatedKopecks);
-            // Determine new status
-            let newStatus = "pending";
-            if (newPaidKopecks > 0) {
-                newStatus = "partial";
-            }
-            else if (installment.dueDate < new Date()) {
-                newStatus = "overdue";
-            }
-            await tx
-                .update(schema.paymentInstallments)
-                .set({
-                paidAmountRub: (newPaidKopecks / 100).toFixed(2),
-                status: newStatus,
-                paidDate: newStatus === "paid" ? installment.paidDate : null,
-                updatedAt: new Date(),
-            })
-                .where(eq(schema.paymentInstallments.id, installment.id));
-        }
-    }
-    // 3. Delete allocations
-    await tx
-        .delete(schema.paymentAllocations)
-        .where(eq(schema.paymentAllocations.paymentId, paymentId));
-    // 4. Update payment status to refunded
-    const [updatedPayment] = await tx
-        .update(schema.payments)
-        .set({
-        status: "refunded",
-        updatedAt: new Date(),
-    })
-        .where(eq(schema.payments.id, paymentId))
-        .returning();
-    if (updatedPayment && updatedPayment.visitId) {
-        await recalculateInvoiceStatusForVisit(updatedPayment.organizationId, updatedPayment.visitId, tx);
-    }
-    // 5. Refund family wallet if applicable
-    if (updatedPayment && updatedPayment.method === "family_wallet") {
-        // Find the original withdrawal
-        const [withdrawal] = await tx
-            .select()
-            .from(schema.familyWalletTransactions)
-            .where(eq(schema.familyWalletTransactions.paymentId, paymentId))
-            .limit(1);
-        if (withdrawal) {
-            const familyId = withdrawal.familyGroupId;
-            const amountRub = Number(withdrawal.amountRub);
-            const [family] = await tx
-                .select()
-                .from(schema.familyGroups)
-                .where(eq(schema.familyGroups.id, familyId))
-                .for("update");
-            if (family) {
-                const newBalance = Number(family.balance) + amountRub;
-                await tx
-                    .update(schema.familyGroups)
-                    .set({ balance: newBalance.toFixed(2), updatedAt: new Date() })
-                    .where(eq(schema.familyGroups.id, familyId));
-                await tx.insert(schema.familyWalletTransactions).values({
-                    familyGroupId: familyId,
-                    patientId: updatedPayment.patientId,
-                    amountRub: amountRub.toFixed(2),
-                    type: "refund",
-                    method: "family_wallet",
-                    paymentId: updatedPayment.id,
-                });
-            }
-        }
-    }
+    const res = await db.select().from(schema.payments).where(and(eq(schema.payments.organizationId, organizationId), eq(schema.payments.patientId, patientId)));
+    return res.map(p => ({ ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() }));
 }

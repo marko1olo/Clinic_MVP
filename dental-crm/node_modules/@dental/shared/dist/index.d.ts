@@ -82361,25 +82361,22 @@ export declare const visitNoteDraftQualitySchema: z.ZodObject<{
 export type VisitNoteDraftQuality = z.infer<typeof visitNoteDraftQualitySchema>;
 export declare const visitServiceItemSchema: z.ZodObject<{
     serviceId: z.ZodString;
-    planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     title: z.ZodString;
     quantity: z.ZodNumber;
-    priceRub: z.ZodString;
-    toothCode: z.ZodOptional<z.ZodString>;
+    priceRub: z.ZodNumber;
+    toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
-    priceRub: string;
+    priceRub: number;
     serviceId: string;
     quantity: number;
-    toothCode?: string | undefined;
-    planItemId?: string | null | undefined;
+    toothCode?: string | null | undefined;
 }, {
     title: string;
-    priceRub: string;
+    priceRub: number;
     serviceId: string;
     quantity: number;
-    toothCode?: string | undefined;
-    planItemId?: string | null | undefined;
+    toothCode?: string | null | undefined;
 }>;
 export declare const visitNoteDraftSchema: z.ZodObject<{
     complaint: z.ZodNullable<z.ZodString>;
@@ -82418,25 +82415,22 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
     warnings: z.ZodArray<z.ZodString, "many">;
     completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
         serviceId: z.ZodString;
-        planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
         title: z.ZodString;
         quantity: z.ZodNumber;
-        priceRub: z.ZodString;
-        toothCode: z.ZodOptional<z.ZodString>;
+        priceRub: z.ZodNumber;
+        toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }, {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     warnings: string[];
@@ -82457,11 +82451,10 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
     } | undefined;
     completedServices?: {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }[] | undefined;
 }, {
     warnings: string[];
@@ -82482,11 +82475,10 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
     } | undefined;
     completedServices?: {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }[] | undefined;
 }>;
 export type VisitNoteDraft = z.infer<typeof visitNoteDraftSchema>;
@@ -82532,25 +82524,22 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
         warnings: z.ZodArray<z.ZodString, "many">;
         completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
             serviceId: z.ZodString;
-            planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
             title: z.ZodString;
             quantity: z.ZodNumber;
-            priceRub: z.ZodString;
-            toothCode: z.ZodOptional<z.ZodString>;
+            priceRub: z.ZodNumber;
+            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
@@ -82571,11 +82560,10 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }, {
         warnings: string[];
@@ -82596,11 +82584,10 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }>;
     baseRevision: z.ZodNullable<z.ZodNumber>;
@@ -82628,11 +82615,10 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82664,11 +82650,10 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82724,25 +82709,22 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         warnings: z.ZodArray<z.ZodString, "many">;
         completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
             serviceId: z.ZodString;
-            planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
             title: z.ZodString;
             quantity: z.ZodNumber;
-            priceRub: z.ZodString;
-            toothCode: z.ZodOptional<z.ZodString>;
+            priceRub: z.ZodNumber;
+            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
@@ -82763,11 +82745,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }, {
         warnings: string[];
@@ -82788,11 +82769,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }>;
     baseRevision: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -82818,11 +82798,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82852,11 +82831,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82886,11 +82864,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82920,11 +82897,10 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     patientId: string;
@@ -82979,25 +82955,22 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             warnings: z.ZodArray<z.ZodString, "many">;
             completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
                 serviceId: z.ZodString;
-                planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
                 title: z.ZodString;
                 quantity: z.ZodNumber;
-                priceRub: z.ZodString;
-                toothCode: z.ZodOptional<z.ZodString>;
+                priceRub: z.ZodNumber;
+                toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, "strip", z.ZodTypeAny, {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }, {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }>, "many">>;
         }, "strip", z.ZodTypeAny, {
             warnings: string[];
@@ -83018,11 +82991,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         }, {
             warnings: string[];
@@ -83043,11 +83015,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         }>;
         baseRevision: z.ZodNullable<z.ZodNumber>;
@@ -83075,11 +83046,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         };
         patientId: string;
@@ -83111,11 +83081,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         };
         patientId: string;
@@ -83149,11 +83118,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         };
         patientId: string;
@@ -83187,11 +83155,10 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         };
         patientId: string;
@@ -83267,25 +83234,22 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
         warnings: z.ZodArray<z.ZodString, "many">;
         completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
             serviceId: z.ZodString;
-            planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
             title: z.ZodString;
             quantity: z.ZodNumber;
-            priceRub: z.ZodString;
-            toothCode: z.ZodOptional<z.ZodString>;
+            priceRub: z.ZodNumber;
+            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
@@ -83306,11 +83270,10 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }, {
         warnings: string[];
@@ -83331,11 +83294,10 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -83358,11 +83320,10 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     warnings: string[];
@@ -83392,11 +83353,10 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     warnings: string[];
@@ -83457,25 +83417,22 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
         warnings: z.ZodArray<z.ZodString, "many">;
         completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
             serviceId: z.ZodString;
-            planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
             title: z.ZodString;
             quantity: z.ZodNumber;
-            priceRub: z.ZodString;
-            toothCode: z.ZodOptional<z.ZodString>;
+            priceRub: z.ZodNumber;
+            toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }, {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         warnings: string[];
@@ -83496,11 +83453,10 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }, {
         warnings: string[];
@@ -83521,11 +83477,10 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     }>;
     doctorSummary: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -83553,11 +83508,10 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     visitId: string;
@@ -83586,11 +83540,10 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
         } | undefined;
         completedServices?: {
             title: string;
-            priceRub: string;
+            priceRub: number;
             serviceId: string;
             quantity: number;
-            toothCode?: string | undefined;
-            planItemId?: string | null | undefined;
+            toothCode?: string | null | undefined;
         }[] | undefined;
     };
     visitId: string;
@@ -95847,25 +95800,22 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             warnings: z.ZodArray<z.ZodString, "many">;
             completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
                 serviceId: z.ZodString;
-                planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
                 title: z.ZodString;
                 quantity: z.ZodNumber;
-                priceRub: z.ZodString;
-                toothCode: z.ZodOptional<z.ZodString>;
+                priceRub: z.ZodNumber;
+                toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, "strip", z.ZodTypeAny, {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }, {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }>, "many">>;
         }, "strip", z.ZodTypeAny, {
             warnings: string[];
@@ -95886,11 +95836,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         }, {
             warnings: string[];
@@ -95911,11 +95860,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
@@ -95940,11 +95888,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         } | null;
     }, {
@@ -95969,11 +95916,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         } | null;
     }>;
@@ -96349,11 +96295,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         } | null;
     };
@@ -96451,11 +96396,10 @@ export declare const visitFlowResultSchema: z.ZodObject<{
             } | undefined;
             completedServices?: {
                 title: string;
-                priceRub: string;
+                priceRub: number;
                 serviceId: string;
                 quantity: number;
-                toothCode?: string | undefined;
-                planItemId?: string | null | undefined;
+                toothCode?: string | null | undefined;
             }[] | undefined;
         } | null;
     };
@@ -96539,25 +96483,22 @@ export declare const visitFlowRequestSchema: z.ZodObject<{
     source: z.ZodDefault<z.ZodEnum<["voice", "typed", "image"]>>;
     completedServices: z.ZodOptional<z.ZodArray<z.ZodObject<{
         serviceId: z.ZodString;
-        planItemId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
         title: z.ZodString;
         quantity: z.ZodNumber;
-        priceRub: z.ZodString;
-        toothCode: z.ZodOptional<z.ZodString>;
+        priceRub: z.ZodNumber;
+        toothCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }, {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }>, "many">>;
     doctorFullName: z.ZodOptional<z.ZodString>;
     planPayload: z.ZodNullable<z.ZodOptional<z.ZodObject<{
@@ -96782,11 +96723,10 @@ export declare const visitFlowRequestSchema: z.ZodObject<{
     doctorFullName?: string | undefined;
     completedServices?: {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }[] | undefined;
     planPayload?: {
         estimatedTotalRub: number;
@@ -96858,11 +96798,10 @@ export declare const visitFlowRequestSchema: z.ZodObject<{
     doctorFullName?: string | undefined;
     completedServices?: {
         title: string;
-        priceRub: string;
+        priceRub: number;
         serviceId: string;
         quantity: number;
-        toothCode?: string | undefined;
-        planItemId?: string | null | undefined;
+        toothCode?: string | null | undefined;
     }[] | undefined;
     planPayload?: {
         estimatedTotalRub: number;

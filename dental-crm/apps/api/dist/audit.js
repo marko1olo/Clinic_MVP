@@ -14,6 +14,6 @@ export async function recordAuditEvent(input) {
         entityType: input.entityType,
         entityId: input.entityId,
         action: input.action,
-        reason: input.reason,
+        reason: input.reason
     });
 }

@@ -1,6 +1,6 @@
+import { test, describe } from "node:test";
 import assert from "node:assert";
-import { describe, test } from "node:test";
-import { buildRuleBasedVisitDraftFromTranscript, documentAmountSource, documentKindSchema, documentPayloadActualKeys, documentPayloadAllowedKeys, documentPayloadDisallowedKeys, documentRequiresPaidRecord, } from "../index.js";
+import { documentRequiresPaidRecord, documentAmountSource, documentKindSchema, documentPayloadDisallowedKeys, documentPayloadAllowedKeys, documentPayloadActualKeys, buildRuleBasedVisitDraftFromTranscript, } from "../index.js";
 // ════════════════════════════════════════════════════════════════════
 // documentAmountSource
 // ════════════════════════════════════════════════════════════════════
@@ -69,30 +69,19 @@ describe("documentPayloadActualKeys", () => {
     });
     test("returns defined keys", () => {
         const payload = {
-            treatmentPlan: {
-            /* mock data */
-            },
-            completedWorksAct: {
-            /* mock data */
-            },
+            treatmentPlan: { /* mock data */},
+            completedWorksAct: { /* mock data */},
         };
         // @ts-expect-error Mock payload
-        assert.deepStrictEqual(documentPayloadActualKeys(payload), [
-            "treatmentPlan",
-            "completedWorksAct",
-        ]);
+        assert.deepStrictEqual(documentPayloadActualKeys(payload), ["treatmentPlan", "completedWorksAct"]);
     });
     test("filters out undefined values", () => {
         const payload = {
-            treatmentPlan: {
-            /* mock data */
-            },
+            treatmentPlan: { /* mock data */},
             completedWorksAct: undefined,
         };
         // @ts-expect-error Mock payload
-        assert.deepStrictEqual(documentPayloadActualKeys(payload), [
-            "treatmentPlan",
-        ]);
+        assert.deepStrictEqual(documentPayloadActualKeys(payload), ["treatmentPlan"]);
     });
 });
 // ════════════════════════════════════════════════════════════════════
@@ -101,9 +90,7 @@ describe("documentPayloadActualKeys", () => {
 describe("documentPayloadAllowedKeys", () => {
     test("returns expected payload keys for specific document kinds", () => {
         assert.deepStrictEqual(documentPayloadAllowedKeys("paid_medical_services_contract"), ["paidMedicalServicesContract"]);
-        assert.deepStrictEqual(documentPayloadAllowedKeys("treatment_plan"), [
-            "treatmentPlan",
-        ]);
+        assert.deepStrictEqual(documentPayloadAllowedKeys("treatment_plan"), ["treatmentPlan"]);
         assert.deepStrictEqual(documentPayloadAllowedKeys("tax_deduction_certificate"), ["taxPaymentSelection"]);
         assert.deepStrictEqual(documentPayloadAllowedKeys("patient_intake_questionnaire"), ["patientIntakeQuestionnaire"]);
     });

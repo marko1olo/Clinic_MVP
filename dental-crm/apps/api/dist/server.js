@@ -1,107 +1,44 @@
-import { RecallScheduler } from "./services/recallScheduler.js";
 import "dotenv/config";
-import fs from "node:fs";
-import net from "node:net";
-import nodePath from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import cors from "@fastify/cors";
-import fastifyMultipart from "@fastify/multipart";
-import fastifyWebsocket from "@fastify/websocket";
 import Fastify from "fastify";
+import { pathToFileURL } from "node:url";
 import { ZodError } from "zod";
-import { db } from "./db/client.js";
-import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { registerAiRoutes } from "./routes/ai.js";
-import { registerAnalyticsRoutes } from "./routes/analytics.js";
-import { registerAuthRoutes } from "./routes/auth.js";
-import { registerAdvancedBillingRoutes, registerBillingRoutes, } from "./routes/billing.js";
+import { registerBillingRoutes } from "./routes/billing.js";
 import { registerClinicalRoutes } from "./routes/clinical.js";
 import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
-import registerDiaryRoutes from "./routes/diary.js";
-import { registerDicomwebRoutes } from "./routes/dicomweb.js";
 import { registerDocumentRoutes } from "./routes/documents.js";
-import registerEgiszRoutes from "./routes/egisz.js";
-import { registerFilesRoutes } from "./routes/files.js";
-import { registerFamilyFinanceRoutes } from "./routes/finance_family.js";
 import { registerImagingRoutes } from "./routes/imaging.js";
 import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
-import { registerImportRoutes } from "./routes/imports.js";
 import { registerIngestionRoutes } from "./routes/ingestion.js";
-import { registerInsuranceRoutes } from "./routes/insurance.js";
-import { inventoryRoutes } from "./routes/inventory.js";
-import { registerLabRoutes } from "./routes/lab.js";
-import { registerLeadsRoutes } from "./routes/leads.js";
-import { registerMaxRoutes } from "./routes/max.js";
-import { registerOdontogramRoutes } from "./routes/odontogram.js";
+import { registerImportRoutes } from "./routes/imports.js";
 import { registerPatientRoutes } from "./routes/patients.js";
-import { payrollRoutes } from "./routes/payroll.js";
-import { portalRoutes } from "./routes/portal.js";
 import { registerPricelistRoutes } from "./routes/pricelist.js";
-import { registerPublicBookingRoutes } from "./routes/publicBooking.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
-import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSpeechRoutes } from "./routes/speech.js";
-import { registerSterilizationRoutes } from "./routes/sterilization.js";
+import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSystemRoutes } from "./routes/system.js";
-import { registerTelegramRoutes, registerTelegramWebhookRoutes, } from "./routes/telegram.js";
-import { telephonyRoutes } from "./routes/telephony.js";
-import registerTemplateRoutes from "./routes/templates.js";
-import registerToothHistoryRoutes from "./routes/toothHistory.js";
+import { registerTelegramRoutes, registerTelegramWebhookRoutes } from "./routes/telegram.js";
 import { registerVisitRoutes } from "./routes/visits.js";
-import { registerVkRoutes } from "./routes/vk.js";
-import { registerWaitlistRoutes } from "./routes/waitlist.js";
-import { registerWhatsappRoutes } from "./routes/whatsapp.js";
-import { workspaceProfileRoutes } from "./routes/workspaceProfile.js";
+import { registerDicomwebRoutes } from "./routes/dicomweb.js";
 import { registerXrayRoutes } from "./routes/xray.js";
-import { startBackupDaemon, stopBackupDaemon, } from "./services/backupWorker.js";
-import { startBiAnalyticsWorker } from "./services/biAnalyticsWorker.js";
-import { startNotificationWorker } from "./services/notificationWorker.js";
-import { startSyncEngine, stopSyncEngine } from "./services/syncEngine.js";
-import { wsBroker } from "./services/websocketBroker.js";
-import { getProxyAgent } from "./speech/keyPool.js";
-import { ensureSshTunnel } from "./speech/tunnel.js";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerOdontogramRoutes } from "./routes/odontogram.js";
+import registerSchedulerSync from "./routes/schedulerSync.js";
+import registerHandoff from "./routes/handoff.js";
+import registerSurgicalRoutes from "./routes/surgical.js";
+import { setupWebsockets } from "./websocket.js";
+import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
 import { repairMojibakeText } from "./text/repairMojibake.js";
+import net from "node:net";
+import { ensureSshTunnel } from "./speech/tunnel.js";
+import { getProxyAgent } from "./speech/keyPool.js";
 import { startWatchdog } from "./watchdog.js";
 loadAdditionalServerEnv();
 startWatchdog();
-startNotificationWorker(); // БЛОК B: обработчик очереди outgoing_notifications (10s interval)
-/**
- * Runs all .sql files in src/db/migrations/ at server startup.
- * Uses IF NOT EXISTS guards so it's idempotent on existing databases.
- */
-async function runPendingMigrations() {
-    const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
-    const migrationsDir = nodePath.resolve(__dirname, "./db/migrations");
-    if (!fs.existsSync(migrationsDir))
-        return;
-    const files = fs
-        .readdirSync(migrationsDir)
-        .filter((f) => f.endsWith(".sql"))
-        .sort();
-    for (const file of files) {
-        const sql = fs.readFileSync(nodePath.join(migrationsDir, file), "utf8");
-        const statements = sql
-            .split(/;(\r?\n|$)/)
-            .map((s) => s.replace(/--[^\n]*/g, "").trim())
-            .filter(Boolean);
-        for (const stmt of statements) {
-            try {
-                await db.$client.exec(stmt);
-            }
-            catch (err) {
-                if (err?.message?.includes("already exists") ||
-                    err?.message?.includes("duplicate column")) {
-                    // Column already exists — that's fine
-                }
-                else {
-                    console.warn(`[Migrations] ${file}: ${err?.message?.slice(0, 120)}`);
-                }
-            }
-        }
-    }
-}
+// startNotificationWorker();
 async function checkProxyPortDirectly(proxyUrlString) {
     return new Promise((resolve) => {
         try {
@@ -140,9 +77,7 @@ export async function setupProxyAndTunnels() {
     }
     else {
         // 2. Если туннеля нет, проверяем настроенный прокси из .env
-        const proxyUrl = process.env.HTTPS_PROXY ||
-            process.env.HTTP_PROXY ||
-            process.env.PROXY_URL;
+        const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.PROXY_URL;
         if (proxyUrl) {
             const isOnline = await checkProxyPortDirectly(proxyUrl);
             if (!isOnline) {
@@ -169,10 +104,7 @@ function isZodValidationError(error) {
 function apiErrorStatusCode(error) {
     const candidate = error;
     const statusCode = candidate?.statusCode ?? candidate?.status;
-    if (typeof statusCode === "number" &&
-        Number.isInteger(statusCode) &&
-        statusCode >= 400 &&
-        statusCode < 600)
+    if (typeof statusCode === "number" && Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600)
         return statusCode;
     return 500;
 }
@@ -188,14 +120,9 @@ function fallbackApiErrorMessage(statusCode) {
     return "Запрос не выполнен. Проверьте данные и повторите действие.";
 }
 function publicApiErrorMessage(error, statusCode) {
-    const rawMessage = typeof error?.message === "string"
-        ? String(error.message)
-        : "";
+    const rawMessage = typeof error?.message === "string" ? String(error.message) : "";
     const repairedMessage = repairMojibakeText(rawMessage).trim();
-    if (repairedMessage &&
-        repairedMessage.length <= 600 &&
-        /[А-Яа-яЁё]/.test(repairedMessage) &&
-        !apiTechnicalErrorPattern.test(repairedMessage)) {
+    if (repairedMessage && repairedMessage.length <= 600 && /[А-Яа-яЁё]/.test(repairedMessage) && !apiTechnicalErrorPattern.test(repairedMessage)) {
         return repairedMessage;
     }
     return fallbackApiErrorMessage(statusCode);
@@ -203,8 +130,8 @@ function publicApiErrorMessage(error, statusCode) {
 export async function createDenteApiApp(options = {}) {
     const app = Fastify({
         logger: {
-            level: process.env.NODE_ENV === "production" ? "info" : "debug",
-        },
+            level: process.env.NODE_ENV === "production" ? "info" : "debug"
+        }
     });
     const webOrigins = (process.env.WEB_ORIGIN ?? "http://127.0.0.1:5173")
         .split(",")
@@ -225,39 +152,22 @@ export async function createDenteApiApp(options = {}) {
         }
     });
     await app.register(cors, {
-        origin: webOrigins,
+        origin: webOrigins
     });
-    await app.register(fastifyWebsocket, {
-        options: { maxPayload: 1048576 },
-    });
-    await app.register(fastifyMultipart, {
-        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-    });
-    app.get("/api/ws/schedule", { websocket: true }, (connection, req) => {
-        const orgId = req.query.orgId || "default-org";
-        const patientId = req.query.patientId || undefined;
-        wsBroker.addClient(connection, orgId, patientId);
-    });
+    await setupWebsockets(app);
     app.setErrorHandler((error, _request, reply) => {
-        console.error("API SERVER ERROR:", error?.stack || error?.message || String(error));
-        const logPath = process.env.ERROR_LOG_PATH;
-        if (logPath) {
-            import("node:fs").then((m) => m.appendFileSync(logPath, (error?.stack || error?.message || String(error)) +
-                "\nCAUSE: " +
-                (error?.cause || "") +
-                "\n"));
-        }
+        import("node:fs").then(m => m.appendFileSync("C:/Clinic_MVP/error.log", (error?.stack || error?.message || String(error)) + "\nCAUSE: " + (error?.cause || "") + "\n"));
         if (isZodValidationError(error)) {
             reply.status(400).send({
                 error: "ValidationError",
-                message: publicValidationErrorMessage,
+                message: publicValidationErrorMessage
             });
             return;
         }
         const statusCode = apiErrorStatusCode(error);
         reply.status(statusCode).send({
             error: statusCode >= 500 ? "ServerError" : "RequestError",
-            message: publicApiErrorMessage(error, statusCode),
+            message: publicApiErrorMessage(error, statusCode)
         });
     });
     app.addHook("onSend", async (_request, reply, payload) => {
@@ -276,22 +186,13 @@ export async function createDenteApiApp(options = {}) {
     app.get("/api/health", async () => ({
         ok: true,
         service: "dental-crm-api",
-        time: new Date().toISOString(),
+        time: new Date().toISOString()
     }));
-    // Apply pending schema migrations on every startup (idempotent)
-    await runPendingMigrations();
     await registerAiRoutes(app);
     await registerBillingRoutes(app);
-    await registerAdvancedBillingRoutes(app);
-    await app.register(telephonyRoutes, { prefix: "/api/telephony" });
-    await app.register(portalRoutes, { prefix: "/api/portal" });
-    await app.register(inventoryRoutes, { prefix: "/api/inventory" });
-    await app.register(payrollRoutes, { prefix: "/api/payroll" });
-    await registerInsuranceRoutes(app);
     await registerClinicalRoutes(app);
     await registerCommunicationRoutes(app);
     await registerDashboardRoutes(app);
-    registerAnalyticsRoutes(app);
     await registerDocumentRoutes(app);
     await registerImagingRoutes(app);
     await registerImagingPlanningRoutes(app);
@@ -301,59 +202,31 @@ export async function createDenteApiApp(options = {}) {
     await registerPricelistRoutes(app);
     await registerScheduleRoutes(app);
     await registerSettingsRoutes(app);
-    await app.register(registerPublicBookingRoutes, {
-        prefix: "/api/public/booking",
-    });
-    await registerVkRoutes(app);
     await registerSpeechRoutes(app);
     await registerSmartImportRoutes(app);
     await registerSystemRoutes(app);
     await registerTelegramRoutes(app);
     await registerTelegramWebhookRoutes(app);
-    await registerWhatsappRoutes(app);
-    await registerMaxRoutes(app);
     await registerVisitRoutes(app);
-    await registerLeadsRoutes(app);
-    await registerWaitlistRoutes(app);
-    await registerSterilizationRoutes(app);
-    await registerFamilyFinanceRoutes(app);
     await registerDicomwebRoutes(app);
     await registerXrayRoutes(app);
     await registerAuthRoutes(app);
-    await registerEgiszRoutes(app);
-    await registerDiaryRoutes(app);
-    await registerTemplateRoutes(app);
     await registerOdontogramRoutes(app);
-    await registerToothHistoryRoutes(app);
-    await registerLabRoutes(app);
-    await registerFilesRoutes(app);
-    await workspaceProfileRoutes(app);
+    await registerSchedulerSync(app);
+    await registerHandoff(app);
+    await registerSurgicalRoutes(app);
     if (options.startTelegramWorker !== false) {
-        startBiAnalyticsWorker();
-        startSyncEngine(db.$client); // assuming db exposes pglite
-        startBackupDaemon();
-        const recallWorkerTimer = setInterval(() => {
-            RecallScheduler.processOsteointegrationRecalls().catch(console.error);
-        }, 1000 * 60 * 60 * 24); // Run once a day
-        RecallScheduler.processOsteointegrationRecalls().catch(console.error); // Run once on startup
+        // const telegramOutboxDueWorker = startDenteTelegramOutboxDueWorker({ logger: app.log });
+        // const recallWorkerTimer = startRecallWorker();
         app.addHook("onClose", async () => {
             // telegramOutboxDueWorker.stop();
-            clearInterval(recallWorkerTimer);
-            stopSyncEngine();
-            stopBackupDaemon();
-            try {
-                const { exportDbToPersistentStateFile } = await import("./persistentState.js");
-                await exportDbToPersistentStateFile();
-            }
-            catch (e) {
-                console.error("Failed to export state file on close:", e);
-            }
+            // clearInterval(recallWorkerTimer);
         });
     }
     return app;
 }
 export async function startDenteApiServer() {
-    await setupProxyAndTunnels().catch((err) => {
+    await setupProxyAndTunnels().catch(err => {
         console.error("[Proxy Boot] Failed to run proxy/tunnel diagnostics:", err);
     });
     const app = await createDenteApiApp();
@@ -367,9 +240,7 @@ export async function startDenteApiServer() {
         process.exit(1);
     }
 }
-if (process.argv[1] &&
-    import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     await startDenteApiServer();
 }
-// trigger restart
 // trigger restart

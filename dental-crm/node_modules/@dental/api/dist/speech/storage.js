@@ -14,8 +14,7 @@ function uniqueStrings(values) {
     return Array.from(new Set(values.filter(Boolean)));
 }
 function countSpeechWords(text) {
-    return (text.match(/[A-Za-zА-Яа-яЁё0-9]+(?:[-'][A-Za-zА-Яа-яЁё0-9]+)*/g)?.length ??
-        0);
+    return text.match(/[A-Za-zА-Яа-яЁё0-9]+(?:[-'][A-Za-zА-Яа-яЁё0-9]+)*/g)?.length ?? 0;
 }
 function speechChunkQuality(chunk) {
     const existingQuality = chunk.quality;
@@ -29,12 +28,10 @@ function speechChunkQuality(chunk) {
         wordCount: countSpeechWords(transcript),
         charCount: transcript.length,
         durationMs: chunk.durationMs,
-        bytesPerSecond: chunk.durationMs
-            ? Math.round((chunk.byteLength / (chunk.durationMs / 1000)) * 10) / 10
-            : null,
+        bytesPerSecond: chunk.durationMs ? Math.round((chunk.byteLength / (chunk.durationMs / 1000)) * 10) / 10 : null,
         providerWarnings: chunk.warnings.slice(0, 8),
         signals: ["legacy_chunk"],
-        nextAction: "Проверьте старый фрагмент распознавания: он сохранен до появления метаданных качества.",
+        nextAction: "Проверьте старый фрагмент распознавания: он сохранен до появления метаданных качества."
     };
 }
 function countSpeechQualities(chunks) {
@@ -54,51 +51,33 @@ function speechChunkMatchesScope(chunk, scope = {}) {
     return true;
 }
 export function listSpeechTranscriptionChunks(recordingId, scope = {}) {
-    const chunks = speechTranscriptionChunks.filter((chunk) => chunk.recordingId === recordingId &&
-        speechChunkMatchesScope(chunk, scope));
-    return chunks
-        .slice()
-        .sort((left, right) => left.chunkIndex - right.chunkIndex ||
-        left.createdAt.localeCompare(right.createdAt));
+    const chunks = speechTranscriptionChunks.filter((chunk) => chunk.recordingId === recordingId && speechChunkMatchesScope(chunk, scope));
+    return chunks.slice().sort((left, right) => left.chunkIndex - right.chunkIndex || left.createdAt.localeCompare(right.createdAt));
 }
 function assembleSpeechRecordingFromChunks(recordingId, chunks) {
     const receivedChunkIndexes = chunks.map((chunk) => chunk.chunkIndex);
-    const maxChunkIndex = receivedChunkIndexes.length
-        ? Math.max(...receivedChunkIndexes)
-        : -1;
+    const maxChunkIndex = receivedChunkIndexes.length ? Math.max(...receivedChunkIndexes) : -1;
     const received = new Set(receivedChunkIndexes);
     const missingChunkIndexes = maxChunkIndex >= 0
         ? Array.from({ length: maxChunkIndex + 1 }, (_, index) => index).filter((index) => !received.has(index))
         : [];
-    const transcript = chunks
-        .map((chunk) => chunk.transcript.trim())
-        .filter(Boolean)
-        .join("\n")
-        .trim();
+    const transcript = chunks.map((chunk) => chunk.transcript.trim()).filter(Boolean).join("\n").trim();
     const providerLabels = uniqueStrings(chunks.map((chunk) => chunk.providerLabel));
     const statuses = Array.from(new Set(chunks.map((chunk) => chunk.status)));
     const qualityCounts = countSpeechQualities(chunks);
     const qualityWarnings = chunks
         .map((chunk) => {
         const quality = speechChunkQuality(chunk);
-        return quality.level === "clear"
-            ? ""
-            : `Фрагмент ${chunk.chunkIndex + 1}: качество ${quality.level}, ${quality.nextAction}`;
+        return quality.level === "clear" ? "" : `Фрагмент ${chunk.chunkIndex + 1}: качество ${quality.level}, ${quality.nextAction}`;
     })
         .filter(Boolean);
     const warnings = [
         ...chunks.flatMap((chunk) => chunk.warnings),
         ...qualityWarnings,
         chunks.length ? "" : "У записи пока нет серверных фрагментов.",
-        missingChunkIndexes.length
-            ? `Нет фрагментов с индексами: ${missingChunkIndexes.join(", ")}.`
-            : "",
-        chunks.some((chunk) => chunk.status === "failed")
-            ? "Минимум один фрагмент не распознан."
-            : "",
-        transcript
-            ? ""
-            : "Текст расшифровки еще не собран; локальный черновик браузера может содержать несинхронизированный текст.",
+        missingChunkIndexes.length ? `Нет фрагментов с индексами: ${missingChunkIndexes.join(", ")}.` : "",
+        chunks.some((chunk) => chunk.status === "failed") ? "Минимум один фрагмент не распознан." : "",
+        transcript ? "" : "Текст расшифровки еще не собран; локальный черновик браузера может содержать несинхронизированный текст."
     ].filter(Boolean);
     return {
         recordingId,
@@ -112,34 +91,27 @@ function assembleSpeechRecordingFromChunks(recordingId, chunks) {
         warnings: uniqueStrings(warnings).slice(0, 12),
         firstChunkAt: chunks[0]?.createdAt ?? null,
         lastChunkAt: chunks.at(-1)?.createdAt ?? null,
-        assembledAt: new Date().toISOString(),
+        assembledAt: new Date().toISOString()
     };
 }
 export function assembleSpeechRecording(recordingId, scope = {}) {
     return assembleSpeechRecordingFromChunks(recordingId, listSpeechTranscriptionChunks(recordingId, scope));
 }
 function speechRecordingRecoveryFromChunks(recordingId, chunks) {
-    const sortedChunks = chunks
-        .slice()
-        .sort((left, right) => left.chunkIndex - right.chunkIndex ||
-        left.createdAt.localeCompare(right.createdAt));
+    const sortedChunks = chunks.slice().sort((left, right) => left.chunkIndex - right.chunkIndex || left.createdAt.localeCompare(right.createdAt));
     const assembly = assembleSpeechRecordingFromChunks(recordingId, sortedChunks);
     const statusCounts = {
-        transcribed: sortedChunks.filter((chunk) => chunk.status === "transcribed")
-            .length,
+        transcribed: sortedChunks.filter((chunk) => chunk.status === "transcribed").length,
         fallback_text: sortedChunks.filter((chunk) => chunk.status === "fallback_text").length,
         needs_provider_key: sortedChunks.filter((chunk) => chunk.status === "needs_provider_key").length,
-        failed: sortedChunks.filter((chunk) => chunk.status === "failed").length,
+        failed: sortedChunks.filter((chunk) => chunk.status === "failed").length
     };
     const totalDurationMs = sortedChunks.some((chunk) => chunk.durationMs !== null)
         ? sortedChunks.reduce((total, chunk) => total + (chunk.durationMs ?? 0), 0)
         : null;
     const totalBytes = sortedChunks.reduce((total, chunk) => total + chunk.byteLength, 0);
     const qualityCounts = countSpeechQualities(sortedChunks);
-    const transcriptPreview = assembly.transcript
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 220);
+    const transcriptPreview = assembly.transcript.replace(/\s+/g, " ").trim().slice(0, 220);
     const recoveryState = assembly.missingChunkIndexes.length > 0
         ? "missing_chunks"
         : statusCounts.failed > 0
@@ -177,7 +149,7 @@ function speechRecordingRecoveryFromChunks(recordingId, chunks) {
         lastChunkAt: assembly.lastChunkAt,
         recoveryState,
         nextAction,
-        warnings: assembly.warnings,
+        warnings: assembly.warnings
     };
 }
 export function listSpeechRecordingRecoveries(input = {}) {
@@ -198,31 +170,23 @@ export function listSpeechRecordingRecoveries(input = {}) {
     return {
         recordings,
         totalRecordings: grouped.size,
-        generatedAt: new Date().toISOString(),
+        generatedAt: new Date().toISOString()
     };
 }
 function speechTranscriptionStatusRank(status) {
     switch (status) {
-        case "transcribed":
-            return 4;
-        case "fallback_text":
-            return 3;
-        case "needs_provider_key":
-            return 2;
-        case "failed":
-            return 1;
+        case "transcribed": return 4;
+        case "fallback_text": return 3;
+        case "needs_provider_key": return 2;
+        case "failed": return 1;
     }
 }
 function speechQualityRank(quality) {
     switch (quality.level) {
-        case "clear":
-            return 4;
-        case "review":
-            return 3;
-        case "empty":
-            return 2;
-        case "failed":
-            return 1;
+        case "clear": return 4;
+        case "review": return 3;
+        case "empty": return 2;
+        case "failed": return 1;
     }
 }
 function shouldReplaceSpeechTranscriptionChunk(existing, next) {
@@ -240,8 +204,7 @@ function shouldReplaceSpeechTranscriptionChunk(existing, next) {
     const nextQualityRank = speechQualityRank(next.quality);
     if (nextQualityRank !== existingQualityRank)
         return nextQualityRank > existingQualityRank;
-    return (nextTranscript.length > existingTranscript.length &&
-        next.status !== "failed");
+    return nextTranscript.length > existingTranscript.length && next.status !== "failed";
 }
 function speechChunkRetryIdentityMatches(existing, next) {
     return (existing.source === next.source &&
@@ -270,13 +233,11 @@ function trimSpeechTranscriptionChunkRetention() {
     speechTranscriptionChunks.splice(0, speechTranscriptionChunks.length, ...keptChunks);
 }
 export async function recordSpeechTranscriptionChunk(input) {
-    const identityConflict = speechTranscriptionChunks.find((chunk) => chunk.recordingId === input.recordingId &&
-        !speechChunkRetryIdentityMatches(chunk, input));
+    const identityConflict = speechTranscriptionChunks.find((chunk) => chunk.recordingId === input.recordingId && !speechChunkRetryIdentityMatches(chunk, input));
     if (identityConflict) {
         throw new SpeechChunkIdentityConflictError();
     }
-    const existingIndex = speechTranscriptionChunks.findIndex((chunk) => chunk.recordingId === input.recordingId &&
-        chunk.chunkIndex === input.chunkIndex);
+    const existingIndex = speechTranscriptionChunks.findIndex((chunk) => chunk.recordingId === input.recordingId && chunk.chunkIndex === input.chunkIndex);
     if (existingIndex >= 0) {
         const existing = speechTranscriptionChunks[existingIndex];
         if (existing && !speechChunkRetryIdentityMatches(existing, input)) {
@@ -293,8 +254,8 @@ export async function recordSpeechTranscriptionChunk(input) {
                 createdAt: existing.createdAt,
                 warnings: uniqueStrings([
                     ...input.warnings,
-                    `Повторное распознавание улучшило аудиофрагмент: ${existing.status}/${speechChunkQuality(existing).level} -> ${input.status}/${input.quality.level}.`,
-                ]).slice(0, 12),
+                    `Повторное распознавание улучшило аудиофрагмент: ${existing.status}/${speechChunkQuality(existing).level} -> ${input.status}/${input.quality.level}.`
+                ]).slice(0, 12)
             };
             speechTranscriptionChunks.splice(existingIndex, 1, chunk);
             return chunk;
@@ -306,7 +267,7 @@ export async function recordSpeechTranscriptionChunk(input) {
         id: randomUUID(),
         organizationId,
         createdAt: new Date().toISOString(),
-        ...input,
+        ...input
     };
     speechTranscriptionChunks.unshift(chunk);
     trimSpeechTranscriptionChunkRetention();

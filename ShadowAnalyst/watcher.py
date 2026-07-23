@@ -233,7 +233,7 @@ def process_single_file(file_path):
 
             print(f"    Файлы перемещены в {PROCESSED_DIR}")
     except FileNotFoundError:
-        print(f"Файл не найден (возможно, уже обработан): {file_path}")
+        pass # File was already processed or moved
     except Exception as e:
         print(f"Ошибка при обработке {file_path}: {e}")
     finally:

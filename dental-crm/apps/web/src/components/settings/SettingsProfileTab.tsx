@@ -1,655 +1,322 @@
-import {
-	AlertTriangle,
-	Eye,
-	EyeOff,
-	KeyRound,
-	Lock,
-	Palette,
-	ShieldCheck,
-	User,
-	Gift,
-	Copy,
-	CheckCircle2
-} from "lucide-react";
-import "./SettingsProfileTab.css";
-import type React from "react";
-import { useEffect, useState } from "react";
-import { useAppLogicContext } from "../../contexts/AppLogicContext";
-import { useThemeStore } from "../../store/themeStore";
-import { useUiStore } from "../../store/uiStore";
-import { useSettingsDerivations } from "../../useSettingsDerivations";
+import React, { useState, useEffect } from "react";
+import { User, KeyRound, Lock, AlertTriangle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { showToast } from "../GlobalToast";
 
 interface UserProfile {
-	id: string;
-	fullName: string;
-	role: string;
-	email?: string | null;
-	organizationId?: string;
+  id: string;
+  fullName: string;
+  role: string;
+  email?: string | null;
+  organizationId?: string;
 }
 
 interface SettingsProfileTabProps {
-	props: Record<string, any>;
+  props: Record<string, any>;
 }
 
 function getPasswordStrength(pw: string): { score: number; label: string } {
-	let score = 0;
-	if (pw.length >= 8) score++;
-	if (pw.length >= 12) score++;
-	if (/[A-Z]/.test(pw)) score++;
-	if (/[0-9]/.test(pw)) score++;
-	if (/[^A-Za-z0-9]/.test(pw)) score++;
-	if (score <= 1) return { score: 1, label: "Слабый" };
-	if (score <= 3) return { score: 2, label: "Средний" };
-	return { score: 3, label: "Надёжный" };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score: 1, label: "Слабый" };
+  if (score <= 3) return { score: 2, label: "Средний" };
+  return { score: 3, label: "Надёжный" };
 }
 
-export function SettingsProfileTab() {
-	const themeStore = useThemeStore();
-	const uiStore = useUiStore();
-	const appLogic = useAppLogicContext();
-	const derivations = useSettingsDerivations();
-	const mergedProps = Object.assign({}, appLogic, derivations) as any;
-	const { staffRoleLabels } = mergedProps;
+export function SettingsProfileTab({ props }: SettingsProfileTabProps) {
+  const { staffRoleLabels } = props;
 
-	const [profile, setProfile] = useState<UserProfile | null>(
-		mergedProps.activeStaffUser ?? null,
-	);
-	const [profileLoading, setProfileLoading] = useState(!profile);
+  const [profile, setProfile] = useState<UserProfile | null>(props.activeStaffUser ?? null);
+  const [profileLoading, setProfileLoading] = useState(!profile);
 
-	// Fetch fresh profile from server on mount
-	useEffect(() => {
-		const staffToken = localStorage.getItem("dente_staff_token");
-		if (!staffToken) return;
-		setProfileLoading(true);
-		fetch("/api/auth/user/me", {
-			headers: { "x-dente-staff-token": staffToken },
-		})
-			.then((r) => (r.ok ? r.json() : null))
-			.then((data) => {
-				if (data?.user) setProfile(data.user);
-			})
-			.catch(() => {})
-			.finally(() => setProfileLoading(false));
-	}, []);
+  // Fetch fresh profile from server on mount
+  useEffect(() => {
+    const staffToken = localStorage.getItem("dente_staff_token");
+    if (!staffToken) return;
+    setProfileLoading(true);
+    fetch("/api/auth/user/me", {
+      headers: { "x-dente-staff-token": staffToken }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.user) setProfile(data.user); })
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
+  }, []);
 
-	// Password change
-	const [oldPassword, setOldPassword] = useState("");
-	const [newPassword, setNewPassword] = useState("");
-	const [confirmPassword, setConfirmPassword] = useState("");
-	const [showOldPw, setShowOldPw] = useState(false);
-	const [showNewPw, setShowNewPw] = useState(false);
-	const [passwordLoading, setPasswordLoading] = useState(false);
+  // Password change
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showOldPw, setShowOldPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
-	// PIN change
-	const [oldPin, setOldPin] = useState("");
-	const [newPin, setNewPin] = useState("");
-	const [confirmPin, setConfirmPin] = useState("");
-	const [pinLoading, setPinLoading] = useState(false);
+  // PIN change
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
 
-	const [highContrast, setHighContrast] = useState(
-		() => localStorage.getItem("dente_high_contrast") === "true",
-	);
+  const strength = getPasswordStrength(newPassword);
+  const passwordMismatch = confirmPassword && newPassword !== confirmPassword;
 
-	const strength = getPasswordStrength(newPassword);
-	const passwordMismatch = confirmPassword && newPassword !== confirmPassword;
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      showToast("Заполните все поля", "warning"); return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast("Новые пароли не совпадают", "error"); return;
+    }
+    if (newPassword.length < 8) {
+      showToast("Пароль должен быть не менее 8 символов", "warning"); return;
+    }
 
-	const handleUpdatePassword = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!oldPassword || !newPassword || !confirmPassword) {
-			showToast("Заполните все поля", "warning");
-			return;
-		}
-		if (newPassword !== confirmPassword) {
-			showToast("Новые пароли не совпадают", "error");
-			return;
-		}
-		if (newPassword.length < 8) {
-			showToast("Пароль должен быть не менее 8 символов", "warning");
-			return;
-		}
+    setPasswordLoading(true);
+    try {
+      const r = await fetch("/api/auth/user/update-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-dente-staff-token": localStorage.getItem("dente_staff_token") || "",
+        },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Ошибка смены пароля");
+      showToast("Пароль успешно изменён", "success");
+      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+    } catch (err: any) {
+      showToast(err.message, "error");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
-		setPasswordLoading(true);
-		try {
-			const r = await fetch("/api/auth/user/update-password", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-dente-staff-token":
-						localStorage.getItem("dente_staff_token") || "",
-				},
-				body: JSON.stringify({ oldPassword, newPassword }),
-			});
-			const data = await r.json();
-			if (!r.ok) throw new Error(data.message || "Ошибка смены пароля");
-			showToast("Пароль успешно изменён", "success");
-			setOldPassword("");
-			setNewPassword("");
-			setConfirmPassword("");
-		} catch (err: any) {
-			showToast(err.message, "error");
-		} finally {
-			setPasswordLoading(false);
-		}
-	};
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPin || !newPin || !confirmPin) {
+      showToast("Заполните все поля PIN-кода", "warning"); return;
+    }
+    if (newPin !== confirmPin) {
+      showToast("PIN-коды не совпадают", "error"); return;
+    }
+    if (!/^\d{4}$/.test(newPin)) {
+      showToast("PIN-код — 4 цифры", "warning"); return;
+    }
 
-	const handleUpdatePin = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!oldPin || !newPin || !confirmPin) {
-			showToast("Заполните все поля PIN-кода", "warning");
-			return;
-		}
-		if (newPin !== confirmPin) {
-			showToast("PIN-коды не совпадают", "error");
-			return;
-		}
-		if (!/^\d{4}$/.test(newPin)) {
-			showToast("PIN-код — 4 цифры", "warning");
-			return;
-		}
+    setPinLoading(true);
+    try {
+      const r = await fetch("/api/auth/user/update-pin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-dente-staff-token": localStorage.getItem("dente_staff_token") || "",
+        },
+        body: JSON.stringify({ oldPin, newPin }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Ошибка смены PIN");
+      showToast("PIN-код успешно изменён", "success");
+      setOldPin(""); setNewPin(""); setConfirmPin("");
+    } catch (err: any) {
+      showToast(err.message, "error");
+    } finally {
+      setPinLoading(false);
+    }
+  };
 
-		setPinLoading(true);
-		try {
-			const r = await fetch("/api/auth/user/update-pin", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-dente-staff-token":
-						localStorage.getItem("dente_staff_token") || "",
-				},
-				body: JSON.stringify({ oldPin, newPin }),
-			});
-			const data = await r.json();
-			if (!r.ok) throw new Error(data.message || "Ошибка смены PIN");
-			showToast("PIN-код успешно изменён", "success");
-			setOldPin("");
-			setNewPin("");
-			setConfirmPin("");
-		} catch (err: any) {
-			showToast(err.message, "error");
-		} finally {
-			setPinLoading(false);
-		}
-	};
+  if (profileLoading) {
+    return (
+      <div className="settings-tab-pane">
+        <div className="settings-empty-state">
+          <div className="spinner" style={{ width: 32, height: 32, border: "2px solid rgba(255,255,255,0.1)", borderTopColor: "#818cf8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ color: "var(--slate-400, #94a3b8)", marginTop: 12 }}>Загрузка профиля...</p>
+        </div>
+      </div>
+    );
+  }
 
-	if (profileLoading) {
-		return (
-			<div className="profile-studio-container animate-fade-in">
-				<div className="import-copy" style={{ marginBottom: "0" }}>
-					<User aria-hidden="true" />
-					<div>
-						<p className="eyebrow">Мой профиль</p>
-						<h2 id="tabpanel-profile-title">Настройки аккаунта</h2>
-						<p>
-							Личные данные, пароль и PIN-код для входа в систему, а также
-							предпочтения интерфейса.
-						</p>
-					</div>
-				</div>
+  if (!profile) {
+    return (
+      <div className="settings-tab-pane">
+        <div className="settings-empty-state">
+          <AlertTriangle size={32} color="#f87171" />
+          <p style={{ color: "#f87171", marginTop: 8 }}>Профиль не найден. Войдите через PIN или перезайдите в систему.</p>
+        </div>
+      </div>
+    );
+  }
 
-				<div
-					className="profile-form-grid"
-					style={{ display: "flex", flexDirection: "column", gap: "24px" }}
-				>
-					{/* Personal data */}
-					<section className="profile-section-card">
-						<div className="profile-section-header">
-							<div
-								className="profile-section-icon"
-								style={{
-									background: "rgba(59, 130, 246, 0.1)",
-									color: "rgb(59, 130, 246)",
-								}}
-							>
-								<User size={24} />
-							</div>
-							<div className="profile-section-title">
-								<h3>Личные данные</h3>
-								<p>Ваша базовая информация в системе клиники</p>
-							</div>
-						</div>
+  const strengthClass = newPassword
+    ? strength.score === 1 ? "weak" : strength.score === 2 ? "medium" : "strong"
+    : "";
 
-						<div className="profile-form-grid">
-							<div className="profile-form-group full-width">
-								<label>ФИО</label>
-								<input type="text" value={profile?.fullName || ""} disabled />
-							</div>
-							<div className="profile-form-group">
-								<label>Email</label>
-								<input
-									type="email"
-									value={profile?.email || "Не указан"}
-									disabled
-								/>
-							</div>
-							<div className="profile-form-group">
-								<label>Роль в системе</label>
-								<input
-									type="text"
-									value={
-										profile?.role
-											? (staffRoleLabels?.[
-													profile.role as
-														| "admin"
-														| "doctor"
-														| "assistant"
-														| "manager"
-												] ?? profile.role)
-											: ""
-									}
-									disabled
-								/>
-							</div>
-						</div>
-						<p className="profile-form-hint">
-							Изменить ФИО или Email может только владелец клиники в разделе
-							«Клиника → Персонал».
-						</p>
-					</section>
+  return (
+    <div className="settings-tab-pane animate-fade-in-up">
+      <div className="settings-header">
+        <h2 id="tabpanel-profile-title">Мой профиль</h2>
+        <p>Личные данные, пароль и PIN-код для входа в систему.</p>
+      </div>
 
-					{/* Referral & Bonuses */}
-					{mergedProps.hasReferralModule && (
-						<section className="profile-section-card animate-fade-in">
-							<div className="profile-section-header">
-								<div
-									className="profile-section-icon"
-									style={{
-										background: "rgba(245, 158, 11, 0.1)",
-										color: "rgb(245, 158, 11)",
-									}}
-								>
-									<Gift size={24} />
-								</div>
-								<div className="profile-section-title">
-									<h3>Бонусы и Ссылка</h3>
-									<p>Ваша персональная реферальная ссылка и баланс</p>
-								</div>
-							</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "2rem", maxWidth: "600px" }}>
+        {/* Personal data */}
+        <section className="settings-section">
+          <div className="settings-section-header">
+            <User aria-hidden="true" size={20} />
+            <h3>Личные данные</h3>
+          </div>
+          <div className="form-grid">
+            <label className="form-span-2">
+              ФИО
+              <input type="text" value={profile.fullName} disabled />
+            </label>
+            <label className="form-span-1">
+              Email
+              <input type="email" value={profile.email || "Не указан"} disabled />
+            </label>
+            <label className="form-span-1">
+              Роль
+              <input
+                type="text"
+                value={staffRoleLabels?.[profile.role] ?? profile.role}
+                disabled
+              />
+            </label>
+          </div>
+          <p className="form-hint" style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+            Изменить ФИО или Email может только владелец клиники в разделе «Клиника → Сотрудники».
+          </p>
+        </section>
 
-							<div className="profile-form-grid">
-								<div className="profile-form-group full-width">
-									<label>Ваша реферальная ссылка</label>
-									<div className="profile-input-with-toggle">
-										<input
-											type="text"
-											readOnly
-											value={`https://dente.clinic/ref/${profile?.id?.substring(0, 8) || "00000000"}`}
-											style={{ background: "var(--paper-2)", color: "var(--ink)", fontWeight: 500 }}
-										/>
-										<button
-											type="button"
-											onClick={(e) => {
-												navigator.clipboard.writeText(`https://dente.clinic/ref/${profile?.id?.substring(0, 8) || "00000000"}`);
-												showToast("Ссылка скопирована", "success");
-												const target = e.currentTarget;
-												const originalHtml = target.innerHTML;
-												target.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
-												setTimeout(() => { target.innerHTML = originalHtml; }, 2000);
-											}}
-											className="profile-input-toggle-btn"
-											aria-label="Скопировать ссылку"
-											title="Скопировать ссылку"
-										>
-											<Copy size={16} />
-										</button>
-									</div>
-								</div>
-								<div className="profile-form-group">
-									<label>Привлеченные пациенты</label>
-									<input type="text" value="0" disabled style={{ fontWeight: 600, color: "var(--slate-700)" }} />
-								</div>
-								<div className="profile-form-group">
-									<label>Баланс бонусов</label>
-									<input type="text" value="0 ₽" disabled style={{ fontWeight: 600, color: "var(--brand-600)" }} />
-								</div>
-							</div>
-							<p className="profile-form-hint">
-								Делитесь ссылкой с пациентами. За каждого пациента, прошедшего первичный приём, вам начисляются бонусы.
-							</p>
-						</section>
-					)}
+        {/* Password */}
+        <section className="settings-section">
+          <div className="settings-section-header">
+            <KeyRound aria-hidden="true" size={20} />
+            <h3>Смена пароля</h3>
+          </div>
+          <p className="form-hint" style={{ marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            Пароль используется для входа в систему с личных устройств по email.
+          </p>
+          <form onSubmit={handleUpdatePassword} className="form-grid">
+            <label className="form-span-2">
+              Текущий пароль
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showOldPw ? "text" : "password"}
+                  value={oldPassword}
+                  onChange={e => setOldPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={passwordLoading}
+                  style={{ paddingRight: 44, width: "100%" }}
+                />
+                <button type="button" onClick={() => setShowOldPw(v => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex" }}>
+                  {showOldPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </label>
+            <label className="form-span-1">
+              Новый пароль
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showNewPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Мин. 8 символов"
+                  disabled={passwordLoading}
+                  style={{ paddingRight: 44, width: "100%" }}
+                />
+                <button type="button" onClick={() => setShowNewPw(v => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex" }}>
+                  {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {newPassword && (
+                <div style={{ display: "flex", gap: 4, marginTop: 6, alignItems: "center" }}>
+                  {[1, 2, 3].map(i => (
+                    <div key={i} style={{ height: 3, flex: 1, borderRadius: 2, background: strength.score >= i ? (strength.score === 1 ? "#ef4444" : strength.score === 2 ? "#f59e0b" : "#10b981") : "rgba(255,255,255,0.08)", transition: "background 0.3s" }} />
+                  ))}
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", minWidth: 45, textAlign: "right" }}>{strength.label}</span>
+                </div>
+              )}
+            </label>
+            <label className="form-span-1">
+              Подтвердите пароль
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={passwordLoading}
+                style={passwordMismatch ? { borderColor: "#f87171" } : {}}
+              />
+              {passwordMismatch && <span style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>Пароли не совпадают</span>}
+            </label>
+            <div className="form-actions form-span-2">
+              <button className="primary-button" type="submit" disabled={passwordLoading}>
+                <ShieldCheck size={15} /> {passwordLoading ? "Сохранение..." : "Сохранить пароль"}
+              </button>
+            </div>
+          </form>
+        </section>
 
-					{/* Password */}
-					<section className="profile-section-card">
-						<div className="profile-section-header">
-							<div className="profile-section-icon">
-								<KeyRound size={24} />
-							</div>
-							<div className="profile-section-title">
-								<h3>Смена пароля</h3>
-								<p>
-									Пароль используется для входа в систему с личных устройств по
-									email
-								</p>
-							</div>
-						</div>
-
-						<form onSubmit={handleUpdatePassword} className="profile-form-grid">
-							<div className="profile-form-group full-width">
-								<label>Текущий пароль</label>
-								<div className="profile-input-with-toggle">
-									<input
-										type={showOldPw ? "text" : "password"}
-										value={oldPassword}
-										onChange={(e) => setOldPassword(e.target.value)}
-										placeholder="••••••••"
-										disabled={passwordLoading}
-									/>
-									<button
-										type="button"
-										onClick={() => setShowOldPw((v) => !v)}
-										className="profile-input-toggle-btn"
-										aria-label={showOldPw ? "Скрыть пароль" : "Показать пароль"}
-									>
-										{showOldPw ? <EyeOff size={16} /> : <Eye size={16} />}
-									</button>
-								</div>
-							</div>
-
-							<div className="profile-form-group">
-								<label>Новый пароль</label>
-								<div className="profile-input-with-toggle">
-									<input
-										type={showNewPw ? "text" : "password"}
-										value={newPassword}
-										onChange={(e) => setNewPassword(e.target.value)}
-										placeholder="Мин. 8 символов"
-										disabled={passwordLoading}
-									/>
-									<button
-										type="button"
-										onClick={() => setShowNewPw((v) => !v)}
-										className="profile-input-toggle-btn"
-										aria-label={showNewPw ? "Скрыть пароль" : "Показать пароль"}
-									>
-										{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
-									</button>
-								</div>
-								{newPassword && (
-									<div className="profile-password-strength">
-										{[1, 2, 3].map((i) => (
-											<div
-												key={i}
-												className={`profile-password-bar ${strength.score >= i ? "" : ""}`}
-											/>
-										))}
-										<span
-											className="profile-password-label"
-											style={{
-												color: false
-													? "#ef4444"
-													: false
-														? "#f59e0b"
-														: "#10b981",
-											}}
-										>
-											{strength.label}
-										</span>
-									</div>
-								)}
-							</div>
-
-							<div className="profile-form-group">
-								<label>Подтвердите пароль</label>
-								<input
-									type="password"
-									value={confirmPassword}
-									onChange={(e) => setConfirmPassword(e.target.value)}
-									placeholder="••••••••"
-									disabled={passwordLoading}
-									className={passwordMismatch ? "profile-input-error" : ""}
-								/>
-								{passwordMismatch && (
-									<span className="profile-error-hint">
-										<AlertTriangle size={12} /> Пароли не совпадают
-									</span>
-								)}
-							</div>
-
-							<div
-								className="profile-form-group full-width"
-								style={{ marginTop: "8px" }}
-							>
-								<button
-									className="primary-button"
-									type="submit"
-									disabled={passwordLoading}
-									style={{ alignSelf: "flex-start" }}
-								>
-									<ShieldCheck size={16} style={{ marginRight: "8px" }} />
-									{passwordLoading ? "Сохранение..." : "Сохранить новый пароль"}
-								</button>
-							</div>
-						</form>
-					</section>
-
-					{/* PIN */}
-					<section className="profile-section-card">
-						<div className="profile-section-header">
-							<div
-								className="profile-section-icon"
-								style={{
-									background: "rgba(139, 92, 246, 0.1)",
-									color: "rgb(139, 92, 246)",
-								}}
-							>
-								<Lock size={24} />
-							</div>
-							<div className="profile-section-title">
-								<h3>Смена PIN-кода</h3>
-								<p>
-									PIN (4 цифры) используется для быстрого входа на общих
-									компьютерах клиники
-								</p>
-							</div>
-						</div>
-
-						<form onSubmit={handleUpdatePin} className="profile-form-grid">
-							<div className="profile-form-group full-width">
-								<label>Текущий PIN-код</label>
-								<input
-									type="password"
-									value={oldPin}
-									onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ""))}
-									placeholder="••••"
-									maxLength={4}
-									disabled={pinLoading}
-									style={{
-										letterSpacing: "8px",
-										fontSize: "18px",
-										fontWeight: "bold",
-										fontFamily: "monospace",
-									}}
-								/>
-							</div>
-
-							<div className="profile-form-group">
-								<label>Новый PIN-код</label>
-								<input
-									type="password"
-									value={newPin}
-									onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-									placeholder="••••"
-									maxLength={4}
-									disabled={pinLoading}
-									style={{
-										letterSpacing: "8px",
-										fontSize: "18px",
-										fontWeight: "bold",
-										fontFamily: "monospace",
-									}}
-								/>
-							</div>
-
-							<div className="profile-form-group">
-								<label>Подтвердите PIN-код</label>
-								<input
-									type="password"
-									value={confirmPin}
-									onChange={(e) =>
-										setConfirmPin(e.target.value.replace(/\D/g, ""))
-									}
-									placeholder="••••"
-									maxLength={4}
-									disabled={pinLoading}
-									className={
-										confirmPin && newPin !== confirmPin
-											? "profile-input-error"
-											: ""
-									}
-									style={{
-										letterSpacing: "8px",
-										fontSize: "18px",
-										fontWeight: "bold",
-										fontFamily: "monospace",
-									}}
-								/>
-								{confirmPin && newPin !== confirmPin && (
-									<span className="profile-error-hint">
-										<AlertTriangle size={12} /> PIN-коды не совпадают
-									</span>
-								)}
-							</div>
-
-							<div
-								className="profile-form-group full-width"
-								style={{ marginTop: "8px" }}
-							>
-								<button
-									className="primary-button"
-									type="submit"
-									disabled={pinLoading}
-									style={{ alignSelf: "flex-start" }}
-								>
-									<ShieldCheck size={16} style={{ marginRight: "8px" }} />
-									{pinLoading ? "Сохранение..." : "Сохранить PIN-код"}
-								</button>
-							</div>
-						</form>
-					</section>
-
-					{/* Theme Settings */}
-					<section className="profile-section-card">
-						<div className="profile-section-header">
-							<div
-								className="profile-section-icon"
-								style={{
-									background: "rgba(236, 72, 153, 0.1)",
-									color: "rgb(236, 72, 153)",
-								}}
-							>
-								<Palette size={24} />
-							</div>
-							<div className="profile-section-title">
-								<h3>Внешний вид и Масштаб</h3>
-								<p>
-									Настройки оформления интерфейса конкретно для вашего аккаунта
-								</p>
-							</div>
-						</div>
-
-						<div className="profile-form-grid">
-							<div className="profile-form-group">
-								<label>Цветовая тема</label>
-								<select
-									value={themeStore.themeMode}
-									onChange={(e) =>
-										useThemeStore
-											.getState()
-											.setThemeMode(e.target.value as "auto" | "light" | "dark")
-									}
-								>
-									<option value="auto">Автоматически (по системе)</option>
-									<option value="light">Светлая тема</option>
-									<option value="dark">Тёмная тема</option>
-								</select>
-							</div>
-
-							<div className="profile-form-group">
-								<label>Масштаб элементов</label>
-								<select
-									value={uiStore.uiScale}
-									onChange={(e) =>
-										useUiStore
-											.getState()
-											.setUiScale(e.target.value as "standard" | "large")
-									}
-								>
-									<option value="standard">Компактный (Стандарт)</option>
-									<option value="large">Крупный</option>
-								</select>
-							</div>
-
-							<div className="profile-form-group full-width">
-								<label>Версия для слабовидящих (ГОСТ Р 52872-2019)</label>
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: "12px",
-										marginTop: "8px",
-									}}
-								>
-									<label className="switch">
-										<input
-											type="checkbox"
-											checked={highContrast}
-											onChange={(e) => {
-												const val = e.target.checked;
-												setHighContrast(val);
-												localStorage.setItem(
-													"dente_high_contrast",
-													val.toString(),
-												);
-												window.dispatchEvent(new Event("dente:theme-change"));
-											}}
-										/>
-										<span className="slider round"></span>
-									</label>
-									<span
-										style={{ fontSize: "14px", color: "var(--text-secondary)" }}
-									>
-										Включает чёрно-белую схему максимального контраста,
-										отключает анимации и глобально увеличивает шрифт.
-									</span>
-								</div>
-							</div>
-
-							<div className="profile-form-group full-width">
-								<label>Интерактивная зубная формула</label>
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: "12px",
-										marginTop: "8px",
-									}}
-								>
-									<label className="switch">
-										<input
-											type="checkbox"
-											checked={appLogic.odontogramUseSurfaces ?? false}
-											onChange={(e) => {
-												appLogic.setOdontogramUseSurfaces(e.target.checked);
-												appLogic.updateUiPreferences({
-													odontogramUseSurfaces: e.target.checked,
-												});
-											}}
-										/>
-										<span className="slider round"></span>
-									</label>
-									<span
-										style={{ fontSize: "14px", color: "var(--text-secondary)" }}
-									>
-										Включить выбор конкретных поверхностей зуба (O, M, D, V, L)
-										при клике
-									</span>
-								</div>
-							</div>
-						</div>
-					</section>
-				</div>
-			</div>
-		);
-	}
+        {/* PIN */}
+        <section className="settings-section">
+          <div className="settings-section-header">
+            <Lock aria-hidden="true" size={20} />
+            <h3>Смена PIN-кода</h3>
+          </div>
+          <p className="form-hint" style={{ marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            PIN (4 цифры) используется для быстрого входа на общем компьютере клиники.
+          </p>
+          <form onSubmit={handleUpdatePin} className="form-grid">
+            <label className="form-span-2">
+              Текущий PIN
+              <input
+                type="password"
+                value={oldPin}
+                onChange={e => setOldPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                maxLength={4}
+                disabled={pinLoading}
+                style={{ letterSpacing: "6px", textAlign: "center", fontSize: 18, maxWidth: 120 }}
+              />
+            </label>
+            <label className="form-span-1">
+              Новый PIN
+              <input
+                type="password"
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                maxLength={4}
+                disabled={pinLoading}
+                style={{ letterSpacing: "6px", textAlign: "center", fontSize: 18 }}
+              />
+            </label>
+            <label className="form-span-1">
+              Подтверждение
+              <input
+                type="password"
+                value={confirmPin}
+                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                maxLength={4}
+                disabled={pinLoading}
+                style={confirmPin && newPin !== confirmPin ? { letterSpacing: "6px", textAlign: "center", fontSize: 18, borderColor: "#f87171" } : { letterSpacing: "6px", textAlign: "center", fontSize: 18 }}
+              />
+              {confirmPin && newPin !== confirmPin && <span style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>PIN-коды не совпадают</span>}
+            </label>
+            <div className="form-actions form-span-2">
+              <button className="primary-button" type="submit" disabled={pinLoading}>
+                <ShieldCheck size={15} /> {pinLoading ? "Сохранение..." : "Сохранить PIN-код"}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  );
 }

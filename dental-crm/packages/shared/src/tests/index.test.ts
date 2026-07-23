@@ -51,10 +51,6 @@ describe("documentAmountSource", () => {
 	});
 });
 
-// ════════════════════════════════════════════════════════════════════
-// documentRequiresPaidRecord
-// ════════════════════════════════════════════════════════════════════
-
 describe("documentRequiresPaidRecord", () => {
 	test("returns expected boolean for different document kinds", () => {
 		// Requires paid record
@@ -368,4 +364,11 @@ describe("buildRuleBasedVisitDraftFromTranscript", () => {
 			implantologistDraft.objectiveStatus?.includes("уточнить зону адентии"),
 		);
 	});
+});
+
+describe("documentPayloadDisallowedKeys", () => {
+  test("returns empty array for null or undefined payload", () => {
+    assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", null), []);
+    assert.deepStrictEqual(documentPayloadDisallowedKeys("patient_intake_questionnaire", undefined), []);
+  });
 });

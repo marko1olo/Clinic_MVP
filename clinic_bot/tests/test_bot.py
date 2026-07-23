@@ -315,6 +315,50 @@ class TestHandleXrayResult(unittest.TestCase):
         handle_xray_result('test_topic', payload_valid, loop)
         mock_broadcast.assert_called_with("🦷 *Анализ снимка готов*\n👤 _Пациент: Petr Petrov_\n\nНаходки:\nTest report\n", role='doctor')
 
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_on_mqtt_message_xray_result(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        import json
+        from bot import on_mqtt_message
+        from config.settings import TOPIC_XRAY_RESULT
+
+        mock_broadcast.return_value = "mocked_coro"
+        mock_broadcast_photo.return_value = "mocked_coro_photo"
+
+        loop = MagicMock()
+        client = MagicMock()
+        userdata = {'loop': loop}
+        msg = MagicMock()
+        msg.topic = TOPIC_XRAY_RESULT
+
+        payload_dict = {
+            'image_b64': base64.b64encode(b"test_image").decode('utf-8'),
+            'report': 'Test report integration',
+            'patient_name': 'Sergey Sergeev',
+            'file': 'xray_integration.jpg'
+        }
+        msg.payload = json.dumps(payload_dict).encode('utf-8')
+
+        on_mqtt_message(client, userdata, msg)
+
+        # Check run_coroutine_threadsafe is called twice
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 2)
+
+        # First call is broadcast_photo
+        mock_broadcast_photo.assert_called_once_with(
+            b"test_image",
+            "🦷 *Новый рентген проанализирован!*\n👤 _Пациент: Sergey Sergeev_\nПолный отчет следующим сообщением.",
+            'Test report integration',
+            role='doctor'
+        )
+
+        # Second call is broadcast text to admin
+        mock_broadcast.assert_called_once_with(
+            "🔄 *Система*: Снимок xray_integration.jpg (Пациент: Sergey Sergeev) отправлен врачам.",
+            role='admin'
+        )
+
 
 class TestHandleMarketingSend(unittest.TestCase):
     @patch('bot.asyncio.run_coroutine_threadsafe')

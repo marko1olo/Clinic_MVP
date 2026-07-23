@@ -79,10 +79,7 @@ class TestSetAutorun(unittest.TestCase):
         mock_winreg.DeleteValue.side_effect = FileNotFoundError()
 
         # Call the function (should not raise an exception)
-        try:
-            set_autorun(False)
-        except Exception as e:
-            self.fail(f"set_autorun raised an exception unexpectedly: {e}")
+        set_autorun(False)
 
         # Verify
         mock_key = mock_winreg.OpenKey.return_value.__enter__.return_value
@@ -95,10 +92,7 @@ class TestSetAutorun(unittest.TestCase):
         mock_winreg.OpenKey.side_effect = Exception("Registry Error")
 
         # Call the function (should catch and print the error)
-        try:
-            set_autorun(True)
-        except Exception as e:
-            self.fail(f"set_autorun raised an exception unexpectedly: {e}")
+        set_autorun(True)
 
         # Verify
         mock_print.assert_called_once_with("Autorun error: Registry Error")

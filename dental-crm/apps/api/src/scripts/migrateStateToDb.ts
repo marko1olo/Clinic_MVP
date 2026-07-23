@@ -102,20 +102,22 @@ async function migrate() {
 	}
 
 	console.log(`🧑‍⚕️ Migrating ${state.patients.length} Patients...`);
-	for (const patient of state.patients) {
-		await db.insert(schema.patients).values({
-			id: patient.id,
-			organizationId: orgId,
-			status: patient.status as any,
-			fullName: patient.fullName,
-			birthDate: patient.birthDate,
-			phone: patient.phone,
-			email: patient.email,
-			notes: patient.notes,
-			administrativeProfile: patient.administrativeProfile,
-			createdAt: new Date(patient.createdAt),
-			updatedAt: new Date(patient.updatedAt),
-		});
+	if (state.patients.length > 0) {
+		await db.insert(schema.patients).values(
+			state.patients.map((patient: any) => ({
+				id: patient.id,
+				organizationId: orgId,
+				status: patient.status as any,
+				fullName: patient.fullName,
+				birthDate: patient.birthDate,
+				phone: patient.phone,
+				email: patient.email,
+				notes: patient.notes,
+				administrativeProfile: patient.administrativeProfile,
+				createdAt: new Date(patient.createdAt),
+				updatedAt: new Date(patient.updatedAt),
+			}))
+		);
 	}
 
 	console.log(`📅 Migrating ${state.appointments.length} Appointments...`);

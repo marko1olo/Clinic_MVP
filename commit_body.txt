@@ -1,13 +1,5 @@
-🎯 **What:** The testing gap addressed
-This PR addresses the lack of tests for the `isForbiddenRuntimeResponse` function in the service worker (`apps/web/public/sw.js`). Since it's a pure function containing vital logic to prevent caching API responses and sensitive medical data, it is critical to ensure it behaves correctly.
+🎯 **What:** The testing gap addressed is the lack of tests for `getPersistentStateMeta` function in `dental-crm/apps/api/src/persistentState.ts` which performs file system reads and uses environment variables.
 
-📊 **Coverage:** What scenarios are now tested
-Using the `node:test` framework and the `node:vm` module to securely evaluate the service worker file without modification, the test suite now verifies:
-- Correct rejection of `/api/` endpoints
-- Protection for sensitive data directories (`/documents`, `/patients`, `/imaging`, `/dicom`, `/files`, `/uploads`, `/medical-documents`)
-- Match of exact paths vs substrings (e.g. `/documents` is blocked, but `/documents-info` is allowed)
-- Strict case-insensitive blocking for medical/3D extensions (e.g., `.dcm`, `.stl`, `.glb`)
-- Expected passing for regular web app shell assets (e.g., `/`, `index.html`, `/assets/styles.css`)
+📊 **Coverage:** The tests now cover scenarios where no state file exists, where the state file and backups have been created, and where the persistence feature is explicitly turned off via the `DENTAL_STATE_PERSISTENCE` environment variable. It sets up temporary files/folders using `fs.mkdtempSync` for total test isolation.
 
-✨ **Result:** The improvement in test coverage
-We now have reliable, deterministic tests ensuring that our sensitive user paths and dynamic API routes are not mistakenly subjected to service worker caching, improving the overall reliability and security of the client application.
+✨ **Result:** Enhanced test coverage ensures stability and robustness in reading backup files and metadata without altering the real filesystem, reducing flakiness.

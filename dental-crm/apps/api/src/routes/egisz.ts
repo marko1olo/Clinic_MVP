@@ -213,4 +213,103 @@ export default async function registerEgiszRoutes(app: FastifyInstance) {
 			.then((res) => res.map((r) => r.egisz_logs));
 		return reply.send({ logs });
 	});
+
+	// COMPETITOR FEATURE #17: интеграции::продокторов_выгрузка_прейскуранта_и_запись
+	app.get("/api/integrations/prodoctorov-sync", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getProdoctorovSyncExportsFromDb } = await import("../db/prodoctorovSyncExportsQuery.js");
+		const items = await getProdoctorovSyncExportsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #30: прием::передача_в_егисз_нескольких_диагнозов
+	app.get("/api/egisz/multiple-diagnoses", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getEgiszMultipleDiagnosesFromDb } = await import("../db/egiszMultipleDiagnosesQuery.js");
+		const items = await getEgiszMultipleDiagnosesFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #32: интеграции::мкб10_автообновляемый_справочник_и_связи
+	app.get("/api/integrations/mkb10-auto-directories", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getMkb10AutoDirectoriesFromDb } = await import("../db/mkb10AutoDirectoriesQuery.js");
+		const items = await getMkb10AutoDirectoriesFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #37: расписание::резервирование_времени_в_сетке
+	app.get("/api/schedule/time-reservations", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getScheduleTimeReservationsFromDb } = await import("../db/scheduleTimeReservationsQuery.js");
+		const items = await getScheduleTimeReservationsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #39: интеграции::diagnocat_ии_анализ_снимков_и_автоформула
+	app.get("/api/integrations/diagnocat-findings", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getDiagnocatAiFindingsFromDb } = await import("../db/diagnocatAiFindingsQuery.js");
+		const items = await getDiagnocatAiFindingsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #48: расписание::буфер_обмена_в_расписании_для_быстрого_переноса
+	app.get("/api/schedule/clipboard-items", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getScheduleClipboardItemsFromDb } = await import("../db/scheduleClipboardItemsQuery.js");
+		const items = await getScheduleClipboardItemsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #57: кадры::блокировка_параллельного_входа_под_одной_учетной_записью
+	app.get("/api/system/single-session-enforcements", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getSingleSessionEnforcementsFromDb } = await import("../db/singleSessionEnforcementsQuery.js");
+		const items = await getSingleSessionEnforcementsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #60: интеграции::геокодирование_адресов_через_dadata
+	app.get("/api/integrations/dadata-addresses", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getDadataGeocodedAddressesFromDb } = await import("../db/dadataGeocodedAddressesQuery.js");
+		const items = await getDadataGeocodedAddressesFromDb(orgId);
+		return reply.status(200).send(items);
+	});
 }
+
+
+

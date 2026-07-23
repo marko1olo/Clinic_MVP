@@ -184,4 +184,55 @@ app.post("/api/clinical/post-op-care", async (request, reply) => {
 
 		return reply.send({ success: true });
 	});
+
+	// COMPETITOR FEATURE #19: прием::пользовательские_справочники_бланков_форма_043у
+	app.get("/api/clinical/custom-examination-form-catalogs", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getCustomExaminationFormCatalogsFromDb } = await import("../db/customExaminationFormCatalogsQuery.js");
+		const items = await getCustomExaminationFormCatalogsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #31: прием::случаи_обслуживания_без_выбора_зубов
+	app.get("/api/clinical/non-dental-examination-forms", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getNonDentalExaminationFormsFromDb } = await import("../db/nonDentalExaminationFormsQuery.js");
+		const items = await getNonDentalExaminationFormsFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #40: прием::зубная_формула_пломба_кариес_и_детская_формула
+	app.get("/api/clinical/extended-odontogram-states", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getExtendedOdontogramStatesFromDb } = await import("../db/extendedOdontogramStatesQuery.js");
+		const items = await getExtendedOdontogramStatesFromDb(orgId);
+		return reply.status(200).send(items);
+	});
+
+	// COMPETITOR FEATURE #54: кадры::справедливое_распределение_конверсии_повторной_записи
+	app.get("/api/hr/rebooking-conversion-rules", async (request, reply) => {
+		const rawOrgId = request.headers["x-organization-id"];
+		if (rawOrgId === "") {
+			return reply.status(400).send({ error: "Invalid organization ID: header cannot be empty string" });
+		}
+		const orgId = (rawOrgId as string) || "00000000-0000-0000-0000-000000000001";
+		const { getRebookingConversionRulesFromDb } = await import("../db/rebookingConversionRulesQuery.js");
+		const items = await getRebookingConversionRulesFromDb(orgId);
+		return reply.status(200).send(items);
+	});
 }
+
+
+

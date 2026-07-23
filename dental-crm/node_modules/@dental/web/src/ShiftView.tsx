@@ -3,6 +3,22 @@ import { ActivePatientHero } from "./components/workspace/shift/ActivePatientHer
 import { TodaySchedule } from "./components/workspace/shift/TodaySchedule";
 import { RoleFocusStrip } from "./components/workspace/shift/RoleFocusStrip";
 import { ShiftIntelligence } from "./components/workspace/shift/ShiftIntelligence";
+import { ProdoctorovSyncWidget } from "./components/integrations/ProdoctorovSyncWidget";
+import { CustomExaminationFormCatalogsWidget } from "./components/clinical/CustomExaminationFormCatalogsWidget";
+import { TreatmentPlanPrintOdontogramWidget } from "./components/documents/TreatmentPlanPrintOdontogramWidget";
+import { EgiszMultipleDiagnosesWidget } from "./components/clinical/EgiszMultipleDiagnosesWidget";
+import { Mkb10AutoDirectoriesWidget } from "./components/integrations/Mkb10AutoDirectoriesWidget";
+import { NonDentalExaminationFormsWidget } from "./components/clinical/NonDentalExaminationFormsWidget";
+import { TreatmentPlanStagesWidget } from "./components/documents/TreatmentPlanStagesWidget";
+import { ScheduleTimeReservationsWidget } from "./components/schedule/ScheduleTimeReservationsWidget";
+import { DiagnocatAiFindingsWidget } from "./components/integrations/DiagnocatAiFindingsWidget";
+import { ExtendedOdontogramStatesWidget } from "./components/clinical/ExtendedOdontogramStatesWidget";
+import { ScheduleClipboardItemsWidget } from "./components/schedule/ScheduleClipboardItemsWidget";
+import { RebookingConversionRulesWidget } from "./components/analytics/RebookingConversionRulesWidget";
+import { SingleSessionEnforcementsWidget } from "./components/settings/SingleSessionEnforcementsWidget";
+import { DadataGeocodedAddressesWidget } from "./components/integrations/DadataGeocodedAddressesWidget";
+import { PricelistDoctorPayrollsWidget } from "./components/finance/PricelistDoctorPayrollsWidget";
+
 export { PatientCockpit } from "./components/workspace/shift/PatientCockpit";
 
 export function ShiftView() {
@@ -29,7 +45,25 @@ export function ShiftView() {
 			>
 				<RoleFocusStrip />
 				<ShiftIntelligence />
+				<ProdoctorovSyncWidget />
+				<CustomExaminationFormCatalogsWidget />
+				<TreatmentPlanPrintOdontogramWidget />
+				<EgiszMultipleDiagnosesWidget />
+				<Mkb10AutoDirectoriesWidget />
+				<NonDentalExaminationFormsWidget />
+				<TreatmentPlanStagesWidget />
+				<ScheduleTimeReservationsWidget />
+				<DiagnocatAiFindingsWidget />
+				<ExtendedOdontogramStatesWidget />
+				<ScheduleClipboardItemsWidget />
+				<RebookingConversionRulesWidget />
+				<SingleSessionEnforcementsWidget />
+				<DadataGeocodedAddressesWidget />
+				<PricelistDoctorPayrollsWidget />
 			</div>
 		</motion.div>
 	);
 }
+
+
+

@@ -2385,3 +2385,208 @@ export const employeeMobileTokens = pgTable("employee_mobile_tokens", {
 	lastAccessedAt: timestamp("last_accessed_at"),
 });
 
+// =====================================================
+// WAVE 6 — COMPETITOR PARITY FEATURES (#17, #19, #22, #30, #32)
+// =====================================================
+
+// #17 — интеграции::продокторов_выгрузка_прейскуранта_и_запись
+export const prodoctorovSyncExports = pgTable("prodoctorov_sync_exports", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	priceListSyncStatus: text("price_list_sync_status").default("synced").notNull(),
+	availableSlotsCount: integer("available_slots_count").default(120).notNull(),
+	medflexClubBadge: boolean("medflex_club_badge").default(true).notNull(),
+	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #19 — прием::пользовательские_справочники_бланков_форма_043у
+export const customExaminationFormCatalogs = pgTable("custom_examination_form_catalogs", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	formCode: text("form_code").default("FORM_043U").notNull(),
+	formTitle: text("form_title").notNull(),
+	customFieldCount: integer("custom_field_count").default(12).notNull(),
+	egiszUnified: boolean("egisz_unified").default(true).notNull(),
+	status: text("status").default("active").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #22 — документы::зубная_формула_на_печати_плана_лечения
+export const treatmentPlanPrintOdontograms = pgTable("treatment_plan_print_odontograms", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	planTitle: text("plan_title").notNull(),
+	odontogramIncluded: boolean("odontogram_included").default(true).notNull(),
+	toothFormulaSnippet: text("tooth_formula_snippet").notNull(),
+	printLayoutReady: boolean("print_layout_ready").default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #30 — прием::передача_в_егисз_нескольких_диагнозов
+export const egiszMultipleDiagnoses = pgTable("egisz_multiple_diagnoses", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	mainDiagnosisMkb: text("main_diagnosis_mkb").notNull(),
+	mainDiagnosisName: text("main_diagnosis_name").notNull(),
+	accompanyingDiagnosesMkb: text("accompanying_diagnoses_mkb").notNull(),
+	cdaValidationStatus: text("cda_validation_status").default("cda_r2_valid").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #32 — интеграции::мкб10_автообновляемый_справочник_и_связи
+export const mkb10AutoDirectories = pgTable("mkb10_auto_directories", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	mkbCode: text("mkb_code").notNull(),
+	mkbTitle: text("mkb_title").notNull(),
+	boundTemplatePackage: text("bound_template_package").notNull(),
+	autoUpdated: boolean("auto_updated").default(true).notNull(),
+	lastVersionDate: text("last_version_date").default("2026-01-01").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// =====================================================
+// WAVE 7 — COMPETITOR PARITY FEATURES (#31, #34, #37, #39, #40)
+// =====================================================
+
+// #31 — прием::случаи_обслуживания_без_выбора_зубов
+export const nonDentalExaminationForms = pgTable("non_dental_examination_forms", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	specialtyType: text("specialty_type").default("ENT").notNull(),
+	formName: text("form_name").notNull(),
+	patientName: text("patient_name").notNull(),
+	complaints: text("complaints").notNull(),
+	objectiveStatus: text("objective_status").notNull(),
+	diagnosisMkb: text("diagnosis_mkb").notNull(),
+	recommendations: text("recommendations").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #34 — план_лечения::управление_этапами_и_автоархивация
+export const treatmentPlanStagesAutoArchive = pgTable("treatment_plan_stages_auto_archive", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	planTitle: text("plan_title").notNull(),
+	stageOrder: integer("stage_order").default(1).notNull(),
+	stageName: text("stage_name").notNull(),
+	completionPercentage: integer("completion_percentage").default(0).notNull(),
+	autoArchived: boolean("auto_archived").default(false).notNull(),
+	archivedAt: timestamp("archived_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #37 — расписание::резервирование_времени_в_сетке
+export const scheduleTimeReservations = pgTable("schedule_time_reservations", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	chairName: text("chair_name").notNull(),
+	reservationType: text("reservation_type").default("maintenance").notNull(),
+	startTime: text("start_time").notNull(),
+	endTime: text("end_time").notNull(),
+	bookingLocked: boolean("booking_locked").default(true).notNull(),
+	hatchingStyle: text("hatching_style").default("diagonal_red").notNull(),
+	note: text("note").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #39 — интеграции::diagnocat_ии_анализ_снимков_и_автоформула
+export const diagnocatAiFindings = pgTable("diagnocat_ai_findings", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	studyType: text("study_type").default("CBCT").notNull(),
+	aiConfidenceScore: text("ai_confidence_score").default("0.95").notNull(),
+	detectedPathologiesJson: text("detected_pathologies_json").notNull(),
+	importedToOdontogram: boolean("imported_to_odontogram").default(false).notNull(),
+	importedAt: timestamp("imported_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #40 — прием::зубная_формула_пломба_кариес_и_детская_формула
+export const extendedOdontogramStates = pgTable("extended_odontogram_states", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	toothNumber: integer("tooth_number").notNull(),
+	isPrimaryPediatric: boolean("is_primary_pediatric").default(false).notNull(),
+	secondaryCariesUnderFilling: boolean("secondary_caries_under_filling").default(false).notNull(),
+	mobilityDegree: integer("mobility_degree").default(0).notNull(),
+	pediatricCrownPresent: boolean("pediatric_crown_present").default(false).notNull(),
+	notes: text("notes").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// =====================================================
+// WAVE 8 — COMPETITOR PARITY FEATURES (#48, #54, #57, #60, #62)
+// =====================================================
+
+// #48 — расписание::буфер_обмена_в_расписании_для_быстрого_переноса
+export const scheduleClipboardItems = pgTable("schedule_clipboard_items", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	appointmentId: uuid("appointment_id").notNull(),
+	patientName: text("patient_name").notNull(),
+	doctorName: text("doctor_name").notNull(),
+	serviceTitle: text("service_title").notNull(),
+	durationMinutes: integer("duration_minutes").default(30).notNull(),
+	clipboardStatus: text("clipboard_status").default("copied").notNull(),
+	copiedAt: timestamp("copied_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #54 — кадры::справедливое_распределение_конверсии_повторной_записи
+export const rebookingConversionRules = pgTable("rebooking_conversion_rules", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	rebookedBy: text("rebooked_by").notNull(),
+	timeDeltaMinutes: integer("time_delta_minutes").notNull(),
+	creditedRole: text("credited_role").notNull(),
+	appointmentDate: text("appointment_date").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #57 — кадры::блокировка_параллельного_входа_под_одной_учетной_записью
+export const singleSessionEnforcements = pgTable("single_session_enforcements", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	userId: uuid("user_id").notNull(),
+	userLogin: text("user_login").notNull(),
+	activeSessionToken: text("active_session_token").notNull(),
+	clientIp: text("client_ip").notNull(),
+	userAgent: text("user_agent").notNull(),
+	ejectedPreviousSession: boolean("ejected_previous_session").default(false).notNull(),
+	lastActiveAt: timestamp("last_active_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #60 — интеграции::геокодирование_адресов_через_dadata
+export const dadataGeocodedAddresses = pgTable("dadata_geocoded_addresses", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	patientName: text("patient_name").notNull(),
+	rawAddress: text("raw_address").notNull(),
+	fiasId: text("fias_id").notNull(),
+	qcGeo: integer("qc_geo").default(0).notNull(),
+	geoLat: text("geo_lat").notNull(),
+	geoLon: text("geo_lon").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// #62 — финансы::отображение_суммы_начислений_врачам_в_прайс_листе
+export const pricelistDoctorPayrolls = pgTable("pricelist_doctor_payrolls", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+	serviceCode: text("service_code").notNull(),
+	serviceName: text("service_name").notNull(),
+	priceRub: numeric("price_rub", { precision: 10, scale: 2 }).notNull(),
+	doctorPayrollPercent: numeric("doctor_payroll_percent", { precision: 4, scale: 2 }).default("25.00").notNull(),
+	doctorPayrollRub: numeric("doctor_payroll_rub", { precision: 10, scale: 2 }).notNull(),
+	clinicMarginRub: numeric("clinic_margin_rub", { precision: 10, scale: 2 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+

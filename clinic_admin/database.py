@@ -1,16 +1,12 @@
-from __future__ import annotations
-
 import sqlite3
 from datetime import datetime
 
-DB_FILE = 'clinic.db'
-
+DB_FILE = "clinic.db"
 
 def get_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
-
 
 def init_db():
     conn = get_connection()
@@ -42,7 +38,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_db()
-    print('Database initialized.')
+    print("Database initialized.")

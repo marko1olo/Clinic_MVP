@@ -1,31 +1,35 @@
-import os
-import sys
 import paramiko
-import functools
-from utils import ssh as base_ssh
-
-ssh = functools.partial(base_ssh, timeout=90)
+import sys
 
 host = '62.84.100.97'
 user = 'root'
-password = os.environ.get('VPS_PASSWORD')
-if not password:
-    sys.exit('ERROR: VPS_PASSWORD environment variable is not set.')
+password = 'W15n8zf781%nV25BGZ+2'
 
+def ssh(client, cmd, desc="", timeout=90):
+    label = desc or cmd[:60]
+    sys.stdout.buffer.write(f"\n>>> {label}\n".encode())
+    sys.stdout.flush()
+    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
+    out = stdout.read().decode('utf-8', errors='replace').strip()
+    err = stderr.read().decode('utf-8', errors='replace').strip()
+    if out: sys.stdout.buffer.write((out + "\n").encode('utf-8', errors='replace'))
+    if err: sys.stdout.buffer.write(("STDERR: " + err + "\n").encode('utf-8', errors='replace'))
+    sys.stdout.flush()
+    return out, err
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(hostname=host, username=user, password=password, timeout=10)
 sys.stdout.buffer.write(b"Connected.\n")
 
-# в”Ђв”Ђ 1. Save iptables rules without installing iptables-persistent interactively в”Ђв”Ђ
+# ── 1. Save iptables rules without installing iptables-persistent interactively ──
 # Just save to file and add cron to restore on boot - simpler and no apt needed
 ssh(client, "mkdir -p /etc/iptables && iptables-save > /etc/iptables/rules.v4", "Save iptables rules to file")
 # Add restore on boot via rc.local
 ssh(client, "grep -q 'iptables-restore' /etc/rc.local 2>/dev/null || echo 'iptables-restore < /etc/iptables/rules.v4' >> /etc/rc.local; chmod +x /etc/rc.local", "Auto-restore iptables on boot via rc.local")
 ssh(client, "iptables -L INPUT -n | grep -E '(3000|DROP)'", "Verify iptables rules active")
 
-# в”Ђв”Ђ 2. Nginx config в”Ђв”Ђ
+# ── 2. Nginx config ──
 nginx_conf = """server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -57,14 +61,14 @@ server {
 ssh(client, f"cat > /etc/nginx/sites-available/clinic << 'NGINXEOF'\n{nginx_conf}\nNGINXEOF", "Write nginx config")
 ssh(client, "ln -sf /etc/nginx/sites-available/clinic /etc/nginx/sites-enabled/clinic && rm -f /etc/nginx/sites-enabled/default", "Enable clinic, remove default")
 
-# в”Ђв”Ђ 3. Site placeholder в”Ђв”Ђ
+# ── 3. Site placeholder ──
 ssh(client, "mkdir -p /var/www/clinic", "Create webroot")
 html = """<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>РЎС‚РѕРјР°С‚РѕР»РѕРіРёС‡РµСЃРєР°СЏ РєР»РёРЅРёРєР°</title>
+<title>Стоматологическая клиника</title>
 <style>
 body{margin:0;font-family:sans-serif;background:#0a0f1e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;}
 .card{text-align:center;padding:60px;}
@@ -74,18 +78,18 @@ p{color:#8892a4;font-size:1.1rem;}
 </head>
 <body>
 <div class="card">
-<h1>РљР»РёРЅРёРєР°</h1>
-<p>РЎР°Р№С‚ СЃРєРѕСЂРѕ РїРѕСЏРІРёС‚СЃСЏ. РњС‹ СЂР°Р±РѕС‚Р°РµРј.</p>
+<h1>Клиника</h1>
+<p>Сайт скоро появится. Мы работаем.</p>
 </div>
 </body>
 </html>"""
 ssh(client, f"cat > /var/www/clinic/index.html << 'HTMLEOF'\n{html}\nHTMLEOF", "Write site placeholder")
 
-# в”Ђв”Ђ 4. Test + reload nginx в”Ђв”Ђ
+# ── 4. Test + reload nginx ──
 ssh(client, "nginx -t 2>&1", "Nginx config test")
 ssh(client, "systemctl reload nginx && echo 'Nginx reloaded OK'", "Reload nginx")
 
-# в”Ђв”Ђ 5. Final summary в”Ђв”Ђ
+# ── 5. Final summary ──
 ssh(client, "ss -tulpn | grep -E ':(80|8884|1883|9001|53|3000) ' | sort", "Active ports")
 ssh(client, "docker ps --format 'table {{.Names}}\\t{{.Status}}'", "Containers")
 ssh(client, "free -m | head -2", "RAM")

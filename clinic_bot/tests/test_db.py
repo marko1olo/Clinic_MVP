@@ -1,12 +1,9 @@
-from __future__ import annotations
-
-import os
-import tempfile
 import unittest
+import tempfile
+import os
 from unittest.mock import patch
 
 import clinic_bot.db as db
-
 
 class TestDB(unittest.TestCase):
     def setUp(self):
@@ -37,7 +34,6 @@ class TestDB(unittest.TestCase):
         # Test retrieving the role for a chat_id that doesn't exist
         role = db.get_user_role(99999)
         self.assertIsNone(role)
-
 
 if __name__ == '__main__':
     unittest.main()

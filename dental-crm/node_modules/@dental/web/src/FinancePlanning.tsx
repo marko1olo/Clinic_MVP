@@ -45,7 +45,7 @@ export function FinancePlanningOverview({
 
   return (
     <>
-      <div className="finance-summary-grid" aria-label="Финансовая сводка">
+      <div className="finance-summary-grid bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-3 mb-4" aria-label="Финансовая сводка" data-testid="finance-planning">
         <article>
           <span>План лечения</span>
           <strong>{money(billingSummary.totalPlannedRub)}</strong>

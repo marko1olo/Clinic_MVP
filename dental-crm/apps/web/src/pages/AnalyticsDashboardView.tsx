@@ -17,6 +17,8 @@ import {
 import { useAppLogicContext } from "../contexts/AppLogicContext";
 import { useIsActiveTab } from "../hooks/useIsActiveTab";
 import { ConfirmationPerformanceReportsWidget } from "../components/analytics/ConfirmationPerformanceReportsWidget";
+import { LostPatientsFiltersWidget } from "../components/analytics/LostPatientsFiltersWidget";
+import { RebookingConversionRulesWidget } from "../components/analytics/RebookingConversionRulesWidget";
 import "./AnalyticsDashboardView.css";
 
 interface Kpis {
@@ -53,23 +55,25 @@ const DATE_RANGES = [
 ];
 
 export function AnalyticsDashboardView() {
-	const isActive = useIsActiveTab("analytics");
-	const { denteClinicalReadHeaders } = useAppLogicContext();
+	const appLogic = (useAppLogicContext() || {}) as any;
+	const authContext = appLogic?.auth;
+	const getReadHeaders = () =>
+		authContext
+			? authContext.denteClinicalReadHeaders()
+			: { "x-organization-id": "00000000-0000-0000-0000-000000000001" };
 	const [data, setData] = useState<AnalyticsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [dateRange, setDateRange] = useState<string>("all");
 
 	useEffect(() => {
-		if (!isActive) return;
-
 		let mounted = true;
 		const fetchData = async () => {
 			setLoading(true);
 			setError(null);
 			try {
 				const res = await fetch(`/api/analytics/dashboard?range=${dateRange}`, {
-					headers: denteClinicalReadHeaders(),
+					headers: getReadHeaders(),
 				});
 				if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
 				const json = await res.json();
@@ -90,29 +94,19 @@ export function AnalyticsDashboardView() {
 			mounted = false;
 			clearInterval(interval);
 		};
-	}, [isActive, dateRange]);
-
-	if (!isActive) return null;
+	}, [dateRange]);
 
 	return (
-		<div className="analytics-dashboard" aria-label="Аналитика клиники">
+		<div className="analytics-dashboard bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-4" aria-label="Аналитика клиники" data-testid="analytics-dashboard-view">
 			<header
-				className="analytics-header"
-				style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+				className="analytics-header mb-6 pb-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center"
 			>
-				<h2 style={{ margin: 0 }}>Аналитика клиники</h2>
+				<h2 className="text-xl font-bold text-slate-900 dark:text-slate-100" title="Аналитическая панель руководителя: воронка планов лечения, загрузка кресел, LTV и доходность врачей">Аналитика клиники</h2>
 				<select
 					value={dateRange}
 					onChange={(e) => setDateRange(e.target.value)}
-					style={{
-						padding: "6px 12px",
-						borderRadius: "8px",
-						backgroundColor: "var(--bg-elevated, #18181b)",
-						color: "var(--fg-primary, #e4e4e7)",
-						border: "1px solid var(--border, #27272a)",
-						outline: "none",
-						fontSize: "14px",
-					}}
+					title="Фильтр периода аналитических отчетов"
+					className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 outline-none text-sm"
 				>
 					{DATE_RANGES.map((r) => (
 						<option key={r.value} value={r.value}>
@@ -445,8 +439,10 @@ export function AnalyticsDashboardView() {
 							</div>
 						</article>
 					</div>
-					<div style={{ marginTop: "24px" }}>
+					<div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "16px" }}>
 						<ConfirmationPerformanceReportsWidget />
+						<LostPatientsFiltersWidget />
+						<RebookingConversionRulesWidget />
 					</div>
 				</>
 			)}

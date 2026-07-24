@@ -1,5 +1,11 @@
 import { NewAppointmentForm } from "./components/schedule/NewAppointmentForm";
 import { AppointmentCard } from "./components/schedule/AppointmentCard";
+import { ScheduleClipboardItemsWidget } from "./components/schedule/ScheduleClipboardItemsWidget";
+import { ScheduleTimeReservationsWidget } from "./components/schedule/ScheduleTimeReservationsWidget";
+import { CancellationReasonsTwoLevelWidget } from "./components/schedule/CancellationReasonsTwoLevelWidget";
+import { ExternalScheduleActionLogsWidget } from "./components/schedule/ExternalScheduleActionLogsWidget";
+import { UrgentScheduleRequestsWidget } from "./components/schedule/UrgentScheduleRequestsWidget";
+
 import { useSettingsStore } from "./store/settingsStore";
 import { useScheduleStore } from "./store/scheduleStore";
 import { Plus, ShieldCheck, Bot, Mic } from "lucide-react";
@@ -67,7 +73,11 @@ type ScheduleViewProps = {
   visibleScheduleSuggestions: ScheduleSuggestion[];
 };
 
-export function ScheduleView(props: ScheduleViewProps) {
+import { useAppLogicContext } from "./contexts/AppLogicContext";
+
+export function ScheduleView(rawProps?: Partial<ScheduleViewProps>) {
+  const logicContext = useAppLogicContext();
+  const props = { ...logicContext, ...rawProps } as any;
   const {
     scheduleDoctorFilterId,
     scheduleAssistantFilterId,
@@ -189,13 +199,13 @@ export function ScheduleView(props: ScheduleViewProps) {
       motionSafeScrollIntoView(document.getElementById(sectionId), { block: "start" });
     });
   };
-  const highestUtilizationLoad = (loads: ResourceLoad[]) =>
-    loads.reduce<ResourceLoad | null>((highestLoad, load) => {
+  const highestUtilizationLoad = (loads?: ResourceLoad[]) =>
+    (loads || []).reduce<ResourceLoad | null>((highestLoad, load) => {
       if (!highestLoad || load.utilizationPercent > highestLoad.utilizationPercent) return load;
       return highestLoad;
     }, null);
-  const busiestDoctorLoad = highestUtilizationLoad(dashboard.shiftIntelligence.doctorLoads);
-  const busiestChairLoad = highestUtilizationLoad(dashboard.shiftIntelligence.chairLoads);
+  const busiestDoctorLoad = highestUtilizationLoad(dashboard?.shiftIntelligence?.doctorLoads);
+  const busiestChairLoad = highestUtilizationLoad(dashboard?.shiftIntelligence?.chairLoads);
   const activeScheduleFilterCount = [
     scheduleDateFilter.trim(),
     scheduleStatusFilter !== "all" ? scheduleStatusFilter : null
@@ -520,10 +530,20 @@ export function ScheduleView(props: ScheduleViewProps) {
                 </article>
               ) : null}
             </div>
-          </div>
 
-          );
+            {/* Schedule Utilities & Widgets Panel */}
+            <div className="schedule-widgets-container mt-6 space-y-4">
+              <UrgentScheduleRequestsWidget />
+              <ScheduleClipboardItemsWidget />
+              <ScheduleTimeReservationsWidget />
+              <CancellationReasonsTwoLevelWidget />
+              <ExternalScheduleActionLogsWidget />
+            </div>
+    </div>
+  );
 }
+
+
 
 /*
 onClick={unlockScheduleAdminSession}

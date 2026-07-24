@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { auth } from "../../AppHelpers";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
 
 interface RebookingItem {
 	id: string;
@@ -13,13 +13,16 @@ interface RebookingItem {
 }
 
 export const RebookingConversionRulesWidget: React.FC = () => {
+	const appLogic = (useAppLogicContext() || {}) as any;
+	const authContext = appLogic?.auth;
 	const [rules, setRules] = useState<RebookingItem[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 
 	useEffect(() => {
-		fetch("/api/hr/rebooking-conversion-rules", {
-			headers: auth.denteClinicalReadHeaders(),
-		})
+		const headers = authContext
+			? authContext.denteClinicalReadHeaders()
+			: { "x-organization-id": "00000000-0000-0000-0000-000000000001" };
+		fetch("/api/hr/rebooking-conversion-rules", { headers })
 			.then((res) => res.json())
 			.then((data) => {
 				setRules(Array.isArray(data) ? data : []);
@@ -36,7 +39,7 @@ export const RebookingConversionRulesWidget: React.FC = () => {
 			data-testid="rebooking-conversion-rules-widget"
 			className="p-4 rounded-xl border my-4 shadow-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
 		>
-			<div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+			<div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200 dark:border-slate-800" title="Правило зачисления конверсии повторной записи: если запись создана в течение 15 минут от приема — бонус засчитывается врачу, иначе — куратору или администратору">
 				<div className="flex items-center space-x-2">
 					<span className="text-xl">⚖️</span>
 					<h3 className="font-semibold text-emerald-600 dark:text-emerald-400">

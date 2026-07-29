@@ -11,8 +11,6 @@
 
 > **Enterprise dental clinic platform — AI X-Ray diagnostics (ShadowAnalyst), CRM, Telegram patient bot, local 3D DICOM rendering.**
 
-[📖 Docs](#) &nbsp;·&nbsp; [🐛 Issues](../../issues)
-
 </div>
 
 ---

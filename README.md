@@ -13,6 +13,42 @@
 </div>
 
 ---
+---
+
+## 📸 Authentic Repository Media & Screenshots Gallery
+
+<p align="center"><i>Showing 24 verified screenshot(s) and visual assets directly from the repository source tree:</i></p>
+
+<div align="center">
+
+<a href="dental-crm/apps/web/screenshots/audit_communications.png"><img src="dental-crm/apps/web/screenshots/audit_communications.png" width="48%" alt="audit communications"/></a> &nbsp; <a href="dental-crm/apps/web/screenshots/audit_documents.png"><img src="dental-crm/apps/web/screenshots/audit_documents.png" width="48%" alt="audit documents"/></a>
+<br/>
+<a href="dental-crm/apps/web/screenshots/audit_patients.png"><img src="dental-crm/apps/web/screenshots/audit_patients.png" width="48%" alt="audit patients"/></a> &nbsp; <a href="dental-crm/apps/web/screenshots/audit_schedule.png"><img src="dental-crm/apps/web/screenshots/audit_schedule.png" width="48%" alt="audit schedule"/></a>
+<br/>
+<a href="dental-crm/apps/web/screenshots/audit_settings.png"><img src="dental-crm/apps/web/screenshots/audit_settings.png" width="48%" alt="audit settings"/></a> &nbsp; <a href="dental-crm/apps/web/screenshots/audit_shift.png"><img src="dental-crm/apps/web/screenshots/audit_shift.png" width="48%" alt="audit shift"/></a>
+<br/>
+<a href="dental-crm/apps/web/screenshots/audit_visit.png"><img src="dental-crm/apps/web/screenshots/audit_visit.png" width="48%" alt="audit visit"/></a> &nbsp; <a href="dental-crm/apps/web/screenshots/schedule_view_clean.png"><img src="dental-crm/apps/web/screenshots/schedule_view_clean.png" width="48%" alt="schedule view clean"/></a>
+<br/>
+<a href="dental-crm/apps/web/screenshots/shift_view_clean.png"><img src="dental-crm/apps/web/screenshots/shift_view_clean.png" width="48%" alt="shift view clean"/></a> &nbsp; <a href="dental-crm/apps/web/screenshots/visit_view_clean.png"><img src="dental-crm/apps/web/screenshots/visit_view_clean.png" width="48%" alt="visit view clean"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_MOBILE_DARK.png"><img src="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_MOBILE_DARK.png" width="48%" alt="Onboarding Wizard MOBILE DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_MOBILE_LIGHT.png"><img src="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_MOBILE_LIGHT.png" width="48%" alt="Onboarding Wizard MOBILE LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_PC_DARK.png"><img src="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_PC_DARK.png" width="48%" alt="Onboarding Wizard PC DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_PC_LIGHT.png"><img src="dental-crm/docs/proofs/docs/proofs/ui_audit/Onboarding_Wizard_PC_LIGHT.png" width="48%" alt="Onboarding Wizard PC LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/onboarding/Onboarding_Step1_MOBILE_DARK.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step1_MOBILE_DARK.png" width="48%" alt="Onboarding Step1 MOBILE DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/onboarding/Onboarding_Step1_MOBILE_LIGHT.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step1_MOBILE_LIGHT.png" width="48%" alt="Onboarding Step1 MOBILE LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/onboarding/Onboarding_Step1_PC_DARK.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step1_PC_DARK.png" width="48%" alt="Onboarding Step1 PC DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/onboarding/Onboarding_Step1_PC_LIGHT.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step1_PC_LIGHT.png" width="48%" alt="Onboarding Step1 PC LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/onboarding/Onboarding_Step2_MOBILE_DARK.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step2_MOBILE_DARK.png" width="48%" alt="Onboarding Step2 MOBILE DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/onboarding/Onboarding_Step2_MOBILE_LIGHT.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step2_MOBILE_LIGHT.png" width="48%" alt="Onboarding Step2 MOBILE LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/onboarding/Onboarding_Step2_PC_DARK.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step2_PC_DARK.png" width="48%" alt="Onboarding Step2 PC DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/onboarding/Onboarding_Step2_PC_LIGHT.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step2_PC_LIGHT.png" width="48%" alt="Onboarding Step2 PC LIGHT"/></a>
+<br/>
+<a href="dental-crm/docs/proofs/onboarding/Onboarding_Step3_MOBILE_DARK.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step3_MOBILE_DARK.png" width="48%" alt="Onboarding Step3 MOBILE DARK"/></a> &nbsp; <a href="dental-crm/docs/proofs/onboarding/Onboarding_Step3_MOBILE_LIGHT.png"><img src="dental-crm/docs/proofs/onboarding/Onboarding_Step3_MOBILE_LIGHT.png" width="48%" alt="Onboarding Step3 MOBILE LIGHT"/></a>
+<br/>
+
+</div>
+
+------
 
 ## 📖 Executive Architectural Overview
 

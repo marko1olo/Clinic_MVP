@@ -1,22 +1,27 @@
 <div align="center">
 
-![Banner](https://raw.githubusercontent.com/marko1olo/gigahrush/main/docs/dental_crm_banner.jpg)
+<img src="https://raw.githubusercontent.com/marko1olo/gigahrush/main/docs/dental_crm_banner.jpg" width="100%" alt="Clinic MVP Banner"/>
 
 # 🦷 Clinic MVP — Intelligent Dental Automation Platform
 
 [![NestJS](https://img.shields.io/badge/NestJS-API-red?style=for-the-badge&logo=nestjs)]()
 [![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)]()
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue?style=for-the-badge&logo=postgresql)]()
-[![License](https://img.shields.io/badge/License-Commercial%20Proprietary-orange?style=for-the-badge)](LICENSE.md)
 [![AI](https://img.shields.io/badge/AI-ShadowAnalyst%20X--Ray-00ff88?style=for-the-badge)]()
+[![License](https://img.shields.io/badge/License-Commercial%20Proprietary-orange?style=for-the-badge)](LICENSE.md)
+[![Stars](https://img.shields.io/github/stars/marko1olo/Clinic_MVP?style=for-the-badge&color=gold)]()
 
-> **Enterprise clinic automation with AI X-Ray diagnostics (ShadowAnalyst), full CRM, Telegram patient bot, and local 3D DICOM rendering.**
+> **Enterprise dental clinic automation — AI X-Ray diagnostics (ShadowAnalyst), full CRM, Telegram patient bot, local 3D DICOM rendering.**
 
-[📖 Docs](#) · [🐛 Issues](../../issues)
+[📖 Docs](#) &nbsp;·&nbsp; [🐛 Issues](../../issues) &nbsp;·&nbsp; [📧 Contact](#)
 
 </div>
 
 ---
+
+# 🦷 Clinic MVP & ShadowAnalyst AI — Intelligent Dental Automation Platform
+
+![Dental CRM Banner](https://raw.githubusercontent.com/marko1olo/gigahrush/main/docs/dental_crm_banner.jpg)
 
 > **Enterprise Clinic Automation MVP with AI-Powered X-Ray Diagnostics (ShadowAnalyst), Dental CRM, and Telegram Patient Communication Bot.**
 
@@ -49,13 +54,3 @@
 
 ### 📜 License
 Protected under **DENTE Enterprise Proprietary & Source-Available Commercial License (Adolf Petushkov)**.
-
-
----
-
-<details>
-<summary>🇷🇺 Русская Версия</summary>
-
-**Clinic MVP** — корпоративная платформа автоматизации стоматологической клиники. ИИ-диагностика снимков (ShadowAnalyst), CRM, Telegram-бот для пациентов, локальный 3D DICOM-рендерер. Стек: NestJS + React 19 + PostgreSQL 18. Данные не уходят в облако.
-
-</details>

@@ -10,90 +10,52 @@
 [![License](https://img.shields.io/badge/License-Commercial%20Proprietary-orange?style=for-the-badge)](LICENSE.md)
 [![AI](https://img.shields.io/badge/AI-ShadowAnalyst%20X--Ray-00ff88?style=for-the-badge)]()
 
-> **Enterprise clinic automation with AI-powered X-Ray diagnostics (ShadowAnalyst), full CRM, Telegram patient bot, and local DICOM rendering.**
+> **Enterprise clinic automation with AI X-Ray diagnostics (ShadowAnalyst), full CRM, Telegram patient bot, and local 3D DICOM rendering.**
 
-[📖 Docs](#) · [🐛 Issues](../../issues) · [📧 Contact](#)
+[📖 Docs](#) · [🐛 Issues](../../issues)
 
 </div>
 
 ---
 
-## 📖 About
-
-**Clinic MVP** is a full-stack dental clinic automation platform built for production use. It integrates AI X-Ray analysis, a full CRM workflow, automated patient communications via Telegram & WhatsApp, and a zero-cloud local DICOM image renderer — all in one platform.
+> **Enterprise Clinic Automation MVP with AI-Powered X-Ray Diagnostics (ShadowAnalyst), Dental CRM, and Telegram Patient Communication Bot.**
 
 ---
 
-## 🏗️ System Architecture
+### 🩺 System Architecture / Архитектура
 
 ```
-┌─────────────────────┐      ┌─────────────────────┐      ┌──────────────────────┐
-│   React 19 SPA      │─────▶│   NestJS API Gateway │─────▶│  PostgreSQL 18       │
-│   (DICOM 3D render) │      │   (Drizzle ORM)      │      │  (Strict isolation)  │
-└─────────────────────┘      └─────────────────────┘      └──────────────────────┘
-         │                             │                              │
-         ▼                             ▼                              ▼
-┌──────────────────┐       ┌──────────────────┐       ┌─────────────────────────┐
-│ ShadowAnalyst AI │       │  Telegram Bot    │       │  Avito Lead Dispatcher  │
-│ (X-Ray Vision)   │       │  (Patient I/O)   │       │  (Auto Lead Capture)    │
-└──────────────────┘       └──────────────────┘       └─────────────────────────┘
+┌──────────────────┐      ┌──────────────────┐      ┌────────────────────┐
+│   React SPA      │ ───> │  NestJS API Gateway │ ───>│ PostgreSQL 18 DB   │
+│ (Local DICOM 3D) │      │  (pg-pool & Drizzle)│      │ (Strict Isolation) │
+└──────────────────┘      └──────────────────┘      └────────────────────┘
+         │                          │                          │
+         ▼                          ▼                          ▼
+┌──────────────────┐      ┌──────────────────┐      ┌────────────────────┐
+│ ShadowAnalyst AI │      │ Telegram Bot API │      │ Avito Lead Bridge  │
+│ (X-Ray Vision)   │      │ (Patient Booking)│      │ (Auto Dispatcher)  │
+└──────────────────┘      └──────────────────┘      └────────────────────┘
 ```
 
 ---
 
-## 🩺 Key Modules
+### 🌟 Key Modules
 
-### ShadowAnalyst AI — X-Ray Diagnostic Engine
-- Automated detection of caries, periodontitis, and bone resorption
-- Local inference — patient data never leaves the clinic
-- DICOM-compliant image handling with 3D tooth model overlay
-
-### DENTE CRM — Full Clinic Workflow
-- Patient registry, treatment plans, visit history
-- Interactive appointment scheduling with conflict detection
-- Financial ledger, insurance tracking, debt management
-
-### Patient Communication Bot
-- Telegram & WhatsApp automated appointment reminders
-- Smart booking parser — patients book via natural language messages
-- AI response drafts with operator approval flow
+* 🩺 **ShadowAnalyst AI:** Automated X-Ray diagnostic analyzer detecting caries, periodontitis, and bone loss.
+* 📅 **Smart Dental CRM:** Interactive patient schedule, treatment plans, financial ledgers, and tooth matrix cards.
+* 💬 **Automated Patient Bot:** Telegram & WhatsApp integration for appointment reminders and automated intake.
 
 ---
 
-## 🚀 Quick Start (Local Development)
+### 📜 License
+Protected under **DENTE Enterprise Proprietary & Source-Available Commercial License (Adolf Petushkov)**.
 
-```bash
-git clone https://github.com/marko1olo/Clinic_MVP.git
-cd Clinic_MVP/dental-crm
-
-# Install dependencies
-pnpm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env: set DATABASE_URL, TELEGRAM_BOT_TOKEN, etc.
-
-# Run database migrations
-pnpm db:migrate
-
-# Start development servers
-pnpm dev
-```
-
----
-
-## 📜 License
-
-**Commercial Proprietary & Source-Available License** — Adolf Petushkov (c) 2026.
-Contributors and maintainers welcome. Commercial deployment requires a license agreement.
 
 ---
 
 <details>
 <summary>🇷🇺 Русская Версия</summary>
 
-**Clinic MVP** — корпоративная платформа автоматизации стоматологической клиники. Включает: ИИ-диагностику снимков (ShadowAnalyst), полноценную CRM, автоматический Telegram-бот для пациентов и локальный 3D DICOM-рендерер.
-
-Стек: NestJS + React 19 + PostgreSQL 18 + Drizzle ORM. Всё работает локально — данные пациентов не уходят в облако.
+**Clinic MVP** — корпоративная платформа автоматизации стоматологической клиники. ИИ-диагностика снимков (ShadowAnalyst), CRM, Telegram-бот для пациентов, локальный 3D DICOM-рендерер. Стек: NestJS + React 19 + PostgreSQL 18. Данные не уходят в облако.
 
 </details>

@@ -3,51 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DENTE — Intelligent Dental CRM/MIS & DICOM Workstation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <title>Clinic MVP | Premium Medical Care</title>
+    <meta name="description" content="A premium single-page application for Clinic MVP, offering advanced medical services.">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #091319; --card: #11222c; --emerald: #10b981; --teal: #06b6d4; --text: #f0f4f8; --border: rgba(16,185,129,0.2); }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
-        nav { background: #060d11; border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, #fff, var(--teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }
-        .hero { text-align: center; padding: 3rem 0; }
-        h1 { font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; }
-        p.sub { font-size: 1.25rem; color: #8fa0b0; max-width: 800px; margin: 0 auto 2.5rem; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.8rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .card h3 { color: var(--emerald); font-size: 1.3rem; margin-bottom: 0.8rem; }
-        .xray-slider { width: 100%; height: 200px; background: #000; border-radius: 8px; border: 1px solid #333; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        .xray-circle { width: 120px; height: 120px; border: 2px dashed var(--teal); border-radius: 50%; animation: spin 10s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .btn { display: inline-block; padding: 0.8rem 1.8rem; background: linear-gradient(135deg, var(--teal), var(--emerald)); color: #000; font-weight: 700; text-decoration: none; border-radius: 8px; margin-top: 1rem; }
+        :root {
+            --bg-color: #0d1117;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-glow: rgba(88, 166, 255, 0.4);
+            --card-hover: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(88, 166, 255, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(137, 87, 229, 0.15), transparent 25%);
+            background-attachment: fixed;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 5%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 400;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            padding: 0.6rem 1.5rem;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #4088d8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 12rem 5% 6rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-height: 100vh;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #fff, #8b949e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 3rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        /* Glassmorphism Cards */
+        .services {
+            padding: 5rem 5%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            transition: transform 0.3s ease, background 0.3s ease;
+            animation: slideUp 1s ease-out;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-10px);
+            background: var(--card-hover);
+        }
+
+        .glass-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .glass-card p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Floating Shapes */
+        .shape {
+            position: absolute;
+            filter: blur(60px);
+            z-index: -1;
+            border-radius: 50%;
+            animation: float 10s infinite ease-in-out alternate;
+        }
+
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            background: rgba(88, 166, 255, 0.2);
+            top: 20%;
+            left: 10%;
+        }
+
+        .shape-2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(137, 87, 229, 0.2);
+            bottom: 10%;
+            right: 5%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -50px) scale(1.1); }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 5%;
+            border-top: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            background: var(--glass-bg);
+        }
     </style>
 </head>
 <body>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+
     <nav>
-        <div class="logo">DENTE // DENTAL MIS</div>
-        <div><a href="https://github.com/marko1olo/dental-crm" target="_blank" style="color:var(--emerald);text-decoration:none;font-weight:600;">GitHub Repository 🚀</a></div>
+        <div class="logo">Clinic MVP</div>
+        <ul class="nav-links">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#services">Services</a></li>
+            <li><a href="#about">About</a></li>
+        </ul>
+        <a href="#contact" class="btn-primary">Book Appointment</a>
     </nav>
-    <div class="container">
-        <div class="hero">
-            <h1>DENTE Clinical Engine</h1>
-            <p class="sub">Production-grade SaaS architecture for small-clinic dental automation, DICOM 2D/3D imaging, and KND 1151156 tax document generation.</p>
+
+    <section class="hero" id="home">
+        <h1>Advanced Medical Care,<br>Redefined.</h1>
+        <p>Experience the next generation of healthcare. We combine state-of-the-art technology with compassionate, personalized care.</p>
+        <a href="#services" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem;">Explore Services</a>
+    </section>
+
+    <section class="services" id="services">
+        <div class="glass-card">
+            <h3>Precision Diagnostics</h3>
+            <p>Utilizing AI-driven imaging and comprehensive genomic profiling to provide unmatched diagnostic accuracy.</p>
         </div>
-        <div class="grid">
-            <div class="card">
-                <h3>🗄️ Native PostgreSQL 18 Architecture</h3>
-                <p>Native PostgreSQL 18 over TCP (`127.0.0.1:5432`) with Drizzle ORM and strict multi-tenant organization isolation.</p>
-            </div>
-            <div class="card">
-                <h3>🦷 DICOM 2D/3D X-Ray Viewer</h3>
-                <div class="xray-slider"><div class="xray-circle"></div><span style="position:absolute;color:var(--teal);font-size:0.85rem;">[ 2D/3D DICOM RENDER PASS ]</span></div>
-            </div>
-            <div class="card">
-                <h3>📜 Medical Card 025/у & Tax Automation</h3>
-                <p>Structured generation of Order N 274n outpatient medical card 025/у and KND 1151156 tax deduction paperwork.</p>
-            </div>
+        <div class="glass-card">
+            <h3>Telemedicine Hub</h3>
+            <p>Connect with top-tier specialists from the comfort of your home through our secure, high-definition virtual clinic.</p>
         </div>
-    </div>
+        <div class="glass-card">
+            <h3>Holistic Wellness</h3>
+            <p>Integrating modern medicine with evidence-based alternative therapies for comprehensive patient well-being.</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 Clinic MVP. All rights reserved. Open-source under MIT License.</p>
+    </footer>
+
+    <script>
+        // Simple scroll animation for navbar
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.style.background = 'rgba(13, 17, 23, 0.9)';
+            } else {
+                nav.style.background = 'var(--glass-bg)';
+            }
+        });
+    </script>
 </body>
 </html>

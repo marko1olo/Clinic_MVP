@@ -91,9 +91,9 @@ function extractTime(text: string): string | null {
   m = text.match(/(пол(?:овин[аеу])?[\s\-]*|четверть\s+)([а-яё]+)/i);
   if (m) {
     const isQuarter = m[1].includes("четверть");
-    const word = (m[2] as string).substring(0, 3);
+    const word = (m[2] as string).toLowerCase().substring(0, 3);
     const hourMap: Record<string, number> = { "пер": 12, "вто": 13, "тре": 14, "чет": 15, "пят": 16, "шес": 17, "сед": 18, "вос": 19, "дев": 20, "дес": 21, "оди": 10, "две": 11 };
-    if (hourMap[word]) return `${hourMap[word]}:${isQuarter ? "15" : "30"}`;
+    if (hourMap[word]) return `${hourMap[word].toString().padStart(2, '0')}:${isQuarter ? "15" : "30"}`;
   }
   
   // Fix explicit word matching 'в 10 утра'

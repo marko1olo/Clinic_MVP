@@ -118,7 +118,20 @@ def _canned_safe_answer(decision: intent_mod.Decision) -> str | None:
 
 async def handle(incoming: Incoming, store) -> Outcome:
     """Обработать одно входящее сообщение. Ничего не отправляет — только решает."""
-    # 1. Дедуп на уровне схемы. Поллер перезапускается, id Авито не уникальны
+    # 1. Пациент дописывает мысль — дожидаемся. Человек не отвечает построчно.
+    #
+    #    Стоит ПЕРВЫМ, до дедупа, и это не косметика. `mark_seen` необратим: он
+    #    регистрирует сообщение навсегда. Если отложить дебаунсом уже
+    #    зарегистрированное сообщение, при следующем заходе оно вернётся как
+    #    дубликат — то есть обращение пациента потеряется молча, без единой
+    #    ошибки в логе. Дебаунс означает «ещё не сейчас», а не «не нужно», и
+    #    единственное место для него — до всего, что нельзя отменить.
+    since = (hours.now() - incoming.at).total_seconds()
+    if delay_mod.should_wait_for_more(since):
+        return Outcome("skip", None, None, "debounce",
+                       f"пациент писал {since:.0f} с назад, ждём продолжения")
+
+    # 2. Дедуп на уровне схемы. Поллер перезапускается, id Авито не уникальны
     #    ничем на нашей стороне, и повторная отправка пациенту того же текста —
     #    худшее, что может сделать этот бот.
     if not store.mark_seen(incoming.external_id, incoming.chat_id, incoming.at):
@@ -127,19 +140,13 @@ async def handle(incoming: Incoming, store) -> Outcome:
 
     store.touch_dialog(incoming.chat_id, patient_message_at=incoming.at)
 
-    # 2. Человек за рулём — бот молчит. Проверяется до всего остального, чтобы
-    #    не потратить вызов модели на диалог, который уже ведёт администратор.
+    # 3. Человек за рулём — бот молчит. Проверяется до обращения к модели, чтобы
+    #    не тратить вызов на диалог, который уже ведёт администратор.
     if not store.is_ai_active(incoming.chat_id, incoming.at):
         store.audit("ai_silent", chat_id=incoming.chat_id,
                     payload={"reason": "перехват или пауза"})
         return Outcome("skip", None, None, "ai_paused",
                        "диалог у администратора или ИИ на паузе")
-
-    # 3. Пациент дописывает мысль — дожидаемся. Человек не отвечает построчно.
-    since = (hours.now() - incoming.at).total_seconds()
-    if delay_mod.should_wait_for_more(since):
-        return Outcome("skip", None, None, "debounce",
-                       f"пациент писал {since:.0f} с назад, ждём продолжения")
 
     decision = intent_mod.classify(incoming.text)
     if decision.route is Route.IGNORE:

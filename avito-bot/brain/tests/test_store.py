@@ -85,7 +85,7 @@ def check_open(c: Checks, store: Store) -> None:
              "VALUES('нет-такого-чата', 'т', 'k', 'r', 'pending', ?)",
              (NOW.isoformat(),))
     c.eq("user_version проставлена", store._conn.execute(
-        "PRAGMA user_version").fetchone()[0], 1)
+        "PRAGMA user_version").fetchone()[0], 2)
 
 
 def check_dedup(c: Checks, store: Store) -> None:
@@ -395,7 +395,7 @@ def check_reopen(c: Checks, path: Path, draft_id: int) -> None:
         c.ok("аудит на месте", any(a.event == "draft_queued"
                                   for a in store.recent_audit(limit=500)))
         c.eq("повторное открытие не сбросило user_version", store._conn.execute(
-            "PRAGMA user_version").fetchone()[0], 1)
+            "PRAGMA user_version").fetchone()[0], 2)
         c.eq("новое сообщение в старой базе регистрируется",
              store.mark_seen("msg-после-переоткрытия", "chat-A", NOW), True)
 

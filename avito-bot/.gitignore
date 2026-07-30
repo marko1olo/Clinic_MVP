@@ -5,7 +5,9 @@
 .profile/
 storageState.json
 
-# Разведка эндпоинтов: содержит схемы приватной переписки клиники
+# Разведка и реальные селекторы: селекторы заполняются по живой вёрстке
+capture/selectors.json
+capture/selectors.discovered.json
 discovery/
 
 # Состояние рантайма

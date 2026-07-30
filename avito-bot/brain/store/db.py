@@ -46,7 +46,7 @@ import sys
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -62,6 +62,16 @@ BUSY_TIMEOUT_SECONDS = 10.0
 
 DRAFT_ACTIONS: frozenset[str] = frozenset({"sent", "edited", "ignored", "expired"})
 DRAFT_PENDING = "pending"
+
+# Виды строк очереди отправки. `manual` — ответ, поставленный руками через
+# служебный скрипт (восстановление после зависшей отправки), а не решением бота.
+OUTBOX_KINDS: frozenset[str] = frozenset({"reply", "followup", "manual"})
+
+# Потолок дожимов ДЛЯ ОТБОРА КАНДИДАТОВ, а не для решения. Настоящий предел
+# живёт в followup.MAX_FOLLOWUPS; здесь заведомо не меньшее число, чтобы SQL
+# отсекал только безнадёжное, а решение осталось за одним модулем. Импортировать
+# followup сюда нельзя: store не должен зависеть от политики диалога.
+MAX_FOLLOWUPS_GUARD = 2
 
 # «Пауза совсем» и «перехват до отмены» — это срок, а не отсутствие срока: NULL
 # уже занят состоянием «никто не перехватывал». Дата-страж делает все сравнения
@@ -148,6 +158,53 @@ class AuditRow:
     payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class InboxRow:
+    """Сообщение, как его вычитал DOM-поллер.
+
+    `at` намеренно отсутствует: время, которое Авито показывает человеку
+    («14:32», «вчера»), в datetime не превращается — формат зависит от давности
+    сообщения, и ошибка парсинга сдвинула бы весь диалог, а на времени диалога
+    стоят дожимы. Есть `at_raw` для глаз администратора и `harvested_at` для
+    любой арифметики.
+    """
+
+    external_id: str
+    chat_id: str
+    chat_url: str | None
+    counterparty: str | None
+    outgoing: bool
+    text: str
+    at_raw: str | None
+    position: int
+    harvested_at: datetime
+    processed_at: datetime | None
+
+    @property
+    def role(self) -> str:
+        """Роль в терминах prompt.builder.Turn."""
+        return "clinic" if self.outgoing else "patient"
+
+
+@dataclass(frozen=True)
+class OutboxRow:
+    id: int
+    chat_id: str
+    chat_url: str | None
+    text: str
+    kind: str
+    draft_id: int | None
+    send_after: datetime
+    status: str
+    attempts: int
+    queued_at: datetime
+    claimed_at: datetime | None
+    sent_at: datetime | None
+    confirmation: str | None
+    last_error: str | None
+    accounted_at: datetime | None
+
+
 # --- время ------------------------------------------------------------------
 
 def _moment(value: datetime, field: str) -> datetime:
@@ -215,6 +272,41 @@ def _audit(row: sqlite3.Row) -> AuditRow:
         event=row["event"],
         chat_id=row["chat_id"],
         payload=json.loads(row["payload"]) if row["payload"] else {},
+    )
+
+
+def _inbox(row: sqlite3.Row) -> InboxRow:
+    return InboxRow(
+        external_id=row["external_id"],
+        chat_id=row["chat_id"],
+        chat_url=row["chat_url"],
+        counterparty=row["counterparty"],
+        outgoing=bool(row["outgoing"]),
+        text=row["text"],
+        at_raw=row["at_raw"],
+        position=row["position"],
+        harvested_at=datetime.fromisoformat(row["harvested_at"]),
+        processed_at=_parse(row["processed_at"]),
+    )
+
+
+def _outbox(row: sqlite3.Row) -> OutboxRow:
+    return OutboxRow(
+        id=row["id"],
+        chat_id=row["chat_id"],
+        chat_url=row["chat_url"],
+        text=row["text"],
+        kind=row["kind"],
+        draft_id=row["draft_id"],
+        send_after=datetime.fromisoformat(row["send_after"]),
+        status=row["status"],
+        attempts=row["attempts"],
+        queued_at=datetime.fromisoformat(row["queued_at"]),
+        claimed_at=_parse(row["claimed_at"]),
+        sent_at=_parse(row["sent_at"]),
+        confirmation=row["confirmation"],
+        last_error=row["last_error"],
+        accounted_at=_parse(row["accounted_at"]),
     )
 
 
@@ -575,3 +667,200 @@ class Store:
         понять, что бот делал минуту назад."""
         rows = self._read("SELECT * FROM audit ORDER BY id DESC LIMIT ?", (limit,))
         return [_audit(row) for row in rows]
+
+    # --- шина с транспортом -------------------------------------------------
+    # Методов этой секции в CONTRACTS.md нет: контракт описывает решения, а не
+    # то, как два процесса передают друг другу работу. Ни одна существующая
+    # подпись здесь не менялась — только добавлены новые.
+    #
+    # Разделение владения строгое и нарушать его нельзя:
+    #   inbox  — пишет Node (capture/run-poll.mjs), читает Python;
+    #   outbox — пишет Python, а ЗАБИРАЕТ И ЗАКРЫВАЕТ Node.
+    # Поэтому здесь нет ни claim, ни mark_sent: SQL захвата строки живёт в одном
+    # месте, у отправщика. Вторая реализация того же протокола на Python
+    # означала бы две правды о том, что такое «занято», и рано или поздно —
+    # два процесса, отправляющих пациенту один и тот же текст.
+
+    def pending_inbox(self, limit: int = 20) -> list[InboxRow]:
+        """Входящие, которых роутер ещё не разбирал. Старые первыми.
+
+        Только чужие сообщения: свои пузыри лежат в той же таблице ради истории
+        диалога, но отвечать на них нечего.
+        """
+        rows = self._read(
+            "SELECT * FROM inbox WHERE processed_at IS NULL AND outgoing = 0 "
+            "ORDER BY harvested_at, position, rowid LIMIT ?", (limit,))
+        return [_inbox(row) for row in rows]
+
+    def chat_history(self, chat_id: str, *, before_position: int | None = None,
+                     limit: int = 40) -> list[InboxRow]:
+        """История диалога для промпта, в порядке появления в переписке.
+
+        `before_position` отсекает то, что в чате НИЖЕ разбираемого сообщения.
+        Без этого модель увидела бы в «истории» сообщения, которых на момент
+        обрабатываемого вопроса ещё не было, и ответила бы на реплику из
+        будущего — при разборе накопившейся пачки это происходит постоянно.
+
+        LIMIT берёт ХВОСТ истории, а не начало: свежие реплики важнее первых,
+        а промпт не бесконечный.
+
+        `rowid AS _rid` во вложенном запросе — не украшение: подзапрос своих
+        служебных колонок наружу не отдаёт, и внешний ORDER BY по `rowid` падает
+        с «no such column». Порядок вставки нужен как второй ключ сортировки,
+        потому что `position` у пузырей одного прохода может совпасть.
+        """
+        if before_position is None:
+            rows = self._read(
+                "SELECT * FROM (SELECT *, rowid AS _rid FROM inbox WHERE chat_id = ? "
+                "ORDER BY position DESC, _rid DESC LIMIT ?) ORDER BY position, _rid",
+                (chat_id, limit))
+        else:
+            rows = self._read(
+                "SELECT * FROM (SELECT *, rowid AS _rid FROM inbox WHERE chat_id = ? "
+                "AND position < ? ORDER BY position DESC, _rid DESC LIMIT ?) "
+                "ORDER BY position, _rid",
+                (chat_id, before_position, limit))
+        return [_inbox(row) for row in rows]
+
+    def patient_texts(self, chat_id: str, limit: int = 20) -> tuple[str, ...]:
+        """Тексты пациента для followup.DialogState: отказ, обещание позвонить.
+
+        Ищутся по последним репликам, потому что «уже вылечил» в сообщении
+        месячной давности к сегодняшнему дожиму отношения не имеет.
+        """
+        rows = self._read(
+            "SELECT text FROM inbox WHERE chat_id = ? AND outgoing = 0 "
+            "ORDER BY position DESC, rowid DESC LIMIT ?", (chat_id, limit))
+        return tuple(row["text"] for row in rows)
+
+    def mark_inbox_processed(self, external_id: str, at: datetime | None = None) -> bool:
+        """Пометить входящее разобранным. False — такой строки нет или уже помечена.
+
+        Помечать обязан демон ПОСЛЕ того, как решение принято и записано (ответ
+        поставлен в outbox, черновик создан, событие в аудите). Обратный порядок
+        теряет сообщение целиком при падении между двумя операциями: строка уже
+        не «ждёт», а решения по ней нет.
+        """
+        stamp = _iso(at, "at") if at is not None else _iso(hours.now(), "now")
+        with self._write() as conn:
+            cursor = conn.execute(
+                "UPDATE inbox SET processed_at = ? "
+                "WHERE external_id = ? AND processed_at IS NULL", (stamp, external_id))
+            return cursor.rowcount == 1
+
+    def queue_outbox(self, chat_id: str, text: str, *, kind: str, send_after: datetime,
+                     draft_id: int | None = None, chat_url: str | None = None) -> int:
+        """Поставить ответ в очередь на отправку. Возвращает id строки outbox.
+
+        Идемпотентно по `draft_id`: повторная постановка того же черновика
+        возвращает id уже существующей строки и НЕ создаёт вторую. Это не
+        удобство, а защита — Telegram доставляет один и тот же callback повторно,
+        и два нажатия «Отправить» обязаны дать пациенту один ответ. Держится
+        UNIQUE-индексом в схеме, а не проверкой перед вставкой: проверка
+        проигрывает второму процессу.
+        """
+        if not text.strip():
+            raise ValueError("пустой ответ отправлять нечего")
+        if kind not in OUTBOX_KINDS:
+            raise ValueError(f"неизвестный вид отправки {kind!r}, "
+                             f"допустимы {sorted(OUTBOX_KINDS)}")
+
+        stamp = _iso(hours.now(), "now")
+        due = _iso(send_after, "send_after")
+        with self._write() as conn:
+            self._ensure_dialog(conn, chat_id, stamp)
+            cursor = conn.execute(
+                "INSERT INTO outbox(chat_id, chat_url, text, kind, draft_id, send_after, "
+                "status, queued_at) VALUES(?, ?, ?, ?, ?, ?, 'queued', ?) "
+                "ON CONFLICT(draft_id) DO NOTHING",
+                (chat_id, chat_url, text, kind, draft_id, due, stamp))
+            if cursor.rowcount == 1:
+                return int(cursor.lastrowid or 0)
+            existing = conn.execute("SELECT id FROM outbox WHERE draft_id = ?",
+                                    (draft_id,)).fetchall()
+        if not existing:  # pragma: no cover - вставка без draft_id конфликтовать не может
+            raise RuntimeError("вставка в outbox не удалась и конфликтующей строки нет")
+        return int(existing[0]["id"])
+
+    def outbox(self, outbox_id: int) -> OutboxRow | None:
+        rows = self._read("SELECT * FROM outbox WHERE id = ?", (outbox_id,))
+        return _outbox(rows[0]) if rows else None
+
+    def outbox_by_status(self, status: str, limit: int = 50) -> list[OutboxRow]:
+        rows = self._read(
+            "SELECT * FROM outbox WHERE status = ? ORDER BY send_after, id LIMIT ?",
+            (status, limit))
+        return [_outbox(row) for row in rows]
+
+    def sent_unaccounted(self, limit: int = 50) -> list[OutboxRow]:
+        """Отправленное, что демон ещё не учёл в состоянии диалога.
+
+        Node подтверждает отправку, но не знает ни про счётчик дожимов, ни про
+        монотонность our_last_message_at, ни про аудит. Учёт — отдельный шаг
+        Python-а, и его наличие в базе делает потерю учёта видимой: строка не
+        исчезает, пока её не учли.
+        """
+        rows = self._read(
+            "SELECT * FROM outbox WHERE status = 'sent' AND accounted_at IS NULL "
+            "ORDER BY sent_at, id LIMIT ?", (limit,))
+        return [_outbox(row) for row in rows]
+
+    def mark_outbox_accounted(self, outbox_id: int) -> bool:
+        with self._write() as conn:
+            cursor = conn.execute(
+                "UPDATE outbox SET accounted_at = ? WHERE id = ? AND status = 'sent' "
+                "AND accounted_at IS NULL", (_iso(hours.now(), "now"), outbox_id))
+            return cursor.rowcount == 1
+
+    def stuck_sending(self, older_than_seconds: float = 300.0) -> list[OutboxRow]:
+        """Строки, зависшие в 'sending'. Требуют человека, а не повтора.
+
+        Состояние 'sending' означает «отправщик взял строку и не вернулся».
+        Ушло сообщение пациенту или нет — неизвестно, и автоматический повтор
+        здесь может выдать пациенту дубликат. Дубликат в переписке выдаёт бота
+        вернее любой формулировки; потерянный ответ стоит минуты администратора.
+        Поэтому такие строки только показываются, а решение принимает человек.
+        """
+        cutoff = hours.now() - timedelta(seconds=older_than_seconds)
+        rows = self._read(
+            "SELECT * FROM outbox WHERE status = 'sending' AND claimed_at IS NOT NULL "
+            "AND claimed_at < ? ORDER BY claimed_at, id",
+            (_iso(cutoff, "cutoff"),))
+        return [_outbox(row) for row in rows]
+
+    def dialogs_awaiting_reply(self, limit: int = 50) -> list[DialogRow]:
+        """Диалоги, где последними писали мы, а ответа нет — сырьё для дожима.
+
+        Отбор нарочно широкий: здесь только «мы написали последними и лимит
+        дожимов не исчерпан». Все содержательные причины промолчать — отказ,
+        обещание позвонить, нерабочее время, остывший диалог — решает
+        `followup.plan`, и дублировать их условием в SQL нельзя: разъедутся.
+        """
+        rows = self._read(
+            "SELECT * FROM dialogs WHERE our_last_message_at IS NOT NULL "
+            "AND (patient_last_message_at IS NULL "
+            "     OR patient_last_message_at < our_last_message_at) "
+            "AND followups_sent < ? ORDER BY our_last_message_at LIMIT ?",
+            (MAX_FOLLOWUPS_GUARD, limit))
+        return [_dialog(row) for row in rows]
+
+    # --- курсоры процессов --------------------------------------------------
+
+    def cursor(self, name: str) -> str | None:
+        rows = self._read("SELECT value FROM cursors WHERE name = ?", (name,))
+        return rows[0]["value"] if rows else None
+
+    def set_cursor(self, name: str, value: str) -> None:
+        """Запомнить позицию процесса (offset getUpdates, время обхода дожимов).
+
+        Для offset-а Telegram это критично: потерянный offset означает повторную
+        выдачу старых нажатий кнопок, то есть повторную отправку пациенту уже
+        отправленного. Идемпотентность resolve_draft/queue_outbox это поймает,
+        но полагаться на два предохранителя вместо одного не нужно.
+        """
+        with self._write() as conn:
+            conn.execute(
+                "INSERT INTO cursors(name, value, updated_at) VALUES(?, ?, ?) "
+                "ON CONFLICT(name) DO UPDATE SET value = excluded.value, "
+                "updated_at = excluded.updated_at",
+                (name, value, _iso(hours.now(), "now")))

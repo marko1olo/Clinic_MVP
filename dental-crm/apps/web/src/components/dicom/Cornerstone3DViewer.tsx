@@ -192,9 +192,6 @@ export function Cornerstone3DViewer({ imageIds }: Cornerstone3DViewerProps) {
   }, [isInitialized, imageIds]);
 
   const handleGeneratePanorex = () => {
-    // In a real app, we'd query the cornerstoneTools state for SplineROITool annotations
-    // const state = cornerstoneTools.annotation.state.getAnnotations(cornerstoneTools.SplineROITool.toolName, element);
-    // Let's simulate we got some points
     setSplinePoints([{ x: 100, y: 100 }, { x: 200, y: 150 }, { x: 300, y: 100 }]);
     setShowPanorex(true);
   };

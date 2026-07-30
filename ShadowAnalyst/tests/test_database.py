@@ -81,6 +81,17 @@ class TestFindProjectRoot(unittest.TestCase):
         result = find_project_root()
         self.assertEqual(result.replace('\\', '/'), '/app')
 
+    @patch('gui.database.os.path.exists')
+    @patch('gui.database.sys')
+    def test_fallback_not_in_special_dirs(self, mock_sys, mock_exists):
+        mock_sys.frozen = True
+        mock_sys.executable = '/app/someotherdir/main.exe'
+        mock_exists.return_value = False
+
+        result = find_project_root()
+        self.assertEqual(result.replace('\\', '/'), '/app/someotherdir')
+
+
 class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.db_fd, self.db_path = tempfile.mkstemp()
@@ -333,6 +344,45 @@ class TestDatabase(unittest.TestCase):
             mock_cursor.execute.assert_any_call("ALTER TABLE scans ADD COLUMN ai_image TEXT")
             mock_conn.commit.assert_called_once()
             mock_conn.close.assert_called_once()
+
+    def test_init_db_migration_error_path_raise(self):
+        from unittest.mock import MagicMock
+        with patch('gui.database.sqlite3.connect') as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_connect.return_value = mock_conn
+
+            # Setup fetchall to return columns WITHOUT ai_image so ALTER TABLE triggers
+            mock_cursor.fetchall.return_value = [
+                (0, 'id', 'INTEGER', 1, None, 1),
+                (1, 'patient_name', 'TEXT', 0, None, 0)
+            ]
+
+            import sqlite3
+            def execute_side_effect(query, *args, **kwargs):
+                if "ALTER TABLE scans ADD COLUMN ai_image TEXT" in query:
+                    raise sqlite3.OperationalError("some other error")
+            mock_cursor.execute.side_effect = execute_side_effect
+
+            with self.assertRaises(sqlite3.OperationalError):
+                init_db()
+
+    def test_db_path_fallback(self):
+        # We need to reload the gui.database module with mocked os.path.isdir to reach line 41
+        import importlib
+        import gui.database
+        with patch('gui.database.os.path.isdir', return_value=False):
+            # Also patch os.path.exists to true for shadow_analyst_dir because the condition is "exists AND isdir"
+            with patch('gui.database.os.path.exists', return_value=True):
+                # When we reload, it will re-execute the module-level code
+                try:
+                    importlib.reload(gui.database)
+                    self.assertTrue(gui.database.DB_PATH.endswith("shadow_analyst.db"))
+                    self.assertNotIn("ShadowAnalyst/shadow_analyst.db", gui.database.DB_PATH.replace("\\", "/"))
+                finally:
+                    # Reload again without mocks to restore original state for other tests
+                    importlib.reload(gui.database)
 
 if __name__ == '__main__':
     unittest.main()

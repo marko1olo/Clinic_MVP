@@ -1,4 +1,7 @@
-import subprocess, sys, os, time
+import subprocess, sys, os, time, shutil
+
+GUI_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(os.path.dirname(GUI_DIR))
 
 print("[1] Killing ShadowAnalyst processes...")
 subprocess.run(
@@ -9,8 +12,8 @@ time.sleep(2)
 
 print("[2] Removing locked files...")
 for f in [
-    r"C:\Clinic_MVP\ShadowAnalyst\gui\dist\ShadowAnalyst.exe",
-    r"C:\Clinic_MVP\ShadowAnalyst.exe",
+    os.path.join(GUI_DIR, "dist", "ShadowAnalyst.exe"),
+    os.path.join(ROOT_DIR, "ShadowAnalyst.exe"),
 ]:
     if os.path.exists(f):
         try:
@@ -20,10 +23,9 @@ for f in [
             print(f"  Could not delete {f}: {e}")
 
 print("[3] Removing build/dist folders...")
-import shutil
 for d in [
-    r"C:\Clinic_MVP\ShadowAnalyst\gui\build",
-    r"C:\Clinic_MVP\ShadowAnalyst\gui\dist",
+    os.path.join(GUI_DIR, "build"),
+    os.path.join(GUI_DIR, "dist"),
 ]:
     if os.path.exists(d):
         shutil.rmtree(d, ignore_errors=True)
@@ -32,16 +34,16 @@ for d in [
 time.sleep(1)
 
 print("[4] Running PyInstaller...")
-py = r"C:\Users\Admin\AppData\Local\Programs\Python\Python313\python.exe"
+py = sys.executable
 result = subprocess.run(
     [py, "-m", "PyInstaller", "--clean", "ShadowAnalyst.spec"],
-    cwd=r"C:\Clinic_MVP\ShadowAnalyst\gui"
+    cwd=GUI_DIR
 )
 
 if result.returncode == 0:
     print("\n[5] Build SUCCESS. Copying to root...")
-    src = r"C:\Clinic_MVP\ShadowAnalyst\gui\dist\ShadowAnalyst.exe"
-    dst = r"C:\Clinic_MVP\ShadowAnalyst.exe"
+    src = os.path.join(GUI_DIR, "dist", "ShadowAnalyst.exe")
+    dst = os.path.join(ROOT_DIR, "ShadowAnalyst.exe")
     shutil.copy2(src, dst)
     size_mb = round(os.path.getsize(dst) / (1024 * 1024), 1)
     print(f"  Done! {dst}  --  {size_mb} MB")

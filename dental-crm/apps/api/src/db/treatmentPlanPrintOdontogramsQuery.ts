@@ -35,26 +35,5 @@ export async function getTreatmentPlanPrintOdontogramsFromDb(orgId: string) {
 		console.warn("[TreatmentPlanPrintOdontograms DB Fallback]:", err);
 	}
 
-	return [
-		{
-			id: "00000000-0000-0000-0000-000000000001",
-			organizationId: orgId,
-			patientName: "Иванов Александр Сергеевич",
-			planTitle: "План лечения: комплексная санация, 6 зубов",
-			odontogramIncluded: true,
-			toothFormulaSnippet: "18О 17C 16L 15И 14И | 24И 25И 26С 27С",
-			printLayoutReady: true,
-			createdAt: new Date().toISOString(),
-		},
-		{
-			id: "00000000-0000-0000-0000-000000000002",
-			organizationId: orgId,
-			patientName: "Петрова Мария Игоревна",
-			planTitle: "Ортопедический план лечения: протезирование 3 единицы",
-			odontogramIncluded: true,
-			toothFormulaSnippet: "46П 47П 48Уд | 36П",
-			printLayoutReady: true,
-			createdAt: new Date().toISOString(),
-		},
-	];
+	return [];
 }

@@ -8,6 +8,7 @@ from PIL import Image, ImageOps, ImageEnhance
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, InputMediaPhoto, BufferedInputFile
 from aiogram.filters import CommandStart
+import os
 import socket
 
 # --- ЖЕСТКИЙ ХАК ДЛЯ РАБОТЫ ЧЕРЕЗ ВКЛЮЧЕННЫЙ WIREGUARD ---
@@ -24,7 +25,9 @@ def new_getaddrinfo(*args, **kwargs):
 socket.getaddrinfo = new_getaddrinfo
 # ---------------------------------------------------------
 # Вставь сюда токен своего бота
-BOT_TOKEN = '8930684800:AAHGQmAMWEn2RCGPhUFW0Yxza_TUssugGkA'
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable not set")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()

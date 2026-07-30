@@ -341,13 +341,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
             const data = await res.json();
-            if (data.status === 'ok') {
-                // Apply theme immediately
-                document.body.className = theme;
-                closeModal();
-                if (res.ok) {
-                    window.loadData(currentImage, currentReport, currentSummary);
-                }
+            if (data.status !== 'ok') return;
+
+            // Apply theme immediately
+            document.body.className = theme;
+            closeModal();
+
+            if (res.ok) {
+                window.loadData(currentImage, currentReport, currentSummary);
             }
         } catch (e) {
             window.showToast("Ошибка сохранения настроек: " + e.message, "error");

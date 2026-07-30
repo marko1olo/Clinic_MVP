@@ -203,17 +203,30 @@ def _worker_loop():
         now = time.time()
 
         with processing_lock:
-            for file_path in list(pending_files.keys()):
+            # Snapshot the pending files
+            files_to_check = list(pending_files.keys())
+
+        for file_path in files_to_check:
+            # Check if it was already moved to processing
+            with processing_lock:
                 if file_path in processing_files:
-                    del pending_files[file_path]
+                    if file_path in pending_files:
+                        del pending_files[file_path]
                     continue
 
-                if not os.path.exists(file_path):
-                    del pending_files[file_path]
-                    continue
+            # I/O operations without lock
+            if not os.path.exists(file_path):
+                with processing_lock:
+                    if file_path in pending_files:
+                        del pending_files[file_path]
+                continue
 
-                try:
-                    current_size = os.path.getsize(file_path)
+            try:
+                current_size = os.path.getsize(file_path)
+
+                with processing_lock:
+                    if file_path not in pending_files:
+                        continue
                     last_size, stable_start = pending_files[file_path]
 
                     if current_size == last_size and current_size > 0:
@@ -227,8 +240,8 @@ def _worker_loop():
                     else:
                         # Size changed, reset stability timer
                         pending_files[file_path] = (current_size, now)
-                except OSError:
-                    pass
+            except OSError:
+                pass
 
 # Start the background worker loop
 threading.Thread(target=_worker_loop, daemon=True).start()

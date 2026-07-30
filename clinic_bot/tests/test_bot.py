@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import on_mqtt_message, cmd_start, handle_alert_admin
+from bot import on_mqtt_message, cmd_start, cmd_test, handle_alert_admin
 from bot import on_mqtt_message, cmd_start, handle_default
 from bot import on_mqtt_message, cmd_start, handle_review_neg
 from bot import on_mqtt_message, cmd_start, handle_xray_result
@@ -177,12 +177,8 @@ class TestBotCmdStart(unittest.IsolatedAsyncioTestCase):
         message.answer.assert_called_once()
         self.assertIn('doctor', message.answer.call_args[0][0])
 
-from unittest.mock import AsyncMock, patch, MagicMock
 
 # Ensure clinic_bot module is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import cmd_start
-import db
 
 class TestBotCommands(unittest.IsolatedAsyncioTestCase):
 
@@ -234,6 +230,20 @@ class TestBotCommands(unittest.IsolatedAsyncioTestCase):
         self.assertIn(r"Ваш chat\_id: `12345`", args[0])
         self.assertIn("Ваша роль: `guest`", args[0])
         self.assertEqual(kwargs.get("parse_mode"), "Markdown")
+
+
+    async def test_cmd_test(self):
+        # Act
+        await cmd_test(self.mock_message)
+
+        # Assert
+        self.mock_message.answer.assert_called_once()
+        args, kwargs = self.mock_message.answer.call_args
+        self.assertIn("🦷 *Тест уведомления*", args[0])
+        self.assertIn("Снимок: `test_xray.png`", args[0])
+        self.assertIn("Находки:", args[0])
+        self.assertEqual(kwargs.get("parse_mode"), "Markdown")
+
 
 class TestHandleXrayResult(unittest.TestCase):
     @patch('bot.asyncio.run_coroutine_threadsafe')

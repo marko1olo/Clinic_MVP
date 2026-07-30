@@ -248,13 +248,6 @@ export function Cornerstone3DViewer({ imageIds }: Cornerstone3DViewerProps) {
     const logStr = `В область зуба ${newImplant.fdiCode} запланирована установка имплантата ${newImplant.diameter.toFixed(1)}x${newImplant.length.toFixed(1)} мм. Плотность кости по HU соответствует типу ${newImplant.boneDensity.classification} (${newImplant.boneDensity.averageHU} HU). Дистанция до нижнечелюстного канала ${newImplant.distanceToNerve.toFixed(1)} мм.`;
     
     setAiProtocolLog(logStr);
-
-    // [OBLIQUE SNAP SIMULATION] 
-    // In a full implementation, we'd do:
-    // const D = vec3.sub(implantEnd, implantStart);
-    // const N = vec3.normalize(D);
-    // renderingEngine.getViewport('SAGITTAL').setCamera({ viewUp: N });
-    // renderingEngine.render();
   };
 
   return (

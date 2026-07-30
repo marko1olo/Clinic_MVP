@@ -133,5 +133,34 @@ class TestDB(unittest.TestCase):
         # The connection from the spawned thread must be different from the main thread's connection
         self.assertIsNotNone(thread_conn)
         self.assertIsNot(main_conn1, thread_conn)
+
+    def test_init_db(self):
+        """Test that init_db creates the users table with the correct schema."""
+        # Re-run init_db explicitly just to verify it can run without error
+        db.init_db()
+        conn = db.get_connection()
+        c = conn.cursor()
+
+        # Verify the table exists
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        table = c.fetchone()
+        self.assertIsNotNone(table)
+        self.assertEqual(table['name'], 'users')
+
+        # Verify the columns are correct
+        c.execute("PRAGMA table_info('users')")
+        columns = {row['name']: row for row in c.fetchall()}
+
+        self.assertIn('chat_id', columns)
+        self.assertEqual(columns['chat_id']['type'].upper(), 'INTEGER')
+        self.assertEqual(columns['chat_id']['pk'], 1)
+
+        self.assertIn('role', columns)
+        self.assertEqual(columns['role']['type'].upper(), 'TEXT')
+        self.assertEqual(columns['role']['notnull'], 1)
+
+        self.assertIn('name', columns)
+        self.assertEqual(columns['name']['type'].upper(), 'TEXT')
+
 if __name__ == '__main__':
     unittest.main()

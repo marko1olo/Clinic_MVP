@@ -193,11 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (selectElevenlabsVoice) {
         selectElevenlabsVoice.addEventListener('change', () => {
-            if (selectElevenlabsVoice.value === 'custom') {
-                if (inputElevenlabsVoiceCustom) inputElevenlabsVoiceCustom.style.display = 'block';
-            } else {
-                if (inputElevenlabsVoiceCustom) inputElevenlabsVoiceCustom.style.display = 'none';
-            }
+            if (!inputElevenlabsVoiceCustom) return;
+            inputElevenlabsVoiceCustom.style.display = selectElevenlabsVoice.value === 'custom' ? 'block' : 'none';
         });
     }
 
@@ -225,18 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectElevenlabsVoice) {
                 const currentVoice = data.elevenlabs_voice_id || 'pNInz6obpgq54HWK483c';
                 const preloadedValues = ['pNInz6obpgq54HWK483c', '21m00Tcm4TlvDq8ikWAM', 'ErXwobaYiN019PkySvjV', 'piTKgcLEGmPEe14mmc4w'];
-                if (preloadedValues.includes(currentVoice)) {
-                    selectElevenlabsVoice.value = currentVoice;
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'none';
-                        inputElevenlabsVoiceCustom.value = '';
-                    }
-                } else {
-                    selectElevenlabsVoice.value = 'custom';
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'block';
-                        inputElevenlabsVoiceCustom.value = currentVoice;
-                    }
+
+                const isCustom = !preloadedValues.includes(currentVoice);
+                selectElevenlabsVoice.value = isCustom ? 'custom' : currentVoice;
+
+                if (inputElevenlabsVoiceCustom) {
+                    inputElevenlabsVoiceCustom.style.display = isCustom ? 'block' : 'none';
+                    inputElevenlabsVoiceCustom.value = isCustom ? currentVoice : '';
                 }
             }
             

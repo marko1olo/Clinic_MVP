@@ -10,11 +10,6 @@ export async function registerDicomwebRoutes(app: FastifyInstance) {
   app.get("/api/dicomweb/studies/:studyUid/series/:seriesUid/instances/:instanceUid", async (request, reply) => {
     const { instanceUid } = request.params as any;
     
-    // In a real application, we would find the instance in DB
-    // const instance = await db.query.imagingInstances.findFirst({
-    //   where: eq(imagingInstances.dicomSopInstanceUid, instanceUid)
-    // });
-    
     // For local MVP / Development, we'll try to serve a test DICOM file
     const fallbackPath = path.resolve(process.cwd(), "../../.data/dicom/test.dcm");
     

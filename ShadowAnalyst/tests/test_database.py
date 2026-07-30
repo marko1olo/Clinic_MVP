@@ -256,6 +256,21 @@ class TestDatabase(unittest.TestCase):
         scans_after = get_all_scans()
         self.assertEqual(len(scans_after), 0)
 
+    def test_delete_scan_error(self):
+        from unittest.mock import MagicMock
+        import sqlite3
+        with patch('gui.database.get_db_connection') as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_cursor.execute.side_effect = sqlite3.OperationalError("database is locked")
+            mock_conn.cursor.return_value = mock_cursor
+            mock_connect.return_value = mock_conn
+
+            with self.assertRaises(sqlite3.OperationalError):
+                delete_scan(1)
+
+            mock_conn.close.assert_called_once()
+
     def test_init_db_migration(self):
         # Create a new temp DB for this test
         db_fd, db_path = tempfile.mkstemp()

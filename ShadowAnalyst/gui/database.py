@@ -128,10 +128,12 @@ def get_all_scans() -> list:
 
 def delete_scan(scan_id: int):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM scans WHERE id = ?", (scan_id,))
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM scans WHERE id = ?", (scan_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def update_scan(scan_id: int, data: dict):
     conn = get_db_connection()

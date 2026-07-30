@@ -1,4 +1,6 @@
 ﻿import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
 
 dotenv.config();
 
@@ -22,5 +24,8 @@ const staffToken = signToken(
 	60 * 60 * 12,
 );
 
-console.log("CLINIC_TOKEN=" + clinicToken);
-console.log("STAFF_TOKEN=" + staffToken);
+const envPath = path.resolve(process.cwd(), ".env");
+const envContent = `\nCLINIC_TOKEN=${clinicToken}\nSTAFF_TOKEN=${staffToken}\n`;
+fs.appendFileSync(envPath, envContent, { encoding: "utf-8" });
+
+console.log("Tokens successfully generated and appended to .env file.");

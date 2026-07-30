@@ -41,9 +41,7 @@ function runBenchmark() {
   const endOptimized = process.hrtime.bigint();
   const timeOptimized = Number(endOptimized - startOptimized) / 1e6;
 
-  console.log(`Unoptimized: ${timeUnoptimized.toFixed(2)} ms`);
-  console.log(`Optimized: ${timeOptimized.toFixed(2)} ms`);
-  console.log(`Speedup: ${(timeUnoptimized / timeOptimized).toFixed(2)}x`);
+  return { timeUnoptimized, timeOptimized };
 }
 
 runBenchmark();

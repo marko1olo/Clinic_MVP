@@ -181,7 +181,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 # Ensure clinic_bot module is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from bot import cmd_start
+from bot import cmd_start, cmd_status
 import db
 
 class TestBotCommands(unittest.IsolatedAsyncioTestCase):
@@ -233,6 +233,41 @@ class TestBotCommands(unittest.IsolatedAsyncioTestCase):
         args, kwargs = self.mock_message.answer.call_args
         self.assertIn(r"Ваш chat\_id: `12345`", args[0])
         self.assertIn("Ваша роль: `guest`", args[0])
+        self.assertEqual(kwargs.get("parse_mode"), "Markdown")
+
+    @patch('bot.datetime')
+    @patch('bot.db.get_users_by_role')
+    async def test_cmd_status(self, mock_get_users_by_role, mock_datetime):
+        # Arrange
+        # Set a fixed datetime
+        mock_now = MagicMock()
+        mock_now.strftime.return_value = "12:34:56"
+        mock_datetime.now.return_value = mock_now
+
+        # Mock db to return 3 doctors and 2 admins
+        def mock_db_side_effect(role):
+            if role == 'doctor':
+                return [1, 2, 3]
+            elif role == 'admin':
+                return [4, 5]
+            return []
+
+        mock_get_users_by_role.side_effect = mock_db_side_effect
+
+        # Act
+        await cmd_status(self.mock_message)
+
+        # Assert
+        self.assertEqual(mock_get_users_by_role.call_count, 2)
+        mock_get_users_by_role.assert_any_call('doctor')
+        mock_get_users_by_role.assert_any_call('admin')
+
+        # Verify the answer was called
+        self.mock_message.answer.assert_called_once()
+        args, kwargs = self.mock_message.answer.call_args
+        self.assertIn("Система работает", args[0])
+        self.assertIn("Врачей: 3, Админов: 2", args[0])
+        self.assertIn("Время сервера: 12:34:56", args[0])
         self.assertEqual(kwargs.get("parse_mode"), "Markdown")
 
 class TestHandleXrayResult(unittest.TestCase):

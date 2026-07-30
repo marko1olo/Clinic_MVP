@@ -225,18 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectElevenlabsVoice) {
                 const currentVoice = data.elevenlabs_voice_id || 'pNInz6obpgq54HWK483c';
                 const preloadedValues = ['pNInz6obpgq54HWK483c', '21m00Tcm4TlvDq8ikWAM', 'ErXwobaYiN019PkySvjV', 'piTKgcLEGmPEe14mmc4w'];
-                if (preloadedValues.includes(currentVoice)) {
-                    selectElevenlabsVoice.value = currentVoice;
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'none';
-                        inputElevenlabsVoiceCustom.value = '';
-                    }
-                } else {
-                    selectElevenlabsVoice.value = 'custom';
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'block';
-                        inputElevenlabsVoiceCustom.value = currentVoice;
-                    }
+                const isPreloaded = preloadedValues.includes(currentVoice);
+
+                selectElevenlabsVoice.value = isPreloaded ? currentVoice : 'custom';
+                if (inputElevenlabsVoiceCustom) {
+                    inputElevenlabsVoiceCustom.style.display = isPreloaded ? 'none' : 'block';
+                    inputElevenlabsVoiceCustom.value = isPreloaded ? '' : currentVoice;
                 }
             }
             

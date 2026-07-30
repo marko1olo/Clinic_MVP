@@ -94,5 +94,51 @@ class TestParseFindings(unittest.TestCase):
         self.assertEqual(alert, [])
 
 
+
+    def test_parse_findings_crlf(self):
+        # Test CRLF line endings
+        findings = "Line 1\r\nLine 2 кариес\r\nLine 3"
+        body, alert = parse_findings(findings)
+        self.assertEqual(body, ["Line 1\r", "Line 3"])
+        self.assertEqual(alert, ["Line 2 кариес\r"])
+
+    def test_parse_findings_multiple_keywords(self):
+        # Test line with multiple keywords
+        findings = "Зуб 11: кариес и воспаление"
+        body, alert = parse_findings(findings)
+        self.assertEqual(body, [])
+        self.assertEqual(alert, ["Зуб 11: кариес и воспаление"])
+
+    def test_parse_findings_substring(self):
+        # Test substring matches
+        findings = "антикариесный эффект"
+        body, alert = parse_findings(findings)
+        self.assertEqual(body, [])
+        self.assertEqual(alert, ["антикариесный эффект"])
+
+    def test_parse_findings_unicode(self):
+        # Test Unicode/emoji
+        findings = "🦷 кариес 😢"
+        body, alert = parse_findings(findings)
+        self.assertEqual(body, [])
+        self.assertEqual(alert, ["🦷 кариес 😢"])
+
+    def test_parse_findings_falsy_inputs(self):
+        # False boolean
+        body, alert = parse_findings(False)
+        self.assertEqual(body, ["Патологий не обнаружено. Норма."])
+        self.assertEqual(alert, [])
+
+        # Zero integer
+        body, alert = parse_findings(0)
+        self.assertEqual(body, ["Патологий не обнаружено. Норма."])
+        self.assertEqual(alert, [])
+
+        # Empty list (evaluates to false but may fail split if it bypasses 'not findings' check)
+        # Note: In the actual implementation, `if not findings` catches these falsy values
+        body, alert = parse_findings([])
+        self.assertEqual(body, ["Патологий не обнаружено. Норма."])
+        self.assertEqual(alert, [])
+
 if __name__ == '__main__':
     unittest.main()

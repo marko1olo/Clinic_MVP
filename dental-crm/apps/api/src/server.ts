@@ -164,9 +164,24 @@ export async function createDenteApiApp(options: { startTelegramWorker?: boolean
         throw new Error(`Invalid WEB_ORIGIN configured: "${origin}"`);
       }
     });
+  const allowedOrigins = new Set(webOrigins);
 
   await app.register(cors, {
-    origin: webOrigins
+    origin: (requestOrigin, cb) => {
+      if (!requestOrigin) {
+        cb(null, true);
+        return;
+      }
+      if (allowedOrigins.has("*")) {
+        cb(null, true);
+        return;
+      }
+      if (allowedOrigins.has(requestOrigin)) {
+        cb(null, true);
+        return;
+      }
+      cb(null, false);
+    }
   });
 
   app.setErrorHandler((error, _request, reply) => {

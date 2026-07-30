@@ -39,7 +39,8 @@ def parse_findings(findings):
         body_lines.append("Патологий не обнаружено. Норма.")
     else:
         for line in findings.split('\n'):
-            if 'кариес' in line.lower() or 'воспаление' in line.lower():
+            line_lower = line.lower()
+            if 'кариес' in line_lower or 'воспаление' in line_lower:
                 alert_lines.append(line)
             else:
                 body_lines.append(line)

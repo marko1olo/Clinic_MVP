@@ -93,5 +93,25 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(out, "bad \ufffd byte")
         self.assertEqual(err, "")
 
+
+    def test_scp_file(self):
+        mock_client = MagicMock()
+        mock_sftp = MagicMock()
+        mock_client.open_sftp.return_value = mock_sftp
+
+        local_path = "local/file.txt"
+        remote_path = "remote/file.txt"
+
+        with patch('sys.stdout.buffer.write') as mock_write, patch('sys.stdout.flush') as mock_flush:
+            scp_file(mock_client, local_path, remote_path)
+
+            expected_output = f"SCP: {local_path} -> {remote_path}\n".encode()
+            mock_write.assert_called_once_with(expected_output)
+            mock_flush.assert_called_once()
+
+        mock_client.open_sftp.assert_called_once()
+        mock_sftp.put.assert_called_once_with(local_path, remote_path)
+        mock_sftp.close.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()

@@ -193,10 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (selectElevenlabsVoice) {
         selectElevenlabsVoice.addEventListener('change', () => {
-            if (selectElevenlabsVoice.value === 'custom') {
-                if (inputElevenlabsVoiceCustom) inputElevenlabsVoiceCustom.style.display = 'block';
-            } else {
-                if (inputElevenlabsVoiceCustom) inputElevenlabsVoiceCustom.style.display = 'none';
+            if (inputElevenlabsVoiceCustom) {
+                inputElevenlabsVoiceCustom.style.display = selectElevenlabsVoice.value === 'custom' ? 'block' : 'none';
             }
         });
     }
@@ -225,18 +223,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectElevenlabsVoice) {
                 const currentVoice = data.elevenlabs_voice_id || 'pNInz6obpgq54HWK483c';
                 const preloadedValues = ['pNInz6obpgq54HWK483c', '21m00Tcm4TlvDq8ikWAM', 'ErXwobaYiN019PkySvjV', 'piTKgcLEGmPEe14mmc4w'];
-                if (preloadedValues.includes(currentVoice)) {
-                    selectElevenlabsVoice.value = currentVoice;
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'none';
-                        inputElevenlabsVoiceCustom.value = '';
-                    }
-                } else {
-                    selectElevenlabsVoice.value = 'custom';
-                    if (inputElevenlabsVoiceCustom) {
-                        inputElevenlabsVoiceCustom.style.display = 'block';
-                        inputElevenlabsVoiceCustom.value = currentVoice;
-                    }
+                const isPreloaded = preloadedValues.includes(currentVoice);
+
+                selectElevenlabsVoice.value = isPreloaded ? currentVoice : 'custom';
+
+                if (inputElevenlabsVoiceCustom) {
+                    inputElevenlabsVoiceCustom.style.display = isPreloaded ? 'none' : 'block';
+                    inputElevenlabsVoiceCustom.value = isPreloaded ? '' : currentVoice;
                 }
             }
             
@@ -312,11 +305,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let voiceId = 'pNInz6obpgq54HWK483c';
         if (selectElevenlabsVoice) {
-            if (selectElevenlabsVoice.value === 'custom') {
-                voiceId = (inputElevenlabsVoiceCustom ? inputElevenlabsVoiceCustom.value.trim() : '') || 'pNInz6obpgq54HWK483c';
-            } else {
-                voiceId = selectElevenlabsVoice.value;
-            }
+            voiceId = selectElevenlabsVoice.value === 'custom'
+                ? ((inputElevenlabsVoiceCustom ? inputElevenlabsVoiceCustom.value.trim() : '') || 'pNInz6obpgq54HWK483c')
+                : selectElevenlabsVoice.value;
         }
 
         try {

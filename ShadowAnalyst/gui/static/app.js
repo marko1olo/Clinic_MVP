@@ -706,25 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Render Main Report
-        if (reportText && reportText.trim() !== "") {
-            statusBadge.textContent = "Analysis Complete";
-            statusBadge.classList.add('active');
-            
-            fullReportText.innerHTML = marked.parse(reportText);
-            
-            btnSpeak.style.display = 'flex';
-            btnAnalyze.style.display = 'none';
-            if (btnReanalyze) btnReanalyze.style.display = 'block';
-            if (btnPrint) btnPrint.style.display = 'block';
-            
-            // Speak if text changed and auto speak is on
-            if (reportText !== lastReportText) {
-                lastReportText = reportText;
-                if (toggleAutoSpeak.checked) {
-                    speakText(summaryContent, reportText);
-                }
-            }
-        } else {
+        if (!reportText || reportText.trim() === "") {
             statusBadge.textContent = "Image Loaded";
             statusBadge.classList.remove('active');
             
@@ -737,6 +719,25 @@ document.addEventListener('DOMContentLoaded', () => {
             
             stopSpeaking();
             lastReportText = "";
+            return;
+        }
+
+        statusBadge.textContent = "Analysis Complete";
+        statusBadge.classList.add('active');
+
+        fullReportText.innerHTML = marked.parse(reportText);
+
+        btnSpeak.style.display = 'flex';
+        btnAnalyze.style.display = 'none';
+        if (btnReanalyze) btnReanalyze.style.display = 'block';
+        if (btnPrint) btnPrint.style.display = 'block';
+
+        // Speak if text changed and auto speak is on
+        if (reportText !== lastReportText) {
+            lastReportText = reportText;
+            if (toggleAutoSpeak.checked) {
+                speakText(summaryContent, reportText);
+            }
         }
     };
 

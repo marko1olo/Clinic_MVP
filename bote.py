@@ -2,8 +2,6 @@ import asyncio
 import io
 import random
 import logging
-import numpy as np
-from PIL import Image
 from PIL import Image, ImageOps, ImageEnhance
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, InputMediaPhoto, BufferedInputFile

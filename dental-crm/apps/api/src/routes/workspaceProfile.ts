@@ -3,18 +3,39 @@
  * GET  /api/workspace/profile        — load feature flags for current org
  * POST /api/workspace/profile        — save feature flags (individual toggles)
  * POST /api/workspace/preset/:name   — apply a named preset + seed demo data
- * POST /api/workspace/onboarding/complete — mark onboarding as done
+ *
+ * POST /api/workspace/onboarding/complete здесь БОЛЬШЕ НЕТ — разбор удаления
+ * стоит на месте, где маршрут был зарегистрирован, в конце этого файла.
  */
 
 import { eq } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { z } from "zod";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
+import { getRequestIdentity } from "../security/identity.js";
 
-function resolveOrganizationId(req: any): string {
-  const headerId = req.headers["x-organization-id"];
-  if (headerId && typeof headerId === "string") return headerId;
-  return "00000000-0000-0000-0000-000000000001";
+/**
+ * POST /api/workspace/preset/:name: optional body overrides.
+ * Was bare `req.body?.hasPediatricMode` / `numberOfChairs` after Fastify Body?.
+ * Non-object body must 400 (not coerce array/string into flags).
+ */
+const workspacePresetBodySchema = z
+	.object({
+		numberOfChairs: z.number().int().positive().optional(),
+		hasPediatricMode: z.boolean().optional(),
+	})
+	.strict();
+
+/**
+ * БЫЛО: организация бралась из заголовка x-organization-id без всякой проверки,
+ * иначе подставлялся жёстко зашитый UUID. Любой анонимный запрос мог прочитать и
+ * ПЕРЕЗАПИСАТЬ настройки рабочего пространства любой клиники, а POST /preset/:name
+ * ещё и засеивал/затирал демо-данные. Теперь организация только из подписанного
+ * токена; при его отсутствии обработчик обязан вернуть 401.
+ */
+function resolveOrganizationId(req: FastifyRequest): string | null {
+  return getRequestIdentity(req).organizationId;
 }
 
 // ————————————————————————————————————————————————————————————————————————————
@@ -40,6 +61,125 @@ export interface WorkspaceFeatureFlags {
   aiEnableTreatmentPlan: boolean;
   aiEnableRecommendations: boolean;
   aiEnableDocuments: boolean;
+  /*
+   * ДЕВЯТЬ ПРИЗНАКОВ, КОТОРЫЕ КЛИЕНТ ПРИСЫЛАЛ, А СЕРВЕР МОЛЧА ВЫБРАСЫВАЛ.
+   *
+   * ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ. Набор клиента
+   * (apps/web/src/hooks/useWorkspaceProfile.ts) держит 28 признаков, здесь их
+   * было 19. workspaceFlagsFromStorage перебирает ключи ТОЛЬКО этого набора,
+   * поэтому девять признаков отбрасывались и на записи, и на чтении, а маршрут
+   * при этом отвечал 200 и возвращал сохранённый набор — клиент показывал
+   * галочку «сохранено». Дороже всего обошёлся hasClinicalRules: он закрывает
+   * вкладку клинических правил (SettingsView.tsx:1224) и её панель
+   * (components/settings/SettingsRulesTab.tsx:119-121), умолчание — выключено, а
+   * переключатель в WorkspaceFeaturesSelector.tsx:232-239 ничего не сохранял. То
+   * есть предупреждения по протоколам лечения — таблица и четыре живых маршрута
+   * (routes/clinical.ts:51,80,92,124) — включались только в одном браузере
+   * одного сотрудника и исчезали на втором устройстве, у второго врача и после
+   * очистки браузера. Тем же путём терялся hasEngineeringStatus — единственный
+   * признак, открывающий врачу состояние отправки документа в ЕГИСЗ
+   * (components/visit/VisitOdontogramTab.tsx:97-104).
+   *
+   * Умолчания совпадают с клиентскими, поэтому у работающих клиник не меняется
+   * ничего: меняется только то, что ВКЛЮЧЁННЫЙ признак теперь доживает до базы.
+   */
+  hasGnathology: boolean;
+  hasCsoScanner: boolean;
+  hasLeadsKanban: boolean;
+  hasOmnichannel: boolean;
+  hasEngineeringStatus: boolean;
+  hasClinicalRules: boolean;
+  hasReferralModule: boolean;
+  hasBpmWorkflows: boolean;
+  /* Число, а не признак: разбор ниже проверяет тип отдельно. */
+  numberOfDoctors: number;
+}
+
+/**
+ * Умолчания для клиники, которая ещё не настраивалась.
+ *
+ * Ровно те значения, которые раньше стояли литералом в ответе GET
+ * /api/workspace/profile. Оставлены как есть намеренно: у работающих клиник
+ * колонка пуста, и смена умолчаний прямо сейчас скрыла бы у них разделы, к
+ * которым они привыкли. Настроит клиника модули — в базе появится её набор.
+ */
+export const DEFAULT_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlags = {
+  hasAssistants: true,
+  hasMultipleChairs: true,
+  hasDentalLab: true,
+  hasInsuranceCoPay: true,
+  hasInstallments: true,
+  hasOrthodontics: true,
+  hasTasks: true,
+  hasReclamations: true,
+  hasPediatricMode: false,
+  isOmniRole: false,
+  workspacePreset: "enterprise",
+  onboardingCompleted: true,
+  hasPayrollModule: true,
+  hasMarketingModule: true,
+  hasAnalyticsModule: true,
+  hasInventoryModule: true,
+  aiEnableTreatmentPlan: true,
+  aiEnableRecommendations: true,
+  aiEnableDocuments: true,
+  // Девять признаков, которых здесь не было: умолчания взяты из DEFAULT_FLAGS
+  // клиента (hooks/useWorkspaceProfile.ts), чтобы у работающих клиник ни один
+  // раздел не появился и не исчез от самого расширения контракта.
+  hasGnathology: false,
+  hasCsoScanner: false,
+  hasLeadsKanban: false,
+  hasOmnichannel: false,
+  hasEngineeringStatus: false,
+  hasClinicalRules: false,
+  hasReferralModule: false,
+  hasBpmWorkflows: false,
+  numberOfDoctors: 4,
+};
+
+/**
+ * Привести запись из базы к полному набору признаков.
+ *
+ * Набор растёт вместе с продуктом: за одну ночь в него добавляли
+ * hasBpmWorkflows, hasClinicalRules, hasReferralModule. Поэтому старая запись
+ * обязана читаться без ошибки — отсутствующие признаки берутся из умолчаний, а
+ * неизвестные ключи отбрасываются, чтобы в ответ не просочилось то, чего в
+ * контракте нет.
+ *
+ * Типы проверяются по значению, а не по вере: в jsonb может лежать что угодно,
+ * включая результат ручной правки базы.
+ */
+export function workspaceFlagsFromStorage(
+  stored: unknown,
+): WorkspaceFeatureFlags {
+  const source =
+    stored && typeof stored === "object"
+      ? (stored as Record<string, unknown>)
+      : {};
+  const result = { ...DEFAULT_WORKSPACE_FEATURE_FLAGS } as Record<
+    string,
+    unknown
+  >;
+  for (const [key, fallback] of Object.entries(
+    DEFAULT_WORKSPACE_FEATURE_FLAGS,
+  )) {
+    const value = source[key];
+    if (typeof fallback === "boolean" && typeof value === "boolean")
+      result[key] = value;
+    else if (typeof fallback === "string" && typeof value === "string" && value)
+      result[key] = value;
+    // Число проверяется отдельно: numberOfDoctors — единственный числовой
+    // признак, и без этой ветки он отбрасывался бы наравне с чужими ключами.
+    // NaN и Infinity в jsonb попасть могут (ручная правка базы), но признаком
+    // числа доктора быть не могут.
+    else if (
+      typeof fallback === "number" &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    )
+      result[key] = value;
+  }
+  return result as unknown as WorkspaceFeatureFlags;
 }
 
 export type PresetName =
@@ -57,9 +197,31 @@ export type PresetName =
 // ————————————————————————————————————————————————————————————————————————————
 // Preset definitions
 // ————————————————————————————————————————————————————————————————————————————
+/**
+ * Пресет задаёт выбор МОДУЛЕЙ, а не весь набор признаков.
+ *
+ * Девять признаков, добавленных в контракт выше (клинические правила, состояние
+ * отправки в ЕГИСЗ и остальные), ни один пресет не выбирает, и применение
+ * пресета не должно их сбрасывать: обработчик складывает пресет с уже
+ * сохранённым набором клиники. Поэтому Omit, а НЕ Partial — пропустить модуль,
+ * который пресет обязан задать, по-прежнему нельзя.
+ */
+export type WorkspacePresetFeatureFlags = Omit<
+  WorkspaceFeatureFlags,
+  | "hasGnathology"
+  | "hasCsoScanner"
+  | "hasLeadsKanban"
+  | "hasOmnichannel"
+  | "hasEngineeringStatus"
+  | "hasClinicalRules"
+  | "hasReferralModule"
+  | "hasBpmWorkflows"
+  | "numberOfDoctors"
+>;
+
 export const WORKSPACE_PRESETS: Record<
   Exclude<PresetName, "custom">,
-  WorkspaceFeatureFlags
+  WorkspacePresetFeatureFlags
 > = {
   solo_therapist: {
     hasAssistants: false,
@@ -316,40 +478,43 @@ async function seedDemoDataForPreset(
         phone: "+79305556677",
       },
     ];
-    for (const p of patientDefs) {
-      const [patient] = await db
-        .insert(schema.patients)
-        .values({
-          organizationId,
-          fullName: p.fullName,
-          birthDate: p.birthDate,
-          phone: p.phone,
-          isSynced: false,
-          version: 1,
-        })
-        .returning({ id: schema.patients.id });
-      if (!patient) continue;
-      // Add a visit with caries treatment plan
-      await db.insert(schema.visits).values({
+    const patientsToInsert = patientDefs.map((p) => ({
+      organizationId,
+      fullName: p.fullName,
+      birthDate: p.birthDate,
+      phone: p.phone,
+      isSynced: false,
+      version: 1,
+    }));
+
+    const patients = await db
+      .insert(schema.patients)
+      .values(patientsToInsert)
+      .returning({ id: schema.patients.id });
+
+    if (patients.length > 0) {
+      const visitsToInsert = patients.map((patient) => ({
         organizationId,
         patientId: patient.id,
-        status: "signed",
+        status: "signed" as const,
         complaint: "Боль в нижней правой челюсти на холодное",
         diagnosis: "Средний кариес 46 зуба",
         treatmentPlan:
           "Анестезия, препарирование, пломба светового отверждения (композит).",
         doctorSummary:
           "Проведено лечение среднего кариеса 46 зуба по протоколу.",
-      });
-      // Add an appointment
-      await db.insert(schema.appointments).values({
+      }));
+      await db.insert(schema.visits).values(visitsToInsert);
+
+      const appointmentsToInsert = patients.map((patient) => ({
         organizationId,
         patientId: patient.id,
-        status: "planned",
+        status: "planned" as const,
         startsAt: new Date(Date.now() + 86400000),
         endsAt: new Date(Date.now() + 86400000 + 3600000),
         reason: "Лечение кариеса 47 зуба",
-      });
+      }));
+      await db.insert(schema.appointments).values(appointmentsToInsert);
     }
   }
 
@@ -366,54 +531,55 @@ async function seedDemoDataForPreset(
         phone: "+79509876543",
       },
     ];
-    for (const p of patientDefs) {
-      const [patient] = await db
-        .insert(schema.patients)
-        .values({
-          organizationId,
-          fullName: p.fullName,
-          birthDate: p.birthDate,
-          phone: p.phone,
-          isSynced: false,
-          version: 1,
-        })
-        .returning({ id: schema.patients.id });
-      if (!patient) continue;
-      // Add a visit with prosthetic plan
-      const [visit] = await db
-        .insert(schema.visits)
-        .values({
-          organizationId,
-          patientId: patient.id,
-          status: "draft",
-          complaint: "Отсутствует зуб, эстетический дефект",
-          diagnosis: "Частичная вторичная адентия 24 зуба",
-          treatmentPlan:
-            "Снятие слепков. Изготовление коронки из диоксида циркония на имплантате 24.",
-        })
-        .returning({ id: schema.visits.id });
+    const patientsToInsert = patientDefs.map((p) => ({
+      organizationId,
+      fullName: p.fullName,
+      birthDate: p.birthDate,
+      phone: p.phone,
+    }));
 
-      // Add clinical tasks for lab orders
-      await db.insert(schema.clinicalTasks).values({
+    const patients = await db
+      .insert(schema.patients)
+      .values(patientsToInsert)
+      .returning({ id: schema.patients.id });
+
+    if (patients.length > 0) {
+      const visitsToInsert = patients.map((patient) => ({
         organizationId,
         patientId: patient.id,
-        taskType: "dental_lab_order",
-        status: "in_progress",
-        title: "Изготовление циркониевой коронки",
-        description:
-          "Цвет A2, транслуцентный край. Отправлено в фрезерный центр.",
+        status: "draft" as const,
+        complaint: "Отсутствует зуб, эстетический дефект",
+        diagnosis: "Частичная вторичная адентия 24 зуба",
+        treatmentPlan:
+          "Снятие слепков. Изготовление коронки из диоксида циркония на имплантате 24.",
+      }));
+      await db.insert(schema.visits).values(visitsToInsert);
+
+      const communicationTasksToInsert = patients.map((patient) => ({
+        organizationId,
+        patientId: patient.id,
+        assignedRole: "doctor" as const,
+        channel: "in_person" as const,
+        intent: "general" as const,
+        status: "queued" as const,
+        priority: "normal" as const,
         dueAt: new Date(Date.now() + 86400000 * 5),
-      });
+        title: "Изготовление циркониевой коронки",
+        body: "Цвет A2, транслуцентный край. Отправлено в фрезерный центр.",
+      }));
+      await db
+        .insert(schema.communicationTasks)
+        .values(communicationTasksToInsert);
 
-      // Add an appointment
-      await db.insert(schema.appointments).values({
+      const appointmentsToInsert = patients.map((patient) => ({
         organizationId,
         patientId: patient.id,
-        status: "planned",
+        status: "planned" as const,
         startsAt: new Date(Date.now() + 86400000 * 2),
         endsAt: new Date(Date.now() + 86400000 * 2 + 3600000),
         reason: "Примерка каркаса",
-      });
+      }));
+      await db.insert(schema.appointments).values(appointmentsToInsert);
     }
   }
 }
@@ -422,64 +588,36 @@ async function seedDemoDataForPreset(
 // Route registration
 // ————————————————————————————————————————————————————————————————————————————
 export async function workspaceProfileRoutes(fastify: FastifyInstance) {
-  // GET /api/workspace/profile
+  /*
+   * GET /api/workspace/profile — какие модули включены у ЭТОЙ клиники.
+   *
+   * ЧТО БЫЛО. Здесь стоял литерал: девятнадцать признаков, почти все true, пресет
+   * "enterprise", onboardingCompleted true — одинаково для любой организации,
+   * независимо от того, что клиника выбрала в мастере первого запуска и в
+   * настройках. Модульность — сердце продукта (соло-врач не должен видеть склад,
+   * зарплаты и воронку обращений), и на сервере её не существовало.
+   *
+   * Клиент этого не показывал, потому что useWorkspaceProfile хранит выбор в
+   * localStorage. Стоило открыть программу на втором устройстве, в другом
+   * браузере или под другим сотрудником — и все модули снова включены.
+   *
+   * ЧТО СТАЛО. Признаки читаются из organizations.workspace_feature_flags.
+   * Незаполненное значение означает «клиника ещё не настраивалась» и отдаётся как
+   * прежние умолчания: так у существующих клиник ничего не меняется. Неизвестные
+   * ключи из базы отбрасываются, отсутствующие берутся из умолчаний — набор
+   * признаков растёт вместе с продуктом, и старая запись не должна ронять ответ.
+   */
   fastify.get("/api/workspace/profile", async (req, reply) => {
     const organizationId = await resolveOrganizationId(req);
     if (!organizationId) return reply.code(401).send({ error: "Unauthorized" });
 
-    try {
-      const [org] = await db
-        .select({
-          hasAssistants: schema.organizations.hasAssistants,
-          hasMultipleChairs: schema.organizations.hasMultipleChairs,
-          hasDentalLab: schema.organizations.hasDentalLab,
-          hasInsuranceCoPay: schema.organizations.hasInsuranceCoPay,
-          hasInstallments: schema.organizations.hasInstallments,
-          hasOrthodontics: schema.organizations.hasOrthodontics,
-          hasTasks: schema.organizations.hasTasks,
-          hasReclamations: schema.organizations.hasReclamations,
-          hasPediatricMode: schema.organizations.hasPediatricMode,
-          isOmniRole: schema.organizations.isOmniRole,
-          workspacePreset: schema.organizations.workspacePreset,
-          onboardingCompleted: schema.organizations.onboardingCompleted,
-          hasPayrollModule: schema.organizations.hasPayrollModule,
-          hasMarketingModule: schema.organizations.hasMarketingModule,
-          hasAnalyticsModule: schema.organizations.hasAnalyticsModule,
-          hasInventoryModule: schema.organizations.hasInventoryModule,
-          aiEnableTreatmentPlan: schema.organizations.aiEnableTreatmentPlan,
-          aiEnableRecommendations: schema.organizations.aiEnableRecommendations,
-          aiEnableDocuments: schema.organizations.aiEnableDocuments,
-        })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.id, organizationId))
-        .limit(1);
+    const [organization] = await db
+      .select({ flags: schema.organizations.workspaceFeatureFlags })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, organizationId))
+      .limit(1);
 
-      if (org) return reply.send(org);
-    } catch (err) {
-      // Fallback for dev mode
-    }
-
-    return reply.send({
-      hasAssistants: true,
-      hasMultipleChairs: true,
-      hasDentalLab: true,
-      hasInsuranceCoPay: true,
-      hasInstallments: true,
-      hasOrthodontics: true,
-      hasTasks: true,
-      hasReclamations: true,
-      hasPediatricMode: false,
-      isOmniRole: false,
-      workspacePreset: "enterprise",
-      onboardingCompleted: true,
-      hasPayrollModule: true,
-      hasMarketingModule: true,
-      hasAnalyticsModule: true,
-      hasInventoryModule: true,
-      aiEnableTreatmentPlan: true,
-      aiEnableRecommendations: true,
-      aiEnableDocuments: true,
-    });
+    return reply.send(workspaceFlagsFromStorage(organization?.flags));
   });
 
   // GET /api/workspace/chairs
@@ -488,10 +626,10 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
     if (!organizationId) return reply.code(401).send({ error: "Unauthorized" });
 
     const chairs = await db
-      .select({ id: schema.clinicChairs.id, name: schema.clinicChairs.name })
-      .from(schema.clinicChairs)
-      .where(eq(schema.clinicChairs.organizationId, organizationId))
-      .orderBy(schema.clinicChairs.name);
+      .select({ id: schema.chairs.id, name: schema.chairs.name })
+      .from(schema.chairs)
+      .where(eq(schema.chairs.organizationId, organizationId))
+      .orderBy(schema.chairs.name);
 
     return reply.send({ success: true, data: chairs });
   });
@@ -504,53 +642,51 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
       if (!organizationId)
         return reply.code(401).send({ error: "Unauthorized" });
 
-      const {
-        hasAssistants,
-        hasMultipleChairs,
-        hasDentalLab,
-        hasInsuranceCoPay,
-        hasInstallments,
-        hasPediatricMode,
-        isOmniRole,
-        hasOrthodontics,
-        hasTasks,
-        hasReclamations,
-        hasPayrollModule,
-        hasMarketingModule,
-        hasAnalyticsModule,
-        hasInventoryModule,
-        aiEnableTreatmentPlan,
-        aiEnableRecommendations,
-        aiEnableDocuments,
-      } = req.body ?? {};
+      /*
+       * ЧТО БЫЛО. Здесь из тела разбирались семнадцать признаков — и не писался
+       * НИ ОДИН: `.set({ updatedAt: new Date() })`, после чего ответ { ok: true }.
+       * То есть «Сохранить» на вкладке «Модули» и выбор в мастере первого запуска
+       * уходили в пустоту, а программа отвечала, что всё сохранено.
+       *
+       * ЧТО СТАЛО. Признаки сливаются с уже сохранённым набором и пишутся в
+       * organizations.workspace_feature_flags. Слияние, а не замена: клиент
+       * присылает Partial (WorkspaceFeaturesSelector отправляет один
+       * переключённый признак), и замена целиком сбросила бы остальные к
+       * умолчаниям — то есть включила бы обратно всё, что клиника выключила.
+       *
+       * Тело проходит через workspaceFlagsFromStorage: неизвестные ключи в базу не
+       * попадают, а значения не того типа отбрасываются. Иначе одна строка вместо
+       * true легла бы в базу и вернулась на клиент, где признак читается как
+       * булев.
+       */
+      const [existing] = await db
+        .select({ flags: schema.organizations.workspaceFeatureFlags })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, organizationId))
+        .limit(1);
+      if (!existing) {
+        return reply.code(404).send({
+          error: "OrganizationNotFound",
+          message: "Клиника не найдена. Войдите в рабочий кабинет заново.",
+        });
+      }
+
+      const incoming = req.body && typeof req.body === "object" ? req.body : {};
+      const merged = workspaceFlagsFromStorage({
+        ...workspaceFlagsFromStorage(existing.flags),
+        ...incoming,
+      });
+
       await db
         .update(schema.organizations)
         .set({
-          ...(hasAssistants !== undefined && { hasAssistants }),
-          ...(hasMultipleChairs !== undefined && { hasMultipleChairs }),
-          ...(hasDentalLab !== undefined && { hasDentalLab }),
-          ...(hasInsuranceCoPay !== undefined && { hasInsuranceCoPay }),
-          ...(hasInstallments !== undefined && { hasInstallments }),
-          ...(hasPediatricMode !== undefined && { hasPediatricMode }),
-          ...(isOmniRole !== undefined && { isOmniRole }),
-          ...(hasOrthodontics !== undefined && { hasOrthodontics }),
-          ...(hasTasks !== undefined && { hasTasks }),
-          ...(hasReclamations !== undefined && { hasReclamations }),
-          ...(hasPayrollModule !== undefined && { hasPayrollModule }),
-          ...(hasMarketingModule !== undefined && { hasMarketingModule }),
-          ...(hasAnalyticsModule !== undefined && { hasAnalyticsModule }),
-          ...(hasInventoryModule !== undefined && { hasInventoryModule }),
-          ...(aiEnableTreatmentPlan !== undefined && { aiEnableTreatmentPlan }),
-          ...(aiEnableRecommendations !== undefined && {
-            aiEnableRecommendations,
-          }),
-          ...(aiEnableDocuments !== undefined && { aiEnableDocuments }),
-          workspacePreset: "custom",
+          workspaceFeatureFlags: merged,
           updatedAt: new Date(),
         })
         .where(eq(schema.organizations.id, organizationId));
 
-      return reply.send({ ok: true });
+      // Возвращаем сохранённый набор: клиент видит, что именно легло в базу.
+      return reply.send({ ok: true, ...merged });
     },
   );
 
@@ -568,420 +704,133 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
     if (!flags)
       return reply.code(400).send({ error: `Unknown preset: ${presetName}` });
 
-    const finalFlags = { ...flags };
-    if (req.body?.hasPediatricMode !== undefined) {
-      finalFlags.hasPediatricMode = req.body.hasPediatricMode;
+    // Body optional: missing/undefined → empty overrides. Non-object / bad types → 400.
+    const rawBody = req.body;
+    const bodyCandidate =
+      rawBody === undefined || rawBody === null ? {} : rawBody;
+    const parsedBody = workspacePresetBodySchema.safeParse(bodyCandidate);
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        error: "ValidationError",
+        message:
+          "Тело запроса должно быть JSON-объектом с опциональными numberOfChairs (целое > 0) и hasPediatricMode (boolean).",
+      });
     }
+
+    const finalFlags = { ...flags };
+    if (parsedBody.data.hasPediatricMode !== undefined) {
+      finalFlags.hasPediatricMode = parsedBody.data.hasPediatricMode;
+    }
+
+    /*
+     * ЧТО БЫЛО. `.set({ ...finalFlags, updatedAt })` — признаки пресета
+     * раскладывались так, будто это КОЛОНКИ таблицы organizations. Колонок с
+     * такими именами нет; drizzle собирает SET только из известных колонок, а
+     * остальные ключи молча отбрасывает. То есть применение пресета не меняло
+     * ничего, кроме updatedAt, и отвечало { ok: true, preset, flags } — клиент
+     * видел выбранный пресет, база о нём не знала.
+     *
+     * Ошибку не поймали типы: значения WORKSPACE_PRESETS описаны свободно, и
+     * проверка типов на этом выражении проходит.
+     *
+     * Признаки складываются с уже сохранёнными: пресет задаёт не все, а
+     * незаданные не должны сбрасываться к умолчаниям. Имя пресета пишется тем же
+     * значением, что вернётся клиенту.
+     */
+    const [existing] = await db
+      .select({ flags: schema.organizations.workspaceFeatureFlags })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, organizationId))
+      .limit(1);
+    if (!existing) {
+      return reply.code(404).send({
+        error: "OrganizationNotFound",
+        message: "Клиника не найдена. Войдите в рабочий кабинет заново.",
+      });
+    }
+    const savedFlags = workspaceFlagsFromStorage({
+      ...workspaceFlagsFromStorage(existing.flags),
+      ...finalFlags,
+      workspacePreset: presetName,
+    });
 
     await db
       .update(schema.organizations)
-      .set({ ...finalFlags, updatedAt: new Date() })
+      .set({ workspaceFeatureFlags: savedFlags, updatedAt: new Date() })
       .where(eq(schema.organizations.id, organizationId));
 
     // Async seeding — don't block response
     seedDemoDataForPreset(
       organizationId,
       presetName,
-      req.body?.numberOfChairs,
+      parsedBody.data.numberOfChairs,
     ).catch((e) => console.error("[workspace preset] seeding error:", e));
 
-    return reply.send({ ok: true, preset: presetName, flags });
+    // Отдаём то, что легло в базу, а не то, что было в справочнике пресетов.
+    return reply.send({ ok: true, preset: presetName, flags: savedFlags });
   });
 
-  // POST /api/workspace/onboarding/complete
-  fastify.post("/api/workspace/onboarding/complete", async (req, reply) => {
-    const organizationId = await resolveOrganizationId(req);
-    if (!organizationId) return reply.code(401).send({ error: "Unauthorized" });
-
-    const payload = req.body as any;
-
-    if (
-      payload &&
-      typeof payload === "object" &&
-      Object.keys(payload).length > 0
-    ) {
-      try {
-        await db.transaction(async (tx) => {
-        // 1. Update organizations
-        await tx
-          .update(schema.organizations)
-          .set({
-            onboardingCompleted: true,
-            updatedAt: new Date(),
-            specializations: payload.specs || ["therapy"],
-            themeColor: payload.theme || "teal",
-            inn: payload.legal?.inn || null,
-            ogrn: payload.legal?.ogrn || null,
-            legalAddress: payload.legal?.address || null,
-            hasAssistants: true,
-            hasDentalLab: payload.modules?.lab || false,
-            hasMultipleChairs: (payload.chairs || 1) > 1,
-            hasInsuranceCoPay: payload.modules?.dms || false,
-            hasInstallments: payload.modules?.installments || false,
-            hasOrthodontics: true,
-            hasTasks: true,
-            hasReclamations: true,
-            hasPediatricMode: payload.specs?.includes("pediatrics") || false,
-            requiresMigration: payload.requiresMigration || false,
-            workspacePreset: "custom",
-            clinicMode:
-              (payload.chairs || 1) === 1 ? "solo_doctor" : "small_clinic",
-            hasPayrollModule: (payload.chairs || 1) > 1,
-            hasMarketingModule: false,
-            hasAnalyticsModule: (payload.chairs || 1) > 1,
-            hasInventoryModule: true,
-            aiEnableTreatmentPlan: payload.modules?.aiTreatmentPlan ?? true,
-            aiEnableRecommendations: payload.modules?.aiRecommendations ?? true,
-            aiEnableDocuments: payload.modules?.aiDocuments ?? true,
-            workingHours: [
-              {
-                day: "monday",
-                enabled: true,
-                start: `${(payload.workHours?.[0] || 9).toString().padStart(2, "0")}:00`,
-                end: `${(payload.workHours?.[1] || 18).toString().padStart(2, "0")}:00`,
-              },
-              {
-                day: "tuesday",
-                enabled: true,
-                start: `${(payload.workHours?.[0] || 9).toString().padStart(2, "0")}:00`,
-                end: `${(payload.workHours?.[1] || 18).toString().padStart(2, "0")}:00`,
-              },
-              {
-                day: "wednesday",
-                enabled: true,
-                start: `${(payload.workHours?.[0] || 9).toString().padStart(2, "0")}:00`,
-                end: `${(payload.workHours?.[1] || 18).toString().padStart(2, "0")}:00`,
-              },
-              {
-                day: "thursday",
-                enabled: true,
-                start: `${(payload.workHours?.[0] || 9).toString().padStart(2, "0")}:00`,
-                end: `${(payload.workHours?.[1] || 18).toString().padStart(2, "0")}:00`,
-              },
-              {
-                day: "friday",
-                enabled: true,
-                start: `${(payload.workHours?.[0] || 9).toString().padStart(2, "0")}:00`,
-                end: `${(payload.workHours?.[1] || 18).toString().padStart(2, "0")}:00`,
-              },
-              { day: "saturday", enabled: false, start: "10:00", end: "16:00" },
-              { day: "sunday", enabled: false, start: "10:00", end: "16:00" },
-            ],
-          })
-          .where(eq(schema.organizations.id, organizationId));
-
-        // 2. Insert Staff & Commissions
-        if (payload.staff && Array.isArray(payload.staff)) {
-          for (const s of payload.staff) {
-            const [newUser] = await tx
-              .insert(schema.users)
-              .values({
-                organizationId,
-                fullName: s.fullName || "Сотрудник",
-                role: s.role || "Врач",
-                specialties: s.specialization ? [s.specialization] : [],
-                canSignMedicalRecords: s.canSignMedicalRecords ?? false,
-                canManageMoney: s.canManageMoney ?? false,
-                canManageImports: s.canManageImports ?? false,
-                isActive: true,
-                email: s.id + "@clinic.local",
-                phone: s.phone || null,
-              })
-              .returning();
-
-            if (s.role === "Врач" || s.role === "Куратор") {
-              await tx.insert(schema.doctorCommissions).values({
-                organizationId,
-                userId: newUser?.id as string,
-                specialty: "therapist",
-                serviceCategory: "consultation",
-
-                commissionPct: s.percentage ? Number(s.percentage) : 25,
-              });
-            }
-          }
-        }
-
-        // 2.5 Smart Seeding: Service Catalog
-        const selectedSpecs = payload.specs || ["therapy"];
-        const servicesToInsert: any[] = [];
-        if (selectedSpecs.includes("therapy")) {
-          servicesToInsert.push({
-            organizationId,
-            code: "T01",
-            name: "Кариес эмали",
-            category: "therapy",
-            basePriceRub: 3500,
-            priceRub: 3500,
-          });
-          servicesToInsert.push({
-            organizationId,
-            code: "T02",
-            name: "Пульпит (1 канал)",
-            category: "therapy",
-            basePriceRub: 7500,
-            priceRub: 7500,
-          });
-        }
-        if (selectedSpecs.includes("surgery")) {
-          servicesToInsert.push({
-            organizationId,
-            code: "S01",
-            name: "Удаление зуба сложное",
-            category: "surgery",
-            basePriceRub: 5500,
-            priceRub: 5500,
-          });
-          servicesToInsert.push({
-            organizationId,
-            code: "S02",
-            name: "Имплантат Osstem",
-            category: "surgery",
-            basePriceRub: 35000,
-            priceRub: 35000,
-          });
-        }
-        if (selectedSpecs.includes("orthopedics")) {
-          servicesToInsert.push({
-            organizationId,
-            code: "O01",
-            name: "Металлокерамическая коронка",
-            category: "orthopedics",
-            basePriceRub: 15000,
-            priceRub: 15000,
-          });
-        }
-        if (servicesToInsert.length > 0) {
-          await tx.insert(schema.serviceCatalogItems).values(servicesToInsert);
-        }
-
-        // 3. Create Chairs
-        if (payload.chairs > 0) {
-          const chairs = Array.from({ length: payload.chairs }).map((_, i) => ({
-            organizationId,
-            name: `Кресло ${i + 1}`,
-            status: "active",
-            isActive: true,
-          }));
-          await tx.insert(schema.clinicChairs).values(chairs);
-        }
-      });
-    } catch (txErr: any) {
-        console.error("[onboarding] transaction failed, falling back:", txErr?.message);
-        // Fallback: at least mark onboarding as completed
-        await db
-          .update(schema.organizations)
-          .set({ onboardingCompleted: true, updatedAt: new Date() })
-          .where(eq(schema.organizations.id, organizationId));
-      }
-    } else {
-      // Fallback
-      await db
-        .update(schema.organizations)
-        .set({ onboardingCompleted: true, updatedAt: new Date() })
-        .where(eq(schema.organizations.id, organizationId));
-    }
-
-    // Simulate 1.5 - 2 second delay for a beautiful loading screen
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Async Seeding of templates and price list
-    try {
-      const existingItems = await db
-        .select({ id: schema.serviceCatalogItems.id })
-        .from(schema.serviceCatalogItems)
-        .where(eq(schema.serviceCatalogItems.organizationId, organizationId))
-        .limit(1);
-      if (existingItems.length === 0) {
-        // Fetch organization's specializations
-        const [org] = await db
-          .select({ specializations: schema.organizations.specializations })
-          .from(schema.organizations)
-          .where(eq(schema.organizations.id, organizationId));
-        const specs = (
-          Array.isArray(org?.specializations)
-            ? org.specializations
-            : ["therapy", "surgery"]
-        ) as string[]; // Cast to string[]
-
-        type ServiceCategory =
-          | "consultation"
-          | "therapy"
-          | "surgery"
-          | "prosthetics"
-          | "orthodontics"
-          | "periodontology"
-          | "hygiene"
-          | "imaging"
-          | "documents"
-          | "other";
-        const allServices: {
-          organizationId: string;
-          code: string;
-          title: string;
-          basePriceRub: number;
-          priceRub: number;
-          category: ServiceCategory;
-        }[] = [
-          {
-            organizationId,
-            code: "A16.07.000",
-            title: "Установка имплантата Osstem",
-            basePriceRub: 45000,
-            priceRub: 45000,
-            category: "surgery",
-          },
-          {
-            organizationId,
-            code: "A16.07.001",
-            title: "Удаление зуба (простое)",
-            basePriceRub: 2500,
-            priceRub: 2500,
-            category: "surgery",
-          },
-          {
-            organizationId,
-            code: "A16.07.002",
-            title: "Лечение кариеса (поверхностный)",
-            basePriceRub: 3500,
-            priceRub: 3500,
-            category: "therapy",
-          },
-          {
-            organizationId,
-            code: "A16.07.008",
-            title: "Лечение пульпита (3 канала)",
-            basePriceRub: 12000,
-            priceRub: 12000,
-            category: "therapy",
-          },
-          {
-            organizationId,
-            code: "A16.07.051",
-            title: "Профессиональная гигиена",
-            basePriceRub: 5000,
-            priceRub: 5000,
-            category: "therapy",
-          },
-          {
-            organizationId,
-            code: "A16.07.052",
-            title: "Установка брекет-системы",
-            basePriceRub: 80000,
-            priceRub: 80000,
-            category: "orthodontics",
-          },
-          {
-            organizationId,
-            code: "A16.07.053",
-            title: "Коронка из диоксида циркония",
-            basePriceRub: 25000,
-            priceRub: 25000,
-            category: "prosthetics",
-          },
-          {
-            organizationId,
-            code: "A16.07.054",
-            title: "Лечение молочного зуба",
-            basePriceRub: 3000,
-            priceRub: 3000,
-            category: "therapy",
-          },
-        ];
-
-        // Filter based on selected specs (or map category to specs)
-        const categoryToSpec: Record<string, string> = {
-          surgery: "surgery",
-          therapy: "therapy",
-          orthodontics: "orthodontics",
-          prosthetics: "orthopedics",
-        };
-        const filteredServices = allServices.filter((s) =>
-          specs.includes(categoryToSpec[s.category] || s.category),
-        );
-
-        if (filteredServices.length > 0) {
-          // Seed price list
-          const insertedServices = await db
-            .insert(schema.serviceCatalogItems)
-            .values(filteredServices)
-            .returning({
-              id: schema.serviceCatalogItems.id,
-              title: schema.serviceCatalogItems.title,
-            });
-
-          const serviceMap = Object.fromEntries(
-            insertedServices.map((s) => [s.title, s.id]),
-          );
-
-          const allTemplates = [
-            {
-              organizationId,
-              title: "Установка имплантата Osstem",
-              category: "surgery" as const,
-              prefilledAnamnesis:
-                "Отсутствие зуба, нарушение жевательной функции.",
-              prefilledObjective:
-                "В области отсутствующего зуба слизистая оболочка без видимых патологических изменений. Костная ткань в достаточном объеме.",
-              prefilledTreatment:
-                "Анестезия инфильтрационная, разрез, отслаивание лоскута, формирование ложа, установка имплантата Osstem, наложение швов.",
-              defaultIcd10: "K08.1",
-              defaultIcd10Label: "Потеря зубов вследствие удаления",
-              isBuiltIn: true,
-              suggestedProcedureIds: [
-                serviceMap["Установка имплантата Osstem"],
-              ].filter(Boolean),
-            },
-            {
-              organizationId,
-              title: "Лечение пульпита (3 канала)",
-              category: "therapy" as const,
-              prefilledAnamnesis:
-                "Самопроизвольные ноющие боли, усиливающиеся в ночное время.",
-              prefilledObjective:
-                "Глубокая кариозная полость, сообщающаяся с полостью зуба. Зондирование резко болезненно, перкуссия безболезненная.",
-              prefilledTreatment:
-                "Анестезия, препарирование кариозной полости, экстирпация пульпы, механическая и медикаментозная обработка 3-х корневых каналов, пломбирование каналов гуттаперчей, постановка постоянной пломбы.",
-              defaultIcd10: "K04.0",
-              defaultIcd10Label: "Пульпит",
-              isBuiltIn: true,
-              suggestedProcedureIds: [
-                serviceMap["Лечение пульпита (3 канала)"],
-              ].filter(Boolean),
-            },
-            {
-              organizationId,
-              title: "Лечение кариеса",
-              category: "therapy" as const,
-              prefilledAnamnesis:
-                "Жалобы на кратковременную боль от сладкого и холодного.",
-              prefilledObjective:
-                "Кариозная полость в пределах плащевого дентина. Зондирование чувствительно по эмалево-дентинной границе.",
-              prefilledTreatment:
-                "Анестезия, препарирование кариозной полости, медикаментозная обработка, адгезивный протокол, постановка светоотверждаемой пломбы, шлифовка, полировка.",
-              defaultIcd10: "K02.1",
-              defaultIcd10Label: "Кариес дентина",
-              isBuiltIn: true,
-              suggestedProcedureIds: [
-                serviceMap["Лечение кариеса (поверхностный)"],
-              ].filter(Boolean),
-            },
-          ];
-
-          const filteredTemplates = allTemplates.filter((t) =>
-            specs.includes(categoryToSpec[t.category] || t.category),
-          );
-
-          if (filteredTemplates.length > 0) {
-            // Seed templates
-            await db.insert(schema.visitTemplates).values(filteredTemplates);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("[workspace onboarding] async seeding error:", err);
-    }
-
-    return reply.send({ success: true });
-  });
+  /*
+   * ЗДЕСЬ СТОЯЛ POST /api/workspace/onboarding/complete — 370 строк без единого
+   * писателя. УДАЛЁН, и вот чем он был опасен, пока лежал.
+   *
+   * КТО ЕГО ЗВАЛ. Никто. Его единственным клиентом был семишаговый мастер
+   * первого запуска — недостижимая копия живого мастера, удалённая вместе со
+   * своим поддеревом (разбор: apps/web/src/tests/panelsAreMounted.test.ts).
+   * После этого поиск по всему репозиторию не находил ни одного вызова: ни в
+   * apps/web, ни в скриптах, ни в смоук-прогонах. Живой мастер первого запуска
+   * (App.tsx) этого адреса не знает вовсе и никогда не знал.
+   *
+   * ПОЧЕМУ НЕЛЬЗЯ БЫЛО ОСТАВИТЬ КАК ЕСТЬ. Маршрут был зарегистрирован и доступен
+   * по токену кабинета, а его тело делало три вещи, каждая из которых портит
+   * настроенную клинику:
+   *
+   *   1. `name: payload.name || payload.legal?.name || "Клиника DENTE"`.
+   *      Поля `name` в нагрузке не было ни у одного клиента, а `legal` — это
+   *      { inn, ogrn, address } без имени. То есть УСПЕШНЫЙ вызов переименовывал
+   *      клинику в «Клиника DENTE».
+   *
+   *   2. `clinicSchedule: { workHours, specs }` — ЗАМЕНА всей колонки
+   *      organizations.clinic_schedule устаревшей раскладкой. Достижимый экран
+   *      настроек пишет туда другой формат
+   *      ({ workdayStart, workdayEnd, workingDays, appointmentBufferMinutes },
+   *      db/settingsQuery.ts), и именно его читает публичный виджет записи
+   *      (routes/publicBooking.ts). Вызов маршрута стирал график клиники, а
+   *      чтение настроек не разбирает старую раскладку вовсе
+   *      (clinicScheduleDefaultsSchema) — то есть клиника с графиком 8–20 молча
+   *      возвращалась к запасу 09:00–18:00 и теряла утренние и вечерние слоты в
+   *      публичной записи. Ровно тот дефект, который только что починен и закрыт
+   *      прогоном tests/routes/publicBookingWorkHoursProof.ts: маршрут был
+   *      кнопкой «отменить эту починку».
+   *
+   *   3. `catch` транзакции писал в журнал, обновлял один updatedAt и отвечал
+   *      `{ success: true }`. Плюс `setTimeout` на 1,5 секунды «для красивого
+   *      экрана загрузки» — задержка сервера ради анимации клиента.
+   *
+   * ЗАМЕНА ПОКАЗАНА ПО КАЖДОЙ ЕГО ЧАСТИ — без этого удалять было нельзя:
+   *   название, ИНН, ОГРН, юридический адрес → Настройки → «Клиника»
+   *     (updateClinicProfileInDb, routes/settings.ts);
+   *   график клиники → Настройки → «Клиника», начало и окончание рабочего дня и
+   *     отметки рабочих дней (db/settingsQuery.ts, единственный писатель колонки
+   *     после этого удаления);
+   *   режим клиники → Настройки → «Клиника», выбор режима прямо
+   *     (routes/settings.ts). Маршрут ВЫВОДИЛ режим из числа кресел, и это была
+   *     догадка: про филиалы он не спрашивал вовсе. Ручной выбор точнее;
+   *   сотрудники → Настройки → «Сотрудники» (POST /api/settings/staff), включая
+   *     телефон; ставка врача — на экране выплат
+   *     (PUT /api/settings/staff/:staffId/commission);
+   *   кресла → Настройки → «Клиника», «Кресла и кабинеты»
+   *     (POST /api/settings/chairs), с названием и графиком на каждое кресло
+   *     против безымянного «Кресло N» здесь;
+   *   прайс и шаблоны приёма → у обоих появился достижимый писатель
+   *     (вкладка «Прайс» и раздел протоколов). Засев жёстко зашитым списком
+   *     услуг здесь игнорировал выбор клиники: в асинхронной части стояло
+   *     `const specs = ["therapy", "surgery"]` вместо присланного набора.
+   *
+   * Вместе с маршрутом удалены clinicModeFromOnboarding и OnboardingScale: после
+   * снятия единственного вызова это была бы протестированная мёртвая функция.
+   * Инвариант «у колонки clinic_schedule один писатель и один формат» закреплён
+   * прогоном tests/clinicScheduleSingleWriter.test.ts — иначе следующий писатель
+   * повторит пункт 2.
+   */
 }

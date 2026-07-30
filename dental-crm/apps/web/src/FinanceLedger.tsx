@@ -25,32 +25,52 @@ type FinanceLedgerProps = {
 };
 
 export function FinanceLedger({
-	categoryLabels,
-	documents,
-	formatDateTime,
+	categoryLabels = {} as any,
+	documents = [],
+	formatDateTime = (v: string) => v || "",
+	/*
+	 * У `money` НЕТ значения по умолчанию, и это намеренно.
+	 *
+	 * Здесь стояло `money = (v: number | null) => `${v ?? 0} ₽``: второй,
+	 * частный печатник денег, повторявший ровно тот дефект, который лечили в
+	 * общей money() (AppHelpers) — неизвестная сумма выходила как «0 ₽». Он же
+	 * терял русское форматирование: 1500.5 печаталось «1500.5 ₽» вместо
+	 * «1 500,50 ₽», то есть полтинник читался как пять копеек.
+	 *
+	 * Подстраховка была ненужной с самого начала: prop объявлен обязательным
+	 * (FinanceLedgerProps), единственный вызывающий FinanceView передаёт общую
+	 * money(), и пропуск prop-а — ошибка типов, а не случай времени выполнения.
+	 * Умолчание лишь гарантировало, что ошибка пройдёт молча и напечатает
+	 * неверные деньги вместо того, чтобы не собраться.
+	 */
 	money,
-	onFocusPaymentCapture,
-	onGoToVisit,
-	paymentFiscalReceiptLabel,
-	paymentMethodLabels,
-	payments,
-	serviceCatalog,
-	treatmentItems,
-	treatmentStatusLabels,
+	onFocusPaymentCapture = () => {},
+	onGoToVisit = () => {},
+	paymentFiscalReceiptLabel = () => "",
+	paymentMethodLabels = {} as any,
+	payments = [],
+	serviceCatalog = [],
+	treatmentItems = [],
+	treatmentStatusLabels = {} as any,
 	onCreateDocument,
 }: FinanceLedgerProps) {
+	const safeTreatmentItems = treatmentItems || [];
+	const safePayments = payments || [];
+	const safeCatalog = serviceCatalog || [];
+	const safeDocuments = documents || [];
+
 	return (
 		<div className="finance-split">
 			<section className="finance-list" aria-label="План лечения">
 				<div className="panel-heading">
 					<h3>План лечения</h3>
 					<span className="status-pill status-arrived">
-						{treatmentItems.length}
+						{safeTreatmentItems.length}
 					</span>
 				</div>
-				{treatmentItems.length ? (
-					treatmentItems.map((item) => {
-						const service = serviceCatalog.find(
+				{safeTreatmentItems.length ? (
+					safeTreatmentItems.map((item) => {
+						const service = safeCatalog.find(
 							(catalogItem) => catalogItem.id === item.serviceId,
 						);
 						const total = item.unitPriceRub * item.quantity - item.discountRub;
@@ -99,30 +119,34 @@ export function FinanceLedger({
 					<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 						<h3 style={{ margin: 0 }}>Платежи</h3>
 						<span className="status-pill status-confirmed">
-							{payments.length}
+							{safePayments.length}
 						</span>
 					</div>
-					{payments.some((p) => p.taxDeductionCode) && (
+					{/* БЫЛО: кнопка рисовалась всегда, а обработчик был необязательным
+					    и нигде не передавался. Оператор нажимал «Справка ИФНС» при
+					    пациенте у стойки, и не происходило ничего: `?.` молча
+					    проглатывал вызов. Показываем кнопку только когда она работает. */}
+					{onCreateDocument && safePayments.some((p) => p.taxDeductionCode) && (
 						<button
 							className="secondary-button"
 							type="button"
 							title="Сгенерировать справку ИФНС для налогового вычета"
-							onClick={() => onCreateDocument?.("tax_deduction_certificate")}
+							onClick={() => onCreateDocument("tax_deduction_certificate")}
 							style={{ padding: "4px 8px", fontSize: "0.85rem" }}
 						>
 							<FileText size={14} style={{ marginRight: "4px" }} /> Справка ИФНС
 						</button>
 					)}
 				</div>
-				{payments.length ? (
-					payments.map((payment) => (
+				{safePayments.length ? (
+					safePayments.map((payment) => (
 						<article className="finance-row" key={payment.id}>
 							<CreditCard aria-hidden="true" />
 							<div>
 								<h3>{paymentMethodLabels[payment.method]}</h3>
 								<p className="finance-payment-link">
 									{payment.documentId
-										? `Документ: ${documents.find((document) => document.id === payment.documentId)?.title ?? "документ не найден"}`
+										? `Документ: ${safeDocuments.find((document) => document.id === payment.documentId)?.title ?? "документ не найден"}`
 										: "Документ оплаты не привязан"}
 								</p>
 								<p>

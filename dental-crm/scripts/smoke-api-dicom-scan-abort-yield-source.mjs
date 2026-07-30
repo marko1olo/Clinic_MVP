@@ -1,4 +1,4 @@
-﻿import { readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 
 const imagingSource = await readFile("apps/api/src/routes/imaging.ts", "utf8");
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
@@ -12,6 +12,19 @@ function assertIncludes(source, marker, label) {
 function assertNotIncludes(source, marker, label) {
 	if (source.includes(marker)) {
 		throw new Error(`${label} still includes forbidden marker: ${marker}`);
+	}
+}
+
+function assertMatches(source, pattern, label) {
+	if (!pattern.test(source)) {
+		throw new Error(`${label} missing pattern: ${pattern}`);
+	}
+}
+
+function assertNoMatch(source, pattern, label) {
+	const found = source.match(pattern);
+	if (found) {
+		throw new Error(`${label} forbidden pattern hit: ${found[0].trim()}`);
 	}
 }
 
@@ -93,9 +106,32 @@ function assertNotIncludes(source, marker, label) {
 	"discoverLocalDicomFolders(input: DicomLocalFolderDiscoveryRequest, options: ApiDicomScanOptions = {})",
 	"organizeLocalImagingSources(input: LocalImagingOrganizerRequest, options: ApiDicomScanOptions = {})",
 	"buildDicomFolderSeriesPreview(input: {",
-	"buildDicomFolderWorkupPlan(input: DicomFolderWorkupPlanRequest, options: ApiDicomScanOptions = {})",
 ].forEach((marker) =>
 	assertIncludes(imagingSource, marker, "API DICOM scan helper threading"),
+);
+
+/*
+ * ПРЕДМЕТ ЗДЕСЬ — ПРОБРОС СИГНАЛА ОТМЕНЫ, А НЕ ФОРМА СПИСКА АРГУМЕНТОВ.
+ *
+ * Раньше эти три требования были дословными подстроками одной строки, например
+ * "buildDicomFolderWorkupPlan(input: DicomFolderWorkupPlanRequest, options:
+ * ApiDicomScanOptions = {})". Они покраснели от двух безобидных изменений:
+ *   1) у помощников появился третий параметр organizationId (разбор папки от
+ *      имени вызывающей клиники, а не «первой строки таблицы organizations»);
+ *   2) Biome перенёс подписи и вызовы на несколько строк.
+ * Проброс options никуда не делся: apps/api/src/routes/imaging.ts:6179-6182
+ * (подпись), :6184 и :6442 (buildDicomFolderSeriesPreview(input, options, …)),
+ * :6469 (buildDicomFolderWorkupPlan(input, options, workupOrgId)).
+ *
+ * Образцы закрепляют СВЯЗЬ «имя помощника → options на своём месте», допускают
+ * перенос строк и следующий за options аргумент, но НЕ допускают исчезновение
+ * самого options: без него AbortSignal до обхода папки не доходит и «Остановить»
+ * перестаёт останавливать.
+ */
+assertMatches(
+	imagingSource,
+	/buildDicomFolderWorkupPlan\(\s*input:\s*DicomFolderWorkupPlanRequest,\s*options:\s*ApiDicomScanOptions\s*=\s*\{\}\s*[,)]/,
+	"API DICOM scan helper threading",
 );
 
 [
@@ -104,9 +140,7 @@ function assertNotIncludes(source, marker, label) {
 	"await buildDicomHeaderManifest(",
 	"discoverLocalDicomFolders(input, options)",
 	"organizeLocalImagingSources(input, options)",
-	"buildDicomFolderSeriesPreview(input, options)",
 	"buildDicomFirstFramePreview(input, options)",
-	"buildDicomFolderWorkupPlan(input, options)",
 ].forEach((marker) =>
 	assertIncludes(
 		imagingSource,
@@ -114,6 +148,44 @@ function assertNotIncludes(source, marker, label) {
 		"API DICOM scan callsite signal propagation",
 	),
 );
+
+/* Те же два вызова, что и выше: options обязан оставаться вторым аргументом,
+ * organizationId после него разрешён. */
+for (const pattern of [
+	/buildDicomFolderSeriesPreview\(\s*input,\s*options\s*[,)]/,
+	/buildDicomFolderWorkupPlan\(\s*input,\s*options\s*[,)]/,
+]) {
+	assertMatches(
+		imagingSource,
+		pattern,
+		"API DICOM scan callsite signal propagation",
+	);
+}
+
+/*
+ * КАЖДЫЙ ВЫЗОВ, А НЕ ХОТЯ БЫ ОДИН. Требование выше выполняется первым же
+ * совпадением, и у buildDicomFolderSeriesPreview вызовов ДВА (imaging.ts:6184 и
+ * :6442). Найдено искусственной поломкой: если снять options только с одного
+ * вызова, второй держит требование зелёным в одиночку, и маршрут без проброса
+ * сигнала уезжает молча — «Остановить» на нём перестаёт останавливать обход папки.
+ * Отрицательные образцы ловят ровно это: вызов с input первым аргументом и
+ * чем угодно кроме options вторым.
+ *
+ * Проверка «нет пробела перед options» стоит ВНУТРИ опережающей проверки, сразу
+ * за запятой. Если написать \s*(?!options), движок откатит \s* на ноль символов и
+ * увидит впереди " options" — строку, которая с "options" не начинается; образец
+ * тогда срабатывает на исправном коде. Так и вышло с первой попытки.
+ */
+for (const pattern of [
+	/buildDicomFolderSeriesPreview\(\s*input,(?!\s*options)[^)]{0,60}/,
+	/buildDicomFolderWorkupPlan\(\s*input,(?!\s*options)[^)]{0,60}/,
+]) {
+	assertNoMatch(
+		imagingSource,
+		pattern,
+		"API DICOM scan callsite must thread scan options at every callsite",
+	);
+}
 
 [
 	'const canUseWorker = renderPlan.useWebWorker && renderPlan.textureStrategy !== "external_viewer"',

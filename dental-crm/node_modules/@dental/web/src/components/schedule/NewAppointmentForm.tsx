@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { Appointment, Dashboard } from "@dental/shared";
 import { Plus, Bot } from "lucide-react";
+import { appointmentScheduleMissingFields, type AppointmentScheduleDraft } from "../../AppHelpers";
 import { smartBookingParser } from "../../lib/smartBookingParser";
 import { DictationHints } from "../../DictationHints";
 import { SmartParsePreview } from "../../SmartParsePreview";
@@ -22,6 +23,20 @@ export type NewAppointmentFormProps = {
   fromDateTimeLocalValue: (value: string, timeZone?: string | null) => string;
   useManualSelects: boolean;
   setUseManualSelects: (val: boolean) => void;
+  /**
+   * Раскрыта ли форма со всеми полями. Живёт СНАРУЖИ, в ScheduleView, и это не
+   * стилистика.
+   *
+   * БЫЛО: признак был внутренним состоянием этого компонента, а снаружи лежала
+   * его мёртвая копия. «Повторить» у записи и «Записать на приём» из листа
+   * ожидания заполняли черновик и дёргали ту копию — на экране не менялось
+   * НИЧЕГО. Администратор нажимал «Повторить», видел прежнее расписание и
+   * считал кнопку сломанной, а черновик тем самым молча набирался: кнопка
+   * «Создать запись» рядом становилась активной, и запись уходила в базу с
+   * датой (через неделю), которую человек ни разу не видел на экране.
+   */
+  showCreateForm: boolean;
+  setShowCreateForm: (value: boolean) => void;
 };
 
 export function NewAppointmentForm(props: NewAppointmentFormProps) {
@@ -37,133 +52,94 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
     toDateTimeLocalValue,
     fromDateTimeLocalValue,
     useManualSelects,
-    setUseManualSelects
+    setUseManualSelects,
+    showCreateForm,
+    setShowCreateForm
   } = props;
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [smartInputText, setSmartInputText] = useState("");
   const [showSmartPreview, setShowSmartPreview] = useState(false);
   const [smartParsedData, setSmartParsedData] = useState<unknown>(null);
   const [showHints, setShowHints] = useState(false);
+  /*
+    Чего надиктованная фраза требует, а форма создания записи сделать не может.
+    Раньше таких случаев не существовало на экране: их молча превращали в
+    черновик новой записи. Разбор помнится строкой, а не готовым текстом,
+    чтобы текст жил в разметке рядом с остальными подсказками.
+  */
+  const [smartActionNote, setSmartActionNote] = useState<{
+    kind: "cancel" | "reschedule" | "newPatient";
+    /** Что именно распознано. Нужно потому, что строку ввода после применения стирают. */
+    patientName: string;
+    patientPhone: string;
+  } | null>(null);
 
-  const newAppointmentStartsAtMs = Date.parse(newAppointmentDraft.startsAt as string);
-  const newAppointmentEndsAtMs = Date.parse(newAppointmentDraft.endsAt as string);
-  const newAppointmentMissingSteps = [
-    !newAppointmentDraft.patientId ? "выберите пациента" : null,
-    !newAppointmentDraft.doctorUserId ? "выберите врача" : null,
-    dashboard.clinicSettings.profile.mode !== "solo_doctor" && (dashboard.clinicSettings?.staff ?? []).some(s => s.role === "assistant" && s.active) && !newAppointmentDraft.assistantUserId ? "выберите ассистента" : null,
-    !newAppointmentDraft.chairId ? "выберите кресло" : null,
-    !String(newAppointmentDraft.startsAt || '').trim() ? "Укажите начало приема" : null,
-    String(newAppointmentDraft.startsAt || '').trim() && !Number.isFinite(newAppointmentStartsAtMs) ? "Проверьте время начала" : null,
-    !String(newAppointmentDraft.endsAt || '').trim() ? "Укажите окончание приема" : null,
-    String(newAppointmentDraft.endsAt || '').trim() && !Number.isFinite(newAppointmentEndsAtMs) ? "Проверьте время окончания" : null,
-    Number.isFinite(newAppointmentStartsAtMs) && Number.isFinite(newAppointmentEndsAtMs) && newAppointmentEndsAtMs <= newAppointmentStartsAtMs
-      ? "окончание должно быть позже начала"
-      : null
-  ].filter((step): step is string => Boolean(step));
+  /*
+    Правило «чего не хватает записи» одно на всё приложение и лежит в
+    appointmentScheduleMissingFields. Здесь была четвёртая по счёту копия
+    того же перечня — со своими формулировками («Проверьте время начала»
+    против «проверьте дату начала»), из-за чего подсказка у кнопки и текст
+    ошибки при сохранении говорили по-разному об одном и том же. И ни одна из
+    копий не различала «не выбрано» от «в клинике вообще нет»: клиника без
+    кресел получала указание «выберите кресло» при пустом списке.
+  */
+  const newAppointmentMissingSteps = appointmentScheduleMissingFields(
+    newAppointmentDraft as AppointmentScheduleDraft,
+    dashboard.clinicSettings.profile.mode,
+    dashboard.clinicSettings?.staff,
+    { chairs: dashboard.clinicSettings?.chairs, patients: dashboard.patients }
+  );
   const newAppointmentReadyToCreate = newAppointmentMissingSteps.length === 0;
+
+  /**
+   * Что сказать человеку, если запись не создалась. Сервер не всегда присылает
+   * текст, а состояние «error» без объяснения — это та же пустота, из-за которой
+   * кнопку жмут повторно.
+   */
+  const createFailureText =
+    newAppointmentError ||
+    (newAppointmentSaveState === "error"
+      ? "Запись не создана: сервер отказал и причины не назвал. Проверьте, что программа клиники запущена и есть сеть, затем повторите."
+      : null);
 
   return (
     <div className="appointment-create-wrapper" aria-label="Создание записи">
-      <div className="appointment-create-editor" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}>
-        <input
-          type="datetime-local"
-          value={toDateTimeLocalValue(newAppointmentDraft.startsAt as string, dashboard.clinicSettings.profile.timezone)}
-          onChange={(event) => updateNewAppointmentDraft("startsAt", fromDateTimeLocalValue(event.target.value, dashboard.clinicSettings.profile.timezone))}
-        />
-        <input
-          type="datetime-local"
-          value={toDateTimeLocalValue(newAppointmentDraft.endsAt as string, dashboard.clinicSettings.profile.timezone)}
-          onChange={(event) => updateNewAppointmentDraft("endsAt", fromDateTimeLocalValue(event.target.value, dashboard.clinicSettings.profile.timezone))}
-        />
-        <select
-          value={newAppointmentDraft.patientId || ''}
-          onChange={(e) => updateNewAppointmentDraft('patientId', e.target.value)}
-        >
-          <option value="">-- Выберите пациента --</option>
-          {(dashboard.patients ?? []).map(p => (
-            <option key={p.id} value={p.id}>{p.fullName}</option>
-          ))}
-        </select>
-        <select
-          value={newAppointmentDraft.doctorUserId || ''}
-          onChange={(e) => updateNewAppointmentDraft('doctorUserId', e.target.value)}
-        >
-          <option value="">-- Выберите врача --</option>
-          {(dashboard.clinicSettings?.staff ?? []).map(m => (
-            <option key={m.id} value={m.id}>{m.fullName}</option>
-          ))}
-        </select>
-        <select
-          value={newAppointmentDraft.assistantUserId || ''}
-          onChange={(e) => updateNewAppointmentDraft('assistantUserId', e.target.value)}
-        >
-          <option value="">-- Выберите ассистента --</option>
-          <option value="">-- Нет ассистента --</option>
-          {(dashboard.clinicSettings?.staff ?? []).map(m => (
-            <option key={m.id} value={m.id}>{m.fullName}</option>
-          ))}
-        </select>
-        <select
-          value={newAppointmentDraft.chairId || ''}
-          onChange={(e) => updateNewAppointmentDraft('chairId', e.target.value)}
-        >
-          <option value="">-- Выберите кресло --</option>
-          {(dashboard.clinicSettings?.chairs ?? []).map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select
-          value={newAppointmentDraft.status || ''}
-          onChange={(e) => updateNewAppointmentDraft('status', e.target.value)}
-        >
-          {Object.keys(appointmentLabels).map(status => (
-            <option key={status} value={status}>{appointmentLabels[status as Appointment["status"]]}</option>
-          ))}
-        </select>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <input
-            type="text"
-            placeholder="Услуга / Причина (например: Кариес, Осмотр)"
-            value={newAppointmentDraft.reason}
-            onChange={(event) => updateNewAppointmentDraft("reason", event.target.value)}
-          />
-          <div className="chip-templates-row">
-            {["Осмотр", "Кариес", "Пульпит", "Профгигиена", "Удаление", "Консультация", "Снятие швов"].map(t => (
-              <button 
-                key={t} 
-                type="button" 
-                className="chip-template-button" 
-                onClick={() => updateNewAppointmentDraft("reason", t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-        <textarea
-          placeholder="Комментарий (опционально)"
-          value={newAppointmentDraft.comment}
-          onChange={(event) => updateNewAppointmentDraft("comment", event.target.value)}
-        />
-        <div className="appointment-editor-actions">
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => void createAppointmentFromDraft()}
-          >
-            Сохранить новую запись
-          </button>
-        </div>
-      </div>
-      <div className="smart-ai-booking mb-3 border border-sky-300 dark:border-sky-800 rounded-xl p-3 bg-white dark:bg-slate-900 flex flex-col gap-3 shadow-sm text-slate-900 dark:text-slate-100">
+      {/*
+        ЗДЕСЬ БЫЛА ВТОРАЯ, НЕВИДИМАЯ ФОРМА СОЗДАНИЯ ЗАПИСИ (.appointment-create-editor:
+        position absolute, opacity 0, ширина и высота 0). Убрана целиком, и вот почему.
+
+        1. Она оставалась в порядке обхода по Tab: opacity и нулевой размер фокус не
+           отключают. Администратор, работающий с клавиатуры, проваливался в восемь
+           полей, которых на экране нет, — программа чтения с экрана при этом
+           зачитывала «Начало записи», «Выберите пациента» и так далее.
+        2. Её кнопка «Сохранить новую запись» вызывала создание записи БЕЗ проверки
+           заполненности (в видимой форме та же кнопка заперта, пока не хватает
+           пациента, врача, кресла или времени). Нажатие пробелом на невидимой кнопке
+           отправляло на сервер недособранный черновик.
+        3. Все её поля дублируют видимую форму ниже, то есть это был второй путь
+           записи пациента в базу — с другим набором правил.
+        4. Ради неё же существовал маленький обман в справке: комментарий уверял, что
+           фокус сюда переводят намеренно. Это перестало быть правдой — focus-логика
+           в ScheduleView давно выбирает только ВИДИМЫЕ элементы управления.
+
+        Осиротевшее правило `.appointment-create-editor { margin: 12px 0 }` в
+        styles/main.css не тронуто: чужой файл, снимает ведущий.
+      */}
+      <div className="smart-ai-booking" style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px", marginBottom: "12px", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "var(--shadow-1)", color: "var(--ink)" }}>
         <div className="flex items-center gap-2">
-          <Bot size={18} className="text-sky-600 dark:text-sky-400" />
-          <h4 className="font-semibold text-sm text-sky-600 dark:text-sky-400">Умное бронирование голосом или текстом (AI)</h4>
+          <Bot size={18} className="text-sky-600 dark:text-sky-400 shrink-0" />
+          {/*
+            Латиница «(AI)» убрана: на русском экране она ничего не объясняет, а
+            подсказка в поле («Например: Петров на чистку завтра в 12:30») и так
+            показывает, что писать можно словами. Администратору важно название
+            способа, а не название технологии.
+          */}
+          <h4 className="font-semibold text-sm text-sky-600 dark:text-sky-400 m-0 leading-snug">Записать словами: скажите или впишите</h4>
         </div>
-        <div style={{ position: 'relative', flex: 1 }}>
+        <div className="relative flex-1">
           <input
             type="text"
+            aria-label="Записать словами: скажите или впишите"
             value={smartInputText}
             placeholder="Например: Петров на чистку завтра в 12:30 (Нажмите Enter)"
             onFocus={() => setShowHints(true)}
@@ -174,11 +150,13 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
                 e.preventDefault();
                 const parsed = smartBookingParser(smartInputText, dashboard);
                 setSmartParsedData(parsed);
+                // Подсказка от прошлой фразы к новой не относится и снимается.
+                setSmartActionNote(null);
                 setShowSmartPreview(true);
                 setShowHints(false);
               }
             }}
-            className="w-full p-3 pr-12 rounded-lg border border-slate-300 dark:border-slate-700 text-base outline-none bg-white dark:bg-slate-800"
+            className="w-full p-3 pr-12 rounded-lg border border-slate-300 dark:border-slate-700 text-base outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-600 focus:border-transparent transition-all"
           />
           <SmartMicrophoneButton
             context="schedule"
@@ -186,6 +164,8 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
               setSmartInputText(text);
               const parsed = smartBookingParser(text, dashboard);
               setSmartParsedData(parsed);
+              // Подсказка от прошлой фразы к новой не относится и снимается.
+              setSmartActionNote(null);
               setShowSmartPreview(true);
               setShowHints(false);
             }}
@@ -198,9 +178,74 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             rawText={smartInputText}
             type="schedule"
             onApply={(data: Record<string, string> | null) => {
+              /*
+                ОТМЕНА И ПЕРЕНОС — ЭТО НЕ СОЗДАНИЕ ЗАПИСИ.
+
+                ЧТО БЫЛО СЛОМАНО. Разбор фразы возвращает поле action со
+                значениями "create" | "cancel" | "reschedule"
+                (lib/smartBookingParser.ts), и предпросмотр честно рисует его
+                человеку: красная плашка «ОТМЕНА ЗАПИСИ», синяя «ПЕРЕНОС
+                ЗАПИСИ» (SmartParsePreview.tsx). Здесь это поле не читали
+                ВООБЩЕ. Любое применение набивало черновик НОВОЙ записи и
+                раскрывало форму создания.
+
+                ЧТО ВИДЕЛ АДМИНИСТРАТОР. Говорит в микрофон «отмени Петрова на
+                завтра в 14:00», на экране красным «ОТМЕНА ЗАПИСИ» и «Пациент:
+                Найдено в базе», нажимает «Применить» — и отмены не происходит:
+                запись остаётся в расписании, а рядом стоит заряженная кнопка
+                «Создать запись» с тем же Петровым. Нажатие давало ВТОРУЮ
+                запись вместо отмены первой. Пациент, который отменил приём,
+                остаётся в списке на обзвон и числится ожидаемым; его время
+                администратор никому не отдаёт, потому что видит его занятым.
+
+                ЧТО СТАЛО. Черновик создания больше не набивается по фразе
+                отмены и переноса. Экран прямо говорит, что распознано и где
+                это делается, а надиктованный текст НЕ стирается: человек
+                должен видеть, что он сказал, чтобы не диктовать заново.
+
+                ДОЛГ. Довести отмену и перенос до самой записи одним движением
+                (найти приём и открыть его редактор) — следующим шагом, здесь
+                нет ни списка приёмов, ни openAppointmentEditor.
+              */
+              const parsedAction = String(data?.action ?? "create");
+              const parsedPatientName = String(data?.patientName ?? "");
+              const parsedPatientPhone = String(data?.patientPhone ?? "");
+              if (parsedAction === "cancel" || parsedAction === "reschedule") {
+                setSmartActionNote({
+                  kind: parsedAction === "cancel" ? "cancel" : "reschedule",
+                  patientName: parsedPatientName,
+                  patientPhone: parsedPatientPhone
+                });
+                setShowSmartPreview(false);
+                return;
+              }
+              /*
+                НАДИКТОВАННЫЙ НОВЫЙ ПАЦИЕНТ ИСЧЕЗАЛ БЕЗ СЛЕДА. Разбор умеет
+                вытащить из фразы имя и телефон человека, которого в базе ещё
+                нет (patientName / patientPhone), и предпросмотр показывает их
+                строкой «Пациент (ИИ): Сидоров Иван». Применить их было некуда:
+                в черновике записи есть только patientId — ссылка на карту,
+                которой у нового человека нет. Имя и телефон просто пропадали,
+                а внизу формы появлялось «выберите пациента», и администратор
+                не понимал, куда делся продиктованный им человек.
+                Заводить карту отсюда нельзя: создание пациента живёт в разделе
+                «Пациенты», выдумывать второй путь в базу — хуже потери. Поэтому
+                прямо говорим, что распознано и что сделать.
+              */
+              setSmartActionNote(
+                !data?.patientId && parsedPatientName
+                  ? { kind: "newPatient", patientName: parsedPatientName, patientPhone: parsedPatientPhone }
+                  : null
+              );
               if (data) {
                 if (data.patientId) updateNewAppointmentDraft("patientId", data.patientId);
                 if (data.doctorUserId) updateNewAppointmentDraft("doctorUserId", data.doctorUserId);
+                /*
+                  Ассистент распознаётся («с медсестрой Ивановой»), но раньше
+                  здесь терялся молча: в предпросмотре его нет, в черновик он
+                  не попадал. Поле в черновике есть, переносим.
+                */
+                if (data.assistantUserId) updateNewAppointmentDraft("assistantUserId", data.assistantUserId);
                 if (data.startsAt) updateNewAppointmentDraft("startsAt", data.startsAt);
                 if (data.endsAt) updateNewAppointmentDraft("endsAt", data.endsAt);
                 if (data.reason || data.service) updateNewAppointmentDraft("reason", (data.reason || data.service) ?? "");
@@ -218,46 +263,155 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             onClose={() => setShowSmartPreview(false)}
           />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {smartActionNote ? (
+          /*
+            Что распознано и где это делается. Класс schedule-create-missing —
+            тот же, которым форма перечисляет нехватку полей, чтобы подсказка
+            выглядела как остальные подсказки, а не как новый вид сообщения.
+            role="status" и aria-live: сообщение появляется после нажатия, а не
+            при загрузке, — программа чтения с экрана должна его прочитать.
+          */
+          <div className="schedule-create-missing" id="smart-booking-action-note" role="status" aria-live="polite">
+            {smartActionNote.kind === "cancel" ? (
+              <>
+                <strong>Это отмена записи, а не новая запись.</strong>
+                <p>
+                  Отменить приём отсюда нельзя: эта форма только записывает. Найдите нужный приём в
+                  расписании ниже, нажмите на нём «Изменить», в строке «Статус» выберите «Отменён» и
+                  нажмите «Сохранить запись». Освободившееся время сразу станет свободным окном.
+                </p>
+              </>
+            ) : smartActionNote.kind === "reschedule" ? (
+              <>
+                <strong>Это перенос записи, а не новая запись.</strong>
+                <p>
+                  Переносить приём нужно на нём самом, иначе у пациента окажется два приёма вместо
+                  одного. Найдите приём в расписании ниже, нажмите «Изменить», поставьте новые
+                  «Начало» и «Окончание» и нажмите «Сохранить запись».
+                </p>
+              </>
+            ) : (
+              <>
+                <strong>
+                  Такого пациента в базе нет{smartActionNote.patientName ? `: ${smartActionNote.patientName}` : ""}
+                  {smartActionNote.patientPhone ? `, телефон ${smartActionNote.patientPhone}` : ""}.
+                </strong>
+                <p>
+                  Записать можно только человека, у которого уже есть карта, — поэтому имя и телефон в
+                  запись не подставлены, чтобы не выдать их за проверенные. Время и услуга из вашей
+                  фразы в форму перенесены. Заведите карту в разделе «Пациенты», вернитесь сюда и
+                  выберите его в строке «Пациент».
+                </p>
+              </>
+            )}
+          </div>
+        ) : null}
+        <div className="flex justify-between items-center flex-wrap gap-2 pt-1">
+          <div className="flex gap-3 items-center">
+            {/*
+              data-schedule-create-toggle и aria-expanded — не украшение.
+              «Записать на приём» из листа ожидания раскрывает эту форму, находя
+              кнопку в живой странице, и раньше искало её по классу
+              `.text-button` и по подписи «Показать все поля». Класс здесь
+              secondary-button, поэтому не находило НИЧЕГО, и форма оставалась
+              свёрнутой (подробности в WaitlistDrawer.handleBook). Опознавательная
+              метка не зависит ни от оформления, ни от текста подписи, а
+              aria-expanded заодно сообщает состояние программе чтения с экрана.
+            */}
             <button
-              className="text-button"
               type="button"
-              onClick={() => setShowCreateForm((v) => !v)}
-              style={{ fontSize: '13px', color: 'var(--slate-500)', textDecoration: 'underline' }}
+              data-schedule-create-toggle="true"
+              aria-expanded={showCreateForm}
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="secondary-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
+              style={{ minHeight: "30px", padding: "0 12px", fontSize: "12px" }}
             >
               {showCreateForm ? "Скрыть ручной ввод" : "Показать все поля / Ручной ввод"}
             </button>
             {showCreateForm && (
-              <label style={{ fontSize: '13px', color: 'var(--slate-500)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={useManualSelects} onChange={(e) => setUseManualSelects(e.target.checked)} />
+              <label className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={useManualSelects} onChange={(e) => setUseManualSelects(e.target.checked)} className="focus:ring-2 focus:ring-teal-600 focus:outline-none" />
                 Классические списки
               </label>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="flex gap-2 items-center">
             {newAppointmentReadyToCreate ? (
-              <span className="save-state save-state-idle font-medium text-emerald-600 dark:text-emerald-400">✓ Готово к созданию</span>
+              <span className="save-state save-state-idle font-medium text-emerald-600 dark:text-emerald-400 text-xs">✓ Готово к созданию</span>
             ) : (
-              <span className="save-state save-state-idle font-medium text-amber-600 dark:text-amber-400">Заполните поля</span>
+              /* БЫЛО: «Заполните поля» — какие именно, не сказано. Подробный
+                 список «Чтобы создать запись, осталось…» в компоненте есть, но
+                 он лежит внизу формы ручного ввода, а она по умолчанию свёрнута:
+                 пользователь его просто не видит и гадает, чего не хватает.
+                 Показываем нехватку прямо у кнопки. Длинный список не влезет в
+                 строку, поэтому первые два пункта словами, остальное числом, а
+                 полный список остаётся в подсказке. */
+              <span
+                id="new-appointment-create-missing-short"
+                className="save-state save-state-idle font-medium text-amber-600 dark:text-amber-400 text-xs"
+                title={`Осталось: ${newAppointmentMissingSteps.join("; ")}`}
+              >
+                {(() => {
+                  const shown = newAppointmentMissingSteps.slice(0, 2).join(", ");
+                  const rest = newAppointmentMissingSteps.length - 2;
+                  return rest > 0 ? `Осталось: ${shown} и ещё ${rest}` : `Осталось: ${shown}`;
+                })()}
+              </span>
             )}
+            {/* aria-describedby у кнопки ниже ведёт на видимую строку «Осталось: …»
+                рядом с ней. Раньше он указывал на подробный список внизу формы
+                ручного ввода — а тот существует в разметке только когда форма
+                раскрыта, то есть ссылка висела в пустоту как раз при свёрнутой
+                форме, когда объяснение нужнее всего. */}
             <button
               type="button"
               onClick={() => void createAppointmentFromDraft()}
               disabled={newAppointmentSaveState === "saving" || !newAppointmentReadyToCreate}
               aria-busy={newAppointmentSaveState === "saving" || undefined}
-              aria-describedby={!newAppointmentReadyToCreate ? "new-appointment-create-missing" : undefined}
-              className="primary-button px-4 py-1.5 min-h-[32px] bg-sky-600 hover:bg-sky-700 text-white rounded-md flex items-center disabled:opacity-50 cursor-pointer"
+              aria-describedby={!newAppointmentReadyToCreate ? "new-appointment-create-missing-short" : undefined}
+              className="primary-button px-3.5 py-1.5 min-h-[32px] bg-sky-600 hover:bg-sky-700 text-white rounded-md flex items-center text-xs font-semibold disabled:opacity-50 cursor-pointer focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
             >
-              <Plus size={16} aria-hidden="true" style={{ marginRight: '6px' }} /> Создать запись
+              <Plus size={15} aria-hidden="true" className="mr-1" /> Создать запись
             </button>
           </div>
         </div>
+        {/*
+          ОТКАЗ ПРИ СОЗДАНИИ ЗАПИСИ БЫЛ НЕ ВИДЕН ВООБЩЕ.
+
+          ЧТО БЫЛО СЛОМАНО. Текст ошибки (newAppointmentError) рисовался ровно в
+          одном месте — в строке действий формы ручного ввода, внутри
+          `{showCreateForm && (...)}`. А форма ручного ввода по умолчанию свёрнута,
+          и кнопка «Создать запись» живёт СНАРУЖИ неё, в этом блоке. Значит при
+          свёрнутой форме отказ сервера не отрисовывался нигде.
+
+          ЧТО ВИДЕЛ АДМИНИСТРАТОР. Заполнил запись словами, у кнопки загорелось
+          «✓ Готово к созданию», нажал «Создать запись» — и НИЧЕГО. Ни записи в
+          расписании, ни объяснения. Нажимал ещё раз, потом ещё; при отказе по
+          накладке или по правам так можно жать до конца смены. Пациенту в трубку
+          говорят «записал вас на три», а записи нет.
+
+          ЧТО СТАЛО. Сообщение об отказе стоит рядом с кнопкой, которая его
+          вызвала, и видно при любом состоянии формы. Если сервер отказал, но
+          текста не дал, — говорим это словами, а не пустотой. Из строки действий
+          свёрнутой формы дубликат убран: у сообщения один владелец.
+        */}
+        {createFailureText ? (
+          <p className="save-error" role="alert">
+            {createFailureText}
+          </p>
+        ) : null}
       </div>
 
       {showCreateForm && (
-        <div className="appointment-editor" style={{ marginBottom: '24px', padding: '16px', background: 'var(--paper)', borderRadius: '12px', border: '1px solid var(--slate-200)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        /*
+          appointment-manual-form — не украшение, а точка прицела для фокуса.
+          «Повторить» и «Записать на приём» из листа ожидания должны ставить
+          курсор в поле «Начало» ЭТОЙ формы, а не в строку умного бронирования,
+          которая в разметке идёт раньше. Искать по классу, а не по порядку
+          элементов, чтобы правка пережила перестановку блоков.
+        */
+        <div className="appointment-editor appointment-manual-form mb-6 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 mb-4">
             <label>
               Начало
               <input
@@ -280,14 +434,16 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             </label>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '16px' }}>
+          {/* min(300px,100%): без него колонка не ужимается ниже 300px и
+              поля формы записи срезаются справа на телефоне. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-6 mb-4">
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Пациент</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Пациент</span>
               {useManualSelects || (dashboard.patients ?? []).length > 20 ? (
                 <select
                   value={newAppointmentDraft.patientId || ''}
                   onChange={(e) => updateNewAppointmentDraft('patientId', e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--slate-300)' }}
+                  className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none"
                 >
                   <option value="">-- Выберите пациента --</option>
                   {(dashboard.patients ?? []).filter(p => p.status === 'active').map(p => (
@@ -295,7 +451,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
                   ))}
                 </select>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div className="flex flex-wrap gap-1.5">
                   {(dashboard.patients ?? [])
                     .filter((patient) => patient.status === "active")
                     .map((patient) => (
@@ -314,12 +470,12 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             </div>
 
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Врач</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Врач</span>
               {useManualSelects ? (
                 <select
                   value={newAppointmentDraft.doctorUserId || ''}
                   onChange={(e) => updateNewAppointmentDraft('doctorUserId', e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--slate-300)' }}
+                  className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none"
                 >
                   <option value="">-- Выберите врача --</option>
                   {(dashboard.clinicSettings?.staff ?? []).filter(m => m.active && (m.role === 'doctor' || m.role === 'owner')).map(m => (
@@ -327,7 +483,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
                   ))}
                 </select>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div className="flex flex-wrap gap-1.5">
                   {(dashboard.clinicSettings?.staff ?? [])
                     .filter((member) => member.active && (member.role === "doctor" || member.role === "owner"))
                     .map((member) => (
@@ -347,8 +503,8 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 
             {dashboard.clinicSettings.profile.mode !== "solo_doctor" && (
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Ассистент</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Ассистент</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(dashboard.clinicSettings?.staff ?? [])
                   .filter((member) => member.active && member.role === "assistant")
                   .map((member) => (
@@ -367,8 +523,8 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             )}
 
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Кресло</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Кресло</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(dashboard.clinicSettings?.chairs ?? [])
                   .filter((chair) => chair.active)
                   .map((chair) => (
@@ -386,8 +542,8 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             </div>
             
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Статус</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Статус</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(Object.keys(appointmentLabels) as Appointment["status"][]).map((status) => (
                     <button
                       key={status}
@@ -405,7 +561,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
           <label className="form-span-2">
             Причина приема
             <input value={String(newAppointmentDraft.reason || "")} onChange={(event: TextFieldChangeEvent) => updateNewAppointmentDraft("reason", event.target.value)} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
               {["Первичный", "Пульпит", "Кариес", "Осмотр", "Пломба", "Гигиена", "Коронка"].map(chip => (
                 <button
                   key={chip}
@@ -425,7 +581,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
           <label className="form-span-2">
             Комментарий
             <textarea value={String(newAppointmentDraft.comment || "")} onChange={(event: TextFieldChangeEvent) => updateNewAppointmentDraft("comment", event.target.value)} rows={2} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
               {["Первичный", "Боль", "Осмотр", "Консультация", "Снимки"].map(chip => (
                 <button
                   key={chip}
@@ -436,8 +592,6 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
                     updateNewAppointmentDraft("comment", newVal);
                   }}
                   className="quick-chip quick-chip--sm"
-                  
-                  
                 >
                   + {chip}
                 </button>
@@ -455,7 +609,9 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
             </div>
           ) : null}
           <div className="appointment-editor-actions">
-            {newAppointmentError ? <span className="save-error">{newAppointmentError}</span> : null}
+            {/* Сообщение об отказе показывается у самой кнопки «Создать запись»,
+                выше и вне этой формы: она свёрнута по умолчанию, и здесь отказ
+                был не виден. Второй копии тексту не нужно. */}
             <button className="secondary-button" type="button" onClick={resetNewAppointmentDraft} disabled={newAppointmentSaveState === "saving"} aria-busy={newAppointmentSaveState === "saving" || undefined}>
               Сбросить
             </button>

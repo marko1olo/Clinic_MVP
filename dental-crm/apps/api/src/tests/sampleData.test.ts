@@ -1,10 +1,23 @@
-import * as assert from "node:assert";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { describe, it, test, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert';
+import { randomUUID } from 'node:crypto';
 import {
-	auditEvents,
-	clinicalRules,
-	createClinicalRule,
-} from "../sampleData.js";
+  createClinicalRule,
+  clinicalRules,
+  auditEvents,
+  buildBillingSummary,
+  treatmentPlanItems,
+  payments,
+  documents,
+  serviceCatalog,
+  serviceCatalogMap
+} from '../sampleData.js';
+import type {
+  TreatmentPlanItem,
+  Payment,
+  GeneratedDocument,
+  ServiceCatalogItem
+} from '@dental/shared';
 
 describe('createClinicalRule', () => {
   let originalClinicalRules: any[];
@@ -104,23 +117,8 @@ describe('createClinicalRule', () => {
     assert.throws(() => {
       createClinicalRule(input);
     }, /Для правила добавления услуги укажите хотя бы одну обязательную услугу/);
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import assert from 'node:assert';
-import {
-  buildBillingSummary,
-  treatmentPlanItems,
-  payments,
-  documents,
-  serviceCatalog,
-  serviceCatalogMap
-} from '../sampleData.js';
-import type {
-  TreatmentPlanItem,
-  Payment,
-  GeneratedDocument,
-  ServiceCatalogItem
-} from '@dental/shared';
-import { randomUUID } from 'node:crypto';
+  });
+});
 
 describe('buildBillingSummary', () => {
   // Backup original data
@@ -130,13 +128,16 @@ describe('buildBillingSummary', () => {
   const originalServiceCatalog = [...serviceCatalog];
   const originalServiceCatalogMap = new Map(serviceCatalogMap);
 
+  beforeEach(() => {
     // Clear arrays
     treatmentPlanItems.length = 0;
     payments.length = 0;
     documents.length = 0;
     serviceCatalog.length = 0;
     serviceCatalogMap.clear();
+  });
 
+  afterEach(() => {
     // Restore arrays
     treatmentPlanItems.length = 0;
     treatmentPlanItems.push(...originalTreatmentPlanItems);
@@ -154,6 +155,7 @@ describe('buildBillingSummary', () => {
     for (const [key, value] of originalServiceCatalogMap) {
       serviceCatalogMap.set(key, value);
     }
+  });
 
   function createMockPlanItem(overrides: Partial<TreatmentPlanItem> = {}): TreatmentPlanItem {
     return {
@@ -162,6 +164,8 @@ describe('buildBillingSummary', () => {
       patientId: randomUUID(),
       visitId: randomUUID(),
       serviceId: randomUUID(),
+      // Обязательное поле схемы: без него объект не является TreatmentPlanItem.
+      snapshotServiceName: 'Test Service',
       toothCode: null,
       quantity: 1,
       unitPriceRub: 1000,
@@ -171,6 +175,7 @@ describe('buildBillingSummary', () => {
       plannedChairId: randomUUID(),
       notes: null,
       ...overrides
+    };
   }
 
   function createMockPayment(overrides: Partial<Payment> = {}): Payment {
@@ -187,6 +192,7 @@ describe('buildBillingSummary', () => {
       createdAt: new Date().toISOString(),
       note: null,
       ...overrides
+    };
   }
 
   function createMockDocument(overrides: Partial<GeneratedDocument> = {}): GeneratedDocument {
@@ -201,6 +207,7 @@ describe('buildBillingSummary', () => {
       issuedAt: null,
       totalAmountRub: 1000,
       ...overrides
+    };
   }
 
   function createMockService(overrides: Partial<ServiceCatalogItem> = {}): ServiceCatalogItem {
@@ -209,11 +216,16 @@ describe('buildBillingSummary', () => {
       organizationId: randomUUID(),
       code: 'TEST',
       title: 'Test Service',
+      // aliases объявлен через .default([]), поэтому в выводимом типе он обязателен.
+      aliases: [],
+      category: 'therapy',
+      specialty: 'therapist',
       basePriceRub: 1000,
       durationMinutes: 30,
       taxDeductible: true,
       active: true,
       ...overrides
+    };
   }
 
   it('should calculate zeros for empty state', () => {
@@ -227,6 +239,8 @@ describe('buildBillingSummary', () => {
       draftDocumentAmountRub: 0,
       openTreatmentItems: 0,
       unpaidDocuments: 0
+    });
+  });
 
   it('should calculate totals for active plan items', () => {
     treatmentPlanItems.push(
@@ -243,6 +257,7 @@ describe('buildBillingSummary', () => {
     assert.strictEqual(summary.totalDiscountRub, 500);
     // openTreatmentItems = 2 (approved, in_progress - not completed)
     assert.strictEqual(summary.openTreatmentItems, 2);
+  });
 
   it('should ignore cancelled items for total Planned Rub', () => {
     treatmentPlanItems.push(
@@ -253,6 +268,7 @@ describe('buildBillingSummary', () => {
     assert.strictEqual(summary.totalPlannedRub, 0);
     assert.strictEqual(summary.totalDiscountRub, 0);
     assert.strictEqual(summary.openTreatmentItems, 0);
+  });
 
   it('should not include completed items in openTreatmentItems but include in totalPlannedRub', () => {
     treatmentPlanItems.push(
@@ -262,6 +278,7 @@ describe('buildBillingSummary', () => {
     const summary = buildBillingSummary();
     assert.strictEqual(summary.totalPlannedRub, 2000);
     assert.strictEqual(summary.openTreatmentItems, 0);
+  });
 
   it('should calculate totalPaidRub for paid payments only', () => {
     payments.push(
@@ -272,6 +289,7 @@ describe('buildBillingSummary', () => {
 
     const summary = buildBillingSummary();
     assert.strictEqual(summary.totalPaidRub, 1000);
+  });
 
   it('should calculate totalDueRub correctly', () => {
     treatmentPlanItems.push(createMockPlanItem({ unitPriceRub: 5000, quantity: 1, discountRub: 0, status: 'approved' }));
@@ -280,6 +298,7 @@ describe('buildBillingSummary', () => {
     const summary = buildBillingSummary();
     // 5000 - 2000 = 3000
     assert.strictEqual(summary.totalDueRub, 3000);
+  });
 
   it('should not have negative totalDueRub', () => {
     treatmentPlanItems.push(createMockPlanItem({ unitPriceRub: 1000, quantity: 1, discountRub: 0, status: 'approved' }));
@@ -287,6 +306,7 @@ describe('buildBillingSummary', () => {
 
     const summary = buildBillingSummary();
     assert.strictEqual(summary.totalDueRub, 0);
+  });
 
   it('should calculate draftDocumentAmountRub for draft documents only', () => {
     documents.push(
@@ -297,6 +317,7 @@ describe('buildBillingSummary', () => {
 
     const summary = buildBillingSummary();
     assert.strictEqual(summary.draftDocumentAmountRub, 1500);
+  });
 
   it('should calculate unpaidDocuments correctly', () => {
     const doc1Id = randomUUID();
@@ -315,6 +336,7 @@ describe('buildBillingSummary', () => {
 
     const summary = buildBillingSummary();
     assert.strictEqual(summary.unpaidDocuments, 1);
+  });
 
   it('should calculate taxDeductionEligibleRub from serviceCatalogMap', () => {
     const service1 = createMockService({ id: 'srv1', taxDeductible: true });
@@ -330,6 +352,7 @@ describe('buildBillingSummary', () => {
 
     const summary = buildBillingSummary();
     assert.strictEqual(summary.taxDeductionEligibleRub, 2000);
+  });
 
   it('should calculate taxDeductionEligibleRub from serviceCatalog array', () => {
     const service1 = createMockService({ id: 'srv1', taxDeductible: true });

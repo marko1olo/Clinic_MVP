@@ -1,82 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { useAppLogicContext } from "../../contexts/AppLogicContext";
+/**
+ * Лента звонков и сообщений в сетке экрана «Пациенты».
+ *
+ * ПОЧЕМУ ЭТО ТЕПЕРЬ ОБЁРТКА, А НЕ ВТОРАЯ РЕАЛИЗАЦИЯ.
+ *
+ * На экране «Пациенты» один и тот же журнал показывался ДВАЖДЫ: этой панелью в
+ * нижней сетке и PatientCommunicationTimelineWidget внутри карточки пациента
+ * (components/patients/PatientOverviewTab.tsx). Две независимые копии кода
+ * читали один адрес и расходились в формулировках — например, здесь стояло
+ * «Звонков и сообщений по пациенту не записано», что читается как «мы с
+ * человеком не связывались», хотя данных о звонках с личного телефона врача в
+ * системе нет и быть не может.
+ *
+ * Обе копии, кроме того, читали мёртвый источник: таблица
+ * patient_communication_timelines не имеет ни одного писателя во всём проекте и
+ * не имеет колонки patient_id (связь с карточкой делалась сравнением ФИО
+ * строкой). Теперь маршрут отдаёт расчёт по живой communication_events —
+ * apps/api/src/services/patients/patientCommunicationLog.ts. Ответ маршрута
+ * стал объектом с итогами вместо массива строк, и вторая копия, оставленная как
+ * была, показывала бы пустой журнал на непустой базе: Array.isArray(объект)
+ * ложно, список молча выходил бы пустым. Ровно та подмена отказа пустотой,
+ * из-за которой панель и переписывалась.
+ *
+ * Поэтому реализация здесь одна, общая: components/patients/PatientCommunicationTimelineWidget.tsx.
+ * Сама двойная врезка на экране снимается монтированием в PatientsView.tsx —
+ * этот файл в момент правки правил другой исполнитель, поэтому лишний монтаж
+ * оставлен ведущему (записано долгом в .agents/lead/done-dead-to-live.md).
+ * Внешний data-testid сохранён: на него ссылается
+ * scripts/generate-wave15-individual-proofs.cjs.
+ */
 
-interface TimelineItem {
-	id: string;
-	organizationId: string;
-	patientName: string;
-	eventType: string;
-	statusColor: string;
-	audioRecordingUrl: string | null;
-	comment: string;
-	createdAt: string;
-}
+import type React from "react";
+import { PatientCommunicationTimelineWidget } from "../patients/PatientCommunicationTimelineWidget";
 
-export const PatientCommunicationTimelinesWidget: React.FC = () => {
-	const appLogic = (useAppLogicContext() || {}) as any;
-	const authContext = appLogic?.auth;
-	const [timelines, setTimelines] = useState<TimelineItem[]>([]);
-	const [loading, setLoading] = useState<boolean>(true);
-
-	useEffect(() => {
-		const headers = authContext
-			? authContext.denteClinicalReadHeaders()
-			: { "x-organization-id": "00000000-0000-0000-0000-000000000001" };
-		fetch("/api/crm/patient-communication-timelines", { headers })
-			.then((res) => res.json())
-			.then((data) => {
-				setTimelines(Array.isArray(data) ? data : []);
-				setLoading(false);
-			})
-			.catch((err) => {
-				console.error("[PatientCommunicationTimelinesWidget fetch error]:", err);
-				setLoading(false);
-			});
-	}, []);
+export const PatientCommunicationTimelinesWidget: React.FC<{ patientId?: string | null }> = ({ patientId }) => {
+	if (!patientId) {
+		return (
+			<div
+				data-testid="patient-communication-timelines-widget"
+				className="p-4 rounded-xl border my-4 shadow-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+			>
+				<h3 className="font-semibold text-sm mb-2">Звонки и сообщения</h3>
+				<p className="text-xs m-0 text-slate-500 dark:text-slate-400">
+					Выберите пациента в списке слева — журнал показывается по конкретной карте.
+				</p>
+			</div>
+		);
+	}
 
 	return (
-		<div
-			data-testid="patient-communication-timelines-widget"
-			className="p-4 rounded-xl border my-4 shadow-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-		>
-			<div className="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">
-				<div className="flex items-center space-x-2">
-					<span className="text-xl">📞</span>
-					<h3 className="font-semibold text-teal-600 dark:text-teal-400">
-						Хронологическая Лента Коммуникаций с Цветовой Индикацией и Записями Звонков
-					</h3>
-				</div>
-				<span className="text-xs bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800 px-2 py-0.5 rounded font-medium">
-					Communication Timeline
-				</span>
-			</div>
-
-			{loading ? (
-				<div className="text-slate-400 text-sm py-4">Загрузка хронологии звонков и чатов...</div>
-			) : (
-				<div className="space-y-3">
-					{timelines.map((item) => (
-						<div
-							key={item.id}
-							className="p-3 bg-slate-800/70 border border-slate-700/50 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-						>
-							<div>
-								<div className="text-sm font-bold text-slate-200">
-									{item.patientName} <span className="text-xs text-teal-300 font-normal">({item.eventType})</span>
-								</div>
-								<div className="text-xs text-slate-300 mt-1">"{item.comment}"</div>
-							</div>
-							<div className="flex items-center space-x-2 text-xs">
-								{item.audioRecordingUrl && (
-									<span className="bg-teal-950 text-teal-300 px-2.5 py-1 rounded border border-teal-800 font-mono">
-										▶ Запись АТС
-									</span>
-								)}
-							</div>
-						</div>
-					))}
-				</div>
-			)}
+		<div data-testid="patient-communication-timelines-widget">
+			<PatientCommunicationTimelineWidget patientId={patientId} />
 		</div>
 	);
 };

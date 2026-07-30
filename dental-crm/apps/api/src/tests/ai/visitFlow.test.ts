@@ -2,6 +2,22 @@ import assert from "node:assert";
 import { afterEach, beforeEach, describe, mock, test } from "node:test";
 import { runVisitFlow } from "../../ai/visitFlowOrchestrator.js";
 
+/*
+ * ЗДЕСЬ БЫЛИ ЧЕТЫРЕ ТИПА, ОБЪЯВЛЕННЫЕ ТОЛЬКО РАДИ ПРИВЕДЕНИЯ.
+ *
+ * Контракт объявлял `visitFlowStepResultSchema.data` как `z.unknown().nullable()`
+ * — у содержимого шага не было ни одного известного свойства, `data?.x` сужало
+ * unknown до `{}`, и каждый тест описывал заново тот кусок ответа, который
+ * читает. Такой самодельный тип подтверждает сам себя: он объявляет поле, а не
+ * проверяет, что сервер его отдаёт, и опечатка в имени поля даёт `undefined`
+ * вместо провала.
+ *
+ * Теперь `data` описан по виду шага (`visitFlowDraftStepResultSchema` и
+ * остальные три), поэтому поля читаются прямо из ответа: если сервер перестанет
+ * отдавать `telegramSummary` или `suggestions`, красным станет компилятор, а не
+ * тихо `undefined` в утверждении.
+ */
+
 describe("runVisitFlow Orchestrator", () => {
 	const originalEnv = process.env;
 
@@ -74,7 +90,7 @@ describe("runVisitFlow Orchestrator", () => {
 			patientId: "00000000-0000-0000-0000-000000000000",
 			transcript: "Болит зуб",
 			specialty: "universal",
-			completedServices: [{ title: "Лечение кариеса", priceRub: 1000, serviceId: "1", categoryId: "1" }],
+			completedServices: [{ title: "Лечение кариеса", priceRub: 1000, serviceId: "1", quantity: 1 }],
 			orchestratorConfig: { enablePlan: true, enableRecommendations: true, enableDocuments: true }
 		});
 
@@ -84,9 +100,22 @@ describe("runVisitFlow Orchestrator", () => {
 		assert.strictEqual(result.documents.status, "success");
 		assert.strictEqual(result.overallStatus, "success");
 
-		assert.deepStrictEqual(result.plan.data?.treatmentGoals, []);
-		assert.strictEqual(result.plan.data?.patientFriendlyExplanation, "Все будет ок");
-		assert.strictEqual(result.recommendations.data?.telegramSummary, "Рекомендации");
+		const planData = result.plan.data;
+		const recommendationsData = result.recommendations.data;
+
+		assert.deepStrictEqual(planData?.treatmentGoals, []);
+		assert.strictEqual(planData?.patientFriendlyExplanation, "Все будет ок");
+
+		// Рекомендации не ходят в ИИ: personalizePostVisitRecommendations —
+		// детерминированный набор правил, в нём нет ни одного вызова fetch.
+		// Поэтому ветка recs в mockFetch на этот результат не влияет, и прежнее
+		// ожидание "Рекомендации" было недостижимо в принципе.
+		// Проверяем то, что здесь действительно проверяемо: по услуге
+		// «Лечение кариеса» выбрана кариозная ветка правил.
+		assert.match(
+			recommendationsData?.telegramSummary ?? "",
+			/^Рекомендации после лечения кариеса/,
+		);
 	});
 
 	test("runVisitFlow - draft fallback creates warnings but continues", async () => {
@@ -96,11 +125,24 @@ describe("runVisitFlow Orchestrator", () => {
 			patientId: "00000000-0000-0000-0000-000000000000",
 			transcript: "Жалоба пациента болит зуб",
 			specialty: "universal",
-			completedServices: [{ title: "Лечение", priceRub: 1000, serviceId: "1", categoryId: "1" }]
+			completedServices: [{ title: "Лечение", priceRub: 1000, serviceId: "1", quantity: 1 }]
 		});
 
 		assert.strictEqual(result.draft.status, "success");
-		assert.ok(result.draft.data?.warnings?.length ?? 0 > 0);
+		const draftData = result.draft.data;
+		/*
+		 * Скобки здесь обязательны, и не ради вкуса. Написание
+		 * `length ?? 0 > 0` разбирается как `length ?? (0 > 0)`, потому что `>`
+		 * связывает крепче `??`. На фактических значениях поведение совпадает с
+		 * задуманным (непустая длина истинна, ноль и отсутствие ложны), то есть
+		 * дефекта тут не было — но прочитать это как «утверждение всегда истинно»
+		 * успели уже двое, включая ведущего. Утверждение заодно получило текст:
+		 * падение без объяснения заставляет читать тест целиком.
+		 */
+		assert.ok(
+			(draftData?.warnings?.length ?? 0) > 0,
+			"Разбор диктовки отказал, но предупреждений для врача не выдал: на экране это молчание вместо причины."
+		);
 		// Since completedServices is provided, plan and recommendations should still be generated
 		assert.strictEqual(result.overallStatus, "success");
 		assert.strictEqual(result.plan.status, "success");
@@ -118,14 +160,17 @@ describe("runVisitFlow Orchestrator", () => {
 			patientId: "00000000-0000-0000-0000-000000000000",
 			transcript: "Болит зуб",
 			specialty: "universal",
-			completedServices: [{ title: "Лечение кариеса", priceRub: 1000, serviceId: "1", categoryId: "1" }],
+			completedServices: [{ title: "Лечение кариеса", priceRub: 1000, serviceId: "1", quantity: 1 }],
 		});
+
+		const planData = result.plan.data;
+		const recommendationsData = result.recommendations.data;
 
 		assert.strictEqual(result.draft.status, "success");
 		assert.strictEqual(result.plan.status, "success");
-		assert.ok(result.plan.data?.patientFriendlyExplanation?.includes("Ваш план лечения"));
+		assert.ok(planData?.patientFriendlyExplanation?.includes("Ваш план лечения"));
 		assert.strictEqual(result.recommendations.status, "success");
-		assert.ok(result.recommendations.data?.telegramSummary?.includes("Рекомендации после"));
+		assert.ok(recommendationsData?.telegramSummary?.includes("Рекомендации после"));
 		assert.strictEqual(result.overallStatus, "success");
 	});
 
@@ -156,11 +201,13 @@ describe("runVisitFlow Orchestrator", () => {
 			patientId: "00000000-0000-0000-0000-000000000000",
 			transcript: "Болит зуб",
 			specialty: "universal",
-			completedServices: [{ title: "Сложное удаление зуба", priceRub: 1000, serviceId: "1", categoryId: "1" }],
+			completedServices: [{ title: "Сложное удаление зуба", priceRub: 1000, serviceId: "1", quantity: 1 }],
 		});
 
+		const documentsData = result.documents.data;
+
 		assert.strictEqual(result.documents.status, "success");
-		assert.ok(result.documents.data?.suggestions.includes("procedure_specific_consent"));
-		assert.ok(result.documents.data?.suggestions.includes("post_visit_recommendations"));
+		assert.ok(documentsData?.suggestions.includes("procedure_specific_consent"));
+		assert.ok(documentsData?.suggestions.includes("post_visit_recommendations"));
 	});
 });

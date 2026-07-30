@@ -1,3 +1,4 @@
+import { kopecksToNumericString, parseKopecks, sumKopecks } from "@dental/shared";
 import { repairMojibakeText } from "../text/repairMojibake.js";
 import { taxPaymentsForDocumentScope } from "./taxPaymentSnapshot.js";
 const KND_1151156_PRINT_FORM_CODE = "1151156";
@@ -5,13 +6,16 @@ const FNS_MEDICAL_EXPENSE_XML_KND = "1184043";
 const FNS_MEDICAL_EXPENSE_XML_VERSION = "5.01";
 const FNS_MEDICAL_EXPENSE_ORDER = "ЕА-7-11/824@";
 const FNS_MEDICAL_EXPENSE_NOTICE_NUMBER_MAX_LENGTH = 12;
-function xml(value) {
+export function escapeXml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&apos;");
+}
+function xml(value) {
+    return escapeXml(value);
 }
 function countOccurrences(value, needle) {
     if (!needle)
@@ -67,9 +71,9 @@ function validateKnd1151156XmlDraft(xmlText, expected) {
             message: `НомерСвед должен быть числом длиной до ${FNS_MEDICAL_EXPENSE_NOTICE_NUMBER_MAX_LENGTH} знаков.`,
         });
     }
-    const expectedCode1 = `СуммаКод1="${money(expected.sumCode1)}"`;
-    const expectedCode2 = `СуммаКод2="${money(expected.sumCode2)}"`;
-    if (expected.sumCode1 > 0) {
+    const expectedCode1 = `СуммаКод1="${money(expected.sumCode1Kopecks)}"`;
+    const expectedCode2 = `СуммаКод2="${money(expected.sumCode2Kopecks)}"`;
+    if (expected.sumCode1Kopecks > 0) {
         pushMissingPreflightIssue(issues, xmlText, expectedCode1, "sum-code-1", "сумма по коду услуги 1 не совпадает с платежами");
     }
     else if (xmlText.includes("СуммаКод1=")) {
@@ -78,7 +82,7 @@ function validateKnd1151156XmlDraft(xmlText, expected) {
             message: "СуммаКод1 не должна выгружаться при нулевой сумме.",
         });
     }
-    if (expected.sumCode2 > 0) {
+    if (expected.sumCode2Kopecks > 0) {
         pushMissingPreflightIssue(issues, xmlText, expectedCode2, "sum-code-2", "сумма по коду услуги 2 не совпадает с платежами");
     }
     else if (xmlText.includes("СуммаКод2=")) {
@@ -137,19 +141,59 @@ function taxPaymentCode(payment) {
         ? payment.taxDeductionCode
         : null;
 }
-function taxPaymentSum(payments, code) {
-    return payments
+/**
+ * Сумма расходов по коду услуги — в ЦЕЛЫХ КОПЕЙКАХ.
+ *
+ * БЫЛО: `reduce((total, p) => total + p.amountRub, 0)` — второе, независимое от
+ * итога справки сложение тех же платежей, и тоже в плавающей точке. У одной
+ * справки получалось два итога, посчитанных разными выражениями, и разойтись
+ * они могли между собой: двадцать платежей по 55,55 дают 1110.9999999999995.
+ * В выгрузку для ФНС такое число попадать не должно ни в каком виде.
+ */
+function taxPaymentSumKopecks(payments, code) {
+    return sumKopecks(payments
         .filter((payment) => taxPaymentCode(payment) === code)
-        .reduce((total, payment) => total + payment.amountRub, 0);
+        .map((payment) => parseKopecks(payment.amountRub)));
 }
-function money(value) {
-    return Math.max(0, value).toFixed(2);
+/**
+ * Денежный атрибут выгрузки: рубли и ровно две цифры копеек, точка как
+ * разделитель — «1000.00», «5400.50».
+ *
+ * БЫЛО: `Math.max(0, value).toFixed(2)` от числа с плавающей точкой. Две цифры
+ * оно давало, но за счёт округления уже испорченного значения: расхождение
+ * пряталось, а не отсутствовало, и на сумме вида 0,145 руб. `toFixed` отдаёт
+ * «0.14» — копейка теряется в документе для налоговой. Теперь строка берётся из
+ * целых копеек через `kopecksToNumericString` (@dental/shared) — округлять
+ * нечего, потому что дробной части нет.
+ */
+function money(kopecks) {
+    return kopecksToNumericString(Math.max(0, kopecks));
 }
 function isoToRuDate(value) {
     const explicit = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? "");
     if (explicit)
         return `${explicit[3]}.${explicit[2]}.${explicit[1]}`;
-    const parsed = value ? new Date(value) : new Date();
+    // БЫЛО: всё, что не ISO, уходило в new Date(), а V8 разбирает "09.05.1970"
+    // как американское месяц/день/год. Пациент 9 мая превращался в 5 сентября,
+    // ФНС не находила налогоплательщика и отказывала в вычете. При дне больше 12
+    // («31.12.1980») получалась Invalid Date, и оператору сообщали, что дата
+    // рождения НЕ УКАЗАНА, хотя она была введена.
+    // Формат ДД.ММ.ГГГГ принимает и валидатор документов (renderDocument.ts),
+    // поэтому такие значения реально доходят сюда из базы.
+    const ruFormatted = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec((value ?? "").trim());
+    if (ruFormatted) {
+        const day = Number(ruFormatted[1]);
+        const month = Number(ruFormatted[2]);
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+            return `${ruFormatted[1]}.${ruFormatted[2]}.${ruFormatted[3]}`;
+        }
+        return null;
+    }
+    // БЫЛО: при пустом значении подставлялась ТЕКУЩАЯ дата — в декларацию
+    // уходила сегодняшняя дата вместо даты рождения пациента.
+    if (!value)
+        return null;
+    const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime()))
         return null;
     return parsed.toLocaleDateString("ru-RU", {
@@ -351,11 +395,11 @@ export function buildKnd1151156Xml(document, patient, context) {
             error: "Если налогоплательщик и пациент разные, для XML КНД 1151156 нужны ФИО, дата рождения и 12-значный ИНН либо документ личности пациента с датой выдачи.",
         };
     }
-    const sumCode1 = taxPaymentSum(taxPayments, "1");
-    const sumCode2 = taxPaymentSum(taxPayments, "2");
+    const sumCode1Kopecks = taxPaymentSumKopecks(taxPayments, "1");
+    const sumCode2Kopecks = taxPaymentSumKopecks(taxPayments, "2");
     const sumAttrs = [
-        sumCode1 > 0 ? `СуммаКод1="${money(sumCode1)}"` : null,
-        sumCode2 > 0 ? `СуммаКод2="${money(sumCode2)}"` : null,
+        sumCode1Kopecks > 0 ? `СуммаКод1="${money(sumCode1Kopecks)}"` : null,
+        sumCode2Kopecks > 0 ? `СуммаКод2="${money(sumCode2Kopecks)}"` : null,
     ]
         .filter(Boolean)
         .join(" ");
@@ -366,7 +410,36 @@ export function buildKnd1151156Xml(document, patient, context) {
             error: "Для XML КНД 1151156 нужна сумма расходов по коду услуги 1 или 2.",
         };
     }
-    const documentDate = isoToRuDate(document.issuedAt || new Date().toISOString());
+    /*
+     * ДАТА ДОКУМЕНТА НЕ ВЫДУМЫВАЕТСЯ. ОТКАЗ ДЕШЕВЛЕ ВЫДУМКИ.
+     *
+     * Здесь стояло `document.issuedAt || new Date().toISOString()`: у документа без
+     * даты выдачи XML для НАЛОГОВОЙ получал СЕГОДНЯШНЮЮ дату в поле `ДатаДок`.
+     *
+     * Чем это плохо для клиники и для пациента. `ДатаДок` — не оформление, а
+     * содержание: по ней налоговая относит расход к периоду вычета. Справка,
+     * выданная в декабре, но выгруженная в XML в январе, ушла бы с январской датой
+     * и попала бы в НЕ ТОТ год вычета. Пациент получил бы отказ и не понял, почему:
+     * в бумажной справке одна дата, в электронной другая, и обе выданы клиникой.
+     *
+     * Достижимо, а не гипотетично: замер на живой базе — среди документов есть
+     * черновик с `issued_at IS NULL`. Черновику даты выдачи и не положено иметь,
+     * потому что он не выдан.
+     *
+     * Отказ — принятая форма в этой же функции: выше так же отвергаются документ
+     * без суммы расходов, без кода услуги и без реквизитов клиники. Причина и
+     * действие названы по-русски, как в остальных отказах.
+     */
+    if (!document.issuedAt) {
+        return {
+            ok: false,
+            statusCode: 409,
+            error: "У документа нет даты выдачи, а в XML для налоговой она обязательна: по ней налоговая " +
+                "относит расход к году вычета. Выдайте документ — дата появится при выдаче — и повторите " +
+                "выгрузку. Подставить сегодняшнее число нельзя: пациент получил бы отказ из-за чужого года.",
+        };
+    }
+    const documentDate = isoToRuDate(document.issuedAt);
     const documentNumber = compactDocumentNumber(document);
     const fileName = `UT_SVOPLMEDUSL_DENTE_${document.taxYear}_${documentNumber}`;
     const xmlText = `<?xml version="1.0" encoding="UTF-8"?>
@@ -387,8 +460,8 @@ export function buildKnd1151156Xml(document, patient, context) {
         taxYear: document.taxYear,
         documentNumber,
         samePatientFlag,
-        sumCode1,
-        sumCode2,
+        sumCode1Kopecks,
+        sumCode2Kopecks,
         requiresPatient: samePatientFlag === "0",
     });
     if (preflightIssues.length) {

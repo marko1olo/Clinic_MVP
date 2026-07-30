@@ -1,9 +1,26 @@
 import { CheckCircle2, FileText } from "lucide-react";
-import { SmartMicrophoneButton } from './components/SmartMicrophoneButton';
-import { useDocumentStore, type MedicalDocumentReleaseChannel } from "./store/documentStore";
-import { TreatmentPlanLockTokensWidget } from "./components/documents/TreatmentPlanLockTokensWidget";
-import { TreatmentPlanPrintOdontogramWidget } from "./components/documents/TreatmentPlanPrintOdontogramWidget";
-import { TreatmentPlanStagesWidget } from "./components/documents/TreatmentPlanStagesWidget";
+import { useEffect, useRef } from "react";
+import { isoDateLabel } from "./AppHelpers";
+import { EmptyState } from "./components/EmptyState";
+import { showToast } from "./components/GlobalToast";
+import {
+  documentFormHasEntries,
+  useDocumentStore,
+  type MedicalDocumentReleaseChannel,
+} from "./store/documentStore";
+import { AnamnesisField } from "./components/documents/AnamnesisField";
+import { DocumentUkepSignButton } from "./components/documents/DocumentUkepSignButton";
+import { appendChipToText } from "./components/documents/documentChipText";
+import { PaidContractRequiredFieldsPanel } from "./components/documents/PaidContractRequiredFieldsPanel";
+import { paidContractRequiredFieldsReview } from "./components/documents/paidContractRequiredFields";
+import { AnesthesiaConsentLogForm } from "./components/documents/forms/AnesthesiaConsentLogForm";
+import type { DocumentSelectOption } from "./components/documents/forms/documentFormTypes";
+import { InformedConsentForm } from "./components/documents/forms/InformedConsentForm";
+import { MedicalInterventionRefusalForm } from "./components/documents/forms/MedicalInterventionRefusalForm";
+import { PersonalDataProcessingConsentForm } from "./components/documents/forms/PersonalDataProcessingConsentForm";
+import { PhotoVideoConsentForm } from "./components/documents/forms/PhotoVideoConsentForm";
+import { ProcedureSpecificConsentForm } from "./components/documents/forms/ProcedureSpecificConsentForm";
+import { TaxDeductionApplicationForm } from "./components/documents/forms/TaxDeductionApplicationForm";
 import {
   documentFactoryGroups,
   documentKindMetadata as sharedDocumentKindMetadata,
@@ -18,12 +35,11 @@ import {
   type PostVisitCareTopic,
   type ProcedureSpecificConsentProcedure,
   type TaxDeductionApplicationDeliveryChannel,
-  type TaxDeductionApplicationForm,
+  type TaxDeductionApplicationForm as TaxDeductionApplicationFormKind,
   type TaxDeductionApplicationRelationship,
   type XrayCbctReferralPregnancyStatus,
   type XrayCbctReferralStudyType
 } from "@dental/shared";
-type DocumentSelectOption<T extends string> = { value: T; label: string };
 type TaxDocumentPayerOption = { key: string; inn: string; label: string; amountRub: number; paymentCount: number };
 type MedicalCopyRequestSourceDocument = GeneratedDocument & {
   chainSummary?: {
@@ -41,11 +57,15 @@ type DocumentsViewProps = Record<string, any>;
 const EXTRACT_DIAGNOSIS_CHIPS = ["Кариес", "Пульпит", "Периодонтит", "Адентия", "Гингивит", "Норма"];
 const EXTRACT_TREATMENT_CHIPS = ["Препарирование", "Пломбирование", "Экстирпация пульпы", "Удаление зуба", "Профессиональная гигиена", "Консультация"];
 const EXTRACT_REC_CHIPS = ["Осмотр через 6 месяцев", "Рентген-контроль", "Санация полости рта", "Консультация ортопеда", "Прием НПВС при болях"];
-const REFUSAL_REASON_CHIPS = ["Страх перед процедурой", "Нехватка времени", "Финансовые причины", "Желание получить второе мнение"];
-const REFUSAL_RISK_CHIPS = ["Обострение воспаления", "Потеря зуба", "Развитие абсцесса", "Распространение инфекции"];
-const REFUSAL_ALT_CHIPS = ["Удаление зуба", "Отсроченное лечение", "Консультация другого специалиста", "Наблюдение"];
-const REFUSAL_WARNING_CHIPS = ["Острая пульсирующая боль", "Отек десны или щеки", "Повышение температуры тела", "Гнойные выделения"];
 const REFUND_REASON_CHIPS = ["Ошибка при оплате", "Отказ от продолжения лечения", "Оплата авансом", "Медицинские противопоказания"];
+/*
+  Подпись блока с полями договора. Одна на две разметки: рамка «чего не хватает»
+  отправляет человека именно в этот блок, поэтому название не должно расходиться.
+  Раньше блок назывался «Ручная корректировка полей» — слово «корректировка»
+  обещает необязательную доводку, а внутри лежат восемнадцать полей, без которых
+  договор не создаётся.
+*/
+const PAID_CONTRACT_FIELDS_BLOCK_TITLE = "Обязательные поля договора";
 
 function humanizeDocumentAuditText(value: string): string {
   return value
@@ -186,6 +206,14 @@ export function DocumentsView(props: DocumentsViewProps) {
     xrayPregnancyStatusOptions,
     xrayStudyTypeOptions
   } = props;
+  // БЫЛО: этот экран доставал из хранилища документов 814 полей, а пользовался
+  // 641. Остальные 173 остались после переноса семи форм в
+  // components/documents/forms/**: формы читают свои значения и сеттеры из
+  // хранилища сами, а родитель продолжал объявлять полное состояние форм,
+  // которых он больше не рисует. Компилятор такое не ловит (`noUnusedLocals`
+  // в tsconfig.base.json не включён), поэтому имя поля жило в двух местах:
+  // здесь и в форме. Ровно так расходятся две копии одной правды — правка
+  // доходит до одной и молча минует другую.
   const {
     attendanceDiagnosisDisclosureExcluded,
     attendanceEndedAt,
@@ -247,17 +275,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     paymentFiscalReceiptNumber,
     paymentPayerFullName,
     paymentPayerIdentityDocument,
-    personalDataActions,
-    personalDataAutomatedDecisionAllowed,
-    personalDataCategories,
-    personalDataConsentGivenAt,
-    personalDataCrossBorderAllowed,
-    personalDataMedicalProcessingAcknowledged,
-    personalDataPurposes,
-    personalDataRetentionPeriod,
-    personalDataRevocationChannel,
-    personalDataTransferRules,
-    personalDataVoluntaryConsentConfirmed,
     refundAccountantDecision,
     refundAction,
     refundAmountRub,
@@ -269,17 +286,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     refundRecipientFullName,
     refundRecipientIdentityDocument,
     refundSelectedPaymentId,
-    refusalAlternatives,
-    refusalClinicalIndication,
-    refusalConfirmedAt,
-    refusalConsequencesUnderstood,
-    refusalDoctorFullName,
-    refusalEmergencyCareExplained,
-    refusalExplainedRisks,
-    refusalIntervention,
-    refusalPatientReason,
-    refusalSecondOpinionOffered,
-    refusalUrgentWarningSigns,
     releaseAccessExpiresAt,
     releaseChannel,
     releaseDeliveredAt,
@@ -348,17 +354,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setOutpatient025uRhFactor,
     setOutpatient025uThirdPartyDataChecked,
     setOutpatient025uWorkOrStudyPlace,
-    setPersonalDataActions,
-    setPersonalDataAutomatedDecisionAllowed,
-    setPersonalDataCategories,
-    setPersonalDataConsentGivenAt,
-    setPersonalDataCrossBorderAllowed,
-    setPersonalDataMedicalProcessingAcknowledged,
-    setPersonalDataPurposes,
-    setPersonalDataRetentionPeriod,
-    setPersonalDataRevocationChannel,
-    setPersonalDataTransferRules,
-    setPersonalDataVoluntaryConsentConfirmed,
     setRefundAccountantDecision,
     setRefundAction,
     setRefundAmountRub,
@@ -369,17 +364,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setRefundReason,
     setRefundRecipientFullName,
     setRefundRecipientIdentityDocument,
-    setRefusalAlternatives,
-    setRefusalClinicalIndication,
-    setRefusalConfirmedAt,
-    setRefusalConsequencesUnderstood,
-    setRefusalDoctorFullName,
-    setRefusalEmergencyCareExplained,
-    setRefusalExplainedRisks,
-    setRefusalIntervention,
-    setRefusalPatientReason,
-    setRefusalSecondOpinionOffered,
-    setRefusalUrgentWarningSigns,
     setReleaseAccessExpiresAt,
     setReleaseChannel,
     setReleaseDeliveredAt,
@@ -395,25 +379,53 @@ export function DocumentsView(props: DocumentsViewProps) {
     setTaxDocumentYear,
     selectedDocumentKind,
     setSelectedDocumentKind,
-    isDocumentIngesting,
-    setIsDocumentIngesting,
   } = useDocumentStore();
+
+  /*
+   * ЧУЖИЕ ОТВЕТЫ В ДОКУМЕНТЕ ДРУГОГО ЧЕЛОВЕКА. Стор документов — одно глобальное
+   * хранилище примерно на восемьсот полей, и сброса в нём не было вовсе.
+   * Пер-пациентный черновик заведён у двух видов из тридцати, остальные формы о
+   * пациенте не знают ничего: `PhotoVideoConsentForm.tsx` не упоминает пациента
+   * ни разу. Администратор заполнял согласие на фото и видео пациенту А, включая
+   * отметку «разрешена узнаваемая публикация», открывал пациента Б — и согласие Б
+   * стояло с ответами А. Дальше документ печатается и подписывается.
+   *
+   * Молча выбрасывать набранное тоже нельзя — это был бы один обман экрана вместо
+   * другого, поэтому о выброшенном сообщается прямо, как это уже сделано в
+   * рекламациях пациента.
+   *
+   * ЧЕСТНАЯ ОГОВОРКА про один кадр: сброс сделан эффектом, а не в фазе отрисовки,
+   * потому что запись в zustand во время отрисовки грозит петлёй перерисовок.
+   * Значит чужие ответы теоретически видны один кадр до сброса. Это несравнимо
+   * лучше прежнего поведения, когда они оставались до перезагрузки страницы, но
+   * это НЕ ноль: полное решение — не рисовать формы, пока пациент формы не
+   * совпал с открытым, и оно требует перестройки отрисовки этого файла.
+   */
+  const documentFormsPatientRef = useRef<string | null>(null);
+  useEffect(() => {
+    const openedPatientId = activePatient?.id ?? null;
+    const previousPatientId = documentFormsPatientRef.current;
+    documentFormsPatientRef.current = openedPatientId;
+    /* Первое открытие карты — сбрасывать нечего и предупреждать не о чем. */
+    if (previousPatientId === null || previousPatientId === openedPatientId) return;
+    const hadEntries = documentFormHasEntries(
+      useDocumentStore.getState() as unknown as Record<string, unknown>,
+    );
+    useDocumentStore.getState().resetDocumentForms();
+    if (hadEntries) {
+      showToast(
+        "Открыта карта другого пациента. Заполненные поля документа не перенесены: чужие ответы не должны попасть в документ. Если документ нужен прежнему пациенту, вернитесь к его карте.",
+        "info",
+      );
+    }
+  }, [activePatient?.id]);
+
+  // БЫЛО: здесь стояла ТРЕТЬЯ подписка на весь стор документов, не
+  // извлекавшая НИ ОДНОГО поля: `const { } = useDocumentStore();`.
+  // Zustand без селектора уведомляет подписчика о любом изменении, поэтому
+  // каждое нажатие клавиши в любом поле документа перерисовывало этот
+  // компонент (287 КБ разметки) лишний раз — просто впустую.
   const {
-    
-  } = useDocumentStore();
-  const {
-    anesthesiaAllergyRestrictionsChecked,
-    anesthesiaAllergyStatus,
-    anesthesiaAnesthetic,
-    anesthesiaConsentConfirmed,
-    anesthesiaDoseMl,
-    anesthesiaDoseTime,
-    anesthesiaMethod,
-    anesthesiaReaction,
-    anesthesiaRestrictionNotes,
-    anesthesiaRisksExplained,
-    anesthesiaVasoconstrictor,
-    anesthesiaZone,
     completedActAccepted,
     completedActContractNumber,
     completedActDate,
@@ -431,21 +443,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     completedActTotalRub,
     documentCreateSavingKind,
     documentStatusSavingId,
-    informedConsentAftercare,
-    informedConsentAlternatives,
-    informedConsentAnesthesia,
-    informedConsentConfirmedAt,
-    informedConsentDiagnosisOrIndication,
-    informedConsentDoctorFullName,
-    informedConsentExpectedBenefit,
-    informedConsentIntervention,
-    informedConsentMaterialNotes,
-    informedConsentQuestionsAnswered,
-    informedConsentRisks,
-    informedConsentRisksUnderstood,
-    informedConsentToothOrArea,
-    informedConsentTrustedContact,
-    informedConsentWithdrawUnderstood,
     installmentScheduleAccepted,
     installmentScheduleBaseDocumentTitle,
     installmentScheduleDate,
@@ -554,16 +551,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     paymentReceiptPaymentsVerified,
     paymentReceiptPurpose,
     paymentReceiptTaxSupportRequested,
-    photoVideoAnonymizationConfirmed,
-    photoVideoClinicalRecordUseConfirmed,
-    photoVideoColleagueConsultationAllowed,
-    photoVideoEducationUseAllowed,
-    photoVideoLabTransferAllowed,
-    photoVideoMarketingUseAllowed,
-    photoVideoMaterials,
-    photoVideoRecognizablePublicationAllowed,
-    photoVideoRevocationChannel,
-    photoVideoScopeNotes,
     postVisitAllowedAfter,
     postVisitCareTopic,
     postVisitClinicContactInstruction,
@@ -589,22 +576,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     prescriptionMedication,
     prescriptionSafetyNotes,
     prescriptionUrgentContactReason,
-    procedureConsentAftercare,
-    procedureConsentAlternatives,
-    procedureConsentAnesthesia,
-    procedureConsentConfirmedAt,
-    procedureConsentDiagnosisOrIndication,
-    procedureConsentDoctorFullName,
-    procedureConsentExactProcedureConfirmed,
-    procedureConsentLocalFormAttached,
-    procedureConsentMaterials,
-    procedureConsentPatientRiskFactors,
-    procedureConsentProcedureName,
-    procedureConsentProcedureType,
-    procedureConsentQuestionsAnswered,
-    procedureConsentRisksUnderstood,
-    procedureConsentSpecificRisks,
-    procedureConsentToothOrArea,
     recordExtractComplaintAndAnamnesis,
     recordExtractDiagnosis,
     recordExtractDoctorFullName,
@@ -619,18 +590,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     recordExtractSourceVisitIds,
     recordExtractThirdPartyDataChecked,
     recordExtractTreatmentProvided,
-    setAnesthesiaAllergyRestrictionsChecked,
-    setAnesthesiaAllergyStatus,
-    setAnesthesiaAnesthetic,
-    setAnesthesiaConsentConfirmed,
-    setAnesthesiaDoseMl,
-    setAnesthesiaDoseTime,
-    setAnesthesiaMethod,
-    setAnesthesiaReaction,
-    setAnesthesiaRestrictionNotes,
-    setAnesthesiaRisksExplained,
-    setAnesthesiaVasoconstrictor,
-    setAnesthesiaZone,
     setCompletedActAccepted,
     setCompletedActContractNumber,
     setCompletedActDate,
@@ -647,21 +606,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setCompletedActServicePeriodStart,
     setCompletedActServicesSummary,
     setCompletedActTotalRub,
-    setInformedConsentAftercare,
-    setInformedConsentAlternatives,
-    setInformedConsentAnesthesia,
-    setInformedConsentConfirmedAt,
-    setInformedConsentDiagnosisOrIndication,
-    setInformedConsentDoctorFullName,
-    setInformedConsentExpectedBenefit,
-    setInformedConsentIntervention,
-    setInformedConsentMaterialNotes,
-    setInformedConsentQuestionsAnswered,
-    setInformedConsentRisks,
-    setInformedConsentRisksUnderstood,
-    setInformedConsentToothOrArea,
-    setInformedConsentTrustedContact,
-    setInformedConsentWithdrawUnderstood,
     setInstallmentScheduleAccepted,
     setInstallmentScheduleBaseDocumentTitle,
     setInstallmentScheduleDate,
@@ -770,15 +714,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setPaymentReceiptPaymentsVerified,
     setPaymentReceiptPurpose,
     setPaymentReceiptTaxSupportRequested,
-    setPhotoVideoAnonymizationConfirmed,
-    setPhotoVideoClinicalRecordUseConfirmed,
-    setPhotoVideoColleagueConsultationAllowed,
-    setPhotoVideoEducationUseAllowed,
-    setPhotoVideoLabTransferAllowed,
-    setPhotoVideoMarketingUseAllowed,
-    setPhotoVideoRecognizablePublicationAllowed,
-    setPhotoVideoRevocationChannel,
-    setPhotoVideoScopeNotes,
     setPostVisitAllowedAfter,
     setPostVisitClinicContactInstruction,
     setPostVisitDoctorFullName,
@@ -801,22 +736,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setPrescriptionMedication,
     setPrescriptionSafetyNotes,
     setPrescriptionUrgentContactReason,
-    setProcedureConsentAftercare,
-    setProcedureConsentAlternatives,
-    setProcedureConsentAnesthesia,
-    setProcedureConsentConfirmedAt,
-    setProcedureConsentDiagnosisOrIndication,
-    setProcedureConsentDoctorFullName,
-    setProcedureConsentExactProcedureConfirmed,
-    setProcedureConsentLocalFormAttached,
-    setProcedureConsentMaterials,
-    setProcedureConsentPatientRiskFactors,
-    setProcedureConsentProcedureName,
-    setProcedureConsentProcedureType,
-    setProcedureConsentQuestionsAnswered,
-    setProcedureConsentRisksUnderstood,
-    setProcedureConsentSpecificRisks,
-    setProcedureConsentToothOrArea,
     setRecordExtractComplaintAndAnamnesis,
     setRecordExtractDiagnosis,
     setRecordExtractDoctorFullName,
@@ -833,17 +752,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setRecordExtractTreatmentProvided,
     setSelectedPaymentReceiptIds,
     setSelectedTaxPaymentIds,
-    setTaxApplicationAuthorityDocument,
-    setTaxApplicationContact,
-    setTaxApplicationDeliveryChannel,
-    setTaxApplicationDuplicateWarningAccepted,
-    setTaxApplicationForm,
-    setTaxApplicationRelationship,
-    setTaxApplicationRequestedAt,
-    setTaxApplicationTaxpayerBirthDate,
-    setTaxApplicationTaxpayerFullName,
-    setTaxApplicationTaxpayerIdentityDocument,
-    setTaxApplicationTaxpayerInn,
     setTaxDocumentPayerInn,
     setTreatmentAcceptanceAcceptedAt,
     setTreatmentAcceptanceAlternativesUnderstood,
@@ -920,17 +828,6 @@ export function DocumentsView(props: DocumentsViewProps) {
     setXrayRequestedBy,
     setXraySafetyNotes,
     setXrayStudyType,
-    taxApplicationAuthorityDocument,
-    taxApplicationContact,
-    taxApplicationDeliveryChannel,
-    taxApplicationDuplicateWarningAccepted,
-    taxApplicationForm,
-    taxApplicationRelationship,
-    taxApplicationRequestedAt,
-    taxApplicationTaxpayerBirthDate,
-    taxApplicationTaxpayerFullName,
-    taxApplicationTaxpayerIdentityDocument,
-    taxApplicationTaxpayerInn,
     treatmentAcceptanceAcceptedAt,
     treatmentAcceptanceAlternativesUnderstood,
     treatmentAcceptanceClinicalGoal,
@@ -1038,7 +935,7 @@ export function DocumentsView(props: DocumentsViewProps) {
   const typedPostVisitCareTopicOptions = postVisitCareTopicOptions as Array<DocumentSelectOption<PostVisitCareTopic>>;
   const typedProcedureSpecificConsentProcedureOptions = procedureSpecificConsentProcedureOptions as Array<DocumentSelectOption<ProcedureSpecificConsentProcedure>>;
   const typedTaxApplicationDeliveryChannelOptions = taxApplicationDeliveryChannelOptions as Array<DocumentSelectOption<TaxDeductionApplicationDeliveryChannel>>;
-  const typedTaxApplicationFormOptions = taxApplicationFormOptions as Array<DocumentSelectOption<TaxDeductionApplicationForm>>;
+  const typedTaxApplicationFormOptions = taxApplicationFormOptions as Array<DocumentSelectOption<TaxDeductionApplicationFormKind>>;
   const typedTaxApplicationRelationshipOptions = taxApplicationRelationshipOptions as Array<DocumentSelectOption<TaxDeductionApplicationRelationship>>;
   const typedTaxDocumentPayerOptions = taxDocumentPayerOptions as TaxDocumentPayerOption[];
   const typedXrayPregnancyStatusOptions = xrayPregnancyStatusOptions as Array<DocumentSelectOption<XrayCbctReferralPregnancyStatus>>;
@@ -1052,6 +949,44 @@ export function DocumentsView(props: DocumentsViewProps) {
   const documentIssueMissingGuidanceId = "document-issue-missing-guidance";
   const documentVoidMissingGuidanceId = "document-void-missing-guidance";
   const selectedDocumentNeedsPayload = structuredPayloadDocumentKinds.has(selectedDocumentKind);
+  /*
+    Чего не хватает договору платных услуг. Считается здесь один раз, потому что
+    нужно в двух местах разметки: в рамке со всем перечнем и в счётчике у подписи
+    блока полей. Для остальных видов документов не считается вовсе.
+
+    Подстановки повторяют запасы из useAppLogic (paidContractCustomerFullNameValue
+    и соседние): пустое поле заказчика закрывается пациентом приёма, пустой состав
+    услуг — планом лечения, пустой врач — врачом приёма. Без этого перечень просил
+    бы вписать то, что программа подставит сама.
+  */
+  const paidContractRequired =
+    selectedDocumentKind === "paid_medical_services_contract"
+      ? paidContractRequiredFieldsReview({
+          contractNumber: paidContractNumber,
+          serviceStart: paidContractServiceStart,
+          serviceEnd: paidContractServiceEnd,
+          customerFullName: paidContractCustomerFullName,
+          patientFullName: documentPatient?.fullName ?? "",
+          careReason: paidContractCareReason,
+          visitComplaint: dashboard?.activeVisit?.complaint ?? "",
+          serviceScope: paidContractServiceScope,
+          visitTreatmentPlan: dashboard?.activeVisit?.treatmentPlan ?? "",
+          visitDoctorSummary: dashboard?.activeVisit?.doctorSummary ?? "",
+          totalRub: paidContractTotalRubValue(),
+          paymentTerms: paidContractPaymentTerms,
+          priceChangeRules: paidContractPriceChangeRules,
+          freeCareNotice: paidContractFreeCareNotice,
+          recommendationWarning: paidContractRecommendationWarning,
+          refundTerms: paidContractRefundTerms,
+          warrantyTerms: paidContractWarrantyTerms,
+          doctorFullName: paidContractDoctorFullName,
+          activeDoctorFullName: activeDoctor?.fullName ?? "",
+          clinicInfoConfirmed: paidContractClinicInfoConfirmed,
+          serviceListConfirmed: paidContractServiceListConfirmed,
+          paidBasisConfirmed: paidContractPaidBasisConfirmed,
+          writtenChangesConfirmed: paidContractWrittenChangesConfirmed,
+        })
+      : null;
   function releaseSourceRequestOptionLabel(document: MedicalCopyRequestSourceDocument): string {
     const request = document.chainSummary?.medicalRecordCopyRequest;
     const requestedDocuments = (request?.requestedDocumentTypes ?? [])
@@ -1196,9 +1131,11 @@ export function DocumentsView(props: DocumentsViewProps) {
                       })}
                     </div>
                   ) : (
-                    <span className="tax-payment-selection-empty">
-                      Нет проведенных чеков за выбранный год и плательщика. Сначала запишите оплату с фискальным чеком и данными плательщика.
-                    </span>
+                    <EmptyState
+                      title="Нет проведенных чеков"
+                      description="Нет проведенных чеков за выбранный год и плательщика. Сначала запишите оплату с фискальным чеком и данными плательщика."
+                      className="my-3 py-6"
+                    />
                   )}
                 </section>
               ) : null}
@@ -1221,9 +1158,11 @@ export function DocumentsView(props: DocumentsViewProps) {
                   </select>
                 </label>
                 <span id={selectedDocumentCreateGuidanceId}>
+                  {/* Было «Перед созданием CRM проверит обязательные поля» —
+                      программа говорила о себе аббревиатурой. */}
                   {selectedDocumentNeedsPayload
-                    ? "Перед созданием CRM проверит обязательные поля этой формы. Заполните форму ниже. Выбранный документ сохраняется в настройках."
-                    : "Можно создать сразу. Выбор сохранится для следующего открытия."}
+                    ? "Заполните форму ниже: без обязательных полей документ не создастся. Выбранный вид документа запомнится."
+                    : "Можно создать сразу. Выбранный вид документа запомнится."}
                 </span>
 
               </div>
@@ -1236,7 +1175,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                 </div>
                 <p>{typedSelectedDocumentMetadata.sourceNote}</p>
                 <small>
-                  {typedSelectedDocumentMetadata.sourceReference} · проверено {typedSelectedDocumentMetadata.sourceCheckedAt}
+                  {typedSelectedDocumentMetadata.sourceReference} · форма сверена с источником {isoDateLabel(typedSelectedDocumentMetadata.sourceCheckedAt)}
                 </small>
                 {typedSelectedDocumentMetadata.sourceUrls.length ? (
                   <div className="document-source-links" aria-label="Официальные источники формы">
@@ -1263,8 +1202,24 @@ export function DocumentsView(props: DocumentsViewProps) {
                     <h3>Договор платных медицинских услуг</h3>
                     <p>Фиксация номера, сроков, состава услуг, стоимости, порядка оплаты и обязательных уведомлений пациента до лечения.</p>
                   </div>
+                  {paidContractRequired ? (
+                    <PaidContractRequiredFieldsPanel
+                      review={paidContractRequired}
+                      fieldsBlockTitle={PAID_CONTRACT_FIELDS_BLOCK_TITLE}
+                    />
+                  ) : null}
   <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
+    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>
+      {/*
+        В подписи стоит счётчик нехваток: сам блок свёрнут, и без счётчика
+        человек не понимал, что разворачивать его обязательно.
+      */}
+      ✏️ {PAID_CONTRACT_FIELDS_BLOCK_TITLE}
+      {paidContractRequired?.missing.length
+        ? ` — не хватает ${paidContractRequired.missing.length}`
+        : " — всё заполнено"}
+      {" (развернуть)"}
+    </summary>
     <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
                   <div className="document-payload-row">
                     <label>
@@ -1305,10 +1260,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                           key={chip}
                           type="button"
                           className="quick-chip quick-chip--sm"
-                          onClick={() => {
-                            const current = paidContractCareReason.trim();
-                            setPaidContractCareReason(current ? `${current}, ${chip.toLowerCase()}` : chip);
-                          }}
+                          onClick={() => setPaidContractCareReason(appendChipToText(paidContractCareReason, chip))}
                         >
                           + {chip}
                         </button>
@@ -1327,7 +1279,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                   <div className="document-payload-row">
                     <label>
                       Сумма договора
-                      <input inputMode="numeric" value={paidContractTotalRub} onChange={(event) => setPaidContractTotalRub(event.target.value)} placeholder={String(paidContractTotalRubValue() || "")} />
+                      <input inputMode="numeric" value={paidContractTotalRub} onChange={(event) => setPaidContractTotalRub(event.target.value)} placeholder={paidContractTotalRubValue() ? money(paidContractTotalRubValue()) : "сумма цифрами, копейки после запятой"} />
                     </label>
                     <label>
                       Ответственный врач
@@ -1460,7 +1412,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                         inputMode="numeric"
                         value={completedActTotalRub}
                         onChange={(event) => setCompletedActTotalRub(event.target.value)}
-                        placeholder={String(treatmentAcceptancePlannedTotalRub() || "")}
+                        placeholder={treatmentAcceptancePlannedTotalRub() ? money(treatmentAcceptancePlannedTotalRub()) : "сумма цифрами, копейки после запятой"}
                       />
                     </label>
                     <label>
@@ -1469,7 +1421,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                         inputMode="numeric"
                         value={completedActPaidRub}
                         onChange={(event) => setCompletedActPaidRub(event.target.value)}
-                        placeholder={String(completedActPaidRubValue() || "")}
+                        placeholder={completedActPaidRubValue() ? money(completedActPaidRubValue()) : "сумма цифрами, копейки после запятой"}
                       />
                     </label>
                   </div>
@@ -1571,10 +1523,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                           key={chip}
                           type="button"
                           className="quick-chip quick-chip--sm"
-                          onClick={() => {
-                            const current = treatmentEstimateTreatmentBasis.trim();
-                            setTreatmentEstimateTreatmentBasis(current ? `${current}, ${chip.toLowerCase()}` : chip);
-                          }}
+                          onClick={() => setTreatmentEstimateTreatmentBasis(appendChipToText(treatmentEstimateTreatmentBasis, chip))}
                         >
                           + {chip}
                         </button>
@@ -1588,7 +1537,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                         inputMode="numeric"
                         value={treatmentEstimateTotalRub}
                         onChange={(event) => setTreatmentEstimateTotalRub(event.target.value)}
-                        placeholder={String(treatmentEstimateTotalRubValue() || "")}
+                        placeholder={treatmentEstimateTotalRubValue() ? money(treatmentEstimateTotalRubValue()) : "сумма цифрами, копейки после запятой"}
                       />
                     </label>
                     <label>
@@ -1613,10 +1562,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                           key={chip}
                           type="button"
                           className="quick-chip quick-chip--sm"
-                          onClick={() => {
-                            const current = treatmentEstimateExcludedItems.trim();
-                            setTreatmentEstimateExcludedItems(current ? `${current}, ${chip.toLowerCase()}` : chip);
-                          }}
+                          onClick={() => setTreatmentEstimateExcludedItems(appendChipToText(treatmentEstimateExcludedItems, chip))}
                         >
                           + {chip}
                         </button>
@@ -1632,10 +1578,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                           key={chip}
                           type="button"
                           className="quick-chip quick-chip--sm"
-                          onClick={() => {
-                            const current = treatmentEstimatePaymentMilestoneNotes.trim();
-                            setTreatmentEstimatePaymentMilestoneNotes(current ? `${current}, ${chip.toLowerCase()}` : chip);
-                          }}
+                          onClick={() => setTreatmentEstimatePaymentMilestoneNotes(appendChipToText(treatmentEstimatePaymentMilestoneNotes, chip))}
                         >
                           + {chip}
                         </button>
@@ -1828,9 +1771,11 @@ export function DocumentsView(props: DocumentsViewProps) {
                         })}
                       </div>
                     ) : (
-                      <span className="tax-payment-selection-empty">
-                        Нет оплаченных платежей по текущему визиту. Сначала сохраните оплату с фискальным чеком и данными плательщика.
-                      </span>
+                      <EmptyState
+                        title="Нет оплаченных платежей"
+                        description="Нет оплаченных платежей по текущему визиту. Сначала сохраните оплату с фискальным чеком и данными плательщика."
+                        className="my-3 py-6"
+                      />
                     )}
                   </section>
                   <div className="document-payload-row">
@@ -1937,11 +1882,11 @@ export function DocumentsView(props: DocumentsViewProps) {
                   <div className="document-payload-row">
                     <label>
                       Общая сумма
-                      <input inputMode="numeric" value={installmentScheduleTotalRub} onChange={(event) => setInstallmentScheduleTotalRub(event.target.value)} placeholder={String(installmentScheduleTotalRubValue() || "")} />
+                      <input inputMode="numeric" value={installmentScheduleTotalRub} onChange={(event) => setInstallmentScheduleTotalRub(event.target.value)} placeholder={installmentScheduleTotalRubValue() ? money(installmentScheduleTotalRubValue()) : "сумма цифрами, копейки после запятой"} />
                     </label>
                     <label>
                       Предоплата
-                      <input inputMode="numeric" value={installmentSchedulePrepaidRub} onChange={(event) => setInstallmentSchedulePrepaidRub(event.target.value)} placeholder={String(installmentSchedulePrepaidRubValue() || "")} />
+                      <input inputMode="numeric" value={installmentSchedulePrepaidRub} onChange={(event) => setInstallmentSchedulePrepaidRub(event.target.value)} placeholder={installmentSchedulePrepaidRubValue() ? money(installmentSchedulePrepaidRubValue()) : "сумма цифрами, копейки после запятой"} />
                     </label>
                   </div>
                   <label>
@@ -2165,26 +2110,29 @@ export function DocumentsView(props: DocumentsViewProps) {
                       rows={2}
                     />
                   </label>
-                  <label>
-                    Аллергии и нежелательные реакции
-                    <textarea value={intakeAllergyStatus} onChange={(event) => setIntakeAllergyStatus(event.target.value)} rows={2} />
-                  </label>
-                  <label>
-                    Постоянные препараты
-                    <textarea
-                      value={intakeCurrentMedications}
-                      onChange={(event) => setIntakeCurrentMedications(event.target.value)}
-                      rows={2}
-                    />
-                  </label>
-                  <label>
-                    Хронические заболевания
-                    <textarea
-                      value={intakeChronicConditions}
-                      onChange={(event) => setIntakeChronicConditions(event.target.value)}
-                      rows={2}
-                    />
-                  </label>
+                  <AnamnesisField
+                    label="Аллергии и нежелательные реакции"
+                    value={intakeAllergyStatus}
+                    onChange={setIntakeAllergyStatus}
+                    placeholder="на что бывала реакция: препараты, латекс, металлы, анестетики"
+                    denialText="Аллергии и нежелательные реакции со слов пациента не отмечены."
+                  />
+                  <AnamnesisField
+                    label="Постоянные препараты"
+                    value={intakeCurrentMedications}
+                    onChange={setIntakeCurrentMedications}
+                    placeholder="что пациент принимает постоянно и в какой дозе"
+                    denialText="Постоянные препараты со слов пациента не принимает."
+                    denialLabel="Со слов пациента — не принимает"
+                  />
+                  <AnamnesisField
+                    label="Хронические заболевания"
+                    value={intakeChronicConditions}
+                    onChange={setIntakeChronicConditions}
+                    placeholder="диабет, гипертония, гепатит, эпилепсия и другое"
+                    denialText="Хронические заболевания со слов пациента отрицает."
+                    denialLabel="Со слов пациента — отрицает"
+                  />
                   <div className="document-payload-row">
                     <label>
                       Беременность/лактация
@@ -2208,18 +2156,22 @@ export function DocumentsView(props: DocumentsViewProps) {
                       />
                     </label>
                   </div>
-                  <label>
-                    Антикоагулянты и кровотечения
-                    <textarea value={intakeAnticoagulants} onChange={(event) => setIntakeAnticoagulants(event.target.value)} rows={2} />
-                  </label>
-                  <label>
-                    Инфекционные риски
-                    <textarea
-                      value={intakeInfectiousRiskNotes}
-                      onChange={(event) => setIntakeInfectiousRiskNotes(event.target.value)}
-                      rows={2}
-                    />
-                  </label>
+                  <AnamnesisField
+                    label="Антикоагулянты и кровотечения"
+                    value={intakeAnticoagulants}
+                    onChange={setIntakeAnticoagulants}
+                    placeholder="варфарин, ксарелто, аспирин; были ли долгие кровотечения"
+                    denialText="Антикоагулянты и препараты, влияющие на кровотечение, со слов пациента не принимает."
+                    denialLabel="Со слов пациента — не принимает"
+                  />
+                  <AnamnesisField
+                    label="Инфекционные риски"
+                    value={intakeInfectiousRiskNotes}
+                    onChange={setIntakeInfectiousRiskNotes}
+                    placeholder="гепатит, ВИЧ, туберкулёз и другое, о чём сообщил пациент"
+                    denialText="Инфекционные риски со слов пациента не заявлены."
+                    denialLabel="Со слов пациента — не заявлены"
+                  />
                   <label>
                     Сердце, давление, диабет и системные риски
                     <textarea
@@ -2246,350 +2198,33 @@ export function DocumentsView(props: DocumentsViewProps) {
                 ) : null}
 
                 {selectedDocumentKind === "tax_deduction_application" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Заявление на налоговую справку</h3>
-                    <p>Заявитель, ИНН, документ, родство, год и способ выдачи без ручных правок в HTML.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <label>
-                    Заявитель / налогоплательщик
-                    <input value={taxApplicationTaxpayerFullName} onChange={(event) => setTaxApplicationTaxpayerFullName(event.target.value)} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      ИНН
-                      <input
-                        inputMode="numeric"
-                        value={taxApplicationTaxpayerInn}
-                        onChange={(event) => setTaxApplicationTaxpayerInn(event.target.value.replace(/[^\d]/g, "").slice(0, 12))}
-                        placeholder={taxApplicationForm === "knd_1151156" ? "12 цифр, если есть" : "10 или 12 цифр"}
-                      />
-                    </label>
-                    <label>
-                      Дата рождения
-                      <input
-                        type="date"
-                        value={taxApplicationTaxpayerBirthDate}
-                        onChange={(event) => setTaxApplicationTaxpayerBirthDate(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Документ заявителя
-                    <input
-                      value={taxApplicationTaxpayerIdentityDocument}
-                      onChange={(event) => setTaxApplicationTaxpayerIdentityDocument(event.target.value)}
-                      placeholder="паспорт, серия, номер, кем и когда выдан"
-                    />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Родство
-                      <select
-                        value={taxApplicationRelationship}
-                        onChange={(event) => {
-                          const nextRelationship = normalizedTaxApplicationRelationshipSelect(event.target.value);
-                          setTaxApplicationRelationship(nextRelationship);
-                          if (nextRelationship === "self") setTaxApplicationAuthorityDocument("");
-                        }}
-                      >
-                        {typedTaxApplicationRelationshipOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Форма
-                      <select value={taxApplicationForm} onChange={(event) => setTaxApplicationForm(normalizedTaxApplicationForm(event.target.value))}>
-                        {typedTaxApplicationFormOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="document-payload-row">
-                    <label>
-                      Канал выдачи
-                      <select
-                        value={taxApplicationDeliveryChannel}
-                        onChange={(event) => setTaxApplicationDeliveryChannel(normalizedTaxApplicationDeliveryChannel(event.target.value))}
-                      >
-                        {typedTaxApplicationDeliveryChannelOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Дата заявления
-                      <input type="datetime-local" value={taxApplicationRequestedAt} onChange={(event) => setTaxApplicationRequestedAt(event.target.value)} />
-                    </label>
-                  </div>
-                  <label>
-                    Кому сообщить о готовности
-                    <input value={taxApplicationContact} onChange={(event) => setTaxApplicationContact(event.target.value)} />
-                  </label>
-                  <label>
-                    Полномочия представителя
-                    <input
-                      value={taxApplicationAuthorityDocument}
-                      onChange={(event) => setTaxApplicationAuthorityDocument(event.target.value)}
-                      placeholder="если заявитель не сам пациент"
-                    />
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={taxApplicationDuplicateWarningAccepted}
-                      type="checkbox"
-                      onChange={(event) => setTaxApplicationDuplicateWarningAccepted(event.target.checked)}
-                    />
-                    Перед выдачей будет проверен дубль по тем же расходам
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <TaxDeductionApplicationForm
+                    relationshipOptions={typedTaxApplicationRelationshipOptions}
+                    formOptions={typedTaxApplicationFormOptions}
+                    deliveryChannelOptions={typedTaxApplicationDeliveryChannelOptions}
+                    normalizeRelationship={normalizedTaxApplicationRelationshipSelect}
+                    normalizeForm={normalizedTaxApplicationForm}
+                    normalizeDeliveryChannel={normalizedTaxApplicationDeliveryChannel}
+                  />
                 ) : null}
 
                 {selectedDocumentKind === "informed_consent" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Информированное согласие</h3>
-                    <p>Конкретное вмешательство, область, показание, риски, альтернативы и рекомендации без пустого шаблона.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <label>
-                    Планируемое вмешательство
-                    <textarea value={informedConsentIntervention} onChange={(event) => setInformedConsentIntervention(event.target.value)} rows={2} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Область или зубы
-                      <input
-                        value={informedConsentToothOrArea}
-                        onChange={(event) => setInformedConsentToothOrArea(event.target.value)}
-                        placeholder={inferredTreatmentArea || "FDI / зона лечения"}
-                      />
-                    </label>
-                    <label>
-                      Врач
-                      <input
-                        value={informedConsentDoctorFullName}
-                        onChange={(event) => setInformedConsentDoctorFullName(event.target.value)}
-                        placeholder={activeDoctor?.fullName ?? "врач, проводивший разъяснение"}
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Диагноз или клиническое показание
-                    <textarea
-                      value={informedConsentDiagnosisOrIndication}
-                      onChange={(event) => setInformedConsentDiagnosisOrIndication(event.target.value)}
-                      placeholder={dashboard?.activeVisit?.complaint ?? "показание к вмешательству"}
-                      rows={2}
-                    />
-                  </label>
-                  <label>
-                    Ожидаемая польза
-                    <textarea value={informedConsentExpectedBenefit} onChange={(event) => setInformedConsentExpectedBenefit(event.target.value)} rows={2} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Анестезия
-                      <input value={informedConsentAnesthesia} onChange={(event) => setInformedConsentAnesthesia(event.target.value)} />
-                    </label>
-                    <label>
-                      Дата подтверждения
-                      <input value={informedConsentConfirmedAt} onChange={(event) => setInformedConsentConfirmedAt(event.target.value)} />
-                    </label>
-                  </div>
-                  <label>
-                    Материалы, препараты и ограничения
-                    <textarea value={informedConsentMaterialNotes} onChange={(event) => setInformedConsentMaterialNotes(event.target.value)} rows={2} />
-                  </label>
-                  <label>
-                    Кому можно сообщать медицинские сведения
-                    <input value={informedConsentTrustedContact} onChange={(event) => setInformedConsentTrustedContact(event.target.value)} />
-                  </label>
-                  <label>
-                    Разъясненные риски
-                    <textarea value={informedConsentRisks} onChange={(event) => setInformedConsentRisks(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    Альтернативы
-                    <textarea value={informedConsentAlternatives} onChange={(event) => setInformedConsentAlternatives(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    После вмешательства
-                    <textarea value={informedConsentAftercare} onChange={(event) => setInformedConsentAftercare(event.target.value)} rows={4} />
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={informedConsentQuestionsAnswered}
-                      type="checkbox"
-                      onChange={(event) => setInformedConsentQuestionsAnswered(event.target.checked)}
-                    />
-                    Пациент получил ответы на вопросы
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={informedConsentRisksUnderstood}
-                      type="checkbox"
-                      onChange={(event) => setInformedConsentRisksUnderstood(event.target.checked)}
-                    />
-                    Пациент понял риски, ограничения и прогноз
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={informedConsentWithdrawUnderstood}
-                      type="checkbox"
-                      onChange={(event) => setInformedConsentWithdrawUnderstood(event.target.checked)}
-                    />
-                    Пациенту объяснено право отказаться до вмешательства
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <InformedConsentForm
+                    activeDoctorFullName={activeDoctor?.fullName}
+                    activeVisitComplaint={dashboard?.activeVisit?.complaint}
+                    inferredTreatmentArea={inferredTreatmentArea}
+                  />
                 ) : null}
 
                 {selectedDocumentKind === "procedure_specific_consent_packet" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Процедурное согласие</h3>
-                    <p>Приложение к согласию для конкретной процедуры: тип, зона, материалы, риски, альтернативы и послеоперационные ограничения.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div className="document-payload-row">
-                    <label>
-                      Блок процедуры
-                      <select
-                        value={procedureConsentProcedureType}
-                        onChange={(event) => setProcedureConsentProcedureType(normalizedProcedureSpecificConsentProcedure(event.target.value))}
-                      >
-                        {typedProcedureSpecificConsentProcedureOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Врач
-                      <input
-                        value={procedureConsentDoctorFullName}
-                        onChange={(event) => setProcedureConsentDoctorFullName(event.target.value)}
-                        placeholder={activeDoctor?.fullName ?? "врач, проводивший разъяснение"}
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Процедура или этап
-                    <textarea value={procedureConsentProcedureName} onChange={(event) => setProcedureConsentProcedureName(event.target.value)} rows={2} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Область или зубы
-                      <input
-                        value={procedureConsentToothOrArea}
-                        onChange={(event) => setProcedureConsentToothOrArea(event.target.value)}
-                        placeholder={inferredTreatmentArea || "FDI / зона лечения"}
-                      />
-                    </label>
-                    <label>
-                      Дата подтверждения
-                      <input value={procedureConsentConfirmedAt} onChange={(event) => setProcedureConsentConfirmedAt(event.target.value)} />
-                    </label>
-                  </div>
-                  <label>
-                    Диагноз или клиническое показание
-                    <textarea
-                      value={procedureConsentDiagnosisOrIndication}
-                      onChange={(event) => setProcedureConsentDiagnosisOrIndication(event.target.value)}
-                      placeholder={dashboard?.activeVisit?.complaint ?? "показание к процедуре"}
-                      rows={2}
-                    />
-                  </label>
-                  {renderClinicalToothRowsEditor()}
-                  <div className="document-payload-row">
-                    <label>
-                      Анестезия
-                      <input value={procedureConsentAnesthesia} onChange={(event) => setProcedureConsentAnesthesia(event.target.value)} />
-                    </label>
-                    <label>
-                      Материалы, системы, конструкции
-                      <input value={procedureConsentMaterials} onChange={(event) => setProcedureConsentMaterials(event.target.value)} />
-                    </label>
-                  </div>
-                  <label>
-                    Персональные факторы риска пациента
-                    <textarea
-                      value={procedureConsentPatientRiskFactors}
-                      onChange={(event) => setProcedureConsentPatientRiskFactors(event.target.value)}
-                      rows={3}
-                    />
-                  </label>
-                  <label>
-                    Процедурные риски
-                    <textarea
-                      value={procedureConsentSpecificRisks}
-                      onChange={(event) => setProcedureConsentSpecificRisks(event.target.value)}
-                      rows={4}
-                    />
-                  </label>
-                  <label>
-                    Альтернативы и отказ
-                    <textarea value={procedureConsentAlternatives} onChange={(event) => setProcedureConsentAlternatives(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    После процедуры
-                    <textarea value={procedureConsentAftercare} onChange={(event) => setProcedureConsentAftercare(event.target.value)} rows={4} />
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={procedureConsentLocalFormAttached}
-                      type="checkbox"
-                      onChange={(event) => setProcedureConsentLocalFormAttached(event.target.checked)}
-                    />
-                    Локальная форма клиники приложена или включена в пакет
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={procedureConsentQuestionsAnswered}
-                      type="checkbox"
-                      onChange={(event) => setProcedureConsentQuestionsAnswered(event.target.checked)}
-                    />
-                    Пациент получил ответы на вопросы по процедуре
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={procedureConsentExactProcedureConfirmed}
-                      type="checkbox"
-                      onChange={(event) => setProcedureConsentExactProcedureConfirmed(event.target.checked)}
-                    />
-                    Конкретная процедура, зона и объем названы пациенту
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={procedureConsentRisksUnderstood}
-                      type="checkbox"
-                      onChange={(event) => setProcedureConsentRisksUnderstood(event.target.checked)}
-                    />
-                    Пациент понял процедурные риски и ограничения
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <ProcedureSpecificConsentForm
+                    activeDoctorFullName={activeDoctor?.fullName}
+                    activeVisitComplaint={dashboard?.activeVisit?.complaint}
+                    inferredTreatmentArea={inferredTreatmentArea}
+                    procedureOptions={typedProcedureSpecificConsentProcedureOptions}
+                    normalizeProcedure={normalizedProcedureSpecificConsentProcedure}
+                    renderToothRowsEditor={renderClinicalToothRowsEditor}
+                  />
                 ) : null}
 
                 {selectedDocumentKind === "treatment_plan" ? (
@@ -2634,7 +2269,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                         inputMode="numeric"
                         value={treatmentPlanEstimatedTotalRub}
                         onChange={(event) => setTreatmentPlanEstimatedTotalRub(event.target.value)}
-                        placeholder={String(treatmentAcceptancePlannedTotalRub() || "")}
+                        placeholder={treatmentAcceptancePlannedTotalRub() ? money(treatmentAcceptancePlannedTotalRub()) : "сумма цифрами, копейки после запятой"}
                       />
                     </label>
                   </div>
@@ -2764,7 +2399,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                         inputMode="numeric"
                         value={treatmentAcceptanceEstimatedTotalRub}
                         onChange={(event) => setTreatmentAcceptanceEstimatedTotalRub(event.target.value)}
-                        placeholder={String(treatmentAcceptancePlannedTotalRub() || "")}
+                        placeholder={treatmentAcceptancePlannedTotalRub() ? money(treatmentAcceptancePlannedTotalRub()) : "сумма цифрами, копейки после запятой"}
                       />
                     </label>
                     <label>
@@ -3026,84 +2661,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                 ) : null}
 
                 {selectedDocumentKind === "anesthesia_consent_log" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Журнал анестезии</h3>
-                    <p>Перед созданием: метод, препарат, зона, доза и реакция.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <label>
-                    Метод
-                    <input value={anesthesiaMethod} onChange={(event) => setAnesthesiaMethod(event.target.value)} />
-                  </label>
-                  <label>
-                    Препарат
-                    <input value={anesthesiaAnesthetic} onChange={(event) => setAnesthesiaAnesthetic(event.target.value)} />
-                  </label>
-                  <label>
-                    Вазоконстриктор
-                    <input value={anesthesiaVasoconstrictor} onChange={(event) => setAnesthesiaVasoconstrictor(event.target.value)} />
-                  </label>
-                  <label>
-                    Зона
-                    <input value={anesthesiaZone} onChange={(event) => setAnesthesiaZone(event.target.value)} placeholder={inferredTreatmentArea || "FDI / зона"} />
-                  </label>
-                  <label>
-                    Аллергоанамнез
-                    <textarea value={anesthesiaAllergyStatus} onChange={(event) => setAnesthesiaAllergyStatus(event.target.value)} rows={2} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Время
-                      <input value={anesthesiaDoseTime} onChange={(event) => setAnesthesiaDoseTime(event.target.value)} />
-                    </label>
-                    <label>
-                      Доза, мл
-                      <input value={anesthesiaDoseMl} onChange={(event) => setAnesthesiaDoseMl(event.target.value)} />
-                    </label>
-                  </div>
-                  <label>
-                    Реакция
-                    <textarea value={anesthesiaReaction} onChange={(event) => setAnesthesiaReaction(event.target.value)} rows={2} />
-                  </label>
-                  <label>
-                    Ограничения
-                    <textarea
-                      value={anesthesiaRestrictionNotes}
-                      onChange={(event) => setAnesthesiaRestrictionNotes(event.target.value)}
-                      placeholder="например: без вазоконстриктора / контроль АД"
-                      rows={2}
-                    />
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={anesthesiaRisksExplained}
-                      type="checkbox"
-                      onChange={(event) => setAnesthesiaRisksExplained(event.target.checked)}
-                    />
-                    Пациенту объяснены риски и ограничения анестезии
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={anesthesiaAllergyRestrictionsChecked}
-                      type="checkbox"
-                      onChange={(event) => setAnesthesiaAllergyRestrictionsChecked(event.target.checked)}
-                    />
-                    Аллергии, лекарства и ограничения проверены до введения
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={anesthesiaConsentConfirmed}
-                      type="checkbox"
-                      onChange={(event) => setAnesthesiaConsentConfirmed(event.target.checked)}
-                    />
-                    Пациент согласен на выбранную местную анестезию
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <AnesthesiaConsentLogForm inferredTreatmentArea={inferredTreatmentArea} />
                 ) : null}
 
                 {selectedDocumentKind === "prescription_medication_order" ? (
@@ -3193,97 +2751,10 @@ export function DocumentsView(props: DocumentsViewProps) {
                 ) : null}
 
                 {selectedDocumentKind === "photo_video_consent" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Фото, видео и снимки</h3>
-                    <p>Отдельные разрешения: карта, лаборатория, консилиум, обучение, маркетинг и узнаваемая публикация.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div className="document-payload-row">
-                    {typedPhotoVideoMaterialOptions.map((option) => (
-                      <label className="document-payload-checkbox" key={option.value}>
-                        <input
-                          checked={photoVideoMaterials.includes(option.value)}
-                          type="checkbox"
-                          onChange={() => togglePhotoVideoMaterial(option.value)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoClinicalRecordUseConfirmed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoClinicalRecordUseConfirmed(event.target.checked)}
-                    />
-                    Фото, видео и снимки вносятся в медицинскую карту пациента
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoAnonymizationConfirmed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoAnonymizationConfirmed(event.target.checked)}
-                    />
-                    Внешнее использование только после обезличивания, кроме отдельно разрешенной узнаваемой публикации
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoLabTransferAllowed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoLabTransferAllowed(event.target.checked)}
-                    />
-                    Можно передавать в зуботехническую лабораторию
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoColleagueConsultationAllowed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoColleagueConsultationAllowed(event.target.checked)}
-                    />
-                    Можно показывать коллегам для консультации
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoEducationUseAllowed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoEducationUseAllowed(event.target.checked)}
-                    />
-                    Можно использовать в обучении и профессиональных разборах
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoMarketingUseAllowed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoMarketingUseAllowed(event.target.checked)}
-                    />
-                    Можно использовать в маркетинге клиники
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={photoVideoRecognizablePublicationAllowed}
-                      type="checkbox"
-                      onChange={(event) => setPhotoVideoRecognizablePublicationAllowed(event.target.checked)}
-                    />
-                    Разрешена узнаваемая публикация лица или улыбки
-                  </label>
-                  <label>
-                    Как пациент отзывает согласие
-                    <textarea
-                      value={photoVideoRevocationChannel}
-                      onChange={(event) => setPhotoVideoRevocationChannel(event.target.value)}
-                      rows={2}
-                    />
-                  </label>
-                  <label>
-                    Ограничения пациента
-                    <textarea value={photoVideoScopeNotes} onChange={(event) => setPhotoVideoScopeNotes(event.target.value)} rows={2} />
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <PhotoVideoConsentForm
+                    materialOptions={typedPhotoVideoMaterialOptions}
+                    toggleMaterial={togglePhotoVideoMaterial}
+                  />
                 ) : null}
 
                 {selectedDocumentKind === "xray_cbct_referral" ? (
@@ -4090,224 +3561,15 @@ export function DocumentsView(props: DocumentsViewProps) {
                 ) : null}
 
                 {selectedDocumentKind === "personal_data_processing_consent" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Согласие на ПДн</h3>
-                    <p>Оператор, цели, категории данных, передачи и отзыв согласия без пустого шаблона.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div className="document-payload-row">
-                    <label>
-                      Оператор
-                      <input
-                        value={clinicProfileDraft.legalName || clinicProfileDraft.clinicName}
-                        readOnly
-                        placeholder="заполните юридический профиль клиники"
-                      />
-                    </label>
-                    <label>
-                      ИНН оператора
-                      <input value={clinicProfileDraft.inn} readOnly placeholder="из настроек клиники" />
-                    </label>
-                  </div>
-                  <label>
-                    Адрес оператора
-                    <input value={clinicProfileDraft.address} readOnly placeholder="из настроек клиники" />
-                  </label>
-                  <label>
-                    Цели обработки
-                    <textarea value={personalDataPurposes} onChange={(event) => setPersonalDataPurposes(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    Категории данных
-                    <textarea value={personalDataCategories} onChange={(event) => setPersonalDataCategories(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    Действия с данными
-                    <textarea value={personalDataActions} onChange={(event) => setPersonalDataActions(event.target.value)} rows={4} />
-                  </label>
-                  <label>
-                    Передача третьим лицам
-                    <textarea value={personalDataTransferRules} onChange={(event) => setPersonalDataTransferRules(event.target.value)} rows={3} />
-                  </label>
-                  <div className="document-payload-row">
-                    <label className="document-payload-checkbox">
-                      <input
-                        checked={personalDataCrossBorderAllowed}
-                        type="checkbox"
-                        onChange={(event) => setPersonalDataCrossBorderAllowed(event.target.checked)}
-                      />
-                      Разрешена трансграничная передача
-                    </label>
-                    <label className="document-payload-checkbox">
-                      <input
-                        checked={personalDataAutomatedDecisionAllowed}
-                        type="checkbox"
-                        onChange={(event) => setPersonalDataAutomatedDecisionAllowed(event.target.checked)}
-                      />
-                      Разрешены автоматизированные решения
-                    </label>
-                  </div>
-                  <label>
-                    Срок хранения
-                    <textarea
-                      value={personalDataRetentionPeriod}
-                      onChange={(event) => setPersonalDataRetentionPeriod(event.target.value)}
-                      rows={2}
-                    />
-                  </label>
-                  <div className="document-payload-row">
-                    <label>
-                      Порядок отзыва
-                      <textarea
-                        value={personalDataRevocationChannel}
-                        onChange={(event) => setPersonalDataRevocationChannel(event.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label>
-                      Дата согласия
-                      <input value={personalDataConsentGivenAt} onChange={(event) => setPersonalDataConsentGivenAt(event.target.value)} />
-                    </label>
-                  </div>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={personalDataVoluntaryConsentConfirmed}
-                      type="checkbox"
-                      onChange={(event) => setPersonalDataVoluntaryConsentConfirmed(event.target.checked)}
-                    />
-                    Пациент добровольно согласен на обработку персональных данных
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={personalDataMedicalProcessingAcknowledged}
-                      type="checkbox"
-                      onChange={(event) => setPersonalDataMedicalProcessingAcknowledged(event.target.checked)}
-                    />
-                    Пациент понимает обработку медицинских данных
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <PersonalDataProcessingConsentForm clinicProfileDraft={clinicProfileDraft} />
                 ) : null}
 
                 {selectedDocumentKind === "medical_intervention_refusal" ? (
-                  <article className="document-payload-card">
-                  <div>
-                    <h3>Отказ от вмешательства</h3>
-                    <p>Что предложено, почему нужно, какие риски объяснены и когда срочно обращаться.</p>
-                  </div>
-  <details className="document-manual-override" style={{ background: "var(--surface-100)", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--line)", marginTop: "16px" }}>
-    <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--brand-700)", userSelect: "none" }}>✏️ Ручная корректировка полей (развернуть)</summary>
-    <div className="document-payload-collapsed-content" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <label>
-                    Предложенное вмешательство
-                    <input
-                      value={refusalIntervention}
-                      onChange={(event) => setRefusalIntervention(event.target.value)}
-                      placeholder={inferredTreatmentArea ? `например: лечение или удаление ${inferredTreatmentArea}` : "процедура или вмешательство"}
-                    />
-                  </label>
-                  <label>
-                    Клиническое показание
-                    <textarea
-                      value={refusalClinicalIndication}
-                      onChange={(event) => setRefusalClinicalIndication(event.target.value)}
-                      placeholder={dashboard?.activeVisit?.complaint ?? "показания и причина рекомендации врача"}
-                      rows={2}
-                    />
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-700)' }}>Причина отказа со слов пациента</span>
-                      <SmartMicrophoneButton context="general" onResult={(t) => setRefusalPatientReason(refusalPatientReason ? `${refusalPatientReason}, ${t}` : t)} />
-                    </div>
-                    <textarea value={refusalPatientReason} onChange={(event) => setRefusalPatientReason(event.target.value)} rows={2} style={{ marginTop: '0' }} />
-                    <div className="quick-chips-row" style={{ flexWrap: 'wrap' }}>
-                      {REFUSAL_REASON_CHIPS.map(chip => (
-                        <button key={chip} type="button" className="quick-chip quick-chip--sm" onClick={() => setRefusalPatientReason(refusalPatientReason.trim() ? `${refusalPatientReason.trim()}, ${chip.toLowerCase()}` : chip)}>+ {chip}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-700)' }}>Разъясненные риски</span>
-                      <SmartMicrophoneButton context="general" onResult={(t) => setRefusalExplainedRisks(refusalExplainedRisks ? `${refusalExplainedRisks}, ${t}` : t)} />
-                    </div>
-                    <textarea value={refusalExplainedRisks} onChange={(event) => setRefusalExplainedRisks(event.target.value)} rows={3} style={{ marginTop: '0' }} />
-                    <div className="quick-chips-row" style={{ flexWrap: 'wrap' }}>
-                      {REFUSAL_RISK_CHIPS.map(chip => (
-                        <button key={chip} type="button" className="quick-chip quick-chip--sm" onClick={() => setRefusalExplainedRisks(refusalExplainedRisks.trim() ? `${refusalExplainedRisks.trim()}, ${chip.toLowerCase()}` : chip)}>+ {chip}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-700)' }}>Предложенные альтернативы</span>
-                      <SmartMicrophoneButton context="general" onResult={(t) => setRefusalAlternatives(refusalAlternatives ? `${refusalAlternatives}, ${t}` : t)} />
-                    </div>
-                    <textarea value={refusalAlternatives} onChange={(event) => setRefusalAlternatives(event.target.value)} rows={3} style={{ marginTop: '0' }} />
-                    <div className="quick-chips-row" style={{ flexWrap: 'wrap' }}>
-                      {REFUSAL_ALT_CHIPS.map(chip => (
-                        <button key={chip} type="button" className="quick-chip quick-chip--sm" onClick={() => setRefusalAlternatives(refusalAlternatives.trim() ? `${refusalAlternatives.trim()}, ${chip.toLowerCase()}` : chip)}>+ {chip}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-700)' }}>Тревожные признаки</span>
-                      <SmartMicrophoneButton context="general" onResult={(t) => setRefusalUrgentWarningSigns(refusalUrgentWarningSigns ? `${refusalUrgentWarningSigns}, ${t}` : t)} />
-                    </div>
-                    <textarea value={refusalUrgentWarningSigns} onChange={(event) => setRefusalUrgentWarningSigns(event.target.value)} rows={3} style={{ marginTop: '0' }} />
-                    <div className="quick-chips-row" style={{ flexWrap: 'wrap' }}>
-                      {REFUSAL_WARNING_CHIPS.map(chip => (
-                        <button key={chip} type="button" className="quick-chip quick-chip--sm" onClick={() => setRefusalUrgentWarningSigns(refusalUrgentWarningSigns.trim() ? `${refusalUrgentWarningSigns.trim()}, ${chip.toLowerCase()}` : chip)}>+ {chip}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="document-payload-row">
-                    <label>
-                      Врач
-                      <input
-                        value={refusalDoctorFullName}
-                        onChange={(event) => setRefusalDoctorFullName(event.target.value)}
-                        placeholder={activeDoctor?.fullName ?? "врач, проводивший разъяснение"}
-                      />
-                    </label>
-                    <label>
-                      Дата подтверждения
-                      <input value={refusalConfirmedAt} onChange={(event) => setRefusalConfirmedAt(event.target.value)} />
-                    </label>
-                  </div>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={refusalConsequencesUnderstood}
-                      type="checkbox"
-                      onChange={(event) => setRefusalConsequencesUnderstood(event.target.checked)}
-                    />
-                    Пациент понял последствия отказа
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={refusalSecondOpinionOffered}
-                      type="checkbox"
-                      onChange={(event) => setRefusalSecondOpinionOffered(event.target.checked)}
-                    />
-                    Пациенту предложено второе мнение или альтернатива
-                  </label>
-                  <label className="document-payload-checkbox">
-                    <input
-                      checked={refusalEmergencyCareExplained}
-                      type="checkbox"
-                      onChange={(event) => setRefusalEmergencyCareExplained(event.target.checked)}
-                    />
-                    Пациенту объяснено, когда нужна экстренная помощь
-                  </label>
-    </div>
-  </details>
-                </article>
+                  <MedicalInterventionRefusalForm
+                    activeDoctorFullName={activeDoctor?.fullName}
+                    activeVisitComplaint={dashboard?.activeVisit?.complaint}
+                    inferredTreatmentArea={inferredTreatmentArea}
+                  />
                 ) : null}
 
                 {selectedDocumentKind === "payment_refund_correction_request" ? (
@@ -4370,7 +3632,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                     <input
                       value={refundRecipientFullName}
                       onChange={(event) => setRefundRecipientFullName(event.target.value)}
-                      placeholder={paymentPayerFullName || activePatient.fullName}
+                      placeholder={paymentPayerFullName || activePatient?.fullName || "фамилия, имя и отчество получателя"}
                     />
                   </label>
                   <label>
@@ -4378,7 +3640,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                     <input
                       value={refundRecipientIdentityDocument}
                       onChange={(event) => setRefundRecipientIdentityDocument(event.target.value)}
-                      placeholder={paymentPayerIdentityDocument || activePatient.administrativeProfile?.identityDocument || "паспорт"}
+                      placeholder={paymentPayerIdentityDocument || activePatient?.administrativeProfile?.identityDocument || "паспорт"}
                     />
                   </label>
                   <label>
@@ -4478,10 +3740,16 @@ export function DocumentsView(props: DocumentsViewProps) {
                     {money(documentIssueConfirmation.totalAmountRub)}
                   </p>
                 </div>
-                <ul>
-                  <li>Откройте HTML и проверьте пациента, реквизиты, подписи и основание выдачи.</li>
-                  <li>После выдачи документ попадет в аудит и станет основанием для портала и уведомлений.</li>
-                </ul>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "12px 0", fontSize: "12.5px", color: "var(--ink-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--teal)", flexShrink: 0 }} />
+                    <span>Откройте HTML и проверьте пациента, реквизиты, подписи и основание выдачи.</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--teal)", flexShrink: 0 }} />
+                    <span>После выдачи документ попадет в аудит и станет основанием для портала и уведомлений.</span>
+                  </div>
+                </div>
                 <div className="document-issue-attestation-grid">
                   <label>
                     <span>Способ подписи</span>
@@ -4582,11 +3850,14 @@ export function DocumentsView(props: DocumentsViewProps) {
                 {!documentIssueAttestationReady && documentIssueMissingSteps.length ? (
                   <div className="document-confirmation-missing" id={documentIssueMissingGuidanceId} role="status" aria-live="polite">
                     <strong>Чтобы выдать документ, осталось:</strong>
-                    <ul>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
                       {documentIssueMissingSteps.map((step) => (
-                        <li key={step}>{step}</li>
+                        <div key={step} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--bad-fg)", background: "var(--bad-bg)", padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--bad-fg)" }}>
+                          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--bad-fg)", flexShrink: 0 }} />
+                          <span>{step}</span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 ) : null}
                 <div className="document-issue-confirmation-actions">
@@ -4617,10 +3888,16 @@ export function DocumentsView(props: DocumentsViewProps) {
                     {documentStatusLabels[documentVoidConfirmation.status]}
                   </p>
                 </div>
-                <ul>
-                  <li>Запись останется в журнале, архивная копия не удаляется.</li>
-                  <li>Для налоговых и медицинских документов укажите, нужна ли замена или исправляющий документ.</li>
-                </ul>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "12px 0", fontSize: "12.5px", color: "var(--ink-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--warn-fg)", flexShrink: 0 }} />
+                    <span>Запись останется в журнале, архивная копия не удаляется.</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--warn-fg)", flexShrink: 0 }} />
+                    <span>Для налоговых и медицинских документов укажите, нужна ли замена или исправляющий документ.</span>
+                  </div>
+                </div>
                 <div className="document-issue-attestation-grid">
                   <label>
                     <span>Причина</span>
@@ -4710,11 +3987,14 @@ export function DocumentsView(props: DocumentsViewProps) {
                 {!documentVoidReady && documentVoidMissingSteps.length ? (
                   <div className="document-confirmation-missing" id={documentVoidMissingGuidanceId} role="status" aria-live="polite">
                     <strong>Чтобы аннулировать документ, осталось:</strong>
-                    <ul>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
                       {documentVoidMissingSteps.map((step) => (
-                        <li key={step}>{step}</li>
+                        <div key={step} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--bad-fg)", background: "var(--bad-bg)", padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--bad-fg)" }}>
+                          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--bad-fg)", flexShrink: 0 }} />
+                          <span>{step}</span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 ) : null}
                 <div className="document-issue-confirmation-actions">
@@ -4759,7 +4039,7 @@ export function DocumentsView(props: DocumentsViewProps) {
                     <span>Источник</span>
                     <strong>{documentAuditFacts.sourceAuthority}</strong>
                     <small>
-                      {documentAuditFacts.sourceReference} · проверено {documentAuditFacts.sourceCheckedAt}
+                      {documentAuditFacts.sourceReference} · форма сверена с источником {isoDateLabel(documentAuditFacts.sourceCheckedAt)}
                     </small>
                     {documentAuditFacts.sourceUrls.length ? (
                       <div className="document-source-links" aria-label="Официальные источники паспорта документа">
@@ -4823,6 +4103,46 @@ export function DocumentsView(props: DocumentsViewProps) {
                         ? `${documentAuditFacts.signatureAttestation.recipientFullName} · ${documentAuditFacts.signatureAttestation.staffFullName}`
                         : "PDF и файл ФНС заблокированы до фиксации получения"}
                     </small>
+                    {/*
+                      КНОПКА ПОДПИСАНИЯ УКЭП. До этой правки подписать документ
+                      усиленной квалифицированной подписью было нельзя ничем: кнопку
+                      не монтировал ни один экран, а её адрес на сервере отвечал 404,
+                      потому что documents/signUkep.ts был написан, но не подключён к
+                      registerDocumentRoutes. Без УКЭП выписка, договор и отказ от
+                      вмешательства в электронном виде юридической силы не имеют.
+
+                      ПОЧЕМУ ИМЕННО ЗДЕСЬ, А НЕ В РЯДУ ДЕЙСТВИЙ ДОКУМЕНТА. Паспорт
+                      выдачи открывается кнопкой «Паспорт» ровно для ОДНОГО документа,
+                      и это обязательное свойство места монтирования: компонент при
+                      появлении опрашивает плагин КриптоПро и читает личное хранилище
+                      сертификатов, а его список сертификатов имеет постоянный
+                      идентификатор ukep-cert-select. В ряду действий он появился бы в
+                      каждой строке списка — столько же опросов хранилища и столько же
+                      элементов с одним и тем же идентификатором, то есть подпись под
+                      документом выбиралась бы в чужом поле. Здесь же он стоит в той
+                      самой ячейке «Подписание», где клиника и смотрит на отметки.
+
+                      ГРАНИЦА ПОКАЗА. Только выданный документ и только при готовом
+                      PDF: кнопка подписывает печатную копию, которую берёт из
+                      /api/documents/:id/pdf, а сервер отдаёт её лишь для выданного
+                      документа с отметкой о подписании. Для аннулированного
+                      подписание запрещено и на сервере (409), поэтому статус здесь
+                      сверяется явно, а не через общий признак доступности архива.
+
+                      ОСТАЁТСЯ ДОЛГОМ: в паспорте не видно, что крипто-подпись уже
+                      стоит. Признака в нагрузке /audit-facts нет, а добавить его —
+                      это правка схемы в packages/shared с пересборкой её dist, то
+                      есть общий гейт. Пока факт повторного подписания сообщает сам
+                      сервер: 409 «Документ уже подписан УКЭП. Замена подписи
+                      запрещена», и кнопка показывает это человеческим текстом и
+                      оставляет на экране до следующей попытки.
+                    */}
+                    {documentAuditFacts.status === "issued" && documentAuditFacts.canExportPdf ? (
+                      <DocumentUkepSignButton
+                        documentId={documentAuditFacts.documentId}
+                        onSuccess={() => void loadDocumentAuditFacts(documentAuditFacts.documentId)}
+                      />
+                    ) : null}
                   </div>
                   {documentAuditFacts.voidAttestation ? (
                     <div>
@@ -4852,11 +4172,14 @@ export function DocumentsView(props: DocumentsViewProps) {
                   ) : null}
                 </div>
                 {documentAuditFacts.blockers.length || documentAuditFacts.warnings.length ? (
-                  <ul className="document-audit-facts-notes">
+                  <div className="document-audit-facts-notes" style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
                     {[...documentAuditFacts.blockers, ...documentAuditFacts.warnings].map((note) => (
-                      <li key={note}>{note}</li>
+                      <div key={note} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--warn-fg)", background: "var(--warn-bg)", padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--warn-fg)" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--warn-fg)", flexShrink: 0 }} />
+                        <span>{note}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : null}
                 <div className="document-issue-confirmation-actions">
                   <button className="secondary-button" type="button" onClick={() => setDocumentAuditFacts(null)}>
@@ -5009,11 +4332,6 @@ export function DocumentsView(props: DocumentsViewProps) {
                   </article>
                 );
               })}
-            </div>
-            <div style={{ marginTop: "32px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "16px" }}>
-              <TreatmentPlanLockTokensWidget />
-              <TreatmentPlanPrintOdontogramWidget />
-              <TreatmentPlanStagesWidget />
             </div>
           </div>
       );

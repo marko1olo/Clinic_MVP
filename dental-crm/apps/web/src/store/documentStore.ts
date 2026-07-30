@@ -30,10 +30,13 @@ import {
   PatientIntakePregnancyStatus,
   ProcedureSpecificConsentProcedure,
 } from "@dental/shared";
-import {
-  dateInputValuePlusDays,
-  currentLocalDateTimeInputValue,
-} from "../AppHelpers";
+/*
+ * dateInputValuePlusDays отсюда убран вместе со сроком оплаты счёта и графиком
+ * рассрочки: в значении поля он считался при загрузке модуля и подсовывал в
+ * документ дату, которую никто не вводил. Отметки времени подставляет
+ * withDocumentCreationTimestamps в момент создания документа.
+ */
+import { currentLocalDateTimeInputValue } from "../AppHelpers";
 import {
   defaultClinicalToothRowsText,
   toDateTimeLocalValue,
@@ -42,6 +45,29 @@ import {
 import { postVisitCarePresets } from "../postVisitCareData";
 
 const initialUiPreferences = loadUiPreferences();
+
+/*
+ * Памятка после приёма берётся из ТОЙ ЖЕ темы, что стоит в селекте.
+ *
+ * Тема бралась из сохранённых настроек оператора
+ * (initialUiPreferences.postVisitCareTopic), а девять полей текста были жёстко
+ * прибиты к пресету filling_restoration. Если в настройках сохранена другая тема
+ * — удаление, имплантация, гигиена — врач получал памятку, где тема одна, а
+ * текст от другого вмешательства: процедура «Пломба / композитная реставрация»,
+ * ограничения, питание и тревожные признаки от пломбы. В документ уходит и тема
+ * (careTopic), и текст, а весь блок памятки свёрнут в <details>, поэтому
+ * расхождение не видно, пока его не раскроют.
+ *
+ * Единственный писатель этих девяти полей — applyPostVisitCarePreset в
+ * useAppLogic.tsx, и он берёт ровно postVisitCarePresets[тема]. Начальное
+ * состояние теперь делает то же самое: один источник правды.
+ *
+ * Индексация безопасна: loadUiPreferences проверяет тему по списку допустимых
+ * значений и при мусоре возвращает filling_restoration, а postVisitCarePresets
+ * объявлен как Record<PostVisitCareTopic, …>, то есть покрывает все темы.
+ */
+const initialPostVisitCarePreset =
+  postVisitCarePresets[initialUiPreferences.postVisitCareTopic];
 
 function createSetter(set: any, key: string) {
   return (val: any) =>
@@ -52,6 +78,27 @@ function createSetter(set: any, key: string) {
 
 
 export interface DocumentState {
+  /**
+   * Вернуть все поля форм документов к исходным значениям.
+   *
+   * ЗАЧЕМ. Этот стор — одно глобальное хранилище примерно на восемьсот полей на
+   * ВСЕ виды документов, и функции сброса в нём не было вовсе. Пер-пациентный
+   * черновик заведён ровно у двух видов из тридцати
+   * (`documentPayloadDraftKey` в AppHelpers.tsx: `outpatient_medical_card_025u`
+   * и `medical_record_extract`), остальные формы ничего о пациенте не знают:
+   * `PhotoVideoConsentForm.tsx`, например, не упоминает пациента ни разу.
+   *
+   * Что из этого следовало. Администратор заполнял согласие на фото и видео
+   * пациенту А, в том числе отметку «разрешена узнаваемая публикация»,
+   * переключался на пациента Б — и согласие Б открывалось уже с ответами А.
+   * Дальше документ печатается и подписывается. Это юридический документ с
+   * чужими ответами, то есть худший класс дефектов этого продукта в чистом виде.
+   *
+   * Сброс собирается повторным вызовом фабрик срезов, а не переписыванием
+   * восьмисот имён руками: список полей обязан остаться в одном месте, иначе
+   * добавленное завтра поле молча не попадёт в сброс.
+   */
+  resetDocumentForms: () => void;
   paymentAmount: string;
   paymentMethod: PaymentMethod;
   paymentFiscalReceiptNumber: string;
@@ -1633,7 +1680,12 @@ const createDocumentSlice = (set: any) => ({
   setDocumentIssueConfirmationId: createSetter(set, "documentIssueConfirmationId"),
   documentIssueSignatureMode: initialUiPreferences.documentIssueSignatureMode,
   setDocumentIssueSignatureMode: createSetter(set, "documentIssueSignatureMode"),
-  documentIssueSignedAt: currentLocalDateTimeInputValue,
+  // БЫЛО: пропущены скобки — в состояние клалась сама ФУНКЦИЯ, а не строка.
+  // При нажатии «Выдать документ» код делал documentIssueSignedAt.trim() и падал
+  // с TypeError прямо в фазе рендера: приложение уходило в белый экран.
+  // Чек-лист готовности при этом ничего не подсвечивал, потому что
+  // String(функция) — непустая строка.
+  documentIssueSignedAt: currentLocalDateTimeInputValue(),
   setDocumentIssueSignedAt: createSetter(set, "documentIssueSignedAt"),
   documentIssueRecipientFullName: "",
   setDocumentIssueRecipientFullName: createSetter(set, "documentIssueRecipientFullName"),
@@ -1719,8 +1771,7 @@ const createTaxSlice = (set: any) => ({
   setTaxApplicationContact: createSetter(set, "taxApplicationContact"),
   taxApplicationAuthorityDocument: "",
   setTaxApplicationAuthorityDocument: createSetter(set, "taxApplicationAuthorityDocument"),
-  taxApplicationRequestedAt: (() =>
-    toDateTimeLocalValue(new Date().toISOString()))(),
+  taxApplicationRequestedAt: "",
   setTaxApplicationRequestedAt: createSetter(set, "taxApplicationRequestedAt"),
   taxApplicationDuplicateWarningAccepted: false,
   setTaxApplicationDuplicateWarningAccepted: createSetter(set, "taxApplicationDuplicateWarningAccepted"),
@@ -1736,23 +1787,52 @@ const createTaxSlice = (set: any) => ({
 const createIntakeAndConsentSlice = (set: any) => ({
   intakeChiefComplaint: "",
   setIntakeChiefComplaint: createSetter(set, "intakeChiefComplaint"),
-  intakeAllergyStatus:
-    "Аллергии и нежелательные реакции со слов пациента не отмечены.",
+  /*
+   * Анамнез начинается пустым.
+   *
+   * Здесь лежали готовые фразы «со слов пациента не отмечены», «не принимает»,
+   * «отрицает». Врач мог ни разу не открыть анкету, а документ уходил на
+   * подпись с отрицательным аллергоанамнезом, которого никто не собирал.
+   * Подписанная анкета — доказательство, что пациента опросили; заранее
+   * вписанное отрицание превращает её в подделку, а при настоящей аллергии —
+   * в прямую угрозу.
+   *
+   * Формулировки никуда не делись: их вставляет кнопка «Со слов пациента —
+   * нет» в components/documents/AnamnesisField.tsx. Разница в том, что теперь
+   * их вписывает врач, а не хранилище за него.
+   */
+  intakeAllergyStatus: "",
   setIntakeAllergyStatus: createSetter(set, "intakeAllergyStatus"),
-  intakeCurrentMedications:
-    "Постоянные препараты со слов пациента не принимает.",
+  intakeCurrentMedications: "",
   setIntakeCurrentMedications: createSetter(set, "intakeCurrentMedications"),
-  intakeChronicConditions: "Хронические заболевания со слов пациента отрицает.",
+  intakeChronicConditions: "",
   setIntakeChronicConditions: createSetter(set, "intakeChronicConditions"),
   intakePregnancyStatus: "unknown",
   setIntakePregnancyStatus: createSetter(set, "intakePregnancyStatus"),
-  intakeAnticoagulants:
-    "Антикоагулянты и препараты, влияющие на кровотечение, со слов пациента не принимает.",
+  intakeAnticoagulants: "",
   setIntakeAnticoagulants: createSetter(set, "intakeAnticoagulants"),
-  intakeInfectiousRiskNotes: "Инфекционные риски со слов пациента не заявлены.",
+  intakeInfectiousRiskNotes: "",
   setIntakeInfectiousRiskNotes: createSetter(set, "intakeInfectiousRiskNotes"),
-  intakeCardioEndocrineNotes:
-    "Сердечно-сосудистые, эндокринные и иные системные риски требуют уточнения врачом перед вмешательством.",
+  /*
+   * Системные риски начинаются пустыми — как аллергии и препараты выше.
+   *
+   * Это была единственная непустая графа здоровья во всём блоке: «Сердечно-
+   * сосудистые, эндокринные и иные системные риски требуют уточнения врачом
+   * перед вмешательством». В анкете она печаталась в строке «Сердце, давление,
+   * диабет и системные риски», то есть в графе ОТВЕТА пациента, хотя это
+   * заметка врача самому себе, а не то, что человек рассказал.
+   *
+   * Хуже, что непустое умолчание обезврежило предохранитель: проверка
+   * requiredDocumentField(intakeCardioEndocrineNotes, "анкета, системные
+   * риски") в documentValidators.ts не могла сработать никогда, и анкета уходила
+   * на подпись с незаполненной графой о сердце и диабете. Теперь пусто, и
+   * создание документа требует ответа.
+   *
+   * Долг (чужой файл): у поля в DocumentsView.tsx нет ни подсказки в пустом
+   * поле, ни кнопки «Со слов пациента — нет», которые есть у соседей через
+   * AnamnesisField. Пустая графа без подсказки — шаг назад по понятности.
+   */
+  intakeCardioEndocrineNotes: "",
   setIntakeCardioEndocrineNotes: createSetter(set, "intakeCardioEndocrineNotes"),
   intakeEmergencyContact: "",
   setIntakeEmergencyContact: createSetter(set, "intakeEmergencyContact"),
@@ -1760,8 +1840,15 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setIntakeAdditionalNotes: createSetter(set, "intakeAdditionalNotes"),
   intakeAccuracyConfirmed: false,
   setIntakeAccuracyConfirmed: createSetter(set, "intakeAccuracyConfirmed"),
-  informedConsentIntervention:
-    "Стоматологическое вмешательство по согласованному плану",
+  /*
+   * Название вмешательства пустое.
+   *
+   * Стояло «Стоматологическое вмешательство по согласованному плану» — то есть
+   * согласие получено на всё сразу. Смысл информированного согласия в том, что
+   * названо конкретное вмешательство; общая формулировка обнуляет документ,
+   * при этом выглядит заполненной. Подсказка в пустом поле осталась.
+   */
+  informedConsentIntervention: "",
   setInformedConsentIntervention: createSetter(set, "informedConsentIntervention"),
   informedConsentToothOrArea: "",
   setInformedConsentToothOrArea: createSetter(set, "informedConsentToothOrArea"),
@@ -1774,8 +1861,15 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setInformedConsentAnesthesia: createSetter(set, "informedConsentAnesthesia"),
   informedConsentMaterialNotes: "",
   setInformedConsentMaterialNotes: createSetter(set, "informedConsentMaterialNotes"),
-  informedConsentTrustedContact:
-    "не разрешаю сообщать медицинские сведения третьим лицам",
+  /*
+   * Кому можно сообщать сведения — выбор пациента, а не наш.
+   *
+   * Стояло «не разрешаю сообщать медицинские сведения третьим лицам». Пациент,
+   * который как раз хотел вписать жену или взрослого сына, подписывал запрет,
+   * о котором его не спрашивали, — а клиника потом не имела права ответить на
+   * звонок родственника.
+   */
+  informedConsentTrustedContact: "",
   setInformedConsentTrustedContact: createSetter(set, "informedConsentTrustedContact"),
   informedConsentRisks:
     "боль, отек, кровотечение или временный дискомфорт\nаллергическая реакция на препараты или материалы\nнеобходимость повторного приема или изменения плана лечения\nограниченный прогноз при исходном состоянии зубов и тканей",
@@ -1788,7 +1882,7 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setInformedConsentAftercare: createSetter(set, "informedConsentAftercare"),
   informedConsentDoctorFullName: "",
   setInformedConsentDoctorFullName: createSetter(set, "informedConsentDoctorFullName"),
-  informedConsentConfirmedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  informedConsentConfirmedAt: "",
   setInformedConsentConfirmedAt: createSetter(set, "informedConsentConfirmedAt"),
   informedConsentQuestionsAnswered: false,
   setInformedConsentQuestionsAnswered: createSetter(set, "informedConsentQuestionsAnswered"),
@@ -1799,7 +1893,8 @@ const createIntakeAndConsentSlice = (set: any) => ({
   procedureConsentProcedureType:
     initialUiPreferences.procedureConsentProcedureType,
   setProcedureConsentProcedureType: createSetter(set, "procedureConsentProcedureType"),
-  procedureConsentProcedureName: "Лечение зуба по согласованному плану",
+  /* Пустое по той же причине, что informedConsentIntervention выше. */
+  procedureConsentProcedureName: "",
   setProcedureConsentProcedureName: createSetter(set, "procedureConsentProcedureName"),
   procedureConsentToothOrArea: "",
   setProcedureConsentToothOrArea: createSetter(set, "procedureConsentToothOrArea"),
@@ -1809,8 +1904,14 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setProcedureConsentAnesthesia: createSetter(set, "procedureConsentAnesthesia"),
   procedureConsentMaterials: "",
   setProcedureConsentMaterials: createSetter(set, "procedureConsentMaterials"),
-  procedureConsentPatientRiskFactors:
-    "аллергии, постоянные препараты и хронические заболевания уточнены перед процедурой\nбеременность, антикоагулянты и инфекционные риски уточнены перед процедурой",
+  /*
+   * Факторы риска пациента — пусто.
+   *
+   * Стояло «аллергии, постоянные препараты и хронические заболевания уточнены
+   * перед процедурой». Это не список рисков, а утверждение, что опрос
+   * проведён. Документ подтверждал сам себя.
+   */
+  procedureConsentPatientRiskFactors: "",
   setProcedureConsentPatientRiskFactors: createSetter(set, "procedureConsentPatientRiskFactors"),
   procedureConsentSpecificRisks:
     "боль, отек, кровоточивость или временный дискомфорт\nнеобходимость повторного приема, коррекции или изменения плана\nаллергическая реакция на препараты или материалы",
@@ -1823,7 +1924,7 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setProcedureConsentAftercare: createSetter(set, "procedureConsentAftercare"),
   procedureConsentDoctorFullName: "",
   setProcedureConsentDoctorFullName: createSetter(set, "procedureConsentDoctorFullName"),
-  procedureConsentConfirmedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  procedureConsentConfirmedAt: "",
   setProcedureConsentConfirmedAt: createSetter(set, "procedureConsentConfirmedAt"),
   procedureConsentLocalFormAttached: false,
   setProcedureConsentLocalFormAttached: createSetter(set, "procedureConsentLocalFormAttached"),
@@ -1833,9 +1934,23 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setProcedureConsentExactProcedureConfirmed: createSetter(set, "procedureConsentExactProcedureConfirmed"),
   procedureConsentRisksUnderstood: false,
   setProcedureConsentRisksUnderstood: createSetter(set, "procedureConsentRisksUnderstood"),
-  photoVideoLabTransferAllowed: true,
+  /*
+   * Ни одно разрешение в согласии на фото и видео не проставлено заранее.
+   *
+   * Две галочки из семи — «Можно передавать в зуботехническую лабораторию» и
+   * «Можно показывать коллегам для консультации» — открывались уже
+   * отмеченными, а остальные пять были пусты. Пациент подписывал согласие на
+   * передачу своих снимков в лабораторию и показ коллегам, о котором его не
+   * спрашивали, и по виду формы отличить его отметку от нашей невозможно.
+   * validatePhotoVideoConsent не требует ни одного разрешения, поэтому ничто
+   * не мешало выдать документ с чужим выбором.
+   *
+   * Разрешения остаются доступны в один клик: галочки на месте
+   * (components/documents/forms/PhotoVideoConsentForm.tsx), их ставит человек.
+   */
+  photoVideoLabTransferAllowed: false,
   setPhotoVideoLabTransferAllowed: createSetter(set, "photoVideoLabTransferAllowed"),
-  photoVideoColleagueConsultationAllowed: true,
+  photoVideoColleagueConsultationAllowed: false,
   setPhotoVideoColleagueConsultationAllowed: createSetter(set, "photoVideoColleagueConsultationAllowed"),
   photoVideoEducationUseAllowed: false,
   setPhotoVideoEducationUseAllowed: createSetter(set, "photoVideoEducationUseAllowed"),
@@ -1847,7 +1962,16 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setPhotoVideoClinicalRecordUseConfirmed: createSetter(set, "photoVideoClinicalRecordUseConfirmed"),
   photoVideoAnonymizationConfirmed: false,
   setPhotoVideoAnonymizationConfirmed: createSetter(set, "photoVideoAnonymizationConfirmed"),
-  photoVideoMaterials: ["intraoral_photo", "xray", "scan"],
+  /*
+   * Ни одна категория материалов не отмечена заранее.
+   *
+   * Стояли сразу три: внутриротовое фото, рентген и скан. Пациент подписывал
+   * согласие на съёмку и передачу материалов, которых ему не перечисляли, — а
+   * отметки выглядели так, будто он их проставил сам. Согласие на обработку
+   * изображений отзывается и оспаривается в первую очередь, и первым же
+   * вопросом будет, кто поставил галочки.
+   */
+  photoVideoMaterials: [],
   setPhotoVideoMaterials: createSetter(set, "photoVideoMaterials"),
   photoVideoRevocationChannel:
     "письменное заявление в клинике или защищенное обращение через портал пациента",
@@ -1858,7 +1982,7 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setPersonalDataCrossBorderAllowed: createSetter(set, "personalDataCrossBorderAllowed"),
   personalDataAutomatedDecisionAllowed: false,
   setPersonalDataAutomatedDecisionAllowed: createSetter(set, "personalDataAutomatedDecisionAllowed"),
-  personalDataConsentGivenAt: new Date().toLocaleString("ru-RU"),
+  personalDataConsentGivenAt: "",
   setPersonalDataConsentGivenAt: createSetter(set, "personalDataConsentGivenAt"),
   personalDataVoluntaryConsentConfirmed: false,
   setPersonalDataVoluntaryConsentConfirmed: createSetter(set, "personalDataVoluntaryConsentConfirmed"),
@@ -1872,7 +1996,7 @@ const createIntakeAndConsentSlice = (set: any) => ({
   setRefusalPatientReason: createSetter(set, "refusalPatientReason"),
   refusalDoctorFullName: "",
   setRefusalDoctorFullName: createSetter(set, "refusalDoctorFullName"),
-  refusalConfirmedAt: new Date().toLocaleString("ru-RU"),
+  refusalConfirmedAt: "",
   setRefusalConfirmedAt: createSetter(set, "refusalConfirmedAt"),
   refusalConsequencesUnderstood: false,
   setRefusalConsequencesUnderstood: createSetter(set, "refusalConsequencesUnderstood"),
@@ -1912,7 +2036,7 @@ const createIntakeAndConsentSlice = (set: any) => ({
 const createFinancialSlice = (set: any) => ({
   paidContractNumber: "",
   setPaidContractNumber: createSetter(set, "paidContractNumber"),
-  paidContractDate: (() => new Date().toLocaleDateString("ru-RU"))(),
+  paidContractDate: "",
   setPaidContractDate: createSetter(set, "paidContractDate"),
   paidContractServiceStart: "",
   setPaidContractServiceStart: createSetter(set, "paidContractServiceStart"),
@@ -1949,7 +2073,7 @@ const createFinancialSlice = (set: any) => ({
   setPaidContractWarrantyTerms: createSetter(set, "paidContractWarrantyTerms"),
   paidContractDoctorFullName: "",
   setPaidContractDoctorFullName: createSetter(set, "paidContractDoctorFullName"),
-  paidContractSignedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  paidContractSignedAt: "",
   setPaidContractSignedAt: createSetter(set, "paidContractSignedAt"),
   paidContractClinicInfoConfirmed: false,
   setPaidContractClinicInfoConfirmed: createSetter(set, "paidContractClinicInfoConfirmed"),
@@ -1961,7 +2085,7 @@ const createFinancialSlice = (set: any) => ({
   setPaidContractWrittenChangesConfirmed: createSetter(set, "paidContractWrittenChangesConfirmed"),
   paymentInvoiceNumber: "",
   setPaymentInvoiceNumber: createSetter(set, "paymentInvoiceNumber"),
-  paymentInvoiceDate: (() => new Date().toLocaleDateString("ru-RU"))(),
+  paymentInvoiceDate: "",
   setPaymentInvoiceDate: createSetter(set, "paymentInvoiceDate"),
   paymentInvoicePayerFullName: "",
   setPaymentInvoicePayerFullName: createSetter(set, "paymentInvoicePayerFullName"),
@@ -1972,7 +2096,24 @@ const createFinancialSlice = (set: any) => ({
   paymentInvoicePurpose:
     "оплата стоматологических услуг по согласованному плану лечения",
   setPaymentInvoicePurpose: createSetter(set, "paymentInvoicePurpose"),
-  paymentInvoiceDueDate: (() => dateInputValuePlusDays(7))(),
+  /*
+   * Срок оплаты счёта вписывает человек.
+   *
+   * Стояло (() => dateInputValuePlusDays(7))() — обёртка ничего не отложила, это
+   * тот же немедленный вызов, и дата считалась ОДИН раз при загрузке модуля.
+   * Значит срок оплаты равнялся «седьмой день от момента открытия вкладки» и
+   * больше не обновлялся: вкладку держат открытой сутками, а счёт уносил
+   * позавчерашний расчёт. В выданный счёт значение попадало как есть
+   * (documentLogic.ts, dueDate: paymentInvoiceDueDate.trim()), фолбэка нет.
+   *
+   * Вид тоже был не тот: dateInputValuePlusDays отдаёт ISO «2026-08-04», а поле
+   * рядом — обычный текстовый input с подсказкой «например: до 25.05.2026».
+   *
+   * Соседнее поле «Дата счета» пусто, и человек его заполняет; предзаполненный
+   * срок внимания не привлекал. Теперь пусто, и validatePaymentInvoice не даёт
+   * создать счёт: «Заполните поле: счет, срок оплаты.».
+   */
+  paymentInvoiceDueDate: "",
   setPaymentInvoiceDueDate: createSetter(set, "paymentInvoiceDueDate"),
   paymentInvoicePaymentTerms:
     "оплата до или в день оказания услуги; после оплаты выдается кассовый чек",
@@ -1993,7 +2134,7 @@ const createFinancialSlice = (set: any) => ({
   setPaymentInvoiceFiscalNoticeConfirmed: createSetter(set, "paymentInvoiceFiscalNoticeConfirmed"),
   paymentReceiptNumber: "",
   setPaymentReceiptNumber: createSetter(set, "paymentReceiptNumber"),
-  paymentReceiptDate: (() => new Date().toLocaleString("ru-RU"))(),
+  paymentReceiptDate: "",
   setPaymentReceiptDate: createSetter(set, "paymentReceiptDate"),
   paymentReceiptPayerFullName: "",
   setPaymentReceiptPayerFullName: createSetter(set, "paymentReceiptPayerFullName"),
@@ -2021,7 +2162,7 @@ const createFinancialSlice = (set: any) => ({
   setPaymentReceiptFiscalNoticeConfirmed: createSetter(set, "paymentReceiptFiscalNoticeConfirmed"),
   installmentScheduleNumber: "",
   setInstallmentScheduleNumber: createSetter(set, "installmentScheduleNumber"),
-  installmentScheduleDate: (() => new Date().toLocaleDateString("ru-RU"))(),
+  installmentScheduleDate: "",
   setInstallmentScheduleDate: createSetter(set, "installmentScheduleDate"),
   installmentScheduleBaseDocumentTitle: "",
   setInstallmentScheduleBaseDocumentTitle: createSetter(set, "installmentScheduleBaseDocumentTitle"),
@@ -2031,8 +2172,27 @@ const createFinancialSlice = (set: any) => ({
   setInstallmentScheduleTotalRub: createSetter(set, "installmentScheduleTotalRub"),
   installmentSchedulePrepaidRub: "",
   setInstallmentSchedulePrepaidRub: createSetter(set, "installmentSchedulePrepaidRub"),
-  installmentScheduleRows: (() =>
-    `Первый платеж | ${dateInputValuePlusDays(7)} | 0 | запланировано\nФинальный платеж | ${dateInputValuePlusDays(21)} | 0 | запланировано`)(),
+  /*
+   * График рассрочки начинается пустым.
+   *
+   * Стояли две готовые строки: «Первый платеж | <дата+7> | 0 | запланировано» и
+   * «Финальный платеж | <дата+21> | 0 | запланировано». Обе даты считались ОДИН
+   * раз при загрузке модуля (обёртка (() => …)() ничего не откладывает), то есть
+   * замирали на моменте открытия вкладки, и обе суммы были нулями.
+   *
+   * Разборщик installmentScheduleInstallmentRows (useAppLogic.tsx) строки с
+   * нулевой суммой ВЫБРАСЫВАЕТ и, если платежей с суммой нет, сам делит остаток
+   * на два платежа со свежими датами. Значит подставленные строки в документ и
+   * не попадали — они только вводили администратора в заблуждение: он видел
+   * график из двух платежей с конкретными датами, а в графике оказывались
+   * другие. Хуже: стоило дописать сумму в ОДНУ строку, как вторая (с нулём)
+   * молча исчезала из документа.
+   *
+   * Теперь пусто: либо администратор пишет реальные платежи (формат подсказан
+   * под полем в DocumentsView.tsx), либо остаток делится автоматически, либо
+   * валидатор просит «Добавьте платежи графика или укажите остаток к оплате.».
+   */
+  installmentScheduleRows: "",
   setInstallmentScheduleRows: createSetter(set, "installmentScheduleRows"),
   installmentScheduleLatePolicy:
     "при переносе срока администратор фиксирует контакт с пациентом, новый срок и основание переноса до наступления просрочки",
@@ -2075,7 +2235,7 @@ const createFinancialSlice = (set: any) => ({
   setWarrantyLinkedActOrContract: createSetter(set, "warrantyLinkedActOrContract"),
   warrantyDoctorFullName: "",
   setWarrantyDoctorFullName: createSetter(set, "warrantyDoctorFullName"),
-  warrantyIssuedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  warrantyIssuedAt: "",
   setWarrantyIssuedAt: createSetter(set, "warrantyIssuedAt"),
   warrantyPolicyApplied: false,
   setWarrantyPolicyApplied: createSetter(set, "warrantyPolicyApplied"),
@@ -2085,7 +2245,18 @@ const createFinancialSlice = (set: any) => ({
   setWarrantyControlVisitsUnderstood: createSetter(set, "warrantyControlVisitsUnderstood"),
   refundAction: "partial_refund",
   setRefundAction: createSetter(set, "refundAction"),
-  refundAmountRub: "3800",
+  /*
+   * ДЕНЕЖНЫЕ ПОЛЯ НАЧИНАЮТСЯ ПУСТЫМИ.
+   *
+   * Здесь стояло "3800" — остаток от демонстрационных данных, попавший в
+   * начальное состояние. На экране «Оплаты» касса открывалась с уже введённой
+   * суммой 3800 ₽ при нулевом остатке по пациенту, а форма возврата — с
+   * готовым возвратом на 3800 ₽. Кассир, не заметив подставленного числа,
+   * принимает или возвращает сумму, которой никто не называл.
+   *
+   * Сумму денег программа предлагать не должна: её вводит человек осознанно.
+   */
+  refundAmountRub: "",
   setRefundAmountRub: createSetter(set, "refundAmountRub"),
   refundReason: "",
   setRefundReason: createSetter(set, "refundReason"),
@@ -2105,7 +2276,8 @@ const createFinancialSlice = (set: any) => ({
   setRefundCorrectionFiscalReceiptNumber: createSetter(set, "refundCorrectionFiscalReceiptNumber"),
   refundAccountantDecision: "",
   setRefundAccountantDecision: createSetter(set, "refundAccountantDecision"),
-  paymentAmount: "3800",
+  /* Пустое поле суммы: см. пояснение у refundAmountRub выше. */
+  paymentAmount: "",
   setPaymentAmount: createSetter(set, "paymentAmount"),
   paymentMethod: initialUiPreferences.paymentMethod,
   setPaymentMethod: createSetter(set, "paymentMethod"),
@@ -2131,7 +2303,27 @@ const createFinancialSlice = (set: any) => ({
   setPaymentPayerBirthDate: createSetter(set, "paymentPayerBirthDate"),
   paymentPayerIdentityDocument: "",
   setPaymentPayerIdentityDocument: createSetter(set, "paymentPayerIdentityDocument"),
-  paymentPayerRelationship: "пациент",
+  /*
+   * Родство плательщика — не наше предположение.
+   *
+   * Стояло «пациент». Это не безобидная подпись: renderDocument.ts приводит
+   * «пациент» к "self", и справка КНД 1151156 печатает «Налогоплательщик и
+   * пациент являются одним лицом: 1 - да» плюс «Родство с пациентом: пациент»
+   * рядом с ФИО матери, которая на самом деле платила. Справка становится
+   * внутренне противоречивой, а вычет по ней получает не тот человек.
+   *
+   * Из-за непустого умолчания обе проверки на пустоту были недостижимы:
+   * подсказка «для вычета укажите родство плательщика» в PaymentCapture.tsx и
+   * список недостающих налоговых полей при отправке оплаты. Теперь пусто, и
+   * при запросе вычета касса требует родство явно.
+   *
+   * Долг (чужие файлы): после каждой оплаты поле снова получает «пациент» —
+   * DEFAULT_PAYER_RELATIONSHIP в components/finance/paymentComposerReset.ts и
+   * setPaymentPayerRelationship("пациент") в useAppLogic.tsx. Там же остаётся
+   * фолбэк «пациент» для оплат без вычета. Здесь исправлено только начальное
+   * состояние.
+   */
+  paymentPayerRelationship: "",
   setPaymentPayerRelationship: createSetter(set, "paymentPayerRelationship"),
   paymentTaxDeductionCode: "",
   setPaymentTaxDeductionCode: createSetter(set, "paymentTaxDeductionCode"),
@@ -2142,7 +2334,7 @@ const createFinancialSlice = (set: any) => ({
 const createClinicalSlice = (set: any) => ({
   completedActNumber: "",
   setCompletedActNumber: createSetter(set, "completedActNumber"),
-  completedActDate: (() => new Date().toLocaleDateString("ru-RU"))(),
+  completedActDate: "",
   setCompletedActDate: createSetter(set, "completedActDate"),
   completedActContractNumber: "",
   setCompletedActContractNumber: createSetter(set, "completedActContractNumber"),
@@ -2174,7 +2366,7 @@ const createClinicalSlice = (set: any) => ({
   setCompletedActAccepted: createSetter(set, "completedActAccepted"),
   treatmentEstimateNumber: "",
   setTreatmentEstimateNumber: createSetter(set, "treatmentEstimateNumber"),
-  treatmentEstimateDate: (() => new Date().toLocaleDateString("ru-RU"))(),
+  treatmentEstimateDate: "",
   setTreatmentEstimateDate: createSetter(set, "treatmentEstimateDate"),
   treatmentEstimatePatientOrPayerFullName: "",
   setTreatmentEstimatePatientOrPayerFullName: createSetter(set, "treatmentEstimatePatientOrPayerFullName"),
@@ -2197,7 +2389,7 @@ const createClinicalSlice = (set: any) => ({
   setTreatmentEstimateDoctorFullName: createSetter(set, "treatmentEstimateDoctorFullName"),
   treatmentEstimateAdminFullName: "",
   setTreatmentEstimateAdminFullName: createSetter(set, "treatmentEstimateAdminFullName"),
-  treatmentEstimateSignedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  treatmentEstimateSignedAt: "",
   setTreatmentEstimateSignedAt: createSetter(set, "treatmentEstimateSignedAt"),
   treatmentEstimatePreliminaryConfirmed: false,
   setTreatmentEstimatePreliminaryConfirmed: createSetter(set, "treatmentEstimatePreliminaryConfirmed"),
@@ -2218,8 +2410,28 @@ const createClinicalSlice = (set: any) => ({
   treatmentPlanGoals:
     "устранить жалобы пациента\nвосстановить функцию и герметичность\nснизить риск осложнений и повторного обращения",
   setTreatmentPlanGoals: createSetter(set, "treatmentPlanGoals"),
+  /*
+   * Сумма этапа не подставляется — ячейка пустая.
+   *
+   * Каждая строка оканчивалась на «| 0», и вред не только в том, что в плане
+   * печаталось «0 руб.». Ноль ОБЕЗВРЕЖИВАЛ единственный предохранитель выдачи:
+   * сервер не даёт выдать документ, в котором остались незаполненные места
+   * (documentHasUnresolvedPlaceholders ищет среди прочего «не указана»), а
+   * пустая сумма этапа печатается ровно как «не указана». Пустое поле выдачу
+   * остановило бы, подставленный ноль проходил молча — и пациент получал план
+   * лечения, где каждый этап стоит ноль рублей.
+   *
+   * Разборщик treatmentPlanStageRows (useAppLogic.tsx) отдаёт
+   * estimatedAmountRub: null, когда ячейка суммы пуста, и 0, когда в ней стоит
+   * «0»: защиты рядом нет, ?? стоит только на названии этапа, услугах, сроке и
+   * заметках.
+   *
+   * Скелет этапов оставлен: это заготовка структуры, а не утверждение о
+   * деньгах, и валидатор требует хотя бы одну строку. Замыкающая «|» показывает,
+   * куда вписать сумму; формат строки подсказан под полем в DocumentsView.tsx.
+   */
   treatmentPlanStages:
-    "Диагностика и подготовка | осмотр, снимки, фото-протокол, согласование объема | до начала лечения | уточнить диагноз и ограничения | 0\nОсновной этап | услуги по выбранному плану лечения | по расписанию клиники | объем корректируется по клинической ситуации | 0\nКонтроль | контрольный осмотр и рекомендации | после завершения этапа | оценка результата и гигиены | 0",
+    "Диагностика и подготовка | осмотр, снимки, фото-протокол, согласование объема | до начала лечения | уточнить диагноз и ограничения |\nОсновной этап | услуги по выбранному плану лечения | по расписанию клиники | объем корректируется по клинической ситуации |\nКонтроль | контрольный осмотр и рекомендации | после завершения этапа | оценка результата и гигиены |",
   setTreatmentPlanStages: createSetter(set, "treatmentPlanStages"),
   treatmentPlanEstimatedTotalRub: "",
   setTreatmentPlanEstimatedTotalRub: createSetter(set, "treatmentPlanEstimatedTotalRub"),
@@ -2237,7 +2449,7 @@ const createClinicalSlice = (set: any) => ({
   setTreatmentPlanControlPlan: createSetter(set, "treatmentPlanControlPlan"),
   treatmentPlanDoctorFullName: "",
   setTreatmentPlanDoctorFullName: createSetter(set, "treatmentPlanDoctorFullName"),
-  treatmentPlanPlannedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  treatmentPlanPlannedAt: "",
   setTreatmentPlanPlannedAt: createSetter(set, "treatmentPlanPlannedAt"),
   treatmentPlanQuestionsAnswered: false,
   setTreatmentPlanQuestionsAnswered: createSetter(set, "treatmentPlanQuestionsAnswered"),
@@ -2260,8 +2472,14 @@ const createClinicalSlice = (set: any) => ({
   setTreatmentAcceptanceDiagnosisSummary: createSetter(set, "treatmentAcceptanceDiagnosisSummary"),
   treatmentAcceptanceTeethOrArea: "",
   setTreatmentAcceptanceTeethOrArea: createSetter(set, "treatmentAcceptanceTeethOrArea"),
+  /*
+   * То же, что у treatmentPlanStages выше, и здесь цена важнее: этот документ
+   * пациент подписывает как согласие на СУММУ. Строки оканчивались на «| 0», и
+   * согласование уходило с этапами по нулю рублей, минуя проверку выдачи, —
+   * пустая ячейка печатается как «не указана» и выдачу останавливает.
+   */
   treatmentAcceptanceStages:
-    "Диагностика и подготовка | осмотр, снимки, фотопротокол, согласование объема | до начала лечения | 0\nОсновной этап лечения | услуги по выбранному плану лечения | по расписанию клиники | 0\nКонтроль | контрольный осмотр и рекомендации | после завершения этапа | 0",
+    "Диагностика и подготовка | осмотр, снимки, фотопротокол, согласование объема | до начала лечения |\nОсновной этап лечения | услуги по выбранному плану лечения | по расписанию клиники |\nКонтроль | контрольный осмотр и рекомендации | после завершения этапа |",
   setTreatmentAcceptanceStages: createSetter(set, "treatmentAcceptanceStages"),
   treatmentAcceptanceEstimatedTotalRub: "",
   setTreatmentAcceptanceEstimatedTotalRub: createSetter(set, "treatmentAcceptanceEstimatedTotalRub"),
@@ -2281,7 +2499,7 @@ const createClinicalSlice = (set: any) => ({
   setTreatmentAcceptanceWarrantyTerms: createSetter(set, "treatmentAcceptanceWarrantyTerms"),
   treatmentAcceptanceDoctorFullName: "",
   setTreatmentAcceptanceDoctorFullName: createSetter(set, "treatmentAcceptanceDoctorFullName"),
-  treatmentAcceptanceAcceptedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  treatmentAcceptanceAcceptedAt: "",
   setTreatmentAcceptanceAcceptedAt: createSetter(set, "treatmentAcceptanceAcceptedAt"),
   treatmentAcceptanceQuestionsAnswered: false,
   setTreatmentAcceptanceQuestionsAnswered: createSetter(set, "treatmentAcceptanceQuestionsAnswered"),
@@ -2293,12 +2511,12 @@ const createClinicalSlice = (set: any) => ({
   setTreatmentAcceptanceRevisionAcknowledged: createSetter(set, "treatmentAcceptanceRevisionAcknowledged"),
   postVisitCareTopic: initialUiPreferences.postVisitCareTopic,
   setPostVisitCareTopic: createSetter(set, "postVisitCareTopic"),
-  postVisitProcedureName:
-    postVisitCarePresets.filling_restoration.procedureName,
+  /* Девять полей ниже — пресет ВЫБРАННОЙ темы; пояснение у initialPostVisitCarePreset. */
+  postVisitProcedureName: initialPostVisitCarePreset.procedureName,
   setPostVisitProcedureName: createSetter(set, "postVisitProcedureName"),
   postVisitToothOrArea: "",
   setPostVisitToothOrArea: createSetter(set, "postVisitToothOrArea"),
-  postVisitPerformedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  postVisitPerformedAt: "",
   setPostVisitPerformedAt: createSetter(set, "postVisitPerformedAt"),
   postVisitDoctorFullName: "",
   setPostVisitDoctorFullName: createSetter(set, "postVisitDoctorFullName"),
@@ -2306,31 +2524,26 @@ const createClinicalSlice = (set: any) => ({
   setPostVisitManualEdited: createSetter(set, "postVisitManualEdited"),
   postVisitPresetFeedback: "",
   setPostVisitPresetFeedback: createSetter(set, "postVisitPresetFeedback"),
-  postVisitAllowedAfter: postVisitCarePresets.filling_restoration.allowedAfter,
+  postVisitAllowedAfter: initialPostVisitCarePreset.allowedAfter,
   setPostVisitAllowedAfter: createSetter(set, "postVisitAllowedAfter"),
-  postVisitRestrictions:
-    postVisitCarePresets.filling_restoration.temporaryRestrictions,
+  postVisitRestrictions: initialPostVisitCarePreset.temporaryRestrictions,
   setPostVisitRestrictions: createSetter(set, "postVisitRestrictions"),
   postVisitMedicationAndRinsePlan:
-    postVisitCarePresets.filling_restoration.medicationAndRinsePlan,
+    initialPostVisitCarePreset.medicationAndRinsePlan,
   setPostVisitMedicationAndRinsePlan: createSetter(set, "postVisitMedicationAndRinsePlan"),
-  postVisitHygieneInstructions:
-    postVisitCarePresets.filling_restoration.hygieneInstructions,
+  postVisitHygieneInstructions: initialPostVisitCarePreset.hygieneInstructions,
   setPostVisitHygieneInstructions: createSetter(set, "postVisitHygieneInstructions"),
   postVisitNutritionInstructions:
-    postVisitCarePresets.filling_restoration.nutritionInstructions,
+    initialPostVisitCarePreset.nutritionInstructions,
   setPostVisitNutritionInstructions: createSetter(set, "postVisitNutritionInstructions"),
-  postVisitUrgentWarningSigns:
-    postVisitCarePresets.filling_restoration.urgentWarningSigns,
+  postVisitUrgentWarningSigns: initialPostVisitCarePreset.urgentWarningSigns,
   setPostVisitUrgentWarningSigns: createSetter(set, "postVisitUrgentWarningSigns"),
-  postVisitFollowUpAt:
-    postVisitCarePresets.filling_restoration.plannedFollowUpAt,
+  postVisitFollowUpAt: initialPostVisitCarePreset.plannedFollowUpAt,
   setPostVisitFollowUpAt: createSetter(set, "postVisitFollowUpAt"),
   postVisitClinicContactInstruction:
     "связаться с клиникой по телефону или через Telegram-бот клиники",
   setPostVisitClinicContactInstruction: createSetter(set, "postVisitClinicContactInstruction"),
-  postVisitTelegramSummary:
-    postVisitCarePresets.filling_restoration.telegramSummary,
+  postVisitTelegramSummary: initialPostVisitCarePreset.telegramSummary,
   setPostVisitTelegramSummary: createSetter(set, "postVisitTelegramSummary"),
   postVisitPrintedCopyReceived: false,
   setPostVisitPrintedCopyReceived: createSetter(set, "postVisitPrintedCopyReceived"),
@@ -2338,28 +2551,40 @@ const createClinicalSlice = (set: any) => ({
   setPostVisitUrgentSignsUnderstood: createSetter(set, "postVisitUrgentSignsUnderstood"),
   postVisitTelegramSafe: false,
   setPostVisitTelegramSafe: createSetter(set, "postVisitTelegramSafe"),
-  anesthesiaMethod: "Инфильтрационная / проводниковая",
+  /*
+   * Журнал анестезии начинается пустым.
+   *
+   * Здесь стояли конкретный препарат «Артикаин 4%», вазоконстриктор
+   * «1:100000», доза «1.7» мл, метод и запись «Без особенностей» в графе
+   * реакции. Врач мог не открыть форму — и получал протокол с препаратом,
+   * который не вводил, дозой, которую не набирал, и оценкой реакции,
+   * выставленной до инъекции. При разборе осложнения такой протокол хуже, чем
+   * его отсутствие.
+   *
+   * Время тоже вычислялось один раз при загрузке страницы и больше никогда не
+   * обновлялось: вкладку открыли утром — вечерний протокол уносил утренний час
+   * как время введения. Пусть врач впишет фактическое.
+   *
+   * Все прежние формулировки остались подсказками в пустых полях
+   * (DocumentsView.tsx), аллергоанамнез — кнопкой в AnamnesisField.
+   */
+  anesthesiaMethod: "",
   setAnesthesiaMethod: createSetter(set, "anesthesiaMethod"),
-  anesthesiaAnesthetic: "Артикаин 4%",
+  anesthesiaAnesthetic: "",
   setAnesthesiaAnesthetic: createSetter(set, "anesthesiaAnesthetic"),
-  anesthesiaVasoconstrictor: "1:100000",
+  anesthesiaVasoconstrictor: "",
   setAnesthesiaVasoconstrictor: createSetter(set, "anesthesiaVasoconstrictor"),
   anesthesiaZone: "",
   setAnesthesiaZone: createSetter(set, "anesthesiaZone"),
-  anesthesiaAllergyStatus:
-    "Аллергия на местные анестетики со слов пациента не отмечена.",
+  anesthesiaAllergyStatus: "",
   setAnesthesiaAllergyStatus: createSetter(set, "anesthesiaAllergyStatus"),
   anesthesiaRestrictionNotes: "",
   setAnesthesiaRestrictionNotes: createSetter(set, "anesthesiaRestrictionNotes"),
-  anesthesiaDoseTime: (() =>
-    new Date().toLocaleTimeString("ru-RU", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }))(),
+  anesthesiaDoseTime: "",
   setAnesthesiaDoseTime: createSetter(set, "anesthesiaDoseTime"),
-  anesthesiaDoseMl: "1.7",
+  anesthesiaDoseMl: "",
   setAnesthesiaDoseMl: createSetter(set, "anesthesiaDoseMl"),
-  anesthesiaReaction: "Без особенностей",
+  anesthesiaReaction: "",
   setAnesthesiaReaction: createSetter(set, "anesthesiaReaction"),
   anesthesiaRisksExplained: false,
   setAnesthesiaRisksExplained: createSetter(set, "anesthesiaRisksExplained"),
@@ -2422,7 +2647,7 @@ const createClinicalSlice = (set: any) => ({
   setXrayDueDate: createSetter(set, "xrayDueDate"),
   outpatient025uMedicalCardNumber: "",
   setOutpatient025uMedicalCardNumber: createSetter(set, "outpatient025uMedicalCardNumber"),
-  outpatient025uOpenedAt: (() => new Date().toISOString().slice(0, 10))(),
+  outpatient025uOpenedAt: "",
   setOutpatient025uOpenedAt: createSetter(set, "outpatient025uOpenedAt"),
   outpatient025uPatientSexCode: "unknown",
   setOutpatient025uPatientSexCode: createSetter(set, "outpatient025uPatientSexCode"),
@@ -2494,7 +2719,7 @@ const createMiscSlice = (set: any) => ({
   setMinorConsentAlternatives: createSetter(set, "minorConsentAlternatives"),
   minorConsentDoctorFullName: "",
   setMinorConsentDoctorFullName: createSetter(set, "minorConsentDoctorFullName"),
-  minorConsentSignedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  minorConsentSignedAt: "",
   setMinorConsentSignedAt: createSetter(set, "minorConsentSignedAt"),
   minorConsentIdentityVerified: false,
   setMinorConsentIdentityVerified: createSetter(set, "minorConsentIdentityVerified"),
@@ -2506,9 +2731,9 @@ const createMiscSlice = (set: any) => ({
   setMinorConsentStored: createSetter(set, "minorConsentStored"),
   minorConsentAgeExplanation: false,
   setMinorConsentAgeExplanation: createSetter(set, "minorConsentAgeExplanation"),
-  recordExtractPeriodStart: (() => new Date().toISOString().slice(0, 10))(),
+  recordExtractPeriodStart: "",
   setRecordExtractPeriodStart: createSetter(set, "recordExtractPeriodStart"),
-  recordExtractPeriodEnd: (() => new Date().toISOString().slice(0, 10))(),
+  recordExtractPeriodEnd: "",
   setRecordExtractPeriodEnd: createSetter(set, "recordExtractPeriodEnd"),
   recordExtractSourceVisitIds: "",
   setRecordExtractSourceVisitIds: createSetter(set, "recordExtractSourceVisitIds"),
@@ -2528,7 +2753,7 @@ const createMiscSlice = (set: any) => ({
   setRecordExtractRecipientFullName: createSetter(set, "recordExtractRecipientFullName"),
   recordExtractRecipientAuthority: "пациент лично",
   setRecordExtractRecipientAuthority: createSetter(set, "recordExtractRecipientAuthority"),
-  recordExtractIssuedAt: (() => new Date().toLocaleString("ru-RU"))(),
+  recordExtractIssuedAt: "",
   setRecordExtractIssuedAt: createSetter(set, "recordExtractIssuedAt"),
   recordExtractPreparedFromSignedRecords: false,
   setRecordExtractPreparedFromSignedRecords: createSetter(set, "recordExtractPreparedFromSignedRecords"),
@@ -2551,7 +2776,7 @@ const createMiscSlice = (set: any) => ({
   setCopyRequestRecipientAuthority: createSetter(set, "copyRequestRecipientAuthority"),
   copyRequestRepresentativeAuthorityDocument: "",
   setCopyRequestRepresentativeAuthorityDocument: createSetter(set, "copyRequestRepresentativeAuthorityDocument"),
-  copyRequestRequestedAt: new Date().toLocaleString("ru-RU"),
+  copyRequestRequestedAt: "",
   setCopyRequestRequestedAt: createSetter(set, "copyRequestRequestedAt"),
   copyRequestContactForDelivery: "",
   setCopyRequestContactForDelivery: createSetter(set, "copyRequestContactForDelivery"),
@@ -2571,7 +2796,7 @@ const createMiscSlice = (set: any) => ({
   setAttendancePurpose: createSetter(set, "attendancePurpose"),
   attendanceRecipientOrganization: "",
   setAttendanceRecipientOrganization: createSetter(set, "attendanceRecipientOrganization"),
-  attendanceIssuedAt: new Date().toLocaleString("ru-RU"),
+  attendanceIssuedAt: "",
   setAttendanceIssuedAt: createSetter(set, "attendanceIssuedAt"),
   attendanceSignedByFullName: "",
   setAttendanceSignedByFullName: createSetter(set, "attendanceSignedByFullName"),
@@ -2598,13 +2823,60 @@ const createMiscSlice = (set: any) => ({
   setReleasePeriodStart: createSetter(set, "releasePeriodStart"),
   releasePeriodEnd: "",
   setReleasePeriodEnd: createSetter(set, "releasePeriodEnd"),
-  releaseDeliveredAt: new Date().toLocaleString("ru-RU"),
+  releaseDeliveredAt: "",
   setReleaseDeliveredAt: createSetter(set, "releaseDeliveredAt"),
   releaseAccessExpiresAt: "",
   setReleaseAccessExpiresAt: createSetter(set, "releaseAccessExpiresAt"),
   releaseThirdPartyDataChecked: false,
   setReleaseThirdPartyDataChecked: createSetter(set, "releaseThirdPartyDataChecked"),
 });
+
+/**
+ * Исходные значения ВСЕХ полей форм документов.
+ *
+ * Собирается повторным вызовом тех же фабрик срезов с пустым `set`: настройки
+ * при этом никуда не пишутся, а функции-сеттеры отбрасываются — остаются только
+ * значения. Так список полей живёт в одном месте, и поле, добавленное завтра,
+ * попадёт в сброс само.
+ */
+export function documentFormInitialValues(): Partial<DocumentState> {
+  const noopSet = () => {};
+  const fresh: Record<string, unknown> = {
+    ...createDocumentSlice(noopSet),
+    ...createTaxSlice(noopSet),
+    ...createIntakeAndConsentSlice(noopSet),
+    ...createFinancialSlice(noopSet),
+    ...createClinicalSlice(noopSet),
+    ...createMiscSlice(noopSet),
+  };
+  const values: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fresh)) {
+    if (typeof value !== "function") values[key] = value;
+  }
+  return values as Partial<DocumentState>;
+}
+
+/**
+ * Набрано ли в формах документов хоть что-то, отличное от исходного.
+ *
+ * Нужно, чтобы не пугать человека сообщением о выброшенном черновике, когда
+ * выбрасывать было нечего: предупреждение, которое показывают всегда, перестают
+ * читать, и вместе с ним перестают читать настоящее.
+ */
+export function documentFormHasEntries(state: Record<string, unknown>): boolean {
+  const initial = documentFormInitialValues() as Record<string, unknown>;
+  for (const [key, value] of Object.entries(initial)) {
+    const current = state[key];
+    if (typeof current === "function") continue;
+    /* Массивы и объекты сравниваются по содержимому: ссылки различаются всегда. */
+    if (typeof value === "object" && value !== null) {
+      if (JSON.stringify(current) !== JSON.stringify(value)) return true;
+      continue;
+    }
+    if (current !== value) return true;
+  }
+  return false;
+}
 
 export const useDocumentStore = create<DocumentState>(
   (set) =>
@@ -2615,5 +2887,6 @@ export const useDocumentStore = create<DocumentState>(
       ...createFinancialSlice(set),
       ...createClinicalSlice(set),
       ...createMiscSlice(set),
+      resetDocumentForms: () => set(documentFormInitialValues() as DocumentState),
     }) as DocumentState,
 );

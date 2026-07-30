@@ -1,0 +1,172 @@
+/* ============================================================
+   Минимальный размер зон нажатия на узких экранах.
+
+   ЗАЧЕМ
+   Аудит (11 экранов x 4 состояния, замеры getBoundingClientRect в живом
+   браузере) нашёл 252 видимых элемента управления ниже 32px по высоте
+   или ширине на экране 390px. Примеры замеров:
+     .btn-remove-item        26x26   план лечения
+     .select-phase          160x25   выбор этапа плана
+     .emk-tab-button         73x27   вкладки ЭМК на приёме
+     .quick-chip--sm         55x24   быстрые суммы оплаты (1000 ₽ ...)
+     summary                266x16   «Фискальный чек и кассир»
+     input[type=checkbox]    13x13   отметки в карточке пациента
+     кнопка микрофона        16x36   умное бронирование
+
+   Ориентир: WCAG 2.5.8 (AA) требует не меньше 24x24 CSS-пикселей;
+   рекомендации платформ — 44 (Apple) и 48 (Material). Ниже взято 44 для
+   самостоятельных кнопок и 36 для плотных наборов чипов, где WCAG
+   допускает меньший размер при достаточных промежутках — промежуток
+   задаётся тут же.
+
+   Только min-height/min-width и промежутки: фиксированных размеров нет,
+   раскладка перетекает сама. На широких экранах ничего не меняется.
+
+   ПОЧЕМУ УСЛОВИЕ ПО ХАРАКТЕРУ УКАЗАТЕЛЯ, А НЕ ТОЛЬКО ПО ШИРИНЕ
+   Здесь стояло одно `@media (max-width: 700px)` на весь файл, и 700px означали
+   «телефон». Но планшет у стойки регистратуры — это iPad в портрете, 768px
+   (iPad 10 — 810, iPad Air — 820), в ландшафте 1024 и больше. Все шире порога,
+   то есть НИ ОДНО правило этого файла на планшет не попадало, хотя палец там
+   ровно такой же.
+
+   ЗАМЕРЕНО 28.07.2026 В ЖИВОМ БРАУЗЕРЕ (768x1024, указатель огрублён через
+   Emulation.setEmulatedMedia, matchMedia('(pointer: coarse)') = да,
+   matchMedia('(max-width: 700px)') = нет): видимых и не-disabled зон нажатия
+   меньше 32px — Оплаты 32, Настройки 17, Пациенты 14, Связь 10. Примеры:
+   .quick-chip--sm высотой 24 («1000 ₽», «0%», «3 мес», «отец» — этими чипами
+   на Оплатах вводят СУММУ платежа), .quick-chip высотой 27 («+ VIP»,
+   «+ Аллергия на анестезию»), <summary> высотой 16 («Фискальный чек и кассир»),
+   вкладки настроек 29 (все семнадцать), input.toggle-switch 13x13.
+
+   Условие — объединение: грубый указатель ИЛИ узкое окно. Это надмножество
+   прежнего поведения, поэтому на телефоне не меняется ничего, а планшет и любое
+   сенсорное устройство наконец получают правила. `pointer`, а не `any-pointer`:
+   `any-pointer: coarse` верно и для ноутбука с сенсорным экраном, где работают
+   мышью, — там раздувать элементы не за что.
+   ============================================================ */
+
+@media (pointer: coarse), (max-width: 700px) {
+  /* --- Самостоятельные кнопки --- */
+  .primary-button,
+  .secondary-button,
+  .text-button,
+  .icon-button {
+    min-height: 44px;
+  }
+
+  /* --- Вкладки ---
+     ДВА ИЗ ТРЁХ СЕЛЕКТОРОВ ЗДЕСЬ БЫЛИ МЁРТВЫМИ. `.settings-tab-button` и
+     `.visit-tab-button` не встречаются в разметке ни разу (проверено по всему
+     apps/web/src): вкладки настроек рисуются как `.settings-tabs button`
+     (SettingsView.tsx, id вида `settings-tab-clinic`), вкладки визита — как
+     `.visit-sub-nav-tabs button` (VisitView.tsx:417). То есть правило про 44px
+     существовало, но ни к чему не применялось, и вкладки оставались 29px даже
+     на телефоне. */
+  .emk-tab-button,
+  .visit-sub-nav-tabs button {
+    min-height: 44px;
+  }
+
+  /* !important обязателен: main.css:14512 задаёт
+     `.settings-tabs button { min-height: auto !important }` при равной
+     специфичности (0,1,1). Без !important правило проигрывает, и вкладки
+     остаются 29px — именно это и замерено на 768px. */
+  .settings-tabs button {
+    min-height: 44px !important;
+  }
+
+  /* --- Плотные наборы чипов ---
+     36px + промежуток 8px: по WCAG 2.5.8 допустимо, когда цели
+     разнесены, и не ломает плотную сетку быстрых сумм. */
+  .quick-chip,
+  .dictation-quick-row button {
+    min-height: 36px;
+  }
+
+  /* !important нужен только там, где конкурирующее объявление тоже с
+     !important, иначе правило не действует:
+       main.css  .quick-chip--sm        { min-height: 24px !important }
+       main.css  .appointment-edit-button { min-height: 28px !important }
+     Замерено до правки: чипы быстрых сумм оплаты 55x24, 56x24, 41x24. */
+  .quick-chip--sm {
+    min-height: 36px !important;
+  }
+
+  .appointment-edit-button {
+    min-height: 40px !important;
+  }
+
+  .quick-chips-row,
+  .dictation-quick-row {
+    gap: 8px;
+  }
+
+  /* --- Поля выбора и ввода --- */
+  select,
+  .select-phase,
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"] {
+    min-height: 40px;
+  }
+
+  /* --- Кнопки-иконки без текста --- */
+  .btn-remove-item,
+  .btn-icon,
+  button[aria-label]:not(.primary-button):not(.secondary-button):not(.nav-item) {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  /* --- Раскрывающиеся блоки ---
+     У <summary> высота была равна высоте строки. */
+  summary {
+    align-items: center;
+    display: flex;
+    min-height: 44px;
+  }
+
+  /* --- Отметки и переключатели ---
+     Сам квадратик остаётся компактным, но обёртка-подпись даёт
+     полноценную зону нажатия: так делают, чтобы не раздувать
+     нативный вид отметки. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    height: 20px;
+    min-height: 20px;
+    min-width: 20px;
+    width: 20px;
+  }
+
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    align-items: center;
+    display: flex;
+    min-height: 44px;
+  }
+
+  /* --- Ползунки ---
+     Нативная дорожка тонкая, палец по ней не попадает. */
+  input[type="range"] {
+    min-height: 44px;
+  }
+
+  /* --- Узкие по ширине цели ---
+     Высота бывает достаточной, а ширина нет. Замерено: кнопка
+     микрофона в умном бронировании 16x36, кнопка «День» в заголовке
+     расписания 30x44. */
+  .text-button,
+  .smart-ai-booking button,
+  .panel-heading button {
+    min-width: 44px;
+  }
+
+  /* Кнопки-иконки внутри полей позиционируются абсолютно, поэтому
+     задаём размер обеих сторон. */
+  .smart-ai-booking .relative button,
+  .smart-field button[aria-label] {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

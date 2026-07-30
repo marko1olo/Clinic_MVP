@@ -1,4 +1,91 @@
-import { documentKindMetadata, documentPayloadDisallowedKeys, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionApplicationPayloadSchema, taxDeductionCertificateMinYear, } from "@dental/shared";
+import { documentKindMetadata, documentPayloadDisallowedKeys, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionApplicationPayloadSchema, taxDeductionCertificateMinYear, kopecksToNumericString, parseKopecks, sumKopecks, } from "@dental/shared";
+/*
+ * Перевод слов разборщика в слова человека — ОДИН на весь сервер, рядом с домом
+ * текстов отказа по кабинету клиники (utils/clinicSessionRefusal.ts).
+ */
+import { schemaIssueWords } from "../utils/schemaRefusalWords.js";
+/**
+ * Сравнение денег до копейки, и печать денег человеку.
+ *
+ * ЗАЧЕМ ЭТО ПОЯВИЛОСЬ. Три проверки ниже сравнивали рублёвые суммы через `!==`
+ * на числах с плавающей точкой, и одна из них — ворота выдачи платёжной
+ * квитанции. Замерено, а не рассуждение: три оплаты по 300.01, 300.05 и 300.07
+ * — каждая ровная до копейки и каждая законная по контракту — дают
+ * 900.1299999999999 в одном порядке сложения и 900.13 в другом. Клиент
+ * складывает оплаты в порядке своего списка, сервер — в порядке
+ * `selectedPaymentIds`; порядки независимы, поэтому расхождение возможно на
+ * живых данных, а не в теории.
+ *
+ * Итог для клиники был такой: законная квитанция на три оплаты НЕ выдавалась, а
+ * человек читал «сумма 900.1299999999999 руб. не совпадает с выбранными
+ * оплатами 900.13 руб.» — два числа, которые глазом не различить.
+ *
+ * Здесь НЕ вводится допуск epsilon: он спрятал бы и настоящее расхождение в одну
+ * копейку, а это ворота денежного документа. Сравнение идёт в ЦЕЛЫХ копейках,
+ * то есть остаётся строгим, и «ровно на копейку меньше» по-прежнему отбивается.
+ *
+ * Второй владелец этой же болезни уже был найден и починен в
+ * `renderDocument.ts` — этот файл нёс свою отдельную копию, поэтому правка там
+ * его не касалась. Считать деньги здесь теперь нечем, кроме
+ * `packages/shared/src/utils/money.ts`; третьей копии не создаётся.
+ */
+function moneyRubEquals(kopecks, rub) {
+    return kopecks === parseKopecks(rub);
+}
+/** Заглушка суммы, которую напечатать не удалось: форма денег сохранена, значение — нет. */
+const MONEY_TEXT_UNPRINTABLE = "?.??";
+/**
+ * Печать рублёвой суммы в текст отказа. НЕ БРОСАЕТ, никогда.
+ *
+ * ЗАЧЕМ ЭТО ПОЯВИЛОСЬ. Все одиннадцать мест, где этот файл печатает деньги,
+ * находятся ВНУТРИ построения сообщения об отказе. `parseKopecks` по контракту
+ * бросает на NaN, на Infinity и на строке, не похожей на деньги — «Денежное
+ * значение не является числом: NaN». Для расчёта это верно: повреждённые деньги
+ * должны останавливать работу. Но здесь расчёт уже закончен, решение отказать
+ * принято, и осталась одна задача — объяснить отказ человеку. Исключение из
+ * построителя фразы уносит объяснение целиком: вежливый 409 «сумма не совпадает»
+ * превращается в 500 без текста, и клиника не узнаёт даже того, что документ
+ * отбит по сумме. Это строго хуже дефекта, который починили сами одиннадцать
+ * конверсий.
+ *
+ * Считать деньги здесь по-прежнему нечем, кроме
+ * `packages/shared/src/utils/money.ts`: функция только оборачивает `parseKopecks`
+ * и `kopecksToNumericString`. Второй реализации денег не возникает — их в этом
+ * репозитории уже находили дважды, и одна отказывала законной квитанции.
+ *
+ * ЗАГЛУШКА — НЕ НОЛЬ. `0.00` было бы ложью, причём неотличимой от правды:
+ * `parseKopecks(null)` законно даёт `0.00` для отсутствующей суммы, поэтому
+ * повреждённое значение обязано выглядеть иначе, иначе врач пойдёт искать ноль,
+ * которого в данных нет. «undefined руб.» — тоже не объяснение, а мусор.
+ * `?.??` держит форму денежного слота прямо перед «руб.», читается как «сумму
+ * напечатать не удалось» и ни с одной настоящей суммой не путается.
+ *
+ * Сравнения этим не затронуты: они идут в целых копейках без допуска и обязаны
+ * бросать на повреждённых деньгах, а не печатать заглушку.
+ */
+export function moneyRubText(rub) {
+    try {
+        return kopecksToNumericString(parseKopecks(rub));
+    }
+    catch {
+        return MONEY_TEXT_UNPRINTABLE;
+    }
+}
+/**
+ * То же для уже посчитанных копеек (результат `sumKopecks`).
+ *
+ * Отдельный вход, а не признак-единица в одной подписи: перевод копеек в рубли
+ * ради общей сигнатуры вернул бы деление в денежный путь. Реализация та же самая,
+ * из `@dental/shared`.
+ */
+export function moneyKopecksText(kopecks) {
+    try {
+        return kopecksToNumericString(kopecks);
+    }
+    catch {
+        return MONEY_TEXT_UNPRINTABLE;
+    }
+}
 function taxPaidDocumentsNeedYear(kind) {
     const metadata = documentKindMetadata[kind];
     return metadata.group === "tax" && metadata.amountSource === "paid";
@@ -199,9 +286,9 @@ export function paymentReceiptSelectionErrorForDocument(input, payments) {
         }
         selectedPayments.push(payment);
     }
-    const selectedTotalRub = selectedPayments.reduce((total, payment) => total + payment.amountRub, 0);
-    if (selectedTotalRub !== payload.totalPaidRub) {
-        return `Платежная квитанция: сумма ${payload.totalPaidRub} руб. не совпадает с выбранными оплатами ${selectedTotalRub} руб.`;
+    const selectedTotalKopecks = sumKopecks(selectedPayments.map((payment) => parseKopecks(payment.amountRub)));
+    if (!moneyRubEquals(selectedTotalKopecks, payload.totalPaidRub)) {
+        return `Платежная квитанция: сумма ${moneyRubText(payload.totalPaidRub)} руб. не совпадает с выбранными оплатами ${moneyKopecksText(selectedTotalKopecks)} руб.`;
     }
     const actualReceiptNumbers = new Set(selectedPayments
         .map((payment) => normalizedFiscalReceiptNumber(payment.fiscalReceiptNumber))
@@ -221,7 +308,103 @@ export function paymentReceiptSelectionErrorForDocument(input, payments) {
     }
     return null;
 }
-export function paymentRefundCorrectionSelectionErrorForDocument(input, payments) {
+/**
+ * Копейки, уже возвращённые по платежу ВЫДАННЫМИ документами возврата/коррекции.
+ *
+ * ЗАЧЕМ: без этого учёта возврат по одному чеку можно было оформить сколько
+ * угодно раз. Проверка сравнивала каждую заявку с ИСХОДНОЙ суммой платежа,
+ * а не с остатком. Два возврата по 30 000 ₽ с чека на 50 000 ₽ проходили оба —
+ * клиника выплачивала 60 000 ₽.
+ *
+ * Считаем по фактически выданным документам, поэтому отдельная колонка в БД
+ * и миграция не нужны: источник истины — сами документы возврата.
+ *
+ * ПОЧЕМУ ЦЕЛЫЕ КОПЕЙКИ, А НЕ СУММА РУБЛЁВЫХ `Number`. Прежняя реализация
+ * складывала рубли в плавающей точке (`total += amount`). Для сравнения «больше
+ * остатка» это ещё сходило, но на этой же сумме теперь стоит решение «чек
+ * возвращён ПОЛНОСТЬЮ», а это равенство, а не «примерно». Замерено: четыре
+ * частичных возврата 100.10 + 100.10 + 100.10 + 99.70 по чеку на 400.00 ₽ дают
+ * в double 399.99999999999994 — то есть полностью возвращённый чек выглядит как
+ * «остался почти ноль» и НАВСЕГДА остаётся в выручке клиники. В целых копейках
+ * равенство точное, и такой чек уходит из выручки, как и должен.
+ */
+export function alreadyRefundedKopecksForPayment(paymentId, documents, excludeDocumentId) {
+    if (!documents?.length)
+        return 0;
+    const refundedKopecks = [];
+    for (const candidate of documents) {
+        if (candidate.kind !== "payment_refund_correction_request")
+            continue;
+        if (candidate.status !== "issued")
+            continue;
+        if (excludeDocumentId && candidate.id === excludeDocumentId)
+            continue;
+        const refund = candidate.payload?.paymentRefundCorrection;
+        if (!refund)
+            continue;
+        const selected = refund.selectedPaymentIds ?? [];
+        if (!selected.includes(paymentId))
+            continue;
+        const amount = Number(refund.amountRub ?? 0);
+        // Повреждённая или неположительная сумма пропускается ровно как раньше:
+        // `parseKopecks` по контракту бросает на NaN, а расчёт остатка по чеку
+        // обязан продолжиться и на битом соседнем документе.
+        if (!Number.isFinite(amount) || amount <= 0)
+            continue;
+        refundedKopecks.push(parseKopecks(amount));
+    }
+    return sumKopecks(refundedKopecks);
+}
+/**
+ * Сведение возвратов с кассой по всем платежам, которых касались заявления
+ * на возврат этого пациента.
+ *
+ * Считается ОТ ДОКУМЕНТОВ, а не от предыдущего состояния платежа, поэтому
+ * функция самовосстанавливающаяся: она одинаково верно отвечает и после выдачи
+ * заявления, и после его аннулирования. Аннулирование обязано быть учтено —
+ * `alreadyRefundedKopecksForPayment` считает только `issued`, и без обратного
+ * хода платёж навсегда остался бы `refunded` при нулевом учтённом возврате:
+ * выручка занижена, а новый возврат по этому чеку заблокирован проверкой
+ * «уже выполнен полный возврат» выше.
+ *
+ * Черновик заявления кассы не касается: его можно изменить или удалить, деньги
+ * ещё не выходили, и снимать их с выручки без юридического основания нельзя.
+ */
+export function paymentRefundSettlements(payments, documents) {
+    const touchedPaymentIds = new Set();
+    for (const candidate of documents ?? []) {
+        if (candidate.kind !== "payment_refund_correction_request")
+            continue;
+        const selected = candidate.payload?.paymentRefundCorrection?.selectedPaymentIds ?? [];
+        for (const paymentId of selected)
+            touchedPaymentIds.add(paymentId);
+    }
+    if (!touchedPaymentIds.size)
+        return [];
+    const settlements = [];
+    for (const payment of payments) {
+        if (!touchedPaymentIds.has(payment.id))
+            continue;
+        // Между `paid` и `refunded` сведение и ходит. `planned` — ещё не деньги,
+        // `voided` — отменённая строка кассы; ни ту, ни другую возврат не двигает.
+        if (payment.status !== "paid" && payment.status !== "refunded")
+            continue;
+        const amountKopecks = parseKopecks(payment.amountRub);
+        const refundedKopecks = alreadyRefundedKopecksForPayment(payment.id, documents);
+        settlements.push({
+            paymentId: payment.id,
+            amountKopecks,
+            refundedKopecks,
+            fullyRefunded: amountKopecks > 0 && refundedKopecks >= amountKopecks,
+        });
+    }
+    return settlements;
+}
+export function paymentRefundCorrectionSelectionErrorForDocument(input, payments, 
+/** Ранее выданные документы пациента — нужны для учёта прошлых возвратов. */
+issuedDocuments, 
+/** Идентификатор текущего документа, чтобы не считать его самого. */
+currentDocumentId) {
     if (input.kind !== "payment_refund_correction_request")
         return null;
     const payload = input.payload?.paymentRefundCorrection;
@@ -245,8 +428,34 @@ export function paymentRefundCorrectionSelectionErrorForDocument(input, payments
             return "Выбранный исходный платеж для возврата или коррекции относится к другому пациенту.";
         if (input.visitId && payment.visitId !== input.visitId)
             return "Выбранный исходный платеж для возврата или коррекции относится к другому визиту.";
+        if (payment.status === "refunded") {
+            return "По выбранному платежу/чеку уже выполнен полный возврат средств. Повторный возврат заблокирован.";
+        }
         if (payment.status !== "paid" || payment.amountRub <= 0) {
             return "Возврат или коррекцию можно оформить только по проведенному положительному платежу.";
+        }
+        // БЫЛО: сравнение с ПОЛНОЙ суммой платежа без учёта предыдущих возвратов —
+        // по чеку на 50 000 ₽ проходили два возврата по 30 000 ₽ подряд.
+        //
+        // ОСТАТОК СЧИТАЕТСЯ В ЦЕЛЫХ КОПЕЙКАХ, И ЭТО НЕ КОСМЕТИКА. Вычитание рублей
+        // в плавающей точке отбивало ЗАКОННЫЙ последний возврат: по чеку на 400.00 ₽
+        // после возвратов 100.10 + 100.10 + 100.10 остаток равен ровно 99.70 ₽, а
+        // `400 − 300.30` в double даёт 99.69999999999999, то есть `99.70 > остаток` —
+        // правда, и пациенту отказывают в его же деньгах словами «превышает остаток
+        // по чеку». Прежняя реализация промахивалась в ДРУГУЮ сторону и по
+        // случайности: она складывала рубли и получала 300.29999999999995, откуда
+        // остаток 99.70000000000005. Обе цифры — мусор разного знака; в копейках
+        // 40000 − 30030 = 9970 и сравнение точное.
+        const alreadyRefundedKopecks = alreadyRefundedKopecksForPayment(payment.id, issuedDocuments, currentDocumentId);
+        const paymentKopecks = parseKopecks(payment.amountRub);
+        const refundableKopecks = paymentKopecks - alreadyRefundedKopecks;
+        if (refundableKopecks <= 0) {
+            return `По чеку на ${moneyKopecksText(paymentKopecks)} руб. уже возвращено ${moneyKopecksText(alreadyRefundedKopecks)} руб. Свободного остатка для возврата нет.`;
+        }
+        if (parseKopecks(payload.amountRub) > refundableKopecks) {
+            return alreadyRefundedKopecks > 0
+                ? `Сумма возврата (${moneyRubText(payload.amountRub)} руб.) превышает остаток по чеку: из ${moneyKopecksText(paymentKopecks)} руб. уже возвращено ${moneyKopecksText(alreadyRefundedKopecks)} руб., доступно ${moneyKopecksText(refundableKopecks)} руб.`
+                : `Сумма возврата (${moneyRubText(payload.amountRub)} руб.) не может превышать сумму исходного чека (${moneyKopecksText(paymentKopecks)} руб.).`;
         }
         if (!payment.fiscalReceiptNumber?.trim()) {
             return "Возврат или коррекция требуют номер исходного фискального чека в выбранном платеже.";
@@ -371,37 +580,38 @@ function structuredPayloadMissingReason(input) {
     return null;
 }
 function expectedFinancialLineTotal(line) {
-    return Math.max(0, line.quantity * line.unitPriceRub - line.discountRub);
+    return Math.max(0, Math.round((line.quantity * line.unitPriceRub - line.discountRub) * 100) / 100);
 }
 function financialLinesTotal(lines) {
-    return lines.reduce((total, line) => total + line.totalRub, 0);
+    return Math.round(lines.reduce((total, line) => total + line.totalRub, 0) * 100) / 100;
 }
 function financialServiceLinesMismatchReason(lines, documentLabel) {
     for (const [index, line] of lines.entries()) {
         const expectedTotalRub = expectedFinancialLineTotal(line);
-        if (line.totalRub !== expectedTotalRub) {
-            return `${documentLabel}: строка ${index + 1} должна иметь сумму ${expectedTotalRub} руб. по количеству, цене и скидке; передано ${line.totalRub} руб.`;
+        if (Math.abs(line.totalRub - expectedTotalRub) > 0.01) {
+            return `${documentLabel}: строка ${index + 1} должна иметь сумму ${moneyRubText(expectedTotalRub)} руб. по количеству, цене и скидке; передано ${moneyRubText(line.totalRub)} руб.`;
         }
     }
     return null;
 }
 function financialServiceLinesGrandTotalMismatchReason(lines, totalAmountRub, documentLabel) {
     const linesTotalRub = financialLinesTotal(lines);
-    if (linesTotalRub !== totalAmountRub) {
-        return `${documentLabel}: общий итог ${totalAmountRub} руб. не совпадает с суммой строк ${linesTotalRub} руб.`;
+    const targetRub = Math.round(totalAmountRub * 100) / 100;
+    if (Math.abs(linesTotalRub - targetRub) > 0.01) {
+        return `${documentLabel}: общий итог ${moneyRubText(totalAmountRub)} руб. не совпадает с суммой строк ${moneyRubText(linesTotalRub)} руб.`;
     }
     return null;
 }
 function plannedFactsTotalMismatchReason(payloadTotalRub, facts, documentLabel) {
     if (facts.plannedAmountRub > 0 &&
         payloadTotalRub !== facts.plannedAmountRub) {
-        return `${documentLabel}: сумма ${payloadTotalRub} руб. не совпадает с актуальным планом лечения ${facts.plannedAmountRub} руб.`;
+        return `${documentLabel}: сумма ${moneyRubText(payloadTotalRub)} руб. не совпадает с актуальным планом лечения ${moneyRubText(facts.plannedAmountRub)} руб.`;
     }
     return null;
 }
 function paidFactsTotalMismatchReason(payloadTotalRub, facts, documentLabel) {
     if (facts.paidAmountRub > 0 && payloadTotalRub !== facts.paidAmountRub) {
-        return `${documentLabel}: сумма ${payloadTotalRub} руб. не совпадает с реально оплаченным контекстом ${facts.paidAmountRub} руб.`;
+        return `${documentLabel}: сумма ${moneyRubText(payloadTotalRub)} руб. не совпадает с реально оплаченным контекстом ${moneyRubText(facts.paidAmountRub)} руб.`;
     }
     return null;
 }
@@ -418,11 +628,11 @@ function paymentInvoiceMismatchReason(payload, facts) {
 function installmentScheduleMismatchReason(payload, facts) {
     const expectedRemainingRub = Math.max(0, payload.totalAmountRub - payload.prepaidAmountRub);
     if (payload.remainingAmountRub !== expectedRemainingRub) {
-        return `График рассрочки: остаток ${payload.remainingAmountRub} руб. не совпадает с суммой минус предоплатой ${expectedRemainingRub} руб.`;
+        return `График рассрочки: остаток ${moneyRubText(payload.remainingAmountRub)} руб. не совпадает с суммой минус предоплатой ${moneyRubText(expectedRemainingRub)} руб.`;
     }
-    const installmentsTotalRub = payload.installments.reduce((total, installment) => total + installment.amountRub, 0);
-    if (installmentsTotalRub !== payload.remainingAmountRub) {
-        return `График рассрочки: сумма платежей ${installmentsTotalRub} руб. не совпадает с остатком ${payload.remainingAmountRub} руб.`;
+    const installmentsTotalKopecks = sumKopecks(payload.installments.map((installment) => parseKopecks(installment.amountRub)));
+    if (!moneyRubEquals(installmentsTotalKopecks, payload.remainingAmountRub)) {
+        return `График рассрочки: сумма платежей ${moneyKopecksText(installmentsTotalKopecks)} руб. не совпадает с остатком ${moneyRubText(payload.remainingAmountRub)} руб.`;
     }
     return plannedFactsTotalMismatchReason(payload.totalAmountRub, facts, "График рассрочки");
 }
@@ -433,12 +643,35 @@ function paidContractMismatchReason(payload, facts) {
     return plannedFactsTotalMismatchReason(payload.estimatedTotalRub, facts, "Договор платных медицинских услуг");
 }
 function completedWorksActMismatchReason(payload, facts) {
-    if (payload.totalByActRub !== payload.paidRub) {
-        return `Акт выполненных работ: сумма акта ${payload.totalByActRub} руб. не совпадает с оплаченной суммой ${payload.paidRub} руб.`;
+    if (!moneyRubEquals(parseKopecks(payload.totalByActRub), payload.paidRub)) {
+        return `Акт выполненных работ: сумма акта ${moneyRubText(payload.totalByActRub)} руб. не совпадает с оплаченной суммой ${moneyRubText(payload.paidRub)} руб.`;
     }
     return (paidFactsTotalMismatchReason(payload.totalByActRub, facts, "Акт выполненных работ") ??
         paidFactsTotalMismatchReason(payload.paidRub, facts, "Акт выполненных работ"));
 }
+/**
+ * Русские подписи полей заявления на налоговый вычет: ключ контракта → подпись
+ * из формы заявления.
+ *
+ * Без словаря отказ называл бы поле латинским ключом (`taxpayerIdentityDocument`
+ * — 24 знака), а латинское слово из шести и более знаков гасит фразу целиком
+ * фильтром клиента.
+ */
+const taxDeductionApplicationFieldLabels = {
+    taxpayerFullName: "ФИО налогоплательщика",
+    taxpayerInn: "ИНН налогоплательщика",
+    taxpayerBirthDate: "дата рождения налогоплательщика",
+    taxpayerIdentityDocument: "документ налогоплательщика",
+    relationshipToPatient: "родство с пациентом",
+    requestedTaxYear: "год вычета",
+    requestedForm: "форма справки",
+    selectedPaymentIds: "выбранные оплаты",
+    deliveryChannel: "способ выдачи документа",
+    contactForReadyDocument: "контакт для готового документа",
+    applicantAuthorityDocument: "документ о полномочиях заявителя",
+    requestedAt: "дата заявления",
+    duplicateWarningAccepted: "подтверждение о повторном заявлении",
+};
 function documentPayloadConsistencyReason(input, facts) {
     if (input.kind === "paid_medical_services_contract" &&
         input.payload?.paidMedicalServicesContract) {
@@ -464,8 +697,33 @@ function documentPayloadConsistencyReason(input, facts) {
         const application = input.payload.taxDeductionApplication;
         const applicationPayloadResult = taxDeductionApplicationPayloadSchema.safeParse(application);
         if (!applicationPayloadResult.success) {
-            return (applicationPayloadResult.error.issues[0]?.message ??
-                "Заявление на налоговый вычет содержит некорректные данные.");
+            /*
+             * ПРИЧИНА ОТКАЗА НАЗЫВАЕТ ПОЛЕ ЗАЯВЛЕНИЯ И СЛЕДУЮЩИЙ ШАГ.
+             *
+             * БЫЛО: `issues[0]?.message` — сообщение разборщика ЦЕЛИКОМ и БЕЗ
+             * подписи поля, например «Required» либо
+             * «Number must be greater than or equal to 2021». Здесь дефект хуже, чем
+             * у соседей: поле не называлось вовсе, то есть даже прочитав фразу,
+             * администратор не узнал бы, какое из шестнадцати полей заявления
+             * поправить. А прочитать её он не мог: фильтр клиента
+             * (`apps/web/src/AppHelpers.tsx`, `technicalWorkflowFailurePattern` под
+             * флагом `/i`) гасит фразу с латинским словом из шести и более знаков
+             * целиком.
+             *
+             * Заявление на налоговый вычет — юридический документ, и пациент ждёт
+             * его в срок подачи декларации. Отказ без имени поля означает, что
+             * документ не выпущен и никто не знает почему.
+             *
+             * Часть проверок этой схемы уже несёт написанный человеком текст
+             * («Для старой налоговой справки нужен 10- или 12-значный ИНН
+             * налогоплательщика.») — общий перевод пропускает его как есть.
+             */
+            const issue = applicationPayloadResult.error.issues[0];
+            if (!issue) {
+                return "Заявление на налоговый вычет содержит некорректные данные. Откройте заявление, проверьте поля налогоплательщика и суммы и оформите документ заново.";
+            }
+            const words = schemaIssueWords(issue, taxDeductionApplicationFieldLabels);
+            return `Заявление на налоговый вычет не оформлено: ${words.cause} — ${words.action} и оформите документ заново.`;
         }
         if (input.taxYear && input.taxYear !== application.requestedTaxYear) {
             return `Заявление на налоговый вычет: год документа ${input.taxYear} не совпадает с годом заявления ${application.requestedTaxYear}.`;
@@ -561,6 +819,84 @@ export function plannedAmountRubForDocument(kind, input, treatmentPlanItems) {
         .filter((item) => item.patientId === input.patientId && item.status !== "cancelled")
         .filter((item) => !input.visitId || item.visitId === input.visitId)
         .reduce((total, item) => total + treatmentLineTotal(item), 0);
+}
+/**
+ * Итог, НАПЕЧАТАННЫЙ В ТЕЛЕ документа с плановой суммой.
+ *
+ * Это не «ещё один расчёт денег», а чтение той единственной суммы, которую
+ * документ уже показывает человеку: строки счёта, итог сметы, сумма договора.
+ * Каждое из этих полей к этому месту уже проверено — состав строк сходится с
+ * итогом (`financialServiceLinesMismatchReason`), а при существующем плане
+ * лечения итог обязан совпасть с планом (`plannedFactsTotalMismatchReason`,
+ * иначе документ отбит с 409).
+ *
+ * `lab_work_order` здесь отсутствует намеренно: у заказ-наряда в лабораторию
+ * денежного поля нет вовсе, и придумывать ему сумму нечем.
+ */
+function printedPlannedTotalRub(input) {
+    const payload = input.payload;
+    if (!payload)
+        return null;
+    switch (input.kind) {
+        case "payment_invoice":
+            return payload.paymentInvoice?.totalAmountRub ?? null;
+        case "treatment_cost_estimate":
+            return payload.treatmentCostEstimate?.totalAmountRub ?? null;
+        case "installment_payment_schedule":
+            return payload.installmentPaymentSchedule?.totalAmountRub ?? null;
+        case "paid_medical_services_contract":
+            return payload.paidMedicalServicesContract?.estimatedTotalRub ?? null;
+        case "treatment_plan":
+            return payload.treatmentPlan?.estimatedTotalRub ?? null;
+        case "treatment_plan_acceptance":
+            return payload.treatmentPlanAcceptance?.estimatedTotalRub ?? null;
+        default:
+            return null;
+    }
+}
+/**
+ * Сумма для денежной колонки документа с плановой суммой.
+ *
+ * ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ. Здесь стояло
+ * `totalAmountRub = facts.plannedAmountRub > 0 ? facts.plannedAmountRub : null`,
+ * и это БЕЗУСЛОВНО затирало присланный итог. Замерено сквозным прогоном: счёт
+ * создан (HTTP 201), в теле счёта строки на 3491,49 ₽ — они прошли все проверки
+ * состава и итога, — а `generated_documents.total_amount_rub = NULL`. Пациент
+ * получал счёт без суммы, бухгалтерия не видела выставленного требования: счёт
+ * есть, денег в нём нет.
+ *
+ * ЭТО НЕ «СУММА НЕИЗВЕСТНА», А ПОТЕРЯ. Документ, у которого в теле напечатано
+ * 3491,49 ₽, а в денежной колонке пусто, противоречит сам себе: печатная форма
+ * и учёт расходятся ВНУТРИ одного документа, и какая из двух половин правда —
+ * по данным не определить.
+ *
+ * ПОЧЕМУ ПОРЯДОК ИМЕННО ТАКОЙ.
+ *  1. План лечения, когда он есть, остаётся главным: при `plannedAmountRub > 0`
+ *     итог документа обязан совпасть с планом, иначе документ уже отбит с 409
+ *     (`plannedFactsTotalMismatchReason`). Так что первый источник ничего не
+ *     меняет по сравнению с прежним поведением — правка не ослабляет проверку.
+ *  2. Когда позиции плана до `treatment_items` не дошли, `plannedAmountRub`
+ *     равен нулю. Тогда напечатанный в теле итог — ЕДИНСТВЕННАЯ существующая
+ *     сумма этого документа, и она же на руках у пациента.
+ *  3. `input.totalAmountRub` — последняя опора: её присылает экран для
+ *     документов, у которых своего денежного поля в теле нет.
+ *  4. `null` остаётся законным ответом «суммы в этом документе нет вообще» —
+ *     например для заказ-наряда в лабораторию. Пустая колонка при пустом теле
+ *     — правда; пустая колонка при напечатанной сумме — нет.
+ *
+ * КОПЕЙКИ ПРИВОДЯТСЯ К ТОЧНЫМ. `plannedAmountRub` складывается из позиций
+ * плана в плавающей точке (`unitPriceRub * quantity - discountRub`), и такая
+ * сумма умеет приносить грязь ниже копейки: 300.01 + 300.05 + 300.07 даёт
+ * 900.1299999999999. В денежную колонку уходит значение, приведённое через
+ * целые копейки, поэтому в ответе маршрута и в базе стоит одно и то же число.
+ */
+function plannedDocumentTotalRub(input, facts) {
+    const source = facts.plannedAmountRub > 0
+        ? facts.plannedAmountRub
+        : (printedPlannedTotalRub(input) ?? input.totalAmountRub ?? null);
+    if (source === null)
+        return null;
+    return Number(kopecksToNumericString(parseKopecks(source)));
 }
 export function validateDocumentCreation(input, facts) {
     if (!facts.patient) {
@@ -718,7 +1054,7 @@ export function validateDocumentCreation(input, facts) {
         }
     }
     if (metadata.amountSource === "planned") {
-        totalAmountRub = facts.plannedAmountRub > 0 ? facts.plannedAmountRub : null;
+        totalAmountRub = plannedDocumentTotalRub(input, facts);
     }
     return {
         ok: true,

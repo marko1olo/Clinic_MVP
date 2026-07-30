@@ -1,3 +1,4 @@
+import { kopecksToNumericString, parseKopecks, sumKopecks } from "@dental/shared";
 const taxDocumentSnapshotKinds = new Set([
     "tax_deduction_certificate",
     "legacy_tax_deduction_certificate",
@@ -99,15 +100,22 @@ export function coveredIdentifiersForIssuedTaxCertificates(document, documents, 
     return { paymentIds, fiscalReceiptKeys };
 }
 export function taxPaymentsForIssueSnapshot(document, payments, documents) {
-    const explicitPaymentIds = selectedPaymentIdsForTaxDocument(document);
-    if (explicitPaymentIds.size) {
-        return baseTaxPaymentsForDocument(document, payments);
-    }
-    if (!taxDocumentDuplicateSensitive(document.kind)) {
-        return baseTaxPaymentsForDocument(document, payments);
-    }
-    const covered = coveredIdentifiersForIssuedTaxCertificates(document, documents, payments);
     const selectedPayments = baseTaxPaymentsForDocument(document, payments);
+    if (!taxDocumentDuplicateSensitive(document.kind)) {
+        return selectedPayments;
+    }
+    // БЫЛО: при явно выбранных платежах функция возвращалась здесь досрочно, не
+    // сверяясь с уже выданными справками. А для справок без явного выбора
+    // baseTaxPaymentsForDocument отдаёт пустой список (см. ветку snapshot-видов),
+    // и фильтр ниже всегда работал по пустому массиву. То есть защита от
+    // повторного включения платежа не срабатывала ни на одном пути:
+    // coveredIdentifiersForIssuedTaxCertificates была мёртвым кодом, и один и тот
+    // же чек мог попасть в две выданные справки за один налоговый год.
+    //
+    // Своих платежей документ при этом не теряет: sameTaxDocumentScope исключает
+    // сам документ по id и учитывает только уже выданные (issued) справки того же
+    // вида, пациента и года.
+    const covered = coveredIdentifiersForIssuedTaxCertificates(document, documents, payments);
     return selectedPayments.filter((payment) => !covered.paymentIds.has(payment.id) && !covered.fiscalReceiptKeys.has(taxPaymentReceiptKey(payment)));
 }
 export function buildTaxPaymentSnapshotForIssue(document, payments, documents) {
@@ -126,6 +134,23 @@ export function buildTaxPaymentSnapshotForIssue(document, payments, documents) {
         payments: snapshotPayments
     };
 }
+/**
+ * Итог справки для налогового вычета.
+ *
+ * БЫЛО: `payments.reduce((total, p) => total + p.amountRub, 0)` — сложение в
+ * двоичной плавающей точке. Двадцать приёмов по 55,55 давали не 1111, а
+ * 1110.9999999999995; десять по 1010,10 — 10101.000000000002. Это число уходит
+ * в `totalAmountRub` документа (routes/documents.ts, `taxSnapshotDocument`),
+ * оттуда в печатную форму, в PDF и в SHA-256 выданного снимка. Справку человек
+ * несёт в налоговую, и её итог обязан быть равен сумме её же строк — не
+ * «примерно равен».
+ *
+ * Считается целыми копейками через @dental/shared (`parseKopecks` + `sumKopecks`),
+ * то есть сложением целых чисел, а результат приводится обратно в рубли через
+ * ту же строку numeric(12, 2), которая лежит в колонке базы. Своей арифметики
+ * денег здесь нет и быть не должно.
+ */
 export function taxPaymentSnapshotTotalRub(snapshot) {
-    return snapshot.payments.reduce((total, payment) => total + payment.amountRub, 0);
+    const totalKopecks = sumKopecks(snapshot.payments.map((payment) => parseKopecks(payment.amountRub)));
+    return Number(kopecksToNumericString(totalKopecks));
 }

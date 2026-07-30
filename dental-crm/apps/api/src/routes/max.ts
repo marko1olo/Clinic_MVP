@@ -8,7 +8,8 @@
  * Docs: https://business.max.ru (requires business account login)
  */
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { verifyWebhookSecret } from "../security/webhookAuth.js";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -52,17 +53,40 @@ function maskToken(raw: string): string {
 	return createHash("sha256").update(raw).digest("hex").slice(0, 12);
 }
 
-function parseJsonSafe<T>(value: string, fallback: T): T {
-	try {
-		return JSON.parse(value) as T;
-	} catch {
-		return fallback;
+function parseJsonSafe<T>(value: unknown, fallback: T): T {
+	if (!value) return fallback;
+	if (typeof value === "string") {
+		try {
+			return JSON.parse(value) as T;
+		} catch {
+			return fallback;
+		}
 	}
+	return value as T;
+}
+
+
+/** Точная проверка пути вебхука (без учёта query-строки). */
+function isWebhookPath(url: string): boolean {
+	const pathname = (url.split("?")[0] ?? "").replace(/\/+$/, "");
+	return pathname.endsWith("/webhook");
 }
 
 export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 	app.addHook("preHandler", async (request, reply) => {
-		if (request.url.includes("/webhook")) return;
+		// БЫЛО: `if (request.url.includes("/webhook")) return;` полностью
+		// отключало авторизацию для любого URL, содержащего "/webhook" —
+		// включая, например, /api/max/settings?x=/webhook. Теперь путь
+		// вебхука проверяется точно и защищён общим секретом канала.
+		if (isWebhookPath(request.url)) {
+			if (!verifyWebhookSecret(request, reply, {
+				channel: "max",
+				secretEnvNames: ["MAX_WEBHOOK_SECRET", "DENTE_WEBHOOK_SECRET"],
+			})) {
+				return reply;
+			}
+			return;
+		}
 		const allowed = await requireNonDoctorAccess(request, reply);
 		if (!allowed) {
 			return reply;
@@ -105,7 +129,7 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 				rules: [],
 			}),
 			isActive: config.isActive,
-			updatedAt: config.updatedAt.toISOString(),
+			updatedAt: (config.updatedAt ?? new Date()).toISOString(),
 		};
 	});
 
@@ -227,13 +251,33 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 	 * Bot is identified by x-max-bot-id header or ?botId query param.
 	 */
 	app.post("/api/max/webhook", async (request, reply) => {
+		// Always ACK first — MAX retries on non-200. Shape-guard AFTER send so a
+		// null/non-object body cannot TypeError on body.payload (cast-after-200).
 		reply.code(200).send({ ok: true });
 
+		if (
+			!request.body ||
+			typeof request.body !== "object" ||
+			Array.isArray(request.body)
+		) {
+			return;
+		}
 		const body = request.body as Record<string, unknown>;
-		const payload = body.payload as Record<string, unknown> | undefined;
-		if (!payload) return;
+		const payloadRaw = body.payload;
+		if (
+			!payloadRaw ||
+			typeof payloadRaw !== "object" ||
+			Array.isArray(payloadRaw)
+		) {
+			return;
+		}
+		const payload = payloadRaw as Record<string, unknown>;
 
-		const chat = payload.chat as Record<string, unknown> | undefined;
+		const chatRaw = payload.chat;
+		const chat =
+			chatRaw && typeof chatRaw === "object" && !Array.isArray(chatRaw)
+				? (chatRaw as Record<string, unknown>)
+				: undefined;
 		const textValue = payload.text;
 		const text = typeof textValue === "string" ? textValue : null;
 		const chatId = typeof chat?.chatId === "string" ? chat.chatId : "unknown";
@@ -299,7 +343,9 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 		const [patient] = await db
 			.select()
 			.from(patients)
-			.where(eq(patients.id, patientId))
+			// БЫЛО: условие только по patients.id, без организации. Сотрудник любой
+			// клиники мог указать UUID чужого пациента.
+			.where(and(eq(patients.id, patientId), eq(patients.organizationId, orgId)))
 			.limit(1);
 
 		if (!patient) {
@@ -322,28 +368,31 @@ export async function registerMaxRoutes(app: FastifyInstance): Promise<void> {
 			});
 		}
 
-		await db.insert(communicationEvents).values({
-			organizationId: orgId,
-			patientId,
-			channel: "telegram", // map max to telegram channel in DB schema
-			direction: "outbound",
-			status: "sent",
-			message,
+		// БЫЛО: обработчик писал строку в communication_events со статусом "sent",
+		// рассылал событие по WebSocket, печатал «[MAX Outbox] Sent to …» и
+		// возвращал { ok: true }. Обращения к API мессенджера не было. Отправка
+		// выглядела успешной, пациент не получал ничего.
+		//
+		// Транспорт MAX здесь не реализован: публично проверяемого контракта Bot
+		// API у business.max.ru нет (документация за входом в бизнес-аккаунт), а
+		// выдумывать адреса и формат запроса — это ровно та же подделка, только
+		// уровнем ниже. Пока транспорт не написан, обработчик честно отвечает
+		// 501: интерфейс покажет ошибку вместо ложного «отправлено».
+		//
+		// Когда контракт появится: добавить maxTransport.ts по образцу
+		// whatsappTransport.ts, записывать communication_events со статусом по
+		// фактическому результату (channel: "max" — значение добавлено в
+		// перечисление миграцией 0120) и рассылать событие только после
+		// подтверждения от провайдера.
+		request.log.warn(
+			{ organizationId: orgId, patientId },
+			"Запрошена отправка в MAX, транспорт не реализован",
+		);
+		return reply.code(501).send({
+			error: "MaxSendNotImplemented",
+			message:
+				"Отправка сообщений в MAX пока не реализована: нет транспорта к Bot API. Сообщение НЕ отправлено — воспользуйтесь другим каналом.",
 		});
-
-		wsBroker.broadcastToOrganization(orgId, {
-			type: "INBOX_NEW_MESSAGE",
-			payload: {
-				channel: "max",
-				patientId,
-				text: message,
-				direction: "outbound",
-			},
-		});
-
-		console.log(`[MAX Outbox] Sent to ${patient.fullName}: ${message}`);
-
-		return { ok: true };
 	});
 }
 

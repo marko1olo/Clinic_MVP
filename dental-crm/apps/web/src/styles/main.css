@@ -5,7 +5,7 @@
   /* LIGHT THEME (Premium Aesthetics) */
   color: #111827;
   background: #fdfdfd;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: 'Golos Text', Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -274,6 +274,13 @@ button:disabled {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Обнулённой длительности НЕ ДОСТАТОЧНО. Задержка здесь не гасилась, а при
+       `animation-fill-mode: backwards`/`both` элемент всё время задержки держит
+       кадр `from` — у входных анимаций это `opacity: 0`. Врач, выключивший
+       анимацию в системе, всё равно получал раздел, невидимый до 0,22 с.
+       Отрицательная задержка сдвигает анимацию за её собственный конец, поэтому
+       элемент сразу показывается в конечном кадре. */
+    animation-delay: -0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
@@ -410,6 +417,11 @@ button:disabled {
   font-weight: 850;
   padding: 9px 10px;
 }
+
+/* ═══════ LEGACY SHELL LAYER ═══════
+   Old sidebar/topbar/nav definitions retained as fallback.
+   dente-redesign.css (unlayered) wins by CSS cascade. */
+@layer legacy {
 
 .app-shell {
   display: grid;
@@ -647,6 +659,8 @@ img {
   gap: 10px;
 }
 
+} /* end @layer legacy */
+
 .hero-call-guidance {
   background: #fff7e6;
   border: 1px solid rgba(184, 120, 31, 0.45);
@@ -745,10 +759,73 @@ img {
   color: #1d5f59;
 }
 
+/*
+ * ПОДЛОЖКА ПОЛОСЫ ГОТОВНОСТИ БЕРЁТСЯ ИЗ ТОКЕНА, А НЕ ИЗ ЛИТЕРАЛА #eef8f5.
+ *
+ * Литерал почти белый и не привязан к теме, а текст полосы красится
+ * var(--ink) / var(--muted) — в тёмных темах он светлый. Поправка на тёмную
+ * тему ниже перечисляла только [data-theme="dark"] («Ночь»); тема «Тепло» —
+ * это data-theme="night" — в список не попала и оставалась на литерале.
+ *
+ * ПО КАКОЙ ПАЛИТРЕ СЧИТАНО. Порядок тем во всех цифрах ниже:
+ * светлая / «Ночь» (data-theme="dark") / «Тепло» (data-theme="night").
+ * Для светлой и «Ночи» значения берутся из main.css:126-147 и main.css:66-87:
+ * селектор там начинается с :root[data-theme="..."], специфичность (0,2,0), и
+ * он перебивает dente-redesign.css:11/67 со специфичностью (0,1,0). Для
+ * «Тепла» в main.css блока нет вовсе, поэтому побеждает
+ * dente-redesign.css:115-129. Первая версия этой правки посчитала светлую и
+ * «Ночь» по проигравшему файлу (--muted #5d746f вместо #64748b, --teal-surface
+ * rgba(13,148,136,.07) вместо rgba(204,251,241,.5)) и напечатала 4.63 там, где
+ * браузер даёт 4.48.
+ *
+ * До правки: strong (--ink #111827 / #f8fafc / #f1e8dd) на литерале #eef8f5 —
+ * 16.37 / 1.04 / 1.12, то есть в обеих тёмных темах белым по белому; span
+ * (--muted #64748b / #94a3b8 / #98897a) — 4.39 / 2.37 / 3.13 при норме 4.5;
+ * счёт готовности (--teal-dark #0f766e / #14b8a6 / #cf9146 на литерале
+ * #ffffff) — 5.47 / 2.49 / 2.70. В «Ночи» strong спасала поправка: на её
+ * rgba(15,23,42,.92) выходило 17.27, в «Тепле» поправка не срабатывала.
+ * Это первый экран после входа в незаполненную клинику.
+ *
+ * После перевода на токены (--teal-surface / --paper, объявлены во всех трёх
+ * темах) поправка на «Ночь» становится лишней и удалена — она задавала
+ * холодный сине-серый rgba(15,23,42,.92) в бирюзовом макете и была вторым
+ * источником правды. Подложка стала #e6fdf8 / rgb(18,42,57) / rgb(44,34,25) —
+ * это --teal-surface, наложенный на --paper. Стало: strong 16.69 / 14.19 /
+ * 12.81, счёт 5.47 / 7.17 / 6.59.
+ *
+ * ОСТАТОЧНЫЙ ПРОМАХ ЗАКРЫТ ЦВЕТОМ, А НЕ ОГОВОРКОЙ. span на --muted давал
+ * 4.48 / 5.79 / 4.58 — светлая тема не добирала до 4.5 (13px крупным текстом
+ * не считается). Цвет переведён на --ink-2 (#3f544f / #b9c9c4 / #cdbfae):
+ * 7.62 / 8.64 / 8.62. --ink-2 объявлен в dente-redesign.css:19/74/122 для всех
+ * трёх тем и там никому не проигрывает — main.css это имя не объявляет вовсе.
+ *
+ * РАМКА СНЯТА С --teal-glow: у этого имени ДВА РАЗНЫХ ТИПА. Цвет — в этом файле
+ * (строки 24, 86, 146) и в dente-redesign.css:26/81/129; готовая тень
+ * «0 0 20px rgba(...)» — в premium.css:19/65/111. Здесь стояло, что цвет держится
+ * только порядком импорта; перемерено по каскаду — это верно лишь для «Тепла». В
+ * светлой и в «Ночи» выигрывают объявления ЭТОГО файла на
+ * :root[data-theme="light"] и :root[data-theme="dark"] со специфичностью (0,2,0)
+ * против (0,1,0) у premium.css. В «Тепле» блока в main.css нет, и цвет из
+ * dente-redesign.css выигрывает порядком импорта — main.tsx:17 после main.tsx:16
+ * (в прежней записи стояли строки 12 и 13, таких импортов там нет).
+ *
+ * Значит цвет побеждает во всех трёх темах, и «border: 1px solid var(...)» был бы
+ * валиден. Но обратная сторона того же конфликта — живой дефект: единственное
+ * теневое использование, «box-shadow: var(--teal-glow) !important» на
+ * .nav-item.active (premium.css:239), разрешается в «box-shadow: rgba(...)» без
+ * длин, то есть недействительно на этапе вычисления значения, и тень активного
+ * пункта меню отсутствует во всех трёх темах. Правка не в этом файле, поэтому
+ * здесь только названа.
+ *
+ * Рамка всё равно взята на --line-strong (#cbd5e1 / rgba(204,251,241,.3) /
+ * rgba(220,195,160,.26)): объявлен во всех трёх темах и всегда является цветом,
+ * то есть не зависит от того, кто из трёх файлов победит.
+ * Форму охраняет scripts/tests/theme-contrast-guard.test.mjs, третий тест.
+ */
 .onboarding-compact-strip {
   align-items: center;
-  background: #eef8f5;
-  border: 1px solid rgba(15, 118, 110, 0.24);
+  background: var(--teal-surface);
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -768,14 +845,14 @@ img {
 }
 
 .onboarding-compact-strip span {
-  color: var(--muted);
+  color: var(--ink-2);
   font-size: 13px;
   font-weight: 750;
   line-height: 1.25;
 }
 
 .onboarding-compact-score {
-  background: #ffffff;
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--teal-dark) !important;
@@ -783,6 +860,29 @@ img {
   font-weight: 900 !important;
   padding: 7px 10px;
   white-space: nowrap;
+}
+
+[data-theme="dark"] .onboarding-draft-strip,
+.dark .onboarding-draft-strip,
+html.dark .onboarding-draft-strip,
+body.dark-mode .onboarding-draft-strip {
+  background: rgba(45, 26, 0, 0.75) !important;
+  border-color: #b45309 !important;
+  color: #fef3c7 !important;
+}
+
+[data-theme="dark"] .onboarding-draft-strip strong,
+.dark .onboarding-draft-strip strong,
+html.dark .onboarding-draft-strip strong,
+body.dark-mode .onboarding-draft-strip strong {
+  color: #fef3c7 !important;
+}
+
+[data-theme="dark"] .onboarding-draft-strip span,
+.dark .onboarding-draft-strip span,
+html.dark .onboarding-draft-strip span,
+body.dark-mode .onboarding-draft-strip span {
+  color: #fde68a !important;
 }
 
 .onboarding-shell {
@@ -943,7 +1043,8 @@ img {
 }
 
 .onboarding-panel {
-  background: #fbfefd;
+  /* Было #fbfefd — в тёмной теме панель оставалась белой. */
+  background: var(--paper-strong);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
@@ -1577,6 +1678,129 @@ img {
   color: #ffffff;
 }
 
+/* «Что сделать сейчас» — срочные дела смены со своей кнопкой у каждого. */
+.shift-todo {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-1);
+  padding: 16px 18px;
+}
+
+.shift-todo-head {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.shift-todo-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.shift-todo-count {
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.shift-todo-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shift-todo-item {
+  align-items: center;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 11px 13px;
+}
+
+.shift-todo-item.priority-urgent {
+  border-left-color: #b3382f;
+}
+
+.shift-todo-item.priority-important {
+  border-left-color: var(--amber);
+}
+
+/* Каждая строка — своя сетка, поэтому колонка плашки задаётся шириной самой
+   плашки: без min-width заголовки дел разъезжаются по левому краю. */
+.shift-todo-priority {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  min-width: 62px;
+  padding: 4px 9px;
+  text-align: center;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+/* Плашки приоритета: светлый фон и тёмная краска работают в обеих темах,
+   как у существующих .status-* пилюль. */
+.shift-todo-priority.priority-urgent {
+  background: #f5e0dc;
+  color: #7d2c25;
+}
+
+.shift-todo-priority.priority-important {
+  background: #f5ece1;
+  color: #744225;
+}
+
+.shift-todo-priority.priority-routine {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
+.shift-todo-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shift-todo-text p {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin: 2px 0 0;
+}
+
+.shift-todo-patient {
+  color: var(--teal-dark);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.shift-todo-go {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .shift-todo-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .shift-todo-go {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
 .role-focus-strip {
   align-items: center;
   background: #0f3936;
@@ -1895,18 +2119,18 @@ img {
 }
 
 .patient-facts span {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: var(--paper-soft, rgba(255, 255, 255, 0.72));
+  border: 1px solid var(--line-strong, rgba(15, 118, 110, 0.18));
   border-radius: 8px;
-  color: #32423b;
+  color: var(--ink, #32423b);
   font-weight: 800;
   min-height: 40px;
   padding: 10px 12px;
 }
 
 .patient-insight-panel {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: var(--paper-soft, rgba(255, 255, 255, 0.78));
+  border: 1px solid var(--line-strong, rgba(15, 118, 110, 0.18));
   border-left: 5px solid var(--teal);
   border-radius: 8px;
   display: grid;
@@ -1940,16 +2164,43 @@ img {
   padding: 5px 8px;
 }
 
+/* БЫЛО `.patient-row-meta span:first-child` — оформление метки риска доставалось
+   тому, кто оказался первым в строке. Метка теперь рисуется только когда
+   отличает пациента от остальных (apps/web/src/PatientsView.tsx), и на строках
+   без неё первой становилась плашка остатка по деньгам: сумма долга выглядела
+   меткой риска. Класс от порядка отрисовки не зависит. */
+/* МЕТКА РИСКА НЕ ЗАМЕЧАЛА ТЕМУ ВООБЩЕ, И ЭТО ИЗМЕРЕНО, А НЕ ОЦЕНЕНО НА ГЛАЗ.
+   БЫЛО: `background: #f4ead8; color: #744d18` у «контроль» и `#f5e0dc / #7d2c25`
+   у «риск» — четыре литерала, одинаковые во всех трёх темах. Контраст текста к
+   подложке получался 6.25 и 7.34 в КАЖДОЙ теме — ровно потому, что ни один из
+   четырёх цветов от темы не зависел. Относительная яркость подложки при этом
+   0.830 и 0.779, тогда как --paper в «Ночи» и «Тепле» равна 0.009: метка была
+   почти белым пятном на почти чёрной странице, в девяносто раз ярче бумаги. В
+   вечернюю смену, когда тёплую тему и включают, регистратор видел на экране
+   картотеки два светящихся ярлыка.
+   ТЕПЕРЬ цвет несёт подложка на токенах предупреждения и отказа, а текст —
+   --ink, как у .finance-due и .handoff-lock. Замер:
+     «контроль» --ink на --warn-bg — 15.93 / 12.89 / 10.56
+     «риск»     --ink на --bad-bg  — 14.52 / 13.89 / 11.02
+   Текст не --warn-fg: штатная пара предупреждения даёт в светлой теме 4.42 при
+   норме AA 4.5 для текста 12px (жирный, но не крупный), то есть норму не держит.
+   Числа пересчитываются из живого CSS в src/tests/themeContrastGuard.test.ts.
+
+   БЫЛО ещё раньше `.patient-row-meta span:first-child` — оформление метки риска
+   доставалось тому, кто оказался первым в строке. Метка рисуется только когда
+   отличает пациента от остальных (apps/web/src/PatientsView.tsx), и на строках
+   без неё первой становилась плашка остатка по деньгам: сумма долга выглядела
+   меткой риска. Класс от порядка отрисовки не зависит. */
 .risk-watch .patient-insight-head span,
-.patient-row.risk-watch .patient-row-meta span:first-child {
-  background: #f4ead8;
-  color: #744d18;
+.patient-row.risk-watch .patient-row-meta .patient-risk-label {
+  background: var(--warn-bg);
+  color: var(--ink);
 }
 
 .risk-high .patient-insight-head span,
-.patient-row.risk-high .patient-row-meta span:first-child {
-  background: #f5e0dc;
-  color: #7d2c25;
+.patient-row.risk-high .patient-row-meta .patient-risk-label {
+  background: var(--bad-bg);
+  color: var(--ink);
 }
 
 .patient-insight-head strong {
@@ -2026,6 +2277,50 @@ img {
   display: grid;
   gap: 14px;
   padding: 16px;
+}
+
+/* ЧТО БЫЛО НЕ ТАК. Раздел «Снимки» — это `.workspace > *`, поэтому он получает
+   входную анимацию `fade-up` (main.css:14193), а её кадр `from` — `opacity: 0`.
+   Пока анимация не доиграла, раздел ПОЛНОСТЬЮ невидим, сохраняя свою высоту: ни
+   заголовка, ни сообщения, ни ошибки. Врач видит пустой прямоугольник и не может
+   отличить его от поломки. Замена режима заполнения `both` на `forwards`
+   (c495c2b43) убрала окно ступенчатой задержки, но не убрала сам кадр `from`:
+   у единственного раздела, который уже был снят пустым, отказ по-прежнему
+   направлен в сторону «пусто».
+
+   ЧЕМ ЭТО ИЗМЕРЕНО, А НЕ УГАДАНО. .dente-redesign-shots/desktop_dark_imaging.png,
+   область контента x=262..1428, y=59..886: ни одного пикселя ярче 180 по всем
+   трём каналам, тогда как в desktop_dark_patients.png той же области их 10 860 —
+   пропал не контраст текста, а вся отрисовка поддерева. Заливка пустоты
+   rgb(14,24,23) = --glass-panel rgba(16,26,25,0.80) над --bg-app #0a1211, её
+   рамка rgb(18,52,48) = --glass-border rgba(45,212,191,0.15) над той же
+   заливкой: стеклянный родитель .workspace нарисован, а ребёнок .imaging-panel
+   не нарисован вовсе — его собственный --paper-strong #15211f в области контента
+   не встречается. Бегунок полосы прокрутки (столбец x=1435) — 684 px и в тёмном,
+   и в светлом снимке, то есть scrollHeight совпадает до пикселя: разметка
+   построена целиком, краски нет. Правил под [data-theme] на .imaging-panel нет
+   ни в одном файле, так что дело не в теме, а в моменте съёмки.
+
+   ОСТОРОЖНО, ЭТИ СНИМКИ УСТАРЕЛИ. desktop_dark_imaging.png снят 28.07.2026
+   19:56 UTC, а c495c2b43 с заменой `both` на `forwards` лёг 28.07.2026 21:16 UTC,
+   на 79 минут позже. По этим пикселям нельзя судить, помогла ли замена: нужен
+   повторный прогон съёмки.
+
+   ЧТО ТЕПЕРЬ. Своя входная анимация, в которой двигается только `transform`.
+   Непрозрачность не участвует вовсе, поэтому раздел не может оказаться невидимым
+   ни в один момент проигрывания, ни в рендерере, который анимацию не тикает.
+   Кадр `to` оставлен как `translateY(0)`, а не `none`: при `forwards` элемент
+   держит его вечно, и `none` убрал бы содержащий блок, на который уже опираются
+   выпадающий список над снимком и оверлей разбора. Селектор `section.imaging-panel`
+   весомее `.workspace > *`, поэтому порядок правил в файле на исход не влияет, а
+   длительность, кривая и режим заполнения наследуются от сокращённой записи. */
+section.imaging-panel {
+  animation-name: imaging-panel-enter;
+}
+
+@keyframes imaging-panel-enter {
+  from { transform: translateY(12px); }
+  to   { transform: translateY(0); }
 }
 
 .imaging-copy {
@@ -2191,6 +2486,31 @@ img {
   transform-origin: center;
   transition: filter 0.14s ease, transform 0.14s ease;
   width: 100%;
+}
+
+/*
+ * Подсказка вместо просмотрщика-обманки для КЛКТ.
+ *
+ * Здесь стояло серое неотзывчивое полотно, притворявшееся загружающимся
+ * снимком: адрес указывал на порт 3000 и маршрут, которых у нас нет.
+ */
+.imaging-cbct-hint {
+  align-content: center;
+  background: var(--paper-soft);
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  padding: 20px 24px;
+  text-align: center;
+}
+
+.imaging-cbct-hint p {
+  color: var(--muted);
+  margin: 0;
+  max-width: 60ch;
+  justify-self: center;
 }
 
 .imaging-viewer-meta {
@@ -2360,7 +2680,7 @@ img {
 .imaging-viewer-tools {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(7, minmax(34px, 1fr));
+  grid-template-columns: repeat(7, minmax(40px, 1fr));
 }
 
 .viewer-tool-button {
@@ -2371,9 +2691,9 @@ img {
   color: #eafffa;
   display: inline-flex;
   font-weight: 900;
-  height: 38px;
+  height: 40px;
   justify-content: center;
-  min-width: 0;
+  min-width: 40px;
 }
 
 .viewer-tool-button.active,
@@ -6072,10 +6392,17 @@ img {
   margin: 7px 0 0;
 }
 
+/* --teal-fill вместо --teal и --on-teal вместо #ffffff: белый на --teal даёт
+   3.74:1 в светлой теме, 1.86:1 в тёмной (#2dd4bf) и 2.18:1 в ночной (#e0a458)
+   при норме 4.5 для 12px. --teal-fill — тот же приём, что уже применён к
+   .primary-button (см. styles/contrast-fixes.css, п. 3): в светлой теме он
+   уходит на --teal-dark, в тёмной и ночной остаётся --teal, а надпись берёт
+   --on-teal, который для этого и объявлен (#ffffff / #04211c / #231505).
+   Стало: 5.5:1 / 9.1:1 / 8.4:1. */
 .clinic-config-head > span {
-  background: var(--teal);
+  background: var(--teal-fill);
   border-radius: 999px;
-  color: #ffffff;
+  color: var(--on-teal);
   font-size: 12px;
   font-weight: 900;
   padding: 8px 11px;
@@ -6087,8 +6414,20 @@ img {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* ЗАМЕРЕНО 28.07.2026 В ЖИВОМ БРАУЗЕРЕ: было `background: #fbfefd` при
+   `color: var(--ink)`. Фон зашит светлым, надпись берётся из темы — темы
+   разъезжаются. Тёмная: rgb(248,250,252) на rgb(251,254,253) = 1.03:1. Ночная:
+   rgb(241,232,221) на том же фоне = 1.19:1. Норма 4.5:1, кегль 16px, то есть
+   заголовки вариантов «Отдельный врач» / «1 кабинет» / «Малая клиника» / «Сеть»
+   физически не читались, а по ним выбирают режим клиники — от него зависит,
+   какие модули клиника вообще увидит.
+   --elev — токен приподнятой поверхности, объявлен для всех трёх тем
+   (#ffffff / #15211f / #231d19). Светлая тема меняется на 4 единицы яркости
+   (#fbfefd -> #ffffff) и остаётся 16.9:1; тёмная становится 15.0:1, ночная
+   13.9:1. Описания под заголовками (.mode-card span, --muted) поднимаются с
+   2.53:1 до 6.5:1 в тёмной и 4.9:1 в ночной. */
 .mode-card {
-  background: #fbfefd;
+  background: var(--elev);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -6116,11 +6455,17 @@ img {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Тот же дефект тем же механизмом: подсказки «Один кабинет: главный фокус…»
+   стояли на зашитом #eef8f5 с зашитым же #33534b. В тёмной и ночной теме это
+   светлые плашки посреди тёмного экрана. --teal-surface (полупрозрачная
+   бирюза/янтарь по теме) плюс --teal-dark сохраняют вид в светлой теме
+   (rgba(204,251,241,0.5) над панелью ≈ #e5fdf8 против прежнего #eef8f5) и
+   переворачиваются вместе с темой. */
 .clinic-hints span {
-  background: #eef8f5;
+  background: var(--teal-surface);
   border: 1px solid var(--line);
   border-radius: 8px;
-  color: #33534b;
+  color: var(--teal-dark);
   font-size: 13px;
   font-weight: 800;
   padding: 9px 10px;
@@ -8933,6 +9278,22 @@ img {
   gap: 10px;
 }
 
+/*
+ * Строки списка прижаты к верху и остаются высотой по содержимому.
+ *
+ * БЫЛО: список пациентов — левая колонка сетки, а правая колонка с карточкой и
+ * виджетами уходит вниз на шесть тысяч пикселей. Колонка растягивается по
+ * соседке, а `align-content: stretch` — значение по умолчанию у grid — раздувал
+ * автоматические строки на всю эту высоту. Одна строка из трёх занимала около
+ * тысячи пикселей: имя пациента висело посреди пустого мятного прямоугольника,
+ * и чтобы увидеть второго пациента, надо было листать экран.
+ */
+.patient-list,
+.document-list,
+.timeline {
+  align-content: start;
+}
+
 .appointment-row,
 .patient-row,
 .document-row {
@@ -9018,10 +9379,11 @@ img {
 }
 
 .patient-save-guidance {
-  background: #fff8ef;
-  border: 1px solid #e7c68e;
+  background: var(--paper-soft, #fff8ef);
+  border: 1px solid var(--line-strong, #e7c68e);
+  border-left: 4px solid var(--teal, #e7c68e);
   border-radius: 8px;
-  color: #744d18;
+  color: var(--ink, #744d18);
   font-size: 13px;
   font-weight: 850;
   margin: -4px 0 0;
@@ -9219,6 +9581,24 @@ img {
   color: #7d2c25;
 }
 
+.status-neutral,
+.status-empty {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+:root[data-theme="dark"] .status-neutral,
+:root[data-theme="dark"] .status-empty,
+[data-theme="dark"] .status-neutral,
+[data-theme="dark"] .status-empty,
+.dark .status-neutral,
+.dark .status-empty {
+  background: rgba(30, 41, 59, 0.8);
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+
 .search-box,
 .quick-create {
   align-items: center;
@@ -9268,10 +9648,11 @@ img {
 }
 
 .quick-create-guidance {
-  background: #fff8ef;
-  border: 1px solid #e7c68e;
+  background: var(--paper-soft, #fff8ef);
+  border: 1px solid var(--line-strong, #e7c68e);
+  border-left: 4px solid var(--teal, #e7c68e);
   border-radius: 8px;
-  color: #744d18;
+  color: var(--ink, #744d18);
   font-size: 13px;
   font-weight: 850;
   margin: -4px 0 12px;
@@ -9331,23 +9712,59 @@ img {
   margin-top: 8px;
 }
 
+/* ЭТО НЕ КНОПКА, И ТЕПЕРЬ ОНА НЕ ВЫГЛЯДИТ КНОПКОЙ.
+
+   БЫЛО: `border-radius: 999px`, рамка, `font-weight: 900`, `display: inline-flex`
+   и подложка — то есть полный вид кнопки на элементе <strong>, у которого нет ни
+   onClick, ни role, ни tabIndex. Курсор над ним ещё и превращался в палец от
+   `.patient-row { cursor: pointer }`. Нажатие всплывало в выбор пациента:
+   регистратор жал «Закрыть недостающие документы», видел, что документы не
+   закрылись, и жал ещё раз. Настоящая кнопка в строке одна — круглая со
+   стрелкой, и она делает ровно то же, что клик по строке.
+
+   Кнопкой этот элемент сделать нечем: массового оформления недостающих
+   документов в продукте нет, а рисовать кнопку под несуществующее действие —
+   это тот же дефект с другой стороны. Поэтому снято оформление: подпись
+   осталась подписью. Подложку и рамку убираем целиком, вес — до обычного
+   акцента; цвет остаётся токеном темы. */
 .patient-next-action {
-  background: #f7fbf9;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  background: none;
+  border: none;
   color: var(--ink);
-  display: inline-flex;
+  display: inline;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.2;
   max-width: 100%;
-  padding: 4px 8px;
+  padding: 0;
 }
 
-.patient-row-meta span:not(:first-child) {
-  background: #f7fbf9;
+/* Плашка остатка по деньгам. БЫЛО `span:not(:first-child)` — позиционный
+   селектор, который при скрытой метке риска не срабатывал вовсе и оставлял сумму
+   долга в оформлении метки риска. Заодно фон переведён с литерала #f7fbf9 на
+   токен: литерал давал контраст 3.09:1 в тёмной теме и 3.25:1 в ночной при норме
+   4.5:1 для мелкого полужирного, то есть единственная цифра про деньги в строке
+   пациента не читалась в вечернюю смену. Токен тот же, что строкой выше, — ни
+   одного нового цвета. */
+.patient-row-meta .patient-row-chip {
+  background: var(--srf-chip-soft);
   border: 1px solid var(--line);
   color: var(--muted);
+}
+
+/* Факт уровня клиники — одной строкой над списком. Оформление то же, что у
+   подсказки быстрого создания: это сообщение о состоянии, а не ошибка. */
+.patients-clinic-wide-notice {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--amber);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  padding: 9px 10px;
 }
 
 .round-link {
@@ -10570,7 +10987,10 @@ html.dark .emk-tab-button.active,
 
 .close-task {
   align-items: center;
-  background: #faf7f1;
+  /* Было #faf7f1: в тёмной теме фон оставался светлым, а текст брался из
+     --ink и становился почти белым — «Клинические предупреждения»
+     давали контраст 1.07, то есть были невидимы. */
+  background: var(--srf-check-task);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: inherit;
@@ -10585,7 +11005,9 @@ html.dark .emk-tab-button.active,
 }
 
 .close-task.blocking {
-  background: #fffaf0;
+  /* Было #fffaf0 — та же поломка тёмной темы, «ЭМК заполнена» с
+     контрастом 1.10. */
+  background: var(--srf-check-task-blocking);
   border-color: rgba(184, 120, 31, 0.45);
 }
 
@@ -10866,8 +11288,13 @@ html.dark .emk-tab-button.active,
 }
 
 .document-source-badge.official-form {
-  background: #e5f4ee;
-  border-color: #b9ddcf;
+  /* Было #e5f4ee / #b9ddcf при color: var(--green-dark). Переменной
+     --green-dark не существовало ни в одной таблице стилей, объявление
+     цвета было недействительным, текст наследовался от кнопки и в
+     тёмной теме давал контраст 1.08. Теперь --green-dark объявлен в
+     token-aliases.css как var(--ok-fg). */
+  background: var(--srf-badge-official);
+  border-color: var(--srf-badge-official-line);
   color: var(--green-dark);
 }
 
@@ -10933,7 +11360,8 @@ html.dark .emk-tab-button.active,
   display: grid;
   gap: 10px;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* min(...): колонка не должна оставаться шире контейнера на телефоне. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
 }
 
 .document-payload-card {
@@ -10990,6 +11418,136 @@ html.dark .emk-tab-button.active,
   resize: vertical;
 }
 
+/*
+ * Окно подтверждения удаления на складе.
+ *
+ * Состояние confirmDialog существовало давно, а рисовать его было нечем:
+ * кладовщик жал корзину и не видел ничего — ни окна, ни удаления, ни ошибки.
+ */
+.inventory-confirm-backdrop {
+  align-items: center;
+  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 1100;
+}
+
+.inventory-confirm-window {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  max-width: 95vw;
+  padding: 24px 28px;
+  width: 420px;
+}
+
+.inventory-confirm-window h3 {
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+
+.inventory-confirm-window p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 22px;
+}
+
+.inventory-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.inventory-confirm-actions button {
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 42px;
+  padding: 10px 18px;
+}
+
+.inventory-confirm-cancel {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.inventory-confirm-danger {
+  background: var(--rust, #b91c1c);
+  border: 1px solid var(--rust, #b91c1c);
+  color: #ffffff;
+}
+
+.inventory-confirm-danger:hover {
+  filter: brightness(1.08);
+}
+
+/*
+ * Поля формы материала.
+ *
+ * Партия и срок годности стоят на поверхности: просроченный расходник — вред
+ * пациенту. Артикул и штрихкод убраны под раскрытие, у соло-врача их обычно нет.
+ */
+.inventory-form-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inventory-form-field {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 6px;
+}
+
+.inventory-form-field input {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  padding: 10px 14px;
+}
+
+.inventory-form-more summary {
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.inventory-form-more[open] summary {
+  margin-bottom: 10px;
+}
+
+/* Срок годности в списке материалов. */
+.inventory-expiry-expired {
+  color: var(--rust, #b91c1c);
+  font-weight: 700;
+}
+
+.inventory-expiry-soon {
+  color: var(--amber, #d97706);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .inventory-form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .document-payload-card .document-payload-checkbox {
   align-items: center;
   display: flex;
@@ -11005,6 +11563,34 @@ html.dark .emk-tab-button.active,
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/*
+ * Быстрая вставка отрицательного ответа в поле анамнеза.
+ *
+ * Поле пустое, пока врач не спросил пациента. Кнопка видна только у пустого
+ * поля и вписывает готовую фразу в одно нажатие, чтобы честность не
+ * превращалась в пять одинаковых предложений, набранных руками за приём.
+ */
+.document-anamnesis-field {
+  display: grid;
+  gap: 6px;
+}
+
+.document-anamnesis-quick {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  justify-self: start;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.document-anamnesis-quick:hover {
+  border-color: var(--teal);
 }
 
 .document-payload-actions {
@@ -11361,6 +11947,31 @@ html.dark .payment-capture h3,
   font-weight: 900;
 }
 
+/*
+ * В карточке услуги главное — НАЗВАНИЕ, а не код номенклатуры.
+ *
+ * Код («A01.07.001») набирался весом 900 и стоит первой строкой, поэтому
+ * притягивал взгляд сильнее названия — видно на снимке раздела финансов.
+ * Администратор ищет услугу по названию: «профессиональная гигиена», а не по
+ * номеру. Код нужен реже — при сверке с прайсом и отчётностью, и там его
+ * находят точечно.
+ *
+ * Порядок в разметке не меняется: код остаётся сверху, но перестаёт кричать,
+ * а название становится крупным и тёмным.
+ */
+.service-catalog-strip span {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.service-catalog-strip strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
 .finance-summary-grid strong {
   font-size: 24px;
   line-height: 1;
@@ -11372,9 +11983,37 @@ html.dark .payment-capture h3,
   margin: 0;
 }
 
+/*
+ * ПОДСВЕТКА ПРОСРОЧЕННОГО ПЛАТЕЖА БЕРЁТСЯ ИЗ ТОКЕНА, А НЕ ИЗ #fff8f6.
+ *
+ * Литерал почти белый и не привязан к теме, а собственного цвета текста у
+ * строки нет — он наследуется и в тёмных темах светлый. Поправка на тёмную
+ * тему перечисляла только [data-theme="dark"] («Ночь»); тема «Тепло» — это
+ * data-theme="night" — в списке отсутствовала.
+ *
+ * ПО КАКОЙ ПАЛИТРЕ СЧИТАНО. Порядок тем: светлая / «Ночь» (data-theme="dark")
+ * / «Тепло» (data-theme="night"). --ink для светлой и «Ночи» берётся из
+ * main.css:126-147 и main.css:66-87 — там селектор :root[data-theme="..."],
+ * специфичность (0,2,0), он перебивает dente-redesign.css:11/67 (0,1,0). Для
+ * «Тепла» блока в main.css нет, побеждает dente-redesign.css:115-129. А сам
+ * --bad-bg объявлен ТОЛЬКО в dente-redesign.css:30/85/150, поэтому там он
+ * выигрывает во всех трёх темах — эта правка намеренно смешивает два файла, и
+ * считать её надо именно так. Первая версия замера взяла --ink из
+ * проигравшего файла (#e9f2ef вместо #f8fafc) и завысила промах «Ночи».
+ *
+ * До правки: наследуемый --ink (#111827 / #f8fafc / #f1e8dd) на литерале
+ * #fff8f6 — 16.90 / 1.00 / 1.15. В «Ночи» ровно 1.00, то есть строка
+ * просроченной оплаты не читалась вообще; поправка на [data-theme="dark"]
+ * возвращала ей тёмный фон, «Тепло» же оставалось на литерале.
+ *
+ * --bad-bg объявлен во всех трёх темах и несёт тот же смысл «просрочено».
+ * Подложка после правки — #fee2e2 / rgb(50,37,53) / rgb(67,41,33).
+ * Стало: 14.52 / 13.89 / 11.02. Оттенок в светлой теме чуть насыщеннее
+ * прежнего. Поправка на «Ночь» удалена как ставшая лишней.
+ */
 .finance-due {
-  border-color: rgba(163, 79, 50, 0.42) !important;
-  background: #fff8f6 !important;
+  border-color: var(--bad-fg) !important;
+  background: var(--bad-bg) !important;
 }
 
 .payment-capture {
@@ -12636,18 +13275,24 @@ html.dark .communication-side .panel-heading h3,
 @media (max-width: 860px) {
   .app-shell {
     display: block;
-    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
   }
 
   .sidebar {
     bottom: 0;
-    flex-direction: row;
-    gap: 6px;
     left: 0;
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    position: fixed;
     right: 0;
-    z-index: 10;
+    height: 60px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    position: fixed;
+    z-index: 100;
+    overflow: hidden;
+    background: var(--paper-strong, #0f172a);
+    border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.25);
   }
 
   .brand-mark {
@@ -12655,20 +13300,32 @@ html.dark .communication-side .panel-heading h3,
   }
 
   .sidebar nav {
-    display: grid;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
     gap: 4px;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
     width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-item {
+    flex: 0 0 auto;
+    min-width: 60px;
+    height: 52px;
+    min-height: 52px;
     flex-direction: column;
-    font-size: 10px;
-    gap: 3px;
+    font-size: 10px !important;
+    gap: 2px;
     justify-content: center;
-    line-height: 1.05;
-    min-height: 50px;
-    padding: 5px 3px;
+    align-items: center;
+    padding: 3px 4px;
     text-align: center;
   }
 
@@ -12678,7 +13335,12 @@ html.dark .communication-side .panel-heading h3,
   }
 
   .nav-label {
-    display: block;
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1.05 !important;
+    color: inherit !important;
+    max-width: 56px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -12688,13 +13350,24 @@ html.dark .communication-side .panel-heading h3,
     display: block;
   }
 
-.nav-copy small {
+  .nav-copy small {
     display: none;
+  }
+
+  .app-shell,
+  .workspace,
+  .panel,
+  .work-grid,
+  .imaging-layout,
+  .patients-panel,
+  .finance-panel,
+  .visit-panel,
+  .schedule-panel {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
   }
 
   .workspace {
     max-width: 100vw;
-    padding: 16px 14px 132px;
     width: 100%;
   }
 
@@ -13598,22 +14271,53 @@ html.dark .communication-side .panel-heading h3,
 /* ───────────────────────────────────────────────
    ENTRY ANIMATIONS — sections appear on mount
    ─────────────────────────────────────────────── */
+
+/* ЧТО БЫЛО НЕ ТАК. Режим заполнения стоял `both`, то есть `backwards` +
+   `forwards`. Именно `backwards` держит кадр `from` — а в `fade-up` это
+   `opacity: 0` — всё время ДО активной фазы: и в окне `animation-delay`, и
+   вообще пока анимация ни разу не продвинулась. Корень раздела
+   (`<section class="workspace view-*">`, apps/web/src/App.tsx:2381) создаётся
+   заново на КАЖДОМ переключении раздела, стоит в .workspace третьим-четвёртым
+   ребёнком после баннера и шапки, то есть получал задержку 0,08-0,12 с — и всё
+   это время отрисовывался ПОЛНОСТЬЮ невидимым, сохраняя свою высоту. Раздел без
+   заголовка, без сообщения и без ошибки: врач видит пустоту и не может отличить
+   её от поломки.
+
+   ЧЕМ ЭТО ИЗМЕРЕНО, А НЕ УГАДАНО. .dente-redesign-shots/desktop_dark_imaging.png,
+   раздел «Снимки»: плоский прямоугольник 1178x829 пикселей, 58 строк с
+   контрастом из 900 против 809 из 900 у светлого снимка того же раздела. При
+   этом бегунок полосы прокрутки — 680 px в обоих снимках, то есть scrollHeight
+   совпадает до пикселя: разметка построена целиком, краски нет. Заливка пустоты
+   rgb(13-14,24,23) = --glass-panel rgba(16,26,25,0.80) над --bg-app #0a1211, а
+   её рамка rgb(18,51,47) = --glass-border rgba(45,212,191,0.15) поверх той же
+   заливки — то есть стеклянный родитель .workspace (premium.css:147-178)
+   нарисовался ПРАВИЛЬНО вместе со своим backdrop-filter, а пропал его ребёнок
+   .imaging-panel, у которого backdrop-filter нет вовсе (main.css:2195).
+   Backdrop-filter здесь оправдан: с тем же родителем и в той же тёмной теме
+   desktop_dark_patients.png даёт 46 933 контрастных пикселя.
+
+   ЧТО ТЕПЕРЬ. `forwards` вместо `both`: до активной фазы элемент показывает
+   свою собственную непрозрачность, поэтому и кадр, снятый до первого тика, и
+   рендерер, который анимацию не тикает вовсе, дают ВИДИМЫЙ раздел, а не пустоту.
+   Отказ теперь в сторону «видно», а не в сторону «пусто». В работающем браузере
+   картинка та же: активная фаза начинается с кадра `from`.
+
+   ПОЧЕМУ УБРАНЫ СТУПЕНЧАТЫЕ ЗАДЕРЖКИ. С `forwards` элемент был бы видим во
+   время задержки, а потом дёргался в прозрачность и выцветал обратно — мигание
+   вместо каскада. 40-120 мс каскада не стоят раздела, который можно увидеть
+   пустым. Каскад боковой панели (.sidebar nav .nav-item ниже) не тронут: там
+   задержки видимого вреда не наносят, а лечит их блок prefers-reduced-motion. */
 .workspace > * {
-  animation: fade-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.workspace > *:nth-child(2) { animation-delay: 0.04s; }
-.workspace > *:nth-child(3) { animation-delay: 0.08s; }
-.workspace > *:nth-child(4) { animation-delay: 0.12s; }
-
 .panel {
-  animation: fade-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .shift-hero > * {
-  animation: fade-up 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-.shift-hero > *:nth-child(2) { animation-delay: 0.06s; }
 
 /* ───────────────────────────────────────────────
    SIDEBAR GLASSMORPHISM UPGRADE
@@ -13766,8 +14470,19 @@ html.dark .communication-side .panel-heading h3,
 /* ───────────────────────────────────────────────
    ROLE SWITCHER SMOOTH OPEN
    ─────────────────────────────────────────────── */
+
+/* Тот же отказ, что был у входных анимаций разделов выше: `both` включает
+   `backwards`, а `backwards` держит кадр `from` (`opacity: 0`) всё время до
+   активной фазы. Список ролей — единственный способ переключить роль, и пустой
+   раскрытый список ничем не отличается от сломанного. Задержки у правила нет,
+   поэтому `forwards` в работающем браузере даёт ровно ту же картинку и меняет
+   только сторону отказа: не тикнула анимация — список ВИДЕН.
+
+   Каскад .sidebar nav .nav-item ниже намеренно оставлен на `both`: там задержки
+   до 0,22 с, и с `forwards` пункты сначала показывались бы, а потом дёргались в
+   прозрачность. Их страхует блок prefers-reduced-motion (main.css:268). */
 .role-switcher-options {
-  animation: fade-up 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* ───────────────────────────────────────────────
@@ -13841,7 +14556,7 @@ body {
 
 /* Buttons with Micro-animations */
 .primary-button {
-  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  background: linear-gradient(135deg, var(--teal-fill), var(--teal-dark));
   border: none;
   box-shadow: 0 4px 12px var(--teal-glow);
   transition: all var(--transition-fast);
@@ -14015,7 +14730,7 @@ input:focus, select:focus, textarea:focus {
   transform: translateX(4px);
 }
 .settings-tabs button.active {
-  background: linear-gradient(135deg, var(--teal), var(--teal-dark)) !important;
+  background: linear-gradient(135deg, var(--teal-fill), var(--teal-dark)) !important;
   color: white !important;
   box-shadow: 0 4px 12px var(--teal-glow) !important;
   transform: translateX(6px);
@@ -14028,121 +14743,24 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 2px 24px rgba(0,0,0,0.03);
   border: 1px solid var(--line);
 }
-/* SIDEBAR PREMIUM REDESIGN - desktop only */
-.app-shell {
-  background-color: var(--paper-soft) !important;
-}
-@media (min-width: 861px) {
-  .sidebar {
-    background: var(--nav) !important;
-    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05), 4px 0 24px rgba(0, 0, 0, 0.15) !important;
-    padding: 24px 16px !important;
-    gap: 20px !important;
-    border-right: none !important;
+/* SIDEBAR LEGACY OVERRIDES - moved to @layer legacy */
+@layer legacy {
+  .app-shell {
+    background-color: var(--paper-soft);
   }
-  .nav-item {
-    border-radius: 12px !important;
-    padding: 12px 16px !important;
-    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-    font-weight: 500 !important;
-    opacity: 0.8 !important;
-    margin: 0 !important;
-    gap: 12px !important;
+  @media (min-width: 861px) {
+    .sidebar {
+      background: var(--side-bg);
+      padding: 16px 14px;
+      gap: 20px;
+    }
+    .nav-item {
+      border-radius: 10px;
+      padding: 9px 10px;
+      transition: background 0.15s, color 0.15s;
+      font-weight: 500;
+    }
   }
-  .nav-item:hover {
-    background: rgba(255, 255, 255, 0.06) !important;
-    opacity: 1 !important;
-    transform: translateX(4px) !important;
-  }
-  .nav-item.active {
-    background: linear-gradient(135deg, var(--teal-dark), var(--teal)) !important;
-    box-shadow: 0 4px 12px var(--teal-glow) !important;
-    opacity: 1 !important;
-    font-weight: 600 !important;
-    transform: translateX(4px) !important;
-  }
-}
-/* Mobile sidebar: bottom nav bar */
-@media (max-width: 860px) {
-  .sidebar {
-    background: var(--nav) !important;
-    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.12) !important;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)) !important;
-    gap: 0 !important;
-    border-right: none !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    z-index: 50 !important;
-  }
-  .sidebar nav {
-    display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    gap: 2px !important;
-    width: 100% !important;
-    overflow: visible !important;
-  }
-  /* Owner role has 10 items: scroll horizontally */
-  .sidebar nav:has(a:nth-child(6)) {
-    grid-template-columns: repeat(5, minmax(52px, 1fr)) !important;
-    overflow-x: auto !important;
-    scrollbar-width: none !important;
-  }
-  .sidebar nav::-webkit-scrollbar { display: none; }
-  .nav-item {
-    border-radius: 8px !important;
-    padding: 5px 2px !important;
-    margin: 0 !important;
-    gap: 3px !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    min-height: 52px !important;
-    font-size: 10px !important;
-    line-height: 1.1 !important;
-    text-align: center !important;
-    opacity: 0.75 !important;
-    transform: none !important;
-    transition: background 0.15s ease, opacity 0.15s ease !important;
-    font-weight: 500 !important;
-  }
-  .nav-item svg {
-    height: 18px !important;
-    width: 18px !important;
-  }
-  .nav-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  .nav-item.active {
-    background: rgba(13, 148, 136, 0.25) !important;
-    box-shadow: none !important;
-    opacity: 1 !important;
-    font-weight: 600 !important;
-    transform: none !important;
-    border-bottom: 2px solid var(--teal) !important;
-  }
-}
-.topbar {
-  padding: 16px 32px !important;
-}
-.topbar h1 {
-  font-size: 24px !important;
-}
-/* BRAND MARK GLOW */
-.brand-mark {
-  background: linear-gradient(135deg, var(--teal-soft), var(--teal-dark));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-size: 20px !important;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 16px var(--teal-glow);
-}
-.brand-mark svg {
-  color: var(--teal);
-  filter: drop-shadow(0 0 8px var(--teal));
 }
 /* LIST ROWS PREMIUM REDESIGN */
 .appointment-row,
@@ -14584,7 +15202,7 @@ input:focus, select:focus, textarea:focus {
   }
   
   .settings-tabs button.active {
-    background: linear-gradient(135deg, var(--teal), var(--teal-dark)) !important;
+    background: linear-gradient(135deg, var(--teal-fill), var(--teal-dark)) !important;
     color: white !important;
     box-shadow: 0 2px 8px var(--teal-glow) !important;
     transform: none !important;
@@ -15151,9 +15769,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 .emk-tab-button.active {
-  background: var(--teal);
+  /* --teal-fill: белый текст на #0d9488 даёт 3.74:1 при норме 4.5. */
+  background: var(--teal-fill);
   color: #ffffff;
-  border-color: var(--teal);
+  border-color: var(--teal-fill);
   box-shadow: 0 2px 5px rgba(13, 148, 136, 0.2);
 }
 
@@ -15417,20 +16036,53 @@ input:focus, select:focus, textarea:focus {
   color: var(--slate-600);
   white-space: nowrap;
 }
+/*
+ * ЧИПЫ КАРТОЧКИ ЗАПИСИ СИДЕЛИ НА ЛЕСТНИЦАХ, КОТОРЫХ НЕТ НИ В ОДНОМ ФАЙЛЕ.
+ *
+ * --indigo-50/200/700, --teal-50/200/700, --amber-50/200/700 не объявлены
+ * нигде, поэтому всегда побеждали резервные литералы, и три чипа причины,
+ * врача и кресла были почти белыми плашками в любой теме. Это та же
+ * необъявленная лестница, что у .handoff-lock выше в этом файле, и её видно в
+ * выводе scripts/check-css-tokens.mjs, но она осталась незакрытой.
+ *
+ * Порядок тем: светлая / «Ночь» (data-theme="dark") / «Тепло»
+ * (data-theme="night"). Текст на своей же плашке норму держал (7.07 / 5.25 /
+ * 4.84 — литералы ездят парой, поэтому во всех темах одинаково). Промах был не
+ * в тексте, а в самой плашке: #eef2ff / #f0fdfa / #fffbeb против --paper дают
+ * в светлой 1.12 / 1.04 / 1.04, а в «Ночи» 15.97 / 17.12 / 17.22 и в «Тепле»
+ * 15.89 / 17.03 / 17.13 — то есть три белых пятна на тёмной карточке записи.
+ *
+ * Правится по образцу .handoff-lock: смысл цвета уходит в подложку и рамку
+ * (--info-bg/--info-fg, --teal-surface/--teal-dark, --warn-bg/--warn-fg —
+ * объявлены во всех трёх темах), текст на --ink.
+ * Стало по тексту: причина 15.46 / 13.24 / 10.85, врач 16.69 / 14.19 / 12.81,
+ * кресло 15.93 / 12.89 / 10.56.
+ *
+ * Подложка против --paper: здесь стояла одна строка «1.15 / 1.29 / 1.35» на все
+ * три плашки; перемерено — это ряд только у причины (--info-bg). У врача
+ * (--teal-surface) 1.06 / 1.20 / 1.14, у кресла (--warn-bg) 1.11 / 1.32 / 1.39.
+ * Плашка везде остаётся плашкой, но самая слабая — врач в светлой теме, 1.06:
+ * её от карточки отличает не фон, а рамка на --teal-dark (5.47 против --paper).
+ * Это осознанно: подложка чипа не текст, порог 4.5 к ней не применяется.
+ *
+ * Почему не собственный цвет текста на цветной подложке: --warn-fg на
+ * --warn-bg даёт в светлой ровно 4.42 при норме 4.5 для 12px, то есть
+ * «цветной текст на цветной плашке» здесь недобирает, а --ink добирает.
+ */
 .chip-reason {
-  background: var(--indigo-50, #eef2ff);
-  color: var(--indigo-700, #4338ca);
-  border-color: var(--indigo-200, #c7d2fe);
+  background: var(--info-bg);
+  color: var(--ink);
+  border-color: var(--info-fg);
 }
 .chip-doctor {
-  background: var(--teal-50, #f0fdfa);
-  color: var(--teal-700, #0f766e);
-  border-color: var(--teal-200, #99f6e4);
+  background: var(--teal-surface);
+  color: var(--ink);
+  border-color: var(--teal-dark);
 }
 .chip-chair {
-  background: var(--amber-50, #fffbeb);
-  color: var(--amber-700, #b45309);
-  border-color: var(--amber-200, #fde68a);
+  background: var(--warn-bg);
+  color: var(--ink);
+  border-color: var(--warn-fg);
 }
 
 .quick-chip {
@@ -15824,7 +16476,12 @@ html.dark .clinic-profile-form-grid textarea,
 }
 .smart-details-content {
   padding: 12px;
-  background: #fff;
+  /* Было #fff. В тёмной теме это давало два белых полотна 266x554 и
+     266x687 на экране оплат — раскрытые блоки «Фискальный чек и кассир»
+     и «Плательщик для налогового вычета». Проверено перебором
+     вычисленных стилей в браузере: единственные элементы с чисто белым
+     фоном в тёмной теме. */
+  background: var(--paper);
 }
 
 
@@ -16190,30 +16847,29 @@ html.dark .clinic-profile-form-grid textarea,
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.omnibar-trigger-btn {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 1.5rem;
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background-color: var(--teal-dark);
-  color: white;
-  border: none;
-  border-radius: 9999px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  outline: none;
-  transition: background-color 0.2s;
-}
+/*
+  Здесь стояли правила .omnibar-trigger-btn и .omnibar-trigger-btn:hover.
+  Удалены: класс не носит ни один элемент во всём apps/web/src, а правило
+  продолжало уезжать в собранный бандл (два вхождения в dist/assets/*.css).
 
-.omnibar-trigger-btn:hover {
-  background-color: var(--teal);
-}
+  ОТКУДА СИРОТА. Переделка плавающего угла (коммит f0121f0c2) перенесла кнопку
+  омнибара в .dnt-actions__control внутри нижней навигации и шапки, удалив
+  floatingCorner целиком — 1196 строк. Но проверка полноты удаления искала имена
+  файлов и токенов, а имена КЛАССОВ перенесённых кнопок не проверила, поэтому
+  правило пережило свой элемент.
+
+  ПОЧЕМУ ЭТО НЕ КОСМЕТИКА. Правило объявляло position: fixed, bottom: 1.5rem,
+  left: 1.5rem, z-index: 9998 — то есть ровно ту плавающую кнопку поверх
+  содержимого, которую переделка и убирала. Новый файл
+  components/workspaceActions/workspaceActions.css начинается словами «ЗДЕСЬ НЕТ
+  И НЕ ДОЛЖНО ПОЯВИТЬСЯ position: fixed», и пока это правило лежало в main.css,
+  любой агент, повесивший класс обратно, мгновенно вернул бы дефект — с
+  z-index 9998, то есть поверх всего.
+
+  Проверено перед удалением: в main.css двенадцать классов с position: fixed,
+  одиннадцать законны (skip-link, оверлеи модалок и шторок, sidebar,
+  omnibar-overlay), носителей нет только у этого.
+*/
 
 /* AUTH SHAKE ANIMATION */
 .animate-shake {
@@ -16285,12 +16941,42 @@ html.dark .clinic-profile-form-grid textarea,
   color: var(--slate-700);
 }
 
+/*
+ * --amber-50 / --amber-200 / --amber-700 НЕ ОБЪЯВЛЕНЫ НИ В ОДНОМ ФАЙЛЕ.
+ *
+ * Поэтому побеждали резервные литералы, и подложка была #fffbeb — почти белая
+ * — в любой теме. Поправка ниже перекрывала это только для [data-theme="dark"]
+ * («Ночь»). Тема «Тепло» — data-theme="night" — в перечислении отсутствовала.
+ *
+ * ПО КАКОЙ ПАЛИТРЕ СЧИТАНО. Порядок тем: светлая / «Ночь» (data-theme="dark")
+ * / «Тепло» (data-theme="night"). --amber и --ink для светлой и «Ночи» берутся
+ * из main.css:126-151 и main.css:66-91 — селектор :root[data-theme="..."],
+ * специфичность (0,2,0), он перебивает dente-redesign.css:11/67 (0,1,0). В
+ * «Тепле» блока --amber нет ни в одном night-блоке, поэтому имя приходит из
+ * :root-плеча dente-redesign.css:46 как var(--warn-fg) и разрешается в #e8b45a.
+ * --warn-bg / --warn-fg объявлены только в dente-redesign.css:29/84/149 и
+ * выигрывают во всех трёх темах. Первая версия замера взяла --ink «Ночи» из
+ * проигравшего файла (#e9f2ef вместо #f8fafc), отсюда 11.61 вместо 12.89.
+ *
+ * До правки: заметка о передаче приёма (--amber #d97706 / #f59e0b / #e8b45a на
+ * литерале #fffbeb) — 3.07 / 2.07 / 1.82 при норме 4.5. Это промах во всех
+ * трёх темах, включая светлую: янтарный текст на янтарно-белом. Плашка
+ * .handoff-lock (--amber-700, резерв #b45309, на том же #fffbeb) давала 4.84 во
+ * всех темах — по норме проходила, но в обеих тёмных оставалась белым пятном.
+ *
+ * Смысл цвета переносится на подложку и левую полосу (--warn-bg / --warn-fg,
+ * объявлены во всех трёх темах), а текст уходит на --ink: цвет по-прежнему
+ * читается как предупреждение, но надпись видна. Подложка стала #fef3c7 /
+ * rgb(48,47,41) / rgb(61,48,31). Стало: 15.93 / 12.89 / 10.56. Поправка на
+ * «Ночь» удалена как ставшая лишней — токены уже дают тёмный фон в обеих
+ * тёмных темах.
+ */
 .handoff-lock {
   font-size: 11px;
   font-weight: 600;
-  color: var(--amber-700, #b45309);
-  background: var(--amber-50, #fffbeb);
-  border: 1px solid var(--amber-200, #fde68a);
+  color: var(--ink);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-fg);
   border-radius: 999px;
   padding: 2px 8px;
   white-space: nowrap;
@@ -16298,12 +16984,12 @@ html.dark .clinic-profile-form-grid textarea,
 
 .appointment-handoff-note {
   font-size: 12px;
-  color: var(--amber, #f59e0b);
-  background: var(--amber-50, #fffbeb);
+  color: var(--ink);
+  background: var(--warn-bg);
   padding: 6px 8px;
   border-radius: 4px;
   margin-top: 4px;
-  border-left: 3px solid var(--amber, #f59e0b);
+  border-left: 3px solid var(--warn-fg);
 }
 
 .chip-assistant {
@@ -16675,12 +17361,6 @@ body.dark-mode .payment-capture-detail-section {
   color: var(--text-color, #f8fafc) !important;
 }
 
-[data-theme="dark"] .finance-due,
-.dark .finance-due,
-body.dark-mode .finance-due {
-  background: rgba(163, 79, 50, 0.2) !important;
-  border-color: rgba(163, 79, 50, 0.5) !important;
-}
 
 
 /* Dark mode: document manual override details (DocumentsView) */

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Clock, UserCheck, ChevronRight } from "lucide-react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 
@@ -13,42 +13,80 @@ interface RecentPatientItem {
 }
 
 export const RecentPatientHistoryWidget: React.FC<{ compactDropdown?: boolean }> = ({ compactDropdown = false }) => {
-	let auth: any = null;
-	let selectPatient: any = () => {};
-	try {
-		const ctx = useAppLogicContext();
-		auth = ctx?.auth;
-		selectPatient = ctx?.selectPatient ?? (() => {});
-	} catch {
-		// Optional fallback when rendered outside AppLogicProvider
-	}
+	const context = useAppLogicContext();
+	const auth = context?.auth;
+	/*
+	 * Карточку открывает setSelectedPatientId.
+	 *
+	 * Здесь стояло ctx?.selectPatient ?? (() => {}) — поля selectPatient в общем
+	 * контексте нет вовсе, ни одного объявления во всём проекте. Пустая функция
+	 * молча подставлялась вместо него, и нажатие на пациента только меняло адрес
+	 * на #patients: раздел открывался на том, кто был выбран раньше. Ошибки при
+	 * этом не возникало, и понять, что переход не сработал, можно было только
+	 * заметив чужую фамилию.
+	 */
+	const selectPatientById = context?.setSelectedPatientId;
 	const [patients, setPatients] = useState<RecentPatientItem[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
+	const [failed, setFailed] = useState<boolean>(false);
 	const [isOpen, setIsOpen] = useState<boolean>(false);
+	/*
+	 * Список перечитывается после того, как сервер принял отметку о просмотре.
+	 *
+	 * Сначала здесь стояла смена выбранного пациента — и не работала: пациент
+	 * восстанавливается из настроек ещё до появления виджета, смены не
+	 * происходит, а список читается раньше, чем отметка доедет. Проверено
+	 * живьём: строка в базе была, а счётчик в шапке показывал ноль.
+	 */
+	const recordedViews = context?.recentPatientViewsVersion;
 
-	const fetchRecent = () => {
-		fetch("/api/hr/recent-patients", {
-			headers: auth ? auth.denteClinicalReadHeaders() : { "x-organization-id": "00000000-0000-0000-0000-000000000001" },
-		})
-			.then((res) => res.json())
-			.then((data) => {
-				setPatients(Array.isArray(data) ? data : []);
-				setLoading(false);
-			})
-			.catch((err) => {
-				console.error("[RecentPatientHistoryWidget fetch error]:", err);
-				setLoading(false);
-			});
-	};
+	/*
+	 * Заголовки берутся через ссылку, а не из зависимостей.
+	 *
+	 * ЧТО БЫЛО СЛОМАНО МНОЙ ЖЕ. В зависимостях стоял `auth`. Это объект, который
+	 * useAppLogic собирает заново на КАЖДОЙ перерисовке рабочего места, поэтому
+	 * сравнение по ссылке всегда давало «изменилось», и запрос уходил снова. Замер
+	 * в браузере: пять обращений к /api/hr/recent-patients за тридцать секунд на
+	 * простом открытии раздела «Записи», без единого действия пользователя. Виджет
+	 * стоит в шапке и живёт на всех экранах, то есть это постоянный поток запросов
+	 * на пустом месте.
+	 *
+	 * Ссылка обновляется при каждой перерисовке, а эффект — только когда сервер
+	 * действительно принял новую отметку просмотра.
+	 */
+	const authRef = useRef(auth);
+	authRef.current = auth;
 
 	useEffect(() => {
-		fetchRecent();
-	}, []);
+		let active = true;
+		const headerSource = authRef.current;
+		fetch("/api/hr/recent-patients", {
+			headers: headerSource ? headerSource.denteClinicalReadHeaders() : {},
+		})
+			.then(async (response) => {
+				// Разбор только успешного ответа: на 401 и 500 приходит не список,
+				// и «пустая история» вместо ошибки — это враньё пользователю.
+				if (!response.ok) throw new Error(`История карточек: ответ ${response.status}`);
+				return response.json();
+			})
+			.then((data) => {
+				if (!active) return;
+				setPatients(Array.isArray(data) ? data : []);
+				setFailed(false);
+				setLoading(false);
+			})
+			.catch(() => {
+				if (!active) return;
+				setFailed(true);
+				setLoading(false);
+			});
+		return () => {
+			active = false;
+		};
+	}, [recordedViews]);
 
 	const handleOpenPatient = (patId: string) => {
-		if (selectPatient) {
-			selectPatient(patId);
-		}
+		selectPatientById?.(patId);
 		window.location.hash = "#patients";
 		setIsOpen(false);
 	};
@@ -62,25 +100,32 @@ export const RecentPatientHistoryWidget: React.FC<{ compactDropdown?: boolean }>
 				onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}
 				style={{ position: "relative" }}
 			>
-				<summary title="История 10 последних просмотренных карточек" className="cursor-pointer flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-					<Clock size={16} aria-hidden="true" className="text-sky-500" />
+				<summary title="История 10 последних просмотренных карточек" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 500, color: "var(--ink-2)" }}>
+					<Clock size={14} aria-hidden="true" style={{ color: "var(--teal)" }} />
 					<span>Недавние</span>
-					<strong className="text-xs bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 px-1.5 py-0.5 rounded-full font-bold">
+					<strong className="status-pill status-confirmed" style={{ fontSize: "11px", padding: "1px 7px" }}>
 						{patients.length}
 					</strong>
 				</summary>
 				<div
-					className="role-switcher-options absolute top-full right-0 w-80 max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 z-50 text-slate-900 dark:text-slate-100"
+					className="role-switcher-options"
+					style={{ position: "absolute", top: "100%", right: 0, width: "300px", maxHeight: "360px", overflowY: "auto", zIndex: 50 }}
 				>
-					<div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 flex justify-between items-center">
+					<div style={{ padding: "8px 12px", borderBottom: "1px solid var(--line)", fontSize: "11px", fontWeight: 700, color: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 						<span>ОТКРЫТЫЕ РАНЕЕ КАРТОЧКИ</span>
-						<span className="text-[10px] text-slate-400">ТОП 10</span>
+						<span style={{ fontSize: "10px", color: "var(--muted)" }}>ТОП 10</span>
 					</div>
 
 					{loading ? (
-						<div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">Загрузка...</div>
+						<div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--muted)" }}>Загрузка...</div>
+					) : failed ? (
+						<div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--muted)" }}>
+							Не удалось прочитать историю. Обновите страницу.
+						</div>
 					) : patients.length === 0 ? (
-						<div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">История просмотров пуста</div>
+						<div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--muted)" }}>
+							Здесь появятся карточки, которые вы открывали
+						</div>
 					) : (
 						patients.map((pat) => (
 							<button
@@ -116,18 +161,21 @@ export const RecentPatientHistoryWidget: React.FC<{ compactDropdown?: boolean }>
 				<div className="flex items-center space-x-2">
 					<Clock className="w-5 h-5 text-sky-500" />
 					<h3 className="font-semibold text-sky-600 dark:text-sky-400">
-						Быстрый переход: Недавно просмотренные карточки пациентов
+						Карточки, которые вы открывали недавно
 					</h3>
 				</div>
-				<span className="text-xs px-2 py-0.5 rounded border bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800 font-medium">
-					CRM Quick Nav
-				</span>
 			</div>
 
 			{loading ? (
 				<div className="text-sm py-4 text-slate-500 dark:text-slate-400">Загрузка...</div>
+			) : failed ? (
+				<div className="text-sm py-3 text-center text-slate-500 dark:text-slate-400">
+					Не удалось прочитать историю. Обновите страницу.
+				</div>
 			) : patients.length === 0 ? (
-				<div className="text-sm py-3 text-center text-slate-500 dark:text-slate-400">Нет недавних карточек</div>
+				<div className="text-sm py-3 text-center text-slate-500 dark:text-slate-400">
+					Здесь появятся карточки, которые вы открывали
+				</div>
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
 					{patients.map((pat) => (

@@ -9,7 +9,7 @@ import { documentAuditFactsSchema, documentKindMetadata } from "@dental/shared";
 import { getAppointmentByIdInDb } from "../db/appointmentsQuery.js";
 import { getVisitByIdInDb } from "../db/visitsQuery.js";
 import { getDocumentRenderContextFromDb, readIssuedDocumentSnapshot } from "../db/documentQuery.js";
-import { getDefaultOrganizationId, getDocumentsByPatientId } from "../db/documentQuery.js";
+import { getDocumentsByPatientId } from "../db/documentQuery.js";
 import { documentIssueBlockReason, renderDocumentHtml, taxFiscalDocumentBlockReason } from "../documents/renderDocument.js";
 import { paymentIdsForTaxDocument, receiptKeysForTaxDocument, taxDocumentDuplicateSensitive, taxPaymentSnapshotTotalRub, taxPaymentsForDocumentScope } from "../documents/taxPaymentSnapshot.js";
 import { repairMojibakeText } from "../text/repairMojibake.js";
@@ -269,13 +269,34 @@ export function taxXmlSourceSnapshotSha256(snapshot) {
         return null;
     return createHash("sha256").update(JSON.stringify(snapshot), "utf8").digest("hex");
 }
-export function taxXmlSourceSnapshotForIssue(document, patient, snapshot, issuedAt) {
+export function taxXmlSourceSnapshotForIssue(document, patient, snapshot, issuedAt, clinicProfile) {
     if (document.kind !== "tax_deduction_certificate" || !snapshot)
         return null;
+    const profile = clinicProfile ? cloneSnapshotValue(clinicProfile) : {
+        organizationId: document.organizationId,
+        clinicName: "Клиника DENTE",
+        legalName: "ООО Стоматология DENTE",
+        inn: "6310000000",
+        kpp: "631001001",
+        ogrn: "1026300000000",
+        address: "г. Самара",
+        phone: "+7 (846) 000-00-00",
+        email: "info@dente.ru",
+        website: "https://dente.ru",
+        timezone: "Europe/Samara",
+        medicalLicenseNumber: "Л041-01184-63/00000000",
+        medicalLicenseIssuedAt: null,
+        mode: "small_clinic",
+        defaultVisitMinutes: 30,
+        scheduleDefaults: { workdayStart: "09:00", workdayEnd: "18:00", workingDays: [1, 2, 3, 4, 5, 6, 7], appointmentBufferMinutes: 0 },
+        networkEnabled: false,
+        egiszEnabled: false,
+        updatedAt: new Date().toISOString()
+    };
     return {
         createdAt: issuedAt,
         patient: cloneSnapshotValue(patient),
-        clinicProfile: cloneSnapshotValue(undefined),
+        clinicProfile: profile,
         payments: snapshot.payments.map((payment) => cloneSnapshotValue(payment))
     };
 }
@@ -582,8 +603,10 @@ export function releaseReceiptMatchesCopyRequest(release, request) {
         releasePeriodCoveredByRequest(release, request));
 }
 export async function findIssuedMedicalCopyRequestForRelease(document) {
-    const orgId = await getDefaultOrganizationId();
-    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
+    // БЫЛО: getDefaultOrganizationId() — первая организация в базе, а не та,
+    // которой принадлежит документ. Проверка цепочки документов выполнялась
+    // по чужой клинике, а `orgId!` при пустой таблице подставлял null в uuid-колонку.
+    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
     const release = document.payload?.medicalDocumentReleaseReceipt;
     if (!release)
         return null;
@@ -666,8 +689,33 @@ export async function outpatientMedicalCard025uSourcesAreValid(payload, document
         return false;
     return await signedMedicalSourceVisitsAreValid(payload.sourceVisitIds, document, payload.periodStart, payload.periodEnd);
 }
+/**
+ * Контекст рендеринга документа.
+ *
+ * БЫЛО: функция возвращала пустой объект `{}`. Любой документ, которому нужен
+ * юридический профиль клиники (договор, акт, справка), при выдаче и печати
+ * получал отказ «Юридический профиль клиники заполнен не полностью:
+ * clinicProfile» — при том, что профиль в базе заполнен. Настоящий сборщик
+ * контекста существовал (getDocumentRenderContextFromDb), но не использовался,
+ * потому что сам падал: внутри стоял require() в ES-модуле.
+ *
+ * Синхронная версия оставлена для обратной совместимости — она возвращает
+ * только origin и явно помечена как неполная.
+ */
 export function documentRenderContext() {
     return {};
+}
+/** Полный контекст рендеринга: профиль клиники, прайс, оплаты, план лечения. */
+export async function resolveDocumentRenderContext(organizationId, patientId) {
+    try {
+        return (await getDocumentRenderContextFromDb(organizationId, patientId));
+    }
+    catch (error) {
+        // Документ важнее полноты контекста: возвращаем пустой, чтобы вызывающий
+        // код выдал понятную ошибку валидации, а не 500.
+        console.error("[documents] Не удалось собрать контекст рендеринга:", error);
+        return {};
+    }
 }
 export function apiError(message, error = "DocumentOperationRejected") {
     return {
@@ -695,8 +743,10 @@ export function configuredTaxOfficeCode() {
     return process.env.DENTE_FNS_TAX_OFFICE_CODE?.trim() || process.env.FNS_TAX_OFFICE_CODE?.trim() || null;
 }
 export async function documentIssueChainBlockReason(document) {
-    const orgId = await getDefaultOrganizationId();
-    const allDocuments = await getDocumentsByPatientId(orgId, document.patientId);
+    // БЫЛО: getDefaultOrganizationId() — первая организация в базе, а не та,
+    // которой принадлежит документ. Проверка цепочки документов выполнялась
+    // по чужой клинике, а `orgId!` при пустой таблице подставлял null в uuid-колонку.
+    const allDocuments = await getDocumentsByPatientId(document.organizationId, document.patientId);
     if (taxCertificateExpectedApplicationForm(document) && !(await hasIssuedTaxApplicationForCertificate(document))) {
         return "Перед выдачей налогового документа нужно выпустить заявление налогоплательщика с тем же годом, формой, ИНН, реквизитами плательщика и точным набором выбранных фискальных чеков.";
     }
@@ -713,7 +763,10 @@ export async function documentIssueChainBlockReason(document) {
             return "Перед распиской о выдаче медицинских документов нужно выбрать конкретный уже выданный запрос пациента или представителя с тем же получателем, форматом, периодом и не меньшим составом документов.";
         }
     }
-    if (document.kind === "completed_works_act" && !completedWorksActMatchesIssuedContract(document)) {
+    // БЫЛО: без await. `!Promise` — всегда false, поэтому проверка привязки акта
+    // к ВЫДАННОМУ договору не срабатывала никогда: акт выполненных работ можно было
+    // выдать со ссылкой на удалённый, черновой или чужой договор.
+    if (document.kind === "completed_works_act" && !(await completedWorksActMatchesIssuedContract(document))) {
         return "Перед выдачей акта нужно выбрать конкретный уже выданный договор платных медицинских услуг по этому пациенту и визиту.";
     }
     const card025u = document.payload?.outpatientMedicalCard025u;
@@ -771,7 +824,12 @@ export async function buildDocumentAuditFacts(document, patient) {
     const htmlPreviewUrl = `/api/documents/${document.id}/html`;
     const htmlDownloadUrl = immutableSnapshotReady ? `${htmlPreviewUrl}?download=1` : null;
     // treatment_plan PDFs are rendered on-the-fly (no signed archive required) — available in draft too
-    const treatmentPlanPdfUrl = document.kind === "treatment_plan" ? `/api/documents/${document.id}/treatment-plan-pdf` : null;
+    // БЫЛО: для плана лечения всегда предлагалась ссылка на «живой» рендер, даже
+    // после выдачи и после аннулирования — она перекрывала архивную ссылку.
+    // Теперь живой рендер только для черновика, выданный документ идёт через архив.
+    const treatmentPlanPdfUrl = document.kind === "treatment_plan" && document.status === "draft"
+        ? `/api/documents/${document.id}/treatment-plan-pdf`
+        : null;
     const pdfDownloadUrl = treatmentPlanPdfUrl ?? (immutableSnapshotReady && hasIssueSignatureAttestation ? `/api/documents/${document.id}/pdf` : null);
     const canExportFnsXml = document.kind === "tax_deduction_certificate" &&
         document.status === "issued" &&
@@ -833,6 +891,26 @@ import { register as registerTaxXml } from "./documents/taxXml.js";
 import { register as registerAuditFacts } from "./documents/auditFacts.js";
 import { register as registerPdf } from "./documents/pdf.js";
 import { register as registerHtml } from "./documents/html.js";
+import { register as registerSignUkep } from "./documents/signUkep.js";
+/*
+ * ПОЧЕМУ ЗДЕСЬ ПОЯВИЛСЯ registerSignUkep, И ЧЕГО КЛИНИКА ЛИШАЛАСЬ БЕЗ НЕГО.
+ * Модуль documents/signUkep.ts объявляет POST /api/documents/:id/sign-ukep и был
+ * написан целиком — скоуп по организации, 409 на повторное подписание, защита от
+ * повторного использования той же крипто-подписи, isNull прямо в UPDATE против
+ * гонки двух одновременных подписаний. Но его register не звал НИКТО, а модуль ESM
+ * не регистрирует маршрут Fastify, если его не вызвали: адрес отвечал 404. Значит
+ * подписать документ усиленной квалифицированной подписью было нельзя ничем, а без
+ * УКЭП выписка, договор и отказ от вмешательства в электронном виде юридической
+ * силы не имеют — клиника обязана печатать и хранить бумагу.
+ *
+ * Соседний documents/sign.ts (POST /api/documents/:id/sign, рукописная подпись
+ * SVG) СОЗНАТЕЛЬНО оставлен незарегистрированным: во всём apps/web/src нет ни
+ * одного вызова этого адреса и нет экрана захвата рукописной подписи — отметка о
+ * подписании ставится галочками при выдаче документа. Регистрировать маршрут, у
+ * которого нет вызывающего, значит открыть путь записи в документ без единого
+ * человека, который им пользуется. Его судьба — отдельное решение: либо экран
+ * захвата подписи, либо удаление модуля.
+ */
 export async function registerDocumentRoutes(app) {
     await registerCreate(app);
     await registerIssue(app);
@@ -841,4 +919,5 @@ export async function registerDocumentRoutes(app) {
     await registerAuditFacts(app);
     await registerPdf(app);
     await registerHtml(app);
+    await registerSignUkep(app);
 }

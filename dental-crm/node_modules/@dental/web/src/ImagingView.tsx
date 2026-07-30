@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   ExternalLink,
   FileText,
   FlipHorizontal,
@@ -23,6 +24,81 @@ const IMAGING_QUICK_CHIPS = [
   "Убыль костной ткани",
   "Требуется имплантация"
 ];
+
+/**
+ * Шаблоны описания снимка по типу исследования.
+ *
+ * БЫЛО: рядом с полем заметки стояла кнопка с роботом и подсказкой
+ * «Сгенерировать с помощью ИИ (заглушка)». Её единственным действием было
+ * дописать в заметку строку « [AI AnalyzeCTReport]» — то есть мусор в
+ * клинической записи. Никакого разбора снимка за ней не стояло: серверный
+ * путь /api/ai/recognition-jobs для image_summary тоже лишь оборачивает
+ * введённый текст в «Описание снимка: … Требуется подтверждение врачом».
+ *
+ * СТАЛО: кнопка вставляет заготовку описания под тип снимка. Это работает
+ * без сети и без ИИ, экономит врачу набор текста и держит описания
+ * однотипными — их можно сравнивать между визитами. Строки заготовки —
+ * то, что рентгенолог и так обязан описать.
+ */
+const IMAGING_DESCRIPTION_TEMPLATES: Record<string, string[]> = {
+  periapical: [
+    "Коронковая часть:",
+    "Полость зуба:",
+    "Корневые каналы:",
+    "Периапикальные ткани:",
+    "Заключение:"
+  ],
+  bitewing: [
+    "Контактные поверхности:",
+    "Уровень костной ткани:",
+    "Наддесневые и поддесневые отложения:",
+    "Заключение:"
+  ],
+  opg: [
+    "Зубная формула:",
+    "Уровень костной ткани:",
+    "Гайморовы пазухи:",
+    "Височно-челюстные суставы:",
+    "Ретинированные и непрорезавшиеся зубы:",
+    "Заключение:"
+  ],
+  ceph: [
+    "Профиль лица:",
+    "Скелетный класс:",
+    "Углы SNA / SNB / ANB:",
+    "Положение резцов:",
+    "Заключение:"
+  ],
+  cbct: [
+    "Область исследования:",
+    "Плотность костной ткани:",
+    "Высота и ширина кости:",
+    "Анатомические структуры (канал, пазуха, дно носа):",
+    "Патологические изменения:",
+    "Заключение:"
+  ],
+  photo: [
+    "Область съёмки:",
+    "Состояние мягких тканей:",
+    "Гигиена:",
+    "Заключение:"
+  ],
+  other: ["Область:", "Описание:", "Заключение:"]
+};
+
+function imagingDescriptionTemplate(
+  kind: string | null | undefined,
+  toothCode: string | null | undefined,
+  region: string | null | undefined
+): string {
+  const lines = IMAGING_DESCRIPTION_TEMPLATES[kind ?? "other"] ?? IMAGING_DESCRIPTION_TEMPLATES.other!;
+  // Зуб или область подставляем сразу: врачу не нужно их перепечатывать.
+  const header = toothCode ? `Зуб: ${toothCode}` : region ? `Область: ${region}` : null;
+  const body = header ? [header, ...lines.filter((line) => !line.startsWith("Область:"))] : lines;
+  return body.join("\n");
+}
+// Русское склонение счётного слова: «1 находка», «2 находки», «5 находок».
+import { countLabel } from "./AppHelpers";
 import { CtPlanningToolsPanel } from "./ctPlanningTools";
 import { type MprWindowPreset } from "./imagingUiLabels";
 import { Cornerstone3DViewer } from "./components/dicom/Cornerstone3DViewer";
@@ -30,10 +106,34 @@ import { DicomArchiveUploader } from "./components/dicom/DicomArchiveUploader";
 import { BoneQualityPanel } from "./components/dicom/BoneQualityPanel";
 import { ShadowAnalystReport } from "./components/imaging/ShadowAnalystReport";
 import { ShadowAnalystImageSlider } from "./components/imaging/ShadowAnalystImageSlider";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { PatientAvatar } from './components/PatientAvatar';
+import { EmptyState } from './components/EmptyState';
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { showToast } from "./components/GlobalToast";
 
 import { useVisitStore, type ToothState } from "./store/visitStore";
+
+/**
+ * Есть ли у исследования файл снимка на сервере.
+ *
+ * ЧТО БЫЛО. «Добавить снимок вручную» создаёт карточку исследования БЕЗ файла:
+ * запрос POST /api/imaging/studies уходит без storagePath. Разбор снимка на
+ * сервере первым делом проверяет storagePath и без него отвечает 422
+ * «У исследования не указан файл снимка» — разбирать нечего. На экране это
+ * выглядело как сломанная кнопка: врач добавил снимок, нажал «Разобрать снимок
+ * помощником» и получил отказ, а причину ему нигде не назвали — карточка без
+ * файла ничем не отличалась от карточки с файлом, потому что вместо снимка обе
+ * показывают нарисованную заглушку preview.svg.
+ *
+ * СТАЛО: отсутствие файла видно ДО нажатия — в ленте снимков и под
+ * просмотрщиком, — а кнопка разбора выключена с объяснением. Прикрепить файл к
+ * уже созданной карточке программа пока не умеет (в API нет такого маршрута),
+ * поэтому подсказка ведёт туда, где файл действительно попадает на сервер, —
+ * в импорт снимков.
+ */
+function imagingStudyHasFile(study: any): boolean {
+  return typeof study?.storagePath === "string" && study.storagePath.trim().length > 0;
+}
 
 type ImagingViewProps = Record<string, any>;
 
@@ -178,49 +278,145 @@ export function ImagingView(props: ImagingViewProps) {
   const [localImageIds, setLocalImageIds] = useState<string[]>([]);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [enhancementOn, setEnhancementOn] = useState(false);
-  const [, forceUpdate] = useState(0);
+  /*
+   * Разбор ИИ держится в состоянии этого экрана, а не дописывается в объект
+   * исследования.
+   *
+   * ЧТО БЫЛО. `selectedImagingStudy.aiSummary = …` и `.aiToothUpdates = …` —
+   * прямая запись в объект, пришедший из общего состояния приложения, а затем
+   * `forceUpdate(n => n + 1)`, чтобы React заметил. Ради этого и существовал
+   * счётчик-пустышка. Так делать нельзя по двум причинам:
+   *   правка не видна React, поэтому любой другой компонент, читающий тот же
+   *     объект (лента миниатюр ниже читает study.aiSummary), показывает старое,
+   *     пока экран случайно не перерисуется;
+   *   объект принадлежит дашборду, и следующая его загрузка молча затирает
+   *     запись — врач видит, как заключение исчезает без причины.
+   *
+   * Ключ по идентификатору исследования: врач переключает снимки, и разбор
+   * одного не должен показываться под другим.
+   */
+  const [analysisByStudy, setAnalysisByStudy] = useState<
+    Record<string, { summary: string; toothUpdates: unknown[] }>
+  >({});
+
+  /*
+   * Заключение для показа: сначала то, что разобрали в этом сеансе, иначе то,
+   * что пришло с сервера. Сервер сохраняет заключение при разборе, поэтому после
+   * перезагрузки страницы оно приходит в самом исследовании.
+   */
+  const analysisForSelected = selectedImagingStudy ? analysisByStudy[selectedImagingStudy.id] : undefined;
+  const selectedStudySummary: string | null =
+    analysisForSelected?.summary ?? (selectedImagingStudy?.aiSummary as string | undefined) ?? null;
+  const selectedStudyToothUpdates =
+    analysisForSelected?.toothUpdates ?? (selectedImagingStudy?.aiToothUpdates as unknown[] | undefined);
+
+  /** Состояние зуба по описанию, которое вернул разбор. */
+  const toothStateFromAi = (rawState: unknown): ToothState => {
+    const state = typeof rawState === "string" ? rawState.toLowerCase() : "";
+    if (state.includes("caries") || state.includes("pulpitis") || state.includes("periodontitis")) return "treatment";
+    if (state.includes("missing")) return "missing";
+    if (state.includes("implant") || state.includes("restoration") || state.includes("crown")) return "done";
+    // Незнакомое описание — «наблюдать»: это ближе всего к «машина что-то нашла».
+    return "watch";
+  };
+
+  /*
+   * Файл выбранного снимка. Без него разбор невозможен, и это надо сказать
+   * врачу до нажатия кнопки, а не показывать отказ сервера постфактум.
+   */
+  const selectedStudyHasFile = imagingStudyHasFile(selectedImagingStudy);
 
   const handleAnalyzeAI = async () => {
     if (!selectedImagingStudy) return;
+    /*
+     * Запрос к серверу без файла заведомо вернёт 422. Не тратим его и сразу
+     * называем причину: раньше врач видел только отказ без объяснения.
+     */
+    if (!selectedStudyHasFile) {
+      showToast(
+        "Разбирать нечего: к этой карточке не загружен файл снимка. Добавьте снимок через импорт снимков.",
+        "error",
+      );
+      return;
+    }
+    const studyId = selectedImagingStudy.id;
     setIsAnalyzingAI(true);
     try {
-      const res = await fetch(`/api/imaging/studies/${selectedImagingStudy.id}/analyze`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        selectedImagingStudy.aiSummary = data.analysisResult.summary;
-        selectedImagingStudy.aiToothUpdates = data.analysisResult.toothUpdates;
-        
-        if (data.analysisResult?.toothUpdates?.length > 0) {
-          const detectedCodes: string[] = [];
-          const detectedToothStates: Record<string, ToothState> = {};
-          const aiDiagnoses: Record<string, string> = {};
-          
-          for (const update of data.analysisResult.toothUpdates) {
-            detectedCodes.push(update.code);
-            aiDiagnoses[update.code] = update.diagnosisOrFinding;
-            
-            const aiState = update.state.toLowerCase();
-            if (aiState.includes("caries") || aiState.includes("pulpitis") || aiState.includes("periodontitis")) {
-              detectedToothStates[update.code] = "treatment";
-            } else if (aiState.includes("missing")) {
-              detectedToothStates[update.code] = "missing";
-            } else if (aiState.includes("implant") || aiState.includes("restoration") || aiState.includes("crown")) {
-              detectedToothStates[update.code] = "done";
-            } else {
-              detectedToothStates[update.code] = "watch";
-            }
-          }
+      const res = await fetch(`/api/imaging/studies/${studyId}/analyze`, { method: "POST" });
+      /*
+       * Тело читается строкой и разбирается после проверки ответа.
+       *
+       * Было `await res.json()` ДО проверки res.ok: при ответе прокси страницей
+       * или при пустом теле разбор бросал исключение, и врач получал
+       * «Сбой сети: Unexpected token '<'» — английский текст из движка вместо
+       * объяснения. Теперь непонятное тело — это отдельный человеческий отказ.
+       */
+      const rawBody = await res.text();
+      let payload: { analysisResult?: { summary?: unknown; toothUpdates?: unknown }; message?: unknown } | null = null;
+      try {
+        payload = rawBody.trim() ? JSON.parse(rawBody) : null;
+      } catch {
+        payload = null;
+      }
+
+      if (!res.ok) {
+        const serverMessage = typeof payload?.message === "string" ? payload.message : "";
+        showToast(
+          serverMessage || "Разбор снимка не выполнен. Проверьте, что файл снимка загружен, и попробуйте снова.",
+          "error",
+        );
+        return;
+      }
+      if (!payload?.analysisResult) {
+        console.error(`[imaging analyze] ответ не разобран: ${rawBody.slice(0, 300)}`);
+        showToast("Ответ сервера не удалось прочитать. Повторите разбор снимка.", "error");
+        return;
+      }
+
+      const summary = typeof payload.analysisResult.summary === "string" ? payload.analysisResult.summary : "";
+      const toothUpdates = Array.isArray(payload.analysisResult.toothUpdates)
+        ? payload.analysisResult.toothUpdates
+        : [];
+      setAnalysisByStudy((current) => ({ ...current, [studyId]: { summary, toothUpdates } }));
+
+      if (toothUpdates.length > 0) {
+        const detectedCodes: string[] = [];
+        const detectedToothStates: Record<string, ToothState> = {};
+        const aiDiagnoses: Record<string, string> = {};
+
+        for (const raw of toothUpdates) {
+          const update = (raw ?? {}) as Record<string, unknown>;
+          // Находка без номера зуба в формулу не попадает: непонятно, куда её ставить.
+          const code = typeof update.code === "string" ? update.code : "";
+          if (!code) continue;
+          detectedCodes.push(code);
+          aiDiagnoses[code] =
+            typeof update.diagnosisOrFinding === "string" ? update.diagnosisOrFinding : "находка без описания";
+          detectedToothStates[code] = toothStateFromAi(update.state);
+        }
+        if (detectedCodes.length > 0) {
           useVisitStore.getState().applyAiToothCodes(detectedCodes, "planned", detectedToothStates, aiDiagnoses);
         }
-        
-        setEnhancementOn(true);
-        forceUpdate(n => n + 1);
-        showToast(`Анализ завершён · ${data.analysisResult?.toothUpdates?.length ?? 0} находок добавлено в формулу`, 'success');
-      } else {
-        showToast('Ошибка анализа: ' + (data.message ?? 'Неизвестная ошибка'), 'error');
       }
-    } catch (e: any) {
-      showToast('Сбой сети: ' + e.message, 'error');
+
+      setEnhancementOn(true);
+      /*
+       * Число в сообщении — сколько находок ДОШЛО до формулы, а не сколько
+       * прислал сервер. Раньше печаталось присланное, и находка без номера зуба
+       * считалась добавленной, хотя в формуле её не было.
+       */
+      const applied = toothUpdates.filter(
+        (raw) => typeof (raw as Record<string, unknown>)?.code === "string" && (raw as Record<string, unknown>).code,
+      ).length;
+      showToast(
+        applied > 0
+          ? `Разбор снимка готов: ${countLabel(applied, "находка", "находки", "находок")} в зубной формуле`
+          : "Разбор снимка готов: находок по зубам нет",
+        "success",
+      );
+    } catch (error) {
+      console.error("[imaging analyze] запрос не выполнен", error);
+      showToast("Сервер не ответил на разбор снимка. Проверьте связь и повторите.", "error");
     } finally {
       setIsAnalyzingAI(false);
     }
@@ -239,7 +435,7 @@ export function ImagingView(props: ImagingViewProps) {
                     data-testid="imaging-browser-local-folder-input"
                     type="file"
                     multiple
-                    style={{ position: 'absolute', opacity: 0, width: '1px', height: '1px', pointerEvents: 'none' }}
+                    style={{ display: "none" }}
                     onChange={(event) => void handleBrowserDirectoryInputChange(event.target.files)}
                   />
                   <input
@@ -247,9 +443,29 @@ export function ImagingView(props: ImagingViewProps) {
                     data-testid="imaging-browser-local-files-input"
                     type="file"
                     multiple
-                    style={{ position: 'absolute', opacity: 0, width: '1px', height: '1px', pointerEvents: 'none' }}
+                    style={{ display: "none" }}
                     accept={browserImagingFileInputAccept}
-                    onChange={(event) => void handleBrowserDirectoryInputChange(event.target.files)}
+                    onChange={(event) => {
+                      /*
+                       * ЧТО БЫЛО. Значение этого поля не сбрасывалось никогда.
+                       * Обработчик handleBrowserDirectoryInputChange чистит только
+                       * поле выбора ПАПКИ (browserDirectoryInputRef), а это —
+                       * отдельное поле кнопки «Файлы». Браузер не выдаёт событие
+                       * change, если выбран тот же файл, что и в прошлый раз:
+                       * врач нажимал «Файлы», выбирал тот же снимок и не получал
+                       * ничего — ни статуса, ни ошибки. Кнопка выглядела сломанной,
+                       * а обойти это можно было только перезагрузкой страницы.
+                       *
+                       * Сброс делается ПОСЛЕ разбора выбранных файлов: очистка
+                       * value обнуляет список файлов у поля, поэтому чистить его
+                       * до конца обработки нельзя. Ссылка на поле берётся
+                       * синхронно — после await у события её уже не спросить.
+                       */
+                      const input = event.currentTarget;
+                      void Promise.resolve(handleBrowserDirectoryInputChange(input.files)).finally(() => {
+                        input.value = "";
+                      });
+                    }}
                   />
                   <button
                     className="primary-button"
@@ -301,7 +517,8 @@ export function ImagingView(props: ImagingViewProps) {
                       display: "flex",
                       flexDirection: "column",
                       gap: "6px",
-                      minWidth: "160px"
+                      minWidth: "160px",
+                      maxWidth: "calc(100vw - 32px)"
                     }}>
                       <button
                         className="secondary-button"
@@ -397,16 +614,17 @@ export function ImagingView(props: ImagingViewProps) {
                 </div>
               ) : null}
     
-              <div className="imaging-kind-filter" aria-label="Фильтр типа снимка">
-                <button className={imagingKindFilter === "all" ? "active" : ""} type="button" aria-pressed={imagingKindFilter === "all"} onClick={() => setImagingKindFilter("all")}>
+              <div className="imaging-kind-filter" role="tablist" aria-label="Фильтр типа снимка">
+                <button className={`focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors ${imagingKindFilter === "all" ? "active" : ""}`} type="button" role="tab" aria-selected={imagingKindFilter === "all"} onClick={() => setImagingKindFilter("all")}>
                   Все
                 </button>
                 {imagingKindOptions.map((kind: any) => (
                   <button
-                    className={imagingKindFilter === kind ? "active" : ""}
+                    className={`focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors ${imagingKindFilter === kind ? "active" : ""}`}
                     key={kind}
                     type="button"
-                    aria-pressed={imagingKindFilter === kind}
+                    role="tab"
+                    aria-selected={imagingKindFilter === kind}
                     onClick={() => setImagingKindFilter(kind)}
                   >
                     {imagingKindLabels[kind]}
@@ -423,20 +641,49 @@ export function ImagingView(props: ImagingViewProps) {
                     <>
                       <div className="imaging-viewer-stage" style={{ position: 'relative' }}>
                         {localImageIds.length > 0 ? (
-                          <Cornerstone3DViewer imageIds={localImageIds} />
+                          /*
+                            Пациент передаётся в просмотрщик, потому что разметка
+                            планирования имплантации хранится в его карточке — в паре
+                            с кодом исследования DICOM. Без этого признака обведённая
+                            врачом дуга умирала вместе с экраном: адреса
+                            /api/imaging/planning/save и /load не вызывались из
+                            клиента ни разу, хотя серверная половина дописана.
+                          */
+                          <Cornerstone3DViewer imageIds={localImageIds} patientId={activePatient?.id ?? null} />
                         ) : selectedImagingStudy?.kind === "cbct" ? (
+                          /*
+                            КЛКТ: раньше под загрузчиком стоял просмотрщик-обманка.
+
+                            Ему подсовывали адрес wadouri:http://localhost:3000/
+                            api/dicomweb/... — порт 3000, которого у нас нет
+                            (сервер отвечает на 4100), и маршрута /api/dicomweb
+                            в API тоже нет. Сверху лежали opacity-50 и
+                            pointer-events-none: серое неотзывчивое полотно,
+                            похожее на загружающийся снимок. Врач ждал, пока
+                            «прогрузится» то, что не могло прогрузиться никогда.
+
+                            Пока сервер не отдаёт срезы, честно говорим, что
+                            нужно сделать: открыть архив с диска. Загрузчик
+                            рядом, и он работает — после выбора папки срезы
+                            попадают в localImageIds и рисуются настоящим
+                            просмотрщиком ветвью выше.
+                          */
                           <div className="w-full h-full flex flex-col gap-4 p-4">
                             <DicomArchiveUploader onImagesLoaded={setLocalImageIds} />
-                            <div className="opacity-50 pointer-events-none w-full flex-1">
-                              <Cornerstone3DViewer 
-                                imageIds={[`wadouri:http://localhost:3000/api/dicomweb/studies/${selectedImagingStudy?.dicomStudyUid}/series/1/instances/1`]} 
-                              />
+                            <div className="imaging-cbct-hint">
+                              <strong>Срезы КЛКТ открываются с диска</strong>
+                              <p>
+                                Программа пока не хранит томограммы у себя: на сервере лежит только карточка
+                                исследования. Выберите папку с файлами DICOM выше — срезы откроются в просмотрщике
+                                с измерениями и осями.
+                              </p>
                             </div>
                           </div>
                         ) : (
-                          <ShadowAnalystImageSlider 
-                            imageUrl={imagingPreviewSource(selectedImagingStudy)} 
-                            enhanced={enhancementOn && !!selectedImagingStudy?.aiSummary} 
+                          <ShadowAnalystImageSlider
+                            imageUrl={imagingPreviewSource(selectedImagingStudy)}
+                            enhanced={enhancementOn && !!selectedStudySummary}
+                            viewerStyle={imagingViewerImageStyle}
                           />
                         )}
 
@@ -454,15 +701,32 @@ export function ImagingView(props: ImagingViewProps) {
                         <span>
                           {selectedImagingStudy ? `${imagingKindLabels[selectedImagingStudy.kind]} · ${selectedImagingStudy.toothCode ?? selectedImagingStudy.region}` : "Локальные файлы DICOM (КТ)"}
                         </span>
+                        {/*
+                          Карточка без файла: честно говорим, что разбирать нечего.
+                          Раньше здесь стояла активная кнопка разбора, сервер отвечал
+                          422, и врач видел отказ без причины.
+                        */}
+                        {selectedImagingStudy && !selectedStudyHasFile ? (
+                          <p data-testid="imaging-study-file-missing" style={{ color: "var(--warning-color)" }}>
+                            Файл снимка не загружен — разобрать нечего. Карточка добавлена вручную,
+                            изображения на сервере нет. Загрузите снимок через импорт снимков: к уже
+                            созданной карточке файл прикрепить пока нельзя.
+                          </p>
+                        ) : null}
                         <button
                           type="button"
-                          className={selectedImagingStudy?.aiSummary ? "secondary-button" : "primary-button"}
-                          disabled={isAnalyzingAI || !selectedImagingStudy}
+                          className={selectedStudySummary ? "secondary-button" : "primary-button"}
+                          disabled={isAnalyzingAI || !selectedImagingStudy || !selectedStudyHasFile}
                           onClick={handleAnalyzeAI}
+                          title={
+                            selectedImagingStudy && !selectedStudyHasFile
+                              ? "Разбор недоступен: к карточке не загружен файл снимка"
+                              : "Разобрать снимок помощником"
+                          }
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', maxWidth: 'fit-content' }}
                         >
                           <Bot aria-hidden="true" size={16} />
-                          {isAnalyzingAI ? "Анализирую..." : (selectedImagingStudy?.aiSummary ? "Обновить анализ" : "AI-Диагностика (ShadowAnalyst)")}
+                          {isAnalyzingAI ? "Разбираю снимок..." : (selectedStudySummary ? "Разобрать заново" : "Разобрать снимок помощником")}
                         </button>
                       </div>
 
@@ -583,8 +847,8 @@ export function ImagingView(props: ImagingViewProps) {
                             <RefreshCw aria-hidden="true" />
                           </button>
 
-                          {/* Enhancement toggle — appears in toolbar once AI analysis ran */}
-                          {selectedImagingStudy?.aiSummary && (
+                          {/* Переключатель усиления — появляется, когда разбор снимка есть */}
+                          {selectedStudySummary && (
                             <label
                               className="sa-enhance-toggle sa-enhance-toggle--toolbar"
                               title="Включить/выключить улучшение снимка (CLAHE симуляция)"
@@ -629,38 +893,37 @@ export function ImagingView(props: ImagingViewProps) {
                             <span>{imagingViewerSaveDetail}</span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '400px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-                              <input
+                            {/* БЫЛО: однострочный input. Описание снимка в одну
+                                строку не помещается — врач писал в щель на 40
+                                символов. Многострочное поле с тремя строками
+                                занимает столько же места, сколько занимала
+                                строка с кнопкой, но текст видно целиком. */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <textarea
                                 aria-label="Заметка к снимку"
                                 value={imagingViewerNote}
                                 onChange={(event) => setImagingViewerNote(event.target.value)}
-                                placeholder="Заметка к снимку"
-                                style={{ width: '100%', paddingRight: '40px' }}
+                                placeholder="Опишите снимок: что видно, где, какое заключение"
+                                rows={3}
+                                style={{ width: '100%', resize: 'vertical', minHeight: '72px', lineHeight: 1.45 }}
                               />
                               <button
                                 type="button"
-                                title="Сгенерировать с помощью ИИ (заглушка)"
+                                className="text-button"
+                                title="Вставить заготовку описания под тип этого снимка"
                                 onClick={() => {
-                                  // Здесь будет вызов AiOrchestrator.processImagingAnalysis
-                                  setImagingViewerNote(prev => (prev + " [AI AnalyzeCTReport]").trim());
+                                  const template = imagingDescriptionTemplate(
+                                    selectedImagingStudy?.kind,
+                                    selectedImagingStudy?.toothCode,
+                                    selectedImagingStudy?.region
+                                  );
+                                  // Уже написанное не затираем: дописываем ниже.
+                                  setImagingViewerNote(prev => (prev.trim() ? `${prev.trim()}\n\n${template}` : template));
                                 }}
-                                style={{
-                                  position: 'absolute',
-                                  right: '8px',
-                                  background: 'transparent',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: 'var(--brand-500)',
-                                  padding: '4px',
-                                  borderRadius: '50%'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-50)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                                style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '32px' }}
                               >
-                                <Bot size={16} />
+                                <ClipboardList size={15} aria-hidden="true" />
+                                Шаблон описания
                               </button>
                             </div>
                             <div className="quick-chips-row" style={{ flexWrap: 'wrap', marginTop: '4px' }}>
@@ -729,12 +992,12 @@ export function ImagingView(props: ImagingViewProps) {
                       </div>
                       )}
 
-                      {/* SA Report — full-width below toolbar, only when AI analysis exists */}
-                      {selectedImagingStudy?.aiSummary && (
+                      {/* Отчёт помощника во всю ширину — только когда разбор снимка есть */}
+                      {selectedStudySummary && (
                         <div className="sa-report-column">
                           <ShadowAnalystReport
-                            summary={selectedImagingStudy.aiSummary}
-                            toothUpdates={selectedImagingStudy.aiToothUpdates}
+                            summary={selectedStudySummary}
+                            toothUpdates={selectedStudyToothUpdates as any}
                             studyTitle={selectedImagingStudy.title}
                           />
                         </div>
@@ -745,10 +1008,13 @@ export function ImagingView(props: ImagingViewProps) {
                     </>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
-                      <div className="text-center mb-4">
-                        <ImageIcon aria-hidden="true" style={{ fontSize: '3rem', opacity: 0.5 }} />
-                        <p className="text-neutral-400 mt-2">Снимков по текущему пациенту пока нет.</p>
-                      </div>
+                      <EmptyState
+                        icon={<ImageIcon size={36} />}
+                        title="Снимков по пациенту нет"
+                        description="Загрузите архивы DICOM/КТ или выберите снимки из системы."
+                        glass={true}
+                        style={{ margin: "16px 0" }}
+                      />
                       <div className="w-full max-w-2xl">
                         <DicomArchiveUploader onImagesLoaded={setLocalImageIds} />
                       </div>
@@ -757,6 +1023,48 @@ export function ImagingView(props: ImagingViewProps) {
                 </article>
     
                 <div className="imaging-list">
+                  {/*
+                    ЧТО БЫЛО. Лента снимков — это один `map` по списку. При нуле
+                    записей он не рисует ничего, и на месте списка оставалась пустая
+                    полоса. Врач не мог отличить три разные ситуации: снимков у
+                    пациента действительно нет, их скрыл фильтр типа, или пациент не
+                    выбран вовсе. Фильтр типа при переключении пациента не
+                    сбрасывается, поэтому «пусто из-за фильтра» — не редкость: у
+                    нового пациента снимки другого типа, а лента молчит.
+
+                    ДОЛГ С ПРИЧИНОЙ. Состояний «загружаю» и «ошибка загрузки» здесь
+                    нет: экран не получает ни признака загрузки дашборда, ни текста
+                    ошибки — в списке свойств <ImagingView> в App.tsx таких нет,
+                    а App.tsx в эту правку не входит. Поэтому текст ниже говорит
+                    только то, что известно наверняка, и не утверждает «снимков нет»
+                    там, где правильнее «ничего не пришло».
+                  */}
+                  {visibleImagingStudies.length === 0 ? (
+                    !activePatient ? (
+                      <EmptyState
+                        icon={<ImageIcon size={28} />}
+                        title="Пациент не выбран"
+                        description="Лента показывает снимки того пациента, который назван в шапке экрана. Выберите пациента в картотеке или откройте приём — снимки подтянутся сами."
+                      />
+                    ) : activeImagingStudies.length > 0 && imagingKindFilter !== "all" ? (
+                      <EmptyState
+                        icon={<ImageIcon size={28} />}
+                        title={`Снимков типа «${imagingKindLabels[imagingKindFilter] ?? imagingKindFilter}» у пациента нет`}
+                        description={`Их скрыл фильтр типа: у пациента ${countLabel(activeImagingStudies.length, "снимок", "снимка", "снимков")} других типов.`}
+                        action={
+                          <button className="secondary-button" type="button" onClick={() => setImagingKindFilter("all")}>
+                            Показать все снимки
+                          </button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={<ImageIcon size={28} />}
+                        title="Снимков в карте пациента нет"
+                        description="В ленте только снимки, привязанные к пациенту в базе. Файлы, выбранные с диска кнопками «Папка DICOM» и «Файлы», в карту не попадают и после перезагрузки страницы не сохраняются. Кнопка «Добавить снимок вручную» создаёт карточку без файла — разобрать такой снимок нельзя."
+                      />
+                    )
+                  ) : null}
                   {visibleImagingStudies.map((study: any) => (
                     <article
                       className={`imaging-row imaging-${study.status} ${selectedImagingStudy?.id === study.id ? "active" : ""}`}
@@ -777,6 +1085,17 @@ export function ImagingView(props: ImagingViewProps) {
                           {formatShortDate(study.capturedAt)}
                         </p>
                         <span>{imagingSourceLabels[study.sourceKind]} · {study.sourceName}</span>
+                        {/*
+                          Метка «без файла»: карточки, добавленные вручную, снимка не
+                          содержат, и вместо изображения выше стоит нарисованная
+                          заглушка. Без метки врач не отличал такую карточку от
+                          настоящего снимка и узнавал правду только после отказа разбора.
+                        */}
+                        {!imagingStudyHasFile(study) ? (
+                          <span data-testid="imaging-row-file-missing" style={{ color: "var(--warning-color)" }}>
+                            Файл снимка не загружен — разбор недоступен
+                          </span>
+                        ) : null}
                       </div>
                       <div className="imaging-row-actions">
                         <button

@@ -18,8 +18,6 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { emptyVisitNoteForm } from "../AppHelpers";
-import { useAppLogicContext } from "../contexts/AppLogicContext";
 import { getIcdColor, ICD_GROUP_COLORS, ICD10_DICTIONARY } from "../lib/icd10";
 import { useVisitStore } from "../store/visitStore";
 import {
@@ -107,6 +105,27 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 		setDiary((prev) => ({ ...prev, diagnosisIcd10: code }));
 		setIcdSearch(code);
 		setShowIcdDropdown(false);
+	};
+
+	/**
+	 * Подтверждение введённого кода МКБ-10 по Enter или потере фокуса.
+	 *
+	 * БЫЛО: единственный способ записать код в дневник — клик мышью по строке
+	 * выпадающего списка (onMouseDown). Врач набирал точный код «K04.5»,
+	 * нажимал Tab и сохранял: diagnosisIcd10 оставался ПУСТЫМ, и подписанная
+	 * форма 043/у печаталась с «МКБ-10: —». Юридически подписанная запись
+	 * без кода диагноза.
+	 */
+	const commitIcdInput = () => {
+		const typed = icdSearch.trim();
+		if (!typed) return;
+		const normalized = typed.toUpperCase();
+		// Точное совпадение по коду важнее совпадения по названию.
+		const exact = ICD10_DICTIONARY.find(
+			(item) => item.code.toUpperCase() === normalized,
+		);
+		const candidate = exact ?? filteredIcd[0];
+		if (candidate) handleIcdSelect(candidate.code);
 	};
 
 	const filteredIcd = ICD10_DICTIONARY.filter(
@@ -429,6 +448,19 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 											setShowIcdDropdown(true);
 										}}
 										onFocus={() => !isLocked && setShowIcdDropdown(true)}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												e.preventDefault();
+												commitIcdInput();
+											}
+										}}
+										onBlur={() => {
+											// Небольшая задержка, чтобы клик по строке списка успел сработать.
+											window.setTimeout(() => {
+												commitIcdInput();
+												setShowIcdDropdown(false);
+											}, 120);
+										}}
 										placeholder="K02.1 Кариес... или введите название"
 									/>
 									{showIcdDropdown && filteredIcd.length > 0 && (
@@ -572,7 +604,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</span>
 					<button
 						onClick={() => setShowScanner(true)}
-						className="w-full sm:w-auto px-5 py-2 text-sm text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-600 border border-blue-500/30 rounded-xl transition-all flex items-center justify-center gap-2"
+						className="w-full sm:w-auto px-5 py-2 text-sm text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-600 border border-blue-500/30 rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-teal-600 focus:outline-none"
 					>
 						<Activity className="w-4 h-4" />
 						{trayBarcode ? `Лоток: ${trayBarcode}` : "Сканировать Лоток"}
@@ -581,7 +613,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 						id="diary-save-btn"
 						onClick={() => doSave(false)}
 						disabled={isSaving}
-						className="w-full sm:w-auto px-5 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all"
+						className="w-full sm:w-auto px-5 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all focus:ring-2 focus:ring-teal-600 focus:outline-none"
 					>
 						{isSaving ? "Сохраняю..." : "Сохранить черновик"}
 					</button>

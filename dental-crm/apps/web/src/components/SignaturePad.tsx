@@ -12,7 +12,12 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 	const [isDrawing, setIsDrawing] = useState(false);
 	const [isEmpty, setIsEmpty] = useState(true);
 
-	// Handle resize to keep canvas responsive without losing data (ideally)
+	// БЫЛО: у эффекта была зависимость [isEmpty]. Первый же штрих менял isEmpty
+	// на false, эффект перезапускался, присваивание canvas.width СБРАСЫВАЛО canvas
+	// и уничтожало начатую линию — короткое касание не оставляло следа вообще.
+	// Теперь размер пересчитывается только при монтировании и при resize окна,
+	// а актуальное «пусто/не пусто» читается из ref, а не из зависимостей.
+	const isEmptyRef = useRef(true);
 	useEffect(() => {
 		const handleResize = () => {
 			if (containerRef.current && canvasRef.current) {
@@ -21,10 +26,12 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 				// Save old content
 				const ctx = canvas.getContext("2d");
 				let imgData: ImageData | null = null;
-				if (!isEmpty && ctx) {
+				if (!isEmptyRef.current && ctx) {
 					try {
 						imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-					} catch (e) {}
+					} catch {
+						// getImageData throws on tainted/zero-size canvas; preserve empty signature
+					}
 				}
 
 				canvas.width = width;
@@ -36,12 +43,24 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 					ctx.lineWidth = 3;
 					ctx.strokeStyle = "#0f172a";
 
+					// БЫЛО: при восстановлении содержимого белый фон НЕ перекрашивался.
+					// Присваивание canvas.width обнуляет холст до прозрачного, и в
+					// сохранённом PNG подпись оставалась на прозрачном фоне — на
+					// печатном согласии она рендерилась поверх чёрного прямоугольника.
+					// Фон заливаем всегда, содержимое накладываем сверху.
+					ctx.fillStyle = "#ffffff";
+					ctx.fillRect(0, 0, width, height);
 					if (imgData) {
-						ctx.putImageData(imgData, 0, 0);
-					} else {
-						// Background
-						ctx.fillStyle = "#ffffff";
-						ctx.fillRect(0, 0, width, height);
+						// putImageData затирает пиксели целиком, поэтому переносим
+						// старое изображение через промежуточный холст с наложением.
+						const restoreCanvas = document.createElement("canvas");
+						restoreCanvas.width = imgData.width;
+						restoreCanvas.height = imgData.height;
+						const restoreCtx = restoreCanvas.getContext("2d");
+						if (restoreCtx) {
+							restoreCtx.putImageData(imgData, 0, 0);
+							ctx.drawImage(restoreCanvas, 0, 0);
+						}
 					}
 				}
 			}
@@ -50,7 +69,7 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 		handleResize();
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
-	}, [isEmpty]);
+	}, []);
 
 	// Clean up references and memory on unmount
 	useEffect(() => {
@@ -74,6 +93,7 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 		if (!canvas) return;
 		setIsDrawing(true);
 		setIsEmpty(false);
+		isEmptyRef.current = false;
 
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return;
@@ -131,12 +151,26 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 		ctx.fillStyle = "#ffffff";
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 		setIsEmpty(true);
+		isEmptyRef.current = true;
 	};
 
 	const handleSave = () => {
 		if (isEmpty || !canvasRef.current) return;
-		const dataUrl = canvasRef.current.toDataURL("image/png");
-		onSign(dataUrl);
+		// Подпись — часть юридического документа: гарантируем непрозрачный белый
+		// фон в итоговом изображении независимо от истории изменений размера.
+		const source = canvasRef.current;
+		const flattened = document.createElement("canvas");
+		flattened.width = source.width;
+		flattened.height = source.height;
+		const flatCtx = flattened.getContext("2d");
+		if (!flatCtx) {
+			onSign(source.toDataURL("image/png"));
+			return;
+		}
+		flatCtx.fillStyle = "#ffffff";
+		flatCtx.fillRect(0, 0, flattened.width, flattened.height);
+		flatCtx.drawImage(source, 0, 0);
+		onSign(flattened.toDataURL("image/png"));
 	};
 
 	return (
@@ -148,22 +182,18 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 				</p>
 			</div>
 
-			<div className="modal-body" style={{ paddingBottom: 0 }}>
+			<div className="modal-body pb-0">
 				<div
 					ref={containerRef}
-					style={{
-						width: "100%",
-						height: "320px",
-						border: "2px dashed var(--odontogram-border)",
-						borderRadius: "12px",
-						position: "relative",
-						overflow: "hidden",
-						touchAction: "none",
-					}}
+					className="relative w-full h-[320px] rounded-xl overflow-hidden border-2 border-dashed border-[var(--odontogram-border)] bg-[var(--paper-soft,#f8fafc)] transition-all hover:border-[var(--teal-500,#14b8a6)]"
+					style={{ touchAction: "none" }}
 				>
 					<canvas
 						ref={canvasRef}
-						style={{ width: "100%", height: "100%", cursor: "crosshair" }}
+						className="w-full h-full cursor-crosshair focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))]"
+						tabIndex={0}
+						role="img"
+						aria-label="Поле для графической подписи пациента"
 						onMouseDown={startDrawing}
 						onMouseMove={draw}
 						onMouseUp={stopDrawing}
@@ -175,17 +205,7 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 					/>
 					{isEmpty && (
 						<div
-							style={{
-								position: "absolute",
-								inset: 0,
-								pointerEvents: "none",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								color: "var(--odontogram-ink-muted)",
-								fontSize: "18px",
-								fontWeight: 500,
-							}}
+							className="absolute inset-0 pointer-events-none flex items-center justify-center text-[var(--odontogram-ink-muted,#94a3b8)] text-lg font-medium select-none"
 						>
 							Место для подписи
 						</div>
@@ -193,29 +213,30 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 				</div>
 			</div>
 
-			<div
-				className="modal-footer"
-				style={{ paddingTop: "24px", justifyContent: "space-between" }}
-			>
+			<div className="modal-footer pt-6 flex items-center justify-between">
 				<button
+					type="button"
 					onClick={clear}
-					className="modal-btn secondary"
-					style={{ flex: "none" }}
+					aria-label="Очистить подпись"
+					className="modal-btn secondary flex-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all active:scale-[0.98]"
 				>
 					Очистить
 				</button>
-				<div style={{ display: "flex", gap: "12px" }}>
-					<button onClick={onCancel} className="modal-btn secondary">
+				<div className="flex items-center gap-3">
+					<button 
+						type="button" 
+						onClick={onCancel} 
+						aria-label="Отмена"
+						className="modal-btn secondary focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all active:scale-[0.98]"
+					>
 						Отмена
 					</button>
 					<button
+						type="button"
 						onClick={handleSave}
 						disabled={isEmpty}
-						className="modal-btn primary"
-						style={{
-							opacity: isEmpty ? 0.5 : 1,
-							cursor: isEmpty ? "not-allowed" : "pointer",
-						}}
+						aria-label="Подписать документ"
+						className="modal-btn primary focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						Подписать
 					</button>
@@ -224,3 +245,4 @@ export function SignaturePad({ onSign, onCancel }: SignaturePadProps) {
 		</>
 	);
 }
+

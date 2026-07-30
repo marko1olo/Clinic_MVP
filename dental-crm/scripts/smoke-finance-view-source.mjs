@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
+import { readAppLogicSourceSync } from "./lib/app-logic-source.mjs";
 
 const appSource =
 	readFileSync("apps/web/src/App.tsx", "utf8") +
 	"\n" +
-	readFileSync("apps/web/src/useAppLogic.tsx", "utf8") +
+	readAppLogicSourceSync() +
 	"\n" +
 	(existsSync("apps/web/src/VisitView.tsx")
 		? readFileSync("apps/web/src/VisitView.tsx", "utf8")
@@ -13,8 +14,19 @@ const viteSource = readFileSync("apps/web/vite.config.ts", "utf8");
 
 const missing = [];
 
+/*
+ * ТРЕБОВАНИЕ МОЖЕТ БЫТЬ ОБРАЗЦОМ, А НЕ ДОСЛОВНОЙ СТРОКОЙ.
+ *
+ * Идиом ведущего из smoke-finance-ledger-source.mjs (коммит bc0c1e7db):
+ * закрепляем СВЯЗЬ (какой пропс из какого источника), а НЕ защитную обёртку
+ * вокруг неё. Замерено 29.07.2026: оба непрошедших требования этого стража
+ * оказались наказанием за улучшение кода, дефектом продукта — ни одно.
+ * Дословную строку по-прежнему можно передать строкой, где важен именно текст.
+ */
 function requireIn(source, snippet, message) {
-	if (!source.includes(snippet)) missing.push(message);
+	const found =
+		snippet instanceof RegExp ? snippet.test(source) : source.includes(snippet);
+	if (!found) missing.push(message);
 }
 
 function forbidIn(source, snippet, message) {
@@ -53,7 +65,21 @@ requireIn(
 );
 requireIn(
 	appSource,
-	'const patientBillingSummary = useMemo<Dashboard["billingSummary"]>',
+	/*
+	 * ДОСЛОВНАЯ СТРОКА ЗАПРЕЩАЛА ЧЕСТНЫЙ ПРИЗНАК «НЕ ПОСЧИТАНО».
+	 *
+	 * Требовалось ровно `useMemo<Dashboard["billingSummary"]>`, то есть тип БЕЗ
+	 * null. Под этим требованием у сводки не оставалось способа сказать «итога
+	 * нет»: при отсутствии дашборда или невыбранном пациенте
+	 * patientBillingSummary возвращал объект из восьми нулей, и экран финансов
+	 * печатал «Остаток 0 ₽» там, где верное утверждение — «не определено».
+	 * Дословное требование, как и в двух случаях ниже, наказывало за починку.
+	 *
+	 * Закреплена СВЯЗЬ: сводка по пациенту выводится через useMemo и типизирована
+	 * формой Dashboard["billingSummary"]. Нулевой признак (` | null`) допускается,
+	 * подмена типа на чужой — нет.
+	 */
+	/const patientBillingSummary = useMemo<Dashboard\["billingSummary"\](?:\s*\|\s*null)?>/,
 	"App.tsx must derive a patient-scoped finance summary",
 );
 requireIn(
@@ -154,7 +180,15 @@ requireIn(
 );
 requireIn(
 	financeViewSource,
-	"evaluations={clinicalRuleEvaluations}",
+	/*
+	 * ЗАКРЕПЛЕНА СВЯЗЬ, А НЕ ОБЁРТКА. В FinanceView.tsx:278 стоит
+	 * `evaluations={clinicalRuleEvaluations ?? []}` — кто-то добавил запас на
+	 * отсутствие списка правил. Поведение сохранилось и улучшилось, а дословное
+	 * требование за этим не пошло. Требовать написание без `?? []` — значит
+	 * требовать менее безопасный код. Источник пропса закреплён по-прежнему
+	 * точно: подставят другую коллекцию — страж упадёт.
+	 */
+	/evaluations=\{clinicalRuleEvaluations\b/,
 	"FinanceView must render patient-scoped clinical rules",
 );
 forbidIn(
@@ -199,7 +233,22 @@ requireIn(
 );
 requireIn(
 	viteSource,
-	'"/api": apiProxyTarget',
+	/*
+	 * ТРЕБОВАЛСЯ УСТАРЕВШИЙ СОКРАЩЁННЫЙ ВИД ПРОКСИ, И ОН УЖЕ НЕ ГОДИТСЯ.
+	 *
+	 * Дословно требовалось `"/api": apiProxyTarget`. В vite.config.ts:158 стоит
+	 * `"/api": { target: apiProxyTarget, changeOrigin: true, ws: true }`, и
+	 * причина расширения записана рядом (:155-157): при сокращённой форме
+	 * веб-сокет шёл обычным HTTP, рукопожатие с /api/ws/schedule висело до
+	 * таймаута, и компоненты, собирающие адрес от window.location.host (например
+	 * FamilyWalletPanel), не получали обновлений вовсе.
+	 *
+	 * То есть дословное требование велело откатить починку веб-сокетов.
+	 * Закреплено то, что оно защищало на самом деле: адрес прокси /api берётся из
+	 * настраиваемого apiProxyTarget, а не вписан числом. Обе формы записи
+	 * допускаются, подстановка литерального адреса — нет.
+	 */
+	/"\/api":\s*(?:apiProxyTarget\b|\{[^}]*target:\s*apiProxyTarget\b)/,
 	"Vite dev proxy must use the configurable API target",
 );
 forbidIn(

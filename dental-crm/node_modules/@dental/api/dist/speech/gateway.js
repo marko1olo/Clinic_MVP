@@ -38,9 +38,27 @@ function isHallucinatedTranscript(text) {
     if (!trimmed)
         return { hallucinated: false, reason: "" };
     // Check blacklist
+    //
+    // БЫЛО: подстрочное сравнение по ВСЕЙ расшифровке. Врач заканчивал
+    // полутораминутную диктовку словами «...спасибо за внимание» — одно попадание
+    // обнуляло весь корректный текст фрагмента. Галлюцинация Whisper на тишине
+    // это ОТДЕЛЬНАЯ короткая фраза, а не вкрапление в осмысленную речь.
+    // Сравниваем по полному совпадению нормализованного текста (без концевой
+    // пунктуации), что ловит галлюцинации и не режет реальную диктовку.
+    const normalized = trimmed.toLowerCase().replace(/[.!?,;:\s]+$/g, "").trim();
     for (const entry of HALLUCINATION_BLACKLIST) {
         if (typeof entry === "string") {
-            if (trimmed.toLowerCase().includes(entry.toLowerCase())) {
+            const normalizedEntry = entry.toLowerCase().replace(/[.!?,;:\s]+$/g, "").trim();
+            // Ловим два случая:
+            //  • полное совпадение («Продолжение следует»);
+            //  • фраза в начале с коротким «хвостом» — типичная подпись Whisper
+            //    вида «Субтитры создавал DimaTorzok» или «Спасибо за просмотр!..».
+            // Порог хвоста 24 символа выбран так, чтобы отличить подпись от реальной
+            // речи: «Продолжение следует после снятия слепков — второй этап...» имеет
+            // осмысленное продолжение длиннее порога и остаётся в тексте приёма.
+            const isExact = normalized === normalizedEntry;
+            const isDominant = normalized.startsWith(normalizedEntry) && normalized.length <= normalizedEntry.length + 24;
+            if (isExact || isDominant) {
                 return { hallucinated: true, reason: `Blacklisted phrase: "${entry}"` };
             }
         }
@@ -126,7 +144,43 @@ function isWiredServerProvider(providerId) {
 function isLocalSpeechProvider(providerId) {
     return providerId !== "none" && localSpeechProviders.includes(providerId);
 }
+/**
+ * Асинхронное задание источника распознавания не успело завершиться за бюджет
+ * ожидания CRM.
+ *
+ * Отдельный класс нужен потому, что это НЕ отказ ключа и НЕ сетевой таймаут:
+ * каждый HTTP-запрос прошёл успешно, кончилось время, которое ждал сервер. Раньше
+ * здесь бросался обычный Error, и speechProviderFailureReason() сводил его к
+ * общему «источник распознавания не вернул готовый текст» — врач читал это как
+ * «провайдер молчит», хотя правда была «мы сами перестали спрашивать через N
+ * секунд». Точная причина обязана доходить до врача: от неё зависит, повторять
+ * отправку или укорачивать запись.
+ */
+export class SpeechAsyncJobTimeoutError extends Error {
+    providerLabel;
+    waitedMs;
+    pollCount;
+    constructor(input) {
+        super(`${input.providerLabel}: задание распознавания не завершилось за ${Math.round(input.waitedMs / 1000)} сек. (опросов ${input.pollCount}).`);
+        this.name = "SpeechAsyncJobTimeoutError";
+        this.providerLabel = input.providerLabel;
+        this.waitedMs = input.waitedMs;
+        this.pollCount = input.pollCount;
+    }
+}
+/**
+ * Признаки запроса, который не доехал: обрыв сокета, DNS, сетевой таймаут. Такая
+ * ошибка говорит о канале, а не о содержимом задания у провайдера.
+ */
+const transientNetworkFailurePattern = /fetch failed|network|econnreset|econnrefused|etimedout|timeout|socket|terminated|temporar|dns|enotfound/;
+function looksLikeTransientNetworkFailure(error) {
+    const message = sanitizeProviderErrorMessage(error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+    return transientNetworkFailurePattern.test(message);
+}
 function speechProviderFailureReason(error) {
+    if (error instanceof SpeechAsyncJobTimeoutError) {
+        return `задание распознавания не завершилось за ${Math.round(error.waitedMs / 1000)} сек. после ${error.pollCount} опросов; результат этого задания CRM уже не получит, отправьте фрагмент заново`;
+    }
     if (error instanceof SpeechProviderRequestError) {
         if (error.timedOut)
             return "источник распознавания не ответил вовремя";
@@ -139,13 +193,12 @@ function speechProviderFailureReason(error) {
         if (error.statusCode)
             return "источник отклонил аудиофрагмент";
     }
-    const message = sanitizeProviderErrorMessage(error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
-    if (/fetch failed|network|econnreset|econnrefused|etimedout|timeout|socket|terminated|temporar|dns|enotfound/.test(message)) {
+    if (looksLikeTransientNetworkFailure(error)) {
         return "нет устойчивого соединения с источником распознавания";
     }
     return "источник распознавания не вернул готовый текст";
 }
-function publicSpeechProviderFailure(providerLabel, error) {
+export function publicSpeechProviderFailure(providerLabel, error) {
     return `${providerLabel}: ${speechProviderFailureReason(error)}; локальный черновик и очередь повтора сохранены.`;
 }
 function providerConnector(providerId) {
@@ -1202,8 +1255,179 @@ async function transcribeDeepgram(input) {
         warnings: []
     };
 }
-async function transcribeAssemblyAi(input) {
-    const uploadResponse = await fetchWithProviderTimeout("https://api.assemblyai.com/v2/upload", {
+/**
+ * Базовый адрес AssemblyAI. Вынесен в окружение не ради стиля: удаление данных в
+ * европейском контуре провайдера обслуживает отдельный хост
+ * (`api.eu.assemblyai.com`), и клиника, обязанная удалять записи в ЕС, должна
+ * указывать его настройкой, а не правкой кода. Неверное значение не подменяется
+ * молча на дефолт — иначе аудио уходило бы в другой контур, чем думает клиника.
+ */
+function assemblyAiBaseUrl() {
+    const configured = (process.env.ASSEMBLYAI_API_BASE_URL ?? "").trim();
+    if (!configured)
+        return "https://api.assemblyai.com";
+    if (!/^https?:\/\//i.test(configured)) {
+        throw new Error("ASSEMBLYAI_API_BASE_URL должен начинаться с http:// или https://; исправьте серверные настройки распознавания.");
+    }
+    return configured.replace(/\/+$/, "");
+}
+/**
+ * Бюджет ожидания асинхронного задания AssemblyAI.
+ *
+ * БЫЛО: `ASSEMBLYAI_POLL_ATTEMPTS` со значением 15 и жёсткая пауза 1000 мс —
+ * ровно 15 секунд на всё задание. Диктовка приёма в такой срок не укладывается
+ * никогда: провайдер асинхронный, у него есть очередь. Расшифровка при этом
+ * дописывалась на его стороне и после нашего отказа — терялся не результат
+ * провайдера, а наше терпение, и вместе с ним медицинский текст.
+ *
+ * СТАЛО: предел задаётся временем ожидания (`ASSEMBLYAI_POLL_TIMEOUT_MS`), а не
+ * числом попыток. Интервал растёт от `ASSEMBLYAI_POLL_INTERVAL_MS` (короткий
+ * фрагмент по-прежнему подхватывается через секунду) до
+ * `ASSEMBLYAI_POLL_MAX_INTERVAL_MS`, поэтому пятиминутное задание стоит около
+ * двух десятков запросов, а не трёхсот. `ASSEMBLYAI_POLL_ATTEMPTS` сохранён как
+ * потолок числа опросов для тех, кто уже задал его в окружении; по умолчанию он
+ * выводится из бюджета и не срабатывает раньше времени.
+ *
+ * ВНИМАНИЕ ДЛЯ РАЗВЁРНУТЫХ КЛИНИК: смысл `ASSEMBLYAI_POLL_ATTEMPTS` изменился.
+ * Раньше 15 означало «15 опросов по 1000 мс», то есть ровно 15 секунд. Теперь это
+ * только потолок числа опросов поверх бюджета времени, а интервал растёт, поэтому
+ * `ASSEMBLYAI_POLL_ATTEMPTS=15` при дефолтных интервалах даёт около 180 секунд
+ * (1+2+4+8 и дальше по 15 с), а не 15 и не 300. Кто хочет прежние 15 секунд —
+ * задаёт `ASSEMBLYAI_POLL_TIMEOUT_MS=15000`; кто хочет полный бюджет — снимает
+ * `ASSEMBLYAI_POLL_ATTEMPTS`. Полный перечень настроек лежит в `.env.example`.
+ */
+function assemblyAiPollPolicy() {
+    const budgetMs = numberFromEnv("ASSEMBLYAI_POLL_TIMEOUT_MS", 300_000);
+    const firstIntervalMs = numberFromEnv("ASSEMBLYAI_POLL_INTERVAL_MS", 1_000);
+    const maxIntervalMs = Math.max(firstIntervalMs, numberFromEnv("ASSEMBLYAI_POLL_MAX_INTERVAL_MS", 15_000));
+    return {
+        budgetMs,
+        firstIntervalMs,
+        maxIntervalMs,
+        maxAttempts: numberFromEnv("ASSEMBLYAI_POLL_ATTEMPTS", Math.max(1, Math.ceil(budgetMs / firstIntervalMs))),
+        // Math.max(1, ...) не декорация: numberFromEnv округляет вниз, поэтому
+        // дробное значение вида 0.5 дало бы ноль и запретило бы любой опрос.
+        failureTolerance: Math.max(1, numberFromEnv("ASSEMBLYAI_POLL_FAILURE_TOLERANCE", 3))
+    };
+}
+/**
+ * Можно ли считать неудачу ОДНОГО опроса задания поводом продолжать ожидание.
+ *
+ * БЫЛО: любой не-2xx ответ опроса и любое брошенное исключение убивали задание,
+ * которое в этот момент было живо у провайдера, и код тут же удалял расшифровку.
+ * 429 на третьем опросе из двадцати четырёх уносил диктовку приёма безвозвратно,
+ * хотя провайдер закончил бы её на пятом. Для очередного асинхронного провайдера
+ * это не редкость, а самый вероятный способ потерять текст.
+ *
+ * 429/408/5xx и обрыв канала описывают КОНКРЕТНЫЙ ЗАПРОС, а не судьбу задания:
+ * задание у провайдера продолжает считаться, и следующий опрос его увидит.
+ * 401/403 (доступ отклонён), 404 (задания больше нет) и 4xx-ошибки формата
+ * повторять бессмысленно — они терминальны, и там задание действительно нужно
+ * закрывать вместе с удалением аудио.
+ */
+function isRecoverablePollFailure(error) {
+    if (error instanceof SpeechProviderRequestError) {
+        if (error.timedOut || error.rateLimited)
+            return true;
+        const statusCode = error.statusCode;
+        return statusCode === 408 || (statusCode !== null && statusCode >= 500);
+    }
+    return looksLikeTransientNetworkFailure(error);
+}
+function assemblyAiDeleteTimeoutMs() {
+    return numberFromEnv("ASSEMBLYAI_DELETE_TIMEOUT_MS", 10_000);
+}
+function assemblyAiDeleteAttempts() {
+    return Math.max(1, numberFromEnv("ASSEMBLYAI_DELETE_ATTEMPTS", 2));
+}
+/**
+ * Пауза между опросами задания. Таймер снимается в собственном обработчике,
+ * поэтому после срабатывания не остаётся ни хэндла, ни ссылки на замыкание.
+ */
+function waitBetweenPolls(ms) {
+    return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+            clearTimeout(timer);
+            resolve();
+        }, ms);
+    });
+}
+/**
+ * Удаление расшифровки и загруженного аудио на стороне AssemblyAI.
+ *
+ * `DELETE /v2/transcript/{id}` удаляет данные расшифровки, а файл, загруженный
+ * через `/v2/upload`, провайдер удаляет вместе с ней (документация
+ * assemblyai.com/docs/api-reference/transcripts/delete). Это единственный
+ * документированный способ убрать голос пациента из внешнего контура, и до
+ * появления этого вызова утверждение продукта «сервер удаляет исходное аудио
+ * после обработки» было ложью: загруженное аудио и текст оставались у провайдера
+ * бессрочно.
+ *
+ * 404 считается достигнутой целью: объекта на стороне провайдера уже нет.
+ * Тело ответа содержит расшифровку целиком и намеренно не читается — поток
+ * закрывается, медицинский текст не попадает ни в лог, ни в память лишний раз.
+ */
+async function deleteAssemblyAiTranscript(input) {
+    const attemptLimit = assemblyAiDeleteAttempts();
+    let failureReason = null;
+    for (let attempt = 1; attempt <= attemptLimit; attempt += 1) {
+        try {
+            const response = await fetchWithProviderTimeout(`${assemblyAiBaseUrl()}/v2/transcript/${encodeURIComponent(input.transcriptId)}`, {
+                method: "DELETE",
+                headers: { Authorization: input.apiKey }
+            }, assemblyAiDeleteTimeoutMs());
+            await response.body?.cancel().catch(() => undefined);
+            if (response.ok || response.status === 404) {
+                return { deleted: true, attempts: attempt, failureReason: null };
+            }
+            failureReason = sanitizeProviderErrorMessage(`${response.status} ${response.statusText}`);
+        }
+        catch (error) {
+            failureReason = sanitizeProviderErrorMessage(error instanceof Error ? error.message : String(error ?? ""));
+        }
+    }
+    return {
+        deleted: false,
+        attempts: attemptLimit,
+        failureReason: failureReason ?? "источник не подтвердил удаление"
+    };
+}
+/**
+ * Неудачное удаление обязано быть записано и показано. Провал уходит и в лог
+ * сервера, и в предупреждения фрагмента: оттуда он попадает в ответ API, в сборку
+ * записи и в долговременную строку `ai_jobs`. Успешное удаление молчит — это
+ * штатный ход, а лишнее предупреждение перевело бы качество фрагмента в `review`
+ * на каждой удачной диктовке.
+ */
+function reportRemoteArtifactDeletion(input) {
+    if (input.deletion.deleted)
+        return;
+    const warning = `${input.providerLabel}: не удалось удалить загруженное аудио и расшифровку у источника (${(input.deletion.failureReason ?? "причина не сообщена").slice(0, 80)}), попыток ${input.deletion.attempts}. Запись голоса пациента осталась у внешнего источника: удалите её в его панели.`;
+    console.error(`[SpeechGateway] ${warning}`);
+    input.warnings.push(warning);
+}
+/**
+ * Живое задание, от которого CRM отказалась, обязано быть названо вслух.
+ *
+ * Молчание здесь и было вторым дефектом того же класса: цикл опроса выходил
+ * наружу, расшифровка удалялась, а в предупреждениях фрагмента не оставалось ни
+ * слова о том, что текст приёма существовал у провайдера и был брошен. Сообщение
+ * уходит и в журнал сервера, и в предупреждения фрагмента — то есть в ответ API,
+ * в сборку записи и в строку `ai_jobs`.
+ */
+function reportAbandonedRemoteJob(input) {
+    const reason = speechProviderFailureReason(input.failure);
+    const cause = input.budgetExhausted
+        ? `бюджет ожидания истёк, а последние неудачные опросы (${input.consecutiveFailures}) так и не прошли: ${reason}`
+        : `${input.consecutiveFailures} опроса задания подряд не прошли: ${reason}`;
+    const warning = `${input.providerLabel}: ${cause} (всего опросов ${input.pollCount}). Задание распознавания у источника оставалось в работе, но CRM прекратила ожидание и запрашивает удаление задания вместе с загруженным аудио, поэтому текст этого фрагмента получить уже нельзя — отправьте фрагмент заново.`;
+    console.error(`[SpeechGateway] ${warning}`);
+    input.warnings.push(warning);
+}
+export async function transcribeAssemblyAi(input) {
+    const providerLabel = providerLabels.assemblyai_async;
+    const baseUrl = assemblyAiBaseUrl();
+    const uploadResponse = await fetchWithProviderTimeout(`${baseUrl}/v2/upload`, {
         method: "POST",
         headers: {
             Authorization: input.apiKey,
@@ -1215,7 +1439,7 @@ async function transcribeAssemblyAi(input) {
     if (!uploadResponse.ok || !uploadPayload.upload_url) {
         throw providerHttpError(uploadResponse.status, uploadResponse.statusText, uploadPayload.error);
     }
-    const transcriptResponse = await fetchWithProviderTimeout("https://api.assemblyai.com/v2/transcript", {
+    const transcriptResponse = await fetchWithProviderTimeout(`${baseUrl}/v2/transcript`, {
         method: "POST",
         headers: {
             Authorization: input.apiKey,
@@ -1229,31 +1453,131 @@ async function transcribeAssemblyAi(input) {
         })
     });
     const transcriptPayload = (await transcriptResponse.json().catch(() => ({})));
-    if (!transcriptResponse.ok || !transcriptPayload.id) {
+    const transcriptId = transcriptPayload.id;
+    if (!transcriptResponse.ok || !transcriptId) {
+        // Аудио уже во внешнем контуре, а удалять его провайдер умеет только вместе
+        // с расшифровкой, которой не создалось. Молчать об этом нельзя.
+        input.warnings.push(`${providerLabel}: аудио загружено, но задание распознавания не создано; удалить такой файл можно только вместе с расшифровкой, поэтому он остаётся у источника до его собственной очистки.`);
         throw providerHttpError(transcriptResponse.status, transcriptResponse.statusText, transcriptPayload.error);
     }
-    const pollAttempts = numberFromEnv("ASSEMBLYAI_POLL_ATTEMPTS", 15);
-    for (let attempt = 0; attempt < pollAttempts; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const pollResponse = await fetchWithProviderTimeout(`https://api.assemblyai.com/v2/transcript/${transcriptPayload.id}`, {
-            headers: { Authorization: input.apiKey }
+    const removeRemoteArtifacts = async () => {
+        reportRemoteArtifactDeletion({
+            providerLabel,
+            deletion: await deleteAssemblyAiTranscript({ apiKey: input.apiKey, transcriptId }),
+            warnings: input.warnings
         });
-        const pollPayload = (await pollResponse.json().catch(() => ({})));
-        if (!pollResponse.ok) {
-            throw providerHttpError(pollResponse.status, pollResponse.statusText, pollPayload.error);
-        }
-        if (pollPayload.status === "completed") {
-            return {
-                text: pollPayload.text?.trim() ?? "",
-                confidence: typeof pollPayload.confidence === "number" ? pollPayload.confidence : null,
-                warnings: []
-            };
-        }
-        if (pollPayload.status === "error") {
-            throw new Error("AssemblyAI не вернул готовый текст; локальный черновик сохранен, повторите отправку позже.");
+    };
+    const policy = assemblyAiPollPolicy();
+    const startedAt = Date.now();
+    let intervalMs = policy.firstIntervalMs;
+    let pollCount = 0;
+    let completed = null;
+    let failure = null;
+    // Итог опроса собирается в переменные, а не разбрасывается по return/throw
+    // внутри цикла: удаление аудио у провайдера обязано произойти РОВНО ОДИН раз и
+    // на КАЖДОМ выходе, включая обрыв связи посреди опроса. Ранняя версия этого
+    // патча удаляла на четырёх выходах и пропускала пятый — упавший запрос опроса
+    // уносил управление наружу, и голос пациента оставался у провайдера молча.
+    //
+    // Выход из цикла разрешён только на ТЕРМИНАЛЬНОМ исходе: готовый текст,
+    // `status:"error"` у провайдера, исчерпанный бюджет, неповторяемая ошибка или
+    // исчерпанный запас неудачных опросов. Разовый 429/408/5xx или оборванный сокет
+    // терминальным исходом НЕ является: задание у провайдера в этот момент живо, и
+    // раньше именно такой единичный сбой уносил всю диктовку — а после появления
+    // удаления уносил её безвозвратно.
+    let consecutivePollFailures = 0;
+    let lastPollFailure = null;
+    try {
+        while (pollCount < policy.maxAttempts) {
+            const elapsedMs = Date.now() - startedAt;
+            if (elapsedMs >= policy.budgetMs)
+                break;
+            await waitBetweenPolls(Math.max(1, Math.min(intervalMs, policy.budgetMs - elapsedMs)));
+            intervalMs = Math.min(intervalMs * 2, policy.maxIntervalMs);
+            pollCount += 1;
+            let pollPayload;
+            try {
+                const pollResponse = await fetchWithProviderTimeout(`${baseUrl}/v2/transcript/${encodeURIComponent(transcriptId)}`, {
+                    headers: { Authorization: input.apiKey }
+                });
+                const parsedPayload = (await pollResponse.json().catch(() => ({})));
+                if (!pollResponse.ok) {
+                    throw providerHttpError(pollResponse.status, pollResponse.statusText, parsedPayload.error);
+                }
+                pollPayload = parsedPayload;
+            }
+            catch (pollError) {
+                lastPollFailure = pollError;
+                if (!isRecoverablePollFailure(pollError)) {
+                    failure = pollError;
+                    break;
+                }
+                consecutivePollFailures += 1;
+                // Запас считается «столько подряд неудачных опросов терпим»: при значении 3
+                // первые три сбоя не трогают задание, отказ наступает на четвёртом.
+                if (consecutivePollFailures > policy.failureTolerance) {
+                    reportAbandonedRemoteJob({
+                        providerLabel,
+                        consecutiveFailures: consecutivePollFailures,
+                        pollCount,
+                        failure: pollError,
+                        budgetExhausted: false,
+                        warnings: input.warnings
+                    });
+                    failure = pollError;
+                    break;
+                }
+                // Задание живо, бюджет не исчерпан: интервал уже удвоен выше, поэтому
+                // следующий опрос придёт позже и не добьёт источник, который ограничил
+                // запросы. Запись о самом сбое уходит в журнал сервера, а врача не
+                // трогаем: восстановившийся опрос не повод переводить фрагмент в review.
+                console.warn(`[SpeechGateway] ${providerLabel}: опрос задания N ${pollCount} не прошёл (${speechProviderFailureReason(pollError)}); задание живо, ожидание продолжается, запас неудачных опросов ${consecutivePollFailures}/${policy.failureTolerance}.`);
+                continue;
+            }
+            consecutivePollFailures = 0;
+            lastPollFailure = null;
+            if (pollPayload.status === "completed") {
+                completed = {
+                    text: pollPayload.text?.trim() ?? "",
+                    confidence: typeof pollPayload.confidence === "number" ? pollPayload.confidence : null,
+                    warnings: []
+                };
+                break;
+            }
+            if (pollPayload.status === "error") {
+                failure = new Error("AssemblyAI не вернул готовый текст; локальный черновик сохранен, повторите отправку позже.");
+                break;
+            }
         }
     }
-    throw new Error("AssemblyAI не успел обработать фрагмент. Укоротите запись или отправьте позже; локальный черновик сохранен.");
+    catch (error) {
+        failure = error;
+    }
+    // Бюджет кончился на серии неудачных опросов: врач обязан узнать, что ожидание
+    // упёрлось в отказы запросов, а не в медлительность источника.
+    if (failure === null && completed === null && consecutivePollFailures > 0 && lastPollFailure !== null) {
+        reportAbandonedRemoteJob({
+            providerLabel,
+            consecutiveFailures: consecutivePollFailures,
+            pollCount,
+            failure: lastPollFailure,
+            budgetExhausted: true,
+            warnings: input.warnings
+        });
+    }
+    const waitedMs = Date.now() - startedAt;
+    await removeRemoteArtifacts();
+    // `failure !== null`, а не `if (failure)`: брошенное значение вида 0, "" или
+    // undefined иначе подменялось бы истёкшим ожиданием — то есть ложной причиной
+    // отказа, ровно тем классом дефекта, который этот модуль и вычищает.
+    if (failure !== null)
+        throw failure;
+    if (completed)
+        return completed;
+    // Бюджет ожидания исчерпан. Идентификатор задания нигде не хранится, поэтому
+    // ни один повтор до него уже не дотянется — оставлять аудио у провайдера значит
+    // держать голос пациента снаружи без единого шанса им воспользоваться.
+    throw new SpeechAsyncJobTimeoutError({ providerLabel, waitedMs, pollCount });
 }
 async function transcribeCloudflareWhisper(input) {
     const accountId = cloudflareAccountId();
@@ -1399,7 +1723,8 @@ async function transcribeWithProvider(input) {
                     apiKey: keyCandidate.value,
                     audio: input.audio,
                     mimeType: input.mimeType,
-                    language: input.language
+                    language: input.language,
+                    warnings: input.warnings
                 });
             }
             else if (input.providerId === "cloudflare_whisper") {
@@ -1434,6 +1759,12 @@ async function transcribeWithProvider(input) {
         }
         catch (error) {
             lastError = error;
+            if (error instanceof SpeechAsyncJobTimeoutError) {
+                // Ключ ни при чём: все запросы прошли, кончился наш бюджет ожидания.
+                // Ни отметки отказа ключа, ни повтора другим ключом — повтор означал бы
+                // ещё одну полную загрузку аудио и ещё один такой же бюджет.
+                break;
+            }
             recordProviderKeyFailure(input.providerId, keyCandidate, error);
             if (!shouldTryNextProviderKey(error))
                 break;
@@ -1441,7 +1772,10 @@ async function transcribeWithProvider(input) {
     }
     const summary = getProviderKeyPoolSummary(input.providerId);
     const detail = publicProviderFailureReason(lastError);
-    if (lastError instanceof SpeechProviderRequestError) {
+    if (lastError instanceof SpeechAsyncJobTimeoutError || lastError instanceof SpeechProviderRequestError) {
+        // Обёртка в обычный Error стирала тип, а вместе с ним и точную причину:
+        // выше остаётся только текст сообщения, по которому истёкший бюджет ожидания
+        // уже не отличить от молчания провайдера.
         throw lastError;
     }
     throw new Error(`${providerLabels[input.providerId]} не распознал фрагмент после ${triedFingerprints.size}/${maxAttempts} попыток; доступных маршрутов ${summary.availableKeyCount}/${summary.configuredKeyCount}. ${detail}. Локальный черновик и очередь повтора сохранены.`);
@@ -1486,7 +1820,8 @@ export async function transcribeSpeechChunk(input) {
                     mimeType: input.mimeType,
                     language: input.language,
                     specialty: input.specialty ?? null,
-                    source: input.source
+                    source: input.source,
+                    warnings
                 });
                 usedProviderId = providerId;
                 usedProviderLabel = providerLabels[providerId];
@@ -1495,10 +1830,22 @@ export async function transcribeSpeechChunk(input) {
                 if (providerResult.text) {
                     const hallucinationCheck = isHallucinatedTranscript(providerResult.text);
                     if (hallucinationCheck.hallucinated) {
-                        // Hallucination means the chunk had no real speech (silence/noise).
-                        // No point forwarding to next provider — silently discard.
-                        responseStatus = "transcribed";
-                        transcript = "";
+                        // Фрагмент распознан как галлюцинация на тишине/шуме.
+                        //
+                        // БЫЛО: статус ставился "transcribed" с пустым текстом. Из-за этого
+                        // ветка восстановления ниже не срабатывала, и УЖЕ ИМЕЮЩИЙСЯ
+                        // локальный текст браузера тоже выбрасывался. Причина при этом
+                        // вычислялась, но никуда не попадала: сборщик записи не помечал
+                        // пропуск, и в заметке приёма молча исчезал кусок без следа.
+                        warnings.push(`Фрагмент распознан как шум и не добавлен в текст (${hallucinationCheck.reason}).`);
+                        if (localTranscript) {
+                            transcript = localTranscript;
+                            responseStatus = "fallback_text";
+                        }
+                        else {
+                            transcript = "";
+                            responseStatus = "transcribed";
+                        }
                         break;
                     }
                     else {

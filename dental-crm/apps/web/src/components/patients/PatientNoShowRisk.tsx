@@ -7,9 +7,26 @@ import {
 import type React from "react";
 import { useEffect, useState } from "react";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
+import type { PanelSubject } from "../../lib/panelStateText";
+import { PanelLoadFailure } from "../PanelLoadFailure";
 
 export type PatientNoShowRiskProps = {
 	patientId: string | null;
+};
+
+/**
+ * Тексты отказа расчёта. Берём общий вид отказа панелей, чтобы на одном экране
+ * карточки не появилось второго языка ошибок: рядом стоят рекламации, задачи и
+ * блокировка записи, и все они сообщают о непрочитанных данных одинаково.
+ */
+const NO_SHOW_SUBJECT: PanelSubject = {
+	notLoadedTitle: "Риск неявки не рассчитан",
+	accusative: "оценку риска неявки",
+	emptyTitle: "Риск неявки не рассчитан",
+	emptyHint:
+		"Расчёт опирается на историю записей пациента: сколько раз приходил, сколько отменял.",
+	failureConsequence:
+		"Расчёт не выполнен, поэтому пациента нельзя считать ни надёжным, ни рискованным. Позвоните и подтвердите запись обычным порядком.",
 };
 
 export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
@@ -17,61 +34,105 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 }) => {
 	const [loading, setLoading] = useState(false);
 	const [riskData, setRiskData] = useState<any>(null);
+	// Кнопка «Рассчитать AI-риск» перезапускает тот же эффект, а не отдельную
+	// функцию: иначе ручной запрос остался бы без отмены и снова мог бы
+	// показать чужой прогноз.
+	const [reloadToken, setReloadToken] = useState(0);
+	/*
+	 * БЫЛО: отказ сервера не сохранялся нигде. Ветка `if (res.ok)` без `else` и
+	 * `catch` с одним console.error оставляли riskData равным null, а на null
+	 * виджет рисует приглашение «Рассчитать риск» с кнопкой. Администратор жал
+	 * кнопку, видел «Считаем…», через секунду возвращался тот же экран — и так
+	 * сколько угодно раз: кнопка не делала ничего и не объясняла, почему. Ни
+	 * одного слова о том, что расчёт не выполнен, на экране не было.
+	 */
+	const [failure, setFailure] = useState<{ status: number | null } | null>(null);
 
+	// Прогноз запрашивается через POST, поэтому общий хук usePatientResource
+	// (он делает GET) здесь не подходит — отмена сделана вручную.
+	// БЫЛО: состояние сбрасывалось, но устаревший ответ не отбрасывался.
+	// Ответ по ранее выбранному пациенту, пришедший позже, показывал его
+	// риск неявки на карточке текущего.
 	useEffect(() => {
-		if (patientId) {
+		if (!patientId) {
 			setRiskData(null);
-			fetchRisk(patientId);
-		}
-	}, [patientId]);
-
-	const fetchRisk = async (id: string) => {
-		setLoading(true);
-		try {
-			const res = await fetch("/api/ai/predict-no-show", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...denteAdminSecretRequestHeaders(),
-				},
-				body: JSON.stringify({ patientId: id }),
-			});
-			if (res.ok) {
-				const data = await res.json();
-				setRiskData(data);
-			}
-		} catch (e) {
-			console.error("Failed to fetch AI no-show risk", e);
-		} finally {
+			setFailure(null);
 			setLoading(false);
+			return;
 		}
-	};
+		setRiskData(null);
+		setFailure(null);
+		setLoading(true);
+
+		const controller = new AbortController();
+		let cancelled = false;
+
+		(async () => {
+			try {
+				const res = await fetch("/api/ai/predict-no-show", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						...denteAdminSecretRequestHeaders(),
+					},
+					body: JSON.stringify({ patientId }),
+					signal: controller.signal,
+				});
+				if (cancelled) return;
+				if (res.ok) {
+					const data = await res.json().catch(() => null);
+					if (cancelled) return;
+					// Ответ 200 без разбираемого тела — тоже не расчёт.
+					if (data) setRiskData(data);
+					else setFailure({ status: res.status });
+				} else {
+					setFailure({ status: res.status });
+				}
+			} catch (e) {
+				if (cancelled || (e as Error)?.name === "AbortError") return;
+				console.error("Failed to fetch AI no-show risk", e);
+				setFailure({ status: null });
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+			controller.abort();
+		};
+	}, [patientId, reloadToken]);
 
 	if (!patientId) return null;
 
-	const getRiskColor = (level: string) => {
+	const getRiskClass = (level: string) => {
 		switch (level) {
 			case "high":
-				return "#EF4444";
+				return "text-red-600 dark:text-red-400";
 			case "medium":
-				return "#F59E0B";
+				return "text-amber-600 dark:text-amber-400";
 			case "low":
-				return "#10B981";
+				return "text-emerald-600 dark:text-emerald-400";
 			default:
-				return "#6B7280";
+				return "text-slate-600 dark:text-slate-400";
 		}
 	};
 
+	/*
+	 * БЫЛО: «Высокий риск (High)», «Средний риск (Medium)», «Низкий риск (Low)» —
+	 * английское слово в скобках рядом с русским. Оно ничего не добавляет тому,
+	 * кто сидит за стойкой, и превращает подпись в надпись для разработчика.
+	 */
 	const getRiskLabel = (level: string) => {
 		switch (level) {
 			case "high":
-				return "Высокий риск (High)";
+				return "Высокий риск";
 			case "medium":
-				return "Средний риск (Medium)";
+				return "Средний риск";
 			case "low":
-				return "Низкий риск (Low)";
+				return "Низкий риск";
 			default:
-				return "Неизвестно";
+				return "Риск не определён";
 		}
 	};
 
@@ -88,7 +149,12 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 		}
 	};
 
-	const formatRub = (n: number) => n.toLocaleString("ru-RU") + " ₽";
+	/*
+	 * Здесь лежала своя формула денег: `n.toLocaleString("ru-RU") + " ₽"`. Она
+	 * ничего не форматировала в этом файле — ни одного вызова — и при этом теряла
+	 * копейки и расходилась с общей money() из AppHelpers. Второй владелец
+	 * денежного формата, ждущий первого использования, удалён.
+	 */
 
 	return (
 		<div
@@ -100,15 +166,27 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 				title="Машинный расчет риска отмены записи пациента"
 			>
 				<BrainCircuit size={18} className="text-emerald-600 dark:text-emerald-400" />
+				{/* БЫЛО: «AI-Прогноз неявки на приём». Латиница в заголовке того,
+				    что читает администратор у стойки. */}
 				<span className="text-sm font-semibold">
-					AI-Прогноз неявки на приём
+					Придёт ли пациент на приём
 				</span>
 			</h3>
 
 			{loading ? (
 				<div className="text-xs text-slate-500 dark:text-slate-400 py-3">
-					Анализ данных пациента...
+					Считаем по истории пациента…
 				</div>
+			) : failure ? (
+				/*
+					Отказ расчёта ВМЕСТО приглашения посчитать: иначе кнопка выглядит
+					неработающей, а экран не сообщает, что расчёт не выполнен.
+				*/
+				<PanelLoadFailure
+					subject={NO_SHOW_SUBJECT}
+					status={failure.status}
+					onRetry={() => setReloadToken((token) => token + 1)}
+				/>
 			) : riskData ? (
 				<div>
 					<div
@@ -117,8 +195,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 						<div className="flex items-center gap-2">
 							{getRiskIcon(riskData.riskLevel)}
 							<span
-								className="text-sm font-semibold"
-								style={{ color: getRiskColor(riskData.riskLevel) }}
+								className={`text-sm font-semibold ${getRiskClass(riskData.riskLevel)}`}
 							>
 								{getRiskLabel(riskData.riskLevel)}
 							</span>
@@ -126,7 +203,8 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 						<div
 							className="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200 border border-blue-200 dark:border-blue-800"
 						>
-							{Math.round((riskData.noShowProbability || 0) * 100)}% вероятности
+							Вероятность неявки:{" "}
+							{Math.round((riskData.noShowProbability || 0) * 100)}%
 						</div>
 					</div>
 
@@ -154,10 +232,11 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 					</span>
 					<button
 						type="button"
-						onClick={() => fetchRisk(patientId)}
-						className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm"
+						onClick={() => setReloadToken((token) => token + 1)}
+						disabled={loading}
+						className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
 					>
-						Рассчитать AI-риск
+						{loading ? "Считаем…" : "Посчитать риск"}
 					</button>
 				</div>
 			)}

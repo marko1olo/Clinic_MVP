@@ -1,303 +1,144 @@
-import type {
-	DicomViewerWorkbenchManifestResponse,
-	DicomWorkstationReadinessResponse,
-	MprWindowPreset,
-} from "@dental/shared";
-import {
-	CheckCircle2,
-	ClipboardCheck,
-	Database,
-	ExternalLink,
-	FileText,
-	Gauge,
-	History,
-	ImageIcon,
-	Layers3,
-	RefreshCw,
-	RotateCcw,
-	ScanSearch,
-} from "lucide-react";
-import type { ChangeEvent } from "react";
-import { CtPlanningToolsPanel } from "../../../ctPlanningTools";
-
-type MprClinicalPreset =
-	import("../../../mprClinicalStatus").MprClinicalPresetFitTarget;
-
-import { useAppLogicContext } from "../../../contexts/AppLogicContext";
+import type { IntegrationPreset } from "@dental/shared";
+import { Database } from "lucide-react";
 import { useSettingsDerivations } from "../../../useSettingsDerivations";
+import {
+	integrationCapabilityLabels,
+	integrationCategoryLabels,
+	integrationStatusLabels,
+} from "../../../workspaceUiLabels";
+import { humanizeIntegrationInput } from "../SettingsViewHelpers";
 
-type StringTokenGroup = { title: string; items: string[] };
-type CbctWorkbenchPlane = { key: string; title: string; detail: string };
-type TextInputChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
-type InputChangeEvent = ChangeEvent<HTMLInputElement>;
+/*
+ * ЗАМЕР, КОТОРЫЙ ОТМЕНИЛ ПРЕДЫДУЩУЮ ПОПЫТКУ. Первая правка этого пакета объявила
+ * контракт как `Pick<ReturnType<typeof useSettingsDerivations>, ...>` и утверждала,
+ * что несуществующее имя станет ошибкой TS2344. ЭТО НЕВЕРНО. Копия файла с ключом
+ * `"totallyBogusKeyName"` в `Pick` компилируется МОЛЧА; канарейка
+ * (`const x: number = "строка"`) в той же копии ошибку даёт, значит копия в программе.
+ * Причина: `ReturnType<typeof useSettingsDerivations>` и
+ * `ReturnType<typeof useAppLogicContext>` РАВНЫ `any` — проверено предикатом
+ * `type IsAny<T> = 0 extends 1 & T ? "ANY" : "NOT_ANY"`: присваивание `"NOT_ANY"`
+ * отвергается, присваивание `"ANY"` проходит для обоих типов. `keyof any` — это
+ * `string | number | symbol`, поэтому `Pick` по `any` принимает любой ключ, а
+ * `noImplicitAny: false` в tsconfig.base гасит любое предупреждение об этом.
+ *
+ * ОТСЮДА ДВА ПРАВИЛА ФАЙЛА.
+ *
+ * 1. Подписи — не состояние. `integrationCapabilityLabels`,
+ *    `integrationCategoryLabels`, `integrationStatusLabels` — константы
+ *    `workspaceUiLabels`; `useAppLogic` импортирует их (строки 904-906) и возвращает
+ *    без изменений (строки 14065-14067), локализации по пути нет. Прямой импорт даёт
+ *    `Record<IntegrationCapability, string>` и родню вместо `any`, а опечатка в имени
+ *    становится ошибкой TS2305 на импорте.
+ *
+ * 2. Единственное настоящее состояние здесь — `dashboard`, и оно читается через
+ *    ЯВНО ОБЪЯВЛЕННЫЙ структурный тип, а не через `Pick` по `any`. Явный тип
+ *    проверяет чтения ВНУТРИ компонента даже когда источник `any`: обращение к полю,
+ *    которого в типе нет, — ошибка TS2339. Это и есть та проверка, которой не было.
+ *    Оговорка честности: раз источник `any`, само присваивание компилятором не
+ *    verifiable — форма ниже сверена с `clinicSettingsSchema` в `packages/shared`
+ *    (`integrationPresets: z.array(integrationPresetSchema)`) вручную.
+ *
+ * ЧТО БЫЛО СЛОМАНО ПО СУТИ. Файл читал `integrationPresets` прямо из мешка пропсов,
+ * а такого поля нет ни в возврате `useAppLogic` (return на строке 13771), ни в
+ * возврате `useSettingsDerivations` (return на строке 2254) — есть только
+ * `dashboard.clinicSettings.integrationPresets`. Под `as any` чтение давало
+ * `undefined`, `?? []` превращало его в пустой массив, и `.preset-grid` рендерился
+ * БЕЗ ЕДИНОЙ КАРТОЧКИ: заголовок над пустым местом, ни ошибки в компиляторе, ни
+ * ошибки в консоли. Ещё девятнадцать имён читались тем же способом, до разметки
+ * доходило четыре.
+ */
+type SourcesIntegrationPresetsContract = {
+	dashboard:
+		| { clinicSettings?: { integrationPresets?: IntegrationPreset[] } }
+		| null
+		| undefined;
+};
+
+/*
+ * `preset.riskLevel` — это `"low" | "medium" | "high"` из `integrationPresetSchema`,
+ * и раньше он печатался в русскую строку как есть: «риск low». Тип
+ * `Record<IntegrationPreset["riskLevel"], string>` держит карту полной: добавится
+ * уровень в схему — здесь будет ошибка, а не английское слово на экране. Карта живёт
+ * рядом с разметкой по образцу `WaitlistDrawer`; в `workspaceUiLabels` её не выносим,
+ * этот файл держит другой пакет волны.
+ */
+const integrationPresetRiskLabels: Record<
+	IntegrationPreset["riskLevel"],
+	string
+> = {
+	low: "низкий",
+	medium: "средний",
+	high: "высокий",
+};
 
 export function SourcesIntegrationPresets() {
-	const appLogic = useAppLogicContext();
-	const derivations = useSettingsDerivations();
-	const mergedProps = Object.assign({}, appLogic, derivations) as any;
-	const {
-		imagingConnectorCards,
-		imagingSourceLabels,
-		imagingViewerCapabilities,
-		previewDicomSeries,
-		isDicomSeriesPreviewLoading,
-		dicomSeriesPreview,
-		imagingKindLabels,
-		dicomSeriesViewerLabels,
-		dicomSeriesDisplayText,
-		dicomSeriesWarningText,
-		mprLoadStrategyLabels,
-		mprResourceTierLabels,
-		cbctWorkbenchSeries,
-		mprClinicalNextStep,
-		mprClinicalChecklist,
-		mprOperatorSummaryCards,
-		mprControlsReady,
-		imagingViewerActiveTool,
-		ctPlanningActiveQuickActionId,
-		applyCtPlanningQuickAction,
-		ctPlanningImplantPlan,
-		selectCtPlanningImplantFromSettings,
-		dicomViewerWorkbenchManifest,
-		dicomViewerToolStateBundle,
-		activeDentalModelWorkbenchManifest,
-		localBridgeReadiness,
-		cbctWorkbenchPlanes,
-		cbctWorkbenchProjections,
-		mprSeriesRequiredProjectionLabel,
-		mprUnavailableProjectionLabel,
-		mprProjection,
-		setMprProjection,
-		mprAxisVisualizerStyle,
-		mprAxisVisualizerLabel,
-		handleMprKeyboardNavigation,
-		mprProjectionCompass,
-		mprCrosshairEnabled,
-		mprAxisAngleBadge,
-		mprSlabBadge,
-		mprSliceBadge,
-		mprActiveProjectionLabel,
-		mprActiveProjectionOrientation,
-		mprAxisDirectionLabel,
-		mprSlabMm,
-		mprSliceLabel,
-		mprAxisGuidance,
-		mprWorkbenchSummaryText,
-		mprLinkedPlanesEnabled,
-		mprNearestClinicalPreset,
-		applyNearestMprClinicalPreset,
-		mprProjectionLabels,
-		mprAxisDeg,
-		mprAxisRangeValue,
-		mprAxisBounds,
-		setMprAxisDeg,
-		clampMprAxisDeg,
-		mprAxisNudgeDeg,
-		formatSignedMprStep,
-		mprAxisPresetDeg,
-		mprSlabRangeValue,
-		mprSlabBounds,
-		setMprSlabMm,
-		clampMprSlabMm,
-		mprSlabNudgeMm,
-		mprSlabPresetMm,
-		mprSliceMaxIndex,
-		mprSafeSliceIndex,
-		mprSliceRangeValue,
-		setMprSliceIndex,
-		clampMprSliceIndex,
-		mprSliceNudgeSteps,
-		mprSlicePresetFractions,
-		mprSliceIndexFromFraction,
-		resetMprControls,
-		mprWorkbenchLocalSavedAt,
-		formatTime,
-		mprWorkbenchDraftRestored,
-		restoreMprWorkbenchLocalDraft,
-		mprClinicalPresets,
-		describeMprClinicalPresetProjectionFallback,
-		mprClinicalPresetButtonClass,
-		applyMprClinicalPreset,
-		mprWindowPresetLabels,
-		mprWindowPreset,
-		setMprWindowPreset,
-		setMprCrosshairEnabled,
-		setMprLinkedPlanesEnabled,
-		cbctWorkbenchTools,
-		mprToolLabels,
-		cbctMprBlockers,
-		cbctMprWarnings,
-		mprCacheModeLabels,
-		cbctResourceSafetyCaps,
-
-		dicomWorkstationReadiness,
-		dicomLabel,
-		dicomExecutionLaneLabels,
-		dicomRuntimeTierLabels,
-		dicomGpuClassLabels,
-		dicomQualityModeLabels,
-		dicomTextureStrategyLabels,
-		dicomRenderMemoryBudgetClassLabels,
-		dicomDiagnosticPixelPolicyLabels,
-		isDicomToolStateBuilding,
-		downloadDicomViewerToolStateBundle,
-		integrationPresets,
-		applyIntegrationPreset,
-		dicomIntegrationProfileLabels,
-		isDicomRenderCachePlanning,
-		dicomWorkstationGuidanceId,
-		buildDicomRenderCachePlan,
-		buildDicomViewerToolStateBundle,
-		isDicomWebChecking,
-		dicomArchiveAddressGuidanceId,
-		dicomArchiveAddressReady,
-		checkDicomWebConnector,
-		isDicomManifestBuilding,
-		buildDicomViewerLaunchManifest,
-		isDicomWorkstationChecking,
-		checkDicomWorkstationReadiness,
-		isDicomWorkbenchBuilding,
-		dicomWorkbenchSeriesGuidanceId,
-		buildDicomViewerWorkbenchManifest,
-		setOhifBaseUrl,
-		ohifBaseUrl,
-		setDicomRenderCachePlan,
-		setDicomWorkstationReadiness,
-		setDicomWorkbenchLocalSavedAt,
-		setDicomViewerWorkbenchManifest,
-		setDicomViewerToolStateBundle,
-		setDicomViewerLaunchManifest,
-		setDicomWebCheck,
-		setDicomWebEndpointUrl,
-		dicomWebEndpointUrl,
-
-		humanizeIntegrationInput,
-		integrationCapabilityLabels,
-		integrationStatusLabels,
-		integrationCategoryLabels,
-		humanizeMigrationText,
-		dicomViewerLaunchManifest,
-		dicomReadinessCheckLabels,
-		dicomRenderCachePriorityLabels,
-		clearDicomWorkbenchRecovery,
-		downloadDicomWorkbenchManifest,
-		restoreDicomWorkbenchServerBundle,
-		isDicomWorkbenchReconnecting,
-		imagingFolderPath,
-		reconnectDicomWorkbenchFromCurrentFolder,
-		isDicomWorkbenchServerSaving,
-		saveDicomWorkbenchBundleToServer,
-		dicomWorkbenchSourceIsRedacted,
-		dicomWorkbenchServerBundle,
-		dicomWorkbenchLocalSavedAt,
-		dicomViewerLaunchModeLabels,
-		dicomWebStatusLabels,
-		dicomWebCheck,
-	} = mergedProps;
-
-	const typedImagingConnectorCards = imagingConnectorCards as Array<{
-		title: string;
-		detail: string;
-		source: string;
-	}>;
-	const typedImagingViewerCapabilities = imagingViewerCapabilities as Array<{
-		icon: any;
-		title: string;
-		detail: string;
-		state: string;
-	}>;
-	const typedDicomSeriesPreviewSeries = (dicomSeriesPreview?.series ??
-		[]) as Array<any>;
-	const typedDicomSeriesPreviewParserNotes = (dicomSeriesPreview?.parserNotes ??
-		[]) as Array<string>;
-	const typedImagingViewerActiveTool = imagingViewerActiveTool as any;
-	const typedCtPlanningActiveQuickActionId = ctPlanningActiveQuickActionId as
-		| string
-		| null;
-	const typedCtPlanningImplantPlan = ctPlanningImplantPlan as any | null;
-	const typedDicomViewerWorkbenchManifest =
-		dicomViewerWorkbenchManifest as DicomViewerWorkbenchManifestResponse | null;
-	const typedDicomViewerToolStateBundle = dicomViewerToolStateBundle as
-		| any
-		| null;
-	const typedLocalBridgeReadiness = localBridgeReadiness as any | null;
-	const typedCbctWorkbenchProjections = (cbctWorkbenchProjections ??
-		[]) as string[];
-	const typedCbctWorkbenchTools = (cbctWorkbenchTools ?? []) as string[];
-	const typedCbctMprBlockers = (cbctMprBlockers ?? []) as string[];
-	const typedCbctMprWarnings = (cbctMprWarnings ?? []) as string[];
-	const typedCbctResourceSafetyCaps = (cbctResourceSafetyCaps ??
-		[]) as string[];
-	const typedDicomWorkstationReadiness =
-		dicomWorkstationReadiness as DicomWorkstationReadinessResponse | null;
-	const typedDicomRenderCachePlan = mergedProps.dicomRenderCachePlan as any;
-	const typedIntegrationPresets = (integrationPresets ?? []) as Array<any>;
+	const derivations: SourcesIntegrationPresetsContract =
+		useSettingsDerivations();
+	const integrationPresets: IntegrationPreset[] =
+		derivations.dashboard?.clinicSettings?.integrationPresets ?? [];
 
 	return (
-		<>
-			<section
-				className="integration-presets"
-				aria-label="Пресеты миграции и внешних систем"
-			>
-				<div className="import-copy">
-					<Database aria-hidden="true" />
-					<div>
-						<p className="eyebrow">Источники данных</p>
-						<h2>
-							Старая программа, таблица, бумага и снимки идут через один
-							понятный предпросмотр
-						</h2>
-						<p>
-							Это не кнопки для врача. Это карта миграции для владельца или
-							администратора: что можно разобрать сейчас, где нужна карта полей,
-							а где потребуется отдельное подключение.
-						</p>
-					</div>
+		<section
+			className="integration-presets"
+			aria-label="Пресеты миграции и внешних систем"
+		>
+			<div className="import-copy">
+				<Database aria-hidden="true" />
+				<div>
+					<p className="eyebrow">Источники данных</p>
+					<h2>
+						Старая программа, таблица, бумага и снимки идут через один понятный
+						предпросмотр
+					</h2>
+					<p>
+						Это не кнопки для врача. Это карта миграции для владельца или
+						администратора: что можно разобрать сейчас, где нужна карта полей, а
+						где потребуется отдельное подключение.
+					</p>
 				</div>
-				<div className="preset-grid">
-					{typedIntegrationPresets.map((preset) => (
-						<details
-							className={`preset-card preset-${preset.status}`}
-							key={preset.id}
-							open={preset.status === "usable_now"}
-						>
-							<summary className="preset-card-head">
-								<div>
-									<strong>{preset.title}</strong>
-									<p>
-										{preset.vendor} ·{" "}
-										{integrationCategoryLabels[preset.category]} · риск{" "}
-										{preset.riskLevel}
-									</p>
-								</div>
-								<span>{integrationStatusLabels[preset.status]}</span>
-							</summary>
-							<div
-								className="preset-capabilities"
-								aria-label="Что переносит источник"
-							>
-								{preset.capabilities.slice(0, 6).map((capability) => (
-									<span key={capability}>
-										{integrationCapabilityLabels[capability]}
-									</span>
-								))}
+			</div>
+			<div className="preset-grid">
+				{integrationPresets.map((preset) => (
+					<details
+						className={`preset-card preset-${preset.status}`}
+						key={preset.id}
+						open={preset.status === "usable_now"}
+					>
+						<summary className="preset-card-head">
+							<div>
+								<strong>{preset.title}</strong>
+								<p>
+									{preset.vendor} · {integrationCategoryLabels[preset.category]} ·
+									риск {integrationPresetRiskLabels[preset.riskLevel]}
+								</p>
 							</div>
-							<ul>
-								{preset.migrationNotes.slice(0, 2).map((note) => (
-									<li key={note}>{note}</li>
-								))}
-							</ul>
-							<small>
-								Вход:{" "}
-								{preset.supportedInputs
-									.slice(0, 4)
-									.map(humanizeIntegrationInput)
-									.join(", ")}
-							</small>
-						</details>
-					))}
-				</div>
-			</section>
-		</>
+							<span>{integrationStatusLabels[preset.status]}</span>
+						</summary>
+						<div
+							className="preset-capabilities"
+							aria-label="Что переносит источник"
+						>
+							{preset.capabilities.slice(0, 6).map((capability) => (
+								<span key={capability}>
+									{integrationCapabilityLabels[capability]}
+								</span>
+							))}
+						</div>
+						<ul>
+							{preset.migrationNotes.slice(0, 2).map((note) => (
+								<li key={note}>{note}</li>
+							))}
+						</ul>
+						<small>
+							Вход:{" "}
+							{preset.supportedInputs
+								.slice(0, 4)
+								.map(humanizeIntegrationInput)
+								.join(", ")}
+						</small>
+					</details>
+				))}
+			</div>
+		</section>
 	);
 }

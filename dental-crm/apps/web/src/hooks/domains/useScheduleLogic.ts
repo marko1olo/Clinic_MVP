@@ -20,7 +20,28 @@ import {
 	staffWorkingHoursFromDraft,
 } from "../../AppHelpers";
 import { useScheduleStore } from "../../store/scheduleStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import { useWorkspaceProfileStore } from "../useWorkspaceProfile";
+
+/**
+ * Сервер отказал в изменении расписания и требует секрет администратора.
+ *
+ * Маршруты расписания отвечают `ScheduleAdminSecretRequired`, когда секрет
+ * задан в окружении и не совпал, и `ScheduleAdminSecretMissing`, когда секрет
+ * на сервере не задан вовсе, а незащищённые изменения запрещены. Только в этих
+ * двух случаях у пользователя имеет смысл спрашивать секрет.
+ */
+export async function scheduleAdminSecretRefusal(response: Response): Promise<string | null> {
+	if (response.status !== 403 && response.status !== 503) return null;
+	try {
+		const payload = (await response.clone().json()) as { error?: unknown; message?: unknown };
+		const code = typeof payload.error === "string" ? payload.error : "";
+		if (code !== "ScheduleAdminSecretRequired" && code !== "ScheduleAdminSecretMissing") return null;
+		return code;
+	} catch {
+		return null;
+	}
+}
 
 export function useScheduleLogic({
 	dashboard,
@@ -43,6 +64,7 @@ export function useScheduleLogic({
 	selectedSpecialty,
 }: any) {
 	const scheduleStore = useScheduleStore();
+	const { setScheduleAdminSecretDemand } = useSettingsStore();
 	const {
 		scheduleDoctorFilterId,
 		setScheduleDoctorFilterId,
@@ -597,11 +619,17 @@ export function useScheduleLogic({
 			setError(message);
 			return false;
 		}
-		const isOmni = dashboard?.clinicSettings?.profile?.isOmniRole ?? false;
+		// БЫЛО: сюда передавался булев isOmniRole, а функция ждёт РЕЖИМ клиники
+		// ("solo_doctor" и т.п.). И false, и true не равны "solo_doctor", поэтому
+		// требование выбрать ассистента срабатывало всегда. В режиме solo_doctor
+		// поле ассистента при этом принудительно очищается — условие становилось
+		// невыполнимым, и такая клиника не могла сохранить НИ ОДНУ запись:
+		// кнопка «Сохранить» активна, а сохранение молча возвращает ошибку.
 		const missing = appointmentScheduleMissingFields(
 			draft,
-			isOmni,
+			dashboard?.clinicSettings?.profile?.mode,
 			dashboard?.clinicSettings?.staff,
+			{ chairs: dashboard?.clinicSettings?.chairs, patients: dashboard?.patients },
 		);
 		if (missing.length) {
 			const message = `Перед сохранением записи: ${missing.join("; ")}.`;
@@ -633,10 +661,13 @@ export function useScheduleLogic({
 				}),
 				body: JSON.stringify(appointmentUpdateInputFromDraft(draft)),
 			});
-			if (!response.ok)
+			if (!response.ok) {
+				setScheduleAdminSecretDemand((await scheduleAdminSecretRefusal(response)) ?? "");
 				throw new Error(
 					await responseErrorMessage(response, "Запись не сохранена"),
 				);
+			}
+			setScheduleAdminSecretDemand("");
 			const payload = await response.json();
 			const nextDashboard = payload as any;
 			setDashboard(nextDashboard);
@@ -690,11 +721,12 @@ export function useScheduleLogic({
 	function newAppointmentMissingFields(
 		draft: AppointmentScheduleDraft,
 	): string[] {
-		const isOmni = dashboard?.clinicSettings?.profile?.isOmniRole ?? false;
+		// См. комментарий выше: нужен режим клиники, а не флаг isOmniRole.
 		return appointmentScheduleMissingFields(
 			draft,
-			isOmni,
+			dashboard?.clinicSettings?.profile?.mode,
 			dashboard?.clinicSettings?.staff,
+			{ chairs: dashboard?.clinicSettings?.chairs, patients: dashboard?.patients },
 		);
 	}
 
@@ -732,10 +764,13 @@ export function useScheduleLogic({
 					appointmentCreateInputFromDraft(newAppointmentDraft),
 				),
 			});
-			if (!response.ok)
+			if (!response.ok) {
+				setScheduleAdminSecretDemand((await scheduleAdminSecretRefusal(response)) ?? "");
 				throw new Error(
 					await responseErrorMessage(response, "Запись не создана"),
 				);
+			}
+			setScheduleAdminSecretDemand("");
 			const payload = await response.json();
 			const nextDashboard = payload as any;
 			const createdAppointment =

@@ -1,13 +1,14 @@
 import { create } from "zustand";
-import { loadUiPreferences, defaultUiPreferences } from "../AppHelpers";
+import type { Dashboard } from "@dental/shared";
+import { loadUiPreferences, defaultUiPreferences, settingsTabFromHash, viewFromHash } from "../AppHelpers";
 
 interface AppStore {
   isOmnibarOpen: boolean;
   setOmnibarOpen: (val: boolean) => void;
   uiPreferencesHydrated: any;
   setUiPreferencesHydrated: (val: any) => void;
-  dashboard: any;
-  setDashboard: (val: any) => void;
+  dashboard: Dashboard | null;
+  setDashboard: (val: Dashboard | null | ((current: Dashboard | null) => Dashboard | null)) => void;
   accessUnlockRequired: any;
   setAccessUnlockRequired: (val: any) => void;
   accessUnlockMessage: any;
@@ -245,9 +246,13 @@ export const useAppStore = create<AppStore>((set) => ({
   setClinicProfileSaveState: (val) => set({ clinicProfileSaveState: val }),
   clinicProfileDirty: false,
   setClinicProfileDirty: (val) => set({ clinicProfileDirty: val }),
-  currentView: (() => null)(),
+  // БЫЛО: null. На первом же рендере проверка доступных ролей видела null,
+  // считала раздел запрещённым и принудительно переписывала адрес на #shift.
+  // Из-за этого любая прямая ссылка — #imaging, #settings/telegram — всегда
+  // открывала «Смену», и поделиться ссылкой на раздел было невозможно.
+  currentView: viewFromHash(),
   setCurrentView: (val) => set({ currentView: val }),
-  settingsTab: (() => null)(),
+  settingsTab: settingsTabFromHash(),
   setSettingsTab: (val) => set({ settingsTab: val }),
   selectedWorkspaceRole: (loadUiPreferences() ?? defaultUiPreferences).selectedWorkspaceRole,
   setSelectedWorkspaceRole: (val) => set({ selectedWorkspaceRole: val }),
@@ -271,7 +276,31 @@ export const useAppStore = create<AppStore>((set) => ({
   setNewChairHasMicroscope: (val) => set({ newChairHasMicroscope: val }),
   newChairHasSurgeryKit: false,
   setNewChairHasSurgeryKit: (val) => set({ newChairHasSurgeryKit: val }),
-  newRuleTitle: "Кариес требует снимок и изоляцию",
+  /*
+   * КОНСТРУКТОР КЛИНИЧЕСКИХ ПРАВИЛ НАЧИНАЕТСЯ ПУСТЫМ.
+   *
+   * Здесь стояло готовое правило: название «Кариес требует снимок и изоляцию»,
+   * текст предупреждения и четыре идентификатора услуг вида "svc-therapy-caries".
+   *
+   * Что было сломано этими четырьмя идентификаторами. Такие id есть только в
+   * демонстрационном наборе (apps/api/src/sampleData.ts:598); услуги настоящей
+   * клиники лежат в базе с UUID (schema.ts:2089-2090
+   * `uuid("id").defaultRandom()`). Сопоставление в конструкторе идёт по строгому
+   * равенству id: SettingsRulesTab.tsx:296-308 ищет
+   * `serviceCatalog.find((s) => s.id === newRuleTriggerServiceId)?.title ?? ""`.
+   * Ни одна услуга не находилась, поэтому все четыре поля выглядели ПУСТЫМИ, а в
+   * состоянии лежали несуществующие id — и уходили на сервер как есть
+   * (useAppLogic.tsx:10963-10973: `triggerServiceIds: [newRuleTriggerServiceId]`).
+   * Администратор заполнял название, жал «Создать правило», получал «сохранено»
+   * — и правило не срабатывало никогда, потому что его услуги-триггера не
+   * существует. Проверка перед отправкой требует только название,
+   * предупреждение и текст для пациента (useAppLogic.tsx:10938-10947), про
+   * услуги она не спрашивает.
+   *
+   * Пустые значения не создают правило-призрак: поля показывают свои подсказки,
+   * а выбор услуги из каталога подставляет настоящий id.
+   */
+  newRuleTitle: "",
   setNewRuleTitle: (val) => set({ newRuleTitle: val }),
   newRuleAction: "add_required_service",
   setNewRuleAction: (val) => set({ newRuleAction: val }),
@@ -283,25 +312,60 @@ export const useAppStore = create<AppStore>((set) => ({
   setNewRuleSpecialty: (val) => set({ newRuleSpecialty: val }),
   newRuleCategory: "therapy",
   setNewRuleCategory: (val) => set({ newRuleCategory: val }),
-  newRuleTriggerServiceId: "svc-therapy-caries",
+  newRuleTriggerServiceId: "",
   setNewRuleTriggerServiceId: (val) => set({ newRuleTriggerServiceId: val }),
-  newRuleRequiredServiceId: "svc-therapy-cofferdam",
+  newRuleRequiredServiceId: "",
   setNewRuleRequiredServiceId: (val) => set({ newRuleRequiredServiceId: val }),
-  newRuleCompletedServiceId: "svc-therapy-caries",
+  newRuleCompletedServiceId: "",
   setNewRuleCompletedServiceId: (val) => set({ newRuleCompletedServiceId: val }),
-  newRuleBlockedServiceId: "svc-prosthetics-crown",
+  newRuleBlockedServiceId: "",
   setNewRuleBlockedServiceId: (val) => set({ newRuleBlockedServiceId: val }),
-  newRuleWarningText: "Проверьте обязательные условия до закрытия приема.",
+  newRuleWarningText: "",
   setNewRuleWarningText: (val) => set({ newRuleWarningText: val }),
-  releaseProtectionNote: "личность получателя проверена, лишние данные третьих лиц исключены",
+  /*
+   * ЗАМЕТКА О ЗАЩИТЕ ПЕРЕДАЧИ ДОКУМЕНТОВ НЕ ЗАПОЛНЯЕТСЯ ЗА КЛИНИКУ.
+   *
+   * Здесь стояло «личность получателя проверена, лишние данные третьих лиц
+   * исключены» — то есть в расписку о выдаче медицинских документов заранее
+   * вписывалось утверждение, что личность проверили. Оно уходит в документ как
+   * есть (documentLogic.ts:1224 `deliveryProtectionNote`), и подписывает его
+   * клиника. Проверял ли кто-нибудь паспорт получателя, программа не знает.
+   * Поле обязательно (documentValidators.ts:1546-1549), поэтому пустое значение
+   * не теряется молча: оператор получит человеческое требование заполнить его.
+   */
+  releaseProtectionNote: "",
   setReleaseProtectionNote: (val) => set({ releaseProtectionNote: val }),
-  communicationNote: "Пациенту передана информация, задача закрыта.",
+  /*
+   * ЗАМЕТКА О ЗАКРЫТИИ ЗАДАЧИ СВЯЗИ ТОЖЕ НЕ ЗАПОЛНЯЕТСЯ ЗА СОТРУДНИКА.
+   *
+   * Здесь стояло «Пациенту передана информация, задача закрыта.» Стор не
+   * персистится (обычный zustand create), поэтому эта строка возвращалась в поле
+   * при КАЖДОЙ загрузке страницы — даже если администратор один раз исправил
+   * текст. Запись попадает в журнал клиники (useAppLogic.tsx:12838) как
+   * утверждение сотрудника о том, что он говорил с пациентом; программа этого
+   * не знает. При пустом поле там же подставляется нейтральное «Задача связи
+   * закрыта.» — факт закрытия задачи, а не выдуманный разговор.
+   */
+  communicationNote: "",
   setCommunicationNote: (val) => set({ communicationNote: val }),
-  importText: "ФИО;Телефон;Дата рождения;Комментарий\nИванова Марина Сергеевна;+7 927 111-22-33;21.04.1988;уже есть в базе\nНовый Пациент;+7 927 333-44-55;12.02.1991;перенос из старой МИС\nБез Телефона;;05.08.1975;нужно уточнить контакт",
+  /*
+   * ПОЛЯ ИМПОРТА НАЧИНАЮТСЯ ПУСТЫМИ.
+   *
+   * Здесь стояли выдуманные данные: три пациента с телефонами и датами
+   * рождения, ещё три строки со снимками и путями к файлам, и прайс из десяти
+   * позиций с ценами до 160 000 ₽. Всё это подставлялось в поля импорта при
+   * первом открытии — то есть настоящая клиника видела чужие цены и
+   * несуществующих пациентов уже набранными, и одно нажатие «Разобрать» →
+   * «Загрузить» заносило их в её базу.
+   *
+   * Показывать пример надо подсказкой в пустом поле, а не подставленным
+   * текстом, который невозможно отличить от своего.
+   */
+  importText: "",
   setImportText: (val) => set({ importText: val }),
-  smartImportText: "Новый Пациент Снимков +7 927 444-55-66 12.02.1991 перенос из старой МИС\nНовый Пациент Снимков +7 927 444-55-66 RVG 36 12.05.2026 C:\\Images\\new_patient_36.dcm\nИванова Марина Сергеевна +7 927 111-22-33 ОПТГ 10.05.2026 C:\\Images\\ivanova_opg.png\nслужебная строка без полезных данных",
+  smartImportText: "",
   setSmartImportText: (val) => set({ smartImportText: val }),
-  pricelistText: "Коронка циркониевая MultiLayer 35 000 руб\nКоронка IPS e.max 32 000 руб\nВинир керамический E.max 38 000 руб\nРеставрация композитная Filtek 9 500 руб\nЛечение канала 1 канал 6 800 руб\nИмплантация Straumann BLX 85 000 руб\nАбатмент индивидуальный циркониевый 28 000 руб\nСинус-лифтинг открытый 55 000 руб\nПрофессиональная гигиена Air Flow EMS 6 000 руб\nЭлайнеры Star Smile 160 000 руб",
+  pricelistText: "",
   setPricelistText: (val) => set({ pricelistText: val }),
   pricelistSourceKind: (loadUiPreferences() ?? defaultUiPreferences).pricelistSourceKind,
   setPricelistSourceKind: (val) => set({ pricelistSourceKind: val }),

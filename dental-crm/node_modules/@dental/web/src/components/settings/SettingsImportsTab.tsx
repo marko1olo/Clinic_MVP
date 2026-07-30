@@ -96,7 +96,6 @@ import type {
   ClinicMode,
   Dashboard,
   DentalModelWorkbenchManifest,
-  DentalPricelistAnalysisResponse,
   DentalMaterialKind,
   DentalRestorationType,
   DentalSpecialty,
@@ -150,7 +149,6 @@ import type {
   MigrationProbeArtifact,
   MigrationReadinessItem,
   LocalImagingOrganizerResponse,
-  PricelistSourceKind,
   ProtocolTemplate,
   RoleQueue,
   ServiceCatalogItem,
@@ -189,7 +187,6 @@ type RoleAccessPolicy = DashboardClinicSettings["roleAccessPolicies"][number];
 type WeekdayOption = { value: WeekdayIndex; label: string };
 type TelegramInlineButton = { text: string; target: string; kind: string };
 type TelegramInlineButtonRow = TelegramInlineButton[];
-type StringTokenGroup = { title: string; items: string[] };
 
 function formatBrowserImagingScanElapsed(elapsedMs: number | null | undefined): string {
   const safeMs = typeof elapsedMs === "number" && Number.isFinite(elapsedMs) ? Math.max(0, Math.round(elapsedMs)) : 0;
@@ -738,9 +735,7 @@ export function SettingsImportsTab(props: Record<string, any>) {
     activeWorkspaceProfile,
     addChair,
     addStaffMember,
-    analyzePricelist,
     applyProtocolTemplate,
-    attachPricelistImage,
     browserCanRequestPersistentStorage,
     browserContinuity,
     browserContinuityChecks,
@@ -779,7 +774,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
     clearBrowserPickedImagingFolderPreview,
     clearDicomWorkbenchRecovery,
     clearLocalImagingFolderRecovery,
-    clearPricelistImage,
     clinicalRuleActionLabels,
     clinicalRuleSeverityLabels,
     clinicModeLabels,
@@ -905,7 +899,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
     isMigrationSourceProbeLoading,
     isMigrationSourceWorkupLoading,
     isPersistenceExporting,
-    isPricelistAnalyzing,
     isRecognitionLoading,
     isSmartImportCommitting,
     isSmartImportLoading,
@@ -1011,19 +1004,25 @@ export function SettingsImportsTab(props: Record<string, any>) {
     previewImport,
     previewSmartImport,
     previewTelegramTemplate,
-    pricelistAnalysis,
-    pricelistImageBase64,
-    pricelistImageName,
-    pricelistImageNote,
-    pricelistItemMaterialText,
-    pricelistMaterialSummaryText,
-    pricelistWarningsText,
-    pricelistParserModeLabels,
-    pricelistRecognitionBrandGroups,
-    pricelistRecognitionServiceGroups,
-    pricelistSourceKind,
-    pricelistSourceKindLabels,
-    pricelistText,
+    /*
+      ВСЯ ПОВЕРХНОСТЬ РАЗБОРА ПРАЙСА УБРАНА ИЗ ЭТОЙ ВКЛАДКИ, ПОТОМУ ЧТО ЕЁ ЗДЕСЬ НЕ БЫЛО.
+
+      Вкладка «Импорт» вынимала из мешка настроек двадцать два имени про прайс-лист
+      — тринадцать значений и подписей, два признака состояния и семь действий, — и
+      НИ ОДНО из них не читалось ниже ни разу: строка деструктуризации была
+      единственным вхождением каждого имени в файле. Вместе с ними уехали три
+      локальных приведения типа, которые эти имена и обслуживали. Так вышло при
+      разборе монолита настроек на вкладки: мешок скопировали целиком, а разметку
+      прайса забрала вкладка «Цены».
+
+      Соблазн включить их именно здесь самый сильный: вкладка и правда про загрузку
+      файлов. Но загрузка прайса и его разбор живут в отдельной вкладке «Цены» со
+      своим состоянием и своей кнопкой «Сохранить в каталог клиники»; вторая точка
+      входа в тот же разбор дала бы клинике два места, где прайс «уже загружен», и
+      разные ответы на вопрос, какой из них поедет в каталог. Поэтому имена сняты,
+      а не включены. Живая поверхность — SettingsView.tsx (вкладка «Цены») и
+      components/settings/SettingsPricesTab.tsx.
+    */
     recognitionJob,
     recognitionKind,
     recognitionPresets,
@@ -1112,9 +1111,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
     setNewStaffRole,
     setNewStaffSpecialty,
     setOhifBaseUrl,
-    setPricelistAnalysis,
-    setPricelistSourceKind,
-    setPricelistText,
     setRecognitionJob,
     setRecognitionText,
     setSettingsTab,
@@ -1125,7 +1121,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
     settingsTab,
     settingsTabs,
     setUiLanguage,
-    setUsePricelistAi,
     smartImportCommit,
     smartImportMode,
     smartImportModeLabels,
@@ -1232,7 +1227,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
     updateStaffScheduleDraft,
     updateTelegramPostVisitCheckupDelayDraft,
     updateTelegramVisualCardUrlDraft,
-    usePricelistAi,
     visibleTelegramOutboxItems,
     weekdayOptions,
     workspaceScopeLabels
@@ -1278,23 +1272,23 @@ export function SettingsImportsTab(props: Record<string, any>) {
     settingsTab === "telegram"
       ? "Этот секрет относится только к Telegram. Он не разблокирует настройки клиники, расписание или клинические данные, если для них включены отдельные секреты."
       : "Этот секрет относится только к настройкам клиники. Он не разблокирует расписание, Telegram или клинические данные, если для них включены отдельные секреты.";
-  const typedClinicModes = Object.keys(clinicModeLabels) as ClinicMode[];
-  const typedModeHints = dashboard.clinicSettings.modeHints as string[];
-  const typedRoleQueues = dashboard.shiftIntelligence.roleQueues as RoleQueue[];
-  const typedStaffMembers = dashboard.clinicSettings.staff as StaffMember[];
-  const typedChairs = dashboard.clinicSettings.chairs as Chair[];
+  const typedClinicModes = Object.keys(clinicModeLabels ?? {}) as ClinicMode[];
+  const typedModeHints = (dashboard?.clinicSettings?.modeHints ?? []) as string[];
+  const typedRoleQueues = (dashboard?.shiftIntelligence?.roleQueues ?? []) as RoleQueue[];
+  const typedStaffMembers = (dashboard?.clinicSettings?.staff ?? []) as StaffMember[];
+  const typedChairs = (dashboard?.clinicSettings?.chairs ?? []) as Chair[];
   const typedWeekdayOptions = weekdayOptions as WeekdayOption[];
   const typedUiLanguageOptions = uiLanguageOptions as Array<{ value: string; label: string; detail: string }>;
   const typedTelegramLinkStaffOptions = telegramLinkStaffOptions as StaffMember[];
-  const typedProtocolTemplates = dashboard.protocolTemplates as ProtocolTemplate[];
+  const typedProtocolTemplates = (dashboard?.protocolTemplates ?? []) as ProtocolTemplate[];
   const typedImagingConnectorCards = imagingConnectorCards as ImagingConnectorCard[];
   const typedImagingViewerCapabilities = imagingViewerCapabilities as ImagingViewerCapability[];
   const typedCtPlanningImplantPlan = ctPlanningImplantPlan as ImagingViewerImplantPlan | null;
   const typedCtPlanningActiveQuickActionId =
     typeof ctPlanningActiveQuickActionId === "string" ? ctPlanningActiveQuickActionId : null;
   const typedImagingViewerActiveTool = imagingViewerActiveTool as ImagingViewerTool;
-  const typedIntegrationPresets = dashboard.clinicSettings.integrationPresets as IntegrationPreset[];
-  const typedSpeechProviders = dashboard.speechProviders as SpeechProvider[];
+  const typedIntegrationPresets = (dashboard?.clinicSettings?.integrationPresets ?? []) as IntegrationPreset[];
+  const typedSpeechProviders = (dashboard?.speechProviders ?? []) as SpeechProvider[];
   const typedRecognitionPresets = recognitionPresets as RecognitionPreset[];
   const typedRecognitionJob = recognitionJob as AiRecognitionJob | null;
   const typedSpeechRecordingRecovery = speechRecordingRecovery as SpeechRecordingRecoveryList | null;
@@ -1306,16 +1300,16 @@ export function SettingsImportsTab(props: Record<string, any>) {
   const typedLocalBridgeReadiness = localBridgeReadiness as LocalBridgeReadinessResponse | null;
   const typedLocalBridgeUsePlans = localBridgeUsePlans as LocalBridgeUsePlansResponse | null;
   const typedPersistenceIntegrity = persistenceIntegrity as PersistenceIntegrityReport | null;
-  const typedImportBatches = dashboard.importBatches as ImportBatch[];
-  const typedAuditEvents = dashboard.auditEvents as AuditEvent[];
-  const typedImportSourceKinds = Object.keys(importSourceLabels) as ImportSourceKind[];
-  const typedDocumentIngestionTargets = Object.keys(ingestionTargetLabels) as DocumentIngestionTarget[];
+  const typedImportBatches = (dashboard?.importBatches ?? []) as ImportBatch[];
+  const typedAuditEvents = (dashboard?.auditEvents ?? []) as AuditEvent[];
+  const typedImportSourceKinds = Object.keys(importSourceLabels ?? {}) as ImportSourceKind[];
+  const typedDocumentIngestionTargets = Object.keys(ingestionTargetLabels ?? {}) as DocumentIngestionTarget[];
   const typedDocumentIngestion = documentIngestion as DocumentIngestionResponse | null;
   const typedImportIntake = importIntake as ImportIntakeResponse | null;
   const typedImportPreview = importPreview as ImportPreviewResponse | null;
   const typedActiveWorkspaceProfile = activeWorkspaceProfile as WorkspaceProfile | null;
-  const typedWorkspaceProfiles = dashboard.clinicSettings.workspaceProfiles as WorkspaceProfile[];
-  const typedRoleAccessPolicies = dashboard.clinicSettings.roleAccessPolicies as RoleAccessPolicy[];
+  const typedWorkspaceProfiles = (dashboard?.clinicSettings?.workspaceProfiles ?? []) as WorkspaceProfile[];
+  const typedRoleAccessPolicies = (dashboard?.clinicSettings?.roleAccessPolicies ?? []) as RoleAccessPolicy[];
   const typedTelegramChatLinks = telegramChatLinks as DenteTelegramChatLinkPublic[];
   const typedTelegramLinkCodes = telegramLinkCodes as DenteTelegramLinkCodePublic[];
   const typedTelegramPreview = telegramPreview as DenteTelegramMessagePreview | null;
@@ -1339,9 +1333,6 @@ export function SettingsImportsTab(props: Record<string, any>) {
   const typedTelegramVisualCardFields = telegramVisualCardFields as TelegramVisualCardField[];
   const getTypedTelegramInlineButtonRows = (replyMarkup: Record<string, unknown> | null) =>
     telegramInlineButtonRowsFromReplyMarkup(replyMarkup) as TelegramInlineButtonRow[];
-  const typedPricelistAnalysis = pricelistAnalysis as DentalPricelistAnalysisResponse | null;
-  const typedPricelistRecognitionServiceGroups = pricelistRecognitionServiceGroups as StringTokenGroup[];
-  const typedPricelistRecognitionBrandGroups = pricelistRecognitionBrandGroups as StringTokenGroup[];
   const telegramPreviewPatientGuidanceId = "telegram-preview-patient-guidance";
   const telegramPreviewStaffGuidanceId = "telegram-preview-staff-guidance";
   const telegramPreviewLoadingGuidanceId = "telegram-preview-loading-guidance";
@@ -1859,13 +1850,13 @@ export function SettingsImportsTab(props: Record<string, any>) {
     );
   };
   const typedClinicalRuleActionLabels = clinicalRuleActionLabels as Record<ClinicalRuleAction, string>;
-  const typedClinicalRuleActions = Object.keys(typedClinicalRuleActionLabels) as ClinicalRuleAction[];
+  const typedClinicalRuleActions = Object.keys(typedClinicalRuleActionLabels ?? {}) as ClinicalRuleAction[];
   const typedClinicalRuleSeverityLabels = clinicalRuleSeverityLabels as Record<ClinicalRuleSeverity, string>;
-  const typedClinicalRuleSeverities = Object.keys(typedClinicalRuleSeverityLabels) as ClinicalRuleSeverity[];
-  const typedClinicalRules = dashboard.clinicalRules as ClinicalRule[];
-  const typedServiceCatalog = dashboard.serviceCatalog as ServiceCatalogItem[];
+  const typedClinicalRuleSeverities = Object.keys(typedClinicalRuleSeverityLabels ?? {}) as ClinicalRuleSeverity[];
+  const typedClinicalRules = (dashboard?.clinicalRules ?? []) as ClinicalRule[];
+  const typedServiceCatalog = (dashboard?.serviceCatalog ?? []) as ServiceCatalogItem[];
   const typedServiceCategoryLabels = serviceCategoryLabels as Record<ServiceCategory, string>;
-  const typedServiceCategories = Object.keys(typedServiceCategoryLabels) as ServiceCategory[];
+  const typedServiceCategories = Object.keys(typedServiceCategoryLabels ?? {}) as ServiceCategory[];
   const typedSettingsTabs = settingsTabs as SettingsTab[];
   const settingsTabButtonId = (tabId: SettingsTabId) => `settings-tab-${tabId}`;
   const settingsTabPanelId = (tabId: SettingsTabId) => `settings-panel-${tabId}`;
@@ -1926,6 +1917,7 @@ export function SettingsImportsTab(props: Record<string, any>) {
   return (
     <>
           {settingsTab === "imports" ? (
+          <>
           <section className="import-studio smart-import-studio" aria-label="Умный разбор смешанной выгрузки">
             <div className="import-copy">
               <Sparkles aria-hidden="true" />
@@ -1940,7 +1932,7 @@ export function SettingsImportsTab(props: Record<string, any>) {
             </div>
 
             <div className="import-source-grid smart-mode-grid" aria-label="Режим умного разбора">
-              {(Object.keys(smartImportModeLabels) as SmartImportMode[]).map((mode) => (
+              {(Object.keys(smartImportModeLabels ?? {}) as SmartImportMode[]).map((mode) => (
                 <button
                   className={`source-card ${smartImportMode === mode ? "active" : ""}`}
                   type="button"
@@ -2064,6 +2056,7 @@ export function SettingsImportsTab(props: Record<string, any>) {
             <div className="import-workbench">
               <textarea
                 aria-label="Смешанная выгрузка для умного разбора"
+                placeholder={"Вставьте что есть — разбор сам поймёт, где пациент, где снимок.\nНапример: Иванова Марина +7 927 111-22-33 21.04.1988\nили: Иванова Марина ОПТГ 10.05.2026 C:\\Снимки\\ivanova.png"}
                 value={smartImportText}
                 onChange={(event: TextInputChangeEvent) => {
                   setSmartImportText(event.target.value);
@@ -3064,6 +3057,7 @@ export function SettingsImportsTab(props: Record<string, any>) {
               </div>
             ) : null}
           </section>
+          </>
           ) : null}
 
           {["imports", "sources"].includes(settingsTab) ? (
@@ -4047,6 +4041,9 @@ export function SettingsImportsTab(props: Record<string, any>) {
             <div className="import-workbench">
               <textarea
                 aria-label="Данные для проверки импорта"
+                /* Поле стало пустым (раньше в нём лежали выдуманные пациенты),
+                   поэтому нужна подсказка, что именно сюда вставлять. */
+                placeholder={"Вставьте выгрузку из старой программы или из Excel.\nПо строке на пациента, поля через точку с запятой:\nФИО;Телефон;Дата рождения;Комментарий"}
                 value={importText}
                 onChange={(event: TextInputChangeEvent) => {
                   setImportText(event.target.value);

@@ -1,3 +1,4 @@
+import { isValidFdiToothNumber } from "@dental/shared";
 import {
 	AlertTriangle,
 	Check,
@@ -6,18 +7,91 @@ import {
 	Stethoscope,
 	X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWebsocket } from "../../hooks/useWebsocket";
-import { usePatientStore } from "../../store/patientStore";
+import {
+	actionFailureToast,
+	type PanelSubject,
+	panelStateText,
+} from "../../lib/panelStateText";
+import { countLabel } from "../../lib/russianPlural";
 import { showToast } from "../GlobalToast";
-import { ToothChart, type ToothData, type ToothState } from "./ToothChart";
+import { PanelLoadFailure } from "../PanelLoadFailure";
+import {
+	dictationApplyMessage,
+	dictationApplyPlanFromResponseBody,
+} from "./dictationToothUpdates";
+import {
+	TOOTH_STATE_LABELS,
+	ToothChart,
+	type ToothData,
+	type ToothState,
+} from "./ToothChart";
 import { ToothHistoryChronicle } from "./ToothHistoryChronicle";
 import { TreatmentEstimator } from "./TreatmentEstimator";
 import { VoiceDictationOverlay } from "./VoiceDictationOverlay";
 import "./odontogram.css";
+
+/**
+ * Состояния зуба, доступные врачу в контекстном меню.
+ *
+ * Порядок — по частоте записи на приёме: сначала находки, затем
+ * выполненные работы, затем план и «здоров».
+ *
+ * Набор обязан покрывать весь тип ToothState и перечисление
+ * toothStateValues на сервере: раньше в меню было шесть состояний из
+ * восьми, и «Пломба» с «Имплантат в плане» выставить было нельзя,
+ * хотя сервер их принимал и одонтограмма их рисовала.
+ */
+const TOOTH_STATE_ACTIONS: ReadonlyArray<{
+	state: ToothState;
+	label: string;
+	className: string;
+}> = [
+	{
+		state: "Caries",
+		label: "Кариес",
+		className: "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20",
+	},
+	{
+		state: "Pulpitis",
+		label: "Пульпит",
+		className: "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20",
+	},
+	{
+		state: "Filled",
+		label: "Пломба",
+		className: "bg-teal-500/10 text-teal-300 border-teal-500/20 hover:bg-teal-500/20",
+	},
+	{
+		state: "Crown",
+		label: "Коронка",
+		className: "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20",
+	},
+	{
+		state: "Implant",
+		label: "Имплантат",
+		className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20",
+	},
+	{
+		state: "Planned_Implant",
+		label: "Имплантат в плане",
+		className: "bg-lime-500/10 text-lime-300 border-lime-500/20 hover:bg-lime-500/20",
+	},
+	{
+		state: "Missing",
+		label: "Отсутствует",
+		className: "bg-zinc-800/40 text-zinc-400 border-zinc-700/30 hover:bg-zinc-800/60",
+	},
+	{
+		state: "Healthy",
+		label: "Здоров",
+		className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20",
+	},
+];
 
 const SurfaceSelector = ({
 	selected,
@@ -151,6 +225,22 @@ const SurfaceSelector = ({
 	);
 };
 
+/**
+ * Как называется содержимое схемы в трёх её состояниях.
+ *
+ * Пустоты у формулы своей нет: схема рисует все зубы всегда, и «нет отметок»
+ * означает лишь то, что диагнозов пока не ставили. Опасно здесь другое —
+ * непрочитанная формула, которая выглядит ровно как формула здорового рта.
+ */
+const TEETH_SUBJECT: PanelSubject = {
+	notLoadedTitle: "Зубная формула не прочитана",
+	accusative: "формулу пациента",
+	emptyTitle: "Отметок на зубах пока нет",
+	emptyHint: "Нажмите на зуб и выберите состояние — оно попадёт в карту сразу.",
+	failureConsequence:
+		"Схема ниже показывает зубы БЕЗ отметок — это не значит, что зубы здоровы: диагнозы, пломбы и коронки не прочитаны. Не считайте формулу полной и не печатайте её пациенту, пока она не загрузится.",
+};
+
 export const OdontogramModule = ({
 	patientId,
 	pediatricMode,
@@ -160,6 +250,25 @@ export const OdontogramModule = ({
 }) => {
 	const { odontogramUseSurfaces } = useAppLogicContext();
 	const [teethData, setTeethData] = useState<ToothData[]>([]);
+	/* Пока формула не загружена, на экране не должно быть ни чужих данных, ни
+	   правдоподобной пустой формулы без объяснения: и то, и другое врач
+	   принимает за факт.
+
+	   БЫЛО: `teethLoadFailed` булевым, а код ответа выбрасывался на месте
+	   (`r.ok ? r.json() : null`). Поэтому отказ всегда объяснялся одной фразой
+	   «обновите страницу» — обещание, которое при отказе по доступу или при 404
+	   не сработает ни при каком обновлении. Код ответа нужен, чтобы назвать
+	   причину и решить, есть ли смысл в кнопке повтора. */
+	const [teethLoad, setTeethLoad] = useState<
+		{ phase: "loading" } | { phase: "ready" } | { phase: "failed"; status: number | null }
+	>({ phase: "loading" });
+	/** Счётчик кнопки «Повторить»: меняется — формула читается заново. */
+	const [teethReloadToken, setTeethReloadToken] = useState(0);
+	/* Актуальная формула для снимка перед сохранением. Брать её внутри
+	   обновления состояния нельзя: обновление может быть вызвано повторно, и
+	   тогда снимок одного сохранения захватит правку другого. */
+	const teethDataRef = useRef<ToothData[]>([]);
+	teethDataRef.current = teethData;
 	const [menuConfig, setMenuConfig] = useState<{
 		toothNumber: number;
 		x: number;
@@ -184,12 +293,31 @@ export const OdontogramModule = ({
 		import.meta.env.VITE_WS_URL ?? "ws://localhost:4100/api/ws/schedule",
 	);
 	useEffect(() => {
-		if (
-			lastMessage?.type === "UPDATE_ODONTOGRAM" &&
-			lastMessage.payload.patientId === patientId
-		) {
-			setTeethData(lastMessage.payload.states);
-		}
+		if (lastMessage?.type !== "UPDATE_ODONTOGRAM") return;
+		// payload проверяется отдельно: до включения живых обновлений этот
+		// обработчик не исполнялся ни разу, и обращение к полю отсутствующего
+		// payload уронило бы весь модуль.
+		const payload = lastMessage.payload as
+			| { patientId?: string; states?: ToothData[] }
+			| undefined;
+		if (!payload || payload.patientId !== patientId) return;
+		const incoming = Array.isArray(payload.states) ? payload.states : [];
+		if (!incoming.length) return;
+
+		// БЫЛО: setTeethData(payload.states) — полная замена формулы.
+		// Сервер шлёт результат .returning() по батчу, то есть ТОЛЬКО
+		// изменённые зубы. Замена означала бы, что коллега, поставивший
+		// диагноз одному зубу, стирает у всех остальных открытых одонтограмм
+		// всю формулу до этого одного зуба. Правильно — слить по номеру зуба.
+		setTeethData((prev) => {
+			const merged = [...prev];
+			for (const tooth of incoming) {
+				const idx = merged.findIndex((x) => x.toothNumber === tooth.toothNumber);
+				if (idx > -1) merged[idx] = tooth;
+				else merged.push(tooth);
+			}
+			return merged;
+		});
 	}, [lastMessage, patientId]);
 
 	useEffect(() => {
@@ -198,36 +326,184 @@ export const OdontogramModule = ({
 
 	// Load states from API
 	useEffect(() => {
-		fetch(`/api/patients/${patientId}/tooth-states`, {
-			headers: denteAdminSecretRequestHeaders(),
-		})
-			.then((r) => (r.ok ? r.json() : null))
-			.then((data) => {
-				if (data?.success && data.states) {
-					setTeethData(data.states);
-				}
-			});
+		/* БЫЛО: запрос уходил, а старая формула оставалась на экране до
+		   ответа. Замерено в браузере: при переключении пациента на карточке
+		   нового три секунды висели диагнозы прошлого — 11 кариес, 26 коронка,
+		   36 пломба, которых у нового пациента нет, — и ни одного признака
+		   загрузки. Врач видит чужую формулу как формулу текущего пациента и
+		   может отметить лечение не на той. Если запрос не удавался, чужая
+		   формула оставалась насовсем.
+		   Сбрасываем состояние синхронно со сменой пациента, показываем
+		   загрузку и отменяем устаревший запрос, чтобы поздний ответ по
+		   прошлому пациенту не перетёр формулу текущего. */
+		setTeethData([]);
+		setTeethLoad({ phase: "loading" });
 
-		// Listen to CT Events for auto-implants
-		const handleClinicalCollision = (e: any) => {
-			// Just an example sync point: If an implant is placed on 36
-			if (e.detail?.toothNumber) {
-				updateToothState([e.detail.toothNumber], "Planned_Implant");
+		/* БЫЛО: сбрасывалась только сама формула, а выбор зубов, выбранные
+		   поверхности и открытое меню диагнозов принадлежали ПРОШЛОМУ пациенту и
+		   оставались заряженными. PatientsView.tsx монтирует модуль без key, то
+		   есть при переключении карточки меняется только patientId, а состояние
+		   живёт дальше.
+
+		   Что видел врач: отметил зубы 11, 12, 13 групповым выбором у одного
+		   пациента, переключился на другого — и выбор с поверхностями остался.
+		   Дальше updateToothState отправляет `toothNumbers` из этого выбора и
+		   `surfaces` из activeSurfaces на /api/patients/<НОВЫЙ>/tooth-states/batch:
+		   диагноз и поверхности записываются в карту не того пациента, и на схеме
+		   это выглядит как обычная правка. То же с меню: оно оставалось открытым
+		   над зубом прошлого пациента, и действие из него уходило новому.
+
+		   historyTooth сбрасывается по той же причине: панель истории зуба
+		   оставалась открытой и перечитывала события уже по другому пациенту под
+		   прежним заголовком. */
+		setSelectedTeeth([]);
+		setActiveSurfaces([]);
+		setMenuConfig(null);
+		setHistoryTooth(null);
+
+		const controller = new AbortController();
+		let cancelled = false;
+
+		/*
+		 * БЫЛО: `.then(r => r.ok ? r.json() : null)` — код ответа выбрасывался, и
+		 * причину отказа назвать было нечем. Теперь он доезжает до состояния, а
+		 * тело читается строкой: на пустом теле r.json() бросает исключение, и
+		 * отказ по доступу превращался в тот же безымянный отказ.
+		 */
+		const loadTeeth = async () => {
+			let status: number | null = null;
+			try {
+				const res = await fetch(`/api/patients/${patientId}/tooth-states`, {
+					headers: denteAdminSecretRequestHeaders(),
+					signal: controller.signal,
+				});
+				status = res.status;
+				const rawBody = await res.text();
+				if (cancelled) return;
+				if (!res.ok) {
+					console.error(`[tooth states] ${status} ${rawBody.slice(0, 300)}`);
+					setTeethLoad({ phase: "failed", status });
+					return;
+				}
+				let data: unknown = null;
+				try {
+					data = rawBody.trim() === "" ? null : JSON.parse(rawBody);
+				} catch {
+					// Текст исключения английский, человеку он не показывается.
+					data = null;
+				}
+				const body =
+					typeof data === "object" && data !== null && !Array.isArray(data)
+						? (data as Record<string, unknown>)
+						: null;
+				if (body?.success === true && Array.isArray(body.states)) {
+					setTeethData(body.states as ToothData[]);
+					setTeethLoad({ phase: "ready" });
+					return;
+				}
+				console.error(`[tooth states] ${status}: в ответе нет формулы`);
+				setTeethLoad({ phase: "failed", status });
+			} catch (err) {
+				// Отменённый запрос — не отказ: пациента переключили, и об этом
+				// сообщать нечего.
+				if (cancelled) return;
+				console.error("[tooth states] запрос не выполнен", err);
+				// До сервера не дошли: кода ответа нет, придумывать его нельзя.
+				setTeethLoad({ phase: "failed", status });
 			}
+		};
+		void loadTeeth();
+
+		/*
+		 * Имплантат, поставленный в трёхмерном просмотре, попадает в карту.
+		 *
+		 * ЧТО БЫЛО СЛОМАНО. Запись уходила в карту МОЛЧА: ни всплывающего
+		 * сообщения, ни следа на экране, кроме изменившегося цвета зуба, который
+		 * врач в этот момент не смотрит — он смотрит трёхмерный снимок. То есть
+		 * диагноз «имплантат в плане» появлялся в карте открытого пациента без
+		 * ведома человека.
+		 *
+		 * Номер зуба теперь проверяется общим правилом FDI: `if (e.detail?.toothNumber)`
+		 * пропускало и строку, и 0.5, и 999 — а дальше это уходило в тело запроса
+		 * как номер зуба.
+		 */
+		const handleClinicalCollision = (e: Event) => {
+			const detail = (e as CustomEvent).detail as { toothNumber?: unknown } | undefined;
+			const toothNumber = Number(detail?.toothNumber);
+			if (!isValidFdiToothNumber(toothNumber)) {
+				console.error("[имплантат из 3D] номер зуба не читается", detail?.toothNumber);
+				return;
+			}
+			showToast(
+				`В карту записано: зуб ${toothNumber} — ${TOOTH_STATE_LABELS.Planned_Implant}. Запись пришла из трёхмерного просмотра. Если имплантат планируется не на этот зуб, исправьте отметку на схеме.`,
+				"info",
+				15000,
+			);
+			void updateToothState([toothNumber], "Planned_Implant");
 		};
 		window.addEventListener("clinical-implant-placed", handleClinicalCollision);
 
-		const handleWsUpdate = (e: any) => {
-			if (e.detail?.patientId === patientId && e.detail?.states) {
-				setTeethData(e.detail.states);
-			}
+		const handleWsUpdate = (e: Event) => {
+			const detail = (e as CustomEvent).detail as
+				| { patientId?: unknown; states?: unknown }
+				| undefined;
+			if (detail?.patientId !== patientId || !Array.isArray(detail.states)) return;
+			/*
+			 * Слияние по номеру зуба, а не замена. Тот же дефект уже был закрыт у
+			 * живых обновлений выше: обновление приходит ТОЛЬКО по изменённым зубам,
+			 * и замена стёрла бы на экране всю остальную формулу.
+			 *
+			 * ДОЛГ: это событие в проекте не рассылает никто (поиск по
+			 * "dente-odontogram-update" находит только этот обработчик). Оставлено
+			 * рабочим, а не удалено: удалять чужой задел молча нельзя, но и ловушку
+			 * с заменой формулы держать нельзя.
+			 */
+			const incoming = detail.states as ToothData[];
+			if (incoming.length === 0) return;
+			setTeethData((prev) => {
+				const merged = [...prev];
+				for (const tooth of incoming) {
+					const idx = merged.findIndex((x) => x.toothNumber === tooth.toothNumber);
+					if (idx > -1) merged[idx] = tooth;
+					else merged.push(tooth);
+				}
+				return merged;
+			});
 		};
 		window.addEventListener("dente-odontogram-update", handleWsUpdate);
 
-		const handleFinding = (e: any) => {
-			if (e.detail?.toothNumber && e.detail?.finding) {
-				updateToothState([e.detail.toothNumber], e.detail.finding);
+		/*
+		 * Находка со снимка. Состояние проверяется по списку состояний схемы:
+		 * `e.detail?.finding` брался как есть, и любое слово уходило в карту
+		 * состоянием зуба. Сервер такое отклоняет целиком, а врач получал отказ
+		 * сохранения формулы вместо внятного «состояние не распознано».
+		 */
+		const handleFinding = (e: Event) => {
+			const detail = (e as CustomEvent).detail as
+				| { toothNumber?: unknown; finding?: unknown }
+				| undefined;
+			const toothNumber = Number(detail?.toothNumber);
+			const finding = detail?.finding;
+			if (!isValidFdiToothNumber(toothNumber)) {
+				console.error("[находка со снимка] номер зуба не читается", detail?.toothNumber);
+				return;
 			}
+			if (typeof finding !== "string" || !Object.hasOwn(TOOTH_STATE_LABELS, finding)) {
+				console.error("[находка со снимка] состояние не из списка схемы", finding);
+				showToast(
+					`Находка по зубу ${toothNumber} в карту не записана: состояние со снимка программе не знакомо. Отметьте зуб на схеме сами.`,
+					"warning",
+					15000,
+				);
+				return;
+			}
+			const state = finding as ToothState;
+			showToast(
+				`В карту записано: зуб ${toothNumber} — ${TOOTH_STATE_LABELS[state]}. Запись пришла со снимка. Если это неверно, исправьте отметку на схеме.`,
+				"info",
+				15000,
+			);
+			void updateToothState([toothNumber], state);
 		};
 		window.addEventListener("clinical-finding-detected", handleFinding);
 
@@ -242,6 +518,8 @@ export const OdontogramModule = ({
 		window.addEventListener("keyup", handleKeyUp);
 
 		return () => {
+			cancelled = true;
+			controller.abort();
 			window.removeEventListener(
 				"clinical-implant-placed",
 				handleClinicalCollision,
@@ -251,33 +529,46 @@ export const OdontogramModule = ({
 			window.removeEventListener("keydown", handleKeyDown);
 			window.removeEventListener("keyup", handleKeyUp);
 		};
-	}, [patientId]);
+		// teethReloadToken — кнопка «Повторить» под сообщением об отказе.
+	}, [patientId, teethReloadToken]);
 
 	const updateToothState = async (
 		toothNumbers: number[],
 		state: ToothState,
 	) => {
+		/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
+		   обновления состояния, а новое состояние проставлялось мутацией
+		   `item.state = state`. Копия массива поверхностная — объекты зубов в
+		   ней те же самые, поэтому снимок менялся вместе с состоянием. Откат
+		   `setTeethData(previousTeethData)` возвращал уже НОВОЕ значение.
+
+		   Проверено в браузере, scratch/verify-odontogram-rollback.mjs: при
+		   ответе 500 на сохранение в базе оставался «Caries», всплывало
+		   «Изменения отменены», а на схеме стояло «отсутствует». Формула
+		   расходилась с базой, и интерфейс об этом врал. Врач мог закрыть
+		   приём или распечатать схему с состоянием, которого в карте нет.
+
+		   Снимок берётся до отправки, из ref с актуальным состоянием, и
+		   глубоко копируется. Новое состояние собирается новыми объектами,
+		   без мутации прежних. */
+		const previousTeethData: ToothData[] = teethDataRef.current.map((tooth) => ({
+			...tooth,
+			...(tooth.surfaces ? { surfaces: [...tooth.surfaces] } : {}),
+		}));
+
 		setTeethData((prev) => {
-			const next = [...prev];
+			const next = prev.map((tooth) => {
+				if (!toothNumbers.includes(tooth.toothNumber)) return tooth;
+				const updated: ToothData = { ...tooth, state };
+				if (activeSurfaces.length > 0) updated.surfaces = [...activeSurfaces];
+				else delete updated.surfaces;
+				return updated;
+			});
 			for (const t of toothNumbers) {
-				const existingIdx = next.findIndex((x) => x.toothNumber === t);
-				if (existingIdx > -1) {
-					const item = next[existingIdx];
-					if (item) {
-						item.state = state;
-						if (activeSurfaces.length > 0) {
-							item.surfaces = [...activeSurfaces];
-						} else {
-							delete item.surfaces;
-						}
-					}
-				} else {
-					const newItem: ToothData = { toothNumber: t, state };
-					if (activeSurfaces.length > 0) {
-						newItem.surfaces = [...activeSurfaces];
-					}
-					next.push(newItem);
-				}
+				if (next.some((tooth) => tooth.toothNumber === t)) continue;
+				const newItem: ToothData = { toothNumber: t, state };
+				if (activeSurfaces.length > 0) newItem.surfaces = [...activeSurfaces];
+				next.push(newItem);
 			}
 			return next;
 		});
@@ -285,38 +576,75 @@ export const OdontogramModule = ({
 		setMenuConfig(null);
 		setSelectedTeeth([]);
 
-		// Save to API
-		await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
-			method: "POST",
-			headers: denteAdminSecretRequestHeaders({
-				"Content-Type": "application/json",
-			}),
-			body: JSON.stringify({
-				toothNumbers,
-				state,
-				surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
-			}),
-		});
-
-		// Push suggestion to global state for ComparativePlannerDashboard
-		const { addPendingPlanSuggestion } = usePatientStore.getState();
-		for (const t of toothNumbers) {
-			if (
-				state === "Caries" ||
-				state === "Pulpitis" ||
-				state === "Planned_Implant" ||
-				state === "Missing" ||
-				state === "Crown"
-			) {
-				addPendingPlanSuggestion({
-					toothNumber: t,
+		try {
+			// Save to API
+			const res = await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
+				method: "POST",
+				headers: denteAdminSecretRequestHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					toothNumbers,
 					state,
-					surfaces: activeSurfaces.length > 0 ? [...activeSurfaces] : undefined,
-					suggestedAt: new Date().toISOString(),
-				});
+					surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
+				}),
+			});
+
+			if (!res.ok) {
+				/*
+				 * БЫЛО: «Ошибка сохранения одонтограммы. Изменения отменены.» —
+				 * жаргон вместо русского названия, ни причины, ни следующего шага, а
+				 * код ответа выбрасывался. Медсестре с истёкшим доступом (403) и врачу
+				 * при сбое сервера (500) нужны разные действия, и главное — человек
+				 * должен понять, ЧТО именно не сохранилось: отметка на схеме
+				 * откатилась, и он вправе думать, что просто промахнулся по зубу.
+				 */
+				const rawBody = await res.text();
+				console.error(`[tooth states batch] ${res.status} ${rawBody.slice(0, 300)}`);
+				setTeethData(previousTeethData);
+				showToast(
+					`${actionFailureToast(
+						`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
+						res.status,
+					)} На схеме вернулось прежнее состояние.`,
+					"error",
+					15000,
+				);
+				return;
 			}
+		} catch (err) {
+			console.error("[tooth states batch] запрос не выполнен", err);
+			setTeethData(previousTeethData);
+			showToast(
+				`${actionFailureToast(
+					`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
+					// До сервера не дошли: кода ответа нет, придумывать его нельзя.
+					null,
+				)} На схеме вернулось прежнее состояние.`,
+				"error",
+				15000,
+			);
+			return;
 		}
 
+		/*
+		 * ЗДЕСЬ БЫЛА ЗАПИСЬ В ОЧЕРЕДЬ pendingPlanSuggestions — «Push suggestion to
+		 * global state for ComparativePlannerDashboard». Читателя у неё не было ни
+		 * одной минуты: единственный, ComparativePlannerDashboard, не рендерился ни
+		 * из одного достижимого модуля и удалён этим же коммитом.
+		 *
+		 * То есть каждая отметка патологии дописывала объект в массив глобального
+		 * стора, который никто не читает и никто не чистит (чистил его тот же
+		 * недостижимый экран), — он рос до перезагрузки страницы.
+		 *
+		 * Мост «диагноз → смета» от этого не пострадал, он идёт другой дорогой и
+		 * работает: смонтированный TreatmentEstimator (:945) получает currentTeeth
+		 * прямо из этого состояния и подбирает позиции по зубной формуле сам —
+		 * reconcileAutoSuggestions/estimatorRulesForTooth в
+		 * ./treatmentEstimatorPricing.ts (Caries, Pulpitis, Crown,
+		 * Planned_Implant; Missing не обрабатывается сознательно, :133). Он же
+		 * помнит, какие строки врач снял корзиной, чего очередь не умела.
+		 */
 		setActiveSurfaces([]);
 	};
 
@@ -441,6 +769,47 @@ export const OdontogramModule = ({
 						<span className="text-sm font-medium">Групповой выбор (Shift)</span>
 					</label>
 				</div>
+				{/* Состояние формулы проговаривается словами. Пустая формула
+				    выглядит как «все зубы здоровы», а это утверждение о пациенте,
+				    которого система в этот момент не знает. */}
+				{teethLoad.phase === "loading" && (
+					<div
+						role="status"
+						aria-live="polite"
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 8,
+							padding: "8px 12px",
+							borderRadius: 8,
+							fontSize: 13,
+							fontWeight: 600,
+							color: "var(--ink-2, var(--ink))",
+							background: "var(--paper-soft, transparent)",
+						}}
+					>
+						{panelStateText(TEETH_SUBJECT, { phase: "loading" }).title}
+					</div>
+				)}
+				{/*
+				  Отказ чтения формулы — общим видом отказа панели, с причиной по коду
+				  ответа и кнопкой повтора там, где повтор осмыслен.
+
+				  БЫЛО: одна фраза на все случаи — «Зубная формула не загрузилась.
+				  Данные на схеме неполные — обновите страницу.» Обновление страницы
+				  соберёт тот же запрос и получит тот же отказ: при 403 нужно войти в
+				  смену, при 404 — сообщить администратору, что программа обновлена не
+				  полностью. Обещание, которое не может сработать, врача уводит в
+				  сторону, а схема под сообщением при этом показывает пустую формулу,
+				  то есть «все зубы здоровы».
+				*/}
+				{teethLoad.phase === "failed" && (
+					<PanelLoadFailure
+						subject={TEETH_SUBJECT}
+						status={teethLoad.status}
+						onRetry={() => setTeethReloadToken((token) => token + 1)}
+					/>
+				)}
 				<ToothChart
 					teethData={teethData}
 					pediatricMode={isPediatricMode}
@@ -530,42 +899,24 @@ export const OdontogramModule = ({
 										/>
 									</div>
 								)}
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Caries")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
-								>
-									Кариес
-								</button>
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Pulpitis")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-								>
-									Пульпит
-								</button>
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Missing")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-zinc-800/40 text-zinc-400 border-zinc-700/30 hover:bg-zinc-800/60"
-								>
-									Отсутствует
-								</button>
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Crown")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
-								>
-									Коронка
-								</button>
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Implant")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20"
-								>
-									Имплантат
-								</button>
-								<button
-									onClick={() => updateToothState(selectedTeeth, "Healthy")}
-									className="flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-								>
-									Здоров
-								</button>
+								{/* Список состояний вынесен в TOOTH_STATE_ACTIONS: раньше здесь
+								    были восемь почти одинаковых блоков JSX, и два состояния из
+								    восьми в набор просто не попали — «Пломба» и «Имплантат в
+								    плане». Оба поддерживаются схемой API (перечисление
+								    toothStateValues в routes/odontogram.ts), у обоих есть цвета
+								    и отрисовка (для пломбы рисуются каналы), но выставить их
+								    из интерфейса было нельзя. Пломба — самая частая запись в
+								    зубной формуле. */}
+								{TOOTH_STATE_ACTIONS.map((action) => (
+									<button
+										key={action.state}
+										type="button"
+										onClick={() => updateToothState(selectedTeeth, action.state)}
+										className={`flex items-center justify-center p-3 rounded-xl border transition-all duration-200 font-medium tracking-wide text-xs ${action.className}`}
+									>
+										{action.label}
+									</button>
+								))}
 								<button
 									onClick={() => {
 										setHistoryTooth(menuConfig.toothNumber);
@@ -593,7 +944,12 @@ export const OdontogramModule = ({
 				<TreatmentEstimator patientId={patientId} currentTeeth={teethData} />
 
 				{/* Floating Voice Dictation Button */}
+				{/* Кнопка состоит только из иконки, поэтому без aria-label и type
+				    она объявлялась безымянной и по умолчанию считалась submit. */}
 				<button
+					type="button"
+					aria-label="Диктовка состояния зубов голосом"
+					title="Диктовка состояния зубов голосом"
 					onClick={() => setIsVoiceOpen(true)}
 					style={{
 						position: "absolute",
@@ -628,36 +984,64 @@ export const OdontogramModule = ({
 					try {
 						const res = await fetch("/api/ai/parse-dictation", {
 							method: "POST",
-							headers: { "Content-Type": "application/json" },
+							/*
+							 * БЫЛО: только Content-Type, без секрета смены. Маршрут закрыт
+							 * requireClinicalReadAccess (apps/api/src/routes/ai.ts:191), то
+							 * есть на настроенном сервере диктовка получала 403 ВСЕГДА, и
+							 * врач видел «Ошибка при обращении к серверу ИИ» без причины.
+							 * Все остальные запросы этого файла шлют этот заголовок.
+							 */
+							headers: denteAdminSecretRequestHeaders({
+								"Content-Type": "application/json",
+							}),
 							body: JSON.stringify({ text, type: "visit" }),
 						});
-						if (res.ok) {
-							const data = await res.json();
-							if (data && data.action === "update_tooth" && data.payload) {
-								const { code, state } = data.payload;
-								updateToothState([parseInt(code)], state || "caries");
-								showToast(`AI: Зуб ${code} обновлен (${state})`, "success");
-							} else if (
-								data &&
-								data.toothUpdates &&
-								Array.isArray(data.toothUpdates)
-							) {
-								data.toothUpdates.forEach((tu: any) => {
-									updateToothState([parseInt(tu.code)], tu.state);
-								});
-								showToast(
-									`AI: Зубы обновлены: ${data.toothUpdates.map((t: any) => t.code).join(", ")}`,
-									"success",
-								);
-							} else {
-								showToast("AI: Команда не распознана", "warning");
-							}
-						} else {
-							showToast("Ошибка при обращении к серверу ИИ", "error");
+						// Тело читается строкой: на пустом теле res.json() бросает
+						// исключение, и отказ превращался в «Не удалось обработать».
+						const rawBody = await res.text();
+						if (!res.ok) {
+							console.error(`[dictation parse] ${res.status} ${rawBody.slice(0, 300)}`);
+							showToast(
+								`${actionFailureToast("Надиктованное не разобрано", res.status)} Схема не изменена — отметьте зубы вручную.`,
+								"error",
+								12000,
+							);
+							return;
 						}
+						/*
+						 * Разбор ответа вынесен в ./dictationToothUpdates.ts и проверяется
+						 * node:test. БЫЛО: `const { code, state } = data.payload` — таких
+						 * полей в payload нет (они внутри payload.toothUpdates), поэтому
+						 * в формулу уходил зуб NaN, а врач читал зелёное
+						 * «AI: Зуб undefined обновлен (undefined)» и не получал ничего.
+						 */
+						const plan = dictationApplyPlanFromResponseBody(rawBody);
+						if (plan === null) {
+							console.error(`[dictation parse] ${res.status}: ответ не по контракту`);
+							showToast(
+								"Надиктованное не разобрано: ответ сервера непонятен — повторите, а если повторится, сообщите администратору. Схема не изменена.",
+								"error",
+								12000,
+							);
+							return;
+						}
+						const message = dictationApplyMessage(plan);
+						/*
+						 * Сначала запись, потом сообщение: updateToothState сам откатит
+						 * формулу и скажет об отказе, если сервер её не принял. Показать
+						 * «отмечено» до ответа сервера значило бы обещать за него.
+						 */
+						for (const item of plan.applied) {
+							await updateToothState([item.toothNumber], item.state);
+						}
+						showToast(message.text, message.tone, message.tone === "success" ? 6000 : 15000);
 					} catch (e) {
-						console.error("Dictation parse failed", e);
-						showToast("Не удалось обработать голосовую команду", "error");
+						console.error("[dictation parse] запрос не выполнен", e);
+						showToast(
+							`${actionFailureToast("Надиктованное не разобрано", null)} Схема не изменена — отметьте зубы вручную.`,
+							"error",
+							12000,
+						);
 					}
 				}}
 			/>

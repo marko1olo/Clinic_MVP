@@ -1,10 +1,11 @@
 import { CreditCard, UserRound, Mic, Bot } from "lucide-react";
 import type { PaymentMethod } from "@dental/shared";
-import { validateRubAmountInput, rubAmountInputMissingStep } from "./rubAmountInput";
+import { money } from "./AppHelpers";
+import { validateRubAmountInput, rubAmountInputMissingStep, normalizeRubAmountInput } from "./rubAmountInput";
 import { textToNumbers } from "./lib/stringUtils";
 import { AiOrchestrator } from "./lib/aiOrchestrator";
 import { SmartParsePreview } from "./SmartParsePreview";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { showToast } from "./components/GlobalToast";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { DictationHints } from "./DictationHints";
@@ -122,32 +123,39 @@ function FiscalDetails({
       <summary>Фискальный чек и кассир</summary>
       <div className="smart-details-content">
         <div className="payment-capture-detail-grid">
+        {/* id + htmlFor обязательны: оформление «плавающей» подписи держится
+            на соседних селекторах (.smart-field input ~ label), а вот
+            доступное имя из соседства не берётся — программа чтения с
+            экрана объявляла эти поля безымянными. Атрибуты только
+            добавляются, на вид ничего не влияет. */}
         <div className="smart-field">
           <input
+            id="payment-fiscal-receipt-number"
             autoComplete="off"
             value={fiscalReceiptNumber}
             onChange={(event) => onFiscalReceiptNumberChange(event.target.value)}
             placeholder=" " />
-          <label>Номер чека (можно пусто, если есть ФД/ФПД)</label>
+          <label htmlFor="payment-fiscal-receipt-number">Номер чека (можно пусто, если есть ФД/ФПД)</label>
         </div>
         <div className="smart-field no-float">
-          <input type="datetime-local" value={fiscalReceiptIssuedAt} onChange={(event) => onFiscalReceiptIssuedAtChange(event.target.value)} />
-          <label>Дата чека</label>
+          <input id="payment-fiscal-receipt-issued-at" type="datetime-local" value={fiscalReceiptIssuedAt} onChange={(event) => onFiscalReceiptIssuedAtChange(event.target.value)} />
+          <label htmlFor="payment-fiscal-receipt-issued-at">Дата чека</label>
         </div>
         <div className="smart-field">
-          <DigitsInput maxLength={32} value={fiscalFn} onChange={onFiscalFnChange} placeholder=" " />
-          <label>ФО (номер фискального накопителя)</label>
+          <DigitsInput id="payment-fiscal-fn" maxLength={32} value={fiscalFn} onChange={onFiscalFnChange} placeholder=" " />
+          <label htmlFor="payment-fiscal-fn">ФО (номер фискального накопителя)</label>
         </div>
         <div className="smart-field">
-          <DigitsInput maxLength={32} value={fiscalFd} onChange={onFiscalFdChange} placeholder=" " />
-          <label>ФД (номер фискального документа)</label>
+          <DigitsInput id="payment-fiscal-fd" maxLength={32} value={fiscalFd} onChange={onFiscalFdChange} placeholder=" " />
+          <label htmlFor="payment-fiscal-fd">ФД (номер фискального документа)</label>
         </div>
         <div className="smart-field">
-          <DigitsInput maxLength={32} value={fiscalFpd} onChange={onFiscalFpdChange} placeholder=" " />
-          <label>ФПД (фискальный признак)</label>
+          <DigitsInput id="payment-fiscal-fpd" maxLength={32} value={fiscalFpd} onChange={onFiscalFpdChange} placeholder=" " />
+          <label htmlFor="payment-fiscal-fpd">ФПД (фискальный признак)</label>
         </div>
         <div className="smart-field">
           <input
+            id="payment-fiscal-receipt-url"
             type="url"
             autoComplete="url"
             aria-invalid={fiscalReceiptUrlInvalid || undefined}
@@ -155,15 +163,16 @@ function FiscalDetails({
             value={fiscalReceiptUrl}
             onChange={(event) => onFiscalReceiptUrlChange(event.target.value)}
             placeholder=" " />
-          <label>Ссылка НФД (https://...)</label>
+          <label htmlFor="payment-fiscal-receipt-url">Ссылка НФД (https://...)</label>
         </div>
         <div className="smart-field">
           <input
+            id="payment-fiscal-cashier-name"
             autoComplete="off"
             value={fiscalCashierName}
             onChange={(event) => onFiscalCashierNameChange(event.target.value)}
             placeholder=" " />
-          <label>Кассир (ФИО администратора)</label>
+          <label htmlFor="payment-fiscal-cashier-name">Кассир (ФИО администратора)</label>
         </div>
       </div>
       </div>
@@ -226,46 +235,51 @@ function TaxPayerDetails({
         <div className="payment-capture-detail-grid">
         <div className="smart-field">
           <input
+            id="payment-payer-full-name"
             autoComplete="name"
             value={payerFullName}
             onChange={(event) => onPayerFullNameChange(event.target.value)}
             placeholder=" " />
-          <label>Плательщик для вычета (ФИО)</label>
+          <label htmlFor="payment-payer-full-name">Плательщик для вычета (ФИО)</label>
         </div>
         <div className="smart-field">
           <DigitsInput
+            id="payment-payer-inn"
             maxLength={12}
             aria-invalid={payerInnInvalid || undefined}
             aria-describedby={payerInnInvalid ? paymentMissingId : undefined}
             value={payerInn}
             onChange={onPayerInnChange}
             placeholder=" " />
-          <label>ИНН плательщика (если есть)</label>
+          <label htmlFor="payment-payer-inn">ИНН плательщика (если есть)</label>
         </div>
         <div className="smart-field no-float">
           <input
+            id="payment-payer-birth-date"
             type="date"
             autoComplete="bday"
             value={payerBirthDate}
             onChange={(event) => onPayerBirthDateChange(event.target.value)}
             placeholder=" " />
-          <label>Дата рождения плательщика</label>
+          <label htmlFor="payment-payer-birth-date">Дата рождения плательщика</label>
         </div>
         <div className="smart-field">
           <input
+            id="payment-payer-identity-document"
             autoComplete="off"
             value={payerIdentityDocument}
             onChange={(event) => onPayerIdentityDocumentChange(event.target.value)}
             placeholder=" " />
-          <label>Документ плательщика (паспорт / иной)</label>
+          <label htmlFor="payment-payer-identity-document">Документ плательщика (паспорт / иной)</label>
         </div>
         <div className="smart-field">
           <input
+            id="payment-payer-relationship"
             autoComplete="off"
             value={payerRelationship}
             onChange={(event) => onPayerRelationshipChange(event.target.value)}
             placeholder=" " />
-          <label>Родство (пациент, мать...)</label>
+          <label htmlFor="payment-payer-relationship">Родство (пациент, мать...)</label>
           <div className="quick-chips-row" style={{ marginTop: "6px", padding: "0 14px 10px 14px" }}>
              {["пациент", "мать", "отец", "супруг", "супруга"].map(rel => (
                <button key={rel} type="button" className="quick-chip quick-chip--sm" onClick={() => onPayerRelationshipChange(rel)}>{rel}</button>
@@ -325,18 +339,28 @@ function InstallmentCalculator({ totalAmount, isOpen }: InstallmentCalculatorPro
   const [months, setMonths] = useState(6);
   const [downPaymentPercent, setDownPaymentPercent] = useState(0);
 
+  // БЫЛО: monthlyPayment = Math.round(remaining / months) без сверки с итогом.
+  // 100 000 ₽ на 6 месяцев → 16 667 × 6 = 100 002 ₽ (пациенту называли на 2 ₽
+  // больше стоимости лечения), 70 000 ₽ на 3 месяца → 69 999 ₽ (счёт не закрыть).
+  // Теперь остаток от деления добирается последним платежом: сумма сходится точно.
   const downPayment = Math.round((totalAmount * downPaymentPercent) / 100);
-  const remaining = totalAmount - downPayment;
-  const monthlyPayment = months > 0 ? Math.round(remaining / months) : 0;
+  const remaining = Math.max(0, totalAmount - downPayment);
+  const monthlyPayment = months > 0 ? Math.floor(remaining / months) : 0;
+  const lastMonthPayment = months > 0 ? remaining - monthlyPayment * (months - 1) : 0;
+  const hasUnevenLastPayment = months > 0 && lastMonthPayment !== monthlyPayment;
 
   return (
     <details className="payment-capture-detail-section" open={isOpen} style={{ marginBottom: "20px" }}>
-      <summary>Калькулятор рассрочки (Внутренний)</summary>
+      {/* БЫЛО: «Калькулятор рассрочки (Внутренний)». Слово «внутренний» —
+          из разработки: пользователю оно не говорит ничего, а насторожить
+          может. Смысл в том, что рассрочка беспроцентная и от самой клиники,
+          без банка, — так и написано. */}
+      <summary>Рассрочка от клиники, без банка</summary>
       <div className="smart-details-content" style={{ padding: "16px", background: "var(--brand-50)", borderRadius: "8px", marginTop: "8px" }}>
         <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginBottom: "16px" }}>
           <div style={{ flex: "1 1 200px" }}>
-            <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Срок рассрочки (мес): {months}</label>
-            <input type="range" min="2" max="24" step="1" value={months} onChange={(e) => setMonths(parseInt(e.target.value))} style={{ width: "100%" }} />
+            <label htmlFor="installment-months-range" style={{ fontSize: "13px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Срок рассрочки (мес): {months}</label>
+            <input id="installment-months-range" type="range" min="2" max="24" step="1" value={months} onChange={(e) => setMonths(parseInt(e.target.value))} style={{ width: "100%" }} />
             <div style={{ display: "flex", gap: "4px", marginTop: "8px", flexWrap: "wrap" }}>
               {[3, 6, 12, 24].map(m => (
                 <button key={m} type="button" className={`quick-chip quick-chip--sm ${months === m ? 'active' : ''}`} onClick={() => setMonths(m)}>{m} мес</button>
@@ -344,8 +368,8 @@ function InstallmentCalculator({ totalAmount, isOpen }: InstallmentCalculatorPro
             </div>
           </div>
           <div style={{ flex: "1 1 200px" }}>
-            <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Первоначальный взнос: {downPaymentPercent}%</label>
-            <input type="range" min="0" max="80" step="10" value={downPaymentPercent} onChange={(e) => setDownPaymentPercent(parseInt(e.target.value))} style={{ width: "100%" }} />
+            <label htmlFor="installment-down-payment-range" style={{ fontSize: "13px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Первоначальный взнос: {downPaymentPercent}%</label>
+            <input id="installment-down-payment-range" type="range" min="0" max="80" step="10" value={downPaymentPercent} onChange={(e) => setDownPaymentPercent(parseInt(e.target.value))} style={{ width: "100%" }} />
             <div style={{ display: "flex", gap: "4px", marginTop: "8px", flexWrap: "wrap" }}>
               {[0, 20, 30, 50].map(p => (
                 <button key={p} type="button" className={`quick-chip quick-chip--sm ${downPaymentPercent === p ? 'active' : ''}`} onClick={() => setDownPaymentPercent(p)}>{p}%</button>
@@ -354,19 +378,47 @@ function InstallmentCalculator({ totalAmount, isOpen }: InstallmentCalculatorPro
           </div>
         </div>
         
-        <div style={{ display: "flex", justifyContent: "space-between", background: "var(--paper)", padding: "16px", borderRadius: "8px", border: "1px solid var(--brand-200)" }}>
+        {/* БЫЛО: border: 1px solid var(--brand-200). Имени --brand-200 нет ни в
+            одном файле стилей (проверка scripts/check-css-tokens.mjs инлайновые
+            стили в TSX не видит, поэтому и не поймала). Недействительное
+            значение в border-color не наследуется и не откатывается к каскаду —
+            берётся начальное currentColor, то есть цвет текста. Рамка вокруг
+            итоговой плашки рассрочки рисовалась почти чёрной вместо светлой
+            брендовой. Взят объявленный --brand-100 (бирюза темы, есть во всех
+            трёх темах): ближайший по смыслу к тому, что задумывали. */}
+        <div style={{ display: "flex", justifyContent: "space-between", background: "var(--paper)", padding: "16px", borderRadius: "8px", border: "1px solid var(--brand-100)" }}>
           <div>
             <div style={{ fontSize: "12px", color: "var(--slate-500)" }}>Сумма лечения</div>
-            <div style={{ fontSize: "16px", fontWeight: 600 }}>{totalAmount.toLocaleString('ru-RU')} ₽</div>
+            {/* Деньги — общим money(). Своё toLocaleString('ru-RU') печатало
+                «120 000,7 ₽» для суммы с копейками: полтинник в такой записи
+                читается как пять копеек. */}
+            <div style={{ fontSize: "16px", fontWeight: 600 }}>{money(totalAmount)}</div>
           </div>
           <div>
             <div style={{ fontSize: "12px", color: "var(--slate-500)" }}>Первый взнос</div>
-            <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--brand-600)" }}>{downPayment.toLocaleString('ru-RU')} ₽</div>
+            {/* БЫЛО: color: var(--brand-600). В светлой теме это #0284c7, и на
+                фоне var(--paper) контраст 4.1 при пороге 4.5 — замерено,
+                scratch/audit-inline-colors.mjs. Начертание 16px/600 к крупному
+                тексту не относится, поэтому послабления нет.
+                Это денежная цифра: читаемость важнее акцента. Оставляем тот же
+                цвет, что у соседней «Суммы лечения» — они равноправны, а
+                выделен и без того «Ежемесячный платеж»: он крупнее и цветной. */}
+            <div style={{ fontSize: "16px", fontWeight: 600 }}>{money(downPayment)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "12px", color: "var(--slate-500)" }}>Ежемесячный платеж</div>
-            <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--rust)" }}>{monthlyPayment.toLocaleString('ru-RU')} ₽</div>
+            <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--rust)" }}>{money(monthlyPayment)}</div>
+            {/* Остаток от деления добирается последним месяцем, чтобы сумма
+                платежей в точности равнялась стоимости лечения. */}
+            {hasUnevenLastPayment && (
+              <div style={{ fontSize: "12px", color: "var(--slate-500)", marginTop: "2px" }}>
+                последний месяц — {money(lastMonthPayment)}
+              </div>
+            )}
           </div>
+        </div>
+        <div style={{ fontSize: "12px", color: "var(--slate-500)", marginTop: "12px" }}>
+          Итого по графику: {money(downPayment + monthlyPayment * Math.max(0, months - 1) + lastMonthPayment)}
         </div>
       </div>
     </details>
@@ -415,6 +467,11 @@ export function PaymentCapture({
 }: PaymentCaptureProps) {
   const [smartInputText, setSmartInputText] = useState("");
   const [showSmartPreview, setShowSmartPreview] = useState(false);
+  // Таймер автоскрытия предпросмотра — держим, чтобы отменить при размонтировании.
+  const smartPreviewTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (smartPreviewTimerRef.current) window.clearTimeout(smartPreviewTimerRef.current);
+  }, []);
   const [smartParsedData, setSmartParsedData] = useState<any>(null);
   const [showHints, setShowHints] = useState(false);
   
@@ -429,7 +486,17 @@ export function PaymentCapture({
        
        setSmartParsedData({ isAiTask: false, text: "Успешно распознано: " + text, parsed });
        setShowSmartPreview(true);
-       setTimeout(() => { setShowSmartPreview(false); setSmartInputText(""); }, 2000);
+       // БЫЛО: setTimeout без сохранения идентификатора и без очистки. Через
+       // 2 секунды он безусловно стирал поле голосового ввода — если оператор
+       // за это время начинал печатать вручную, текст пропадал прямо посреди
+       // слова. Плюс таймер срабатывал уже после размонтирования компонента.
+       if (smartPreviewTimerRef.current) window.clearTimeout(smartPreviewTimerRef.current);
+       smartPreviewTimerRef.current = window.setTimeout(() => {
+         smartPreviewTimerRef.current = null;
+         setShowSmartPreview(false);
+         // Поле очищаем ТОЛЬКО если оператор не начал править его вручную.
+         setSmartInputText((current) => (current === text ? "" : current));
+       }, 2000);
     }
   };
   
@@ -500,7 +567,15 @@ export function PaymentCapture({
         </div>
       ) : (
         <>
-        <div className="smart-ai-booking" style={{ marginBottom: '12px', border: '1px solid var(--brand-300)', boxShadow: '0 2px 8px rgba(14, 165, 233, 0.05)', borderRadius: '12px', padding: '8px 12px', background: 'var(--paper)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* flexDirection задаём явно. Класс .smart-ai-booking в main.css
+            содержит flex-direction: column, инлайновый стиль его не отменял, и
+            строка разворачивалась в столбик: значок, поле ввода и микрофон
+            вставали друг под другом в узкой колонке шириной около 200px, а
+            подсказка «Пример: Оплата 5000 картой…» обрезалась на полуслове.
+            Видно на скриншоте экрана «Оплаты». Соседний вызов класса в
+            NewAppointmentForm столбик задаёт сам, поэтому общий стиль не
+            трогаем. */}
+        <div className="smart-ai-booking" style={{ gridColumn: '1 / -1', marginBottom: '12px', border: '1px solid var(--brand-300)', boxShadow: '0 2px 8px rgba(14, 165, 233, 0.05)', borderRadius: '12px', padding: '8px 12px', background: 'var(--paper)', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
           <Bot size={18} color="var(--brand-600)" />
           <div style={{ position: 'relative', flex: 1 }}>
             <input
@@ -571,9 +646,16 @@ export function PaymentCapture({
               <button
                 type="button"
                 className="quick-chip"
-                onClick={() => onAmountChange(String(remainingDebt))}
+                /* БЫЛО: подставлялось сырое число с плавающей точкой, например
+                   2699.7000000000007 (после расчёта страхового покрытия).
+                   Поле принимает только целые рубли, поэтому кнопка «оплатить
+                   долг одним нажатием» просто не работала. Округляем. */
+                onClick={() => onAmountChange(String(Math.round(remainingDebt)))}
               >
-                Долг: {remainingDebt} ₽
+                {/* Подпись — общим money(). Показываем ровно то целое число,
+                    которое кнопка подставит в поле, иначе кассир видел бы одну
+                    сумму, а в поле получал другую. */}
+                Долг: {money(Math.round(remainingDebt))}
               </button>
             )}
             {[1000, 2000, 3000, 5000].map((val) => (
@@ -643,7 +725,11 @@ export function PaymentCapture({
         taxDefaultsGuidanceId={taxDefaultsGuidanceId}
         taxPayerDetailsOpen={taxPayerDetailsOpen}
       />
-      <InstallmentCalculator totalAmount={parseFloat(amount) || 0} isOpen={false} />
+      {/* БЫЛО: parseFloat("120 000") === 120. Поле суммы явно разрешает пробелы
+          (pattern="[0-9\s]*"), администратор набирает "120 000" — и калькулятор
+          показывал рассрочку на 120 ₽ по 20 ₽ в месяц. Используем тот же
+          нормализатор, что и валидация формы: он снимает пробелы и NBSP. */}
+      <InstallmentCalculator totalAmount={normalizeRubAmountInput(amount) ?? 0} isOpen={false} />
       {!paymentReadyToSubmit ? (
         <div className="payment-capture-missing" id={paymentMissingId} role="status" aria-live="polite">
           <strong>Чтобы принять оплату, осталось:</strong>
@@ -665,7 +751,8 @@ export function PaymentCapture({
         aria-describedby={!paymentReadyToSubmit ? paymentMissingId : undefined}
         disabled={isSaving || !paymentReadyToSubmit}
       >
-        <CreditCard aria-hidden="true" /> {isSaving ? "Записываэ" : "Принять оплату"}
+        {/* Было «Записываэ»: опечатка на кнопке кассы, видна каждому кассиру. */}
+        <CreditCard aria-hidden="true" /> {isSaving ? "Записываю" : "Принять оплату"}
       </button>
     </div>
   );

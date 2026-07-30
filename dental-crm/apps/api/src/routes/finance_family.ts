@@ -5,7 +5,13 @@ import {
 	requireResolvedOrganizationId,
 	requireResolvedStaffOrAdminOrganizationId,
 } from "../accessGuard.js";
+import {
+	kopecksToNumericString,
+	parseKopecks,
+	rublesToKopecks,
+} from "@dental/shared";
 import { db } from "../db/client.js";
+import { enforcePermissionWhenStaffKnown } from "../security/permissions.js";
 import { familyGroups, patients, payments } from "../db/schema.js";
 import { wsBroker } from "../services/websocketBroker.js";
 
@@ -20,8 +26,58 @@ const familyPaymentSchema = z.object({
 	amountRub: z.number().int().positive(),
 	documentId: z.string().uuid().optional(),
 	visitId: z.string().uuid().optional(),
+	// Ключ идемпотентности. Без него повтор запроса после обрыва связи списывал
+	// деньги с семейного баланса ВТОРОЙ раз за то же лечение: маршрут читал
+	// баланс, вычитал и вставлял платёж, не проверяя, не сделал ли он это уже.
+	// Блокировка .for("update") защищает только от одновременных запросов,
+	// но не от повторной отправки.
+	clientMutationId: z.string().min(1).max(128).optional(),
 });
 
+/**
+ * Пополнение семейного кошелька.
+ *
+ * БЫЛО: эндпоинта пополнения не существовало вообще. Баланс инициализировался
+ * нулём и только УМЕНЬШАЛСЯ при оплате, поэтому проверка «достаточно ли средств»
+ * отклоняла КАЖДУЮ оплату с семейного счёта: способ оплаты был нерабочим,
+ * а любой ненулевой баланс мог появиться только прямым SQL-запросом в базу.
+ */
+const familyTopupSchema = z.object({
+	familyGroupId: z.string().uuid(),
+	// Баланс хранится в целых рублях (integer), поэтому копейки не принимаем:
+	// иначе списание и запись в журнал начнут расходиться.
+	amountRub: z.number().int().positive().max(10_000_000),
+	// Кто внёс деньги — обычно глава семьи. Нужен для журнала платежей.
+	patientId: z.string().uuid(),
+	method: z.enum(["cash", "card", "bank_transfer", "online", "other"]).default("cash"),
+	comment: z.string().trim().max(500).optional(),
+	// Тот же ключ идемпотентности, что и при оплате: повтор после обрыва связи
+	// не должен зачислить деньги дважды.
+	clientMutationId: z.string().min(1).max(128).optional(),
+});
+
+class FamilyFinanceError extends Error {
+	constructor(message: string, public statusCode: number) {
+		super(message);
+		this.name = "FamilyFinanceError";
+	}
+}
+
+/**
+ * БЫЛО: все три выборки семейной группы принимали не только свою организацию,
+ * но и группы с organizationId IS NULL, а эта функция вдобавок «присваивала»
+ * найденную бесхозную группу той клинике, которая обратилась к ней первой.
+ *
+ * Через семейную группу проходит кошелёк с деньгами. Любая клиника могла
+ * прочитать чужую группу без организации, забрать её себе и списать баланс.
+ * Колонка organization_id объявлена nullable, то есть такие строки были
+ * достижимы штатно, а не только после сбоя.
+ *
+ * СТАЛО: выборка строго по своей организации. Унаследованные строки без
+ * организации восстанавливаются миграцией
+ * 0119_family_groups_require_organization.sql (привязка по головному пациенту),
+ * после чего колонка становится NOT NULL.
+ */
 async function familyGroupForOrganization(
 	familyGroupId: string,
 	organizationId: string,
@@ -32,22 +88,11 @@ async function familyGroupForOrganization(
 		.where(
 			and(
 				eq(familyGroups.id, familyGroupId),
-				or(
-					eq(familyGroups.organizationId, organizationId),
-					isNull(familyGroups.organizationId),
-				),
+				eq(familyGroups.organizationId, organizationId),
 			),
 		)
 		.limit(1);
-	if (!family) return null;
-	if (!family.organizationId) {
-		await db
-			.update(familyGroups)
-			.set({ organizationId })
-			.where(eq(familyGroups.id, family.id));
-		return { ...family, organizationId };
-	}
-	return family;
+	return family ?? null;
 }
 
 async function familyMembersForOrganization(
@@ -192,13 +237,24 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 			"family finance write",
 		);
 		if (!organizationId) return;
+		// Роль решает, кто двигает деньги: врач и ассистент к семейному
+		// кошельку не допущены. Раньше единственным барьером был общий
+		// секрет клиники, одинаковый для чтения и записи.
+		if (!enforcePermissionWhenStaffKnown(req, reply, "finance.write")) return;
 
-		const data = z
+		const createParsed = z
 			.object({
 				name: z.string().min(1),
 				headPatientId: z.string().uuid().optional(),
 			})
-			.parse(req.body);
+			.safeParse(req.body);
+		if (!createParsed.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message: "Проверьте данные семейной группы: нужно непустое имя.",
+			});
+		}
+		const data = createParsed.data;
 
 		if (data.headPatientId) {
 			const [headPatient] = await db
@@ -225,7 +281,8 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 				organizationId,
 				name: data.name,
 				headPatientId: data.headPatientId || null,
-				balance: "0.00",
+				// numeric(12, 2) принимает строку — так значение не проходит через double.
+				balance: kopecksToNumericString(0),
 			})
 			.returning()) as any;
 		const family = result[0];
@@ -245,14 +302,25 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 			"family finance write",
 		);
 		if (!organizationId) return;
+		// Роль решает, кто двигает деньги: врач и ассистент к семейному
+		// кошельку не допущены. Раньше единственным барьером был общий
+		// секрет клиники, одинаковый для чтения и записи.
+		if (!enforcePermissionWhenStaffKnown(req, reply, "finance.write")) return;
 
 		const { id } = req.params as { id: string };
-		const data = z
+		const updateParsed = z
 			.object({
 				name: z.string().min(1).optional(),
 				headPatientId: z.string().uuid().nullable().optional(),
 			})
-			.parse(req.body);
+			.safeParse(req.body);
+		if (!updateParsed.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message: "Проверьте данные семейной группы.",
+			});
+		}
+		const data = updateParsed.data;
 
 		if (data.headPatientId) {
 			const [headPatient] = await db
@@ -301,6 +369,10 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 			"family finance write",
 		);
 		if (!organizationId) return;
+		// Роль решает, кто двигает деньги: врач и ассистент к семейному
+		// кошельку не допущены. Раньше единственным барьером был общий
+		// секрет клиники, одинаковый для чтения и записи.
+		if (!enforcePermissionWhenStaffKnown(req, reply, "finance.write")) return;
 
 		const { id } = req.params as { id: string };
 
@@ -340,7 +412,18 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 			"family finance payment",
 		);
 		if (!organizationId) return;
-		const payload = familyPaymentSchema.parse(req.body);
+		// Роль решает, кто двигает деньги: врач и ассистент к семейному
+		// кошельку не допущены. Раньше единственным барьером был общий
+		// секрет клиники, одинаковый для чтения и записи.
+		if (!enforcePermissionWhenStaffKnown(req, reply, "finance.write")) return;
+		const payParsed = familyPaymentSchema.safeParse(req.body);
+		if (!payParsed.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message: "Проверьте оплату с семейного счёта: нужны patientId, familyGroupId и целые рубли больше нуля.",
+			});
+		}
+		const payload = payParsed.data;
 
 		try {
 			const result = await db.transaction(async (tx) => {
@@ -354,10 +437,9 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 						),
 					)
 					.limit(1);
+
 				if (!patient || patient.familyGroupId !== payload.familyGroupId) {
-					const err = new Error("Пациент не найден в семейной группе клиники");
-					(err as any).statusCode = 404;
-					throw err;
+					throw new FamilyFinanceError("Пациент не найден в семейной группе клиники", 404);
 				}
 
 				// 1. Get Family Group & Lock it
@@ -367,32 +449,55 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 					.where(
 						and(
 							eq(familyGroups.id, payload.familyGroupId),
-							or(
-								eq(familyGroups.organizationId, organizationId),
-								isNull(familyGroups.organizationId),
-							),
+							eq(familyGroups.organizationId, organizationId),
 						),
 					)
 					.limit(1)
 					.for("update");
 				if (!family) {
-					const err = new Error("Семейная группа не найдена");
-					(err as any).statusCode = 404;
-					throw err;
+					throw new FamilyFinanceError("Семейная группа не найдена", 404);
 				}
 
-				const currentBalance = Number(family.balance ?? 0);
-				if (currentBalance < payload.amountRub) {
-					const err = new Error("Недостаточно средств на семейном балансе");
-					(err as any).statusCode = 402;
-					throw err;
+				// Повтор с тем же ключом не списывает деньги второй раз, а возвращает
+				// ранее созданный платёж. Проверка внутри транзакции и после
+				// блокировки строки семьи, чтобы два параллельных повтора не
+				// проскочили одновременно.
+				if (payload.clientMutationId) {
+					const [duplicate] = await tx
+						.select()
+						.from(payments)
+						.where(
+							and(
+								eq(payments.organizationId, organizationId),
+								eq(payments.clientMutationId, payload.clientMutationId),
+							),
+						)
+						.limit(1);
+					if (duplicate) {
+						return {
+							payment: duplicate,
+							newBalance: kopecksToNumericString(parseKopecks(family.balance)),
+							duplicate: true,
+						};
+					}
+				}
+
+				// Весь расчёт идёт целыми копейками. Раньше баланс читался через
+				// Number(), вычитание шло в плавающей точке, а в базу писался
+				// Math.round(newBalance): при балансе 150.50 и платеже 100 руб. в
+				// базу попадало 51, а клиентам по WebSocket уходило 50.50 — после
+				// перезагрузки страницы сумма менялась сама.
+				const currentKopecks = parseKopecks(family.balance);
+				const amountKopecks = rublesToKopecks(payload.amountRub);
+				if (currentKopecks < amountKopecks) {
+					throw new FamilyFinanceError("Недостаточно средств на семейном балансе", 402);
 				}
 
 				// 2. Deduct Balance
-				const newBalance = currentBalance - payload.amountRub;
+				const newBalance = kopecksToNumericString(currentKopecks - amountKopecks);
 				await tx
 					.update(familyGroups)
-					.set({ balance: newBalance.toFixed(2), organizationId })
+					.set({ balance: newBalance, organizationId })
 					.where(eq(familyGroups.id, family.id));
 
 				// 3. Create Payment Record
@@ -407,10 +512,11 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 						documentId: payload.documentId,
 						visitId: payload.visitId,
 						status: "paid",
+						clientMutationId: payload.clientMutationId ?? null,
 					})
 					.returning();
 
-				return { payment, newBalance };
+				return { payment, newBalance, duplicate: false };
 			});
 
 			wsBroker.broadcastToOrganization(organizationId, {
@@ -433,6 +539,131 @@ export async function registerFamilyFinanceRoutes(app: FastifyInstance) {
 			return reply.code(statusCode).send({
 				error: statusCode === 402 ? "InsufficientFunds" : "PaymentFailed",
 				message,
+			});
+		}
+	});
+
+	// POST /api/finance/family/topup — пополнение семейного кошелька
+	app.post("/api/finance/family/topup", async (req, reply) => {
+		const organizationId = await requireResolvedStaffOrAdminOrganizationId(
+			req,
+			reply,
+			"family wallet topup",
+		);
+		if (!organizationId) return;
+		// Роль решает, кто двигает деньги: врач и ассистент к семейному
+		// кошельку не допущены. Раньше единственным барьером был общий
+		// секрет клиники, одинаковый для чтения и записи.
+		if (!enforcePermissionWhenStaffKnown(req, reply, "finance.write")) return;
+
+		const parsed = familyTopupSchema.safeParse(req.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message: "Проверьте сумму пополнения: нужны целые рубли больше нуля.",
+			});
+		}
+		const payload = parsed.data;
+
+		try {
+			const result = await db.transaction(async (tx) => {
+				// Пациент должен принадлежать этой клинике и этой семье.
+				const [patient] = await tx
+					.select({ id: patients.id, familyGroupId: patients.familyGroupId })
+					.from(patients)
+					.where(
+						and(
+							eq(patients.id, payload.patientId),
+							eq(patients.organizationId, organizationId),
+						),
+					)
+					.limit(1);
+				if (!patient || patient.familyGroupId !== payload.familyGroupId) {
+					throw new FamilyFinanceError("Пациент не найден в семейной группе клиники", 404);
+				}
+
+				// Блокируем строку семьи: параллельные пополнения не потеряют друг друга.
+				const [family] = await tx
+					.select()
+					.from(familyGroups)
+					.where(
+						and(
+							eq(familyGroups.id, payload.familyGroupId),
+							eq(familyGroups.organizationId, organizationId),
+						),
+					)
+					.limit(1)
+					.for("update");
+				if (!family) {
+					throw new FamilyFinanceError("Семейная группа не найдена", 404);
+				}
+
+				// Повтор с тем же ключом не зачисляет деньги второй раз.
+				if (payload.clientMutationId) {
+					const [duplicate] = await tx
+						.select()
+						.from(payments)
+						.where(
+							and(
+								eq(payments.organizationId, organizationId),
+								eq(payments.clientMutationId, payload.clientMutationId),
+							),
+						)
+						.limit(1);
+					if (duplicate) {
+						return {
+							payment: duplicate,
+							newBalance: kopecksToNumericString(parseKopecks(family.balance)),
+							duplicate: true,
+						};
+					}
+				}
+
+				// Пополнение считается там же в копейках. Раньше здесь складывались
+				// Number(строка) и целые рубли, и результат записывался БЕЗ
+				// округления — а списание, наоборот, округляло. Из-за асимметрии
+				// копейки попадали в кошелёк при пополнении и терялись при оплате.
+				const newBalance = kopecksToNumericString(
+					parseKopecks(family.balance) + rublesToKopecks(payload.amountRub),
+				);
+				await tx
+					.update(familyGroups)
+					.set({ balance: newBalance, organizationId, updatedAt: new Date() })
+					.where(eq(familyGroups.id, family.id));
+
+				// Пополнение фиксируется в журнале платежей со статусом "planned":
+				// это ещё не выручка клиники, а аванс семьи. Иначе пополнение
+				// попало бы в отчёт о выручке дважды — при внесении и при оплате.
+				const [payment] = await tx
+					.insert(payments)
+					.values({
+						organizationId,
+						patientId: payload.patientId,
+						amountRub: payload.amountRub,
+						method: payload.method,
+						status: "planned",
+						clientMutationId: payload.clientMutationId ?? null,
+					})
+					.returning();
+
+				return { payment, newBalance, duplicate: false };
+			});
+
+			wsBroker.broadcastToOrganization(organizationId, {
+				type: "FAMILY_BALANCE_UPDATED",
+				payload: {
+					organizationId,
+					familyGroupId: payload.familyGroupId,
+					balance: result.newBalance,
+				},
+			});
+
+			return result;
+		} catch (err: any) {
+			const statusCode = err.statusCode || 500;
+			return reply.code(statusCode).send({
+				error: statusCode === 404 ? "NotFound" : "TopupFailed",
+				message: err.message || "Не удалось пополнить семейный счёт",
 			});
 		}
 	});

@@ -1,21 +1,25 @@
+import { getRequestIdentity, requireOrganizationId } from "../../security/identity.js";
 import { requireClinicalMutationAccess } from "../../accessGuard.js";
 import { issueDocumentSchema, publicGeneratedDocumentSchema } from "@dental/shared";
+import { paymentRefundCorrectionSelectionErrorForDocument } from "../../documents/guards.js";
+import { settleRefundedPaymentsForPatient } from "../../documents/refundSettlement.js";
 import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot } from "../../documents/taxPaymentSnapshot.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../../text/repairMojibake.js";
-import { apiError, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, taxSnapshotDocument, documentRenderContext, documentIssueValidationMessage, buildMedicalDocumentReleaseJournalEntry, taxXmlSourceSnapshotForIssue } from "../documents.js";
+import { apiError, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, taxSnapshotDocument, resolveDocumentRenderContext, documentIssueValidationMessage, buildMedicalDocumentReleaseJournalEntry, taxXmlSourceSnapshotForIssue } from "../documents.js";
 import { getDocumentById, issueGeneratedDocumentInDb } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
-import { verifyToken } from "../../utils/cryptoHelper.js";
-import { TOKEN_SECRET } from "../auth.js";
 import { renderDocumentHtml } from "../../documents/renderDocument.js";
 export async function register(app) {
     app.post("/api/documents/:id/issue", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document issue")))
             return;
-        const clinicHeader = request.headers["x-dente-clinic-token"];
-        const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
-        const payload = clinicToken ? verifyToken(clinicToken, TOKEN_SECRET()) : null;
-        const orgId = payload?.organizationId || "mock-org";
+        // БЫЛО: при отсутствии/невалидности токена подставлялась строка "mock-org".
+        // Все проверки принадлежности сравнивали подделку саму с собой и сходились,
+        // а в uuid-колонку уходило "mock-org" → 500 на каждом маршруте документов.
+        // Организация теперь берётся только из проверенного токена (401 иначе).
+        const orgId = requireOrganizationId(request, reply);
+        if (!orgId)
+            return;
         const { id } = request.params;
         const existing = await getDocumentById(orgId, id);
         if (!existing) {
@@ -49,7 +53,12 @@ export async function register(app) {
         const requestHost = request.headers.host ?? "127.0.0.1:4100";
         const requestProto = request.headers["x-forwarded-proto"] ?? "http";
         const origin = `${requestProto}://${requestHost}`;
-        const renderContext = { ...documentRenderContext(), origin };
+        // Реальный контекст вместо пустой заглушки: без профиля клиники выдача
+        // договоров и актов отклонялась как «профиль заполнен не полностью».
+        const renderContext = {
+            ...(await resolveDocumentRenderContext(orgId, existing.patientId)),
+            origin,
+        };
         const blockReason = documentIssueBlockReason(issueCandidate, patient, renderContext);
         if (blockReason) {
             return reply.code(409).send(apiError(blockReason));
@@ -57,6 +66,19 @@ export async function register(app) {
         const chainBlockReason = await documentIssueChainBlockReason(issueCandidate);
         if (chainBlockReason) {
             return reply.code(409).send(apiError(chainBlockReason));
+        }
+        // Контроль суммарных возвратов именно в момент ВЫДАЧИ — здесь деньги реально
+        // покидают кассу. Проверка при создании черновика недостаточна: между
+        // созданием и выдачей мог быть выдан другой возврат по тому же чеку.
+        if (issueCandidate.kind === "payment_refund_correction_request") {
+            const [refundPayments, refundDocuments] = await Promise.all([
+                import("../../db/billingQuery.js").then((m) => m.getPaymentsByPatientIdInDb(orgId, existing.patientId)),
+                import("../../db/documentQuery.js").then((m) => m.getDocumentsByPatientId(orgId, existing.patientId)),
+            ]);
+            const refundLimitError = paymentRefundCorrectionSelectionErrorForDocument(issueCandidate, refundPayments, refundDocuments, existing.id);
+            if (refundLimitError) {
+                return reply.code(409).send(apiError(refundLimitError));
+            }
         }
         const duplicateTaxCertificate = await findIssuedDuplicateTaxCertificate(issueCandidate, []);
         if (duplicateTaxCertificate) {
@@ -84,7 +106,14 @@ export async function register(app) {
             taxXmlSourceSnapshot
         };
         const issuedHtml = renderDocumentHtml(issuedDocumentCandidate, patient, renderContext);
+        // БЫЛО: слой БД писал в issued_by_user_id литерал "doctor". Колонка —
+        // uuid с внешним ключом на users.id, поэтому выдача документа не просто
+        // указывала фиктивного подписанта, а падала в Postgres (22P02). Реальный
+        // сотрудник берётся из подписанного staff-токена; если авторизованного
+        // человека в запросе нет, пишем null — «подписант не установлен», а не
+        // подставляем чужой идентификатор.
         const document = await issueGeneratedDocumentInDb(orgId, id, {
+            issuedByUserId: getRequestIdentity(request).userId,
             issuedAt,
             releaseJournalEntry,
             snapshotHtml: issuedHtml,
@@ -95,6 +124,20 @@ export async function register(app) {
         });
         if (!document) {
             return reply.code(409).send(apiError("Статус документа нельзя изменить."));
+        }
+        // ВЫДАЧА ЗАЯВЛЕНИЯ НА ВОЗВРАТ — ЭТО МОМЕНТ, КОГДА ДЕНЬГИ ПОКИДАЮТ КАССУ.
+        // БЫЛО: заявление выдавалось (HTTP 200), а payments.status оставался "paid",
+        // поэтому выручка `sum(amount_rub) where status = 'paid'` считала
+        // возвращённые пациенту деньги полученными. Полный разбор решения, включая
+        // то, почему частичный возврат существующими столбцами не выражается, —
+        // documents/refundSettlement.ts.
+        if (document.kind === "payment_refund_correction_request") {
+            const settlement = await settleRefundedPaymentsForPatient(orgId, document.patientId);
+            request.log.info({
+                documentId: document.id,
+                refundedPaymentIds: settlement.refunded,
+                partiallyRefundedPaymentIds: settlement.partiallyRefunded.map((item) => item.paymentId)
+            }, "возврат сведён с кассой при выдаче заявления");
         }
         return reply.send(publicGeneratedDocumentSchema.parse(document));
     });

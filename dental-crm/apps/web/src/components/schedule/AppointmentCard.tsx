@@ -22,6 +22,16 @@ export type AppointmentCardProps = {
   formatTime: (value: string) => string;
   patientName: (patients: Dashboard["patients"], patientId: string | null) => string;
   openAppointmentEditor: (appointment: Appointment) => void;
+  /**
+   * Переносит пациента, врача, ассистента, кресло, длительность и повод этой
+   * записи в форму новой и открывает её. Заменяет «Буфер обмена переноса
+   * записей расписания» — тот показывал пустую коробку с обещанием
+   * «из клика по визиту вы можете скопировать запись», хотя копировать было
+   * нечем: функция copyToBuffer не вызывалась ни из одного места, вставки не
+   * существовало вовсе, а у таблицы schedule_clipboard_items во всём проекте
+   * нет ни одного писателя — только чтение.
+   */
+  repeatAppointment: (appointment: Appointment) => void;
   closeAppointmentEditor: (appointmentId: string) => void;
   updateAppointmentScheduleDraft: (appointmentId: string, key: any, value: any) => void;
   saveAppointmentSchedule: (appointmentId: string) => Promise<boolean>;
@@ -52,6 +62,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
     formatTime,
     patientName,
     openAppointmentEditor,
+    repeatAppointment,
     closeAppointmentEditor,
     updateAppointmentScheduleDraft,
     saveAppointmentSchedule,
@@ -83,8 +94,10 @@ export function AppointmentCard(props: AppointmentCardProps) {
         <p style={{ display: 'none' }}>{appointment.reason}</p>
         <article
           data-testid="appointment-card"
-          className={`appointment-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-4 mb-3 shadow-sm ${readiness ? 'readiness-' + readiness.state : ""}`}
-          style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+          role="article"
+          aria-label={`Карточка приема: ${appointmentPatientName}, ${formatTime(appointment.startsAt)} - ${formatTime(appointment.endsAt)}`}
+          className={`appointment-card mode-fit-card glass-panel rounded-xl p-4 mb-3 shadow-sm ${readiness ? 'readiness-' + readiness.state : ""}`}
+          style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--paper)', border: '1px solid var(--line)', color: 'var(--ink)' }}
         >
       <div className="appointment-card-header border-b border-slate-200 dark:border-slate-800 pb-2 mb-1 flex justify-between items-center">
         <div className="appointment-card-time font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -142,9 +155,19 @@ export function AppointmentCard(props: AppointmentCardProps) {
         </p>
       ) : null}
 
-      <div className="appointment-card-footer flex justify-end mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+      <div className="appointment-card-footer flex justify-end gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
         <button
-          className="secondary-button appointment-edit-button"
+          className="secondary-button appointment-repeat-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
+          type="button"
+          onClick={() => repeatAppointment(appointment)}
+          aria-label={`Повторить запись: ${appointmentPatientName}. Форма новой записи откроется заполненной, останется выбрать время`}
+          title={`Повторить запись: те же пациент, врач и кресло — останется выбрать время`}
+          style={{ padding: '4px 12px', minHeight: '28px', fontSize: '12px' }}
+        >
+          Повторить
+        </button>
+        <button
+          className="secondary-button appointment-edit-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
           type="button"
           onClick={() => openAppointmentEditor(appointment)}
           aria-expanded={appointmentEditing}
@@ -187,15 +210,17 @@ export function AppointmentCard(props: AppointmentCardProps) {
               }
             />
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '16px', gridColumn: '1 / -1' }}>
+          {/* min(300px, 100%): иначе колонка держит 300px в более узком
+              контейнере и содержимое карточки уезжает за правый край. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: '24px', marginBottom: '16px', gridColumn: '1 / -1' }}>
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Пациент</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Пациент</span>
               {useManualSelects || (dashboard.patients ?? []).length > 20 ? (
                 <select
                   value={appointmentDraft.patientId || ''}
                   onChange={(e) => updateAppointmentScheduleDraft(appointment.id, 'patientId', e.target.value)}
-                  disabled={appointment.id === dashboard.activeVisit.appointmentId}
-                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--slate-300)' }}
+                  disabled={appointment.id === dashboard.activeVisit?.appointmentId}
+                  className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none"
                   aria-describedby={appointmentHasOpenVisit ? appointmentHandoffNoteId : undefined}
                 >
                   <option value="">-- Выберите пациента --</option>
@@ -204,7 +229,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
                   ))}
                 </select>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div className="flex flex-wrap gap-1.5">
                   {(dashboard.patients ?? [])
                     .filter((patient) => patient.status === "active")
                     .map((patient) => (
@@ -213,7 +238,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
                         type="button"
                         className={`quick-chip ${appointmentDraft.patientId === patient.id ? 'active' : ''}`}
                         onClick={() => updateAppointmentScheduleDraft(appointment.id, "patientId", patient.id)}
-                        disabled={appointment.id === dashboard.activeVisit.appointmentId}
+                        disabled={appointment.id === dashboard.activeVisit?.appointmentId}
                       >
                         {patient.fullName}
                       </button>
@@ -223,12 +248,12 @@ export function AppointmentCard(props: AppointmentCardProps) {
             </div>
 
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Врач</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Врач</span>
               {useManualSelects ? (
                 <select
                   value={appointmentDraft.doctorUserId || ''}
                   onChange={(e) => updateAppointmentScheduleDraft(appointment.id, 'doctorUserId', e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--slate-300)' }}
+                  className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none"
                 >
                   <option value="">-- Выберите врача --</option>
                   {(dashboard.clinicSettings?.staff ?? []).filter(m => m.active && (m.role === 'doctor' || m.role === 'owner')).map(m => (
@@ -236,7 +261,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
                   ))}
                 </select>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div className="flex flex-wrap gap-1.5">
                   {(dashboard.clinicSettings?.staff ?? [])
                     .filter((member) => member.active && (member.role === "doctor" || member.role === "owner"))
                     .map((member) => (
@@ -256,8 +281,8 @@ export function AppointmentCard(props: AppointmentCardProps) {
 
             {dashboard.clinicSettings.profile.mode !== "solo_doctor" && (
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Ассистент</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Ассистент</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(dashboard.clinicSettings?.staff ?? [])
                   .filter((member) => member.active && member.role === "assistant")
                   .map((member) => (
@@ -276,8 +301,8 @@ export function AppointmentCard(props: AppointmentCardProps) {
             )}
 
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Кресло</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Кресло</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(dashboard.clinicSettings?.chairs ?? [])
                   .filter((chair) => chair.active)
                   .map((chair) => (
@@ -295,8 +320,8 @@ export function AppointmentCard(props: AppointmentCardProps) {
             </div>
             
             <div>
-              <span style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Статус</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Статус</span>
+              <div className="flex flex-wrap gap-1.5">
                 {(Object.keys(appointmentLabels) as Appointment["status"][]).map((status) => (
                     <button
                       key={status}
@@ -311,7 +336,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
                 ))}
               </div>
               {appointmentHasOpenVisit && (
-                <div id={appointmentHandoffNoteId} className="status-blocker-note appointment-handoff-note" style={{ fontSize: '12px', color: 'var(--amber-700)', marginTop: '4px' }}>
+                <div id={appointmentHandoffNoteId} className="status-blocker-note appointment-handoff-note text-xs text-amber-800 dark:text-amber-300 mt-1 font-medium bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900/60">
                   Статус приема заблокирован: по этому приему открыт активный визит. Завершите или отмените визит в рабочем месте врача (закройте прием перед закрывающим статусом записи).
                 </div>
               )}
@@ -320,7 +345,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
           <label className="form-span-2">
             Причина
             <input value={String(appointmentDraft.reason || "")} onChange={(event: TextFieldChangeEvent) => updateAppointmentScheduleDraft(appointment.id, "reason", event.target.value)} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
               {["Кариес", "Пульпит", "Удаление", "Осмотр", "Профгигиена", "Консультация", "Брекеты", "Коронка", "КЛКТ", "Имплантация"].map(chip => (
                 <button
                   key={chip}
@@ -331,8 +356,6 @@ export function AppointmentCard(props: AppointmentCardProps) {
                     updateAppointmentScheduleDraft(appointment.id, "reason", newVal);
                   }}
                   className="quick-chip quick-chip--sm"
-                  
-                  
                 >
                   + {chip}
                 </button>
@@ -342,7 +365,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
           <label className="form-span-2">
             Комментарий
             <textarea value={String(appointmentDraft.comment || "")} onChange={(event: TextFieldChangeEvent) => updateAppointmentScheduleDraft(appointment.id, "comment", event.target.value)} rows={2} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
               {["Первичный", "Боль", "Осмотр", "Консультация", "Снимки"].map(chip => (
                 <button
                   key={chip}
@@ -353,8 +376,6 @@ export function AppointmentCard(props: AppointmentCardProps) {
                     updateAppointmentScheduleDraft(appointment.id, "comment", newVal);
                   }}
                   className="quick-chip quick-chip--sm"
-                  
-                  
                 >
                   + {chip}
                 </button>
@@ -375,6 +396,26 @@ export function AppointmentCard(props: AppointmentCardProps) {
                 </div>
               ) : null}
             </div>
+            {/*
+              ПРАВКА ВРЕМЕНИ ПРИЁМА МОЛЧА ПРОПАДАЛА ПРИ ЗАКРЫТИИ.
+
+              ЧТО БЫЛО СЛОМАНО. Признак «в черновике есть несохранённые изменения»
+              сюда передаётся (appointmentDirty, считается в ScheduleView), но в
+              карточке не использовался НИ РАЗУ: подпись у кнопки всегда говорила
+              «Ждет сохранения» — и когда правок нет, и когда администратор
+              переставил время, но не сохранил.
+
+              ЧТО ВИДЕЛ АДМИНИСТРАТОР. Открыл «Настроить», переставил начало с
+              14:00 на 15:00, отвлёкся на звонок, нажал «Закрыть» — правка исчезла
+              без единого слова, а в расписании осталось 14:00. Пациенту при этом
+              уже сказали «перенесли на три». Приём сорван, а на экране всё ровно.
+
+              ЧТО СТАЛО. Подпись говорит правду: «Изменения не сохранены», когда
+              они есть, и «Изменений нет», когда их нет. «Закрыть» с
+              несохранёнными правками спрашивает подтверждение — потерять их можно
+              только осознанно. Классы подписи не тронуты: оформление живёт в
+              чужих таблицах стилей.
+            */}
             <span className={`save-state save-state-${appointmentSaveState}`}>
               {appointmentSaveState === "saving"
                 ? "Сохраняю"
@@ -382,9 +423,27 @@ export function AppointmentCard(props: AppointmentCardProps) {
                   ? "Сохранено"
                   : appointmentSaveState === "error"
                     ? "Ошибка сохранения"
-                    : "Ждет сохранения"}
+                    : appointmentDirty
+                      ? "Изменения не сохранены"
+                      : "Изменений нет"}
             </span>
-            <button className="secondary-button" type="button" disabled={appointmentSaveState === "saving"} aria-busy={appointmentSaveState === "saving" || undefined} onClick={() => closeAppointmentEditor(appointment.id)}>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={appointmentSaveState === "saving"}
+              aria-busy={appointmentSaveState === "saving" || undefined}
+              onClick={() => {
+                if (
+                  appointmentDirty &&
+                  !window.confirm(
+                    "Изменения этой записи не сохранены. Закрыть и потерять их?"
+                  )
+                ) {
+                  return;
+                }
+                closeAppointmentEditor(appointment.id);
+              }}
+            >
               Закрыть
             </button>
             <button

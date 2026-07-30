@@ -3,7 +3,18 @@ import { UserCheck, ShieldCheck, Mail, Link as LinkIcon, Check } from "lucide-re
 import { showToast } from "../GlobalToast";
 import { viewLabels as workspaceViewLabels } from "../../workspaceShell";
 import { StaffRole } from "@dental/shared";
-import { SingleSessionEnforcementsWidget } from "./SingleSessionEnforcementsWidget";
+import { actionFailureToast } from "../../lib/panelStateText";
+import { readDenteStaffToken } from "../../lib/safeLocalStorage";
+import {
+  INVITABLE_STAFF_ROLES,
+  inviteRoleTitle,
+  parseInviteCreationPayload,
+} from "./settingsInviteRoles";
+/*
+ * Импорта SingleSessionEnforcementsWidget здесь больше нет намеренно: панель
+ * нечем заполнить. Причина подробно — в конце разметки, у места, откуда она
+ * убрана. Не возвращай импорт, не прочитав тот комментарий.
+ */
 type WorkspaceProfile = any;
 type RoleAccessPolicy = any;
 
@@ -26,7 +37,13 @@ export function SettingsAccessTab({ props = {}, settingsTab }: SettingsAccessTab
 
   // Hooks MUST be called before any conditional returns (React Rules of Hooks)
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('doctor');
+  /*
+   * Роль приглашения типизирована `StaffRole`, а не строкой. Раньше здесь стояло
+   * `useState('doctor')`, а список в разметке предлагал значение «admin», которого
+   * в схеме ролей нет; чем это кончалось для прав нового сотрудника — разобрано в
+   * ./settingsInviteRoles.ts.
+   */
+  const [inviteRole, setInviteRole] = useState<StaffRole>('doctor');
   const [inviteLink, setInviteLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -35,27 +52,62 @@ export function SettingsAccessTab({ props = {}, settingsTab }: SettingsAccessTab
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) {
-      showToast('Введите email', 'warning');
+    /*
+     * «Введите email» ничего не говорило о том, зачем он нужен. Адрес — это то,
+     * куда сотрудник получит ссылку и по чему он потом входит.
+     */
+    if (!inviteEmail.trim()) {
+      showToast('Укажите рабочий адрес почты сотрудника — по нему он войдёт в программу', 'warning');
       return;
     }
     setLoading(true);
     setCopied(false);
+    /* Прошлая ссылка убирается сразу: иначе при отказе на экране остаётся
+       ссылка от предыдущего приглашения, и её отправят не тому человеку. */
+    setInviteLink('');
     try {
-      const staffToken = localStorage.getItem('dente_staff_token') || '';
+      const staffToken = readDenteStaffToken();
       const response = await fetch('/api/auth/invites/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-dente-staff-token': staffToken },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole })
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Ошибка генерации');
-      
-      const fullUrl = window.location.origin + data.inviteLink;
-      setInviteLink(fullUrl);
-      showToast('Приглашение создано!', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Не удалось создать приглашение', 'error');
+      /*
+       * Тело читается строкой один раз и разбирается чистой функцией. Раньше
+       * `await response.json()` стоял ДО проверки `response.ok`: на пустом теле и
+       * на HTML от прокси он бросал исключение, и администратору печаталось
+       * английское «Unexpected token '<' ... is not valid JSON».
+       */
+      const raw = await response.text();
+      const outcome = parseInviteCreationPayload(response.status, raw);
+      if (!outcome.ok) {
+        console.error('[приглашение] не создано, ответ', outcome.status);
+        showToast(
+          outcome.message ??
+            actionFailureToast(
+              `Приглашение для ${inviteEmail.trim()} не создано`,
+              outcome.status,
+            ),
+          'error',
+        );
+        return;
+      }
+      setInviteLink(window.location.origin + outcome.inviteLink);
+      /*
+       * БЫЛО «Приглашение создано!» — и всё. Администратор не знал, что дальше:
+       * письмо программа не отправляет, ссылку надо передать самому.
+       */
+      showToast(
+        `Ссылка для ${inviteRoleTitle(inviteRole).toLowerCase()} готова — скопируйте её и передайте сотруднику, она действует 7 дней`,
+        'success',
+      );
+    } catch (err) {
+      // Текст исключения наружу не идёт: он английский («Failed to fetch»).
+      console.error('[приглашение] запрос не дошёл до сервера', err);
+      showToast(
+        actionFailureToast(`Приглашение для ${inviteEmail.trim()} не создано`, null),
+        'error',
+      );
     } finally {
       setLoading(false);
     }
@@ -85,29 +137,69 @@ export function SettingsAccessTab({ props = {}, settingsTab }: SettingsAccessTab
               </div>
             </div>
 
-            <article className="active-workspace-card" style={{ marginTop: '24px', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '18px', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px' }}><Mail size={18} /> Пригласить сотрудника</h3>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Сгенерируйте уникальную ссылку для регистрации нового врача, ассистента или администратора.</p>
+            <article className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 mt-6 shadow-sm">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Mail size={18} className="text-sky-500" /> Пригласить сотрудника
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  Сгенерируйте уникальную ссылку для регистрации нового врача, ассистента или администратора.
+                </p>
               </div>
-              <form onSubmit={handleGenerateInvite} style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input type="email" placeholder="email@example.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} disabled={loading} style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--glass-panel)', border: '1px solid var(--glass-border)', color: 'var(--ink)', flex: '1', minWidth: '200px' }} />
-                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} disabled={loading} style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--glass-panel)', border: '1px solid var(--glass-border)', color: 'var(--ink)', minWidth: '150px' }}>
-                  <option value="doctor">Врач</option>
-                  <option value="admin">Администратор</option>
-                  <option value="assistant">Ассистент</option>
-                  <option value="owner">Владелец</option>
+              <form onSubmit={handleGenerateInvite} className="flex gap-3 items-center flex-wrap">
+                <input
+                  type="email"
+                  placeholder="email@example.com"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  disabled={loading}
+                  className="px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 flex-1 min-w-[200px] text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+                {/*
+                  РОЛИ БЕРУТСЯ ИЗ СПИСКА РОЛЕЙ, А НЕ ПИШУТСЯ ЗДЕСЬ РУКАМИ.
+
+                  Здесь стояли четыре строки, набранные вручную, и одна из них
+                  отправляла роль «admin», которой в системе не существует
+                  (настоящая — «administrator»). Сервер роль не проверяет и пишет
+                  её в учётную запись как есть, а фильтр разделов по неизвестной
+                  роли отдаёт ВСЕ разделы: приглашённый администратор получал
+                  права владельца. Роли «Управляющий» в списке не было вовсе,
+                  хотя права для неё описаны. Разбор целиком —
+                  в ./settingsInviteRoles.ts.
+                */}
+                {/* Подпись у поля не было вовсе: aria-label, а не скрытый <label>,
+                    чтобы не зависеть от того, собран ли класс sr-only. */}
+                <select
+                  id="invite-role"
+                  aria-label="Роль нового сотрудника"
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as StaffRole)}
+                  disabled={loading}
+                  className="px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 min-w-[150px] text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  {INVITABLE_STAFF_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {inviteRoleTitle(role)}
+                    </option>
+                  ))}
                 </select>
-                <button type="submit" disabled={loading} style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--primary-strong)', color: 'var(--primary-on, #fff)', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium text-sm transition-colors cursor-pointer disabled:opacity-50"
+                >
                   {loading ? 'Создание...' : 'Сгенерировать'}
                 </button>
               </form>
               
               {inviteLink && (
-                <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px dashed rgba(59, 130, 246, 0.5)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#93c5fd', fontFamily: 'monospace', wordBreak: 'break-all', fontSize: '13px' }}>{inviteLink}</span>
-                  <button onClick={handleCopy} style={{ marginLeft: '12px', padding: '6px 12px', background: 'var(--glass-panel)', border: 'none', borderRadius: '4px', color: 'var(--ink)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {copied ? <><Check size={14} /> Скопировано</> : <><LinkIcon size={14} /> Копировать</>}
+                <div className="mt-4 p-3 bg-sky-50 dark:bg-sky-950/40 border border-dashed border-sky-300 dark:border-sky-700 rounded-lg flex items-center justify-between">
+                  <span className="text-sky-700 dark:text-sky-300 font-mono text-xs break-all">{inviteLink}</span>
+                  <button
+                    onClick={handleCopy}
+                    className="ml-3 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-200 text-xs font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shrink-0"
+                  >
+                    {copied ? <><Check size={14} className="text-emerald-500" /> Скопировано</> : <><LinkIcon size={14} /> Копировать</>}
                   </button>
                 </div>
               )}
@@ -188,7 +280,25 @@ export function SettingsAccessTab({ props = {}, settingsTab }: SettingsAccessTab
                 </article>
               ))}
             </div>
-            <SingleSessionEnforcementsWidget />
+            {/*
+              Здесь стояла панель «Контроль единственного параллельного входа»
+              (SingleSessionEnforcementsWidget). Убрана: она обещала не журнал
+              входов, а ВЫТЕСНЕНИЕ сессии — колонку «Токен сессии» и плашку
+              «Вытеснена предыдущая». Такого механизма в системе нет: токены
+              подписанные и stateless, на сервере не хранятся, хранилища сессий
+              и отзыва токенов не существует. В таблице
+              single_session_enforcements на весь репозиторий ноль вставок —
+              только SELECT в apps/api/src/db/singleSessionEnforcementsQuery.ts,
+              поэтому панель писала «Активных параллельных сессий не
+              обнаружено» в любой клинике и в любой день.
+
+              Подотчётность на вкладке доступов держат вещи выше: приглашение
+              сотрудника по ссылке, рабочие профили и права ролей; кто что
+              сделал — вкладка «Аудит», вход под своим PIN — настройки команды.
+
+              Вернуть можно только вместе с настоящим вытеснением сессий:
+              серверным хранилищем токенов и их отзывом.
+            */}
           </section>
   );
 }

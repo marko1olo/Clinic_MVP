@@ -12,10 +12,75 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useAppLogicContext } from "../contexts/AppLogicContext";
+import { money } from "../AppHelpers";
 import { showToast } from "./GlobalToast";
+import { InventoryConfirmDialog } from "./inventory/InventoryConfirmDialog";
 import type { InventoryItem } from "./inventory/useInventoryLogic";
 import { useInventoryLogic } from "./inventory/useInventoryLogic";
+
+/**
+ * Как показать срок годности расходника.
+ *
+ * Три состояния, а не два: просроченный материал использовать нельзя вообще,
+ * истекающий надо успеть израсходовать, остальное просто дата. Раньше первые
+ * два не различались и красились цветом var(--tomato) — токена с таким именем
+ * в проекте нет, так что предупреждение не было видно.
+ *
+ * Дни считаются по календарным датам, а не по разнице в миллисекундах: срок
+ * указан днём, и «осталось 0 дней» должно значить «истекает сегодня», а не
+ * зависеть от времени суток.
+ */
+function expirationState(isoDate: string): { label: string; className: string } {
+	const readable = new Date(`${isoDate}T00:00:00`).toLocaleDateString("ru-RU");
+	const startOfDay = (value: Date) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+	const expires = new Date(`${isoDate}T00:00:00`);
+	const daysLeft = Math.round((startOfDay(expires) - startOfDay(new Date())) / 86400000);
+
+	if (daysLeft < 0) {
+		return { label: `Просрочен с ${readable}`, className: "inventory-expiry-expired" };
+	}
+	if (daysLeft === 0) {
+		return { label: `Истекает сегодня, ${readable}`, className: "inventory-expiry-expired" };
+	}
+	if (daysLeft <= 30) {
+		return {
+			label: `Годен до ${readable} — ${daysLabel(daysLeft)}`,
+			className: "inventory-expiry-soon",
+		};
+	}
+	return { label: `Годен до ${readable}`, className: "" };
+}
+
+/**
+ * Количество штук по-человечески.
+ *
+ * Правила списания приходят с сервера не разобранными (rulesList объявлен any[]),
+ * а колонки quantity_to_deduct и stock_quantity объявлены numeric без mode
+ * "number" — drizzle отдаёт их СТРОКАМИ прямо из базы, вместе с нулями до
+ * заявленной точности. На экране это выглядело как «Списание: 1.0000 шт. |
+ * Текущий остаток: 10.000 шт.»: машинная запись с точкой вместо запятой, которую
+ * кладовщику читать незачем.
+ *
+ * toLocaleString здесь уместен именно потому, что он отбрасывает хвостовые нули:
+ * «1.0000» становится «1», «1.5000» — «1,5». Для денег так делать нельзя (там
+ * пропадали бы копейки, для них есть money()), а для штук это ровно то, что
+ * человек пишет от руки.
+ */
+function quantityLabel(value: unknown): string {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed)) return "—";
+	return parsed.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
+}
+
+/** Русское склонение дней: 1 день, 2 дня, 5 дней. */
+function daysLabel(count: number): string {
+	const lastTwo = count % 100;
+	const last = count % 10;
+	if (lastTwo >= 11 && lastTwo <= 14) return `осталось ${count} дней`;
+	if (last === 1) return `остался ${count} день`;
+	if (last >= 2 && last <= 4) return `осталось ${count} дня`;
+	return `осталось ${count} дней`;
+}
 
 export const InventoryView: React.FC<{ organizationId: string }> = ({
 	organizationId,
@@ -24,6 +89,7 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 	const {
 		items,
 		isLoading,
+		loadError,
 		auth,
 		dashboard,
 		scannedBarcode,
@@ -31,9 +97,10 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 		activeSubTab,
 		setActiveSubTab,
 		selectedServiceId,
-		setSelectedServiceId,
+		selectService,
 		rulesList,
 		isLoadingRules,
+		rulesError,
 		selectedInventoryItemId,
 		setSelectedInventoryItemId,
 		quantityToDeduct,
@@ -57,6 +124,9 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 		setAdjustAmount,
 		adjustType,
 		setAdjustType,
+		isAdjustingStock,
+		isSavingItem,
+		isSavingRule,
 		fetchItems,
 		openAddModal,
 		openEditModal,
@@ -69,6 +139,27 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 		totalItems,
 	} = inventory;
 
+	/*
+	 * ЭТО ЗНАЧЕНИЯ CSS, А НЕ ИМЕНА КЛАССОВ.
+	 *
+	 * Здесь стояло:
+	 *   const paperBg = "bg-white dark:bg-slate-900";
+	 *   const borderColor = "border-slate-200 dark:border-slate-800";
+	 * и эти строки подставлялись в inline-стили как значения свойств —
+	 * `style={{ background: paperBg, border: `1px solid ${borderColor}` }}`,
+	 * 46 вхождений на весь экран. Имя класса Tailwind значением цвета не
+	 * является: браузер отбрасывает такое объявление целиком и берёт начальное
+	 * значение. Ошибки при этом нет ни в сборке, ни в консоли.
+	 *
+	 * Что было видно на экране (проверено снимком раздела «Склад»): ни одной
+	 * карточки. Прозрачный фон, нулевая граница, плитки «Позиций» и «В дефиците»
+	 * висят в воздухе, таблица без контейнера. Пока склад открывался вкладкой
+	 * настроек, рамку давала панель настроек вокруг, и подмена не бросалась в
+	 * глаза — на своём разделе стало видно сразу.
+	 *
+	 * Токены темы, а не hex: значения обязаны различаться в светлой, тёмной и
+	 * ночной теме, и подставлять цвет по месту нельзя (см. .agents/UI_STANDARDS.md).
+	 */
 	const paperBg = "var(--paper)";
 	const paperSoftBg = "var(--paper-soft)";
 	const borderColor = "var(--line)";
@@ -100,9 +191,14 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 					>
 						🛠️ Выберите услугу для настройки правил списания
 					</h3>
+					{/*
+					  Смена услуги очищает форму под ней: набранные для прошлой услуги
+					  материал и количество оставались заряженными и уходили в новую
+					  услугу одним нажатием.
+					*/}
 					<select
 						value={selectedServiceId}
-						onChange={(e) => setSelectedServiceId(e.target.value)}
+						onChange={(e) => selectService(e.target.value)}
 						style={{
 							padding: "10px 12px",
 							borderRadius: 8,
@@ -116,7 +212,11 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 						<option value="">-- Выберите услугу --</option>
 						{serviceCatalog.map((s: any) => (
 							<option key={s.id} value={s.id}>
-								[{s.code || "Без кода"}] {s.title} ({s.basePriceRub} ₽)
+								{/*
+							  Цена через общую money(): в прайсе теперь копейки, и
+							  «{basePriceRub} ₽» показывало бы «1500.5 ₽» с точкой.
+							*/}
+							[{s.code || "Без кода"}] {s.title} ({money(s.basePriceRub)})
 							</option>
 						))}
 					</select>
@@ -208,12 +308,26 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 									}}
 								/>
 							</div>
+							{/*
+							  Кнопка запирается на время запроса: правило создаётся через
+							  POST, и второе нажатие давало второе такое же правило на ту же
+							  услугу — материал списывался бы дважды за каждый приём.
+							*/}
 							<button
 								type="submit"
 								className="primary-button"
-								style={{ alignSelf: "flex-start", marginTop: 8 }}
+								disabled={isSavingRule}
+								style={{
+									alignSelf: "flex-start",
+									marginTop: 8,
+									opacity: isSavingRule ? 0.6 : 1,
+									cursor: isSavingRule ? "wait" : "pointer",
+								}}
 							>
-								<Plus size={16} /> Добавить материал в расходники
+								<Plus size={16} />{" "}
+								{isSavingRule
+									? "Сохраняем..."
+									: "Добавить материал в расходники"}
 							</button>
 						</form>
 
@@ -240,14 +354,63 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 								Привязанные расходники
 							</h4>
 
+							{/*
+							  Три состояния, а не два: загрузка, отказ сервера, честная пустота.
+
+							  При упавшем запросе список правил остаётся пустым, и здесь
+							  печаталось «списание не настроено, материалы списываться не
+							  будут» — утверждение о том, чего экран не знает. Администратор
+							  верил и заводил правило заново (второе такое же правило спишет
+							  материал дважды за приём) либо закупал материал вручную, считая,
+							  что склад его не тронет.
+							*/}
 							{isLoadingRules ? (
 								<p style={{ color: "var(--muted)", fontSize: 13 }}>
 									Загрузка правил списания...
 								</p>
+							) : rulesError ? (
+								<div
+									style={{
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "flex-start",
+										gap: 10,
+										padding: "12px 14px",
+										borderRadius: 8,
+										background: "rgba(239,68,68,0.12)",
+										border: "1px solid var(--tomato)",
+									}}
+								>
+									<span
+										style={{
+											color: "var(--ink)",
+											fontSize: 13,
+											lineHeight: 1.45,
+										}}
+									>
+										{rulesError}
+									</span>
+									<button
+										type="button"
+										onClick={() => fetchRules(selectedServiceId)}
+										style={{
+											padding: "8px 16px",
+											borderRadius: 8,
+											border: `1px solid ${borderColor}`,
+											background: paperSoftBg,
+											color: "var(--ink)",
+											fontWeight: 600,
+											fontSize: 13,
+											cursor: "pointer",
+										}}
+									>
+										Повторить
+									</button>
+								</div>
 							) : rulesList.length === 0 ? (
 								<p style={{ color: "var(--muted)", fontSize: 13 }}>
 									Для этой услуги пока не настроено автоматическое списание
-									материалов. При завершении приема материалы списываться не
+									материалов. При завершении приёма материалы списываться не
 									будут.
 								</p>
 							) : (
@@ -278,9 +441,48 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 														marginTop: 2,
 													}}
 												>
-													Списание: {rule.quantityToDeduct} шт. | Текущий
-													остаток: {rule.stockQuantity} шт.
+													Списание: {quantityLabel(rule.quantityToDeduct)} шт.,
+													текущий остаток: {quantityLabel(rule.stockQuantity)}{" "}
+													шт.
 												</div>
+												{/*
+												  Правило, которое не сработает, надо назвать вслух.
+
+												  Строка показывала расход рядом с остатком и молчала,
+												  даже когда списывать уже нечего: правило выглядело
+												  рабочим. Последствие проверено по коду сервера
+												  (apps/api/src/routes/diary.ts): при нехватке остатка
+												  списание не урезается, а бросает InsufficientStock —
+												  вся транзакция подписания откатывается, приём НЕ
+												  подписывается. Врач узнаёт об этом в конце приёма,
+												  когда исправлять уже некогда, поэтому предупреждение
+												  стоит здесь, при настройке.
+
+												  Сравниваем через Number: обе величины приходят из базы
+												  СТРОКАМИ (numeric без mode "number"), а у строк «10»
+												  меньше «3» — сравнение по тексту врало бы ровно на
+												  опасных числах.
+
+												  Признак необходимый, но не достаточный: сервер требует
+												  quantityToDeduct * количество услуги в приёме, а
+												  количество здесь неизвестно. При количестве услуги
+												  больше единицы подписание может отказать и без этого
+												  предупреждения.
+												*/}
+												{Number(rule.quantityToDeduct) >
+												Number(rule.stockQuantity) ? (
+													<div
+														style={{
+															fontSize: 12,
+															color: "var(--tomato)",
+															marginTop: 4,
+															fontWeight: 600,
+														}}
+													>
+														Остатка не хватит: приём с этой услугой не
+														подпишется, пока материал не оприходован.
+													</div>
+												) : null}
 											</div>
 											<button
 												type="button"
@@ -308,6 +510,33 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 			</div>
 		);
 	};
+
+	/*
+	 * Предпросмотр движения остатка — честный, без прикрытия нулём.
+	 *
+	 * БЫЛО: строка «Будет: …» считалась через Math.max(0, …). Списание 50 штук
+	 * при остатке 10 рисовало «Будет: 0 шт.» — ровно как законное списание в ноль,
+	 * и кладовщик нажимал «Списать».
+	 *
+	 * Уточнение по проверенному коду сервера (apps/api/src/routes/inventory.ts,
+	 * PATCH .../stock): он берёт Math.max(-currentStock, adjustment) и ТИХО урезает
+	 * списание до остатка, отвечая успехом. Значит итог на экране совпадал с базой
+	 * (ноль), а исчезало другое — сам факт, что 40 штук из 50 не списаны. «Остаток
+	 * изменён», отчёт по расходу меньше, чем человек списывал, и спорить не с чем.
+	 * Поэтому расхождение надо показать ДО записи: либо количество набрано неверно,
+	 * либо остаток на складе неверный, и то и другое разбирают до нажатия.
+	 */
+	const adjustAmountNumber = Number.parseInt(adjustAmount, 10);
+	const adjustHasAmount =
+		Number.isFinite(adjustAmountNumber) && adjustAmountNumber > 0;
+	const adjustDelta =
+		(adjustType === "in" ? 1 : -1) * (adjustHasAmount ? adjustAmountNumber : 0);
+	const adjustResultQuantity = adjustingItem
+		? adjustingItem.stockQuantity + adjustDelta
+		: 0;
+	const adjustExceedsStock = Boolean(
+		adjustingItem && adjustType === "out" && adjustResultQuantity < 0,
+	);
 
 	if (isLoading && items.length === 0) {
 		return (
@@ -351,22 +580,10 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 				}}
 			>
 				<div>
-					<h1
-						style={{
-							fontSize: 24,
-							fontWeight: 700,
-							margin: 0,
-							display: "flex",
-							alignItems: "center",
-							gap: 12,
-							color: "var(--ink)",
-						}}
-					>
-						<Package color="var(--teal)" size={28} /> Склад материалов
+					<h1 className="text-2xl font-bold m-0 flex items-center gap-3 text-slate-900 dark:text-white">
+						<Package className="text-emerald-500" size={28} /> Склад материалов
 					</h1>
-					<p
-						style={{ color: "var(--muted)", margin: "4px 0 0 0", fontSize: 14 }}
-					>
+					<p className="text-slate-500 dark:text-slate-400 mt-1 mb-0 text-sm">
 						Учёт расходников, приход и списание
 					</p>
 				</div>
@@ -462,7 +679,7 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 								}}
 							>
 								<TrendingUp size={14} />
-								{totalValue.toLocaleString("ru-RU")} ₽
+								{money(totalValue)}
 							</strong>
 						</div>
 					)}
@@ -703,17 +920,77 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 							<tbody>
 								{filteredItems.length === 0 ? (
 									<tr>
+										{/* В шапке семь колонок: при colSpan={5} текст съезжал влево. */}
 										<td
-											colSpan={5}
+											colSpan={7}
 											style={{
 												padding: 48,
 												textAlign: "center",
 												color: "var(--muted)",
 											}}
 										>
-											{searchQuery
-												? "Материалы не найдены по запросу"
-												: "Склад пуст. Добавьте первый материал."}
+											{/*
+												ТРИ РАЗНЫХ ПУСТЫХ ЭКРАНА, А НЕ ОДИН.
+
+												Здесь стояло «Склад пуст. Добавьте первый материал.» на
+												любую пустоту, включая ту, при которой добавлять нельзя:
+												пока организация не определена (профиль клиники ещё не
+												пришёл, вход просрочен), запрос остатков вообще не
+												уходит — hook снимает признак загрузки и оставляет
+												список пустым. Кладовщик читал «склад пуст» и заносил
+												материалы заново поверх настоящих остатков.
+											*/}
+											{/*
+												Отказ сервера — отдельное состояние, а не пустота.
+
+												При упавшем запросе список остаётся пустым, и здесь
+												показывалось «Склад пуст. Добавьте первый материал.»
+												Уведомление об ошибке к этому времени уже погасло, так
+												что экран прямо предлагал занести материалы заново
+												поверх настоящих остатков. Теперь видно, что остатки не
+												загружены, и есть чем повторить запрос.
+											*/}
+											{loadError ? (
+												<span
+													style={{
+														display: "flex",
+														flexDirection: "column",
+														alignItems: "center",
+														gap: 14,
+													}}
+												>
+													<AlertTriangle
+														size={22}
+														style={{ color: "var(--tomato)" }}
+													/>
+													<span style={{ color: "var(--ink)", fontSize: 15 }}>
+														{loadError}
+													</span>
+													<button
+														type="button"
+														onClick={() => fetchItems()}
+														disabled={isLoading}
+														style={{
+															padding: "10px 20px",
+															borderRadius: 8,
+															border: `1px solid ${borderColor}`,
+															background: paperSoftBg,
+															color: "var(--ink)",
+															fontWeight: 600,
+															fontSize: 14,
+															cursor: isLoading ? "wait" : "pointer",
+														}}
+													>
+														{isLoading ? "Загружаем..." : "Повторить"}
+													</button>
+												</span>
+											) : !organizationId ? (
+												"Склад не загружен: клиника не определена. Обновите страницу или войдите в кабинет заново — добавлять материалы сейчас нельзя, настоящие остатки не показаны."
+											) : searchQuery ? (
+												"Материалы не найдены по запросу"
+											) : (
+												"Склад пуст. Добавьте первый материал."
+											)}
 										</td>
 									</tr>
 								) : (
@@ -786,7 +1063,16 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 															<div
 																style={{ color: "var(--ink)", fontWeight: 500 }}
 															>
-																{unitCost.toLocaleString("ru-RU")} ₽
+																{/*
+															  Деньги показывает общая money() из AppHelpers.
+
+															  Стояло `unitCost.toLocaleString("ru-RU") + " ₽"`:
+															  цена 1250,50 печаталась как «1 250,5 ₽», потому что
+															  toLocaleString по умолчанию лишний ноль опускает.
+															  На деньгах это читается так, будто пятьдесят копеек
+															  превратились в пять.
+															*/}
+															{money(unitCost)}
 															</div>
 															{lineValue > 0 && (
 																<div
@@ -795,7 +1081,7 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 																		fontSize: 12,
 																	}}
 																>
-																	итого: {lineValue.toLocaleString("ru-RU")} ₽
+																	итого: {money(lineValue)}
 																</div>
 															)}
 														</div>
@@ -817,42 +1103,31 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 														fontSize: 14,
 													}}
 												>
+													{/*
+													  Просрочку и «вот-вот истечёт» надо различать.
+
+													  Раньше оба случая красились одинаково и цветом
+													  var(--tomato) — токена с таким именем в проекте нет
+													  вовсе, поэтому предупреждение попросту не
+													  показывалось: текст оставался обычным. Просроченный
+													  материал нельзя использовать совсем, а истекающий
+													  надо успеть израсходовать — это разные решения
+													  кладовщика, и выглядеть они обязаны по-разному.
+													*/}
 													{item.expirationDate ? (
-														<div
-															style={{
-																display: "flex",
-																flexDirection: "column",
-															}}
-														>
-															<span
-																style={{
-																	color:
-																		new Date(item.expirationDate) <
-																		new Date(
-																			Date.now() + 30 * 24 * 60 * 60 * 1000,
-																		)
-																			? "var(--tomato)"
-																			: "var(--ink)",
-																	fontWeight:
-																		new Date(item.expirationDate) <
-																		new Date(
-																			Date.now() + 30 * 24 * 60 * 60 * 1000,
-																		)
-																			? 600
-																			: 400,
-																}}
-															>
-																Годен до:{" "}
-																{new Date(
-																	item.expirationDate,
-																).toLocaleDateString("ru-RU")}
-															</span>
-															{item.lotNumber && (
-																<span style={{ fontSize: 12 }}>
-																	Партия: {item.lotNumber}
-																</span>
-															)}
-														</div>
+														(() => {
+															const state = expirationState(item.expirationDate);
+															return (
+																<div style={{ display: "flex", flexDirection: "column" }}>
+																	<span className={state.className}>{state.label}</span>
+																	{item.lotNumber ? (
+																		<span style={{ fontSize: 12 }}>Партия: {item.lotNumber}</span>
+																	) : null}
+																</div>
+															);
+														})()
+													) : item.lotNumber ? (
+														<span style={{ fontSize: 12 }}>Партия: {item.lotNumber}</span>
 													) : (
 														<span style={{ fontStyle: "italic", opacity: 0.5 }}>
 															Не указан
@@ -1106,6 +1381,7 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 										onChange={(e) =>
 											setFormData({ ...formData, threshold: e.target.value })
 										}
+										placeholder="например: 5"
 										style={{
 											padding: "10px 14px",
 											borderRadius: 8,
@@ -1133,14 +1409,25 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 									>
 										Цена за единицу (₽)
 									</label>
+									{/*
+									  Поле цены принимает запятую, а не глотает её.
+
+									  Стояло type="number" при подсказке «например 12,50». Запятая
+									  делает содержимое такого поля недопустимым, и браузер отдаёт
+									  из value пустую строку — набранная цена видна человеку, но в
+									  программу не попадает и сохраняется нулём. Обычное текстовое
+									  поле сохраняет введённое как есть; разбирает его общая
+									  normalizeRubAmountInput при сохранении, там же и «12.50».
+									  inputMode="decimal" оставляет на телефоне цифровую клавиатуру.
+									*/}
 									<input
-										type="number"
-										min="0"
-										step="0.01"
+										type="text"
+										inputMode="decimal"
 										value={formData.unitCostRub}
 										onChange={(e) =>
 											setFormData({ ...formData, unitCostRub: e.target.value })
 										}
+										placeholder="цена за единицу, например 12,50"
 										style={{
 											padding: "10px 14px",
 											borderRadius: 8,
@@ -1152,12 +1439,83 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 									/>
 								</div>
 							</div>
+
+							{/*
+							  Партия и срок годности — на поверхности.
+
+							  Колонка «Партия / Срок» на экране была давно и всегда писала
+							  «Не указан»: полей для ввода не существовало, а в таблице
+							  inventory_items не было и колонок. Просроченный композит или
+							  анестетик — это вред пациенту, поэтому срок стоит рядом с
+							  ценой, а не спрятан под «показать больше».
+							*/}
+							<div className="inventory-form-row">
+								<label className="inventory-form-field">
+									Партия
+									<input
+										type="text"
+										value={formData.lotNumber}
+										onChange={(e) => setFormData({ ...formData, lotNumber: e.target.value })}
+										placeholder="номер с упаковки, если есть"
+									/>
+								</label>
+								<label className="inventory-form-field">
+									Срок годности
+									<input
+										type="date"
+										value={formData.expirationDate}
+										onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+									/>
+								</label>
+							</div>
+
+							{/*
+							  Артикул и штрихкод нужны не каждому, поэтому убраны под
+							  раскрытие: у соло-врача их обычно нет вовсе. Форма присылала
+							  оба поля и раньше, но ввести их было негде.
+							*/}
+							<details className="inventory-form-more">
+								<summary>Артикул и штрихкод</summary>
+								<div className="inventory-form-row">
+									<label className="inventory-form-field">
+										Артикул
+										<input
+											type="text"
+											value={formData.sku}
+											onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+											placeholder="код поставщика"
+										/>
+									</label>
+									<label className="inventory-form-field">
+										Штрихкод
+										<input
+											type="text"
+											value={formData.barcode}
+											onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+											placeholder="или отсканируйте сканером"
+										/>
+									</label>
+								</div>
+							</details>
+
+							{/*
+							  Кнопка запирается на время запроса: новый материал создаётся
+							  через POST, и второе нажатие добавляло вторую такую же позицию
+							  на одну полку. Остаток потом ведут по одной, а списывают со
+							  второй.
+							*/}
 							<button
 								type="submit"
 								className="primary-button"
-								style={{ marginTop: 8, justifyContent: "center" }}
+								disabled={isSavingItem}
+								style={{
+									marginTop: 8,
+									justifyContent: "center",
+									opacity: isSavingItem ? 0.6 : 1,
+									cursor: isSavingItem ? "wait" : "pointer",
+								}}
 							>
-								Сохранить
+								{isSavingItem ? "Сохраняем..." : "Сохранить"}
 							</button>
 						</form>
 					</div>
@@ -1333,7 +1691,7 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 									}}
 								/>
 							</div>
-							{adjustAmount && !isNaN(parseInt(adjustAmount)) && (
+							{adjustHasAmount && (
 								<p
 									style={{
 										margin: 0,
@@ -1344,35 +1702,83 @@ export const InventoryView: React.FC<{ organizationId: string }> = ({
 								>
 									Будет:{" "}
 									<strong style={{ color: "var(--ink)" }}>
-										{Math.max(
-											0,
-											adjustingItem.stockQuantity +
-												(adjustType === "in" ? 1 : -1) *
-													(parseInt(adjustAmount) || 0),
-										)}{" "}
-										шт.
+										{adjustExceedsStock ? 0 : adjustResultQuantity} шт.
 									</strong>
 								</p>
 							)}
+							{adjustExceedsStock && (
+								<p
+									style={{
+										margin: 0,
+										padding: "12px 14px",
+										borderRadius: 8,
+										background: "rgba(239,68,68,0.12)",
+										border: "1px solid var(--tomato)",
+										color: "var(--ink)",
+										fontSize: 14,
+										lineHeight: 1.45,
+									}}
+								>
+									Списываете больше, чем есть на складе: в наличии{" "}
+									{adjustingItem.stockQuantity} шт., списываете{" "}
+									{adjustAmountNumber} шт. Исправьте количество или сначала
+									оприходуйте поступление.
+								</p>
+							)}
+							{/*
+							  Кнопка запирается на время запроса.
+
+							  БЫЛО: кнопка оставалась нажимаемой, пока сервер отвечал.
+							  Приход и списание прибавляются к остатку, а не задают его,
+							  поэтому второе нажатие по медленной сети двигало остаток
+							  второй раз — материал списывался дважды за одно окно.
+							  Погасшая кнопка с честной надписью показывает, что работа
+							  идёт, и не даёт нажать повторно.
+							*/}
 							<button
 								type="submit"
+								disabled={isAdjustingStock || adjustExceedsStock}
 								style={{
 									padding: "12px",
 									borderRadius: 8,
 									border: "none",
 									fontWeight: 600,
 									color: "#fff",
-									cursor: "pointer",
+									cursor:
+										isAdjustingStock || adjustExceedsStock
+											? "not-allowed"
+											: "pointer",
 									background: adjustType === "in" ? "#3b82f6" : "var(--tomato)",
 									fontSize: 15,
+									opacity: isAdjustingStock || adjustExceedsStock ? 0.6 : 1,
 								}}
 							>
-								{adjustType === "in" ? "Оприходовать" : "Списать"}
+								{isAdjustingStock
+									? "Сохраняем..."
+									: adjustType === "in"
+										? "Оприходовать"
+										: "Списать"}
 							</button>
 						</form>
 					</div>
 				</div>
 			)}
+
+			{/*
+			  Окно подтверждения удаления.
+
+			  Состояние confirmDialog заполнялось обработчиками корзины давно, но
+			  рисовать его было нечем — здесь ничего не стояло. Нажатие на корзину
+			  у материала и у правила списания не давало вообще никакого отклика.
+			*/}
+			{confirmDialog?.isOpen ? (
+				<InventoryConfirmDialog
+					title={confirmDialog.title}
+					message={confirmDialog.message}
+					onConfirm={confirmDialog.onConfirm}
+					onCancel={() => setConfirmDialog(null)}
+				/>
+			) : null}
 		</div>
 	);
 };

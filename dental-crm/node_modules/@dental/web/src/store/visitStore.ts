@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import type { 
-  DentalSpecialty, 
-  VisitNoteDraft, 
-  AcceptVisitDraftResponse, 
-  SpeechTranscriptionResponse 
+import type {
+  DentalSpecialty,
+  VisitNoteDraft,
+  AcceptVisitDraftResponse,
+  SpeechTranscriptionResponse,
+  VisitFlowResult
 } from "@dental/shared";
 import { emptyVisitNoteForm, type VisitNoteForm, loadUiPreferences, defaultUiPreferences } from "../AppHelpers";
 
@@ -40,6 +41,17 @@ export interface VisitStore {
   visitAiDiagnosesByCode: Record<string, string>;
   
   setToothState: (code: string, state: ToothState) => void;
+  /**
+   * Полный сброс карты зубов и ИИ-диагнозов.
+   *
+   * БЫЛО: комментарий выше обещал «Resets on new visit load», но
+   * setVisitToothStateByCode не вызывался НИ ИЗ ОДНОГО места, а setToothState
+   * и applyAiToothCodes только добавляют значения. Из-за этого отметки зубов
+   * пациента А оставались на экране при открытии пациента Б, и, что хуже,
+   * applyAiToothCodes отказывался перезаписывать «не idle» значения — то есть
+   * находка ИИ по зубу пациента Б молча игнорировалась в пользу данных пациента А.
+   */
+  resetVisitToothState: () => void;
   applyAiToothCodes: (detectedCodes: string[], primaryState?: ToothState, detectedToothStates?: Record<string, ToothState>, aiDiagnoses?: Record<string, string>) => void;
 
   lastServerDraftSavedAt: string | null;
@@ -69,8 +81,17 @@ export interface VisitStore {
   isDraftAccepting: boolean;
   setIsDraftAccepting: (val: boolean | ((prev: boolean) => boolean)) => void;
 
-  visitFlowResult: any;
-  setVisitFlowResult: (val: any | ((prev: any) => any)) => void;
+  /*
+   * Было `any`, и именно это хранилище обрывало тип по дороге к панели: сервер
+   * отдаёт разбор приёма по контракту, а панель «Ассистент обработки приема»
+   * получала его как `any` и приводила поля руками. Диагноз ДЛЯ ПАЦИЕНТА,
+   * рекомендации после процедуры и список документов на подпись врач читает
+   * отсюда — здесь и должен стоять тип из контракта.
+   */
+  visitFlowResult: VisitFlowResult | null;
+  setVisitFlowResult: (
+    val: VisitFlowResult | null | ((prev: VisitFlowResult | null) => VisitFlowResult | null)
+  ) => void;
 
   isPendingVisitSyncing: boolean;
   setIsPendingVisitSyncing: (val: boolean | ((prev: boolean) => boolean)) => void;
@@ -119,6 +140,7 @@ export const useVisitStore = create<VisitStore>((set) => ({
   visitAiDiagnosesByCode: {},
   
   setToothState: (code, state) => set((prev) => ({ visitToothStateByCode: { ...prev.visitToothStateByCode, [code]: state } })),
+  resetVisitToothState: () => set({ visitToothStateByCode: {}, visitAiDiagnosesByCode: {} }),
   applyAiToothCodes: (detectedCodes, primaryState = "planned", detectedToothStates, aiDiagnoses) => set((prev) => {
     const next = { ...prev.visitToothStateByCode };
     const nextDiagnoses = { ...prev.visitAiDiagnosesByCode };

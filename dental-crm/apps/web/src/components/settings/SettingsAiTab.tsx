@@ -10,27 +10,75 @@ import {
 	UploadCloud,
 } from "lucide-react";
 import "./SettingsAiTab.css";
+import type {
+	AiJobKind,
+	AiRecognitionJob,
+	AiRecognitionTarget,
+	SpeechGatewayHealthReport,
+	SpeechGatewayStatus,
+	SpeechProvider,
+	SpeechProviderHealth,
+	SpeechProviderRuntimeStatus,
+} from "@dental/shared";
 import type { ChangeEvent } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import type { RecognitionPreset } from "../../settingsStaticData";
 import { useSettingsDerivations } from "../../useSettingsDerivations";
+/* Форматтер предупреждений — константа модуля, а не пропс. */
+import { aiRecognitionWarningText } from "./SettingsViewHelpers";
 
 type TextInputChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
 type InputChangeEvent = ChangeEvent<HTMLInputElement>;
 
+/*
+ * Контракт вкладки: перечислены ТОЛЬКО те пропсы, которые вкладка реально читает.
+ * Аннотация обязательна: useAppLogic объявлен как `(): any`, поэтому и
+ * useAppLogicContext(), и useSettingsDerivations() (её return спредит ...appLogic)
+ * имеют тип any. Без этой аннотации компилятор пропускает чтение любого имени —
+ * и `as any` тут был не причиной потери типов, а лишь маскировкой.
+ * Типы взяты из существующих деклараций (@dental/shared, settingsStaticData),
+ * второй источник правды не заводится.
+ */
+type SettingsAiTabProps = {
+	recognitionPresets: RecognitionPreset[] | undefined;
+	speechProviders: SpeechProvider[] | undefined;
+	recognitionJob: AiRecognitionJob | null;
+	speechProviderRuntimeById: Map<string, SpeechProviderRuntimeStatus>;
+	speechProviderHealthById: Map<string, SpeechProviderHealth>;
+	speechProviderModeLabels: Record<SpeechProvider["mode"], string>;
+	speechProviderHealthLabels: Record<string, string>;
+	recognitionKind: AiJobKind;
+	recognitionTarget: AiRecognitionTarget;
+	chooseRecognitionPreset: (preset: RecognitionPreset) => void;
+	recognitionText: string;
+	setRecognitionText: (value: string) => void;
+	setRecognitionJob: (value: AiRecognitionJob | null) => void;
+	recognitionTargetLabels: Record<AiRecognitionTarget, string>;
+	runRecognitionJob: () => void | Promise<void>;
+	isRecognitionLoading: boolean;
+	recognitionInputReady: boolean;
+	sendRecognitionResultToImport: () => void;
+	speechGatewayHealthReport: SpeechGatewayHealthReport | null;
+	refreshSpeechRuntime: (options: { silent?: boolean }) => void | Promise<void>;
+	speechGatewayCanUpload: (status: SpeechGatewayStatus | null) => boolean;
+	speechGatewayStatus: SpeechGatewayStatus | null;
+};
+
 export function SettingsAiTab() {
 	const appLogic = useAppLogicContext();
 	const derivations = useSettingsDerivations();
-	const mergedProps = Object.assign({}, appLogic, derivations) as any;
+	const mergedProps: SettingsAiTabProps = Object.assign(
+		{},
+		appLogic,
+		derivations,
+	);
 	const {
 		recognitionPresets,
 		speechProviders,
-		dictationHistory,
 		recognitionJob,
 		speechProviderRuntimeById,
 		speechProviderHealthById,
-		speechProviderStatusLabels,
 		speechProviderModeLabels,
-		speechProviderConnectorLabels,
 		speechProviderHealthLabels,
 		recognitionKind,
 		recognitionTarget,
@@ -42,25 +90,16 @@ export function SettingsAiTab() {
 		runRecognitionJob,
 		isRecognitionLoading,
 		recognitionInputReady,
-		aiRecognitionWarningText,
 		sendRecognitionResultToImport,
-		speechRecoveryStateLabels,
-		speechRecordingPathLabels,
-		speechRecordingStrategy,
-		activeSpeechProviderHealth,
 		speechGatewayHealthReport,
 		refreshSpeechRuntime,
-		speechProviderSelectionLabels,
 		speechGatewayCanUpload,
 		speechGatewayStatus,
 	} = mergedProps;
 
-	const typedRecognitionPresets = (recognitionPresets ?? []) as any[];
-	const typedSpeechProviders = (speechProviders ?? []) as any[];
-	const typedSpeechRecordingRecovery =
-		mergedProps.speechRecordingRecovery as any;
-	const _typedDictationHistory = (dictationHistory ?? []) as any[];
-	const typedRecognitionJob = recognitionJob as any;
+	const typedRecognitionPresets = recognitionPresets ?? [];
+	const typedSpeechProviders = speechProviders ?? [];
+	const typedRecognitionJob = recognitionJob;
 
 	return (
 		<div className="ai-studio-container animate-fade-in">
@@ -179,7 +218,7 @@ export function SettingsAiTab() {
 									</div>
 									{health && (
 										<span
-											className={`status-pill status-${health.healthLevel === "healthy" ? "confirmed" : "cancelled"}`}
+											className={`status-pill status-${health.healthLevel === "ready" ? "confirmed" : "cancelled"}`}
 										>
 											{speechProviderHealthLabels[health.healthLevel] ??
 												health.healthLevel}
@@ -259,18 +298,57 @@ export function SettingsAiTab() {
 					</div>
 				</div>
 
-				<div className="ai-target-row">
-					{typedRecognitionPresets.map((preset) => (
-						<button
-							className={`ai-target-card ${recognitionKind === preset.kind && recognitionTarget === preset.target ? "active" : ""}`}
-							key={preset.key}
-							type="button"
-							onClick={() => chooseRecognitionPreset(preset)}
-						>
-							<strong>{preset.title}</strong>
-							<span>{preset.detail}</span>
-						</button>
-					))}
+				{/*
+				 * ВЫБРАННЫЙ ПРЕСЕТ ОБЯЗАН БЫТЬ ВЫБРАННЫМ НЕ ТОЛЬКО НА ВИД.
+				 *
+				 * Здесь стоял один `className` с признаком `active` и больше ничего:
+				 * ни `aria-pressed`, ни `role`, ни `aria-current`. То есть выбранный
+				 * пресет распознавания существовал ИСКЛЮЧИТЕЛЬНО как цвет рамки.
+				 * Замер сценария доступности: связи `recognitionKind === preset.kind`
+				 * с любым атрибутом состояния не было ни в одном файле `apps/web/src`.
+				 *
+				 * Кто из-за этого страдает. Экранный диктор читает подряд пять
+				 * одинаковых кнопок и НЕ говорит, какая из них выбрана; человек,
+				 * работающий с клавиатуры, не знает, на чём он остановился. Это не
+				 * гипотетический пользователь: настройки распознавания правит
+				 * администратор клиники, и среди администраторов есть люди со слабым
+				 * зрением, которым цвет рамки не сообщает ничего.
+				 *
+				 * `role="radio"` в `radiogroup`, а не `aria-pressed` на кнопке: выбор
+				 * здесь РОВНО ОДИН из пяти и снять его нельзя — это переключатель, а
+				 * не набор независимых нажатий. `aria-pressed` описал бы пять
+				 * независимо вдавленных кнопок и соврал бы о смысле.
+				 *
+				 * Долг был ОБЪЯВЛЕН в сценарии `smoke:segmented-controls-accessibility-source`
+				 * («доступности нет в продукте; закрыть долг = написать её, а не
+				 * расширить набор файлов») — здесь она написана, а не объявлена
+				 * закрытой.
+				 */}
+				<div className="ai-target-row" role="radiogroup" aria-label="Цель распознавания">
+					{typedRecognitionPresets.map((preset) => {
+						const selected = recognitionKind === preset.kind && recognitionTarget === preset.target;
+						return (
+							<button
+								aria-checked={selected}
+								className={`ai-target-card ${selected ? "active" : ""}`}
+								key={preset.key}
+								role="radio"
+								/*
+								 * Из пяти кнопок в обходе клавиатурой участвует ВЫБРАННАЯ, а
+								 * остальные исключены (`tabIndex={-1}`): так группа
+								 * переключателей ведёт себя как один элемент, а не как пять
+								 * остановок табуляции. Невыбранные достижимы стрелками —
+								 * это штатное поведение `radiogroup` в браузере.
+								 */
+								tabIndex={selected ? 0 : -1}
+								type="button"
+								onClick={() => chooseRecognitionPreset(preset)}
+							>
+								<strong>{preset.title}</strong>
+								<span>{preset.detail}</span>
+							</button>
+						);
+					})}
 				</div>
 
 				<div className="ai-workbench">

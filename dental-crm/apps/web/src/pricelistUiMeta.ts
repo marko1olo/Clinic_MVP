@@ -74,11 +74,105 @@ const pricelistCrownTypeLabels: Record<string, string> = {
 	crown: "Коронка",
 };
 
+/*
+ * АНГЛОЯЗЫЧНЫЕ НАПИСАНИЯ ТЕХ ЖЕ СЕМИ ЗНАЧЕНИЙ — СПИСКОМ, А НЕ ПОИСКОМ ПОДСТРОКИ.
+ *
+ * Слева — то, что реально приезжает с нейро-пути, справа — ключ карты выше.
+ * Каждая строка здесь переводит, а не домысливает: «pfm» — общепринятое
+ * porcelain-fused-to-metal, «zro2» — оксид циркония, «full/all ceramic» —
+ * цельная керамика. Подстрочный поиск («если содержит zirconia») здесь
+ * запрещён сознательно: он молча превратил бы «non-zirconia» и любую будущую
+ * формулировку модели в утверждение о материале, которого модель не сказала.
+ */
+const pricelistCrownTypeSynonyms: Record<string, string> = {
+	zirconium: "zirconia",
+	zro2: "zirconia",
+	"zirconia crown": "zirconia",
+	"zirconium crown": "zirconia",
+	"zirconium oxide": "zirconia",
+	"monolithic zirconia": "zirconia",
+	"multilayer zirconia": "zirconia multilayer",
+	"zirconia multilayer crown": "zirconia multilayer",
+	emax: "lithium disilicate",
+	"e.max": "lithium disilicate",
+	"ips e.max": "lithium disilicate",
+	"lithium disilicate crown": "lithium disilicate",
+	pfm: "metal ceramic",
+	"porcelain fused to metal": "metal ceramic",
+	"metal ceramic crown": "metal ceramic",
+	"full ceramic": "ceramic",
+	"all ceramic": "ceramic",
+	"ceramic crown": "ceramic",
+	porcelain: "ceramic",
+	pmma: "temporary PMMA",
+	"pmma crown": "temporary PMMA",
+	"temporary pmma crown": "temporary PMMA",
+};
+
+/** Регистр, подчёркивания, дефисы и двойные пробелы не меняют смысл ключа. */
+function normalizePricelistCrownTypeKey(value: string): string {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[\s_-]+/g, " ");
+}
+
+const pricelistCrownTypeNormalizedLabels = new Map<string, string>();
+for (const [key, label] of Object.entries(pricelistCrownTypeLabels)) {
+	pricelistCrownTypeNormalizedLabels.set(
+		normalizePricelistCrownTypeKey(key),
+		label,
+	);
+}
+for (const [alias, canonical] of Object.entries(pricelistCrownTypeSynonyms)) {
+	const label = pricelistCrownTypeLabels[canonical];
+	// Синоним без карты — ошибка этого файла, а не повод придумать подпись.
+	if (label)
+		pricelistCrownTypeNormalizedLabels.set(
+			normalizePricelistCrownTypeKey(alias),
+			label,
+		);
+}
+
+/*
+ * ТИП КОРОНКИ С НЕЙРО-ПУТИ — СВОБОДНЫЙ ТЕКСТ, А НЕ ПЕРЕЧИСЛЕНИЕ.
+ *
+ * В контракте crownType объявлен z.string().nullable()
+ * (packages/shared/src/index.ts), НЕ enum, а системный промпт Groq перечисляет
+ * допустимые значения для category, specialty, materialKind и restorationType и
+ * НЕ перечисляет их для crownType, прямо разрешая «If a material/brand/crown
+ * type is uncertain, use unknown or null». Разбор ответа модели пропускает
+ * строку как есть (asString + `|| null` обнуляет только пустую), поэтому в это
+ * поле законно приезжает всё что угодно.
+ *
+ * БЫЛО: `pricelistCrownTypeLabels[value] ?? value` — неизвестное значение
+ * печаталось КАК ЕСТЬ, и русская клиника читала на экране английский машинный
+ * токен. Измерено исполнением функции на HEAD до этой правки:
+ *     crownType "unknown"                         -> «unknown»
+ *     crownType "zirconia crown"                  -> «zirconia crown»
+ *     "full ceramic" + ceramic + crown            -> «full ceramic · Керамика · Коронка»
+ * Детерминированный detectCrownType отдаёт ровно 7 значений и все 7 в карте
+ * есть, поэтому утечка была только на нейро-пути — но он продуктовый, и до
+ * прошлой волны эту функцию не звал никто, из-за чего `?? value` годами не
+ * стоил ничего.
+ *
+ * СТАЛО: ключ нормализуется, ищется в карте вместе со списком синонимов, и всё
+ * НЕ ОПОЗНАННОЕ считается ОТСУТСТВИЕМ ДАННЫХ — null, метка не печатается. Сырой
+ * токен на экран не попадает ни при каком ответе модели; строка при этом честно
+ * вырождается в «материал не распознан», который до правки был недостижим,
+ * потому что метка коронки всегда оказывалась непустой.
+ *
+ * ПОЧЕМУ НЕ ЗАГЛУШКА «Коронка, материал уточнить»: это текст, которого модель не
+ * сказала. Отсутствие данных обязано выглядеть как отсутствие, иначе следующий
+ * читатель примет заглушку за разобранное значение — ровно та подмена, из-за
+ * которой `?? 0` печатает неизвестную сумму как измеренный ноль.
+ */
 function pricelistCrownTypeLabel(
 	value: string | null | undefined,
 ): string | null {
 	if (!value) return null;
-	return pricelistCrownTypeLabels[value] ?? value;
+	const normalized = normalizePricelistCrownTypeKey(value);
+	return pricelistCrownTypeNormalizedLabels.get(normalized) ?? null;
 }
 
 function pricelistMaterialKindLabel(kind: DentalMaterialKind): string {
@@ -104,17 +198,58 @@ export function pricelistMaterialSummaryText(
 	return labels.join(", ") || "без материала";
 }
 
+/*
+ * ОДНА И ТА ЖЕ МЕТКА ДВАЖДЫ В ОДНОЙ СТРОКЕ — ИЗМЕРЕНО ИСПОЛНЕНИЕМ, НЕ ЧТЕНИЕМ.
+ *
+ * `detectCrownType` выводит тип коронки ИЗ materialKind
+ * (`apps/api/src/pricelist/analyzer.ts:320-329`: при materialKind zirconia
+ * возвращается «zirconia»), поэтому две метки описывают один материал ОДНИМИ И
+ * ТЕМИ ЖЕ словами. Замерено на HEAD до этой правки, на ДЕТЕРМИНИРОВАННОМ пути —
+ * том самом, который считался чистым:
+ *     zirconia + zirconia + crown          -> «Цирконий · Цирконий · Коронка»
+ *     metal ceramic + metal_ceramic        -> «Металлокерамика · Металлокерамика · Коронка»
+ *     ceramic + ceramic + crown            -> «Керамика · Керамика · Коронка»
+ *     crown + unknown + crown              -> «Коронка · Коронка»
+ *     zirconia multilayer + zirconia       -> «Цирконий MultiLayer · Цирконий · Коронка»
+ * Пять из семи значений `detectCrownType` давали клинике заикание, и это не
+ * нейро-путь: так выглядит обычная строка «Коронка циркониевая» из любого прайса.
+ *
+ * Правило: метка не печатается, если она ЦЕЛИКОМ содержится в одной из уже
+ * оставленных. Список идёт от точного к общему (бренд -> тип коронки ->
+ * материал -> вид работы), поэтому «Цирконий» уходит из-под «Цирконий
+ * MultiLayer», а не наоборот, и бренд из прайса клиники не может быть съеден
+ * переводной меткой. Ничего не переписывается и не склеивается: не печатается
+ * только повторное упоминание того же слова.
+ *
+ * Почему НЕ «убрать materialKind, когда есть crownType»: на нейро-пути эти два
+ * поля приезжают независимо, и при crownType «crown» + materialKind zirconia
+ * такое правило потеряло бы единственное упоминание материала.
+ */
+function pricelistDedupeLabels(labels: string[]): string[] {
+	const kept: string[] = [];
+	for (const label of labels) {
+		const normalized = label.trim().toLowerCase();
+		if (!normalized) continue;
+		if (kept.some((existing) => existing.toLowerCase().includes(normalized)))
+			continue;
+		kept.push(label);
+	}
+	return kept;
+}
+
 export function pricelistItemMaterialText(
 	item: DentalPricelistAnalysisResponse["items"][number],
 ): string {
-	const labels = [
-		item.brand,
-		pricelistCrownTypeLabel(item.crownType),
-		item.materialKind === "unknown"
-			? null
-			: pricelistMaterialKindLabel(item.materialKind),
-		pricelistRestorationTypeLabel(item.restorationType),
-	].filter((value): value is string => Boolean(value));
+	const labels = pricelistDedupeLabels(
+		[
+			item.brand,
+			pricelistCrownTypeLabel(item.crownType),
+			item.materialKind === "unknown"
+				? null
+				: pricelistMaterialKindLabel(item.materialKind),
+			pricelistRestorationTypeLabel(item.restorationType),
+		].filter((value): value is string => Boolean(value)),
+	);
 	return labels.join(" · ") || "материал не распознан";
 }
 
@@ -126,6 +261,7 @@ const pricelistWarningLabels: Record<string, string> = {
 	title_too_short: "Название слишком короткое",
 	photo_ocr_requires_visual_review: "Фото прайса требует ручной проверки",
 	no_pricelist_rows_detected: "В прайсе не найдены строки услуг",
+	pricelist_rows_skipped: "Часть строк прайса не признана услугами",
 	image_supplied_but_server_ai_disabled:
 		"Фото добавлено, но нейро-проверка выключена",
 	image_payload_invalid: "Фото прайса не прочитано",
@@ -141,11 +277,43 @@ function pricelistWarningText(warning: string): string {
 	if (!normalized) return "Требуется проверка";
 	if (normalized.startsWith("groq_failed:"))
 		return "Нейро-проверка прайса недоступна";
+	// Счётчик отброшенных строк приезжает в самом ключе
+	// («pricelist_rows_skipped:3»), как и текст ошибки в «groq_failed:». Без
+	// разбора префикса клиника увидела бы на экране сырой машинный ключ, а число
+	// строк, выброшенных из её прайса, — единственное, что здесь важно.
+	if (normalized.startsWith("pricelist_rows_skipped:")) {
+		const skipped = Number(
+			normalized.slice("pricelist_rows_skipped:".length).trim(),
+		);
+		return Number.isFinite(skipped) && skipped > 0
+			? `Строк не признано услугами: ${skipped} — проверьте прайс`
+			: "Часть строк прайса не признана услугами";
+	}
 	if (technicalPricelistWarningPattern.test(normalized))
 		return "Требуется ручная проверка прайса";
-	return (
-		pricelistWarningLabels[normalized] ?? normalized.replace(/[_-]+/g, " ")
-	);
+	/*
+	 * НЕИЗВЕСТНЫЙ КЛЮЧ НЕ ПЕЧАТАЕТСЯ КЛИНИКЕ КАК ЕСТЬ.
+	 *
+	 * БЫЛО: `?? normalized.replace(/[_-]+/g, " ")` — незнакомый ключ выводился на
+	 * экран английскими словами. Измерено ИСПОЛНЕНИЕМ этой функции, а не чтением
+	 * (находка ревьюера волны OO, перемерена ведущим):
+	 *   "price_ambiguous"       → «price ambiguous»
+	 *   "two_prices_in_one_row" → «two prices in one row»
+	 *   "totally_made_up_key"   → «totally made up key»
+	 * Русская клиника видела английский текст в собственном прайсе.
+	 *
+	 * Источник незнакомых ключей — НЕЙРО-ВЕТКА: `itemFromGroq` сливает
+	 * `asWarnings(record.warnings)` от модели с предупреждениями разбора
+	 * (`analyzer.ts:1791`), а системный промпт перечисляет допустимые значения для
+	 * пяти полей и НЕ перечисляет их для `warnings`. Значит модель может прислать
+	 * любую строку. Это ТРЕТИЙ экземпляр одного класса: тем же способом утекали
+	 * `crownType` («unknown», «zirconia crown») и `brand`.
+	 *
+	 * Честная фраза вместо имени ключа: клинике важно не имя, а что делать со
+	 * строкой. Сам ключ не теряется — он остаётся в `item.warnings` ответа.
+	 * Это ВТОРОЙ рубеж; первый — белый список на стороне разбора.
+	 */
+	return pricelistWarningLabels[normalized] ?? "Строку нужно проверить руками";
 }
 
 export function pricelistWarningsText(warnings: string[]): string {

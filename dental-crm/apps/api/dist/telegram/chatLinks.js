@@ -1,30 +1,74 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, or } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { denteTelegramChatLinks } from "../db/schema.js";
-export async function listDenteTelegramChatLinks(organizationId, limit = 50) {
+import { clinics, denteTelegramChatLinks } from "../db/schema.js";
+import { denteTelegramChatLinkListResponseSchema, denteTelegramChatLinkPublicSchema } from "@dental/shared";
+/**
+ * Филиал разбирается так же, как в снятой с эксплуатации синхронной версии:
+ * связка без филиала видна всей клинике, связка с филиалом — только своему.
+ * Пустой `clinicId` в области видимости снимает условие, а не подставляет NULL.
+ */
+function chatLinkClinicVisibility(clinicId) {
+    const scoped = clinicId?.trim();
+    if (!scoped)
+        return undefined;
+    return or(eq(denteTelegramChatLinks.clinicId, scoped), isNull(denteTelegramChatLinks.clinicId));
+}
+function chatLinkVisibilityConditions(scope) {
+    // Арендатор — первое и безусловное условие. Всё остальное только сужает.
+    const conditions = [eq(denteTelegramChatLinks.organizationId, scope.organizationId)];
+    const botConfigId = scope.botConfigId?.trim();
+    if (botConfigId)
+        conditions.push(eq(denteTelegramChatLinks.botConfigId, botConfigId));
+    const clinicCondition = chatLinkClinicVisibility(scope.clinicId);
+    if (clinicCondition)
+        conditions.push(clinicCondition);
+    return conditions;
+}
+/**
+ * `clinicId` переносится из строки, а не подставляется `null`. Раньше здесь
+ * стояла константа `null`: отозванная связка возвращалась «без филиала», и отбор
+ * по филиалу в списке терял смысл — колонка в таблице есть и заполняется.
+ */
+function toDenteTelegramChatLink(row) {
+    return {
+        id: row.id,
+        organizationId: row.organizationId,
+        clinicId: row.clinicId,
+        botConfigId: row.botConfigId,
+        subjectType: row.subjectType,
+        subjectId: row.subjectId,
+        chatFingerprint: row.chatFingerprint,
+        chatTransportRef: row.chatTransportRef,
+        chatIdLast4: row.chatIdLast4,
+        status: row.status,
+        linkedAt: row.linkedAt.toISOString(),
+        revokedAt: row.revokedAt?.toISOString() ?? null,
+        lastUpdateAt: row.lastUpdateAt.toISOString()
+    };
+}
+export async function listDenteTelegramChatLinks(scope, limit = 50) {
+    const boundedLimit = Math.max(1, Math.min(200, Math.trunc(limit) || 50));
     const links = await db
         .select()
         .from(denteTelegramChatLinks)
-        .where(eq(denteTelegramChatLinks.organizationId, organizationId))
+        .where(and(...chatLinkVisibilityConditions(scope)))
         .orderBy(desc(denteTelegramChatLinks.lastUpdateAt))
-        .limit(limit);
-    return links.map(link => ({
-        id: link.id,
-        organizationId: link.organizationId,
-        clinicId: null,
-        botConfigId: link.botConfigId,
-        subjectType: link.subjectType,
-        subjectId: link.subjectId,
-        chatFingerprint: link.chatFingerprint,
-        chatTransportRef: link.chatTransportRef,
-        chatIdLast4: link.chatIdLast4,
-        status: link.status,
-        linkedAt: link.linkedAt.toISOString(),
-        revokedAt: link.revokedAt?.toISOString() ?? null,
-        lastUpdateAt: link.lastUpdateAt.toISOString()
-    }));
+        .limit(boundedLimit);
+    return links.map(toDenteTelegramChatLink);
 }
-export async function revokeDenteTelegramChatLink(organizationId, linkId) {
+/**
+ * Число активных связок. Отдельный запрос, а не длина страницы: панель статуса
+ * раньше брала первые 100 связок и считала активные среди них, поэтому у клиники
+ * с бОльшим числом привязок число застывало и выглядело правдоподобно.
+ */
+export async function countActiveDenteTelegramChatLinks(scope) {
+    const [row] = await db
+        .select({ activeCount: sql `count(*)::int` })
+        .from(denteTelegramChatLinks)
+        .where(and(...chatLinkVisibilityConditions(scope), eq(denteTelegramChatLinks.status, "active")));
+    return row?.activeCount ?? 0;
+}
+export async function revokeDenteTelegramChatLink(scope, linkId) {
     const [updated] = await db
         .update(denteTelegramChatLinks)
         .set({
@@ -32,23 +76,155 @@ export async function revokeDenteTelegramChatLink(organizationId, linkId) {
         revokedAt: sql `CURRENT_TIMESTAMP`,
         lastUpdateAt: sql `CURRENT_TIMESTAMP`
     })
-        .where(and(eq(denteTelegramChatLinks.organizationId, organizationId), eq(denteTelegramChatLinks.id, linkId), eq(denteTelegramChatLinks.status, "active")))
+        .where(and(...chatLinkVisibilityConditions(scope), eq(denteTelegramChatLinks.id, linkId), eq(denteTelegramChatLinks.status, "active")))
         .returning();
     if (!updated)
         return null;
-    return {
-        id: updated.id,
-        organizationId: updated.organizationId,
-        clinicId: null,
-        botConfigId: updated.botConfigId,
-        subjectType: updated.subjectType,
-        subjectId: updated.subjectId,
-        chatFingerprint: updated.chatFingerprint,
-        chatTransportRef: updated.chatTransportRef,
-        chatIdLast4: updated.chatIdLast4,
-        status: updated.status,
-        linkedAt: updated.linkedAt.toISOString(),
-        revokedAt: updated.revokedAt?.toISOString() ?? null,
-        lastUpdateAt: updated.lastUpdateAt.toISOString()
+    return toDenteTelegramChatLink(updated);
+}
+/**
+ * Кладёт связку чата в базу и снимает прежние активные связки того же субъекта.
+ *
+ * Ключ конфликта — `(organization_id, bot_config_id, chat_fingerprint)`, то есть
+ * ровно уникальный индекс таблицы: повторный `/start` из того же чата обновляет
+ * строку, а не плодит вторую. Возврат к активному состоянию тоже здесь: пациент,
+ * отозвавший привязку и привязавшийся заново, получает `revoked_at = NULL`.
+ */
+/**
+ * ФИЛИАЛ ЗАПИСЫВАЕТСЯ ТОЛЬКО ЕСЛИ ОН СУЩЕСТВУЕТ КАК ФИЛИАЛ.
+ *
+ * `clinic_id` в этой таблице ссылается на `clinics.id`, а telegram-путь
+ * подставляет туда идентификатор ОРГАНИЗАЦИИ: `resolveDenteTelegramClinicId`
+ * (`sampleData.ts`) при совпадении области возвращает `clinicProfile.organizationId`.
+ * Пока в `clinics` нет строки с тем же uuid, вставка нарушает внешний ключ — и
+ * связка чата не сохраняется ВООБЩЕ, то есть пациент снова невидим для
+ * отправителей.
+ *
+ * Из двух исходов правильный — потерять область филиала, а не связку: строка с
+ * `clinic_id = NULL` видна всей клинике, а отсутствие строки означает, что
+ * сообщения не уйдут никому. Само смешение «филиал = организация» лечится в
+ * telegram-пути, а не здесь.
+ */
+async function persistableClinicId(organizationId, clinicId) {
+    if (!clinicId)
+        return null;
+    const [existing] = await db
+        .select({ id: clinics.id })
+        .from(clinics)
+        .where(and(eq(clinics.id, clinicId), eq(clinics.organizationId, organizationId)))
+        .limit(1);
+    return existing ? existing.id : null;
+}
+export async function upsertDenteTelegramChatLink(input) {
+    const botConfigId = input.botConfigId?.trim() || "default";
+    const clinicId = await persistableClinicId(input.organizationId, input.clinicId?.trim() || null);
+    /**
+     * В `set` попадают только те поля, для которых пришло значение. Раньше здесь
+     * был `coalesce(параметр, колонка)`, но параметр NULL заставляет Postgres
+     * выводить тип из соседнего аргумента, и это ровно тот запрос, который падает
+     * не на первом прогоне. Пустое значение и так не должно затирать колонку —
+     * значит и в запросе ему делать нечего.
+     */
+    const conflictUpdate = {
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        status: "active",
+        revokedAt: null,
+        lastUpdateAt: sql `CURRENT_TIMESTAMP`
     };
+    if (clinicId)
+        conflictUpdate.clinicId = clinicId;
+    if (input.chatTransportRef)
+        conflictUpdate.chatTransportRef = input.chatTransportRef;
+    if (input.chatIdLast4)
+        conflictUpdate.chatIdLast4 = input.chatIdLast4;
+    const [saved] = await db
+        .insert(denteTelegramChatLinks)
+        .values({
+        organizationId: input.organizationId,
+        clinicId,
+        botConfigId,
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        chatFingerprint: input.chatFingerprint,
+        chatTransportRef: input.chatTransportRef ?? null,
+        chatIdLast4: input.chatIdLast4 ?? null,
+        status: "active",
+        revokedAt: null
+    })
+        .onConflictDoUpdate({
+        target: [
+            denteTelegramChatLinks.organizationId,
+            denteTelegramChatLinks.botConfigId,
+            denteTelegramChatLinks.chatFingerprint
+        ],
+        set: conflictUpdate
+    })
+        .returning();
+    // Один субъект — один активный чат. Прежний чат того же пациента снимается
+    // ПОСЛЕ вставки: иначе только что записанная строка снялась бы сама.
+    await db
+        .update(denteTelegramChatLinks)
+        .set({
+        status: "revoked",
+        revokedAt: sql `CURRENT_TIMESTAMP`,
+        lastUpdateAt: sql `CURRENT_TIMESTAMP`
+    })
+        .where(and(eq(denteTelegramChatLinks.organizationId, input.organizationId), eq(denteTelegramChatLinks.botConfigId, botConfigId), eq(denteTelegramChatLinks.subjectType, input.subjectType), eq(denteTelegramChatLinks.subjectId, input.subjectId), eq(denteTelegramChatLinks.status, "active"), sql `${denteTelegramChatLinks.id} <> ${saved.id}`));
+    return toDenteTelegramChatLink(saved);
+}
+/**
+ * Список для панели управления: та же оболочка ответа, что отдавала версия в
+ * памяти, но счётчики и страница считаются запросами к базе, а не проходом по
+ * массиву процесса. Три запроса вместо чтения всей таблицы в память.
+ */
+export async function buildDenteTelegramChatLinkList(input) {
+    const parsedLimit = Number(input.limit ?? 50);
+    const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(200, Math.trunc(parsedLimit))) : 50;
+    const parsedCursor = Number.parseInt(input.cursor ?? "0", 10);
+    const start = Math.max(0, Number.isFinite(parsedCursor) ? parsedCursor : 0);
+    const status = input.status ?? "all";
+    const subjectType = input.subjectType ?? "all";
+    const subjectId = input.subjectId?.trim() || null;
+    const visibility = chatLinkVisibilityConditions(input);
+    const filters = [...visibility];
+    if (status !== "all")
+        filters.push(eq(denteTelegramChatLinks.status, status));
+    if (subjectType !== "all")
+        filters.push(eq(denteTelegramChatLinks.subjectType, subjectType));
+    if (subjectId)
+        filters.push(eq(denteTelegramChatLinks.subjectId, subjectId));
+    const [totals] = await db
+        .select({
+        totalCount: sql `count(*)::int`,
+        activeCount: sql `count(*) filter (where ${denteTelegramChatLinks.status} = 'active')::int`,
+        revokedCount: sql `count(*) filter (where ${denteTelegramChatLinks.status} = 'revoked')::int`
+    })
+        .from(denteTelegramChatLinks)
+        .where(and(...visibility));
+    const [filtered] = await db
+        .select({ filteredCount: sql `count(*)::int` })
+        .from(denteTelegramChatLinks)
+        .where(and(...filters));
+    const rows = await db
+        .select()
+        .from(denteTelegramChatLinks)
+        .where(and(...filters))
+        // Порядок обязан быть устойчивым: без него страница по offset может
+        // показать одну связку дважды и потерять другую.
+        .orderBy(desc(denteTelegramChatLinks.lastUpdateAt), desc(denteTelegramChatLinks.id))
+        .limit(limit)
+        .offset(start);
+    const filteredCount = filtered?.filteredCount ?? 0;
+    const nextOffset = start + rows.length;
+    return denteTelegramChatLinkListResponseSchema.parse({
+        totalCount: totals?.totalCount ?? 0,
+        filteredCount,
+        limit,
+        cursor: start === 0 ? null : String(start),
+        nextCursor: nextOffset < filteredCount ? String(nextOffset) : null,
+        activeCount: totals?.activeCount ?? 0,
+        revokedCount: totals?.revokedCount ?? 0,
+        chatLinks: rows.map((row) => denteTelegramChatLinkPublicSchema.parse(toDenteTelegramChatLink(row)))
+    });
 }

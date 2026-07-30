@@ -243,7 +243,6 @@ import {
   mprUnavailableProjectionLabel,
   mprWindowPresetLabels,
   policyAuditEventLabels,
-  pricelistParserModeLabels,
   type MprClinicalPreset,
   type MprProjection,
   type MprWindowPreset
@@ -293,17 +292,20 @@ import { postVisitCarePresets } from "./postVisitCareData";
 import {
   dentalMaterialKindLabels,
   dentalRestorationTypeLabels,
-  pricelistItemMaterialText,
-  pricelistMaterialSummaryText,
   pricelistRecognitionBrandGroups,
   pricelistRecognitionServiceGroups,
-  pricelistSourceKindLabels,
-  pricelistWarningsText
+  pricelistSourceKindLabels
 } from "./pricelistUiMeta";
 import { specialtyQuickPhraseLibrary } from "./visitDictationData";
 import { inferDashboardVisitSpecialty, inferSpecialtyFromText, visitSpecialtyFocusOptions } from "./visitSpecialtyData";
 import { ActionIcon, appViews, type AppView, getFilteredAppViews, viewLabels, WorkspaceSidebar, WorkspaceTopbar } from "./workspaceShell";
-import { preloadWorkspaceView, scheduleIdleWorkspacePreload } from "./workspacePreload";
+import { denteAdminSecretRequestHeaders } from "./lib/denteRequestHeaders";
+import {
+	readDenteClinicToken,
+	safeLocalStorageGetItem,
+	safeLocalStorageRemoveItem,
+	safeLocalStorageSetItem,
+} from "./lib/safeLocalStorage";
 import { WorkspaceContinuityStrip } from "./workspaceContinuityStrip";
 import { WorkspaceRouteErrorBoundary } from "./workspaceRouteErrorBoundary";
 import {
@@ -369,7 +371,6 @@ import {
 } from "./workspaceUiLabels";
 const ImagingView = lazy(() => import("./ImagingView").then((module) => ({ default: module.ImagingView })));
 const VisitView = lazy(() => import("./VisitView").then((module) => ({ default: module.VisitView })));
-const FinanceView = lazy(() => import("./FinanceView").then((module) => ({ default: module.FinanceView })));
 const CommunicationsView = lazy(() => import("./CommunicationsView").then((module) => ({ default: module.CommunicationsView })));
 const DocumentsView = lazy(() => import("./DocumentsView").then((module) => ({ default: module.DocumentsView })));
 const SettingsView = lazy(() => import("./SettingsView").then((module) => ({ default: module.SettingsView })));
@@ -389,6 +390,10 @@ export type ImagingViewerState = {
   brightness: number;
   contrast: number;
   zoom: number;
+  panX: number;
+  panY: number;
+  projection: MprProjection;
+  preset: MprWindowPreset;
 };
 
 export type ImagingViewerPlan = {
@@ -421,7 +426,11 @@ export const defaultImagingViewerState: ImagingViewerState = {
   inverted: false,
   brightness: 1,
   contrast: 1.08,
-  zoom: 1
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  projection: "axial",
+  preset: "bone"
 };
 
 export const defaultDicomFirstFrameViewerState: ImagingViewerState = {
@@ -430,7 +439,11 @@ export const defaultDicomFirstFrameViewerState: ImagingViewerState = {
   inverted: false,
   brightness: 1,
   contrast: 1,
-  zoom: 1
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  projection: "axial",
+  preset: "bone"
 };
 
 export type ImagingViewerLocalDraft = {
@@ -845,15 +858,15 @@ export function loadDocumentIssueSignatureDraft(organizationId: string | null | 
   try {
     const localKey = documentIssueSignatureLocalKey(organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(documentIssueSignatureStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(documentIssueSignatureStorageKey) : null);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<DocumentIssueSignatureDraft>;
     if (parsed?.version !== 1) return fallback;
     const savedAt = typeof parsed.savedAt === "string" ? parsed.savedAt : "";
     if (!localSavedAtFresh(savedAt, localConvenienceRetentionMs)) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(documentIssueSignatureStorageKey);
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(documentIssueSignatureStorageKey);
       return fallback;
     }
     return {
@@ -877,7 +890,7 @@ export function saveDocumentIssueSignatureDraft(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       documentIssueSignatureLocalKey(organizationId),
       JSON.stringify({
         version: 1,
@@ -917,8 +930,8 @@ export function loadDocumentPaymentSelectionStore(organizationId: string | null 
   try {
     const localKey = documentPaymentSelectionLocalKey(organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(documentPaymentSelectionStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(documentPaymentSelectionStorageKey) : null);
     if (!raw) return emptyDocumentPaymentSelectionStore();
     const parsed = JSON.parse(raw) as Partial<DocumentPaymentSelectionStore>;
     if (parsed?.version !== 1 || !parsed.selections || typeof parsed.selections !== "object") {
@@ -944,11 +957,11 @@ export function loadDocumentPaymentSelectionStore(organizationId: string | null 
     }
     if (pruned || organizationId) {
       if (Object.keys(selections).length) {
-        window.localStorage.setItem(localKey, JSON.stringify({ version: 1, selections } satisfies DocumentPaymentSelectionStore));
+        safeLocalStorageSetItem(localKey, JSON.stringify({ version: 1, selections } satisfies DocumentPaymentSelectionStore));
       } else {
-        window.localStorage.removeItem(localKey);
+        safeLocalStorageRemoveItem(localKey);
       }
-      if (organizationId) window.localStorage.removeItem(documentPaymentSelectionStorageKey);
+      if (organizationId) safeLocalStorageRemoveItem(documentPaymentSelectionStorageKey);
     }
     return { version: 1, selections };
   } catch (error) {
@@ -981,7 +994,7 @@ export function saveDocumentPaymentSelection(
         .sort((left, right) => right[1].savedAt.localeCompare(left[1].savedAt))
         .slice(0, 80)
     );
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       documentPaymentSelectionLocalKey(organizationId),
       JSON.stringify({ version: 1, selections: trimmedSelections } satisfies DocumentPaymentSelectionStore)
     );
@@ -991,14 +1004,86 @@ export function saveDocumentPaymentSelection(
   }
 }
 
-export function todayDateInputValue(): string {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Календарный день в виде «ГГГГ-ММ-ДД»: в поясе клиники, если он известен, иначе
+ * в местном поясе машины. День по UTC не возвращается никогда — см. разбор у
+ * todayDateInputValue.
+ */
+export function calendarDayInTimeZone(moment: Date, timeZone?: string | null): string {
+  if (timeZone) {
+    try {
+      // en-CA даёт ISO-подобный вид ГГГГ-ММ-ДД. Тот же приём, что на сервере в
+      // routes/dayConfirmations.ts: готовой функции «мгновение → местная дата» в
+      // стандартной библиотеке нет.
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(moment);
+    } catch {
+      // Пояс не разобран — считаем по местному. Пустая дата в поле медицинского
+      // документа хуже даты, посчитанной по поясу рабочей машины.
+    }
+  }
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`;
 }
 
-export function dateInputValuePlusDays(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+/**
+ * Сдвиг календарного дня на целое число суток.
+ *
+ * Считается КАЛЕНДАРНО, а не прибавлением 24 часов: в поясе с переходом на
+ * зимнее время сутки длятся 25 часов, и 24 прибавленных часа не доводят до
+ * следующей даты. Перенос через конец месяца и года делает сам `Date.UTC`: день
+ * 32 в июле он превращает в 1 августа.
+ *
+ * `toISOString` здесь законен и трогать его не надо: и запись, и чтение идут в
+ * UTC, где сутки ровно 24 часа всегда. Ошибкой он становится там, где в UTC
+ * ЧИТАЮТ момент, собранный по местному времени.
+ */
+export function shiftCalendarDay(day: string, days: number): string {
+  const [year, month, date] = day.split("-").map((value) => Number.parseInt(value, 10));
+  if (!year || !month || !date) return day;
+  return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * Сегодняшнее число для поля ввода типа `date`.
+ *
+ * ЧТО БЫЛО СЛОМАНО. Стояло `new Date().toISOString().slice(0, 10)` — это день по
+ * UTC. У ВСЕХ российских поясов смещение положительное (Москва +3, Самара +4 —
+ * пояс по умолчанию в схеме, Камчатка +12), поэтому день по UTC отстаёт от
+ * местного каждую ночь: в Москве с 00:00 до 03:00, в Самаре до 04:00, на
+ * Камчатке — половину суток. Это не про переход на летнее время, который Россия
+ * отменила в 2014 году; это срабатывает у каждой клиники, каждый день.
+ *
+ * ЧЕМ ВРЕДНО. Отсюда заполняются даты медицинских документов: дата открытия
+ * карты 025/у и период выписки из медкарты (emptyOutpatient025uDocumentDraftFields,
+ * emptyMedicalRecordExtractDocumentDraftFields — оба черновика становятся
+ * начальным состоянием документа). Карта 025/у — форма государственного учёта,
+ * выписка — основание для страховой и для суда. Документ с датой на день раньше
+ * факта расходится с картой, и заметить это можно только вручную.
+ *
+ * И правильный расчёт того же дня в проекте УЖЕ БЫЛ — documentLogic.ts,
+ * withDocumentCreationTimestamps собирает день из местных полей `Date`. Но он
+ * заполняет только ПУСТЫЕ поля, а предзаполненное неверное число пустым не
+ * является: верный расчёт молча уступал неверному. Сторож
+ * tests/documentCreationTimestamps.test.ts это не ловил, потому что вызывает
+ * функцию с явно пустым полем и рабочего пути не проходит.
+ *
+ * Пояс клиники передаётся, когда вызывающий его знает
+ * (`dashboard.clinicSettings.profile.timezone`). Параметр необязательный
+ * намеренно: подпись расширена, а не изменена, поэтому ни один существующий
+ * вызов не пришлось трогать.
+ */
+export function todayDateInputValue(timeZone?: string | null): string {
+  return calendarDayInTimeZone(new Date(), timeZone);
+}
+
+/** То же число, сдвинутое на `days` календарных суток: сроки оплаты и графики платежей. */
+export function dateInputValuePlusDays(days: number, timeZone?: string | null): string {
+  return shiftCalendarDay(calendarDayInTimeZone(new Date(), timeZone), days);
 }
 
 export function emptyOutpatient025uDocumentDraftFields(): Outpatient025uDocumentDraftFields {
@@ -1147,8 +1232,8 @@ export function loadDocumentPayloadDraftStore(organizationId: string | null | un
   try {
     const localKey = documentPayloadDraftLocalKey(organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(documentPayloadDraftStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(documentPayloadDraftStorageKey) : null);
     if (!raw) return emptyDocumentPayloadDraftStore();
     const parsed = JSON.parse(raw) as Partial<DocumentPayloadDraftStore>;
     if (parsed?.version !== 1 || !parsed.drafts || typeof parsed.drafts !== "object") return emptyDocumentPayloadDraftStore();
@@ -1190,11 +1275,11 @@ export function loadDocumentPayloadDraftStore(organizationId: string | null | un
     }
     if (pruned || organizationId) {
       if (Object.keys(drafts).length) {
-        window.localStorage.setItem(localKey, JSON.stringify({ version: 1, drafts } satisfies DocumentPayloadDraftStore));
+        safeLocalStorageSetItem(localKey, JSON.stringify({ version: 1, drafts } satisfies DocumentPayloadDraftStore));
       } else {
-        window.localStorage.removeItem(localKey);
+        safeLocalStorageRemoveItem(localKey);
       }
-      if (organizationId) window.localStorage.removeItem(documentPayloadDraftStorageKey);
+      if (organizationId) safeLocalStorageRemoveItem(documentPayloadDraftStorageKey);
     }
     return { version: 1, drafts };
   } catch {
@@ -1234,7 +1319,7 @@ export function saveOutpatient025uDocumentDraft(
         .sort((left, right) => right[1].savedAt.localeCompare(left[1].savedAt))
         .slice(0, 60)
     );
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       documentPayloadDraftLocalKey(organizationId),
       JSON.stringify({ version: 1, drafts: trimmedDrafts } satisfies DocumentPayloadDraftStore)
     );
@@ -1275,7 +1360,7 @@ export function saveMedicalRecordExtractDocumentDraft(
         .sort((left, right) => right[1].savedAt.localeCompare(left[1].savedAt))
         .slice(0, 60)
     );
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       documentPayloadDraftLocalKey(organizationId),
       JSON.stringify({ version: 1, drafts: trimmedDrafts } satisfies DocumentPayloadDraftStore)
     );
@@ -1295,13 +1380,13 @@ export function loadLocalImagingViewerDraft(studyId: string | null, organization
   try {
     const localKey = imagingViewerLocalKey(studyId, organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(imagingViewerLocalKey(studyId)) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(imagingViewerLocalKey(studyId)) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ImagingViewerLocalDraft;
     if (!localSavedAtFresh(parsed?.clientSavedAt, sensitiveLocalDraftRetentionMs)) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(imagingViewerLocalKey(studyId));
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(imagingViewerLocalKey(studyId));
       return null;
     }
     return parsed?.state && Array.isArray(parsed.annotations) ? parsed : null;
@@ -1359,13 +1444,13 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(organizationId: str
   try {
     const localKey = organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(dicomWorkbenchLocalStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(dicomWorkbenchLocalStorageKey) : null);
     if (!raw) return null;
     const parsed = normalizeLocalDicomWorkbenchDraft(JSON.parse(raw));
     if (!parsed) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(dicomWorkbenchLocalStorageKey);
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(dicomWorkbenchLocalStorageKey);
       return null;
     }
     return parsed;
@@ -1405,12 +1490,14 @@ export function isMprProjection(value: unknown): value is MprProjection {
     value === "oblique" ||
     value === "panoramic_reconstruction" ||
     value === "three_d_volume" ||
-    value === "mip"
+    value === "mip" ||
+    value === "panoramic" ||
+    value === "3d_reconstruction"
   );
 }
 
 export function isMprWindowPreset(value: unknown): value is MprWindowPreset {
-  return value === "bone" || value === "soft_tissue" || value === "implant" || value === "custom";
+  return value === "bone" || value === "soft_tissue" || value === "implant" || value === "custom" || value === "teeth";
 }
 
 export function resolveMprWorkbenchProjection(value: unknown, availableProjections: MprProjection[]): MprProjection {
@@ -1447,14 +1534,14 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
   try {
     const localKey = mprWorkbenchLocalKey(seriesKey, organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(mprWorkbenchLocalKey(seriesKey)) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(mprWorkbenchLocalKey(seriesKey)) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MprWorkbenchLocalDraft;
     if (parsed?.version !== 1 || parsed.seriesKey !== seriesKey || !parsed.clientSavedAt) return null;
     if (!localSavedAtFresh(parsed.clientSavedAt, sensitiveLocalDraftRetentionMs)) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey));
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(mprWorkbenchLocalKey(seriesKey));
       return null;
     }
     const state = normalizeMprWorkbenchState(parsed.state);
@@ -1473,7 +1560,7 @@ export function saveLocalMprWorkbenchDraftToLocalStorage(
 ): boolean {
   if (typeof window === "undefined") return false;
   try {
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       mprWorkbenchLocalKey(seriesKey, organizationId),
       JSON.stringify({ version: 1, seriesKey, state, clientSavedAt } satisfies MprWorkbenchLocalDraft)
     );
@@ -1683,10 +1770,11 @@ export function buildBrowserMigrationDiscovery(input: {
       const sourceKind = browserMigrationSourceKindFromStats(stats);
       const fingerprint = browserPickedFolderFingerprint(`${input.rootName}:${stats.folderKey}:${matchedFiles}:${stats.totalBytes}`);
       const reasons: string[] = [];
-      if (stats.databaseFiles) reasons.push(`${stats.databaseFiles} файлов старой базы`);
-      if (stats.dumpFiles) reasons.push(`${stats.dumpFiles} файлов резервной копии`);
-      if (stats.tableFiles) reasons.push(`${stats.tableFiles} табличных выгрузок`);
-      if (stats.archiveFiles) reasons.push(`${stats.archiveFiles} архивов`);
+      // Счёт со склонением: «1 файлов старой базы» читается как ошибка программы.
+      if (stats.databaseFiles) reasons.push(`${countLabel(stats.databaseFiles, "файл", "файла", "файлов")} старой базы`);
+      if (stats.dumpFiles) reasons.push(`${countLabel(stats.dumpFiles, "файл", "файла", "файлов")} резервной копии`);
+      if (stats.tableFiles) reasons.push(`${countLabel(stats.tableFiles, "табличная выгрузка", "табличные выгрузки", "табличных выгрузок")}`);
+      if (stats.archiveFiles) reasons.push(`${countLabel(stats.archiveFiles, "архив", "архива", "архивов")}`);
       if (stats.dicomLikeFiles) reasons.push(`${stats.dicomLikeFiles} признаков снимков или серий КТ`);
       if (stats.imageFiles) reasons.push(`${stats.imageFiles} изображений`);
       if (stats.modelFiles) reasons.push(`${stats.modelFiles} 3D-моделей зубов`);
@@ -1952,7 +2040,7 @@ export function saveBrowserPickedImagingFolderPreview(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId),
       JSON.stringify(preview)
     );
@@ -1969,14 +2057,14 @@ export function loadBrowserPickedImagingFolderPreview(
   try {
     const localKey = organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(browserPickedImagingFolderStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(browserPickedImagingFolderStorageKey) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as BrowserPickedImagingFolderPreview;
     if (parsed?.version !== 1 || !parsed.folderFingerprint || !parsed.createdAt) return null;
     if (!localSavedAtFresh(parsed.createdAt, localConvenienceRetentionMs)) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(browserPickedImagingFolderStorageKey);
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(browserPickedImagingFolderStorageKey);
       return null;
     }
     return parsed;
@@ -1989,8 +2077,8 @@ export function loadBrowserPickedImagingFolderPreview(
 export function removeBrowserPickedImagingFolderPreview(organizationId: string | null | undefined = null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId));
-    if (organizationId) window.localStorage.removeItem(browserPickedImagingFolderStorageKey);
+    safeLocalStorageRemoveItem(organizationScopedLocalStorageKey(browserPickedImagingFolderStorageKey, organizationId));
+    if (organizationId) safeLocalStorageRemoveItem(browserPickedImagingFolderStorageKey);
   } catch {
     // ignore unavailable storage
   }
@@ -2041,14 +2129,14 @@ export function loadLocalImagingFolderDraft(organizationId: string | null | unde
   try {
     const localKey = organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId);
     const raw =
-      window.localStorage.getItem(localKey) ??
-      (organizationId ? window.localStorage.getItem(localImagingFolderStorageKey) : null);
+      safeLocalStorageGetItem(localKey) ??
+      (organizationId ? safeLocalStorageGetItem(localImagingFolderStorageKey) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LocalImagingFolderDraft;
     if (parsed?.version !== 1 || !parsed.folderPath?.trim() || !parsed.savedAt) return null;
     if (!localSavedAtFresh(parsed.savedAt, localConvenienceRetentionMs)) {
-      window.localStorage.removeItem(localKey);
-      if (organizationId) window.localStorage.removeItem(localImagingFolderStorageKey);
+      safeLocalStorageRemoveItem(localKey);
+      if (organizationId) safeLocalStorageRemoveItem(localImagingFolderStorageKey);
       return null;
     }
     return {
@@ -2067,7 +2155,7 @@ export function loadLocalImagingFolderDraft(organizationId: string | null | unde
 export function saveLocalImagingFolderDraft(draft: LocalImagingFolderDraft, organizationId: string | null | undefined = null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId), JSON.stringify(draft));
+    safeLocalStorageSetItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId), JSON.stringify(draft));
   } catch {
     // Local folder recovery is best-effort and never sent to the server.
   }
@@ -2076,8 +2164,8 @@ export function saveLocalImagingFolderDraft(draft: LocalImagingFolderDraft, orga
 export function removeLocalImagingFolderDraft(organizationId: string | null | undefined = null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId));
-    if (organizationId) window.localStorage.removeItem(localImagingFolderStorageKey);
+    safeLocalStorageRemoveItem(organizationScopedLocalStorageKey(localImagingFolderStorageKey, organizationId));
+    if (organizationId) safeLocalStorageRemoveItem(localImagingFolderStorageKey);
   } catch {
     // ignore unavailable storage
   }
@@ -2089,7 +2177,7 @@ export function saveLocalDicomWorkbenchDraftToLocalStorage(
 ): boolean {
   if (typeof window === "undefined") return false;
   try {
-    window.localStorage.setItem(organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId), JSON.stringify(draft));
+    safeLocalStorageSetItem(organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId), JSON.stringify(draft));
     return true;
   } catch {
     return false;
@@ -2121,8 +2209,8 @@ export function dicomWorkbenchManifestHasRedactedSource(manifest: DicomViewerWor
 export function removeLocalDicomWorkbenchDraftFromLocalStorage(organizationId: string | null | undefined = null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId));
-    if (organizationId) window.localStorage.removeItem(dicomWorkbenchLocalStorageKey);
+    safeLocalStorageRemoveItem(organizationScopedLocalStorageKey(dicomWorkbenchLocalStorageKey, organizationId));
+    if (organizationId) safeLocalStorageRemoveItem(dicomWorkbenchLocalStorageKey);
   } catch {
     // ignore unavailable storage
   }
@@ -2225,7 +2313,7 @@ export function saveLocalImagingViewerDraft(
 ): boolean {
   if (typeof window === "undefined") return false;
   try {
-    window.localStorage.setItem(imagingViewerLocalKey(studyId, organizationId), JSON.stringify(draft));
+    safeLocalStorageSetItem(imagingViewerLocalKey(studyId, organizationId), JSON.stringify(draft));
     return true;
   } catch {
     // Viewer state is still saved to server when available; local storage quota errors stay non-blocking.
@@ -2390,7 +2478,15 @@ export const telegramBlockedReasonLabels: Record<string, string> = {
   telegram_outbox_not_due_yet: "Время отправки еще не наступило.",
   telegram_outbox_preview_empty: "В сообщении нет текста для отправки.",
   telegram_delivery_processing: "Отправка уже обрабатывается.",
-  telegram_transport_failed: "Telegram не принял сообщение. Проверьте подключение бота, сеть и связанный чат."
+  telegram_transport_failed: "Telegram не принял сообщение. Проверьте подключение бота, сеть и связанный чат.",
+  // Без этих двух строк telegramHumanMessage не находит подписи и выдаёт общее «Нужна проверка
+  // настройки Telegram», то есть отправляет оператора чинить настройки при полностью исправных
+  // настройках. Для частичной доставки это ещё и опасно: оператор жмёт «отправить» снова, и пациент
+  // получает фото второй раз.
+  telegram_photo_sent_text_failed:
+    "Фото уже доставлено пациенту, а текст под ним не ушёл. Повторная отправка дошлёт только текст — фото заново не уйдёт.",
+  telegram_outbox_schedule_unreadable:
+    "Время отправки в задаче не распознано как дата. Сообщение не отправлено; исправьте время в задаче коммуникации."
 };
 
 export const telegramWarningLabels: Record<string, string> = {
@@ -2406,9 +2502,18 @@ export function telegramHumanMessage(value: string | null | undefined): string {
   return telegramBlockedReasonLabels[value] ?? telegramWarningLabels[value] ?? "Нужна проверка настройки Telegram.";
 }
 
+/**
+ * БЫЛО: `!Number.isFinite(scheduledAtMs) || scheduledAtMs <= Date.now()` — нечитаемое время считалось
+ * наступившим, поэтому кнопка отправки (`SettingsTelegramTab.tsx:1075` выключает её, когда НЕ пора)
+ * оставалась активной, а фильтр «пора» (`useAppLogic.tsx:4590-4598`) показывал позицию как готовую.
+ * Оператор видел приглашение отправить сообщение, время которого система не смогла прочитать.
+ * Сервер такую позицию теперь отклоняет (`routes/telegram.ts` telegramOutboxScheduleState), и
+ * интерфейс обязан говорить то же самое.
+ */
 export function isTelegramOutboxItemDueForUi(item: Pick<DenteTelegramOutboxResponse["items"][number], "scheduledAt">): boolean {
   const scheduledAtMs = Date.parse(item.scheduledAt);
-  return !Number.isFinite(scheduledAtMs) || scheduledAtMs <= Date.now();
+  if (!Number.isFinite(scheduledAtMs)) return false;
+  return scheduledAtMs <= Date.now();
 }
 
 export const documentDetectedKindLabels: Record<string, string> = {
@@ -2474,8 +2579,106 @@ export function findPatient(patients: Patient[], patientId: string | null) {
   return patients.find((patient) => patient.id === patientId) ?? null;
 }
 
-export function money(value: number | null) {
-  return `${(value ?? 0).toLocaleString("ru-RU")} ₽`;
+/**
+ * Что печатается вместо суммы, которой программа не знает.
+ *
+ * Вынесено в имя, а не написано строкой по месту: разметке местами нужно
+ * ОТЛИЧИТЬ неизвестное от суммы, не разбирая текст на части, — например чтобы
+ * не подсвечивать красным долг, которого никто не считал.
+ */
+export const moneyUnknownLabel = "не определено";
+
+/**
+ * Сумма для показа человеку.
+ *
+ * Копейки печатаются, только если они есть, и всегда двумя знаками. Раньше
+ * стоял голый toLocaleString без указания знаков: 1500,5 выводилось как
+ * «1 500,5 ₽» — для денег это неверная запись, полтинник читается как пять
+ * копеек. Круглые суммы при этом не обрастают «,00»: на экране, где почти все
+ * цены круглые, это лишний шум.
+ *
+ * Строку на входе тоже переживаем: колонки numeric приходили из драйвера базы
+ * строками, и такое значение могло долететь до форматирования.
+ *
+ * НЕИЗВЕСТНАЯ СУММА БОЛЬШЕ НЕ ПЕЧАТАЕТСЯ НУЛЁМ. Здесь стояло
+ * `Number.isFinite(amount) ? amount : 0`, и любое значение, которого программа
+ * не знает — null, undefined, нечитаемая строка, — выходило на экран как
+ * «0 ₽», не отличимое от настоящего нуля. «Пациент не должен ничего» и
+ * «сколько должен, не посчитано» — разные утверждения о деньгах, а показывались
+ * одной строкой. Прежний автор `planItemFromServer` уже описал эту ловушку с
+ * другой стороны (components/odontogram/treatmentEstimatorPricing.ts): он
+ * подставлял ноль ИМЕННО ЧТОБЫ не показать «0 ₽», а получал гарантированный
+ * «0 ₽», потому что подмена происходила до этой функции.
+ *
+ * Живой пример на момент правки: в списке документов
+ * (`DocumentsView.tsx:4238`, `money(document.totalAmountRub)`) поле нулевое по
+ * схеме — `nonNegativeMoneyRubSchema.nullable()`, и `useAppLogic.tsx:12362`
+ * ставит null всем видам документов без денег. Таких видов 18 из 32 — согласия,
+ * рецепты, выписки, направления, отказы, анкеты, — и каждый печатался в строке
+ * как «· 0 ₽».
+ *
+ * ПОЧЕМУ «не определено», А НЕ ПРОЧЕРК. В русской финансовой записи прочерк в
+ * денежной графе означает как раз НОЛЬ («операции не было»), поэтому «—»
+ * поменяло бы одну двусмысленность на другую — ту же самую, которую здесь
+ * убирают. «н/д» — сокращение для бухгалтера, а этот текст читают
+ * администратор, врач и пациент. Слово «не определено» уже живёт в продукте в
+ * этом же файле (`documentDetectedKindLabels.unknown`), так что словарь не
+ * расширяется. Знак «₽» намеренно НЕ добавлен: «не определено ₽» читалось бы
+ * снова как сумма.
+ *
+ * НАСТОЯЩИЙ НОЛЬ ОСТАЛСЯ НУЛЁМ. `money(0)` — это «0 ₽»: ноль рублей законная
+ * сумма, и прятать её нельзя.
+ *
+ * Пустая строка отнесена к неизвестному, а не к нулю: `Number("")` в
+ * JavaScript равно 0, и незаполненное поле или отсутствующая колонка проезжали
+ * через `Number.isFinite` как честный ноль — тот же дефект другой дверью.
+ */
+export function money(value: number | string | null | undefined) {
+  const amount =
+    typeof value === "string" ? (value.trim() === "" ? Number.NaN : Number(value)) : value;
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return moneyUnknownLabel;
+  const kopecks = Math.round(amount * 100) % 100;
+  const fractionDigits = kopecks === 0 ? 0 : 2;
+  return `${amount.toLocaleString("ru-RU", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  })} ₽`;
+}
+
+/**
+ * Русское склонение счётного слова: 1 приём, 2 приёма, 5 приёмов.
+ *
+ * Нужна везде, где рядом с числом стоит существительное. Без неё на экранах
+ * появляется «1 снимка», «0 документа», «21 записей» — читается как ошибка
+ * программы, и доверие к остальным цифрам падает.
+ *
+ * САМА ФУНКЦИЯ ПЕРЕЕХАЛА В `lib/russianPlural.ts`, здесь остался РЕЭКСПОРТ.
+ * Причина не в опрятности: этот файл на 6066 строк по цепочке импортов тянет
+ * компоненты и таблицы стилей, поэтому любой модуль ЛОГИКИ, попросивший у него
+ * согласование числа, перестаёт запускаться в node:test — прогон падает на
+ * `ERR_UNKNOWN_FILE_EXTENSION` для `workspaceActions.css`, не дойдя до первого
+ * утверждения. Ровно это обнулило вынос модуля отчёта о рассылке.
+ * Реэкспорт оставлен намеренно: восемь существующих потребителей не тронуты.
+ *
+ * Импорт и реэкспорт — двумя строками, а не одной. `export { x } from "..."`
+ * пробрасывает имя наружу, но НЕ вводит его в область видимости этого файла, а
+ * сам AppHelpers зовёт countLabel у себя на строках 1699-1702. Одна строка
+ * реэкспорта ломала четыре собственных вызова — поймано веб-гейтом.
+ */
+import { countLabel } from "./lib/russianPlural.js";
+export { countLabel };
+
+/**
+ * Дата вида «2026-05-24» человеческим видом: «24.05.2026».
+ *
+ * Нужна там, где в интерфейс попадает строка даты из данных, а не отметка
+ * времени: на экране «Документы» стояло «проверено 2026-05-24».
+ */
+export function isoDateLabel(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  if (!year || !month || !day || year.length !== 4) return value;
+  return `${day}.${month}.${year}`;
 }
 
 export function minutesLabel(value: number) {
@@ -2785,6 +2988,7 @@ export type UiPreferences = {
   postVisitCareTopic: PostVisitCareTopic;
   pricelistSourceKind: PricelistSourceKind;
   usePricelistAi: boolean;
+  odontogramUseSurfaces: boolean;
   recognitionKind: AiJobKind;
   recognitionTarget: AiRecognitionTarget;
   importSourceKind: ImportSourceKind;
@@ -3482,6 +3686,7 @@ export const defaultUiPreferences: UiPreferences = {
   postVisitCareTopic: "filling_restoration",
   pricelistSourceKind: "spreadsheet_copy",
   usePricelistAi: false,
+  odontogramUseSurfaces: false,
   recognitionKind: "voice_transcription",
   recognitionTarget: "visit_note",
   importSourceKind: "csv_text",
@@ -3891,6 +4096,7 @@ export function normalizeUiPreferencesPayload(parsed: unknown): UiPreferences | 
       isPricelistSourceKind
     ),
     usePricelistAi: pickUiPreference(source, "usePricelistAi", defaultUiPreferences.usePricelistAi, isBooleanPreference),
+    odontogramUseSurfaces: pickUiPreference(source, "odontogramUseSurfaces", defaultUiPreferences.odontogramUseSurfaces, isBooleanPreference),
     recognitionKind: pickUiPreference(source, "recognitionKind", defaultUiPreferences.recognitionKind, isAiJobKind),
     recognitionTarget: pickUiPreference(source, "recognitionTarget", defaultUiPreferences.recognitionTarget, isAiRecognitionTarget),
     importSourceKind: pickUiPreference(source, "importSourceKind", defaultUiPreferences.importSourceKind, isImportSourceKind),
@@ -3973,7 +4179,7 @@ export function normalizeUiPreferencesPayload(parsed: unknown): UiPreferences | 
 export function loadUiPreferences(): UiPreferences {
   if (typeof window === "undefined") return defaultUiPreferences;
   try {
-    const raw = window.localStorage.getItem(uiPreferencesStorageKey);
+    const raw = safeLocalStorageGetItem(uiPreferencesStorageKey);
     const preferences = raw ? normalizeUiPreferencesPayload(JSON.parse(raw)) ?? defaultUiPreferences : defaultUiPreferences;
     return mergeLocalOnboardingDismissal(preferences);
   } catch {
@@ -3992,7 +4198,7 @@ export function withSavedUiPreferenceTimestamp(preferences: UiPreferencesInput):
 export function persistUiPreferences(preferences: UiPreferences): UiPreferences | null {
   if (typeof window === "undefined") return null;
   try {
-    window.localStorage.setItem(uiPreferencesStorageKey, JSON.stringify(preferences));
+    safeLocalStorageSetItem(uiPreferencesStorageKey, JSON.stringify(preferences));
     return preferences;
   } catch {
     // Preferences are convenience only. Clinical drafts use separate guarded storage.
@@ -4004,23 +4210,17 @@ export function saveUiPreferences(preferences: UiPreferencesInput): UiPreference
   return persistUiPreferences(withSavedUiPreferenceTimestamp(preferences));
 }
 
-export function denteAdminSecretRequestHeaders(extra: Record<string, string> = {}, adminSecret?: string): Record<string, string> {
-  const secret = adminSecret?.trim();
-  const headers = secret ? { ...extra, [denteAdminSecretHeaderName]: secret } : { ...extra };
-  
-  if (typeof window !== 'undefined') {
-    const clinicToken = localStorage.getItem("dente_clinic_token");
-    const staffToken = localStorage.getItem("dente_staff_token");
-    if (clinicToken) {
-      headers["x-dente-clinic-token"] = clinicToken;
-    }
-    if (staffToken) {
-      headers["x-dente-staff-token"] = staffToken;
-    }
-  }
-  
-  return headers;
-}
+// Перенесено в ./lib/denteRequestHeaders (модуль без импортов) 2026-07-28. Эта функция была
+// единственным рантайм-ребром, замыкавшим цикл
+// AppHelpers.tsx:305 -> workspaceShell.tsx:32 -> hooks/useWorkspaceProfile.ts:22 -> AppHelpers,
+// которого madge не печатал. Реэкспорт оставлен намеренно: 15 вызывающих файлов и два мёртвых
+// импорта (App.tsx, useAppLogic.tsx) компилируются без правок, поэтому миграция идёт по файлу за
+// раз, а не одним свипом на 17 файлов. Полное обоснование — в шапке нового модуля.
+//
+// Импорт, а не только реэкспорт: `export { x } from "./y"` НЕ вносит имя в локальную область, а у
+// этого файла есть два собственных вызова функции ниже. Typecheck поймал это сразу — TS2552 на
+// обоих. Новый модуль не имеет импортов вообще, поэтому это ребро не может замкнуть никакой цикл.
+export { denteAdminSecretRequestHeaders };
 
 export async function loadServerUiPreferences(adminSecret?: string): Promise<UiPreferences | null> {
   const response = await fetch(uiPreferencesServerPath, {
@@ -4142,12 +4342,12 @@ export function parseOnboardingDismissalState(raw: string | null): OnboardingDis
 export function loadOnboardingDismissalState(organizationId: string | null | undefined = null): OnboardingDismissalState | null {
   if (typeof window === "undefined") return null;
   try {
-    const scopedVal = window.localStorage.getItem(onboardingLocalKey(organizationId));
+    const scopedVal = safeLocalStorageGetItem(onboardingLocalKey(organizationId));
     if (scopedVal) {
       const parsed = parseOnboardingDismissalState(scopedVal);
       if (parsed) return parsed;
     }
-    const unscopedVal = window.localStorage.getItem(onboardingStorageKey);
+    const unscopedVal = safeLocalStorageGetItem(onboardingStorageKey);
     return parseOnboardingDismissalState(unscopedVal);
   } catch {
     return null;
@@ -4183,7 +4383,7 @@ export function saveOnboardingDismissed(
   const state = { dismissed, savedAt, draftMode: dismissed ? draftMode : false };
   if (typeof window === "undefined") return state;
   try {
-    window.localStorage.setItem(
+    safeLocalStorageSetItem(
       onboardingLocalKey(organizationId),
       JSON.stringify({ version: 1, ...state })
     );
@@ -4214,8 +4414,15 @@ export function normalizeClockTime(value: string, fallback: string): string {
 }
 
 export function normalizeWorkingDaysDraft(value: readonly number[] | undefined): number[] {
-  const days = Array.from(new Set((value ?? defaultWorkingDays).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)));
-  return days.length ? days : defaultWorkingDays;
+  // БЫЛО: пустой массив приравнивался к "не задано" и подменялся на Пн–Пт.
+  // Администратор снимал все галочки, чтобы отправить врача в отпуск или вывести
+  // кресло из строя, — галочки возвращались на Пн–Пт и сохранялись в базу.
+  // Отсутствующий врач оставался доступным для записи.
+  // Теперь Пн–Пт подставляются только когда значение вообще не задано.
+  if (value === undefined || value === null) return [...defaultWorkingDays];
+  return Array.from(new Set(value.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))).sort(
+    (left, right) => left - right
+  );
 }
 
 export function normalizeOptionalWorkingDaysDraft(value: readonly number[] | undefined): number[] {
@@ -4390,16 +4597,19 @@ export function newAppointmentDraftFromDashboard(
     scheduleDefaultChairId?: string | null;
   } = {}
 ): AppointmentScheduleDraft {
-  const profile = dashboard.clinicSettings.profile;
-  const timezone = profile.timezone || "Europe/Samara";
+  const profile = dashboard?.clinicSettings?.profile || ({} as any);
+  const staff = dashboard?.clinicSettings?.staff || [];
+  const chairs = dashboard?.clinicSettings?.chairs || [];
+  const patients = dashboard?.patients || [];
+  const timezone = profile?.timezone || "Europe/Samara";
   const startsAtLocal = defaultAppointmentStartLocal(profile);
-  const endsAtLocal = addMinutesToClinicDateTimeLocal(startsAtLocal, profile.defaultVisitMinutes || 45, timezone);
+  const endsAtLocal = addMinutesToClinicDateTimeLocal(startsAtLocal, profile?.defaultVisitMinutes || 45, timezone);
   const selectedSpecialty = preferences.selectedSpecialty ?? "universal";
   const specialtyMatches = (specialties?: DentalSpecialty[]) =>
     selectedSpecialty === "universal" ||
     (Array.isArray(specialties) && (specialties.includes(selectedSpecialty) || specialties.includes("universal")));
   const savedDoctor = preferences.scheduleDefaultDoctorUserId
-    ? dashboard.clinicSettings.staff.find(
+    ? staff.find(
         (member) =>
           member.id === preferences.scheduleDefaultDoctorUserId &&
           member.active &&
@@ -4408,30 +4618,30 @@ export function newAppointmentDraftFromDashboard(
     : null;
   const doctor =
     savedDoctor ??
-    dashboard.clinicSettings.staff.find(
+    staff.find(
       (member) => member.active && (member.role === "doctor" || member.role === "owner") && specialtyMatches(member.specialties)
-    ) ?? dashboard.clinicSettings.staff.find((member) => member.active && (member.role === "doctor" || member.role === "owner"));
+    ) ?? staff.find((member) => member.active && (member.role === "doctor" || member.role === "owner"));
   const savedAssistant =
-    profile.mode === "solo_doctor" || !preferences.scheduleDefaultAssistantUserId
+    profile?.mode === "solo_doctor" || !preferences.scheduleDefaultAssistantUserId
       ? null
-      : dashboard.clinicSettings.staff.find(
+      : staff.find(
           (member) => member.id === preferences.scheduleDefaultAssistantUserId && member.active && member.role === "assistant"
         );
-  const assistant = savedAssistant ?? dashboard.clinicSettings.staff.find((member) => member.active && member.role === "assistant");
+  const assistant = savedAssistant ?? staff.find((member) => member.active && member.role === "assistant");
   const savedChair = preferences.scheduleDefaultChairId
-    ? dashboard.clinicSettings.chairs.find((candidate) => candidate.id === preferences.scheduleDefaultChairId && candidate.active)
+    ? chairs.find((candidate) => candidate.id === preferences.scheduleDefaultChairId && candidate.active)
     : null;
   const chair =
     savedChair ??
-    dashboard.clinicSettings.chairs.find(
+    chairs.find(
       (candidate) =>
         candidate.active &&
         (!candidate.specialization || selectedSpecialty === "universal" || candidate.specialization === selectedSpecialty)
-    ) ?? dashboard.clinicSettings.chairs.find((candidate) => candidate.active);
+    ) ?? chairs.find((candidate) => candidate.active);
   const selectedPatient = preferences.selectedPatientId
-    ? dashboard.patients.find((candidate) => candidate.id === preferences.selectedPatientId && candidate.status === "active")
+    ? patients.find((candidate) => candidate.id === preferences.selectedPatientId && candidate.status === "active")
     : null;
-  const patient = selectedPatient ?? dashboard.patients.find((candidate) => candidate.status === "active");
+  const patient = selectedPatient ?? patients.find((candidate) => candidate.status === "active");
   return {
     patientId: patient?.id ?? "",
     doctorUserId: doctor?.id ?? "",
@@ -4529,12 +4739,56 @@ export function appointmentScheduleDateMissingSteps(draft: AppointmentScheduleDr
   ].filter((step): step is string => Boolean(step));
 }
 
-export function appointmentScheduleMissingFields(draft: AppointmentScheduleDraft, clinicMode: Dashboard["clinicSettings"]["profile"]["mode"] | null | undefined, staff: Dashboard["clinicSettings"]["staff"] | null | undefined): string[] {
+/**
+ * Чего не хватает записи, человеческими словами.
+ *
+ * Различает «не выбрано» и «в клинике вообще нет». Раньше клиника без кресел
+ * получала подсказку «выберите кресло» при пустом списке кресел: указание,
+ * которое невозможно выполнить, и кнопка создания заперта без объяснения, куда
+ * идти. То же с врачом и пациентами у только что заведённой клиники.
+ *
+ * `resources` необязателен: без него поведение прежнее.
+ */
+export function appointmentScheduleMissingFields(
+  draft: AppointmentScheduleDraft,
+  clinicMode: Dashboard["clinicSettings"]["profile"]["mode"] | null | undefined,
+  staff: Dashboard["clinicSettings"]["staff"] | null | undefined,
+  resources?: {
+    chairs?: Dashboard["clinicSettings"]["chairs"] | null;
+    patients?: Dashboard["patients"] | null;
+  }
+): string[] {
   const missing: string[] = [];
-  if (!draft.patientId) missing.push("выберите пациента");
-  if (!draft.doctorUserId) missing.push("выберите врача");
-  if (clinicMode !== "solo_doctor" && (staff || []).some(s => s.role === "assistant" && s.active) && !draft.assistantUserId) missing.push("выберите ассистента");
-  if (!draft.chairId) missing.push("выберите кресло");
+  const activeStaff = (staff || []).filter((member) => member.active);
+  const hasDoctor = activeStaff.some((member) => member.role === "doctor" || member.role === "owner");
+  const hasAssistant = activeStaff.some((member) => member.role === "assistant");
+  const activeChairs = resources?.chairs ? resources.chairs.filter((chair) => chair.active) : null;
+  const patients = resources?.patients ?? null;
+
+  if (!draft.patientId) {
+    missing.push(
+      patients && patients.length === 0
+        ? "в клинике ещё нет пациентов — создайте карточку в разделе «Пациенты»"
+        : "выберите пациента"
+    );
+  }
+  if (!draft.doctorUserId) {
+    missing.push(
+      staff && !hasDoctor
+        ? "в клинике нет врача — добавьте сотрудника в настройках"
+        : "выберите врача"
+    );
+  }
+  if (clinicMode !== "solo_doctor" && hasAssistant && !draft.assistantUserId) {
+    missing.push("выберите ассистента");
+  }
+  if (!draft.chairId) {
+    missing.push(
+      activeChairs && activeChairs.length === 0
+        ? "в клинике нет кресел — добавьте кресло в настройках"
+        : "выберите кресло"
+    );
+  }
   missing.push(...appointmentScheduleDateMissingSteps(draft));
   return missing;
 }
@@ -4662,7 +4916,8 @@ export function emptyPatientAdministrativeProfileDraft(): PatientAdministrativeP
     preferredAppointmentStart: "",
     preferredAppointmentEnd: "",
     preferredAppointmentNote: "",
-    dataProcessingBasisNote: ""
+    dataProcessingBasisNote: "",
+    orthodonticProgress: ""
   };
 }
 
@@ -4684,7 +4939,8 @@ export function patientAdministrativeProfileDraftFromPatient(patient: Patient | 
     preferredAppointmentStart: profile?.preferredAppointmentStart ?? "",
     preferredAppointmentEnd: profile?.preferredAppointmentEnd ?? "",
     preferredAppointmentNote: profile?.preferredAppointmentNote ?? "",
-    dataProcessingBasisNote: profile?.dataProcessingBasisNote ?? ""
+    dataProcessingBasisNote: profile?.dataProcessingBasisNote ?? "",
+    orthodonticProgress: profile?.orthodonticProgress ?? ""
   };
 }
 
@@ -4816,8 +5072,8 @@ export function loadVisitLocalDraft(visitId: string, organizationId: string | nu
   if (typeof window === "undefined") return null;
   try {
     const raw =
-      window.localStorage.getItem(visitLocalDraftKey(visitId, organizationId)) ??
-      (organizationId ? window.localStorage.getItem(visitLocalDraftKey(visitId)) : null);
+      safeLocalStorageGetItem(visitLocalDraftKey(visitId, organizationId)) ??
+      (organizationId ? safeLocalStorageGetItem(visitLocalDraftKey(visitId)) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<VisitLocalDraft>;
     if (
@@ -4831,8 +5087,8 @@ export function loadVisitLocalDraft(visitId: string, organizationId: string | nu
       return null;
     }
     if (!localSavedAtFresh(parsed.savedAt, sensitiveLocalDraftRetentionMs)) {
-      window.localStorage.removeItem(visitLocalDraftKey(visitId, organizationId));
-      if (organizationId) window.localStorage.removeItem(visitLocalDraftKey(visitId));
+      safeLocalStorageRemoveItem(visitLocalDraftKey(visitId, organizationId));
+      if (organizationId) safeLocalStorageRemoveItem(visitLocalDraftKey(visitId));
       return null;
     }
     return parsed as VisitLocalDraft;
@@ -4843,7 +5099,7 @@ export function loadVisitLocalDraft(visitId: string, organizationId: string | nu
 
 export function saveVisitLocalDraft(draft: VisitLocalDraft, organizationId: string | null | undefined = null): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(visitLocalDraftKey(draft.visitId, organizationId), JSON.stringify(draft));
+  safeLocalStorageSetItem(visitLocalDraftKey(draft.visitId, organizationId), JSON.stringify(draft));
 }
 
 export function isNullableString(value: unknown): value is string | null {
@@ -4931,8 +5187,8 @@ export function loadPendingVisitSavesFromLocalStorage(organizationId: string | n
   if (typeof window === "undefined") return [];
   const normalizedOrganizationId = normalizedLocalOrganizationId(organizationId);
   const localKey = pendingVisitSaveQueueLocalKey(normalizedOrganizationId);
-  const scopedRaw = window.localStorage.getItem(localKey);
-  const legacyRaw = normalizedOrganizationId ? window.localStorage.getItem(pendingVisitSaveQueueKey) : null;
+  const scopedRaw = safeLocalStorageGetItem(localKey);
+  const legacyRaw = normalizedOrganizationId ? safeLocalStorageGetItem(pendingVisitSaveQueueKey) : null;
   const byId = new Map<string, PendingVisitSave>();
   for (const item of parsePendingVisitSaveQueue(scopedRaw, normalizedOrganizationId)) {
     byId.set(item.id, item);
@@ -4943,7 +5199,7 @@ export function loadPendingVisitSavesFromLocalStorage(organizationId: string | n
   const queue = sortPendingVisitSaves(Array.from(byId.values()));
   if (normalizedOrganizationId && legacyRaw) {
     savePendingVisitSavesToLocalStorage(queue, normalizedOrganizationId);
-    window.localStorage.removeItem(pendingVisitSaveQueueKey);
+    safeLocalStorageRemoveItem(pendingVisitSaveQueueKey);
   }
   return queue;
 }
@@ -4962,10 +5218,10 @@ export function savePendingVisitSavesToLocalStorage(queue: PendingVisitSave[], o
       )
   );
   if (!scopedQueue.length) {
-    window.localStorage.removeItem(localKey);
+    safeLocalStorageRemoveItem(localKey);
     return;
   }
-  window.localStorage.setItem(localKey, JSON.stringify(scopedQueue));
+  safeLocalStorageSetItem(localKey, JSON.stringify(scopedQueue));
 }
 
 export function isPendingSpeechChunk(value: unknown): value is PendingSpeechChunk {
@@ -5006,8 +5262,8 @@ export function loadPendingSpeechChunksFromLocalStorage(organizationId: string |
   try {
     const normalizedOrganizationId = normalizedLocalOrganizationId(organizationId);
     const localKey = pendingSpeechChunkQueueLocalKey(normalizedOrganizationId);
-    const scopedRaw = window.localStorage.getItem(localKey);
-    const legacyRaw = normalizedOrganizationId ? window.localStorage.getItem(pendingSpeechChunkQueueKey) : null;
+    const scopedRaw = safeLocalStorageGetItem(localKey);
+    const legacyRaw = normalizedOrganizationId ? safeLocalStorageGetItem(pendingSpeechChunkQueueKey) : null;
     const byId = new Map<string, PendingSpeechChunk>();
     for (const raw of [scopedRaw, legacyRaw]) {
       if (!raw) continue;
@@ -5021,7 +5277,7 @@ export function loadPendingSpeechChunksFromLocalStorage(organizationId: string |
     const queue = sortPendingSpeechChunks(Array.from(byId.values()));
     if (normalizedOrganizationId && legacyRaw) {
       savePendingSpeechChunksToLocalStorage(queue, normalizedOrganizationId);
-      window.localStorage.removeItem(pendingSpeechChunkQueueKey);
+      safeLocalStorageRemoveItem(pendingSpeechChunkQueueKey);
     }
     return queue;
   } catch {
@@ -5043,14 +5299,14 @@ export function savePendingSpeechChunksToLocalStorage(queue: PendingSpeechChunk[
       )
   );
   if (!scopedQueue.length) {
-    window.localStorage.removeItem(localKey);
+    safeLocalStorageRemoveItem(localKey);
     return;
   }
   const payload = JSON.stringify(scopedQueue);
   if (payload.length > speechLocalStorageFallbackMaxBytes) {
     throw new Error("Память для аудио на этом устройстве переполнена; освободите место или отправьте текущую запись.");
   }
-  window.localStorage.setItem(localKey, payload);
+  safeLocalStorageSetItem(localKey, payload);
 }
 
 export function speechChunkIndexedDbAvailable(): boolean {
@@ -5100,7 +5356,21 @@ export function openSpeechChunkDb(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => {
       const db = request.result;
-      db.onversionchange = () => db.close();
+      // БЫЛО: при смене версии соединение закрывалось, но КЭШ промиса оставался
+      // указывать на закрытый дескриптор. Сценарий: открыта вторая вкладка после
+      // обновления версии хранилища — первая закрывала своё соединение, а все
+      // последующие db.transaction(...) бросали InvalidStateError. Сохранение
+      // приёма падало на запасной путь в localStorage, который к тому моменту
+      // уже очищен, и очередь неотправленных записей приёма перезаписывалась
+      // пустой — при том, что интерфейс сообщал «сохранено локально».
+      // Сбрасываем кэш, чтобы следующий вызов открыл соединение заново.
+      db.onversionchange = () => {
+        speechChunkDbPromise = null;
+        db.close();
+      };
+      db.onclose = () => {
+        speechChunkDbPromise = null;
+      };
       try {
         assertSpeechChunkDbStores(db);
         resolve(db);
@@ -5300,8 +5570,8 @@ export async function migrateLocalMprWorkbenchDraftFromLocalStorage(
     existing && Date.parse(existing.clientSavedAt) >= Date.parse(legacyDraft.clientSavedAt) ? existing : legacyDraft;
   await saveLocalMprWorkbenchDraftToIndexedDb(seriesKey, draft.state, draft.clientSavedAt, organizationId);
   if (typeof window !== "undefined") {
-    window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey, organizationId));
-    if (organizationId) window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey));
+    safeLocalStorageRemoveItem(mprWorkbenchLocalKey(seriesKey, organizationId));
+    if (organizationId) safeLocalStorageRemoveItem(mprWorkbenchLocalKey(seriesKey));
   }
 }
 
@@ -5329,8 +5599,8 @@ export async function saveLocalMprWorkbenchDraft(
     try {
       await saveLocalMprWorkbenchDraftToIndexedDb(seriesKey, state, clientSavedAt, organizationId);
       if (typeof window !== "undefined") {
-        window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey, organizationId));
-        if (organizationId) window.localStorage.removeItem(mprWorkbenchLocalKey(seriesKey));
+        safeLocalStorageRemoveItem(mprWorkbenchLocalKey(seriesKey, organizationId));
+        if (organizationId) safeLocalStorageRemoveItem(mprWorkbenchLocalKey(seriesKey));
       }
       return true;
     } catch {
@@ -5435,8 +5705,8 @@ export async function migratePendingVisitSavesFromLocalStorage(organizationId: s
     byId.set(item.id, item);
   }
   await savePendingVisitSavesToIndexedDb(sortPendingVisitSaves(Array.from(byId.values())), normalizedOrganizationId);
-  window.localStorage.removeItem(pendingVisitSaveQueueLocalKey(normalizedOrganizationId));
-  if (normalizedOrganizationId) window.localStorage.removeItem(pendingVisitSaveQueueKey);
+  safeLocalStorageRemoveItem(pendingVisitSaveQueueLocalKey(normalizedOrganizationId));
+  if (normalizedOrganizationId) safeLocalStorageRemoveItem(pendingVisitSaveQueueKey);
 }
 
 export async function loadPendingVisitSaves(organizationId: string | null | undefined = null): Promise<PendingVisitSave[]> {
@@ -5454,8 +5724,8 @@ export async function savePendingVisitSaves(queue: PendingVisitSave[], organizat
   if (pendingVisitSaveIndexedDbAvailable()) {
     try {
       await savePendingVisitSavesToIndexedDb(queue, normalizedOrganizationId);
-      window.localStorage.removeItem(pendingVisitSaveQueueLocalKey(normalizedOrganizationId));
-      if (normalizedOrganizationId) window.localStorage.removeItem(pendingVisitSaveQueueKey);
+      safeLocalStorageRemoveItem(pendingVisitSaveQueueLocalKey(normalizedOrganizationId));
+      if (normalizedOrganizationId) safeLocalStorageRemoveItem(pendingVisitSaveQueueKey);
       return;
     } catch {
       // Keep accepted visits retryable on restricted browsers.
@@ -5551,8 +5821,8 @@ export async function migrateSpeechChunksFromLocalStorage(organizationId: string
     byId.set(chunk.id, chunk);
   }
   await savePendingSpeechChunksToIndexedDb(sortPendingSpeechChunks(Array.from(byId.values())), normalizedOrganizationId);
-  window.localStorage.removeItem(pendingSpeechChunkQueueLocalKey(normalizedOrganizationId));
-  if (normalizedOrganizationId) window.localStorage.removeItem(pendingSpeechChunkQueueKey);
+  safeLocalStorageRemoveItem(pendingSpeechChunkQueueLocalKey(normalizedOrganizationId));
+  if (normalizedOrganizationId) safeLocalStorageRemoveItem(pendingSpeechChunkQueueKey);
 }
 
 export async function loadPendingSpeechChunks(organizationId: string | null | undefined = null): Promise<PendingSpeechChunk[]> {
@@ -5603,8 +5873,8 @@ export async function queuePendingSpeechChunk(
     try {
       await migrateSpeechChunksFromLocalStorage(normalizedOrganizationId);
       await putPendingSpeechChunkToIndexedDb(queued);
-      window.localStorage.removeItem(pendingSpeechChunkQueueLocalKey(normalizedOrganizationId));
-      if (normalizedOrganizationId) window.localStorage.removeItem(pendingSpeechChunkQueueKey);
+      safeLocalStorageRemoveItem(pendingSpeechChunkQueueLocalKey(normalizedOrganizationId));
+      if (normalizedOrganizationId) safeLocalStorageRemoveItem(pendingSpeechChunkQueueKey);
       return queued;
     } catch {
       // Fall through to the small legacy fallback. It may reject instead of silently dropping audio.
@@ -5875,19 +6145,77 @@ export const appointmentReadinessLabels: Record<Dashboard["appointmentReadiness"
   blocked: "важно"
 };
 
+/*
+ * Вкладки настроек.
+ *
+ * Семь панелей были смонтированы в SettingsView под идентификаторы, которых в
+ * этом списке не было: inventory, modules, insurance, reporting, marketing,
+ * bpmn и messengers. Кнопки не рисовались (панель строится из этого массива),
+ * setSettingsTab с такими значениями нигде не звался, а ручной переход по
+ * адресу вида #settings/inventory откидывало на «Клинику»
+ * (settingsTabFromHash пропускает только то, что здесь перечислено).
+ *
+ * То есть 2713 строк готовых экранов и рабочие маршруты сервера были
+ * недоступны пользователю целиком. Рядом стояли фильтры вида
+ * `if (!flags.hasInventoryModule) ... filter(t => t.id !== "inventory")` —
+ * они отсеивали элемент, которого в списке нет, и работали вхолостую.
+ *
+ * Лишнего маленькая клиника по-прежнему не увидит: показ каждой новой вкладки
+ * решает свой признак модуля в SettingsView, а не этот список.
+ *
+ * Вкладка мессенджеров переименована из «ТГ-бот»: за ней давно живут ещё
+ * WhatsApp и MAX, но по названию об этом никто не догадывался.
+ */
+/*
+ * Разделы левого списка настроек.
+ *
+ * Группа объявлена прямо у вкладки, а не отдельным списком в разметке. Так
+ * было: SettingsView раскладывал вкладки по группам своими списками
+ * идентификаторов вида `["clinic", "staff", "access"].includes(t.id)`. Любая
+ * вкладка, не упомянутая ни в одном таком списке, просто исчезала из левого
+ * меню — молча, потому что забыть дописать идентификатор в четвёртом по счёту
+ * месте ничего не стоит. Именно так пропала кнопка настроек Telegram: раздел
+ * работал и открывался по адресу, но нажать на него было негде.
+ */
+export const settingsTabGroups = [
+  { id: "account", title: "Мой аккаунт" },
+  { id: "main", title: "Основные" },
+  { id: "clinical", title: "Клинические" },
+  { id: "stock", title: "Учёт" },
+  { id: "marketing", title: "Маркетинг" },
+  { id: "system", title: "Системные" }
+] as const;
+export type SettingsTabGroup = (typeof settingsTabGroups)[number]["id"];
+
 export const settingsTabs = [
-  { id: "profile", title: "Мой профиль" },
-  { id: "clinic", title: "Клиника" },
-  { id: "staff", title: "Сотрудники" },
-  { id: "access", title: "Доступы" },
-  { id: "telegram", title: "ТГ-бот" },
-  { id: "protocols", title: "Протоколы" },
-  { id: "rules", title: "Правила" },
-  { id: "prices", title: "Прайс" },
-  { id: "sources", title: "Источники" },
-  { id: "ai", title: "ИИ" },
-  { id: "imports", title: "Импорт" },
-  { id: "audit", title: "Аудит" }
+  { id: "profile", title: "Мой профиль", group: "account" },
+  { id: "clinic", title: "Клиника", group: "main" },
+  { id: "modules", title: "Модули", group: "main" },
+  { id: "staff", title: "Сотрудники", group: "main" },
+  { id: "access", title: "Доступы", group: "main" },
+  { id: "telegram", title: "Мессенджеры", group: "main" },
+  { id: "protocols", title: "Протоколы", group: "clinical" },
+  { id: "rules", title: "Правила", group: "clinical" },
+  { id: "prices", title: "Прайс", group: "clinical" },
+  { id: "ai", title: "ИИ", group: "clinical" },
+  /*
+   * «Склада» здесь больше нет намеренно.
+   *
+   * Экран был недоступен вовсе, и я открыл его вкладкой настроек — дешёвым
+   * способом. Параллельно другой инженер сделал правильнее: склад стал разделом
+   * рабочего места (#inventory) с правами по ролям, потому что приход и списание
+   * материалов — ежедневная работа ассистента, а не настройка клиники.
+   *
+   * Две двери в одну комнату хуже одной: пользователь не понимает, какая из них
+   * «настоящая», а правки начинают расходиться. Оставлен раздел, вкладка убрана.
+   */
+  { id: "insurance", title: "Страховые", group: "stock" },
+  { id: "marketing", title: "Отзывы и NPS", group: "marketing" },
+  { id: "bpmn", title: "Сценарии", group: "marketing" },
+  { id: "sources", title: "Источники", group: "system" },
+  { id: "reporting", title: "Отчёты", group: "system" },
+  { id: "imports", title: "Импорт", group: "system" },
+  { id: "audit", title: "Аудит", group: "system" }
 ] as const;
 export type SettingsTab = (typeof settingsTabs)[number]["id"];
 export type AdminSecretSessionDomain = "clinical" | "settings" | "schedule" | "telegram";
@@ -5930,14 +6258,14 @@ export const initialUiPreferences = {} as any;
 
 export const auth = {
   denteClinicalReadHeaders: (customHeaders: Record<string, string> = {}, adminSecret?: string): Record<string, string> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("dente_clinic_token") || "" : "";
+    const token = readDenteClinicToken();
     const headers: Record<string, string> = { ...customHeaders };
     if (token) headers["x-dente-clinic-token"] = token;
     if (adminSecret) headers["x-dente-admin-secret"] = adminSecret;
     return headers;
   },
   denteClinicalMutationHeaders: (customHeaders: Record<string, string> = {}, adminSecret?: string): Record<string, string> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("dente_clinic_token") || "" : "";
+    const token = readDenteClinicToken();
     const headers: Record<string, string> = { "Content-Type": "application/json", ...customHeaders };
     if (token) headers["x-dente-clinic-token"] = token;
     if (adminSecret) headers["x-dente-admin-secret"] = adminSecret;

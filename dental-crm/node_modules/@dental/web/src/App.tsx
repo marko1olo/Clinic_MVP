@@ -10,6 +10,15 @@ import { CommandPalette } from './components/CommandPalette';
 import { IncomingCallToast } from './components/IncomingCallToast';
 import { AuthHub } from './components/auth/AuthHub';
 import { StaffPinPad } from './components/auth/StaffPinPad';
+import {
+	readDenteClinicToken,
+	readDenteStaffToken,
+	safeLocalStorageRemoveItem,
+	DENTE_CLINIC_TOKEN_KEY,
+	DENTE_STAFF_TOKEN_KEY,
+	safeLocalStorageGetItem,
+	safeLocalStorageSetItem,
+} from "./lib/safeLocalStorage";
 
 import { useAppStore } from "./store/appStore";
 import { useImagingStore } from "./store/imagingStore";
@@ -261,7 +270,6 @@ import {
   mprUnavailableProjectionLabel,
   mprWindowPresetLabels,
   policyAuditEventLabels,
-  pricelistParserModeLabels,
   type MprClinicalPreset,
   type MprProjection,
   type MprWindowPreset
@@ -311,16 +319,14 @@ import { postVisitCarePresets } from "./postVisitCareData";
 import {
   dentalMaterialKindLabels,
   dentalRestorationTypeLabels,
-  pricelistItemMaterialText,
-  pricelistMaterialSummaryText,
   pricelistRecognitionBrandGroups,
   pricelistRecognitionServiceGroups,
-  pricelistSourceKindLabels,
-  pricelistWarningsText
+  pricelistSourceKindLabels
 } from "./pricelistUiMeta";
 import { specialtyQuickPhraseLibrary } from "./visitDictationData";
 import { inferDashboardVisitSpecialty, inferSpecialtyFromText, visitSpecialtyFocusOptions } from "./visitSpecialtyData";
 import { ActionIcon, appViews, getFilteredAppViews, viewLabels, WorkspaceSidebar, WorkspaceTopbar } from "./workspaceShell";
+import { resolveClinicMode, staffRoleChoices } from "./lib/clinicCapabilities";
 import { preloadWorkspaceView, scheduleIdleWorkspacePreload } from "./workspacePreload";
 import { WorkspaceContinuityStrip } from "./workspaceContinuityStrip";
 import { WorkspaceRouteErrorBoundary } from "./workspaceRouteErrorBoundary";
@@ -394,6 +400,30 @@ const ShiftView = lazy(() => import("./ShiftView").then((module) => ({ default: 
 const PatientCockpit = lazy(() => import("./ShiftView").then((module) => ({ default: module.PatientCockpit })));
 const MarketingView = lazy(() => import("./MarketingView").then((module) => ({ default: module.MarketingView })));
 const AnalyticsDashboardView = lazy(() => import("./pages/AnalyticsDashboardView").then((module) => ({ default: module.AnalyticsDashboardView })));
+/*
+ * Склад, журнал стерилизации и воронка обращений: три готовых раздела, которые до
+ * этой правки нельзя было открыть ничем. Они были подключены только в
+ * AppRouter.tsx — мёртвом файле, который не импортировал никто, — а в реестре
+ * workspaceShell.appViews их не было, поэтому и адрес #inventory откатывался на
+ * «Смену». Маршруты сервера при этом живые: routes/inventory.ts,
+ * routes/sterilization.ts и routes/leads.ts зарегистрированы в server.ts.
+ * AppRouter.tsx удалён вместе с двумя лежавшими в нём пустышками (зарплаты и
+ * омниканальный инбокс — их адреса на сервере отвечают 404).
+ */
+const InventoryView = lazy(() => import("./components/InventoryView").then((module) => ({ default: module.InventoryView })));
+const ScannerView = lazy(() => import("./ScannerView").then((module) => ({ default: module.ScannerView })));
+const LeadsKanbanView = lazy(() => import("./components/leads/LeadsKanbanView").then((module) => ({ default: module.LeadsKanbanView })));
+/*
+ * Панели вставлены сюда, а не в AppRouter.tsx: тот файл никто не импортировал —
+ * это был мёртвый код, и панели, добавленные в него, не отрисовывались вообще.
+ * Выяснилось только на снимке живого экрана. Файл удалён.
+ */
+const DayConfirmationsPanel = lazy(() =>
+  import("./components/schedule/DayConfirmationsPanel").then((module) => ({ default: module.DayConfirmationsPanel })),
+);
+const ManagerReportsPanel = lazy(() =>
+  import("./components/reports/ManagerReportsPanel").then((module) => ({ default: module.ManagerReportsPanel })),
+);
 
 function speechGatewayCanUpload(status: SpeechGatewayStatus | null): boolean {
   return Boolean(status?.serverTranscriptionCurrentlyAvailable ?? status?.serverTranscriptionEnabled);
@@ -931,7 +961,17 @@ import {
 
 export function App() {
   // Topbar dictation shortcut must open the visit dictation area: goToVisitDictation, scrollToVisitArea(".dictation-box")
-  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    typeof window !== "undefined" && safeLocalStorageGetItem("dente_sidebar_collapsed") === "true"
+  );
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      safeLocalStorageSetItem("dente_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
   const appLogicValue = useAppLogic();
   const {
     acceptDraftToVisit,
@@ -943,6 +983,7 @@ export function App() {
     activeImagingStudies,
     activeIssuedPaidContracts,
     activePatient,
+    activeVisitPatient,
     activePatientCallablePhone,
     activePatientHasCallablePhone,
     activePatientInsight,
@@ -1494,17 +1535,27 @@ export function App() {
     previousOnboardingStep,
     pricelistAnalysis,
     pricelistImageBase64,
-    pricelistImageName,
-    pricelistImageNote,
-    pricelistItemMaterialText,
-    pricelistMaterialSummaryText,
-    pricelistParserModeLabels,
+    /*
+      ШЕСТЬ ИМЁН УБРАНЫ ИЗ ЭТОГО РАЗБОРА, ПОТОМУ ЧТО ОТСЮДА ИХ НЕ ЧИТАЛ НИКТО.
+
+      App.tsx вынимал их из useAppLogic() и передавал в <SettingsView …> — а
+      SettingsView (SettingsView.tsx:367) берёт из пропсов РОВНО activeStaffUser,
+      всё остальное читает сам из useAppLogicContext(), хранилища настроек и
+      производных значений. Индексная подпись [key: string]: any в
+      SettingsViewProps позволяла компилятору молчать: пропс передавался и
+      выбрасывался.
+
+      Значения при этом живы и нужны — их берут из контекста SettingsView.tsx
+      (замечания разбора, подпись фото, сводка материалов, материал строки) и
+      components/settings/SettingsPricesTab.tsx (имя файла фото, режимы
+      разборщика). Поэтому убран именно проброс, а не сами значения: в
+      useAppLogic.tsx они остаются в возвращаемом объекте.
+    */
     pricelistRecognitionBrandGroups,
     pricelistRecognitionServiceGroups,
     pricelistSourceKind,
     pricelistSourceKindLabels,
     pricelistText,
-    pricelistWarningsText,
     primaryVisitWarning,
     probeMigrationDiscoveryCandidate,
     procedureSpecificConsentProcedureOptions,
@@ -1881,9 +1932,7 @@ export function App() {
   operatorWorkflowFailureMessage,
   setSelectedPatientId,
   setScheduleDateFilter,
-  scheduleDateFilter,
-  handleFinishOnboarding,
-  setOnboardingDismissed
+  scheduleDateFilter
 } = appLogicValue;
 
   useEffect(() => scheduleIdleWorkspacePreload(currentView), [currentView]);
@@ -1892,10 +1941,10 @@ export function App() {
 
   // --- DUAL-TIER AUTH STATE ---
   const [clinicAuthed, setClinicAuthed] = useState<boolean>(() => {
-    return typeof window !== "undefined" && !!localStorage.getItem("dente_clinic_token");
+    return !!readDenteClinicToken();
   });
   const [staffAuthed, setStaffAuthed] = useState<boolean>(() => {
-    return typeof window !== "undefined" && !!localStorage.getItem("dente_staff_token");
+    return !!readDenteStaffToken();
   });
   const [showStaffPinPad, setShowStaffPinPad] = useState<boolean>(false);
   const [activeStaffUser, setActiveStaffUser] = useState<any>(null);
@@ -1909,8 +1958,8 @@ export function App() {
         const is401 = statusCode === 401 || (e instanceof Error && (e.message.includes("401") || e.message.includes("Unauthorized")));
         if (is401) {
           console.warn("[Dente] Clinic token invalid (401), forcing re-login:", e);
-          localStorage.removeItem("dente_clinic_token");
-          localStorage.removeItem("dente_staff_token");
+          safeLocalStorageRemoveItem(DENTE_CLINIC_TOKEN_KEY);
+          safeLocalStorageRemoveItem(DENTE_STAFF_TOKEN_KEY);
           setClinicAuthed(false);
           setStaffAuthed(false);
         } else {
@@ -1920,7 +1969,7 @@ export function App() {
       });
     }
     // Restore staff user profile from token on page refresh
-    const staffToken = localStorage.getItem("dente_staff_token");
+    const staffToken = readDenteStaffToken() || null;
     if (staffToken && !activeStaffUser) {
       fetch("/api/auth/user/me", {
         headers: { "x-dente-staff-token": staffToken }
@@ -1942,7 +1991,7 @@ export function App() {
       timer = setTimeout(() => {
         setStaffAuthed(false);
         setShowStaffPinPad(true);
-        localStorage.removeItem("dente_staff_token");
+        safeLocalStorageRemoveItem(DENTE_STAFF_TOKEN_KEY);
       }, 5 * 60 * 1000);
     };
     const events = ["mousemove", "keydown", "pointerdown", "touchstart"];
@@ -1955,8 +2004,8 @@ export function App() {
   }, [clinicAuthed]);
 
   const handleClinicLogout = () => {
-    localStorage.removeItem("dente_clinic_token");
-    localStorage.removeItem("dente_staff_token");
+    safeLocalStorageRemoveItem(DENTE_CLINIC_TOKEN_KEY);
+    safeLocalStorageRemoveItem(DENTE_STAFF_TOKEN_KEY);
     setClinicAuthed(false);
     setStaffAuthed(false);
     setShowStaffPinPad(false);
@@ -1964,15 +2013,27 @@ export function App() {
   };
 
   const handleLockSession = () => {
-    localStorage.removeItem("dente_staff_token");
+    safeLocalStorageRemoveItem(DENTE_STAFF_TOKEN_KEY);
     setStaffAuthed(false);
     setShowStaffPinPad(true);
   };
 
   const isLocalOnboardingDismissed = typeof window !== "undefined" && (
-    window.localStorage.getItem("dental-crm:onboarding:v1")?.includes('"dismissed":true') ||
-    window.localStorage.getItem("dente_ui_preferences_v1")?.includes('"onboardingDismissed":true')
+    safeLocalStorageGetItem("dental-crm:onboarding:v1")?.includes('"dismissed":true') ||
+    safeLocalStorageGetItem("dente_ui_preferences_v1")?.includes('"onboardingDismissed":true')
   );
+
+  /**
+   * Скрыта ли подсказка о названии клиники, совпадающем с тестовым.
+   *
+   * Держится в этом сеансе, а не в хранилище браузера, и это осознанно: подсказка
+   * появляется снова при следующем входе, пока клинику действительно не
+   * переименовали или не настроили. Если бы закрытие запоминалось навсегда,
+   * ненастроенная клиника осталась бы без единого напоминания — а именно ради
+   * напоминания подсказка и существует. Постоянное закрытие требует настоящего
+   * признака «клиника настроена», которого в проекте пока нет.
+   */
+  const [defaultClinicNoticeHidden, setDefaultClinicNoticeHidden] = useState(false);
 
   // Show clinic login gate if not authed
   if (!clinicAuthed) {
@@ -1988,128 +2049,220 @@ export function App() {
 
   // Show staff PIN pad if clinic authed but no staff session (or after lock)
   if (!staffAuthed || showStaffPinPad) {
-    if (!dashboard) {
-      return <AppLoadingState message="Загрузка данных клиники..." />;
-    }
+    /*
+     * ЭКРАН СМЕНЫ ПОКАЗЫВАЕТСЯ ДАЖЕ БЕЗ ДАННЫХ КЛИНИКИ, И ЭТО ОСОЗНАННО.
+     *
+     * БЫЛО: `if (!dashboard) return <AppLoadingState message="Загрузка данных
+     * клиники..." />`. Сводка клиники может не прийти НИКОГДА — например когда
+     * клиника из сессии отсутствует в базе и сервер отвечает отказом (см.
+     * apps/api/src/routes/dashboard.ts). Тогда «Загрузка данных клиники...»
+     * висела вечно: ни причины, ни выхода, ни даже кнопки «выйти из аккаунта
+     * клиники». Честные экраны отказа в этом файле есть, но стоят НИЖЕ этой
+     * ветки и потому недостижимы, пока смена не открыта.
+     *
+     * Теперь состояние списка сотрудников называет сам экран смены: он умеет
+     * показать загрузку, отказ с причиной и повтором, честную пустоту и людей —
+     * и во всех четырёх случаях рядом остаётся выход из аккаунта клиники, то
+     * есть путь наружу существует всегда.
+     *
+     * `?? []` здесь НЕ ВОЗВРАЩАТЬ. Именно он превращал непрочитанный список в
+     * пустой, и экран советовал заводить кадры клинике, у которой в базе трое
+     * действующих сотрудников. Охраняется tests/staffUnlockListState.test.ts.
+     */
     return (
       <StaffPinPad
-        staffMembers={dashboard.clinicSettings?.staff ?? []}
+        staffMembers={dashboard ? dashboard.clinicSettings?.staff : undefined}
+        staffListLoading={!dashboard && !error && !accessUnlockRequired}
+        /*
+         * Код ответа берётся из того, что о неудаче известно здесь, и не
+         * выдумывается: отказ по доступу — 401; сводка пришла, а списка в ней нет
+         * — 200 («ответ сервера непонятен»); до сервера не дошли — null.
+         */
+        staffListStatus={accessUnlockRequired ? 401 : dashboard ? 200 : null}
         onUnlockSuccess={(user) => {
           setActiveStaffUser(user);
           setStaffAuthed(true);
           setShowStaffPinPad(false);
         }}
         onClinicLogout={handleClinicLogout}
+        onRetryStaffList={() => {
+          setError(null);
+          void loadDashboard();
+        }}
       />
     );
   }
 
+  /*
+   * РОЛИ В МАСТЕРЕ НАСТРОЙКИ — ТОЛЬКО СУЩЕСТВУЮЩИЕ ПРИ ЭТОМ РЕЖИМЕ КЛИНИКИ.
+   *
+   * Переключатель роли в шапке (WorkspaceTopbar) уже спрашивает режим, а два шага
+   * мастера — «Ваша рабочая роль» и «Кто сейчас работает» — предлагали все пять
+   * ролей всегда. Мастер сам заводил сотрудника, которого потом отфильтровывала
+   * шапка: клиника в режиме отдельного врача выбирала «Управляющий», после чего
+   * шапка показывала «Роль: Управляющий», предлагала «Врач» и «Владелец», и ни
+   * одна кнопка не была подсвечена.
+   *
+   * Правило одно на все переключатели — staffRoleChoices из
+   * lib/clinicCapabilities.ts, там же, где таблица ролей по режимам. Второе
+   * описание того же правила разъехалось бы с первым при первой же правке.
+   * Текущая выбранная роль остаётся в списке всегда, иначе человек не увидит,
+   * где он находится.
+   *
+   * Режим берётся из того же ответа сервера, что и в шапке
+   * (dashboard.clinicSettings.profile.mode). Пока его нет — предлагаются все
+   * роли: отнимать выбор у клиники, чей режим ещё не известен, нельзя.
+   */
+  const onboardingRoleChoices = staffRoleChoices(
+    roleFocusOrder,
+    resolveClinicMode(dashboard?.clinicSettings?.profile?.mode),
+    selectedWorkspaceRole
+  );
 
   if (!onboardingDismissed && !isLocalOnboardingDismissed) {
     return (
-      <main className="app-shell onboarding-fullscreen" style={{ display: "flex", flexDirection: "column", minHeight: "100vh", padding: "40px 20px", background: "linear-gradient(135deg, #0d9488 0%, #111827 100%)", overflowY: "auto" }}>
-        <section className="workspace onboarding-only-workspace" id="workspace-content" style={{ maxWidth: "800px", width: "100%", margin: "auto", padding: "0", background: "none", boxShadow: "none" }}>
-          <section className="onboarding-shell" aria-label="Первичная настройка клиники" style={{ width: "100%", background: "#ffffff", borderRadius: "16px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", padding: "32px", border: "1px solid #e5e7eb" }}>
-            
+      <main className="app-shell onboarding-fullscreen">
+        <section className="workspace onboarding-only-workspace" id="workspace-content">
+          <section className="onboarding-shell onboarding-wizard" aria-label="Первичная настройка клиники">
+
             {/* Onboarding Header */}
-            <div className="onboarding-head" style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "20px", marginBottom: "24px" }}>
+            <div className="onboarding-head">
               <div>
-                <p className="eyebrow" style={{ textTransform: "uppercase", fontSize: "12px", letterSpacing: "0.05em", color: "#0d9488", fontWeight: "600" }}>Первый запуск</p>
-                <h2 style={{ fontSize: "24px", fontWeight: "700", color: "#111827", marginTop: "4px" }}>Быстрая настройка CRM Dente</h2>
+                <p className="eyebrow">Первый запуск</p>
+                <h2>Быстрая настройка CRM Dente</h2>
               </div>
             </div>
 
-            {/* Step list if not intro */}
-            {onboardingStep !== "intro" ? (
-              <div className="wizard-step-list" style={{ display: "flex", gap: "12px", marginBottom: "32px" }}>
-                {onboardingSteps.map((step, index) => (
-                  <div
-                    key={step.id}
-                    style={{
-                      flex: "1",
-                      padding: "10px",
-                      borderRadius: "8px",
-                      background: step.id === onboardingStep ? "#f0fdfa" : "#f9fafb",
-                      border: "1px solid",
-                      borderColor: step.id === onboardingStep ? "#0d9488" : "#e5e7eb",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "2px"
-                    }}
-                  >
-                    <span style={{ fontSize: "11px", color: step.id === onboardingStep ? "#0d9488" : "#6b7280", fontWeight: "600" }}>Шаг {index + 1}</span>
-                    <strong style={{ fontSize: "14px", color: step.id === onboardingStep ? "#0f766e" : "#374151" }}>{step.title}</strong>
-                    <span style={{ fontSize: "11px", color: "#6b7280" }}>{step.detail}</span>
-                  </div>
-                ))}
-              </div>
+            {/*
+              ОТКАЗ ВНУТРИ МАСТЕРА ВИДЕН ЗДЕСЬ, А НЕ В РАБОЧЕЙ ОБЛАСТИ.
+
+              Полоса отказа в этом файле одна, и стоит она ниже — внутри рабочей
+              области (ищите `<section className="app-notice"` после этой ветки).
+              Мастер уходит из App.tsx досрочным return, то есть до неё дело не
+              доходит. А отказывать внутри мастера есть чему: moveOnboardingTo на
+              шаг «Готово» не пускает, пока нет врача с правом подписи ЭМК,
+              кресла и ассистента (useAppLogic.tsx:3107 и :3325);
+              saveClinicProfileIfDirty не пускает при незаполненных полях;
+              addStaffMember и addChair сообщают об отказе сервера. Все они зовут
+              setError — и все их сообщения пропадали в никуда, а кнопка при этом
+              выглядела не сломанной, а мёртвой.
+
+              Ровно тот класс дефекта, из-за которого удалили семишаговый мастер:
+              запрос отказывает, а экран об отказе молчит.
+            */}
+            {error ? (
+              <section className="app-notice" role="alert" aria-live="assertive">
+                <AlertTriangle aria-hidden="true" />
+                <p>{error}</p>
+                <button className="secondary-button" type="button" onClick={() => setError(null)}>
+                  Понятно
+                </button>
+              </section>
             ) : null}
 
-            {/* Intro Step */}
+            {/* Step list if not intro */}
+            {onboardingStep !== "intro" ? (
+              <ol className="wizard-step-list" aria-label={`Шаг ${currentOnboardingIndex + 1} из ${onboardingSteps.length}`}>
+                {onboardingSteps.map((step, index) => (
+                  <li
+                    className="wizard-step"
+                    key={step.id}
+                    data-active={step.id === onboardingStep}
+                    aria-current={step.id === onboardingStep ? "step" : undefined}
+                  >
+                    <span className="wizard-step-index">Шаг {index + 1}</span>
+                    <strong className="wizard-step-title">{step.title}</strong>
+                    <span className="wizard-step-detail">{step.detail}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {/*
+              ШАГ «РЕЖИМ ЗАПУСКА» — ЕДИНСТВЕННЫЙ ВЫХОД НОВОЙ КЛИНИКИ В ПРОГРАММУ.
+
+              ЧТО БЫЛО СЛОМАНО. Новая клиника всегда попадает именно на этот шаг:
+              AppHelpers.tsx:4325 принудительно ставит onboardingStep в "intro",
+              пока настройка не закрыта, а кнопки «Назад» и «Дальше» на этом шаге
+              не отрисовываются вовсе. То есть эти две карточки — все выходы,
+              какие есть.
+
+              Правая карточка, «Начать с чистого листа», не делала НИЧЕГО: её
+              обработчик звал только loadDashboard({}), который читает
+              /api/dashboard и больше ничего (useAppLogic.tsx:2732 — ни закрытия
+              настройки, ни смены шага). Экран после нажатия не менялся. Клиника,
+              отказавшаяся от демонстрационных данных, оставалась на первом
+              экране навсегда: единственный работающий выход — левая карточка,
+              то есть ровно то, от чего она отказалась.
+
+              ЧТО ТЕПЕРЬ ДЕЛАЕТ КАЖДАЯ КАРТОЧКА. Левая уводит в рабочее место
+              черновым входом (useAppLogic.tsx:3273) — это и есть «работать
+              можно, настройку закончите позже»: он сохраняет черновик профиля
+              клиники, пишет закрытие настройки и в браузер, и на сервер, и
+              оставляет отметку «настройка не закончена» (её показывает
+              App.tsx:3550). Правая НЕ закрывает мастер, а переводит на второй
+              шаг: у шага «Режим запуска» кнопки «Дальше» нет по построению, и
+              без этого перехода остальные четыре шага мастера были недостижимы
+              вообще.
+
+              ПОЧЕМУ ЧЕРНОВОЙ ВХОД, А НЕ dismissOnboarding. У строгого завершения
+              (useAppLogic.tsx:3225) первым стоит assertOnboardingReadyForFinish:
+              он требует врача с правом подписи ЭМК, кресло, ассистента, часовой
+              пояс. Ничего из этого пять шагов не спрашивают, так что на новой
+              клинике он отказал бы всегда — и отказ этот был бы НЕВИДИМ, потому
+              что setError рисуется ниже, уже в рабочей области. Строгое
+              завершение остаётся у полного мастера настройки в разделе
+              «Клиника», где спрашивают всё нужное.
+
+              ТЕКСТ КАРТОЧЕК ИСПРАВЛЕН ПО ФАКТУ. Обещания «запустить систему с
+              готовыми демонстрационными данными» и «полностью пустая база
+              данных» не выполнял никто: маршрута, который засеивает или чистит
+              базу по нажатию этих карточек, в дереве нет — обе звали один и тот
+              же loadDashboard. Обещание, которого система не держит, дороже
+              отсутствующего: по «полностью пустой базе» клиника начнёт вносить
+              настоящих пациентов рядом с тестовыми.
+            */}
             {onboardingStep === "intro" ? (
-              <div className="onboarding-panel" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              <div className="onboarding-panel">
                 <div>
-                  <h3 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "8px", color: "#111827" }}>Режим запуска приложения</h3>
-                  <p style={{ color: "#4b5563" }}>
-                    Выберите, в каком режиме вы хотите запустить CRM. Для быстрого тестирования используйте демо-режим, для реальной работы — чистый запуск.
+                  <h3>Режим запуска приложения</h3>
+                  <p>
+                    Выберите, с чего начать. Настройку клиники можно закончить позже в разделе «Настройки» — приём,
+                    расписание и картотека работают и без неё.
                   </p>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                <div className="wizard-mode-grid">
                   <button
+                    className="wizard-mode-card wizard-mode-card--demo"
                     type="button"
                     onClick={async () => {
                       setResetting(true);
-                      setOnboardingDismissed(true);
+                      await continueOnboardingInDraftMode();
                       await loadDashboard({});
                       setResetting(false);
                     }}
                     disabled={resetting}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      textAlign: "left",
-                      padding: "20px",
-                      background: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
-                      border: "2px solid #38bdf8",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      transition: "transform 0.2s, box-shadow 0.2s"
-                    }}
                   >
-                    <span style={{ fontSize: "28px", marginBottom: "12px" }}>🚀</span>
-                    <strong style={{ fontSize: "16px", color: "#0369a1", marginBottom: "6px" }}>Попробовать демо-режим</strong>
-                    <span style={{ fontSize: "13px", color: "#0c4a6e" }}>
-                      Запустить систему с готовыми демонстрационными данными (тестовые пациенты, расписание, приемы и оплаты), чтобы быстро ознакомиться с возможностями.
+                    <span className="wizard-mode-icon" aria-hidden="true">🚀</span>
+                    <strong className="wizard-mode-title">Сначала осмотреться</strong>
+                    <span className="wizard-mode-note">
+                      Открыть рабочее место с тем, что уже есть в базе клиники, и пройтись по разделам. Ничего не
+                      удаляется и не досоздаётся.
                     </span>
                   </button>
 
                   <button
+                    className="wizard-mode-card wizard-mode-card--clean"
                     type="button"
-                    onClick={async () => {
-                      setResetting(true);
-                      await loadDashboard({});
-                      setResetting(false);
-                    }}
+                    onClick={() => void moveOnboardingTo("clinic")}
                     disabled={resetting}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      textAlign: "left",
-                      padding: "20px",
-                      background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-                      border: "2px solid #4ade80",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      transition: "transform 0.2s, box-shadow 0.2s"
-                    }}
                   >
-                    <span style={{ fontSize: "28px", marginBottom: "12px" }}>✨</span>
-                    <strong style={{ fontSize: "16px", color: "#15803d", marginBottom: "6px" }}>Начать с чистого листа</strong>
-                    <span style={{ fontSize: "13px", color: "#14532d" }}>
-                      Полностью пустая база данных для настройки клиники с нуля. Вы сможете ввести свои данные, добавить врачей и кабинеты шаг за шагом.
+                    <span className="wizard-mode-icon" aria-hidden="true">✨</span>
+                    <strong className="wizard-mode-title">Настроить клинику сейчас</strong>
+                    <span className="wizard-mode-note">
+                      Название и телефон клиники, первый специалист и кресло — по шагам. Выйти в рабочее место можно
+                      на любом шаге.
                     </span>
                   </button>
                 </div>
@@ -2118,27 +2271,28 @@ export function App() {
 
             {/* Clinic step */}
             {onboardingStep === "clinic" ? (
-              <div className="onboarding-panel" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="onboarding-panel">
                 <div>
-                  <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "6px" }}>О клинике</h3>
-                  <p style={{ color: "#4b5563" }}>Название и телефон понадобятся для генерации договоров и медицинских карт.</p>
+                  <h3>О клинике</h3>
+                  <p>Название и телефон понадобятся для генерации договоров и медицинских карт.</p>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Название клиники</label>
+                <div className="wizard-field-list">
+                  <div className="wizard-field">
+                    <label htmlFor="onboarding-clinic-name">Название клиники</label>
                     <input
                       id="onboarding-clinic-name"
-                      style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "15px" }}
                       value={clinicProfileDraft.clinicName}
                       onChange={(event) => updateClinicProfileDraft("clinicName", event.target.value)}
                       placeholder="Стоматология..."
                     />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Телефон для связи</label>
+                  <div className="wizard-field">
+                    <label htmlFor="onboarding-clinic-phone">Телефон для связи</label>
                     <input
                       id="onboarding-clinic-phone"
-                      style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "15px" }}
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       value={clinicProfileDraft.phone}
                       onChange={(event) => updateClinicProfileDraft("phone", event.target.value)}
                       placeholder="89..."
@@ -2150,40 +2304,30 @@ export function App() {
 
             {/* Team step */}
             {onboardingStep === "team" ? (
-              <div className="onboarding-panel" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="onboarding-panel">
                 <div>
-                  <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "6px" }}>Ваша роль и данные</h3>
-                  <p style={{ color: "#4b5563" }}>Укажите свою рабочую роль в клинике и личные данные для настройки интерфейса.</p>
+                  <h3>Ваша роль и данные</h3>
+                  <p>Укажите свою рабочую роль в клинике и личные данные для настройки интерфейса.</p>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Ваша рабочая роль</label>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {roleFocusOrder.map((role) => (
+                <div className="wizard-field-list">
+                  <div className="wizard-field">
+                    <span id="onboarding-role-label">Ваша рабочая роль</span>
+                    <div className="wizard-role-row" role="group" aria-labelledby="onboarding-role-label">
+                      {onboardingRoleChoices.map((role) => (
                         <button
-                          className={selectedWorkspaceRole === role ? "active" : ""}
+                          className={`wizard-role-chip${selectedWorkspaceRole === role ? " active" : ""}`}
                           key={role}
                           type="button"
                           aria-pressed={selectedWorkspaceRole === role}
                           onClick={() => setSelectedWorkspaceRole(role)}
-                          style={{
-                            padding: "8px 16px",
-                            borderRadius: "20px",
-                            border: "1px solid",
-                            borderColor: selectedWorkspaceRole === role ? "#0d9488" : "#d1d5db",
-                            background: selectedWorkspaceRole === role ? "#0d9488" : "#ffffff",
-                            color: selectedWorkspaceRole === role ? "#ffffff" : "#374151",
-                            fontWeight: "500",
-                            cursor: "pointer"
-                          }}
                         >
                           {staffRoleLabels[role]}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>
+                  <div className="wizard-field">
+                    <label htmlFor="onboarding-staff-name">
                       {selectedWorkspaceRole === "owner" ? "ФИО владельца клиники" :
                        selectedWorkspaceRole === "doctor" ? "ФИО врача" :
                        selectedWorkspaceRole === "administrator" ? "ФИО администратора" :
@@ -2192,18 +2336,17 @@ export function App() {
                     </label>
                     <input
                       id="onboarding-staff-name"
-                      style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "15px" }}
+                      autoComplete="name"
                       value={newStaffName}
                       onChange={(event) => setNewStaffName(event.target.value)}
                       placeholder="Иванов Иван Иванович"
                     />
                   </div>
                   {(selectedWorkspaceRole === "doctor" || selectedWorkspaceRole === "assistant") && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Название кабинета/кресла</label>
+                    <div className="wizard-field">
+                      <label htmlFor="onboarding-chair-name">Название кабинета/кресла</label>
                       <input
                         id="onboarding-chair-name"
-                        style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "15px" }}
                         value={newChairName}
                         onChange={(event) => setNewChairName(event.target.value)}
                         placeholder="Кабинет терапевта"
@@ -2216,30 +2359,30 @@ export function App() {
 
             {/* Done step */}
             {onboardingStep === "done" ? (
-              <div className="onboarding-panel" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="onboarding-panel">
                 <div>
-                  <h3 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "8px" }}>Все готово к запуску!</h3>
-                  <p style={{ color: "#4b5563" }}>
+                  <h3>Все готово к запуску!</h3>
+                  <p>
                     Проверьте параметры перед открытием рабочей смены. Вы сможете изменить любые настройки позже.
                   </p>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: (selectedWorkspaceRole === "doctor" || selectedWorkspaceRole === "assistant") ? "1fr 1fr" : "1fr", gap: "16px", background: "#f9fafb", padding: "20px", borderRadius: "12px", border: "1px solid #e5e7eb" }}>
+                <div className="wizard-summary-grid">
                   <div>
-                    <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#6b7280", display: "block" }}>Название клиники</span>
-                    <strong style={{ fontSize: "15px", color: "#111827" }}>{clinicProfileDraft.clinicName || "Новая стоматология"}</strong>
+                    <span className="wizard-summary-label">Название клиники</span>
+                    <strong className="wizard-summary-value">{clinicProfileDraft.clinicName || "Новая стоматология"}</strong>
                   </div>
                   <div>
-                    <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#6b7280", display: "block" }}>Ваша рабочая роль</span>
-                    <strong style={{ fontSize: "15px", color: "#111827" }}>{staffRoleLabels[selectedWorkspaceRole]}</strong>
+                    <span className="wizard-summary-label">Ваша рабочая роль</span>
+                    <strong className="wizard-summary-value">{staffRoleLabels[selectedWorkspaceRole]}</strong>
                   </div>
                   <div>
-                    <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#6b7280", display: "block" }}>Первый специалист</span>
-                    <strong style={{ fontSize: "15px", color: "#111827" }}>{newStaffName || "Администратор"}</strong>
+                    <span className="wizard-summary-label">Первый специалист</span>
+                    <strong className="wizard-summary-value">{newStaffName || "Администратор"}</strong>
                   </div>
                   {(selectedWorkspaceRole === "doctor" || selectedWorkspaceRole === "assistant") && (
                     <div>
-                      <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#6b7280", display: "block" }}>Кабинет / кресло</span>
-                      <strong style={{ fontSize: "15px", color: "#111827" }}>{newChairName || "Кабинет №1"}</strong>
+                      <span className="wizard-summary-label">Кабинет / кресло</span>
+                      <strong className="wizard-summary-value">{newChairName || "Кабинет №1"}</strong>
                     </div>
                   )}
                 </div>
@@ -2247,21 +2390,12 @@ export function App() {
             ) : null}
 
             {/* Actions Footer */}
-            <div className="onboarding-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+            <div className="onboarding-actions">
               {onboardingStep !== "intro" && previousOnboardingStep ? (
                 <button
                   className="secondary-button"
                   type="button"
                   onClick={() => void moveOnboardingTo(previousOnboardingStep.id)}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "8px",
-                    border: "1px solid #d1d5db",
-                    background: "#ffffff",
-                    color: "#374151",
-                    fontWeight: "500",
-                    cursor: "pointer"
-                  }}
                 >
                   Назад
                 </button>
@@ -2271,32 +2405,53 @@ export function App() {
                   className="primary-button"
                   type="button"
                   onClick={() => void moveOnboardingTo(nextOnboardingStep.id)}
-                  style={{
-                    padding: "10px 24px",
-                    borderRadius: "8px",
-                    border: "none",
-                    background: "#0d9488",
-                    color: "#ffffff",
-                    fontWeight: "600",
-                    cursor: "pointer"
-                  }}
                 >
                   Дальше
                 </button>
               ) : null}
+              {/*
+                «НАЧАТЬ РАБОТУ» ЗВАЛО ФУНКЦИЮ, КОТОРОЙ В ДЕРЕВЕ НЕТ.
+
+                Здесь стояло handleFinishOnboarding(newStaffName, newChairName).
+                Такого имени нет ни в useAppLogic, ни в двух его подмешанных
+                модулях (useTelegramSettings, useAuthLogic), ни в settingsStore,
+                ни в одном другом файле репозитория — оно приходило из
+                деструктуризации appLogicValue и равнялось undefined. То есть
+                последняя кнопка первичной настройки роняла TypeError, ничего не
+                сохраняла и мастер не закрывала. Тип не поймал этого, потому что
+                useAppLogic объявлена как `useAppLogic(): any` — любое имя из
+                такого объекта проходит проверку.
+
+                ЧТО СТАЛО. Кнопка выполняет то, что перечислено в сводке шага
+                «Готово», и ровно теми обработчиками, которыми это делает
+                достижимый мастер настройки: addStaffMember заводит первого
+                специалиста (useAppLogic.tsx:7533, POST /api/settings/staff),
+                addChair — кресло (:7588, POST /api/settings/chairs), после чего
+                черновой вход открывает рабочее место. Роль берётся ту, которую
+                человек выбрал на шаге «Команда»: все пять значений входят в
+                staffRoleSchema, то есть сервер их принимает.
+
+                Оба обработчика сами сообщают о своём отказе через setError, а он
+                теперь виден внутри мастера (полоса выше). Порядок именно такой:
+                сначала завести людей и кресло, потом входить — иначе отказ
+                сервера уехал бы за пределы экрана вместе с мастером.
+              */}
               {onboardingStep === "done" ? (
                 <button
                   className="primary-button"
                   type="button"
-                  onClick={() => void handleFinishOnboarding(newStaffName, newChairName)}
-                  style={{
-                    padding: "10px 24px",
-                    borderRadius: "8px",
-                    border: "none",
-                    background: "#0d9488",
-                    color: "#ffffff",
-                    fontWeight: "600",
-                    cursor: "pointer"
+                  disabled={resetting}
+                  onClick={async () => {
+                    setResetting(true);
+                    if (newStaffName.trim()) await addStaffMember(selectedWorkspaceRole);
+                    if (
+                      (selectedWorkspaceRole === "doctor" || selectedWorkspaceRole === "assistant") &&
+                      newChairName.trim()
+                    ) {
+                      await addChair();
+                    }
+                    await continueOnboardingInDraftMode();
+                    setResetting(false);
                   }}
                 >
                   Начать работу
@@ -2341,23 +2496,109 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    /*
+      ОБЩИЙ КОНТЕКСТ ОБНИМАЕТ ВСЁ РАБОЧЕЕ МЕСТО, А НЕ ОДНИ НАСТРОЙКИ.
+
+      AppLogicProvider стоял только вокруг ветки настроек. Остальные разделы —
+      записи, пациенты, приём, оплаты, аналитика, маркетинг — рисовались выше
+      него, и всё, что внутри них звало useAppLogicContext(), получало пустоту.
+
+      Молча. useAppLogicContext() при отсутствии провайдера ВОЗВРАЩАЛ
+      `{} as AppLogicContextType`: компилятор видел полный объект, во время
+      работы там ничего не было, каждое разобранное поле равнялось undefined.
+      Ошибки не возникало, граница ошибок не срабатывала, виджет просто рисовал
+      пустое место — и выглядело это как «данных пока нет», а не как поломка.
+      Поймать такое типами нельзя по построению приведения.
+
+      Пересчёт по исходникам (scratch/audit-context-outside-provider.mjs) на
+      момент той правки: 89 потребителей контекста, из них 59 отрисовывались вне
+      настроек. Среди них вся карточка пациента, вкладки приёма, одонтограмма,
+      панели кассы и виджеты записи.
+
+      ПРОШЕДШЕЕ ВРЕМЯ ВЫШЕ — НЕ СТИЛЬ. Подмену убрали:
+      useAppLogicContext() вне провайдера теперь БРОСАЕТ исключение с внятным
+      текстом (contexts/AppLogicContext.tsx), потому что отсутствие провайдера —
+      дефект сборки дерева, а не состояние данных. Повторить эту потерю молча
+      больше нельзя: ближайшая WorkspaceRouteErrorBoundary покажет отказ в своём
+      разделе. Охрана — contexts/appLogicContextRefusesToInvent.test.tsx.
+      Замер на момент ужесточения: потребителей ВНЕ провайдера в дереве нет — ни
+      в публичном контуре main.tsx, ни в том, что рисуется до этой строки
+      (AuthHub, StaffPinPad, AppBootState).
+    */
+    <AppLogicProvider value={appLogicValue}>
+    <main className="app-shell dente-redesign" data-collapsed={sidebarCollapsed}>
       <a className="skip-link" href="#workspace-content">
         Перейти к рабочей области
       </a>
-      <WorkspaceSidebar currentView={currentView} onViewIntent={preloadWorkspaceView} role={selectedWorkspaceRole} />
+      <WorkspaceSidebar currentView={currentView}
+        onViewIntent={preloadWorkspaceView}
+        role={selectedWorkspaceRole}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebarCollapsed}
+      />
 
       <section className={`workspace view-${currentView}`} id="workspace-content" tabIndex={-1} aria-label="Рабочая область">
-        {dashboard?.clinicName === "Стоматология, 1 кабинет" && (
-          <div className="default-clinic-banner" role="alert">
+        {/*
+          БАННЕР О НЕНАСТРОЕННОЙ КЛИНИКЕ.
+
+          ЧТО БЫЛО НЕ ТАК. Условие было тем же — сравнение названия клиники со
+          строкой «Стоматология, 1 кабинет», — но текст утверждал: «Демо-режим.
+          Тестовые данные загружены». А это ровно то название, которое получает
+          клиника по умолчанию (apps/api/src/sampleData.ts:268, seedAuth.ts:32).
+          То есть настоящая клиника, оставившая название по умолчанию — а соло-врач
+          оставит его чаще всего, — навсегда получала надпись, что её живые
+          пациенты и оплаты являются тестовыми данными. Хуже надписи здесь только
+          то, что убрать её было нельзя: закрытия у баннера не было.
+
+          ПОЧЕМУ УСЛОВИЕ ОСТАЛОСЬ ПО ИМЕНИ. Настоящего признака «эта клиника
+          создана сидером» в проекте нет: ни колонки у организации, ни поля в
+          наборе флагов. Выдумывать его здесь нельзя, а флаг onboardingCompleted не
+          годится.
+
+          ЗДЕСЬ СТОЯЛО НЕВЕРНОЕ ОБЪЯСНЕНИЕ ЭТОГО ФЛАГА, и оно врало дважды.
+          Написано было: «его выставляет только POST /api/workspace/onboarding/
+          complete… поэтому он не становится истинным ни у кого, и баннер висел бы
+          у всех навсегда». В действительности тот маршрут флага НЕ КАСАЛСЯ вовсе —
+          он писал название, реквизиты, режим, график, людей и кресла, а
+          workspace_feature_flags не трогал ни одной строкой; сам маршрут теперь
+          удалён (разбор — apps/api/src/routes/workspaceProfile.ts). И вывод был
+          обратным по знаку: onboardingCompleted равен true в наборе умолчаний
+          сервера (DEFAULT_WORKSPACE_FEATURE_FLAGS), и ни один экран его не
+          выставляет — POST /api/workspace/profile принял бы его в общем слиянии
+          признаков, но не посылает ни один вызов. Значит по такому условию баннер
+          не показался бы НИКОМУ, а не всем.
+          Следующий инженер, поверив этому объяснению, искал бы отсутствующего
+          писателя вместо того, чтобы завести признак.
+
+          ЧТО ИЗМЕНЕНО. Текст больше не утверждает недоказуемое. Он говорит
+          проверяемый факт — название совпадает с названием из тестовых данных — и
+          даёт ДВА выхода: переименовать клинику, если она настоящая, или пройти
+          настройку, если только начинают. И его можно закрыть.
+
+          ДОЛГ: признак «данные от сидера» на стороне сервера. Пока его нет,
+          совпадение имени — единственная имеющаяся улика, и подавать её надо как
+          улику, а не как приговор.
+        */}
+        {dashboard?.clinicName === "Стоматология, 1 кабинет" && !defaultClinicNoticeHidden && (
+          <div className="default-clinic-banner" role="status">
             <div className="banner-content">
               <span className="banner-icon" aria-hidden="true">🚀</span>
               <p>
-                <strong>Демо-режим.</strong> Тестовые данные загружены. Для настройки своей клиники нажмите «Запустить мастер».
+                <strong>Клиника ещё не настроена?</strong> Её название совпадает с названием клиники из
+                тестовых данных. Если это ваша настоящая клиника — переименуйте её в настройках. Если вы
+                только начинаете — пройдите настройку, она займёт несколько минут.
               </p>
             </div>
             <button className="primary-button banner-btn" type="button" onClick={reopenOnboarding}>
-              Запустить мастер
+              Пройти настройку
+            </button>
+            <button
+              className="text-button banner-btn"
+              type="button"
+              onClick={() => setDefaultClinicNoticeHidden(true)}
+              aria-label="Скрыть подсказку о названии клиники"
+            >
+              Скрыть
             </button>
           </div>
         )}
@@ -2428,7 +2669,7 @@ export function App() {
           </section>
         ) : null}
 
-        {!onboardingDismissed && !showFullOnboardingGuide ? (
+        {!onboardingDismissed && !showFullOnboardingGuide && !isLocalOnboardingDismissed ? (
           <section className="onboarding-compact-strip" aria-label="Первичная настройка клиники">
             <div>
               <strong>Можно начать прием без мастера</strong>
@@ -2529,7 +2770,7 @@ export function App() {
                 </div>
                 <div className="onboarding-form-grid">
                   <div className="role-picker form-span-2" aria-label="Роль нового сотрудника">
-                    {roleFocusOrder.map((role) => (
+                    {onboardingRoleChoices.map((role) => (
                       <button
                         className={selectedWorkspaceRole === role ? "active" : ""}
                         key={role}
@@ -3483,33 +3724,27 @@ export function App() {
 
         {currentView === "shift" ? (
         <ShiftView
-          activePatient={activePatient}
-          activePatientHasCallablePhone={activePatientHasCallablePhone}
-          activePatientCallablePhone={activePatientCallablePhone}
           visibleRecommendedActions={visibleRecommendedActions}
           recommendedActionPriorityLabels={recommendedActionPriorityLabels}
           staffRoleLabels={staffRoleLabels}
-          selectedWorkspaceRole={selectedWorkspaceRole}
-          activeRoleQueue={activeRoleQueue}
-          activeRolePolicy={activeRolePolicy}
-          activeRoleWritableSections={activeRoleWritableSections}
-          viewLabels={viewLabels}
-          activeRoleRestrictedSections={activeRoleRestrictedSections}
           dashboard={dashboard}
           activeQueueRole={activeQueueRole}
-          shiftWarnings={shiftWarnings}
-          warningSeverityLabels={warningSeverityLabels}
-          openScheduleWarning={openScheduleWarning}
           setError={setError}
           mostLoadedResource={mostLoadedResource}
           setSelectedPatientId={setSelectedPatientId}
-          activeDoctor={activeDoctor}
         />
         ) : null}
 
         {["shift", "patients"].includes(currentView) ? (
           <PatientCockpit
-            activePatient={activePatient}
+            /*
+              На «Смене» карточка показывает пациента открытого приёма, а не
+              `activePatient`: тот при отсутствии приёма подставляет первого
+              пациента списка, и на экран попадал случайный человек с красной
+              пометкой «СРОЧНО». Без приёма карточка честно говорит «Пациент
+              не выбран». В разделе «Пациенты» выбор из списка остаётся.
+            */
+            activePatient={currentView === "shift" ? activeVisitPatient : activePatient}
             activePatientInsight={activePatientInsight}
             dashboard={dashboard}
             activeCommunicationTasks={activeCommunicationTasks}
@@ -3707,6 +3942,7 @@ export function App() {
                 normalizedAppointmentStatus={normalizedAppointmentStatus}
                 normalizedAppointmentStatusFilter={normalizedAppointmentStatusFilter}
                 openAppointmentEditor={openAppointmentEditor}
+                openScheduleWarning={openScheduleWarning}
                 patientName={patientName}
                 recommendedActionPriorityLabels={recommendedActionPriorityLabels}
                 resetNewAppointmentDraft={resetNewAppointmentDraft}
@@ -3722,7 +3958,34 @@ export function App() {
                 updateAppointmentScheduleDraft={updateAppointmentScheduleDraft}
                 updateNewAppointmentDraft={updateNewAppointmentDraft}
                 visibleScheduleSuggestions={visibleScheduleSuggestions}
+                // Нужен для живого обновления сетки, когда запись создал или
+                // перенёс другой администратор.
+                //
+                // ЗДЕСЬ СТОЯЛО «этот ScheduleView отрисован ВЫШЕ
+                // AppLogicProvider, поэтому useAppLogicContext() здесь пуст».
+                // ЭТО НЕВЕРНО и было неверно с тех пор, как провайдер обнял всё
+                // рабочее место: он открывается на строке 2509 и закрывается на
+                // 5070, а этот вызов — на 3947, то есть ВНУТРИ. Утверждение
+                // опасно вдвойне: во-первых, оно объясняло пропсы причиной,
+                // которой нет; во-вторых, «контекст здесь пуст» описывало
+                // выдуманный пустой объект, которого больше не существует —
+                // useAppLogicContext() вне провайдера теперь бросает исключение
+                // (contexts/AppLogicContext.tsx).
+                //
+                // Пропс остаётся, и это осознанно: экран получает loadDashboard
+                // явно, а не выуживает его из общего объекта, так видно, кто чем
+                // пользуется. Менять на чтение из контекста без прогона живого
+                // расписания не за чем.
+                loadDashboard={loadDashboard}
               />
+            </Suspense>
+            {/*
+              Утренний обзвон. Подтверждение приёма по ссылке уже работает, но
+              без этого списка администратор не видит результата и обзванивает
+              всех подряд: половину звонков зря, половину нужных пропуская.
+            */}
+            <Suspense fallback={null}>
+              <DayConfirmationsPanel />
             </Suspense>
           </WorkspaceRouteErrorBoundary>
           ) : null}
@@ -4038,6 +4301,7 @@ export function App() {
               }
             >
               <FinanceView
+                onCreateDocument={createDocument}
                 activePayments={activePayments}
                 activeTreatmentPlanItems={activeTreatmentPlanItems}
                 activeTreatmentPlanScenarios={activeTreatmentPlanScenarios}
@@ -4158,28 +4422,44 @@ export function App() {
               >
                 <AnalyticsDashboardView />
               </Suspense>
+              {/*
+                Экран выше показывает воронку, доли кресел и когорты; того, по
+                чему принимают решения — динамики выручки, доли неявок,
+                дебиторки, — там не было.
+              */}
+              <Suspense fallback={null}>
+                {/*
+                  Режим клиники решает, какие разрезы показывать: занятость
+                  единственного кресла — всегда одно и то же число, выработка
+                  единственного врача — одна строка. Таблица правил лежит в
+                  lib/clinicCapabilities.ts, а не в сравнениях по разметке.
+                */}
+                <ManagerReportsPanel clinicMode={dashboard?.clinicSettings?.profile?.mode ?? null} />
+              </Suspense>
             </WorkspaceRouteErrorBoundary>
           ) : null}
         </section>
         ) : null}
 
-        {["documents", "finance", "communications", "settings"].includes(currentView) ? (
-        <details className="compliance-bar" aria-label="Контроль">
-          <summary>
-            <ShieldCheck aria-hidden="true" />
-            <span>Служебные ограничения</span>
-          </summary>
-          <div>
-            {dashboard.complianceWarnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
-          </div>
-        </details>
-        ) : null}
+        {/*
+          ЗДЕСЬ БЫЛ БЛОК «СЛУЖЕБНЫЕ ОГРАНИЧЕНИЯ» — он показывал пользователю наши
+          внутренние заметки. Живой ответ /api/dashboard кладёт в
+          complianceWarnings три строки, дословно:
+            «AI-ответы являются черновиками и требуют подтверждения врача»;
+            «Медицинские данные требуют 152-ФЗ, врачебной тайны и аудита доступа»;
+            «Для продажи клиникам нужен отдельный EGISZ-адаптер и юридическая
+             проверка шаблонов».
+          Первые две — общие слова, которые администратору клиники ничего не
+          говорят и ни к какому действию не ведут. Третья — заметка о продаже
+          продукта: пользователь видел нашу кухню на своём рабочем экране, под
+          непонятным заголовком, висевшим сразу на четырёх разделах.
+          Настоящие ограничения система показывает там, где они возникают: «нет
+          согласия», «документ не подписан», «SMS-шлюз не настроен» — рядом с
+          самим действием, а не общим списком внизу страницы.
+        */}
 
         {currentView === "settings" ? (
           <WorkspaceRouteErrorBoundary view="settings" label={viewLabels.settings} panelClassName="settings-zone" panelId="settings">
-          <AppLogicProvider value={appLogicValue}>
           <Suspense
             fallback={
               <section className="settings-zone" id="settings" aria-busy="true">
@@ -4464,12 +4744,6 @@ export function App() {
               previewTelegramTemplate={previewTelegramTemplate}
               pricelistAnalysis={pricelistAnalysis}
               pricelistImageBase64={pricelistImageBase64}
-              pricelistImageName={pricelistImageName}
-              pricelistImageNote={pricelistImageNote}
-              pricelistItemMaterialText={pricelistItemMaterialText}
-              pricelistMaterialSummaryText={pricelistMaterialSummaryText}
-              pricelistWarningsText={pricelistWarningsText}
-              pricelistParserModeLabels={pricelistParserModeLabels}
               pricelistRecognitionBrandGroups={pricelistRecognitionBrandGroups}
               pricelistRecognitionServiceGroups={pricelistRecognitionServiceGroups}
               pricelistSourceKind={pricelistSourceKind}
@@ -4716,17 +4990,73 @@ export function App() {
               chairScheduleSavingId={chairScheduleSavingId}
             />
           </Suspense>
-          </AppLogicProvider>
           </WorkspaceRouteErrorBoundary>
         ) : null}
 
         {currentView === "marketing" ? (
-          <Suspense fallback={<AppLoadingState message="Загрузка маркетинга" />}>
-            <MarketingView clinicName={dashboard.clinicName} clinicPhone={clinicProfileDraft.phone} />
-          </Suspense>
+          /*
+            ОТКРЫТИЕ «МАРКЕТИНГ/SEO» ГАСИЛО ВСЁ ПРИЛОЖЕНИЕ.
+            `clinicProfileDraft` в хранилище объявлен как null и заполняется
+            после загрузки клиники, а здесь читалось `clinicProfileDraft.phone`
+            без проверки. Пока черновик не пришёл — «Cannot read properties of
+            null (reading 'phone')». Причём падение происходило прямо в App, то
+            есть ВЫШЕ границы ошибок раздела: экран становился пустым целиком, и
+            помогала только перезагрузка страницы. Раздел теперь и сам под
+            границей ошибок, как остальные: поломка внутри него не должна
+            уносить рабочее место.
+          */
+          <WorkspaceRouteErrorBoundary view="marketing" label="Маркетинг/SEO" panelClassName="panel marketing-panel" panelId="marketing">
+            <Suspense fallback={<AppLoadingState message="Загрузка маркетинга" />}>
+              <MarketingView
+                clinicName={dashboard.clinicName}
+                clinicPhone={clinicProfileDraft?.phone ?? ""}
+              />
+            </Suspense>
+          </WorkspaceRouteErrorBoundary>
         ) : null}
 
-        <VoiceAssistantUI 
+        {/*
+          ТРИ РАЗДЕЛА, КОТОРЫЕ БЫЛО НЕЧЕМ ОТКРЫТЬ.
+
+          Склад, журнал стерилизации и воронка обращений отрисовывались только из
+          AppRouter.tsx — файла, помеченного в собственной шапке как мёртвый и не
+          импортированного ни одним модулем. Экраны проходили сборку и типы,
+          сервер отвечал по их адресам, но на экран они не попадали никогда.
+          Ветки перенесены сюда, в ту же цепочку по currentView, что и остальные
+          разделы, и под ту же границу ошибок: поломка внутри раздела не должна
+          уносить рабочее место.
+        */}
+        {currentView === "inventory" ? (
+          <WorkspaceRouteErrorBoundary view="inventory" label={viewLabels.inventory} panelClassName="panel inventory-panel" panelId="inventory">
+            <Suspense fallback={<AppLoadingState message="Загрузка склада" />}>
+              {/*
+                Организация берется из профиля клиники — того же поля, по которому
+                работают остальные разделы. Выдуманный UUID здесь не подставляется:
+                пока профиль не пришел, экран склада показывает свое пустое
+                состояние с объяснением, а не чужие остатки.
+              */}
+              <InventoryView organizationId={dashboard.clinicSettings?.profile?.organizationId ?? ""} />
+            </Suspense>
+          </WorkspaceRouteErrorBoundary>
+        ) : null}
+
+        {currentView === "scanner" ? (
+          <WorkspaceRouteErrorBoundary view="scanner" label={viewLabels.scanner} panelClassName="panel scanner-panel" panelId="scanner">
+            <Suspense fallback={<AppLoadingState message="Загрузка журнала стерилизации" />}>
+              <ScannerView />
+            </Suspense>
+          </WorkspaceRouteErrorBoundary>
+        ) : null}
+
+        {currentView === "leads" ? (
+          <WorkspaceRouteErrorBoundary view="leads" label={viewLabels.leads} panelClassName="panel leads-panel" panelId="leads">
+            <Suspense fallback={<AppLoadingState message="Загрузка обращений" />}>
+              <LeadsKanbanView />
+            </Suspense>
+          </WorkspaceRouteErrorBoundary>
+        ) : null}
+
+        <VoiceAssistantUI
           onNavigate={(view) => {
             setCurrentView(view);
             window.location.hash = view;
@@ -4749,7 +5079,27 @@ export function App() {
         />
         <IncomingCallToast />
       </section>
+      <nav className="dnt-bottom-nav" aria-label="Мобильная навигация">
+        {(["shift", "schedule", "patients", "visit"] as const).map((view) => (
+          <a
+            key={view}
+            className={currentView === view ? "active" : ""}
+            href={`#${view}`}
+            aria-current={currentView === view ? "page" : undefined}
+            onPointerEnter={() => preloadWorkspaceView(view)}
+            onFocus={() => preloadWorkspaceView(view)}
+          >
+            <ActionIcon section={view} />
+            <span>{viewLabels[view]}</span>
+          </a>
+        ))}
+        <a href="#settings" className={currentView === "settings" ? "active" : ""}>
+          <Database aria-hidden="true" />
+          <span>Ещё</span>
+        </a>
+      </nav>
     </main>
+    </AppLogicProvider>
   );
 }
 

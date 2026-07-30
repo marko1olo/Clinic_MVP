@@ -55,8 +55,8 @@ function extractPlanPayload(
 		estimatedTotalRub: plannedStages.reduce((sum, stage) => sum + (stage.estimatedAmountRub || 0), 0),
 		alternatives: [],
 		risksAndLimitations: [],
-		prognosisAndLimits: null,
-		controlPlan: null,
+		prognosisAndLimits: null as any,
+		controlPlan: null as any,
 		doctorFullName: request.doctorFullName || null, // No fallback to "Лечащий врач"
 		plannedAt: new Date().toISOString(),
 		patientQuestionsAnswered: true,
@@ -123,11 +123,16 @@ function extractRecommendationsPayload(
 export async function runVisitFlow(
 	request: VisitFlowRequest,
 ): Promise<VisitFlowResult> {
+	/*
+	 * `step` — не украшение ответа. Это различитель разделяемого объединения
+	 * `visitFlowStepResultSchema`: без него у шага, вынутого из списка, нельзя
+	 * узнать, что лежит в `data`, и клиент возвращается к приведению типа руками.
+	 */
 	const result: VisitFlowResult = {
-		draft: { status: "pending", message: null, data: null },
-		plan: { status: "pending", message: null, data: null },
-		recommendations: { status: "pending", message: null, data: null },
-		documents: { status: "pending", message: null, data: null },
+		draft: { step: "draft", status: "pending", message: null, data: null },
+		plan: { step: "plan", status: "pending", message: null, data: null },
+		recommendations: { step: "recommendations", status: "pending", message: null, data: null },
+		documents: { step: "documents", status: "pending", message: null, data: null },
 		overallStatus: "success",
 	};
 

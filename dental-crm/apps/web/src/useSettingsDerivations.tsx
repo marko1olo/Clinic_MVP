@@ -740,7 +740,6 @@ import {
 	mprSlicePresetFractions,
 	resolveMprKeyboardAdjustment,
 } from "./utils/math/mprMath";
-import { viewLabels as workspaceViewLabels } from "./workspaceShell";
 
 type MprAxisVisualizerStyle = CSSProperties & {
 	"--mpr-axis-deg": string;
@@ -830,9 +829,7 @@ export function useSettingsDerivations() {
 		activeWorkspaceProfile,
 		addChair,
 		addStaffMember,
-		// analyzePricelist,
 		applyProtocolTemplate,
-		// attachPricelistImage,
 		browserCanRequestPersistentStorage,
 		browserContinuity,
 		browserContinuityChecks,
@@ -871,7 +868,6 @@ export function useSettingsDerivations() {
 		clearBrowserPickedImagingFolderPreview,
 		clearDicomWorkbenchRecovery,
 		clearLocalImagingFolderRecovery,
-		// clearPricelistImage,
 		clinicalRuleActionLabels,
 		clinicalRuleSeverityLabels,
 		clinicModeLabels,
@@ -997,7 +993,6 @@ export function useSettingsDerivations() {
 		isMigrationSourceProbeLoading,
 		isMigrationSourceWorkupLoading,
 		isPersistenceExporting,
-		// isPricelistAnalyzing,
 		isRecognitionLoading,
 		isSmartImportCommitting,
 		isSmartImportLoading,
@@ -1103,19 +1098,6 @@ export function useSettingsDerivations() {
 		previewImport,
 		previewSmartImport,
 		previewTelegramTemplate,
-		// pricelistAnalysis,
-		// pricelistImageBase64,
-		// pricelistImageName,
-		// pricelistImageNote,
-		// pricelistItemMaterialText,
-		// pricelistMaterialSummaryText,
-		// pricelistWarningsText,
-		// pricelistParserModeLabels,
-		// pricelistRecognitionBrandGroups,
-		// pricelistRecognitionServiceGroups,
-		// pricelistSourceKind,
-		// pricelistSourceKindLabels,
-		// pricelistText,
 		recognitionJob,
 		recognitionKind,
 		recognitionPresets,
@@ -1204,9 +1186,6 @@ export function useSettingsDerivations() {
 		setNewStaffRole,
 		setNewStaffSpecialty,
 		setOhifBaseUrl,
-		// setPricelistAnalysis,
-		// setPricelistSourceKind,
-		// setPricelistText,
 		setRecognitionJob,
 		setRecognitionText,
 		setSettingsTab,
@@ -1217,7 +1196,6 @@ export function useSettingsDerivations() {
 		settingsTab,
 		settingsTabs,
 		setUiLanguage,
-		// setUsePricelistAi,
 		smartImportCommit,
 		smartImportMode,
 		smartImportModeLabels,
@@ -1324,14 +1302,18 @@ export function useSettingsDerivations() {
 		updateStaffScheduleDraft,
 		updateTelegramPostVisitCheckupDelayDraft,
 		updateTelegramVisualCardUrlDraft,
-		// usePricelistAi,
 		visibleTelegramOutboxItems,
 		weekdayOptions,
 		workspaceScopeLabels,
 	} = useAppLogicContext();
+	/*
+	 * Отсюда убраны clinicMode и setClinicMode из settingsStore: оба
+	 * доставались и ни разу не использовались, а хранившееся в них значение
+	 * никто и не записывал. Режим клиники приходит с сервера в
+	 * dashboard.clinicSettings.profile.mode и меняется через changeClinicMode;
+	 * решения по режиму принимает lib/clinicCapabilities.ts.
+	 */
 	const {
-		clinicMode,
-		setClinicMode,
 		setTelegramOutbox,
 		setTelegramOutboxStatusFilter,
 		setTelegramOutboxTemplateFilter,

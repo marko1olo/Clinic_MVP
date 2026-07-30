@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { z } from "zod";
 function documentSnapshotPath(documentId) {
     const dir = path.join(process.cwd(), '.dente-data', 'documents');
     if (!existsSync(dir))
@@ -121,7 +122,34 @@ export async function createGeneratedDocumentInDb(organizationId, input) {
     });
     return mapDocument(record);
 }
-export async function issueGeneratedDocumentInDb(organizationId, documentId, options = {}) {
+const signerUserIdSchema = z.string().uuid();
+/**
+ * Проверяет идентификатор сотрудника перед записью в юридически значимую колонку.
+ *
+ * БЫЛО: в `issued_by_user_id` уходил литерал `"doctor"`, а в `voided_by_user_id`
+ * — он же. Обе колонки объявлены как `uuid ... references(users.id)`
+ * (db/schema.ts:505 и :507), поэтому строка «doctor» не просто подменяла
+ * подписанта — Postgres отвергал её с 22P02 `invalid input syntax for type
+ * uuid`, и выдача документа падала целиком. Тот же класс отказа уже описан в
+ * routes/documents/issue.ts:57-59 для прежней подстановки «mock-org».
+ *
+ * Значение обязано быть либо UUID реального сотрудника, либо `null`
+ * («подписант не установлен»). Подстановка произвольной строки запрещена: она
+ * приписывает юридический документ несуществующему лицу.
+ */
+function signerUserIdForColumn(value, column) {
+    if (value === null)
+        return null;
+    const parsed = signerUserIdSchema.safeParse(value);
+    if (!parsed.success) {
+        throw new Error(`${column}: ожидался UUID сотрудника или null, получено ${JSON.stringify(value)}. ` +
+            "Колонка — uuid с внешним ключом на users.id; произвольная строка делает " +
+            "документ юридически недостоверным и отвергается Postgres (22P02).");
+    }
+    return parsed.data;
+}
+export async function issueGeneratedDocumentInDb(organizationId, documentId, options) {
+    const issuedByUserId = signerUserIdForColumn(options.issuedByUserId, "issued_by_user_id");
     const [existing] = await db
         .select()
         .from(schema.generatedDocuments)
@@ -136,7 +164,7 @@ export async function issueGeneratedDocumentInDb(organizationId, documentId, opt
         .set({
         status: "issued",
         issuedAt: options.issuedAt ? new Date(options.issuedAt) : new Date(),
-        issuedByUserId: "doctor", // usually from request, hardcoded in sampleData for now
+        issuedByUserId,
         releaseJournalEntry: options.releaseJournalEntry || null,
         signatureAttestation: options.signatureAttestation || null,
         taxPaymentSnapshotJson: options.taxPaymentSnapshot ? JSON.stringify(options.taxPaymentSnapshot) : existing.taxPaymentSnapshotJson,
@@ -161,7 +189,8 @@ export async function issueGeneratedDocumentInDb(organizationId, documentId, opt
     });
     return mapDocument(updated);
 }
-export async function voidGeneratedDocumentInDb(organizationId, documentId, options = {}) {
+export async function voidGeneratedDocumentInDb(organizationId, documentId, options) {
+    const voidedByUserId = signerUserIdForColumn(options.voidedByUserId, "voided_by_user_id");
     const [existing] = await db
         .select()
         .from(schema.generatedDocuments)
@@ -175,7 +204,7 @@ export async function voidGeneratedDocumentInDb(organizationId, documentId, opti
         .set({
         status: "voided",
         voidedAt: options.voidedAt ? new Date(options.voidedAt) : new Date(),
-        voidedByUserId: "doctor",
+        voidedByUserId,
         voidAttestation: options.voidAttestation || null
     })
         .where(and(eq(schema.generatedDocuments.organizationId, organizationId), eq(schema.generatedDocuments.id, documentId)))
@@ -195,7 +224,10 @@ export async function storeTaxXmlSnapshotInDb(organizationId, documentId, snapsh
     const completeSnapshot = {
         ...snapshot,
         createdAt: snapshot.createdAt || new Date().toISOString(),
-        sha256: snapshot.sha256 || require("crypto").createHash("sha256").update(snapshot.xml).digest("hex")
+        // БЫЛО: require("crypto") в ES-модуле — ReferenceError при попытке
+        // посчитать контрольную сумму налогового XML, то есть сохранение снимка
+        // падало ровно тогда, когда хеш не пришёл извне.
+        sha256: snapshot.sha256 || createHash("sha256").update(snapshot.xml).digest("hex")
     };
     const [doc] = await db
         .update(schema.generatedDocuments)
@@ -205,17 +237,45 @@ export async function storeTaxXmlSnapshotInDb(organizationId, documentId, snapsh
     return doc;
 }
 export async function getDocumentRenderContextFromDb(organizationId, patientId) {
-    const { getClinicSettingsFromDb } = require('./settingsQuery.js');
-    const { getServiceCatalogForOrganization } = require('./pricelistQuery.js');
-    const { getPaymentsByPatientIdInDb } = require('./billingQuery.js');
-    const { getTreatmentPlanItemsForPatient } = require('./clinicalQuery.js');
+    // БЫЛО: require(...) внутри ES-модуля. В apps/api объявлен "type": "module",
+    // поэтому require здесь не определён — функция падала с ReferenceError при
+    // КАЖДОМ вызове. Именно поэтому «Паспорт документа» не мог собрать данные.
+    // Динамический import — штатный способ отложенной загрузки в ESM и заодно
+    // сохраняет разрыв циклических зависимостей, ради которого это писалось.
+    const [{ getClinicSettingsFromDb }, { getServiceCatalogForOrganization }, { getPaymentsByPatientIdInDb }, { getTreatmentPlanItemsForPatient },] = await Promise.all([
+        import('./settingsQuery.js'),
+        import('./pricelistQuery.js'),
+        import('./billingQuery.js'),
+        import('./clinicalQuery.js'),
+    ]);
     const settings = await getClinicSettingsFromDb(organizationId);
     const serviceCatalog = await getServiceCatalogForOrganization(organizationId);
     let payments = [];
     let treatmentPlanItems = [];
     if (patientId) {
         payments = await getPaymentsByPatientIdInDb(organizationId, patientId);
-        treatmentPlanItems = await getTreatmentPlanItemsForPatient(organizationId, patientId);
+        // Строки treatment_items — это форма базы, а не доменный тип: quantity там
+        // numeric (драйвер отдаёт строку), serviceId может быть NULL, а названия
+        // услуги на момент выдачи (snapshotServiceName) в таблице нет вообще.
+        // Рендер документа печатает именно snapshotServiceName, поэтому подставляем
+        // title строки — он и есть зафиксированное название позиции плана.
+        treatmentPlanItems = (await getTreatmentPlanItemsForPatient(organizationId, patientId)).map((item) => ({
+            id: item.id,
+            organizationId: item.organizationId,
+            patientId: item.patientId,
+            visitId: item.visitId ?? null,
+            serviceId: item.serviceId ?? "",
+            snapshotServiceName: item.title,
+            snapshotServiceCategory: null,
+            toothCode: item.toothCode ?? null,
+            quantity: Math.max(1, Math.round(Number(item.quantity) || 1)),
+            unitPriceRub: Math.max(0, item.unitPriceRub),
+            discountRub: Math.max(0, item.discountRub),
+            status: item.status,
+            plannedDoctorUserId: item.plannedDoctorUserId ?? null,
+            plannedChairId: item.plannedChairId ?? null,
+            notes: item.notes ?? null,
+        }));
     }
     return { clinicProfile: settings.profile, serviceCatalog, payments, treatmentPlanItems };
 }

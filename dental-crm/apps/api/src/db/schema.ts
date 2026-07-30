@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   foreignKey,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   timestamp,
   unique,
   index,
+  uniqueIndex,
   uuid
 } from "drizzle-orm/pg-core";
 import type {
@@ -18,8 +20,18 @@ import type {
   DocumentReleaseJournalEntry,
   DocumentVoidAttestation,
   DenteTelegramVisualCardUrls,
+  DicomViewerWorkbenchManifestResponse,
+  DicomWorkbenchPixelPolicy,
   FiscalReceiptDetails,
+  ImagingViewerAnnotation,
+  ImagingViewerSessionState,
+  MigrationEntityBreakdown,
+  MigrationFieldLineage,
+  MigrationMappingSnapshot,
+  MigrationReconciliationCheck,
+  ClinicMode,
   PatientAdministrativeProfile,
+  StaffRole,
   TaxXmlSnapshot,
   TaxXmlSourceSnapshot
 } from "@dental/shared";
@@ -66,6 +78,51 @@ export const treatmentPlanItemStatus = pgEnum("treatment_plan_item_status", [
   "completed",
   "cancelled"
 ]);
+
+/**
+ * СТАТУС ПЛАНА ЛЕЧЕНИЯ. ЗНАЧЕНИЯ С БОЛЬШОЙ БУКВЫ, И ЭТО НЕ ОПЕЧАТКА.
+ *
+ * Тип `treatment_plan_status` существует в базе с миграции 0000 — объявление
+ * здесь ничего не создаёт и миграции не требует (тот же случай, что у
+ * `egiszStatus` ниже). Набор снят с живой базы, а не с догадки:
+ * `select enumlabel from pg_enum` (2026-07-29) даёт ровно
+ * `Draft, Active, Approved, Completed, Rejected`.
+ *
+ * ЗДЕСЬ СТОЯЛО `text("status").notNull().default("draft")`, и строчного `draft`
+ * в перечислении НЕТ ВОВСЕ. Тип `text` не запрещает ничего: компилятор пропустил
+ * бы любую строку, а PostgreSQL отвечает на неизвестное значение
+ * `invalid input value for enum treatment_plan_status` уже в рантайме — на живом
+ * сохранении плана.
+ *
+ * ПОЧЕМУ ЭТО НЕ БЫЛО ВИДНО. Единственный боевой писатель
+ * (`routes/odontogram.ts`) статус не передаёт вовсе, а для колонки со
+ * статическим `.default(...)` drizzle пишет в SQL ключевое слово `default` — то
+ * есть база подставляет СВОЁ умолчание `'Draft'`, и строчный `"draft"` из
+ * объявления в запрос не попадает никогда. Расхождение ждало первого, кто
+ * передаст статус явно или сравнит с ним.
+ *
+ * ЧТО РЕГИСТР УЖЕ СТОИЛ КЛИНИКЕ. `scripts/cronAnalyticsWorker.ts` строит воронку
+ * планов лечения для отчётов руководителю по строчным ключам
+ * (`{ draft, proposed, approved, active, completed }`) и проверяет
+ * `if (p.status in funnelMap)`. База отдаёт `Draft` — условие не выполняется
+ * НИКОГДА, ни для одного статуса, и воронка показывает нули при любом числе
+ * планов. Отказа нет, есть тихий ноль, которому руководитель верит. Правка самой
+ * воронки — не этот участок: там надо решить, какие ветви показывать (в
+ * перечислении базы нет `proposed`, зато есть `Rejected`, которого воронка не
+ * знает). Долг записан ведущему в
+ * `.agents/lead/recon-schema-vs-live-database.md`.
+ *
+ * Контракта `treatmentPlanStatusSchema` в `packages/shared` нет; причина
+ * объявлена в `tests/enumContractDrift.test.ts` (NO_CONTRACT_PAIR), пакет вне
+ * этого участка.
+ */
+export const treatmentPlanStatus = pgEnum("treatment_plan_status", [
+  "Draft",
+  "Active",
+  "Approved",
+  "Completed",
+  "Rejected"
+]);
 export const treatmentPlanScenarioStrategy = pgEnum("treatment_plan_scenario_strategy", [
   "urgent",
   "standard",
@@ -85,9 +142,9 @@ export const clinicalRuleAction = pgEnum("clinical_rule_action", [
   "show_warning",
   "schedule_followup"
 ]);
-export const paymentMethod = pgEnum("payment_method", ["cash", "card", "bank_transfer", "online", "insurance", "other"]);
+export const paymentMethod = pgEnum("payment_method", ["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]);
 export const paymentStatus = pgEnum("payment_status", ["planned", "paid", "refunded", "voided"]);
-export const communicationChannel = pgEnum("communication_channel", ["phone", "sms", "whatsapp", "telegram", "email", "in_person"]);
+export const communicationChannel = pgEnum("communication_channel", ["phone", "sms", "whatsapp", "telegram", "email", "in_person", "vk", "max"]);
 export const communicationIntent = pgEnum("communication_intent", [
   "appointment_confirmation",
   "payment_reminder",
@@ -95,7 +152,14 @@ export const communicationIntent = pgEnum("communication_intent", [
   "recall",
   "document_ready",
   "imaging_review",
-  "general"
+  "general",
+  /*
+   * Ответ на прямое обращение пациента: он написал «СТОП» — мы подтверждаем,
+   * что услышали. Не реклама и не рассылка, инициатива принадлежит пациенту.
+   * Единственное назначение, которому диспетчер разрешает обойти отозванное
+   * согласие и тихие часы; см. миграцию 0132 и dispatcher.
+   */
+  "transactional_reply"
 ]);
 export const communicationStatus = pgEnum("communication_status", [
   "queued",
@@ -190,6 +254,43 @@ export const imagingSourceKind = pgEnum("imaging_source_kind", [
 ]);
 export const imagingStudyStatus = pgEnum("imaging_study_status", ["available", "needs_review", "failed"]);
 
+/**
+ * Режим клиники у организации, которая ещё не проходила мастер первого запуска.
+ *
+ * ЗАЧЕМ ИМЕНОВАННАЯ КОНСТАНТА, А НЕ СТРОКА В `.default()`. Тип берётся из
+ * `clinicModeSchema` (packages/shared/src/index.ts:797) — единственного
+ * перечисления режимов, у которого есть Zod-схема и таблица возможностей в
+ * интерфейсе. Здесь стояло `.default("demo")`, а рядом комментарий
+ * «demo, single, network»: третий словарь, которого нет больше нигде. Ни одно из
+ * этих значений в перечисление не входило, поэтому КАЖДАЯ организация рождалась
+ * вне контракта, а при чтении молча подменялась (см. миграцию 0140). С
+ * аннотацией типа опечатка или четвёртый словарь не компилируются вовсе.
+ *
+ * ПОЧЕМУ «ОДИН КАБИНЕТ», А НЕ «ОТДЕЛЬНЫЙ ВРАЧ». Умолчание достаётся клинике, про
+ * которую ещё ничего не известно. `solo_doctor` убирает рассылки по базе, разрез
+ * по врачам, занятость кресел, продвижение и воронку обращений — то есть по
+ * отсутствию данных отнял бы разделы у клиники, которая просто не успела завести
+ * сотрудников. `one_chair` — самый узкий режим, который оставляет отчёты
+ * руководителю и настройки, то есть те экраны, через которые клиника себя и
+ * настраивает. Значение меняет только клиника, прямым выбором в Настройках →
+ * «Клиника»; единственный писатель — updateClinicModeInDb (db/settingsQuery.ts).
+ * ЗДЕСЬ БЫЛА ССЫЛКА на clinicModeFromOnboarding: мастер первого запуска ВЫВОДИЛ
+ * режим из числа кресел и перезаписывал им выбор клиники. И функция, и её маршрут
+ * удалены: вывод был догадкой (про филиалы мастер не спрашивал вовсе), а писателя
+ * у маршрута не осталось ни одного. Один писатель на колонку держит
+ * tests/clinicScheduleSingleWriter.test.ts.
+ *
+ * ПОЧЕМУ ЭКСПОРТИРУЕТСЯ. Границы чтения обязаны отвечать на непрошедшее проверку
+ * значение тем же режимом, что стоит умолчанием колонки, иначе одна и та же
+ * организация окажется в разных режимах на разных экранах — ровно это и было:
+ * db/domainStateHydration.ts сводил неизвестное к "one_chair", а
+ * db/settingsQuery.ts к "solo_doctor". Одна константа вместо двух литералов.
+ * Экспорт из модуля схемы безопасен: drizzle перебирает переданный объект схемы и
+ * берёт только таблицы и relations, всё остальное пропускает
+ * (node_modules/drizzle-orm/relations.js:123-124).
+ */
+export const DEFAULT_CLINIC_MODE: ClinicMode = "one_chair";
+
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -207,8 +308,33 @@ export const organizations = pgTable("organizations", {
   bankDetails: text("bank_details"),
   signatoryName: text("signatory_name"),
   signatoryTitle: text("signatory_title"),
-  clinicMode: text("clinic_mode").notNull().default("demo"), // demo, single, network
+  /*
+   * Режим клиники: solo_doctor | one_chair | small_clinic | network_clinic.
+   * Словарь один, и он живёт в clinicModeSchema (packages/shared) — здесь его
+   * копии нет намеренно. Ограничение organizations_clinic_mode_known (миграция
+   * 0140) не даёт базе хранить ничего другого.
+   *
+   * Тип колонки остаётся text, а не `$type<ClinicMode>()`: приведение типа
+   * убедило бы читателя, что проверять прочитанное не нужно, а именно доверие к
+   * этой колонке без проверки и спрятало дефект. Проверка на границе чтения
+   * обязательна (db/domainStateHydration.ts, db/settingsQuery.ts).
+   */
+  clinicMode: text("clinic_mode").notNull().default(DEFAULT_CLINIC_MODE),
   clinicSchedule: jsonb("clinic_schedule"),
+  /*
+   * Какие модули включены у этой клиники.
+   *
+   * До миграции 0139 набора не существовало на сервере вовсе: GET
+   * /api/workspace/profile отдавал жёстко прописанную константу со всеми
+   * признаками true, а POST разбирал семнадцать признаков и не писал ни одного.
+   * Выбор жил только в localStorage браузера, поэтому на втором устройстве и у
+   * второго сотрудника клиника снова получала все модули включёнными.
+   *
+   * Одна колонка jsonb, а не девятнадцать boolean: набор признаков растёт вместе
+   * с продуктом, читается и пишется целиком, поиска и сортировки по нему нет.
+   * Пустое значение означает «клиника ещё не настраивалась».
+   */
+  workspaceFeatureFlags: jsonb("workspace_feature_flags"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
@@ -233,6 +359,43 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   pinCodeHash: text("pin_code_hash"),
   isActive: boolean("is_active").notNull().default(true),
+  /**
+   * ПОЛНОМОЧИЯ, КОТОРЫЕ БАЗА ХРАНИТ ПОФАМИЛЬНО.
+   *
+   * Все ТРИ колонки созданы миграцией 0000 (строки 1078-1080) как
+   * `boolean DEFAULT false NOT NULL`. Форма проверена на живой базе, а не по
+   * файлу миграции (`information_schema.columns`, 2026-07-29): три boolean,
+   * `is_nullable = NO`, `column_default = false`, и во всех живых строках
+   * (7 сотрудников, две организации) лежит `false`.
+   *
+   * ЗДЕСЬ БЫЛИ ОБЪЯВЛЕНЫ ДВЕ ИЗ ТРЁХ, и это ломало запись целиком:
+   * `can_manage_imports` не объявлен — значит drizzle его не видит, и ни
+   * прочитать, ни записать его было нельзя, сколько бы полей ни принимал
+   * маршрут. Третья колонка добавлена, набор снова совпадает с таблицей.
+   *
+   * ЧТО ЭТИ КОЛОНКИ ЗНАЧАТ, И ЧЕГО ОНИ НЕ ЗНАЧАТ. Читают полномочия сейчас НЕ
+   * отсюда: и `db/settingsQuery.ts`, и `db/domainStateHydration.ts` выводят их
+   * из роли через `security/permissions.ts: staffAuthorityFlags`, то есть из той
+   * же матрицы `ROLE_PERMISSIONS`, по которой `requirePermission` отказывает на
+   * маршруте. Причина в данных: значение по умолчанию `false` и все живые строки
+   * `false`, поэтому «честное» чтение колонок сняло бы право подписи ЭМК со всех
+   * четырёх врачей И с владельца одновременно.
+   *
+   * Поэтому колонка — НАДБАВКА К РОЛИ, а не полное значение полномочия:
+   * `true` добавляет право, которого роль не даёт, `false` означает «надбавки
+   * нет, действует роль», и НЕ означает запрета. Иначе прочитать существующие
+   * строки было бы нельзя вовсе: в базе `false` стоит и у владельца, который
+   * может всё. Единственный писатель — `db/staffAuthorityQuery.ts`
+   * (маршрут PUT /api/settings/staff/:staffId/authority).
+   *
+   * `.default(false)` повторяет базу дословно и обязателен по второй причине:
+   * без него drizzle потребовал бы все три поля в каждом `insert` в users, а
+   * таких мест в маршрутах и тестах десятки.
+   */
+  canSignMedicalRecords: boolean("can_sign_medical_records").notNull().default(false),
+  canManageMoney: boolean("can_manage_money").notNull().default(false),
+  canManageImports: boolean("can_manage_imports").notNull().default(false),
+  specialties: jsonb("specialties"),
   uiPreferences: jsonb("ui_preferences"),
   workingHours: jsonb("working_hours"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
@@ -270,8 +433,24 @@ export const patients = pgTable("patients", {
   email: text("email"),
   notes: text("notes"),
   administrativeProfile: jsonb("administrative_profile").$type<PatientAdministrativeProfile | null>(),
+  familyGroupId: uuid("family_group_id"),
+  /**
+   * Куда объединена карточка (миграция 0128). Заполнено — значит это дубль, все
+   * записи, оплаты и снимки перенесены в указанную карточку.
+   *
+   * Карточка при слиянии НЕ УДАЛЯЕТСЯ: это медицинские данные, и удаление
+   * лишает клинику доказательств. Открыв её по старой ссылке, администратор
+   * должен увидеть, куда она объединена, а не пустоту.
+   */
+  mergedIntoPatientId: uuid("merged_into_patient_id"),
+  isSynced: boolean("is_synced").notNull().default(false),
+  version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxPatientsOrgCreated: index("idx_patients_org_created").on(table.organizationId, table.createdAt)
+  };
 });
 
 export const patientConsents = pgTable("patient_consents", {
@@ -296,6 +475,10 @@ export const appointments = pgTable("appointments", {
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   reason: text("reason"),
   comment: text("comment")
+}, (table) => {
+  return {
+    idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt)
+  };
 });
 
 export const visits = pgTable("visits", {
@@ -333,8 +516,17 @@ export const serviceCatalogItems = pgTable("service_catalog_items", {
   title: text("title").notNull(),
   category: serviceCategory("category").notNull().default("other"),
   specialty: dentalSpecialty("specialty").notNull().default("universal"),
-  basePriceRub: integer("base_price_rub").notNull(),
-  priceRub: integer("price_rub").notNull(),
+  /*
+   * Прайс клиники хранит копейки.
+   *
+   * Было integer: услугу за 1 500,50 ₽ занести было нельзя вовсе — не
+   * округлялось при выводе, а отвергалось базой на записи. Обязателен
+   * mode: "number": без него drizzle отдаёт numeric строкой независимо от
+   * настроек драйвера, цена приходит как "1500.50", и сложение цен становится
+   * склейкой строк.
+   */
+  basePriceRub: numeric("base_price_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  priceRub: numeric("price_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
   durationMinutes: integer("duration_minutes").notNull().default(30),
   taxDeductible: boolean("tax_deductible").notNull().default(true),
   taxDeductionCode: text("tax_deduction_code"),
@@ -350,13 +542,39 @@ export const treatmentItems = pgTable("treatment_items", {
   toothCode: text("tooth_code"),
   title: text("title").notNull(),
   quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
-  priceRub: integer("price_rub").notNull(),
-  unitPriceRub: integer("unit_price_rub").notNull(),
-  discountRub: integer("discount_rub").notNull().default(0),
+  /*
+   * Рубли с копейками (миграция 0135). `mode: "number"` обязателен: без него
+   * drizzle отдаёт numeric строкой независимо от разбора типов в драйвере, и
+   * арифметика над суммой склеит строки вместо сложения. Подробнее — у
+   * payments.amountRub и в apps/api/src/db/moneyTypeParsers.ts.
+   */
+  priceRub: numeric("price_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  unitPriceRub: numeric("unit_price_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  discountRub: numeric("discount_rub", { precision: 12, scale: 2, mode: "number" }).notNull().default(0),
   status: treatmentPlanItemStatus("status").notNull().default("proposed"),
   plannedDoctorUserId: uuid("planned_doctor_user_id").references(() => users.id),
   plannedChairId: uuid("planned_chair_id").references(() => chairs.id),
-  notes: text("notes")
+  notes: text("notes"),
+  /**
+   * УЧЁТ ОФЛАЙН-ОБМЕНА ПО КНИГЕ ЛЕЧЕНИЯ. Обе колонки созданы миграцией 0000 и
+   * здесь не объявлялись: в базе таблица имеет 17 колонок, в модели их было 15
+   * (замерено `pg_attribute` живой базы, 2026-07-29 —
+   * `is_synced boolean NOT NULL DEFAULT false`, `version integer NOT NULL
+   * DEFAULT 1`).
+   *
+   * Незаявленная колонка через drizzle НЕДОСТИЖИМА: ключ, которого нет в форме
+   * таблицы, он в запрос не переносит — ни на запись, ни на чтение. Поэтому
+   * `services/syncDaemon.ts` не мог ни узнать, что позиция книги лечения ещё не
+   * ушла на сервер, ни поднять счётчик версии при правке: обмен с офлайн-клиентом
+   * по деньгам пациента был слеп. Ровно этот класс правили у `visit_diaries` и
+   * `tooth_states` — комментарии ниже в этом файле.
+   *
+   * `.default(...)` повторяет базу дословно и обязателен по второй причине: без
+   * него drizzle потребовал бы оба поля в КАЖДОЙ вставке в `treatment_items`, а
+   * их пишет проводка сметы в книгу лечения (`routes/odontogram.ts`).
+   */
+  isSynced: boolean("is_synced").notNull().default(false),
+  version: integer("version").notNull().default(1)
 });
 
 export const treatmentScenarios = pgTable("treatment_scenarios", {
@@ -366,7 +584,7 @@ export const treatmentScenarios = pgTable("treatment_scenarios", {
   title: text("title").notNull(),
   strategy: treatmentPlanScenarioStrategy("strategy").notNull().default("standard"),
   priority: treatmentPlanScenarioPriority("priority").notNull().default("balanced"),
-  totalRub: integer("total_rub").notNull(),
+  totalRub: numeric("total_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
   durationMonths: integer("duration_months").notNull().default(0),
   visitCount: integer("visit_count").notNull().default(1),
   includedServiceIdsJson: text("included_service_ids_json").notNull().default("[]"),
@@ -387,7 +605,7 @@ export const clinicalRules = pgTable("clinical_rules", {
   specialty: dentalSpecialty("specialty").notNull().default("universal"),
   action: clinicalRuleAction("action").notNull(),
   severity: clinicalRuleSeverity("severity").notNull().default("warning"),
-  ownerRole: text("owner_role").notNull(),
+  ownerRole: text("owner_role").$type<StaffRole>().notNull(),
   triggerServiceIdsJson: text("trigger_service_ids_json").notNull().default("[]"),
   requiredServiceIdsJson: text("required_service_ids_json").notNull().default("[]"),
   requiresCompletedServiceIdsJson: text("requires_completed_service_ids_json").notNull().default("[]"),
@@ -407,7 +625,20 @@ export const payments = pgTable("payments", {
   visitId: uuid("visit_id").references(() => visits.id),
   documentId: uuid("document_id"),
   clientMutationId: text("client_mutation_id"),
-  amountRub: integer("amount_rub").notNull(),
+  /*
+   * Рубли с копейками, точный десятичный тип (миграция 0131). Раньше здесь был
+   * integer, и касса не могла принять ни 1500,50, ни 0,50.
+   *
+   * `mode: "number"` обязателен, а не косметика. По умолчанию drizzle отдаёт
+   * numeric строкой: `mapFromDriverValue` возвращает `String(value)`, причём
+   * независимо от разбора типов в драйвере. Первый заход был сделан через
+   * `$type<number>()` — тип стал числом только для компилятора, а в бою
+   * приходила строка «1500.50», схема оплаты её отвергала, и получалось худшее
+   * из возможного: платёж уже лёг в базу, а кассир увидел ошибку. С этим
+   * режимом drizzle сам приводит значение к числу при чтении и к строке при
+   * записи.
+   */
+  amountRub: numeric("amount_rub", { precision: 12, scale: 2, mode: "number" }).notNull(),
   method: paymentMethod("method").notNull().default("card"),
   status: paymentStatus("status").notNull().default("paid"),
   paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
@@ -424,6 +655,10 @@ export const payments = pgTable("payments", {
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt)
+  };
 });
 
 export const generatedDocuments = pgTable("generated_documents", {
@@ -435,7 +670,7 @@ export const generatedDocuments = pgTable("generated_documents", {
   status: documentStatus("status").notNull().default("draft"),
   title: text("title").notNull(),
   storagePath: text("storage_path"),
-  totalAmountRub: integer("total_amount_rub"),
+  totalAmountRub: numeric("total_amount_rub", { precision: 12, scale: 2, mode: "number" }),
   taxYear: integer("tax_year"),
   taxPayerInn: text("tax_payer_inn"),
   payloadJson: text("payload_json"),
@@ -451,6 +686,10 @@ export const generatedDocuments = pgTable("generated_documents", {
   issuedByUserId: uuid("issued_by_user_id").references(() => users.id),
   voidedAt: timestamp("voided_at", { withTimezone: true }),
   voidedByUserId: uuid("voided_by_user_id").references(() => users.id),
+  // Ink / canvas signature captured in browser (base64 SVG or PNG data-URL)
+  signatureSvg: text("signature_svg"),
+  // UKEP / GOST-2012 detached PKCS#7 CMS signature blob (base64)
+  cryptoSignaturePkcs7: text("crypto_signature_pkcs7"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
   return {
@@ -701,6 +940,10 @@ export const auditEvents = pgTable("audit_events", {
   action: text("action").notNull(),
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxAuditOrgCreated: index("idx_audit_org_created").on(table.organizationId, table.createdAt)
+  };
 });
 
 export const aiJobs = pgTable("ai_jobs", {
@@ -724,6 +967,21 @@ export const aiJobs = pgTable("ai_jobs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    // Хранилище диктовки ищет строку записи по паре (организация, устойчивый
+    // ключ записи), а не по id: speech/storage.ts читает конверт и тут же его
+    // перезаписывает. Без этого индекса каждый фрагмент стоил два
+    // последовательных чтения всей таблицы. Уникальность — вторая причина: на
+    // запись диктовки приходится ровно одна строка, а UPDATE без LIMIT
+    // перезаписал бы обе строки-дубликата одним конвертом. NULL в
+    // input_storage_path (так пишет db/aiQuery.ts) уникальности не нарушает:
+    // в btree значения NULL различны. Миграция: drizzle/0134_ai_jobs_recording_path_index.sql.
+    aiJobsOrganizationStoragePathKey: uniqueIndex("ai_jobs_organization_storage_path_key").on(
+      table.organizationId,
+      table.inputStoragePath
+    )
+  };
 });
 
 export const imagingSeries = pgTable("imaging_series", {
@@ -814,9 +1072,9 @@ export const imagingViewerSessions = pgTable("imaging_viewer_sessions", {
   studyId: uuid("study_id").notNull().references(() => imagingStudies.id),
   patientId: uuid("patient_id").notNull().references(() => patients.id),
   visitId: uuid("visit_id").references(() => visits.id),
-  state: jsonb("state").notNull(),
-  annotations: jsonb("annotations").notNull().default([]),
-  warnings: jsonb("warnings").notNull().default([]),
+  state: jsonb("state").$type<ImagingViewerSessionState>().notNull(),
+  annotations: jsonb("annotations").$type<ImagingViewerAnnotation[]>().notNull().default([]),
+  warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
   clientSavedAt: timestamp("client_saved_at", { withTimezone: true }),
   serverSavedAt: timestamp("server_saved_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -832,9 +1090,9 @@ export const dicomWorkbenchBundles = pgTable("dicom_workbench_bundles", {
   seriesInstanceUid: text("series_instance_uid"),
   sourceName: text("source_name").notNull(),
   sourceKind: imagingSourceKind("source_kind").notNull(),
-  pixelPolicy: text("pixel_policy").notNull().default("metadata_and_tool_state_only_no_pixels"),
-  manifest: jsonb("manifest").notNull(),
-  warnings: jsonb("warnings").notNull().default([]),
+  pixelPolicy: text("pixel_policy").$type<DicomWorkbenchPixelPolicy>().notNull().default("metadata_and_tool_state_only_no_pixels"),
+  manifest: jsonb("manifest").$type<DicomViewerWorkbenchManifestResponse>().notNull(),
+  warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
   clientSavedAt: timestamp("client_saved_at", { withTimezone: true }),
   serverSavedAt: timestamp("server_saved_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1215,9 +1473,1562 @@ export const singleSessionEnforcements = pgTable("single_session_enforcements", 
 
 
 
+// ─────────────────────────────────────────────────────────────
+// Missing table definitions — referenced by query files
+// ─────────────────────────────────────────────────────────────
+
+// lab orders (dental laboratory work)
+export const labOrders = pgTable("lab_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  doctorId: uuid("doctor_id"),
+  doctorName: text("doctor_name"),
+  secureToken: text("secure_token").notNull().unique(),
+  toothFdi: text("tooth_fdi"),
+  material: text("material"),
+  colorVita: text("color_vita"),
+  status: text("status").notNull().default("draft"),
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  clinicalNotes: text("clinical_notes"),
+  labComments: text("lab_comments"),
+  attachedImageUrl: text("attached_image_url"),
+  priceRub: numeric("price_rub", { precision: 12, scale: 2, mode: "number" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// treatment plans (multi-stage treatment planning)
+export const treatmentPlans = pgTable("treatment_plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /**
+   * Изоляция по клинике. `NOT NULL` в базе — с миграции 0146; до неё колонка
+   * допускала NULL, то есть план лечения с суммой мог оказаться бесхозным и
+   * достаться любому арендатору базы. Прецедент дословный:
+   * `family_groups.organization_id` закрывали миграцией 0119 после того, как
+   * бесхозная группа вместе с балансом семейного кошелька досталась первой
+   * обратившейся клинике. Ограничение поставлено на пустую таблицу (0 строк на
+   * 2026-07-29), поэтому backfill не потребовался ни на одну строку.
+   */
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  doctorId: uuid("doctor_id"),
+  title: text("title").notNull().default(""),
+  /**
+   * ЗДЕСЬ БЫЛО `.default("План лечения")`, И ЭТО УМОЛЧАНИЕ ДО БАЗЫ НЕ ДОХОДИЛО
+   * НИКОГДА.
+   *
+   * Для колонки со статическим умолчанием, значение которой не передано, drizzle
+   * пишет в SQL ключевое слово `default` — не значение из этого файла. У колонки
+   * `name` в базе умолчания НЕТ (проверено `pg_attrdef`, 2026-07-29), а `NOT
+   * NULL` есть: вставка без имени плана давала бы `null value in column "name"
+   * violates not-null constraint`. Объявление обещало, что поле необязательно,
+   * база это обещание отвергала.
+   *
+   * ПОЧЕМУ УМОЛЧАНИЕ НЕ ЗАВЕДЕНО В БАЗЕ, А СНЯТО ИЗ ОБЪЯВЛЕНИЯ. План лечения,
+   * тихо сохранённый под общим именем «План лечения», врач не найдёт в списке из
+   * десяти таких же, а подпись пациента будет стоять под безымянной сметой.
+   * Требовать имя правильнее, и требовать его надо на этапе компиляции: без
+   * `.default(...)` `name` обязателен в типе вставки, и пропуск поля становится
+   * ошибкой компилятора вместо отказа базы на живом сохранении.
+   */
+  name: text("name").notNull(),
+  /**
+   * Перечисление, а не `text`: набор значений принадлежит базе. Умолчание `Draft`
+   * повторяет `DEFAULT 'Draft'::treatment_plan_status` дословно — см. докстринг
+   * `treatmentPlanStatus` выше о том, чем строчный `"draft"` стоил отчётам.
+   */
+  status: treatmentPlanStatus("status").notNull().default("Draft"),
+  totalPriceRub: numeric("total_price_rub", { precision: 12, scale: 2 }),
+  /**
+   * Итог сметы. `NOT NULL DEFAULT '0'` в базе с миграции 0000, а объявление
+   * разрешало NULL: тип обещал `string | null` там, где база гарантирует
+   * значение, и каждый читатель суммы обязан был проверять её на пустоту.
+   * Смета без итога — это ноль, а не «неизвестно».
+   */
+  totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull().default("0"),
+  patientSignature: text("patient_signature"),
+  isSynced: boolean("is_synced").notNull().default(false),
+  version: integer("version").notNull().default(1),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// treatment plan items new (items inside treatment plan)
+export const treatmentPlanItemsNew = pgTable("treatment_plan_items_new", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /**
+   * `NOT NULL` в базе — с миграции 0147.
+   *
+   * ДОЛГ БЫЛ НЕ РАСХОЖДЕНИЕМ: колонка допускала NULL И в базе, И здесь, поэтому
+   * сторож схемы молчал — сравнивать было нечего. Молчание сторожа и есть худшая
+   * часть такого долга: он не всплывает сам.
+   *
+   * Позиция сметы без принадлежности клинике не принадлежит НИКОМУ: запрос с
+   * отбором по клинике её не видит, а запрос без отбора видит её у всех. Смета —
+   * документ, под которым пациент ставит подпись. Прецедент дословный и уже
+   * оплаченный: так бесхозная семейная группа вместе с балансом кошелька
+   * досталась чужой клинике (закрывала миграция 0119), и так же `POST
+   * /api/appointments` принимал пациента, врача и кресло другой клиники
+   * (закрывал `f18a261bb`).
+   *
+   * Закрыто с двух сторон одной волной: писатель заполняет колонку (`1abbed2c3`),
+   * миграция 0147 запрещает пустоту. Цена посчитана ДО применения: таблица пуста,
+   * `SET NOT NULL` нечего отвергать. Разбор:
+   * `.agents/lead/recon-schema-vs-live-database.md`.
+   */
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  planId: uuid("plan_id").notNull(),
+  toothNumber: integer("tooth_number"),
+  /** `NOT NULL` в базе — с миграции 0146: позицию без ссылки на прайс нечем сопоставить с услугой. */
+  priceId: text("price_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  /*
+   * Точность повторяет базу: колонки созданы `numeric(12,2)`, а объявлены были
+   * `numeric(10, 2)`. Объявление ОБЕЩАЛО МЕНЬШЕ, чем база принимает, — то есть
+   * занижало предел суммы позиции на два разряда. Расхождение не ловил
+   * `scripts/check-schema-type-drift.mjs`: он сверяет `data_type`, а он у обоих
+   * `numeric`, без точности.
+   *
+   * Без `mode: "number"` — намеренно, как у `crm_leads.expected_revenue`:
+   * `routes/odontogram.ts` пишет сюда `item.price.toString()`, то есть строковый
+   * тип drizzle совпадает с контрактом единственного писателя.
+   */
+  price: numeric("price", { precision: 12, scale: 2 }).notNull().default("0"),
+  discount: numeric("discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  phase: integer("phase").notNull().default(1),
+  isBundle: boolean("is_bundle").notNull().default(false),
+  /**
+   * НАЧИСЛЕНИЕ ВРАЧУ ПО ПОЗИЦИИ СМЕТЫ — колонка есть в базе, читать её было нечем.
+   *
+   * Создана как `numeric(12,2) NOT NULL DEFAULT '0'` (проверено `pg_attribute`
+   * живой базы, 2026-07-29) и здесь не объявлялась, поэтому через drizzle была
+   * недостижима: ни прочитать, ни записать. Это деньги врача за оказанную
+   * услугу — тот же класс, которым `patient_invoices.total_amount_rub` обнулял
+   * выручку в отчётах руководителю.
+   *
+   * Точность и умолчание повторяют базу дословно; `mode: "number"` не ставится по
+   * той же причине, что у `price` и `discount` рядом — иначе одна таблица
+   * отдавала бы деньги двумя разными типами.
+   */
+  commissionAmount: numeric("commission_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  /** `NOT NULL` в базе — с миграции 0146; умолчание `now()` там было и раньше. */
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// visit templates (protocol templates for visits)
+export const visitTemplates = pgTable("visit_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  title: text("title").notNull(),
+  category: text("category"),
+  specialty: text("specialty").notNull().default("universal"),
+  prefilledAnamnesis: text("prefilled_anamnesis"),
+  prefilledObjective: text("prefilled_objective"),
+  prefilledTreatment: text("prefilled_treatment"),
+  defaultIcd10: text("default_icd10"),
+  defaultIcd10Label: text("default_icd10_label"),
+  suggestedProcedureIds: jsonb("suggested_procedure_ids"),
+  templateJson: jsonb("template_json"),
+  isBuiltIn: boolean("is_built_in").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// visit diaries (full clinical diary with structured fields)
+export const visitDiaries = pgTable("visit_diaries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  visitId: uuid("visit_id").notNull(),
+  patientId: uuid("patient_id"),
+  draftAuthorId: uuid("draft_author_id"),
+  authorId: uuid("author_id"),
+  doctorId: uuid("doctor_id"),
+  // clinical structured sections
+  anamnesis: text("anamnesis"),
+  statusLocalis: text("status_localis"),
+  diagnosisIcd10: text("diagnosis_icd10"),
+  diagnosisTooth: text("diagnosis_tooth"),
+  treatmentDescription: text("treatment_description"),
+  complications: text("complications"),
+  comorbidities: text("comorbidities"),
+  // legacy free-text content fallback
+  content: text("content").notNull().default(""),
+  // signing / locking
+  isLocked: boolean("is_locked").notNull().default(false),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  lockedByUserId: uuid("locked_by_user_id"),
+  coSignedByUserId: uuid("co_signed_by_user_id"),
+  diaryHash: text("diary_hash"),
+  // instrument tracking
+  instrumentTrayBarcode: text("instrument_tray_barcode"),
+  // optimistic concurrency version counter
+  version: integer("version").notNull().default(1),
+  // UKEP digital signature hash/blob attached on signing
+  cryptoSignaturePkcs7: text("crypto_signature_pkcs7"),
+  // Учёт офлайн-синхронизации. Колонка есть в 0000, но в модели её не было, и
+  // services/syncDaemon.ts не компилировался: обмен с офлайн-клиентом не работал.
+  // Счётчик version объявлен выше.
+  isSynced: boolean("is_synced").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// visit diary revisions (audit trail for diary edits)
+export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  diaryId: uuid("diary_id").notNull(),
+  revisedContent: text("revised_content").notNull().default(""),
+  previousAnamnesis: text("previous_anamnesis"),
+  previousStatusLocalis: text("previous_status_localis"),
+  previousDiagnosisIcd10: text("previous_diagnosis_icd10"),
+  previousTreatmentDescription: text("previous_treatment_description"),
+  revisedByUserId: uuid("revised_by_user_id"),
+  revisedBy: uuid("revised_by"),
+  revisedAt: timestamp("revised_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// visit examination photo links (links to uploaded exam photos)
+export const visitExaminationPhotoLinks = pgTable("visit_examination_photo_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  visitId: uuid("visit_id").notNull(),
+  patientId: uuid("patient_id"),
+  photoUrl: text("photo_url").notNull(),
+  caption: text("caption"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// tooth states (per-tooth status for odontogram)
+export const toothStates = pgTable("tooth_states", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  toothNumber: integer("tooth_number").notNull(),
+  state: text("state").notNull().default("healthy"),
+  surfaces: jsonb("surfaces"),
+  notes: text("notes"),
+  // Учёт офлайн-синхронизации, см. комментарий у visit_diaries.
+  isSynced: boolean("is_synced").notNull().default(false),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * История изменений состояния зуба (только добавление, без перезаписи).
+ *
+ * ЗАЧЕМ: таблица tooth_states хранит РОВНО ОДНУ строку на зуб, а обновление
+ * выполняется как delete + insert. Из-за этого история терялась полностью:
+ * зуб 36 проходил путь «кариес → пломба (январь) → пульпит → коронка (август)»,
+ * а во вкладке «История зуба» врач видел одну строку «Статус изменен на: Crown»
+ * с автором «System». Январская пломба исчезала из карты, и ни одно изменение
+ * нельзя было связать с конкретным врачом — при разборе жалобы это критично.
+ *
+ * Записи сюда добавляются в той же транзакции, что и смена состояния.
+ */
+export const toothStateHistory = pgTable("tooth_state_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  toothNumber: integer("tooth_number").notNull(),
+  /** Состояние до изменения; null — если зуб фиксируется впервые. */
+  previousState: text("previous_state"),
+  newState: text("new_state").notNull(),
+  previousSurfaces: jsonb("previous_surfaces"),
+  newSurfaces: jsonb("new_surfaces"),
+  /** Кто внёс изменение. Раньше в истории всегда значился «System». */
+  changedByUserId: uuid("changed_by_user_id"),
+  /** В рамках какого приёма изменено, если он известен. */
+  visitId: uuid("visit_id"),
+  reason: text("reason"),
+  changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  patientToothIdx: index("idx_tooth_state_history_patient_tooth").on(
+    table.patientId,
+    table.toothNumber,
+    table.changedAt
+  ),
+}));
+
+// insurance contracts (DMS / voluntary health insurance)
+export const insuranceContracts = pgTable("insurance_contracts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  companyName: text("company_name").notNull(),
+  policyNumberMask: text("policy_number_mask"),
+  coverageTherapyPct: numeric("coverage_therapy_pct", { precision: 5, scale: 2, mode: "number" }).notNull().default(0),
+  coverageSurgeryPct: numeric("coverage_surgery_pct", { precision: 5, scale: 2, mode: "number" }).notNull().default(0),
+  coverageOrthoPct: numeric("coverage_ortho_pct", { precision: 5, scale: 2, mode: "number" }).notNull().default(0),
+  coverageHygienePct: numeric("coverage_hygiene_pct", { precision: 5, scale: 2, mode: "number" }).notNull().default(0),
+  annualLimitRub: numeric("annual_limit_rub", { precision: 12, scale: 2, mode: "number" }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// inventory items (clinic supplies and materials)
+export const inventoryItems = pgTable("inventory_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("material"),
+  unit: text("unit").notNull().default("шт"),
+  currentQty: numeric("current_qty", { precision: 10, scale: 3 }).notNull().default("0"),
+  // alias — some routes call it stockQuantity
+  stockQuantity: numeric("stock_quantity", { precision: 10, scale: 3 }).default("0"),
+  minQty: numeric("min_qty", { precision: 10, scale: 3 }).notNull().default("0"),
+  // alias used in inventory routes
+  criticalThreshold: numeric("critical_threshold", { precision: 10, scale: 3 }).default("0"),
+  pricePerUnit: numeric("price_per_unit", { precision: 10, scale: 2 }),
+  // alias — some routes call it unitCostRub
+  unitCostRub: numeric("unit_cost_rub", { precision: 12, scale: 2 }).default("0"),
+  notes: text("notes"),
+  sku: text("sku"),
+  barcode: text("barcode"),
+  /*
+   * Партия и срок годности расходника.
+   *
+   * Экран склада показывал колонку «Партия / Срок» и читал эти поля, которых в
+   * таблице не было вовсе: колонка всегда писала «Не указан», а ввести данные
+   * было негде. Просроченный композит или анестетик — это вред пациенту, а не
+   * неаккуратный учёт.
+   *
+   * date, а не timestamp: у расходников срок указан днём или месяцем, часовой
+   * пояс здесь только мешал бы. mode "string" — дата приходит и уходит как
+   * «2027-03-31», в том же виде, в каком её вводят в поле типа date.
+   */
+  lotNumber: text("lot_number"),
+  expirationDate: date("expiration_date", { mode: "string" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// inventory transactions (stock movements)
+export const inventoryTransactions = pgTable("inventory_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  itemId: uuid("item_id"),
+  // alias — some routes call it inventoryItemId
+  inventoryItemId: uuid("inventory_item_id"),
+  visitId: uuid("visit_id"),
+  transactionType: text("transaction_type").notNull().default("receipt"),
+  qty: numeric("qty", { precision: 10, scale: 3 }),
+  // alias — some routes call it quantityChanged
+  quantityChanged: numeric("quantity_changed", { precision: 10, scale: 3 }),
+  unitCostRub: numeric("unit_cost_rub", { precision: 12, scale: 2 }),
+  userId: uuid("user_id"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// patient invoices (billing invoices sent to patients)
+export const patientInvoices = pgTable("patient_invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  visitId: uuid("visit_id"),
+  totalRub: numeric("total_rub", { precision: 12, scale: 2 }).notNull(),
+  /**
+   * ИТОГ СЧЁТА ИЗ ИСХОДНОЙ СХЕМЫ — и это НЕ то же самое, что total_rub выше.
+   *
+   * Миграция 0000 (строка 841) создала `total_amount_rub numeric(12,2)
+   * DEFAULT '0' NOT NULL` единственной суммой счёта; total_rub в ней нет
+   * вообще. Объявления для total_amount_rub здесь не появилось, а миграция
+   * 0118 «выравнивание таблиц по схеме» дописала в базу ВТОРУЮ денежную
+   * колонку total_rub — под уже написанное объявление. Выравнивание пошло не в
+   * ту сторону: вместо объявления живой колонки в базе завели дубль.
+   *
+   * Чем это кончилось на деньгах: аналитика в
+   * apps/api/src/scripts/cronAnalyticsWorker.ts складывает сырым SQL именно
+   * total_amount_rub — выручку когорт LTV и выручку по врачам, — а всё, что
+   * пишет счёт через drizzle, заполняет total_rub. Незаявленная колонка
+   * остаётся на своём DEFAULT 0, и оба отчёта суммируют нули.
+   *
+   * `mode: "number"` не украшение: registerMoneyTypeParsers() ставит разбор
+   * numeric на весь процесс, поэтому драйвер отдаёт здесь число, и объявление
+   * без mode обещало бы строку — ровно тот денежный дрейф типа, против
+   * которого написан scripts/check-schema-type-drift.mjs.
+   */
+  totalAmountRub: numeric("total_amount_rub", { precision: 12, scale: 2, mode: "number" }).notNull().default(0),
+  status: text("status").notNull().default("draft"),
+  issuedAt: timestamp("issued_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  // Учёт офлайн-синхронизации, см. комментарий у visit_diaries.
+  isSynced: boolean("is_synced").notNull().default(false),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// appointment waitlists (patient waiting queue)
+export const appointmentWaitlists = pgTable("appointment_waitlists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  patientName: text("patient_name"),
+  patientPhone: text("patient_phone"),
+  preferredDoctorId: uuid("preferred_doctor_id"),
+  preferredDoctorName: text("preferred_doctor_name"),
+  priorityLevel: text("priority_level").notNull().default("medium"),
+  preferredTimeRanges: jsonb("preferred_time_ranges"),
+  status: text("status").notNull().default("waiting"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// clinic chairs (treatment chairs / workstations)
+export const clinicChairs = pgTable("clinic_chairs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
+  color: text("color"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// doctor commissions (payroll commission rates)
+export const doctorCommissions = pgTable("doctor_commissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  doctorId: uuid("doctor_id"),
+  // alias — some routes reference it as userId (user FK instead of staff FK)
+  userId: uuid("user_id"),
+  specialty: text("specialty").default("universal"),
+  serviceCategory: text("service_category"),
+  commissionPercent: numeric("commission_percent", { precision: 5, scale: 2 }).notNull().default("25"),
+  commissionPct: numeric("commission_pct", { precision: 5, scale: 2 }).notNull().default("25"),
+  materialCostDeductionPct: numeric("material_cost_deduction_pct", { precision: 5, scale: 2 }).notNull().default("0"),
+  isActive: boolean("is_active").notNull().default(true),
+  effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// family groups (linked family accounts)
+export const familyGroups = pgTable("family_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /**
+   * NOT NULL с миграции 0119. Раньше колонка допускала NULL, а
+   * routes/finance_family.ts выбирал группы условием
+   * `organization_id = :orgId OR organization_id IS NULL` и присваивал
+   * найденную бесхозную группу первой обратившейся клинике — вместе с
+   * балансом семейного кошелька.
+   */
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  // Primary identifiers — 'name' is the display name, 'groupName' kept for compat
+  name: text("name"),
+  groupName: text("group_name").notNull().default(""),
+  // The head (primary) patient of the family; the billing wallet is tied here
+  headPatientId: uuid("head_patient_id"),
+  primaryPatientId: uuid("primary_patient_id"),
+  /**
+   * Баланс семейного кошелька.
+   *
+   * Колонка физически создана как numeric(12, 2) (миграция 0000), и драйвер
+   * отдаёт её СТРОКОЙ. Раньше здесь стояло integer("balance") с комментарием
+   * «in whole rubles»: TypeScript был уверен, что это number, а в рантайме
+   * приходило "150.50", и любое сложение без Number() давало склейку строк —
+   * "150.50" + 1000 === "150.501000". Объявление приведено к настоящему типу,
+   * чтобы компилятор требовал явного перевода через parseKopecks().
+   */
+  balance: numeric("balance", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// CRM leads (incoming lead tracking)
+export const crmLeads = pgTable("crm_leads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  // alias — some routes call it name, some patientName
+  name: text("name"),
+  patientName: text("patient_name"),
+  phone: text("phone"),
+  source: text("source"),
+  status: text("status").notNull().default("new"),
+  assignedDoctorId: uuid("assigned_doctor_id"),
+  notes: text("notes"),
+  /**
+   * ОЖИДАЕМАЯ ВЫРУЧКА ПО ЛИДУ — принималась маршрутом и терялась молча.
+   *
+   * Колонка создана миграцией 0000 (строка 293) как `numeric(12, 2)`, а
+   * объявления здесь не было. При этом `POST /api/leads` принимает
+   * `expectedRevenue` в своей схеме разбора и пишет лид через
+   * `db.insert(crmLeads).values({ ...data, organizationId })`: ключа, которого
+   * нет в форме таблицы, drizzle в запрос не переносит. Сумма, введённая
+   * администратором, не доходила до базы, а `GET /api/leads` возвращает
+   * `select()` по тем же объявлениям — то есть не вернул бы её и оттуда.
+   * Канбан лидов (apps/web/src/components/leads/LeadsKanbanView.tsx) показывал
+   * поле, которое нечем заполнить.
+   *
+   * Объявлено БЕЗ `mode: "number"` намеренно: маршрут разбирает это поле как
+   * `z.string()`, и строковый тип drizzle совпадает с его контрактом.
+   */
+  expectedRevenue: numeric("expected_revenue", { precision: 12, scale: 2 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// procedure material rules (material requirements per procedure)
+export const procedureMaterialRules = pgTable("procedure_material_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  serviceCode: text("service_code"),
+  // FK to serviceCatalogItems (optional — some rules are code-only)
+  serviceId: uuid("service_id"),
+  materialItemId: uuid("material_item_id"),
+  // alias used by diary.ts
+  inventoryItemId: uuid("inventory_item_id"),
+  materialName: text("material_name"),
+  requiredQty: numeric("required_qty", { precision: 12, scale: 4 }).notNull().default("1.0000"),
+  // alias used by diary.ts for deduction logic
+  quantityToDeduct: numeric("quantity_to_deduct", { precision: 12, scale: 4 }).notNull().default("1.0000"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// sterilization logs (autoclave / sterilization records)
+export const sterilizationLogs = pgTable("sterilization_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  deviceName: text("device_name").notNull().default("Автоклав 1"),
+  autoclaveId: text("autoclave_id"),
+  cycleNumber: integer("cycle_number").notNull().default(1),
+  temperatureCelsius: numeric("temperature_celsius", { precision: 5, scale: 1 }),
+  pressureBar: numeric("pressure_bar", { precision: 4, scale: 2 }),
+  itemsDescription: text("items_description"),
+  operatorId: uuid("operator_id"),
+  barcode: text("barcode"),
+  status: text("status").notNull().default("passed"),
+  passedIndicator: boolean("passed_indicator").notNull().default(true),
+  timestamp: timestamp("timestamp", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// system RAM watchdogs (server health monitoring)
+export const systemRamWatchdogs = pgTable("system_ram_watchdogs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  heapUsedMb: numeric("heap_used_mb", { precision: 8, scale: 2 }),
+  heapTotalMb: numeric("heap_total_mb", { precision: 8, scale: 2 }),
+  rssMb: numeric("rss_mb", { precision: 8, scale: 2 }),
+  externalMb: numeric("external_mb", { precision: 8, scale: 2 }),
+  gcCount: integer("gc_count"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// clinical audit logs (HIPAA-style access audit trail)
+export const clinicalAuditLogs = pgTable("clinical_audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id"),
+  actorUserId: uuid("actor_user_id"),
+  userId: uuid("user_id"),
+  actorLogin: text("actor_login"),
+  eventType: text("event_type"),
+  action: text("action"),
+  resourceType: text("resource_type"),
+  entityType: text("entity_type"),
+  resourceId: uuid("resource_id"),
+  entityId: uuid("entity_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  meta: jsonb("meta"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * РАЗМЕТКА ПЛАНИРОВАНИЯ ИМПЛАНТАЦИИ ПО КЛКТ.
+ *
+ * ТРИ КОЛОНКИ РАЗМЕТКИ БЫЛИ ОБЪЯВЛЕНЫ `jsonb`, А ФИЗИЧЕСКИ ОНИ `text`.
+ * Созданы `drizzle/0000_freezing_randall_flagg.sql:828-830` как
+ * `text DEFAULT '[]' NOT NULL`; миграция 0118 их не переписывала, и в живой базе
+ * они `text NOT NULL DEFAULT '[]'` (проверено `pg_attribute`, 2026-07-29).
+ *
+ * ЧЕМ РАСХОЖДЕНИЕ СТОИЛО КЛИНИКЕ. Класс `jsonb` у drizzle на записи делает
+ * `JSON.stringify`, поэтому готовая строка `[{"x":1}]` ложилась в текстовую
+ * колонку как `"[{\"x\":1}]"` — с внешними кавычками и экранированием. На чтении
+ * тот же класс делает `JSON.parse`, круг сходился, и снаружи дефект был невидим.
+ * При этом в базе лежал текст в двойной кодировке — разметку операции нельзя было
+ * прочитать ни отчётом, ни запросом, — а строка, оставленная умолчанием колонки
+ * (`'[]'`), возвращалась МАССИВОМ, тогда как записанная маршрутом — СТРОКОЙ: одна
+ * колонка, два разных типа на выходе.
+ *
+ * ПОЧЕМУ `text`, А НЕ НАСТОЯЩИЙ `jsonb`. Довод за `jsonb` — проверка формы на
+ * входе — на этом участке не работает, и это решение фактом, а не вкусом:
+ *   1. проволочный контракт закреплён с двух сторон как СТРОКА:
+ *      `routes/imaging_planning.ts` принимает `z.string()`,
+ *      `apps/web/src/components/dicom/ctPlanningPersistence.ts` объявляет у
+ *      ответа `splinePointsJson: string`, а `tests/routes/
+ *      ctPlanningMarkupPersists.test.ts` уже утверждает `typeof … === "string"`;
+ *   2. `jsonb` не дал бы обещанной проверки, пока маршрут передаёт строку: класс
+ *      `jsonb` завернул бы её в ещё один `JSON.stringify`, то есть вернул бы ту
+ *      самую двойную кодировку;
+ *   3. девятнадцать колонок с суффиксом `_json` в этом файле, хранящих текст,
+ *      объявлены `text` — `patient_ct_plannings` была исключением, а не образцом.
+ * Разбор целиком: `.agents/lead/recon-schema-vs-live-database.md`, раздел 6.
+ *
+ * `.notNull().default("[]")` повторяет базу дословно: разметки «нет» не бывает,
+ * бывает пустая.
+ */
+export const patientCtPlannings = pgTable("patient_ct_plannings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  imagingStudyId: uuid("imaging_study_id"),
+  /**
+   * DICOM study instance UID — по нему разметка привязана к снимку. `NOT NULL` в
+   * базе с миграции 0000, а объявление разрешало NULL: вставка без номера
+   * исследования проходила компилятор и падала в PostgreSQL уже на живом
+   * сохранении обведённой врачом дуги. Разметка без номера исследования вообще ни
+   * к чему не привязана — её нечем найти.
+   */
+  studyInstanceUid: text("study_instance_uid").notNull(),
+  implantPositions: jsonb("implant_positions"),
+  // Spline / curve planning points for surgical guide
+  splinePointsJson: text("spline_points_json").notNull().default("[]"),
+  nervePointsJson: text("nerve_points_json").notNull().default("[]"),
+  implantsJson: text("implants_json").notNull().default("[]"),
+  /** `NOT NULL` в базе — с миграции 0146: разметка операции без статуса не имеет смысла. */
+  planStatus: text("plan_status").notNull().default("draft"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// patient duplicate merge queues (deduplication workflow)
+export const patientDuplicateMergeQueues = pgTable("patient_duplicate_merge_queues", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  sourcePatientId: uuid("source_patient_id").notNull(),
+  targetPatientId: uuid("target_patient_id").notNull(),
+  matchScore: numeric("match_score", { precision: 5, scale: 4 }),
+  status: text("status").notNull().default("pending"),
+  resolvedBy: uuid("resolved_by"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// appointment channel inheritances (messenger channel routing)
+export const appointmentChannelInheritances = pgTable("appointment_channel_inheritances", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  chatId: uuid("chat_id").notNull(),
+  patientName: text("patient_name").notNull(),
+  inheritedChannel: text("inherited_channel").notNull().default("whatsapp"),
+  isAutoApplied: boolean("is_auto_applied").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// bulk image operation logs (batch DICOM operations)
+export const bulkImageOperationLogs = pgTable("bulk_image_operation_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  operationType: text("operation_type").notNull(),
+  studyIds: jsonb("study_ids"),
+  requestedBy: uuid("requested_by"),
+  status: text("status").notNull().default("completed"),
+  errorDetails: jsonb("error_details"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// chat message dispatch statuses (outbound message delivery)
+export const chatMessageDispatchStatuses = pgTable("chat_message_dispatch_statuses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  chatId: uuid("chat_id"),
+  messageId: text("message_id"),
+  channel: text("channel").notNull().default("telegram"),
+  status: text("status").notNull().default("sent"),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  failReason: text("fail_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// collaborative chat processing states (concurrent agent sync)
+export const collaborativeChatProcessingStates = pgTable("collaborative_chat_processing_states", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  chatId: uuid("chat_id").notNull(),
+  processingAgent: text("processing_agent"),
+  lockAcquiredAt: timestamp("lock_acquired_at", { withTimezone: true }),
+  lockExpiresAt: timestamp("lock_expires_at", { withTimezone: true }),
+  lastProcessedAt: timestamp("last_processed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// diagnocat AI findings (AI-based radiograph analysis)
+export const diagnocatAiFindings = pgTable("diagnocat_ai_findings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  imagingStudyId: uuid("imaging_study_id"),
+  patientId: uuid("patient_id"),
+  findingsJson: jsonb("findings_json"),
+  confidenceScore: numeric("confidence_score", { precision: 4, scale: 3 }),
+  reviewedBy: uuid("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// egisz blank permissions (EGISZ REMD form access control)
+export const egiszBlankPermissions = pgTable("egisz_blank_permissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  doctorId: uuid("doctor_id").notNull(),
+  blankCode: text("blank_code").notNull(),
+  blankTitle: text("blank_title").notNull(),
+  isAllowed: boolean("is_allowed").notNull().default(true),
+  /**
+   * СОГЛАСИЕ ПАЦИЕНТА НА ВЫГРУЗКУ В ЕГИСЗ — флаг есть в базе, читать его нечем.
+   *
+   * Колонка создана миграцией 0103 (строка 7) как
+   * `boolean DEFAULT true NOT NULL` и здесь не объявлялась. Она решает, будет
+   * ли отказ пациента учтён при выгрузке его медицинских данных в
+   * государственный реестр, — то есть это не служебный признак, а согласие.
+   *
+   * Виджет apps/web/src/components/integrations/EgiszBlankPermissionsWidget.tsx
+   * уже показывает его словами «учитывается» / «не учитывается», но серверного
+   * маршрута к этой таблице нет ни одного, а через drizzle колонка недостижима:
+   * показывать было нечего. Объявление — первое, без чего маршрут не написать.
+   */
+  patientOptOutRespect: boolean("patient_opt_out_respect").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Статусы журнала обмена с ЕГИСЗ. Тип `egisz_status_enum` существует в базе с
+ * миграции 0000 (строка 26) — объявление здесь ничего не создаёт и миграции не
+ * требует, оно лишь возвращает набор в модель drizzle и в перепись перечислений
+ * (tests/enumContractDrift.test.ts), которая сверяет его с egiszStatusSchema.
+ */
+export const egiszStatus = pgEnum("egisz_status_enum", ["Pending", "Sent", "Error", "Accepted"]);
+
+/**
+ * ЖУРНАЛ ОБМЕНА С ЕГИСЗ.
+ *
+ * Таблица существует в базе с миграции 0000 (строки 521-529), но в этом файле не
+ * была объявлена ни разу — поэтому её не видела ни одна перепись схемы, которая
+ * ходит по объявлениям drizzle, и отсутствие изоляции по клинике прожило
+ * незамеченным. Колонки перечислены по факту DDL, а не по догадке.
+ */
+export const egiszLogs = pgTable("egisz_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /**
+   * Добавлена миграцией 0145. Это журнал передачи медицинских данных в
+   * государственную систему: без принадлежности клинике он одинаково открыт
+   * любому арендатору базы, а строка журнала называет пациента и приём.
+   */
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id, { onDelete: "cascade" }),
+  visitId: uuid("visit_id").notNull().references(() => visits.id, { onDelete: "cascade" }),
+  /**
+   * В базе колонка имеет тип `egisz_status_enum` со значениями
+   * Pending/Sent/Error/Accepted (миграция 0000, строка 26) — тот же набор, что
+   * у панели apps/web/src/components/integrations/egiszAvailability.ts.
+   */
+  status: egiszStatus("status").notNull().default("Pending"),
+  transactionId: text("transaction_id"),
+  errorDetails: jsonb("error_details"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// external schedule action logs (Zabota2.0 / LoyalMed AI booking)
+export const externalScheduleActionLogs = pgTable("external_schedule_action_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  externalProvider: text("external_provider").notNull(),
+  actionType: text("action_type").notNull(),
+  patientName: text("patient_name").notNull(),
+  appointmentSlot: text("appointment_slot").notNull(),
+  status: text("status").notNull().default("success"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// family recommendation sources (family referral attribution)
+export const familyRecommendationSources = pgTable("family_recommendation_sources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  familyGroupName: text("family_group_name").notNull(),
+  newMemberName: text("new_member_name").notNull(),
+  referrerMemberName: text("referrer_member_name").notNull(),
+  assignedMarketingSource: text("assigned_marketing_source").notNull().default("Рекомендация семьи"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// message template catalogs (reusable SMS/Telegram templates)
+export const messageTemplateCatalogs = pgTable("message_template_catalogs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  title: text("title").notNull(),
+  channel: text("channel").notNull().default("telegram"),
+  intent: text("intent").notNull().default("general"),
+  templateText: text("template_text").notNull(),
+  variables: jsonb("variables"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// messenger file attachments (files sent through chat)
+export const messengerFileAttachments = pgTable("messenger_file_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  chatId: uuid("chat_id"),
+  fileUrl: text("file_url").notNull(),
+  fileType: text("file_type").notNull().default("document"),
+  fileSizeBytes: integer("file_size_bytes"),
+  uploadedBy: uuid("uploaded_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// messenger inbound events (raw incoming webhook events)
+/**
+ * Очередь входящих сообщений из мессенджеров.
+ *
+ * ВНИМАНИЕ НА NOT NULL. В живой базе external_chat_id и event_kind объявлены
+ * NOT NULL, а здесь стояли необязательными — расхождение того же рода, что
+ * разбиралось в первом заходе по рантайм-DDL. Вставка без этих полей
+ * компилировалась и падала уже в Postgres, на живом вебхуке. Оба вызывающих
+ * места (routes/whatsapp.ts, routes/max.ts) их заполняют, поэтому объявление
+ * приведено к базе, а не наоборот: ослаблять ограничение в базе значит
+ * разрешить событие без канала-источника, которое потом нечем разобрать.
+ */
+export const messengerInboundEvents = pgTable("messenger_inbound_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  channel: text("channel").notNull().default("telegram"),
+  externalId: text("external_id"),
+  externalChatId: text("external_chat_id").notNull(),
+  chatId: uuid("chat_id"),
+  patientId: uuid("patient_id"),
+  messageText: text("message_text"),
+  /** message | status | command — вид события у провайдера. */
+  eventKind: text("event_kind").notNull(),
+  rawPayload: jsonb("raw_payload"),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// MKB-10 auto directories (ICD-10 diagnosis quick-select)
+export const mkb10AutoDirectories = pgTable("mkb10_auto_directories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  specialty: text("specialty").notNull().default("universal"),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// NDFL tax calculators (personal income tax deduction calc)
+export const ndflTaxCalculators = pgTable("ndfl_tax_calculators", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id"),
+  taxYear: integer("tax_year").notNull(),
+  totalMedExpensesRub: numeric("total_med_expenses_rub", { precision: 12, scale: 2 }),
+  deductionAmountRub: numeric("deduction_amount_rub", { precision: 12, scale: 2 }),
+  ndflReturnRub: numeric("ndfl_return_rub", { precision: 12, scale: 2 }),
+  calculatedAt: timestamp("calculated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Задачи (поручения) по пациенту: перезвонить, дослать документы, проверить
+ * самочувствие.
+ *
+ * Экран карточки (PatientTaskTicketsWidget) умел создавать поручение, отмечать
+ * его выполненным, возвращать в работу и удалять — а сервера под ним не было:
+ * живая проверка сети видела на карточке 404 на GET .../tickets. Имена полей
+ * повторяют контракт, который экран уже отправляет. Физическая таблица:
+ * drizzle/0144_patient_task_tickets.sql.
+ */
+export const patientTaskTickets = pgTable("patient_task_tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull(),
+  // Без внешнего ключа намеренно: сотрудника могут уволить и удалить, а
+  // поручение обязано остаться в карте. Экран показывает «Неизвестный сотрудник».
+  assignedToId: uuid("assigned_to_id"),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  priority: text("priority").notNull().default("normal"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Рекламации и осложнения по пациенту — основание для гарантии, возврата и
+ * переделки.
+ *
+ * Экран карточки (PatientReclamationsWidget) умел фиксировать, урегулировать и
+ * удалять инциденты, а сервера под ним не было: живая проверка сети видела на
+ * карточке 404. Имена полей повторяют контракт, который экран уже отправляет —
+ * менять их значило бы ломать работающий клиент. Физическая таблица:
+ * drizzle/0143_patient_reclamations.sql.
+ */
+export const patientReclamations = pgTable("patient_reclamations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull(),
+  // Без внешнего ключа намеренно: сотрудника могут уволить и удалить, а разбор
+  // по его работе обязан остаться в карте.
+  doctorId: uuid("doctor_id"),
+  complicationDetails: text("complication_details").notNull(),
+  proposedAction: text("proposed_action"),
+  status: text("status").notNull().default("under_review"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// patient archive reasons and blacklists
+export const patientArchiveReasonsAndBlacklists = pgTable("patient_archive_reasons_and_blacklists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id"),
+  patientName: text("patient_name"),
+  archiveReason: text("archive_reason"),
+  isBlacklisted: boolean("is_blacklisted").notNull().default(false),
+  isBookingBlocked: boolean("is_booking_blocked").notNull().default(true),
+  warningBadge: text("warning_badge").notNull().default("Черный список"),
+  blacklistReason: text("blacklist_reason"),
+  archivedBy: uuid("archived_by"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// patient communication timelines (full comm history per patient)
+// ВНИМАНИЕ: определение приведено к физической таблице из миграции
+// drizzle/0102_add_patient_communication_timelines.sql. БЫЛО: здесь описывались
+// колонки patient_id/channel/direction/intent/message/status/operator_id, которых
+// в базе нет. Любой db.select().from(...) по этой таблице падал на уровне SQL, и
+// роут молча отдавал заглушку. Фронтенд (PatientCommunicationTimelinesWidget)
+// тоже читает именно эти поля: patientName/eventType/statusColor/audioRecordingUrl.
+export const patientCommunicationTimelines = pgTable("patient_communication_timelines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientName: text("patient_name").notNull(),
+  eventType: text("event_type").notNull().default("call"),
+  statusColor: text("status_color").notNull().default("green"),
+  audioRecordingUrl: text("audio_recording_url"),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// previous chat dialog histories (chat context for AI)
+export const previousChatDialogHistories = pgTable("previous_chat_dialog_histories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  chatId: uuid("chat_id").notNull(),
+  role: text("role").notNull().default("user"),
+  content: text("content").notNull(),
+  tokensUsed: integer("tokens_used"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// UIS call speech transcripts (telephony / callcenter transcripts)
+export const uisCallSpeechTranscripts = pgTable("uis_call_speech_transcripts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  callId: text("call_id").notNull(),
+  patientPhone: text("patient_phone"),
+  durationSeconds: integer("duration_seconds"),
+  transcript: text("transcript"),
+  sentiment: text("sentiment"),
+  aiSummary: text("ai_summary"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// UIS SMS chat quotas (SMS quota management)
+export const uisSmsChatQuotas = pgTable("uis_sms_chat_quotas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  monthYear: text("month_year").notNull(),
+  smsSentCount: integer("sms_sent_count").notNull().default(0),
+  smsQuotaLimit: integer("sms_quota_limit").notNull().default(1000),
+  costRub: numeric("cost_rub", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Yandex calendar syncs (Yandex Calendar integration)
+export const yandexCalendarSyncs = pgTable("yandex_calendar_syncs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  doctorId: uuid("doctor_id").notNull(),
+  yandexCalendarId: text("yandex_calendar_id"),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  syncStatus: text("sync_status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Dente Max bot configs (MAX messenger bot settings)
+export const denteMaxBotConfigs = pgTable("dente_max_bot_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  botId: text("bot_id"),
+  maxBotToken: text("max_bot_token"),
+  tokenSecretRef: text("token_secret_ref"),
+  webhookUrl: text("webhook_url"),
+  enabledFeaturesJson: jsonb("enabled_features_json"),
+  staffRoutingJson: jsonb("staff_routing_json"),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Dente WhatsApp bot configs (WABA / WhatsApp settings)
+export const denteWhatsappBotConfigs = pgTable("dente_whatsapp_bot_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  wabaAccountId: text("waba_account_id"),
+  phoneNumberId: text("phone_number_id"),
+  accessToken: text("access_token"),
+  // Secret ref used for token rotation (Vault / env var name)
+  tokenSecretRef: text("token_secret_ref"),
+  // Webhook verification token for Meta WABA challenge
+  webhookVerifyToken: text("webhook_verify_token"),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  // Alias — some routes use isActive instead of isEnabled
+  isActive: boolean("is_active").notNull().default(false),
+  enabledFeaturesJson: jsonb("enabled_features_json"),
+  staffRoutingJson: jsonb("staff_routing_json"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// services (clinic price list / service catalog)
+export const services = pgTable("services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  title: text("title").notNull(),
+  code: text("code"),
+  category: serviceCategory("category").notNull().default("therapy"),
+  specialty: dentalSpecialty("specialty").notNull().default("universal"),
+  /*
+   * mode: "number" обязателен.
+   *
+   * Без него drizzle отдаёт numeric строкой вида "1500.50" независимо от
+   * настроек драйвера — это его собственное преобразование, а не поведение
+   * postgres. Строка дальше молча складывается с другими строками вместо
+   * сложения чисел, и это не ловится типами, потому что склейка строк
+   * допустима.
+   */
+  basePriceRub: numeric("base_price_rub", { precision: 10, scale: 2, mode: "number" }).notNull().default(0),
+  durationMinutes: integer("duration_minutes").notNull().default(30),
+  taxDeductible: boolean("tax_deductible").notNull().default(true),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// protocol templates (visit protocol / clinical workflow templates)
+export const protocolTemplates = pgTable("protocol_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  specialty: dentalSpecialty("specialty").notNull().default("universal"),
+  title: text("title").notNull(),
+  visitReason: text("visit_reason").notNull().default(""),
+  defaultDurationMinutes: integer("default_duration_minutes").notNull().default(30),
+  complaintPrompt: text("complaint_prompt").notNull().default(""),
+  objectiveTemplate: text("objective_template").notNull().default(""),
+  diagnosisHints: jsonb("diagnosis_hints"),
+  treatmentPlanTemplate: text("treatment_plan_template").notNull().default(""),
+  requiredDocuments: jsonb("required_documents"),
+  suggestedImaging: jsonb("suggested_imaging"),
+  safetyWarnings: jsonb("safety_warnings"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// UIS mass appointment confirmations (bulk SMS confirmation campaigns)
+export const uisMassAppointmentConfirmations = pgTable("uis_mass_appointment_confirmations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  targetDate: text("target_date").notNull(),
+  totalAppointmentsCount: integer("total_appointments_count").notNull().default(0),
+  confirmedViaSmsCount: integer("confirmed_via_sms_count").notNull().default(0),
+  dispatchChannel: text("dispatch_channel").notNull().default("uis_sms"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Очередь исходящих уведомлений пациентам.
+ *
+ * ЗАЧЕМ ОБЪЯВЛЕНИЕ ПОЯВИЛОСЬ: таблица создана ещё миграцией 0000, но в модель не
+ * попала. services/notificationWorker.ts и services/postOpCareTrigger.ts
+ * импортируют `outgoingNotifications` отсюда, и оба модуля падали при загрузке с
+ * «does not provide an export named 'outgoingNotifications'» — напоминания и
+ * контроль самочувствия после приёма не работали вообще. Поломку не было видно,
+ * потому что tsconfig исключал src/services из проверки типов.
+ */
+export const outgoingNotifications = pgTable("outgoing_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull(),
+  patientId: uuid("patient_id").notNull(),
+  type: text("type").notNull(),
+  payload: jsonb("payload").notNull(),
+  status: text("status").notNull().default("pending"),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Суточные срезы BI-аналитики.
+ *
+ * Та же история, что и с outgoing_notifications: таблица есть в 0000, объявления
+ * не было, поэтому не загружались services/biAnalyticsWorker.ts и
+ * scripts/cronAnalyticsWorker.ts.
+ */
+export const biAnalyticsSnapshots = pgTable("bi_analytics_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull(),
+  snapshotDate: timestamp("snapshot_date", { withTimezone: true }).notNull(),
+  cohortLtvJson: jsonb("cohort_ltv_json").notNull().default({}),
+  planFunnelJson: jsonb("plan_funnel_json").notNull().default({}),
+  chairUtilizationJson: jsonb("chair_utilization_json").notNull().default({}),
+  doctorProfitabilityJson: jsonb("doctor_profitability_json").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Способы оплаты кассовой книги — тип "ledger_payment_method" из миграции 0000. */
+export const ledgerPaymentMethod = pgEnum("ledger_payment_method", [
+  "cash",
+  "card",
+  "dms",
+  "installment_balance",
+  "family_wallet",
+]);
+
+/**
+ * Кассовая книга: движение денег по счетам.
+ *
+ * Без этого объявления не загружался services/syncDaemon.ts.
+ *
+ * Сумма объявлена как numeric(12,2) — ровно так колонка создана в 0000. Драйвер
+ * отдаёт numeric строкой: складывать такие значения через Number() нельзя,
+ * потеряются копейки.
+ */
+export const cashLedger = pgTable("cash_ledger", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id").notNull(),
+  paymentMethod: ledgerPaymentMethod("payment_method").notNull(),
+  amountRub: numeric("amount_rub", { precision: 12, scale: 2 }).notNull(),
+  operatorId: uuid("operator_id"),
+  timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
+});
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Очередь исходящих сообщений (миграция 0123)
+//
+// Единственная существовавшая очередь — outgoing_notifications — состоит из
+// полей (type, payload jsonb, status text) и не знает ни канала, ни адреса
+// получателя, ни числа попыток, ни причины отказа. Её обработчик умел только
+// Telegram, не повторял отправку и ниоткуда не вызывался. Здесь очередь знает
+// всё, что нужно для разбора: чем отправляли, куда, сколько раз пробовали и
+// почему не вышло.
+// ─────────────────────────────────────────────────────────────────────────────
 
+export const communicationOutboxStatus = pgEnum("communication_outbox_status", [
+  "queued",
+  "sending",
+  "sent",
+  "delivered",
+  "failed",
+  "cancelled",
+  "suppressed",
+]);
 
+/**
+ * Сервисные и рекламные сообщения разделены потому, что ФЗ «О рекламе» ст. 18
+ * ч. 1 требует предварительного согласия именно на рекламу по сетям
+ * электросвязи. Напоминание о приёме — сервисное сообщение в рамках договора.
+ */
+export const communicationConsentScope = pgEnum("communication_consent_scope", ["service", "marketing"]);
+export const communicationConsentState = pgEnum("communication_consent_state", ["granted", "revoked"]);
 
+export const communicationOutbox = pgTable("communication_outbox", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  clinicId: uuid("clinic_id").references(() => clinics.id),
+  patientId: uuid("patient_id").references(() => patients.id),
+  taskId: uuid("task_id").references(() => communicationTasks.id),
+  templateId: uuid("template_id").references(() => communicationTemplates.id),
+  campaignId: uuid("campaign_id"),
+  channel: communicationChannel("channel").notNull(),
+  intent: communicationIntent("intent").notNull(),
+  scope: communicationConsentScope("scope").notNull().default("service"),
+  /** Номер, адрес почты или идентификатор чата, приведённый к формату канала. */
+  recipientAddress: text("recipient_address").notNull(),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  status: communicationOutboxStatus("status").notNull().default("queued"),
+  attempts: integer("attempts").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(5),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull().defaultNow(),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Захват строки обработчиком; по locked_at возвращаются зависшие отправки. */
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  lockedBy: text("locked_by"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  lastErrorClass: text("last_error_class"),
+  lastErrorMessage: text("last_error_message"),
+  providerMessageId: text("provider_message_id"),
+  segments: integer("segments"),
+  /**
+   * Квитанция о доставке (миграция 0126). `sent` означает «шлюз принял», а не
+   * «пациент получил»: SMS на выключенный телефон шлюз принимает и берёт за неё
+   * деньги. Для напоминания о приёме разница решающая.
+   */
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  /** Что именно сказал провайдер — код и расшифровка, для разбора споров. */
+  receiptDetail: text("receipt_detail"),
+  /** Одно и то же напоминание не ставится в очередь дважды. */
+  dedupeKey: text("dedupe_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => {
+  return {
+    outboxOrgDedupeUnique: unique("communication_outbox_org_dedupe_unique").on(table.organizationId, table.dedupeKey),
+    outboxOrgCreatedIdx: index("communication_outbox_org_created_idx").on(table.organizationId, table.createdAt),
+  };
+});
 
+export const patientCommunicationConsents = pgTable("patient_communication_consents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  channel: communicationChannel("channel").notNull(),
+  scope: communicationConsentScope("scope").notNull(),
+  state: communicationConsentState("state").notNull(),
+  /** Договор, портал пациента, слова администратора, ответ «СТОП» во входящем. */
+  source: text("source").notNull(),
+  evidence: text("evidence"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
+  decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => {
+  return {
+    consentUnique: unique("patient_communication_consents_unique").on(
+      table.organizationId,
+      table.patientId,
+      table.channel,
+      table.scope,
+    ),
+  };
+});
+
+export const communicationSettings = pgTable("communication_settings", {
+  organizationId: uuid("organization_id").primaryKey().references(() => organizations.id),
+  timezone: text("timezone").notNull().default("Europe/Moscow"),
+  /** Минуты от полуночи. По умолчанию 21:00–09:00. */
+  quietHoursStartMinute: integer("quiet_hours_start_minute").notNull().default(1260),
+  quietHoursEndMinute: integer("quiet_hours_end_minute").notNull().default(540),
+  /** Сервисное в тихие часы откладывается до утра, а не отменяется. */
+  deferServiceInQuietHours: boolean("defer_service_in_quiet_hours").notNull().default(true),
+  blockMarketingInQuietHours: boolean("block_marketing_in_quiet_hours").notNull().default(true),
+  dailyLimitPerPatient: integer("daily_limit_per_patient").notNull().default(3),
+  maxAttempts: integer("max_attempts").notNull().default(5),
+  retryBaseSeconds: integer("retry_base_seconds").notNull().default(60),
+  retryMaxSeconds: integer("retry_max_seconds").notNull().default(3600),
+  channelFallbackJson: text("channel_fallback_json").notNull().default('["telegram","whatsapp","sms","email"]'),
+  /**
+   * Автоматические напоминания о приёме (миграция 0124). Выключены по
+   * умолчанию: включать рассылку пациентам без ведома клиники нельзя.
+   */
+  appointmentReminderEnabled: boolean("appointment_reminder_enabled").notNull().default(false),
+  /** Часы до приёма: несколько значений — несколько напоминаний. */
+  appointmentReminderLeadHoursJson: text("appointment_reminder_lead_hours_json").notNull().default("[24]"),
+  /** Окно поиска, чтобы перезапуск не разослал напоминания о вчерашних приёмах. */
+  appointmentReminderWindowMinutes: integer("appointment_reminder_window_minutes").notNull().default(90),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================================
+// Движок переноса из чужих систем (миграция 0124).
+//
+// Слой стейджинга существует ровно для того, чтобы чужие данные не касались
+// боевых таблиц до того, как их пересчитали и проверили. Каждая исходная строка
+// сохраняется дословно; каждое поле знает, откуда оно и кто принял решение.
+// ============================================================================
+
+export const migrationRunStatus = pgEnum("migration_run_status", [
+  "draft",
+  "staging",
+  "mapping",
+  "validated",
+  /** Оператор запустил выполнение; фоновый воркер ещё не взял прогон (0128). */
+  "queued",
+  "loading",
+  "completed",
+  "completed_with_quarantine",
+  "failed",
+  "rolled_back"
+]);
+
+export const migrationSourceKind = pgEnum("migration_source_kind", [
+  "delimited",
+  "spreadsheet",
+  "json",
+  "xml",
+  "dbf",
+  "sql_dump",
+  "clipboard",
+  "free_text",
+  "api"
+]);
+
+export const migrationEntityKind = pgEnum("migration_entity_kind", [
+  "patient",
+  "doctor",
+  "service",
+  "appointment",
+  "visit",
+  "payment",
+  "treatment_plan",
+  "tooth_state",
+  "document",
+  "unknown"
+]);
+
+export const migrationStagingStatus = pgEnum("migration_staging_status", [
+  "pending",
+  "normalized",
+  "mapped",
+  "ready",
+  "loaded",
+  "updated",
+  "duplicate",
+  "quarantined",
+  "skipped"
+]);
+
+export const migrationQuarantineReason = pgEnum("migration_quarantine_reason", [
+  "missing_required_field",
+  "unparsable_value",
+  "encoding_damage",
+  "broken_reference",
+  "duplicate_conflict",
+  "validation_failed",
+  "ambiguous_mapping",
+  "low_confidence",
+  "target_write_failed",
+  "row_too_large"
+]);
+
+export const migrationQuarantineResolution = pgEnum("migration_quarantine_resolution", [
+  "open",
+  "resolved_imported",
+  "resolved_merged",
+  "discarded"
+]);
+
+export const migrationDecisionSource = pgEnum("migration_decision_source", [
+  "vendor_profile",
+  "deterministic",
+  "llm",
+  "manual",
+  "inferred"
+]);
+
+export const migrationRuns = pgTable("migration_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  sourceName: text("source_name").notNull(),
+  sourceKind: migrationSourceKind("source_kind").notNull(),
+  /** sha256 исходных байт — узнаёт повторно загружаемый файл, но не запрещает его. */
+  sourceFingerprint: text("source_fingerprint"),
+  sourceBytes: integer("source_bytes"),
+  detectedEncoding: text("detected_encoding"),
+  encodingConfidence: real("encoding_confidence"),
+  vendorProfile: text("vendor_profile"),
+  status: migrationRunStatus("status").notNull().default("draft"),
+  dryRun: boolean("dry_run").notNull().default(true),
+  /** Инвариант сверки: sourceRows = loaded + updated + duplicate + quarantined + skipped. */
+  sourceRows: integer("source_rows").notNull().default(0),
+  stagedRows: integer("staged_rows").notNull().default(0),
+  loadedRows: integer("loaded_rows").notNull().default(0),
+  updatedRows: integer("updated_rows").notNull().default(0),
+  duplicateRows: integer("duplicate_rows").notNull().default(0),
+  quarantinedRows: integer("quarantined_rows").notNull().default(0),
+  skippedRows: integer("skipped_rows").notNull().default(0),
+  mappingJson: jsonb("mapping_json").$type<MigrationMappingSnapshot | null>(),
+  llmCalls: integer("llm_calls").notNull().default(0),
+  /** Прямая мера галлюцинаций: сколько ответов модели отвергла проверка. */
+  llmRejectedSuggestions: integer("llm_rejected_suggestions").notNull().default(0),
+  startedByUserId: uuid("started_by_user_id").references(() => users.id),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  errorClass: text("error_class"),
+  errorMessage: text("error_message"),
+  // ---- Асинхронное выполнение (миграция 0129) ----
+  /** Человекочитаемая фаза: «Укладка строк», «Загрузка платежей». */
+  phase: text("phase"),
+  /** Процесс-владелец: хост и pid. Пусто — прогон никем не занят. */
+  workerId: text("worker_id"),
+  /** Отметка живучести владельца. Устаревшая означает, что процесс умер. */
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+  queuedAt: timestamp("queued_at", { withTimezone: true }),
+  /** Путь к временному файлу источника: фазы не требуют повторной заливки. */
+  uploadPath: text("upload_path"),
+  uploadFileName: text("upload_file_name"),
+  /** Прогресс считается по стейджингу — верен и после перезапуска процесса. */
+  progressTotal: integer("progress_total").notNull().default(0),
+  progressDone: integer("progress_done").notNull().default(0),
+  /** Сколько раз прогон подбирался после падения владельца. */
+  resumeCount: integer("resume_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxMigrationRunsOrgCreated: index("migration_runs_org_created_idx").on(table.organizationId, table.createdAt)
+  };
+});
+
+export const migrationStagingRecords = pgTable("migration_staging_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => migrationRuns.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  entityKind: migrationEntityKind("entity_kind").notNull().default("unknown"),
+  sourceTable: text("source_table").notNull().default(""),
+  sourceRowNumber: integer("source_row_number").notNull(),
+  /** Исходная строка дословно. Единственное доказательство того, что было в старой системе. */
+  rawJson: jsonb("raw_json").$type<Record<string, string>>().notNull(),
+  rawHash: text("raw_hash").notNull(),
+  naturalKey: text("natural_key"),
+  normalizedJson: jsonb("normalized_json").$type<Record<string, unknown> | null>(),
+  lineageJson: jsonb("lineage_json").$type<MigrationFieldLineage[] | null>(),
+  status: migrationStagingStatus("status").notNull().default("pending"),
+  targetEntityId: uuid("target_entity_id"),
+  confidence: real("confidence").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    stagingRowUnique: unique("migration_staging_row_unique").on(table.runId, table.sourceTable, table.sourceRowNumber),
+    idxStagingRunStatus: index("migration_staging_run_status_idx").on(table.runId, table.status),
+    idxStagingHash: index("migration_staging_hash_idx").on(table.runId, table.rawHash)
+  };
+});
+
+export const migrationQuarantineRecords = pgTable("migration_quarantine_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => migrationRuns.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  stagingRecordId: uuid("staging_record_id").references(() => migrationStagingRecords.id, { onDelete: "cascade" }),
+  entityKind: migrationEntityKind("entity_kind").notNull().default("unknown"),
+  reason: migrationQuarantineReason("reason").notNull(),
+  /** false — строку можно загрузить, но оператор должен знать. Не блокирует перенос. */
+  blocking: boolean("blocking").notNull().default(true),
+  fieldPath: text("field_path"),
+  /** Текст для человека. Без сырых персональных данных — они остаются в стейджинге. */
+  message: text("message").notNull(),
+  suggestedFix: text("suggested_fix"),
+  resolution: migrationQuarantineResolution("resolution").notNull().default("open"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id),
+  retryCount: integer("retry_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxQuarantineRun: index("migration_quarantine_run_idx").on(table.runId, table.resolution, table.reason)
+  };
+});
+
+export const migrationEntityLinks = pgTable("migration_entity_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  entityKind: migrationEntityKind("entity_kind").notNull(),
+  sourceSystem: text("source_system").notNull(),
+  sourceEntityId: text("source_entity_id").notNull(),
+  naturalKey: text("natural_key"),
+  /**
+   * Внешнего ключа нет намеренно: ссылка указывает в разные таблицы в
+   * зависимости от entityKind, а откат должен пережить удаление цели.
+   */
+  targetEntityId: uuid("target_entity_id").notNull(),
+  createdByRunId: uuid("created_by_run_id").references(() => migrationRuns.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    entityLinkSourceUnique: unique("migration_entity_links_source_unique").on(
+      table.organizationId,
+      table.entityKind,
+      table.sourceSystem,
+      table.sourceEntityId
+    ),
+    idxEntityLinksTarget: index("migration_entity_links_target_idx").on(table.targetEntityId),
+    idxEntityLinksRun: index("migration_entity_links_run_idx").on(table.createdByRunId)
+  };
+});
+
+export const migrationReconciliations = pgTable("migration_reconciliations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => migrationRuns.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  balanced: boolean("balanced").notNull(),
+  checksJson: jsonb("checks_json").$type<MigrationReconciliationCheck[]>().notNull(),
+  entityBreakdownJson: jsonb("entity_breakdown_json").$type<MigrationEntityBreakdown[]>().notNull(),
+  /*
+   * Сверка переноса из старой программы: копейки здесь важнее всего.
+   *
+   * Сверка существует ровно затем, чтобы поймать расхождение. При integer
+   * разница меньше рубля исчезала на каждой строке, и вывод «сошлось» мог
+   * скрывать потерянные копейки — хуже, чем честное расхождение.
+   */
+  sourceMoneyTotalRub: numeric("source_money_total_rub", { precision: 12, scale: 2, mode: "number" }),
+  loadedMoneyTotalRub: numeric("loaded_money_total_rub", { precision: 12, scale: 2, mode: "number" }),
+  quarantinedMoneyTotalRub: numeric("quarantined_money_total_rub", { precision: 12, scale: 2, mode: "number" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxReconciliationRun: index("migration_reconciliations_run_idx").on(table.runId, table.generatedAt)
+  };
+});
+
+/**
+ * Одноразовые коды входа в личный кабинет пациента (drizzle/0133).
+ *
+ * Раньше кода входа не существовало как данных: routes/portal.ts сверял ввод с
+ * одной строкой из окружения, а при NODE_ENV != "production" — с литералом
+ * "0000". Один секрет на всех пациентов сразу, без срока годности и без
+ * ограничения числа попыток.
+ *
+ * Хранится только PBKDF2-хеш («соль:хеш» из utils/cryptoHelper.ts). Номер
+ * телефона намеренно не дублируется: он уже есть в patients.phone, а частота
+ * выдачи считается по patientId — код заводится лишь тогда, когда телефон
+ * однозначно сопоставлен ровно одному пациенту.
+ */
+export const portalOtpCodes = pgTable("portal_otp_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  patientId: uuid("patient_id").notNull().references(() => patients.id),
+  codeHash: text("code_hash").notNull(),
+  /** "sms" — реальная отправка шлюзом; "developer_log" — только вне production. */
+  channel: text("channel").notNull(),
+  /** pending -> sent | failed. Проверке подлежат только строки "sent". */
+  deliveryStatus: text("delivery_status").notNull().default("pending"),
+  deliveryErrorClass: text("delivery_error_class"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (table) => {
+  return {
+    idxPortalOtpPatient: index("portal_otp_codes_patient_idx").on(
+      table.organizationId,
+      table.patientId,
+      table.createdAt
+    ),
+    idxPortalOtpExpires: index("portal_otp_codes_expires_idx").on(table.expiresAt)
+  };
+});

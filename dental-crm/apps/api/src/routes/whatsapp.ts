@@ -10,9 +10,14 @@
  * See: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/set-up-webhooks
  */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+	normalizeWhatsappRecipient,
+	readWhatsappCredentials,
+	sendWhatsappTextMessage,
+} from "../whatsappTransport.js";
 import {
 	requireNonDoctorAccess,
 	requireResolvedOrganizationId,
@@ -25,6 +30,7 @@ import {
 	messengerInboundEvents,
 	patients,
 } from "../db/schema.js";
+import { applyReceipts, parseWhatsappStatuses } from "../services/communications/deliveryReceipts.js";
 import { processInboundEvents } from "../services/messengerIngestion.js";
 import { wsBroker } from "../services/websocketBroker.js";
 
@@ -102,11 +108,25 @@ function parseJsonSafe<T>(value: string, fallback: T): T {
 	}
 }
 
+
+/** Точная проверка пути вебхука (без учёта query-строки). */
+function isWebhookPath(url: string): boolean {
+	const pathname = (url.split("?")[0] ?? "").replace(/\/+$/, "");
+	return pathname.endsWith("/webhook");
+}
+
 export async function registerWhatsappRoutes(
 	app: FastifyInstance,
 ): Promise<void> {
 	app.addHook("preHandler", async (request, reply) => {
-		if (request.url.includes("/webhook")) return;
+		// БЫЛО: `if (request.url.includes("/webhook")) return;` отключало
+		// авторизацию для ЛЮБОГО URL, содержащего "/webhook" — например
+		// /api/whatsapp/settings?x=/webhook. Теперь путь сверяется точно.
+		// Сами маршруты вебхука аутентифицируются механизмом Meta:
+		// GET — handshake hub.verify_token, POST — HMAC-подпись x-hub-signature-256
+		// (см. isValidWhatsappSignature ниже). Общий секрет здесь применять нельзя:
+		// Meta не умеет отправлять произвольные заголовки.
+		if (isWebhookPath(request.url)) return;
 		const allowed = await requireNonDoctorAccess(request, reply);
 		if (!allowed) {
 			return reply;
@@ -143,13 +163,13 @@ export async function registerWhatsappRoutes(
 			phoneNumberId: config.phoneNumberId ?? null,
 			hasToken: Boolean(config.tokenSecretRef),
 			webhookVerifyToken: config.webhookVerifyToken ?? null,
-			enabledFeatures: parseJsonSafe<string[]>(config.enabledFeaturesJson, []),
-			staffRouting: parseJsonSafe(config.staffRoutingJson, {
+			enabledFeatures: parseJsonSafe<string[]>(config.enabledFeaturesJson as any, []),
+			staffRouting: parseJsonSafe(config.staffRoutingJson as any, {
 				defaultUserId: null,
 				rules: [],
 			}),
 			isActive: config.isActive,
-			updatedAt: config.updatedAt.toISOString(),
+			updatedAt: (config.updatedAt ?? config.createdAt).toISOString(),
 		};
 	});
 
@@ -319,10 +339,17 @@ export async function registerWhatsappRoutes(
 				// ingest in production; allow (with a warning) in development so local
 				// webhook testing works without Meta credentials.
 				if (process.env.NODE_ENV === "production") {
+					// Имя переменной окружения ушло из тела ответа в журнал сервера:
+					// маршрут публичный, и его ответ читает кто угодно. Настройщику
+					// имя нужно, и оно есть — в журнале, а не в ответе наружу.
+					request.log.error(
+						{ requiredEnv: ["WHATSAPP_APP_SECRET"] },
+						"Вебхук WhatsApp отклонён: секрет приложения не задан в окружении сервера",
+					);
 					return reply.code(503).send({
 						error: "WhatsappAppSecretRequired",
 						message:
-							"WHATSAPP_APP_SECRET не настроен — приём вебхуков WhatsApp отключён.",
+							"Приём сообщений WhatsApp на этом сервере не настроен: секрет приложения не задан, и подпись вебхука проверить нечем.",
 					});
 				}
 				console.warn(
@@ -350,25 +377,55 @@ export async function registerWhatsappRoutes(
 			}
 
 			// Acknowledge immediately — Meta retries on non-200. Process async below.
+			// Shape-guard AFTER send so null/non-object body cannot TypeError on
+			// body.entry (cast-after-200) once the client already got 200.
 			reply.code(200).send({ received: true });
 
+			if (
+				!request.body ||
+				typeof request.body !== "object" ||
+				Array.isArray(request.body)
+			) {
+				return;
+			}
 			const body = request.body as Record<string, unknown>;
 			const entries = Array.isArray(body.entry) ? body.entry : [];
 
 			for (const entry of entries) {
+				if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+					continue;
+				}
 				const e = entry as Record<string, unknown>;
 				const changes = Array.isArray(e.changes)
 					? (e.changes as unknown[])
 					: [];
 
 				for (const change of changes) {
+					if (
+						!change ||
+						typeof change !== "object" ||
+						Array.isArray(change)
+					) {
+						continue;
+					}
 					const c = change as Record<string, unknown>;
-					const value = c.value as Record<string, unknown> | undefined;
-					if (!value) continue;
+					const valueRaw = c.value;
+					if (
+						!valueRaw ||
+						typeof valueRaw !== "object" ||
+						Array.isArray(valueRaw)
+					) {
+						continue;
+					}
+					const value = valueRaw as Record<string, unknown>;
 
-					const metadata = value.metadata as
-						| Record<string, unknown>
-						| undefined;
+					const metadataRaw = value.metadata;
+					const metadata =
+						metadataRaw &&
+						typeof metadataRaw === "object" &&
+						!Array.isArray(metadataRaw)
+							? (metadataRaw as Record<string, unknown>)
+							: undefined;
 					const phoneNumberId =
 						typeof metadata?.phone_number_id === "string"
 							? metadata.phone_number_id
@@ -383,14 +440,47 @@ export async function registerWhatsappRoutes(
 
 					if (!orgConfig) continue;
 
+					/*
+					 * Квитанции доставки. Раньше value.statuses отбрасывался молча, и
+					 * сообщение, ушедшее в WhatsApp, навсегда оставалось «отправлено»:
+					 * доставлено оно, прочитано или отвергнуто — в журнале не
+					 * отличалось, хотя для SMS это работало. Организация в
+					 * applyReceipts не передаётся: она берётся из найденной строки
+					 * очереди, иначе чужой вебхук мог бы менять статусы другой клиники.
+					 */
+					const receipts = parseWhatsappStatuses(value.statuses);
+					if (receipts.length > 0) {
+						try {
+							const report = await applyReceipts(receipts);
+							if (report.unmatched > 0) {
+								console.warn(
+									`Whatsapp: квитанций без своего сообщения в очереди: ${report.unmatched} (сообщение отправлено не через журнал?)`,
+								);
+							}
+						} catch (receiptError) {
+							// Квитанция не должна ломать разбор входящих сообщений: пациент
+							// написал в чат, и это важнее, чем обновление статуса.
+							console.error("Whatsapp: квитанции не применены:", receiptError);
+						}
+					}
+
 					const messages = Array.isArray(value.messages)
 						? (value.messages as unknown[])
 						: [];
 
 					for (const msg of messages) {
+						if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
+							continue;
+						}
 						const m = msg as Record<string, unknown>;
 						const fromId = typeof m.from === "string" ? m.from : "unknown";
-						const textObj = m.text as Record<string, unknown> | undefined;
+						const textRaw = m.text;
+						const textObj =
+							textRaw &&
+							typeof textRaw === "object" &&
+							!Array.isArray(textRaw)
+								? (textRaw as Record<string, unknown>)
+								: undefined;
 						const textBody =
 							typeof textObj?.body === "string" ? textObj.body : null;
 
@@ -443,7 +533,10 @@ export async function registerWhatsappRoutes(
 		const [patient] = await db
 			.select()
 			.from(patients)
-			.where(eq(patients.id, patientId))
+			// БЫЛО: условие только по patients.id, без организации. Сотрудник любой
+			// клиники мог указать UUID чужого пациента и написать ему от имени
+			// своей клиники.
+			.where(and(eq(patients.id, patientId), eq(patients.organizationId, orgId)))
 			.limit(1);
 
 		if (!patient) {
@@ -466,15 +559,60 @@ export async function registerWhatsappRoutes(
 			});
 		}
 
+		// БЫЛО: обработчик записывал строку в communication_events со статусом
+		// "sent", рассылал событие по WebSocket, печатал «[WhatsApp Outbox] Sent
+		// to …» в консоль и возвращал { ok: true }. Обращения к API Meta в
+		// проекте не было вообще. Администратор видел «отправлено», в истории
+		// коммуникаций появлялась запись, а пациент не получал ничего — для
+		// напоминания о приёме это хуже явной ошибки.
+		const credentials = readWhatsappCredentials(config);
+		if (!credentials) {
+			return reply.code(400).send({
+				error: "WhatsappNotConfigured",
+				message:
+					"Не заданы phone_number_id и токен доступа WhatsApp Cloud API. Сообщение не отправлено.",
+			});
+		}
+
+		const recipient = normalizeWhatsappRecipient(patient.phone);
+		if (!recipient) {
+			return reply.code(422).send({
+				error: "PatientPhoneMissing",
+				message:
+					"У пациента не указан корректный номер телефона — отправить сообщение в WhatsApp некуда.",
+			});
+		}
+
+		const sendResult = await sendWhatsappTextMessage({
+			...credentials,
+			toPhoneE164: recipient,
+			text: message,
+		});
+
+		// Запись в историю коммуникаций делается по фактическому результату:
+		// неудачная отправка сохраняется со статусом failed, а не как sent.
 		await db.insert(communicationEvents).values({
 			organizationId: orgId,
 			patientId,
 			channel: "whatsapp",
 			direction: "outbound",
-			status: "sent",
+			status: sendResult.ok ? "sent" : "failed",
 			message,
 		});
 
+		if (!sendResult.ok) {
+			request.log.warn(
+				{ errorClass: sendResult.errorClass, errorCode: sendResult.errorCode },
+				"WhatsApp Cloud API отклонил сообщение",
+			);
+			return reply.code(502).send({
+				error: "WhatsappSendFailed",
+				errorClass: sendResult.errorClass,
+				message: sendResult.errorMessage,
+			});
+		}
+
+		// Событие в интерфейс рассылается только после подтверждения от Meta.
 		wsBroker.broadcastToOrganization(orgId, {
 			type: "INBOX_NEW_MESSAGE",
 			payload: {
@@ -485,11 +623,7 @@ export async function registerWhatsappRoutes(
 			},
 		});
 
-		console.log(
-			`[WhatsApp Outbox] Sent to ${patient.phone || patient.fullName}: ${message}`,
-		);
-
-		return { ok: true };
+		return { ok: true, providerMessageId: sendResult.providerMessageId };
 	});
 }
 

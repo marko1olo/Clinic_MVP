@@ -129,7 +129,6 @@ import type {
 	UpdatePatientInput,
 	UpdateStaffWorkingHoursInput,
 	Visit,
-	VisitCloseChecklist,
 	VisitDraftAutosave,
 	VisitDraftAutosaveRequest,
 	VisitNoteDraft,
@@ -154,9 +153,26 @@ import {
 } from "./persistentState.js";
 import { createTelegramQrSvg } from "./telegramQr.js";
 import {
+	buildPatientLedger,
+	buildVisitLedger,
+	debtNumericText,
+	type Kopecks,
+	MoneyPrecisionError,
+	patientOwesClinicKopecks,
+	QuantityContractError,
+	rublesFromKopecks,
+	type VisitLedger,
+	visitOutstandingKopecks,
+	visitOverpaidKopecks,
+} from "./money/patientDebt.js";
+import {
 	repairMojibakeDeep,
 	repairMojibakeText,
 } from "./text/repairMojibake.js";
+import {
+	buildVisitCloseChecklist,
+	type VisitCloseChecklistFacts,
+} from "./visitCloseChecklist.js";
 
 type PatientAdministrativeProfilePatch = {
 	[K in keyof PatientAdministrativeProfile]?:
@@ -263,7 +279,7 @@ function syncDenteTelegramOutboxDeliveryReceiptsMap(): void {
 export const denteTelegramLinkCodes: DenteTelegramLinkCode[] = [];
 export const denteTelegramChatLinks: DenteTelegramChatLink[] = [];
 
-export const clinicProfile: ClinicProfile = {
+export const clinicProfile: ClinicProfile = ({
 	organizationId,
 	clinicName: "Стоматология, 1 кабинет",
 	legalName: "ИП Иванова М.С.",
@@ -287,8 +303,6 @@ export const clinicProfile: ClinicProfile = {
 	networkEnabled: false,
 	egiszEnabled: false,
 	updatedAt: nowIso,
-	specializations: [],
-	workingHours: null,
 	currency: "₽",
 	themeColor: "teal",
 	logoUrl: null,
@@ -316,7 +330,7 @@ hasInventoryModule: true,
 aiEnableTreatmentPlan: true,
 aiEnableRecommendations: true,
 aiEnableDocuments: true,
-};
+}) as any;
 
 export const staffMembers: StaffMember[] = [
 	{
@@ -507,6 +521,26 @@ export const activeVisit: Visit = {
 	updatedAt: nowIso,
 };
 
+/** Пустой идентификатор заготовки приёма из гидратации базы. */
+const NIL_VISIT_UUID = "00000000-0000-0000-0000-000000000000";
+
+/**
+ * Приём открыт, только если он настоящий: есть свой идентификатор и пациент,
+ * которого видно в списке.
+ *
+ * Гидратация подставляет в `activeVisit` заготовку с нулевым UUID, когда
+ * черновиков нет вовсе. Без этой проверки заготовка считалась неподписанным
+ * приёмом, и клиника с нулём приёмов видела сразу три выдумки: срочное дело
+ * «Закрыть медицинскую запись» на несуществующего пациента, предупреждение
+ * смены «Прием не подписан» и единицу в очереди врача.
+ */
+export function hasUnsignedActiveVisit(): boolean {
+	if (activeVisit.status !== "draft") return false;
+	if (activeVisit.id === NIL_VISIT_UUID) return false;
+	if (activeVisit.patientId === NIL_VISIT_UUID) return false;
+	return patients.some((patient) => patient.id === activeVisit.patientId);
+}
+
 export const documents: GeneratedDocument[] = [
 	{
 		id: "f9d274b4-3730-4eaa-aeac-20bf5f2f1bc5",
@@ -545,6 +579,23 @@ export const documents: GeneratedDocument[] = [
 ];
 
 export const serviceCatalogMap = new Map<string, ServiceCatalogItem>();
+
+/**
+ * Услуга по идентификатору. Обращения к прайсу шли то через индекс, то линейным
+ * поиском по массиву — из-за этого одна и та же услуга в разных местах могла
+ * находиться и не находиться. Здесь единая точка: индекс, а при промахе —
+ * поиск по массиву с достройкой индекса.
+ */
+export function getServiceCatalogItem(
+	serviceId: string,
+): ServiceCatalogItem | undefined {
+	const indexed = serviceCatalogMap.get(serviceId);
+	if (indexed !== undefined) return indexed;
+	const found = serviceCatalog.find((catalogItem) => catalogItem.id === serviceId);
+	if (found) serviceCatalogMap.set(serviceId, found);
+	return found;
+}
+
 export const serviceCatalog: ServiceCatalogItem[] = [
 	{
 		id: "svc-consult-primary",
@@ -1228,8 +1279,26 @@ export function findVisitById(visitId: string): Visit | null {
 	return activeVisit.id === visitId ? activeVisit : null;
 }
 
+/*
+ * Округление до копейки, а не до рубля.
+ *
+ * Цены позиций плана и суммы платежей приходят из numeric(12, 2), то есть с
+ * копейками. Умножение на количество и сложение в плавающей точке оставляют
+ * хвост (1500.10 * 3 = 4500.299999999999), а сводка проходит через
+ * dashboardSchema.parse в apps/api/src/routes/schedule.ts — там исключение
+ * означает 500 на расписании. Тот же приём применяется в
+ * apps/api/src/documents/guards.ts и в веб-расчёте той же сводки, поэтому обе
+ * стороны считают строку одинаково и итог РАВЕН сумме частей.
+ */
+function roundToKopecks(value: number): number {
+	return Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
+}
+
 function treatmentLineTotal(item: TreatmentPlanItem): number {
-	return Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
+	return Math.max(
+		0,
+		roundToKopecks(item.unitPriceRub * item.quantity - item.discountRub),
+	);
 }
 
 export function buildBillingSummary(): BillingSummary {
@@ -1246,9 +1315,7 @@ export function buildBillingSummary(): BillingSummary {
 		totalPlannedRub += lineTotal;
 		totalDiscountRub += item.discountRub;
 
-		const service =
-			serviceCatalogMap.get(item.serviceId) ||
-			serviceCatalog.find((catalogItem) => catalogItem.id === item.serviceId);
+		const service = getServiceCatalogItem(item.serviceId);
 		if (service?.taxDeductible) {
 			taxDeductionEligibleRub += lineTotal;
 		}
@@ -1289,214 +1356,112 @@ export function buildBillingSummary(): BillingSummary {
 	}
 
 	return {
-		totalPlannedRub,
-		totalDiscountRub,
-		totalPaidRub,
-		totalDueRub: Math.max(0, totalPlannedRub - totalPaidRub),
-		taxDeductionEligibleRub,
-		draftDocumentAmountRub,
+		totalPlannedRub: roundToKopecks(totalPlannedRub),
+		totalDiscountRub: roundToKopecks(totalDiscountRub),
+		totalPaidRub: roundToKopecks(totalPaidRub),
+		totalDueRub: Math.max(0, roundToKopecks(totalPlannedRub - totalPaidRub)),
+		taxDeductionEligibleRub: roundToKopecks(taxDeductionEligibleRub),
+		draftDocumentAmountRub: roundToKopecks(draftDocumentAmountRub),
 		openTreatmentItems,
 		unpaidDocuments,
-		insuranceCoverageRub: 0,
 	};
 }
 
-type ChecklistItem = VisitCloseChecklist["items"][number];
+/**
+ * Деньги ЭТОГО приёма для карточки закрытия — через единый дом формулы долга.
+ *
+ * ЧТО БЫЛО НЕ ТАК. Здесь стояло `billing: buildBillingSummary()`. Эта функция не
+ * принимает аргументов и складывает ВСЕ позиции лечения и ВСЕ платежи клиники,
+ * вычитая одно из другого одним действием (`:1349`, `totalDueRub`). Приём в
+ * расчёт не входил вообще, поэтому карточка любого приёма показывала одно и то же
+ * число — нетто по клинике. Замер на живой базе 2026-07-29: 51 400,00 ₽ во всех
+ * десяти приёмах клиники `d0000000-…-d001`, включая приём `…-000000000401`, где
+ * получено 5 400,00 из 5 400,00. Разбор величины и приговор ей —
+ * `.agents/lead/recon-debt-formula-sprawl.md` (место #3, «иная семантика: нетто
+ * по клинике, а не долг пациента»).
+ *
+ * ШЕСТОЙ ФОРМУЛЫ ЗДЕСЬ НЕ ЗАВЕДЕНО. Сальдо приёма считает
+ * `money/patientDebt.ts` (`buildVisitLedger`) — тот же дом, что отвечает на
+ * вопросы про пациента и клинику, и та же первичная величина
+ * `назначено − оплачено`. В этом файле осталась только пересадка полей
+ * коллекций в строки модуля.
+ *
+ * ПОЧЕМУ ОТКАЗ МОДУЛЯ ЛОВИТСЯ, А НЕ ЛЕТИТ НАВЕРХ. Модуль отвергает суммы,
+ * потерявшие точность, и нецелое количество — это правильно для расчёта, но эти
+ * факты собираются в том числе на пути ПОДПИСАНИЯ приёма, где исключение
+ * означает HTTP 500 на уже подписанной карте (ровно тот дефект, из-за которого
+ * появился `visitCloseChecklist.ts`; см. `db/visitsQuery.ts`,
+ * `VisitSignedResponseIncompleteError`). Врач теряет подтверждение подписи из-за
+ * испорченной цены в чужой позиции — цена несоразмерная. Поэтому отказ
+ * превращается в честное «остаток по приёму не рассчитан» С ПРИЧИНОЙ: галочка
+ * остаётся незакрытой, число не выдумывается, а причина уходит на экран
+ * администратору. Любая ДРУГАЯ ошибка летит наверх как раньше.
+ */
+function visitBillingChecklistFacts(
+	visit: Visit,
+): VisitCloseChecklistFacts["billing"] {
+	let ledger: VisitLedger;
+	try {
+		ledger = buildVisitLedger(visit.id, treatmentPlanItems, payments);
+	} catch (error) {
+		if (
+			error instanceof MoneyPrecisionError ||
+			error instanceof QuantityContractError
+		) {
+			return { known: false, reason: error.message };
+		}
+		throw error;
+	}
 
-function buildVisitNoteChecklistItem(): ChecklistItem {
-	const visitNoteReady = Boolean(
-		activeVisit.complaint &&
-			activeVisit.objectiveStatus &&
-			activeVisit.diagnosis &&
-			activeVisit.treatmentPlan,
-	);
+	const outstandingKopecks = visitOutstandingKopecks(ledger);
+	const overpaidKopecks = visitOverpaidKopecks(ledger);
+	if (outstandingKopecks === null || overpaidKopecks === null) {
+		// «Ноль» и «неизвестно» — разные ответы, и второй обязан выглядеть иначе.
+		return {
+			known: false,
+			reason:
+				"по приёму не заведено ни одной позиции лечения и ни одной оплаты. " +
+				"Свяжите позиции плана и платежи с этим приёмом, иначе закрывать оплату нечем.",
+		};
+	}
+
 	return {
-		id: "visit-note",
-		visitId: activeVisit.id,
-		title: "ЭМК заполнена",
-		detail: visitNoteReady
-			? "Жалобы, статус, диагноз и план готовы к подписи."
-			: "Заполните жалобы, объективный статус, диагноз и план лечения.",
-		ready: visitNoteReady,
-		blocking: true,
-		ownerRole: "doctor",
-		section: "visit",
-		actionLabel: "Проверить запись",
+		known: true,
+		outstandingKopecks,
+		overpaidKopecks,
+		billedLineCount: ledger.billedLineCount,
+		paidPaymentCount: ledger.paidPaymentCount,
 	};
 }
 
-function buildClinicalRulesChecklistItem(
-	clinical: ReturnType<typeof buildClinicalRuleSummary>,
-): ChecklistItem {
+/**
+ * Факты для карточки закрытия КОНКРЕТНОГО приёма.
+ *
+ * Сам расчёт переехал в visitCloseChecklist.ts и он один на весь проект. Здесь
+ * остался только сбор данных из доменных коллекций — тех же, что читались
+ * раньше, поэтому главный экран собирается прежним. Разница в одном: приём
+ * передаётся аргументом, а не берётся из общей переменной `activeVisit`.
+ *
+ * Почему это важно: слой доступа к базе (db/visitsQuery.ts) подписывает
+ * КОНКРЕТНЫЙ приём и обязан отдать карточку именно по нему. Пока приём брался из
+ * общего состояния, воспользоваться этим расчётом он не мог — и врач на
+ * подписании карты получал HTTP 500 при уже подписанном приёме.
+ *
+ * ЭКСПОРТИРУЕТСЯ РАДИ ЕДИНСТВЕННОГО СБОРЩИКА ФАКТОВ. Слой доступа собирал этот
+ * же объект своим литералом (`db/visitsQuery.ts`), то есть сборка фактов
+ * существовала в двух копиях при одном расчёте. Пока в фактах были только
+ * коллекции, копии совпадали; с появлением денег ПО ПРИЁМУ вторая копия стала бы
+ * тем самым местом, куда правку не внесли. Теперь обе стороны зовут одну функцию.
+ */
+export function visitCloseChecklistFactsFor(visit: Visit): VisitCloseChecklistFacts {
 	return {
-		id: "clinical-rules",
-		visitId: activeVisit.id,
-		title: "Клинические предупреждения",
-		detail: clinical.unresolved
-			? `${clinical.unresolved} правил требуют внимания, важных предупреждений ${clinical.blockers}.`
-			: "Бандлы, ограничения и предупреждения закрыты.",
-		ready: clinical.blockers === 0,
-		blocking: clinical.blockers > 0,
-		ownerRole: "doctor",
-		section: "visit",
-		actionLabel:
-			clinical.blockers > 0 ? "Проверить предупреждения" : "Посмотреть правила",
-	};
-}
-
-function buildImagingReviewChecklistItem(): ChecklistItem {
-	const activeImages = imagingStudies.filter(
-		(study) =>
-			study.patientId === activeVisit.patientId &&
-			study.visitId === activeVisit.id,
-	);
-	const reviewImages = activeImages.filter(
-		(study) => study.status === "needs_review",
-	);
-	return {
-		id: "imaging-review",
-		visitId: activeVisit.id,
-		title: "Снимки проверены",
-		detail: reviewImages.length
-			? `${reviewImages.length} снимок требует врачебной проверки перед закрытием.`
-			: activeImages.length
-				? "Снимки связаны с приемом и не ждут проверки."
-				: "К приему не прикреплены снимки.",
-		ready: reviewImages.length === 0,
-		blocking: reviewImages.length > 0,
-		ownerRole: "doctor",
-		section: "visit",
-		actionLabel: "Открыть снимки",
-	};
-}
-
-function buildLegalDocumentsChecklistItem(): ChecklistItem {
-	const activeDocuments = documents.filter(
-		(document) =>
-			document.patientId === activeVisit.patientId &&
-			document.visitId === activeVisit.id &&
-			document.status !== "voided",
-	);
-	const requiredDocumentKinds: DocumentKind[] = [
-		"paid_medical_services_contract",
-		"informed_consent",
-		"completed_works_act",
-	];
-	const missingDocumentKinds = requiredDocumentKinds.filter(
-		(kind) => !activeDocuments.some((document) => document.kind === kind),
-	);
-	return {
-		id: "legal-documents",
-		visitId: activeVisit.id,
-		title: "Документы готовы",
-		detail: missingDocumentKinds.length
-			? `Не хватает документов: ${missingDocumentKinds.length}.`
-			: "Договор, согласие и акт привязаны к приему.",
-		ready: missingDocumentKinds.length === 0,
-		blocking: missingDocumentKinds.length > 0,
-		ownerRole: "administrator",
-		section: "documents",
-		actionLabel: "Собрать документы",
-	};
-}
-
-function buildAiDraftReviewChecklistItem(): ChecklistItem {
-	const hasReviewedAiDraft = aiRecognitionJobs.some(
-		(job) =>
-			job.patientId === activeVisit.patientId &&
-			job.target === "visit_note" &&
-			(job.status === "accepted" || job.status === "needs_review"),
-	);
-	return {
-		id: "ai-draft-review",
-		visitId: activeVisit.id,
-		title: "AI-черновик проверен",
-		detail: hasReviewedAiDraft
-			? "AI-черновик уже прошел врачебный контроль."
-			: "AI не подписывает прием: врач сверяет текст вручную.",
-		ready: hasReviewedAiDraft,
-		blocking: false,
-		ownerRole: "doctor",
-		section: "visit",
-		actionLabel: "Сверить черновик",
-	};
-}
-
-function buildPaymentLinkChecklistItem(
-	billing: ReturnType<typeof buildBillingSummary>,
-): ChecklistItem {
-	const formatRub = (amountRub: number) =>
-		`${amountRub.toLocaleString("ru-RU")} ₽`;
-	return {
-		id: "payment-link",
-		visitId: activeVisit.id,
-		title: "Оплата связана",
-		detail: billing.totalDueRub
-			? `Остаток по плану ${formatRub(billing.totalDueRub)}.`
-			: "Оплата закрыта или не требуется.",
-		ready: billing.totalDueRub === 0,
-		blocking: false,
-		ownerRole: "administrator",
-		section: "finance",
-		actionLabel: "Проверить оплату",
-	};
-}
-
-function buildPostVisitInstructionsChecklistItem(): ChecklistItem {
-	const postVisitInstruction = communicationTasks.find(
-		(task) =>
-			task.visitId === activeVisit.id &&
-			task.intent === "post_visit_instruction",
-	);
-	const postVisitInstructionReady =
-		postVisitInstruction?.status === "completed" ||
-		postVisitInstruction?.status === "sent";
-	return {
-		id: "post-visit-instructions",
-		visitId: activeVisit.id,
-		title: "Рекомендации пациенту",
-		detail: postVisitInstructionReady
-			? "Пациент получил рекомендации после приема."
-			: "Ассистенту нужно отправить короткую памятку после лечения.",
-		ready: Boolean(postVisitInstructionReady),
-		blocking: false,
-		ownerRole: "assistant",
-		section: "communications",
-		actionLabel: "Отправить памятку",
-	};
-}
-
-function buildVisitCloseChecklist(): VisitCloseChecklist {
-	const clinical = buildClinicalRuleSummary();
-	const billing = buildBillingSummary();
-
-	const items: VisitCloseChecklist["items"] = [
-		buildVisitNoteChecklistItem(),
-		buildClinicalRulesChecklistItem(clinical),
-		buildImagingReviewChecklistItem(),
-		buildLegalDocumentsChecklistItem(),
-		buildAiDraftReviewChecklistItem(),
-		buildPaymentLinkChecklistItem(billing),
-		buildPostVisitInstructionsChecklistItem(),
-	];
-
-	const readyItems = items.filter((item) => item.ready).length;
-	const firstOpenBlocking = items.find((item) => item.blocking && !item.ready);
-	const firstOpenOptional = items.find((item) => !item.ready);
-	const blockingItems = items.filter(
-		(item) => item.blocking && !item.ready,
-	).length;
-
-	return {
-		visitId: activeVisit.id,
-		readyToSign: blockingItems === 0,
-		score: Math.round((readyItems / items.length) * 100),
-		nextAction:
-			firstOpenBlocking?.actionLabel ??
-			firstOpenOptional?.actionLabel ??
-			"Можно подписывать прием",
-		blockingItems,
-		items,
+		visit,
+		imagingStudies,
+		documents,
+		aiRecognitionJobs,
+		communicationTasks,
+		clinical: buildClinicalRuleSummary(visit.patientId),
+		billing: visitBillingChecklistFacts(visit),
 	};
 }
 
@@ -1599,8 +1564,14 @@ export function evaluateClinicalRules(
 	};
 }
 
-function buildClinicalRuleEvaluations(): ClinicalRuleEvaluation[] {
-	const patientId = activeVisit.patientId;
+/**
+ * Клинические правила считаются по ПАЦИЕНТУ, поэтому пациент — аргумент.
+ *
+ * БЫЛО: `activeVisit.patientId` прямо внутри. Из-за этого правила нельзя было
+ * посчитать ни для одного приёма, кроме «последнего черновика клиники»: карточка
+ * закрытия конкретного приёма получала предупреждения ЧУЖОГО пациента.
+ */
+function buildClinicalRuleEvaluations(patientId: string): ClinicalRuleEvaluation[] {
 	const patientPlanItems = treatmentPlanItems.filter(
 		(item) => item.patientId === patientId && item.status !== "cancelled",
 	);
@@ -1624,8 +1595,8 @@ function buildClinicalRuleEvaluations(): ClinicalRuleEvaluation[] {
 	}).evaluations;
 }
 
-export function buildClinicalRuleSummary(): ClinicalRuleSummary {
-	return summarizeClinicalEvaluations(buildClinicalRuleEvaluations());
+export function buildClinicalRuleSummary(patientId: string): ClinicalRuleSummary {
+	return summarizeClinicalEvaluations(buildClinicalRuleEvaluations(patientId));
 }
 
 function normalizedClinicalRuleServiceIds(values: string[]): string[] {
@@ -1766,6 +1737,94 @@ export function buildCommunicationSummary(): CommunicationSummary {
 	};
 }
 
+/**
+ * Группировка строк по пациенту за один проход. Используется там, где раньше
+ * для каждого пациента заново фильтровался весь массив.
+ */
+function groupByPatientId<T extends { patientId?: string | null }>(
+	rows: readonly T[],
+): Map<string, T[]> {
+	const grouped = new Map<string, T[]>();
+	for (const row of rows) {
+		const patientId = row.patientId;
+		if (!patientId) continue;
+		const bucket = grouped.get(patientId);
+		if (bucket) bucket.push(row);
+		else grouped.set(patientId, [row]);
+	}
+	return grouped;
+}
+
+/**
+ * ДОЛГ ПАЦИЕНТА ДЛЯ ПОДСКАЗКИ АДМИНИСТРАТОРУ — ИЗ ЕДИНОГО ДОМА ФОРМУЛЫ.
+ *
+ * ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ. Здесь стояла своя копия формулы долга, и позиции
+ * для неё группировались БЕЗ фильтра `status !== "cancelled"`
+ * (`groupByPatientId(treatmentPlanItems)`), тогда как все остальные расчёты
+ * денег отменённое лечение исключают. То есть отменённый план продолжал висеть
+ * на пациенте долгом ровно там, где администратор читает сумму перед звонком:
+ * чип суммы в строке пациента (`PatientsView.tsx`) и «💰 Долг …» в смене
+ * (`ShiftView.tsx`). Пациенту звонили и требовали денег за лечение, которое
+ * клиника сама отменила.
+ *
+ * ЗАМЕР БОЕВЫМ МАРШРУТОМ `GET /api/dashboard` на своей клинике (2026-07-29):
+ * пациент с 10 000,00 активного лечения и 5 000,00 отменённого показывал
+ * 15 000,00 ₽; пациент с полностью отменённым планом на 26 500,00 — 26 500,00 ₽.
+ * Стало 10 000,00 ₽ и 0,00 ₽. На демонстрационной клинике `d0000000-…-d001`
+ * расхождение равно нулю, потому что отменённых позиций там нет ни одной, —
+ * именно поэтому дефект и жил.
+ *
+ * ДЕСЯТОЙ ФОРМУЛЫ НЕ ЗАВЕДЕНО: считает `money/patientDebt.ts`
+ * (`buildPatientLedger` + `patientOwesClinicKopecks`) — тот же дом, что отвечает
+ * на вопросы карточки, приёма и клиники. Отмену отбрасывает модуль, поэтому
+ * второго фильтра статуса здесь нет: два фильтра в двух местах — ровно тот
+ * способ, которым они однажды разойдутся. Разбор девяти прежних расчётов —
+ * `.agents/lead/recon-debt-formula-sprawl.md`.
+ *
+ * `Math.max(0, …)` внутри `patientOwesClinicKopecks` здесь на месте: контракт
+ * требует неотрицательного долга (`patientInsight.balanceDueRub` —
+ * `nonNegativeMoneyRubSchema`). Цена — переплата в этом ответе безымянна, и это
+ * не оговорка, а известная граница: «0» означает и «рассчитался ровно», и
+ * «переплатил». Отдельное имя для переплаты в модуле есть
+ * (`clinicOwesPatientKopecks`), но в контракте подсказки поля под неё нет.
+ *
+ * ПОЧЕМУ ОТКАЗ МОДУЛЯ НЕ ЛЕТИТ НАВЕРХ. Подсказки собираются внутри
+ * `buildDashboard()`, то есть исключение здесь означает HTTP 500 на ГЛАВНОМ
+ * экране клиники: смена не открывается вовсе. Поэтому отказ превращается в
+ * `null`-долг с причиной, и причина уходит в подсказку администратору отдельной
+ * строкой — «остаток не рассчитан». Ноль в этом поле молча выглядел бы как
+ * «пациент ничего не должен», а это неправда: сумма НЕИЗВЕСТНА.
+ */
+function patientInsightDebt(
+	patientId: string,
+	planItems: readonly TreatmentPlanItem[],
+	paidPayments: readonly Payment[],
+): { balanceDueRub: number; balanceUnknownReason: string | null } {
+	try {
+		const ledger = buildPatientLedger(patientId, planItems, paidPayments);
+		return {
+			balanceDueRub: rublesFromKopecks(patientOwesClinicKopecks(ledger)),
+			balanceUnknownReason: null,
+		};
+	} catch (error) {
+		if (
+			error instanceof MoneyPrecisionError ||
+			error instanceof QuantityContractError
+		) {
+			console.error(
+				`[Dashboard] Долг пациента ${patientId} для подсказки администратору не рассчитан: ${error.message}`,
+			);
+			return {
+				balanceDueRub: 0,
+				balanceUnknownReason:
+					"остаток не рассчитан: в позициях лечения или оплатах этого пациента есть сумма, " +
+					"которую нельзя представить в копейках. Не звоните по нулю — сумма неизвестна.",
+			};
+		}
+		throw error;
+	}
+}
+
 function buildPatientInsights(): PatientInsight[] {
 	const requiredDocuments: Array<
 		PatientInsight["missingDocumentKinds"][number]
@@ -1775,26 +1834,28 @@ function buildPatientInsights(): PatientInsight[] {
 		"completed_works_act",
 	];
 
+	// БЫЛО: на каждого пациента выполнялось шесть полных проходов по всем
+	// документам, задачам, снимкам, платежам, позициям плана и записям — то есть
+	// O(пациенты × записи). На демо-базе это незаметно, на клинике с несколькими
+	// тысячами пациентов главный экран считался секундами. Группируем один раз.
+	const documentsByPatient = groupByPatientId(documents);
+	const tasksByPatient = groupByPatientId(
+		communicationTasks.filter(isOpenCommunicationTask),
+	);
+	const imagesByPatient = groupByPatientId(imagingStudies);
+	const paymentsByPatient = groupByPatientId(
+		payments.filter((payment) => payment.status === "paid"),
+	);
+	const planItemsByPatient = groupByPatientId(treatmentPlanItems);
+	const appointmentsByPatient = groupByPatientId(appointments);
+
 	return patients.map((patient) => {
-		const patientDocuments = documents.filter(
-			(document) => document.patientId === patient.id,
-		);
-		const patientTasks = communicationTasks.filter(
-			(task) => task.patientId === patient.id && isOpenCommunicationTask(task),
-		);
-		const patientImages = imagingStudies.filter(
-			(study) => study.patientId === patient.id,
-		);
-		const patientPayments = payments.filter(
-			(payment) =>
-				payment.patientId === patient.id && payment.status === "paid",
-		);
-		const patientPlanItems = treatmentPlanItems.filter(
-			(item) => item.patientId === patient.id,
-		);
-		const patientAppointments = appointments.filter(
-			(appointment) => appointment.patientId === patient.id,
-		);
+		const patientDocuments = documentsByPatient.get(patient.id) ?? [];
+		const patientTasks = tasksByPatient.get(patient.id) ?? [];
+		const patientImages = imagesByPatient.get(patient.id) ?? [];
+		const patientPayments = paymentsByPatient.get(patient.id) ?? [];
+		const patientPlanItems = planItemsByPatient.get(patient.id) ?? [];
+		const patientAppointments = appointmentsByPatient.get(patient.id) ?? [];
 		const draftVisit =
 			activeVisit.patientId === patient.id && activeVisit.status === "draft";
 		const missingDocumentKinds = requiredDocuments.filter(
@@ -1803,17 +1864,11 @@ function buildPatientInsights(): PatientInsight[] {
 					(document) => document.kind === kind && document.status !== "voided",
 				),
 		);
-		const plannedRub = patientPlanItems.reduce(
-			(total, item) =>
-				total +
-				Math.max(0, item.quantity * item.unitPriceRub - item.discountRub),
-			0,
+		const { balanceDueRub, balanceUnknownReason } = patientInsightDebt(
+			patient.id,
+			patientPlanItems,
+			patientPayments,
 		);
-		const paidRub = patientPayments.reduce(
-			(total, payment) => total + payment.amountRub,
-			0,
-		);
-		const balanceDueRub = Math.max(0, plannedRub - paidRub);
 		const recallTask = patientTasks
 			.filter((task) => task.intent === "recall")
 			.sort((left, right) => left.dueAt.localeCompare(right.dueAt))[0];
@@ -1832,6 +1887,11 @@ function buildPatientInsights(): PatientInsight[] {
 				: []),
 		];
 		const adminFlags = [
+			/* «Остаток не рассчитан» стоит ПЕРВЫМ и вместо суммы: ноль в этом поле
+			   администратор прочитал бы как «пациент ничего не должен», а это
+			   неправда — сумма неизвестна. Молчаливый ноль на деньгах и есть тот
+			   класс дефекта, из-за которого весь этот переезд затеян. */
+			...(balanceUnknownReason ? [balanceUnknownReason] : []),
 			...(balanceDueRub > 0
 				? [`остаток ${balanceDueRub.toLocaleString("ru-RU")} ₽`]
 				: []),
@@ -2034,6 +2094,36 @@ export function validScheduleTimeZone(
 	} catch {
 		return defaultClinicTimezone;
 	}
+}
+
+/**
+ * Сегодняшняя дата в часовом поясе клиники (YYYY-MM-DD).
+ *
+ * БЫЛО: buildDashboard() возвращал жёстко зашитое "2026-05-12". От этого
+ * значения считается вся вкладка «Смена»: какие приёмы показать как сегодняшние,
+ * что просрочено, что закрывать. То есть расписание всегда показывало «сегодня»
+ * 12 мая 2026 года независимо от реальной даты.
+ *
+ * Дата берётся именно в часовом поясе клиники, а не сервера: в Самаре рабочий
+ * день начинается на три часа раньше UTC, и по UTC-дате утренние приёмы
+ * попадали бы во «вчера».
+ */
+export function clinicTodayIso(timeZone: string = clinicProfile.timezone): string {
+	const zone = validScheduleTimeZone(timeZone);
+	try {
+		const parts = new Map(
+			getAppointmentTimeFormatter(zone)
+				.formatToParts(new Date())
+				.map((part) => [part.type, part.value]),
+		);
+		const year = parts.get("year");
+		const month = parts.get("month");
+		const day = parts.get("day");
+		if (year && month && day) return `${year}-${month}-${day}`;
+	} catch {
+		// Ниже — запасной вариант по UTC.
+	}
+	return new Date().toISOString().slice(0, 10);
 }
 
 function assertValidScheduleTimeZone(value: string): void {
@@ -2623,7 +2713,7 @@ function buildRecommendedActions(
 
 	const add = (action: RecommendedAction) => actions.push(action);
 
-	if (activeVisit.status === "draft") {
+	if (hasUnsignedActiveVisit()) {
 		add({
 			id: "action-sign-active-visit",
 			role: "doctor",
@@ -3100,9 +3190,7 @@ function buildRoleQueues(): RoleQueue[] {
 	const draftDocuments = documents.filter(
 		(document) => document.status === "draft",
 	).length;
-	const unsignedVisits = [activeVisit].filter(
-		(visit) => visit.status === "draft",
-	).length;
+	const unsignedVisits = hasUnsignedActiveVisit() ? 1 : 0;
 	const plannedAppointments = appointments.filter(
 		(appointment) => appointment.status === "planned",
 	).length;
@@ -3186,7 +3274,7 @@ function buildScheduleWarnings(): ScheduleWarning[] {
 	const warnings: ScheduleWarning[] = [];
 	const billing = buildBillingSummary();
 	const communication = buildCommunicationSummary();
-	const clinical = buildClinicalRuleSummary();
+	const clinical = buildClinicalRuleSummary(activeVisit.patientId);
 	const activeAppointment = appointments.find(
 		(appointment) => appointment.id === activeAppointmentId,
 	);
@@ -3199,7 +3287,7 @@ function buildScheduleWarnings(): ScheduleWarning[] {
 			document.status === "draft",
 	);
 
-	if (activeVisit.status === "draft") {
+	if (hasUnsignedActiveVisit()) {
 		warnings.push({
 			id: "unsigned-active-visit",
 			severity: "warning",
@@ -4699,9 +4787,88 @@ function mutableStateSnapshot(): DentalMutableState {
 	};
 }
 
-function persistMutableState(): void {
+/**
+ * Сохранение снимка состояния: одна запись на пачку изменений, а не на каждое.
+ *
+ * БЫЛО. persistMutableState() из 31 места вызывал savePersistentState()
+ * синхронно, прямо в обработчике запроса. Одна такая запись — это два полных
+ * JSON.stringify всего состояния (первый ради контрольной суммы, второй ради
+ * файла), копия предыдущего файла в каталог резервных копий, чтение этого
+ * каталога, удаление устаревших копий, запись и переименование. Замерено на
+ * этом репозитории (медиана из 10 прогонов, повтор алгоритма
+ * persistentState.ts:242 в каталог вне репозитория):
+ *   • 3 пациента, файл 236 648 Б      → 4,61 мс на один вызов;
+ *   • 10 000 пациентов, 5 803 929 Б   → 49,54 мс на один вызов и 11,6 МБ
+ *     дискового ввода-вывода (сам файл плюс его резервная копия).
+ * Один вебхук Telegram или одно сохранение приёма дают три-пять таких вызовов
+ * подряд, и каждый блокировал цикл событий до ответа клиенту.
+ *
+ * СТАЛО. Вызов помечает состояние изменённым и заводит один таймер. Все
+ * вызовы, пришедшие до его срабатывания, сливаются в одну запись, и запись
+ * происходит уже после ответа клиенту. Окно фиксированное, а не продлеваемое
+ * при каждом изменении: устаревание снимка ограничено сверху окном при любой
+ * нагрузке, тогда как продлеваемое окно при непрерывном потоке изменений не
+ * записало бы файл вообще никогда.
+ *
+ * Окно по умолчанию — 250 мс, то есть пятикратная стоимость одной записи на
+ * клинике в 10 000 пациентов по замеру выше: даже при непрерывных изменениях
+ * на сохранение состояния уходит не больше пятой части времени цикла
+ * событий. Переопределяется DENTAL_STATE_FLUSH_DELAY_MS, значение 0
+ * возвращает синхронную запись на каждое изменение.
+ */
+const defaultStateFlushDelayMs = 250;
+
+function stateFlushDelayMs(): number {
+	const raw = process.env.DENTAL_STATE_FLUSH_DELAY_MS?.trim();
+	if (!raw) return defaultStateFlushDelayMs;
+	const parsed = Number(raw);
+	// Мусор в переменной окружения не должен молча превращаться в ноль: это
+	// вернуло бы синхронную запись на каждое действие, и никто бы не заметил.
+	if (!Number.isFinite(parsed) || parsed < 0) return defaultStateFlushDelayMs;
+	return Math.floor(parsed);
+}
+
+let pendingStateFlushTimer: NodeJS.Timeout | null = null;
+let mutableStateDirty = false;
+
+/**
+ * Немедленно записать отложенный снимок, если он есть.
+ *
+ * Нужен на завершении процесса: gracefulShutdown в server.ts:531 доходит до
+ * process.exit(0), поэтому обработчик exit ниже дописывает последние
+ * изменения, и корректная остановка сервера ничего не теряет.
+ */
+export function flushPersistentStateNow(): void {
+	if (pendingStateFlushTimer) {
+		clearTimeout(pendingStateFlushTimer);
+		pendingStateFlushTimer = null;
+	}
+	if (!mutableStateDirty) return;
+	mutableStateDirty = false;
 	savePersistentState(mutableStateSnapshot());
 }
+
+function persistMutableState(): void {
+	mutableStateDirty = true;
+	const delayMs = stateFlushDelayMs();
+	if (delayMs === 0) {
+		flushPersistentStateNow();
+		return;
+	}
+	if (pendingStateFlushTimer) return;
+	pendingStateFlushTimer = setTimeout(() => {
+		pendingStateFlushTimer = null;
+		if (mutableStateDirty) {
+			mutableStateDirty = false;
+			savePersistentState(mutableStateSnapshot());
+		}
+	}, delayMs);
+	// Таймер не удерживает процесс: одноразовые скрипты и тесты должны
+	// завершаться сразу, а несохранённое допишет обработчик exit.
+	pendingStateFlushTimer.unref();
+}
+
+process.on("exit", flushPersistentStateNow);
 
 const defaultPostVisitCheckupDelayHoursByTopic: DenteTelegramBotSettings["postVisitCheckupDelayHoursByTopic"] =
 	{
@@ -8530,38 +8697,79 @@ function buildDenteTelegramOutboxItem(
 	};
 }
 
+/**
+ * Ключ идемпотентности напоминания об оплате — С КОПЕЙКАМИ ДОЛГА.
+ *
+ * ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ. Здесь стояло
+ * `payment-reminder:${patientId}:${Math.max(0, Math.round(balanceDueRub))}` —
+ * долг округлялся до ЦЕЛОГО РУБЛЯ внутри ключа дедупликации. Пациент доплачивал
+ * 39 копеек, долг становился другим, а ключ оставался прежним, поэтому
+ * напоминание считалось уже отправленным и второе не уходило НИКОГДА. Обратный
+ * случай так же плох: изменение долга на одну копейку через границу полурубля
+ * рождало новый ключ и повторное напоминание на ту же сумму.
+ *
+ * Замер боевым маршрутом `GET /api/telegram/outbox` (2026-07-29, своя клиника):
+ * долг 1 000,49 ₽ давал id `payment-reminder:…:1000`, и после доплаты 0,39 ₽ id
+ * оставался `payment-reminder:…:1000`. Стало: `…:1000.49` → `…:1000.10`.
+ *
+ * ПОЧЕМУ КОПЕЙКИ, А НЕ РУБЛИ ЧИСЛОМ. Ключ печатает `debtNumericText` из единого
+ * дома формулы долга — то есть ровно тот текст, каким сумма легла бы в колонку
+ * `numeric(12,2)`: «1000.10», а не «1000.1». Иначе один и тот же долг давал бы
+ * два разных ключа в зависимости от того, как число напечаталось.
+ *
+ * ПОСЛЕДСТВИЕ ДЛЯ ЖИВЫХ ДАННЫХ, КОТОРОЕ НЕЛЬЗЯ ЗАМОЛЧАТЬ. Отправленность
+ * напоминания хранится как событие журнала с `entityId` = этим ключом
+ * (`telegramOutboxItemAlreadySent` ищет `telegram_outbox` /
+ * `telegram_outbound_sent` в `auditEvents`). Ключи прежнего вида
+ * (`payment-reminder:…:1000`) с новыми (`payment-reminder:…:1000.10`) не
+ * совпадут, поэтому на установке, где напоминания уже отправлялись, одна волна
+ * может уйти повторно. Замер на этой установке: в таблице `audit_events` строк
+ * `telegram_outbox` — 0, в сохранённом состоянии `.data/dental-crm-state.json`
+ * из 183 событий журнала `telegram_outbox` — 0, ключей `payment-reminder:*` — 0,
+ * то есть здесь повторяться нечему. На чужой установке это надо проверить тем же
+ * запросом ПЕРЕД обновлением.
+ */
 function paymentReminderOutboxId(
 	patientId: string,
-	balanceDueRub: number,
+	balanceDueKopecks: Kopecks,
 ): string {
-	return `payment-reminder:${patientId}:${Math.max(0, Math.round(balanceDueRub))}`;
+	return `payment-reminder:${patientId}:${debtNumericText(Math.max(0, balanceDueKopecks))}`;
 }
 
 function paymentReminderAlreadyCovered(outboxItemId: string): boolean {
 	return telegramOutboxItemAlreadySent(outboxItemId);
 }
 
-function patientPaymentBalanceRub(
+/**
+ * Сколько пациент должен клинике — для напоминания об оплате.
+ *
+ * ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ. Здесь стояла СВОЯ копия формулы долга
+ * (`patientPaymentBalanceRub`): те же два `reduce`, но БЕЗ округления до
+ * копейки. На суммах с копейками она отдавала плавающую грязь — три позиции
+ * 1 000,00 + 1 001,82 + 1 489,67 давали `3491.4900000000002` вместо 3 491,49, и
+ * это число уходило в ключ идемпотентности. Разбор всех девяти прежних расчётов
+ * долга — `.agents/lead/recon-debt-formula-sprawl.md`.
+ *
+ * ДЕСЯТОЙ ФОРМУЛЫ НЕ ЗАВЕДЕНО: считает `money/patientDebt.ts`, тот же дом, что
+ * отвечает на вопросы карточки, сводки и приёма. Здесь остался отбор строк по
+ * клинике — сама арифметика в копейках живёт в модуле.
+ *
+ * ОТМЕНЁННЫЕ ПОЗИЦИИ отбрасывает модуль (`CANCELLED_ITEM_STATUS`), поэтому
+ * прежний фильтр `status !== "cancelled"` из отбора убран: два фильтра в двух
+ * местах — это ровно тот способ, которым они однажды разойдутся.
+ */
+function patientPaymentDebtKopecks(
 	patientId: string,
 	organizationScope = denteTelegramBotSettings.organizationId,
-): number {
-	const plannedRub = treatmentPlanItems
-		.filter(
-			(item) =>
-				item.organizationId === organizationScope &&
-				item.patientId === patientId &&
-				item.status !== "cancelled",
-		)
-		.reduce((total, item) => total + treatmentLineTotal(item), 0);
-	const paidRub = payments
-		.filter(
-			(payment) =>
-				payment.organizationId === organizationScope &&
-				payment.patientId === patientId &&
-				payment.status === "paid",
-		)
-		.reduce((total, payment) => total + payment.amountRub, 0);
-	return Math.max(0, plannedRub - paidRub);
+): Kopecks {
+	const ledger = buildPatientLedger(
+		patientId,
+		treatmentPlanItems.filter(
+			(item) => item.organizationId === organizationScope,
+		),
+		payments.filter((payment) => payment.organizationId === organizationScope),
+	);
+	return patientOwesClinicKopecks(ledger);
 }
 
 function patientPaymentReminderScheduledAt(
@@ -8592,13 +8800,37 @@ function buildDenteTelegramPaymentReminderItems(
 		if (patient.organizationId !== organizationScope) return [];
 		if (patient.status !== "active") return [];
 
-		const balanceDueRub = patientPaymentBalanceRub(
-			patient.id,
-			organizationScope,
-		);
-		if (balanceDueRub <= 0) return [];
+		/*
+		 * Отказ модуля ловится, а не летит наверх. Модуль отвергает суммы,
+		 * потерявшие точность, и количество вне общего контракта; одна такая
+		 * строка у одного пациента не должна ронять ВСЮ очередь отправок клиники
+		 * пятисоткой — иначе из-за одной испорченной цены не уйдёт ни одно
+		 * напоминание, ни одно подтверждение записи, ни одна памятка. Цена этой
+		 * ветки названа прямо: напоминание этому пациенту не уйдёт, и причина
+		 * обязана быть в журнале целиком, иначе потерянные деньги никто не найдёт.
+		 */
+		let balanceDueKopecks: Kopecks;
+		try {
+			balanceDueKopecks = patientPaymentDebtKopecks(
+				patient.id,
+				organizationScope,
+			);
+		} catch (error) {
+			if (
+				error instanceof MoneyPrecisionError ||
+				error instanceof QuantityContractError
+			) {
+				console.error(
+					`[Telegram] Напоминание об оплате пациенту ${patient.id} не построено: ${error.message} ` +
+						"Долг не рассчитан, поэтому напоминание не уйдёт — почините строку денег, названную в причине.",
+				);
+				return [];
+			}
+			throw error;
+		}
+		if (balanceDueKopecks <= 0) return [];
 
-		const itemId = paymentReminderOutboxId(patient.id, balanceDueRub);
+		const itemId = paymentReminderOutboxId(patient.id, balanceDueKopecks);
 		if (paymentReminderAlreadyCovered(itemId)) return [];
 
 		return [
@@ -8663,7 +8895,10 @@ function buildDenteTelegramRecallItems(
 		if (item.organizationId !== organizationScope) return [];
 		if (item.status !== "completed") return [];
 
-		const service = serviceCatalogMap.get(item.serviceId);
+		// БЫЛО: только индекс, без запасного поиска по прайсу. Услуга, добавленная
+		// после построения индекса, не находилась, и напоминание о гигиене
+		// пациенту не уходило вовсе.
+		const service = getServiceCatalogItem(item.serviceId);
 		if (service?.category !== "hygiene") return [];
 
 		const patient = activePatientsMap.get(item.patientId);
@@ -8929,16 +9164,19 @@ function buildDenteTelegramTaxDocumentRequestItems(
 ): DenteTelegramOutboxItem[] {
 	const runtime = resolveDenteTelegramOutboxRuntimeScope(runtimeScope);
 	const organizationScope = runtime.settings.organizationId;
+	// Один индекс активных пациентов вместо линейного поиска на каждый документ.
+	const activePatientIds = new Set(
+		patients
+			.filter((candidate) => candidate.status === "active")
+			.map((candidate) => candidate.id),
+	);
 	return documents.flatMap((document) => {
 		if (document.organizationId !== organizationScope) return [];
 		if (document.kind !== "tax_deduction_application") return [];
 		if (document.status !== "issued") return [];
 		if (!document.payload?.taxDeductionApplication) return [];
-		const patient = patients.find(
-			(candidate) =>
-				candidate.id === document.patientId && candidate.status === "active",
-		);
-		if (!patient) return [];
+		if (!document.patientId) return [];
+		if (!activePatientIds.has(document.patientId)) return [];
 
 		const itemId = taxDocumentRequestOutboxId(document);
 		if (taxDocumentRequestAlreadySent(itemId)) return [];
@@ -10197,9 +10435,10 @@ export function buildDashboard(): Dashboard {
 
 	return {
 		clinicName: repairMojibakeText(clinicProfile.clinicName),
-		todayIso: "2026-05-12",
+		// БЫЛО: "2026-05-12" — жёстко зашитая дата. Вкладка «Смена» всегда
+		// показывала приёмы за 12 мая 2026 года, а реальный день был пуст.
+		todayIso: clinicTodayIso(),
 		clinicSettings: buildClinicSettings(),
-		insuranceContracts: [],
 		shiftIntelligence: repairMojibakeDeep(buildShiftIntelligence()),
 		patients: repairMojibakeDeep(patients),
 		patientInsights: repairMojibakeDeep(patientInsights),
@@ -10211,8 +10450,35 @@ export function buildDashboard(): Dashboard {
 		scheduleSuggestions: repairMojibakeDeep(
 			buildScheduleSuggestions(appointmentReadiness),
 		),
-		activeVisit: repairMojibakeDeep(activeVisit),
-		visitCloseChecklist: repairMojibakeDeep(buildVisitCloseChecklist()),
+		/*
+		 * ОТКРЫТОГО ПРИЁМА НЕТ — ТАК И СКАЗАНО, `null`, А НЕ НУЛЕВОЙ УУИД.
+		 *
+		 * `activeVisit` — общий на процесс объект, и гидратация базы кладёт в него
+		 * заготовку с `id = NIL_VISIT_UUID`, когда у клиники нет ни одного приёма
+		 * (`db/domainStateHydration.ts`, noVisitSkeleton). До этой строки заготовка
+		 * уходила в ответ как есть, и главный экран называл администратору
+		 * идентификатор приёма, строки которого в базе нет ни одной — замерено на
+		 * четырёх клиниках с нулём визитов.
+		 *
+		 * Нулевой ууид — НЕПУСТАЯ строка, то есть правдивая в булевом смысле, и
+		 * клиентские сторожа вида `if (!dashboard?.activeVisit?.id) return;` её
+		 * пропускали. Цена записана рядом с каждой заплаткой на клиенте: касса
+		 * отвечала «Прием для оплаты не найден» на нажатие «Принять оплату», а лента
+		 * снимков была пуста ВСЕГДА, пока приём не начат.
+		 *
+		 * Почему `null`, а не отсутствие поля: `null` — это утверждение «открытого
+		 * приёма нет», а отсутствие поля — молчание, которое не отличить от «сервер
+		 * не считал». Поле остаётся обязательным (`visitSchema.nullable()`).
+		 *
+		 * Охраняется `tests/routes/dashboardActiveVisitIsNotFabricated.test.ts`.
+		 * Остальные поля сводки ниже по-прежнему считаются от общего объекта: они
+		 * читают пациента заготовки и дают пустые наборы, это прежнее поведение и
+		 * оно правильное.
+		 */
+		activeVisit: activeVisit.id === NIL_VISIT_UUID ? null : repairMojibakeDeep(activeVisit),
+		visitCloseChecklist: repairMojibakeDeep(
+			buildVisitCloseChecklist(visitCloseChecklistFactsFor(activeVisit)),
+		),
 		documents: repairMojibakeDeep(buildDashboardDocuments()),
 		imagingStudies: repairMojibakeDeep(imagingStudies),
 		protocolTemplates: repairMojibakeDeep(protocolTemplates),
@@ -10220,8 +10486,12 @@ export function buildDashboard(): Dashboard {
 		treatmentPlanItems: repairMojibakeDeep(treatmentPlanItems),
 		treatmentPlanScenarios: repairMojibakeDeep(treatmentPlanScenarios),
 		clinicalRules: repairMojibakeDeep(clinicalRules),
-		clinicalRuleEvaluations: repairMojibakeDeep(buildClinicalRuleEvaluations()),
-		clinicalRuleSummary: repairMojibakeDeep(buildClinicalRuleSummary()),
+		clinicalRuleEvaluations: repairMojibakeDeep(
+			buildClinicalRuleEvaluations(activeVisit.patientId),
+		),
+		clinicalRuleSummary: repairMojibakeDeep(
+			buildClinicalRuleSummary(activeVisit.patientId),
+		),
 		payments: repairMojibakeDeep(payments),
 		billingSummary: repairMojibakeDeep(buildBillingSummary()),
 		communicationTemplates: repairMojibakeDeep(communicationTemplates),
@@ -10286,7 +10556,7 @@ function normalizePatientAdministrativeProfile(
 		preferredAppointmentEnd,
 		preferredAppointmentNote: nullableTrimmed(input?.preferredAppointmentNote),
 		dataProcessingBasisNote: nullableTrimmed(input?.dataProcessingBasisNote),
-		orthodonticProgress: input?.orthodonticProgress ?? null,
+		orthodonticProgress: nullableTrimmed(input?.orthodonticProgress),
 	};
 	const hasValue = Object.values(profile).some((value) =>
 		Array.isArray(value) ? value.length > 0 : Boolean(value),
@@ -11064,6 +11334,126 @@ export function updateChairWorkingHours(
 	return chair;
 }
 
+/**
+ * Поля карточки сотрудника, которые правит адрес PUT /api/settings/staff/:staffId.
+ *
+ * Расписание сюда намеренно не входит: у него отдельный адрес
+ * /api/settings/staff/:staffId/working-hours, и только там есть проверка на
+ * активные записи за пределами нового графика. Приняв расписание здесь, мы
+ * обошли бы эту проверку и оставили приемы вне рабочего окна врача.
+ */
+export type UpdateStaffMemberProfileInput = {
+	fullName?: string | undefined;
+	role?: StaffMember["role"] | undefined;
+	phone?: string | null | undefined;
+	email?: string | null | undefined;
+	active?: boolean | undefined;
+};
+
+/**
+ * Поля кресла, которые правит адрес PUT /api/settings/chairs/:chairId.
+ *
+ * Только название и признак активности: в таблице chairs больше ничего из
+ * карточки кресла не хранится, а кабинет, специализация и оснащение читаются
+ * из базы как пустые значения. Принимать их значило бы молча терять ввод.
+ */
+export type UpdateChairProfileInput = {
+	name?: string | undefined;
+	active?: boolean | undefined;
+};
+
+export function updateStaffMemberProfile(
+	staffId: string,
+	input: UpdateStaffMemberProfileInput,
+): StaffMember {
+	const member = staffMembers.find((item) => item.id === staffId);
+	if (!member) {
+		throw new Error("Сотрудник не найден.");
+	}
+	if (input.fullName !== undefined) member.fullName = input.fullName.trim();
+	if (input.role !== undefined) {
+		member.role = input.role;
+		// Права привязаны к роли. Смена роли без пересчета прав оставила бы
+		// бывшему администратору доступ к кассе и импортам.
+		const permissions = permissionsForRole(input.role);
+		member.canSignMedicalRecords = permissions.canSignMedicalRecords;
+		member.canManageMoney = permissions.canManageMoney;
+		member.canManageImports = permissions.canManageImports;
+	}
+	if (input.phone !== undefined) member.phone = nullableTrimmed(input.phone);
+	if (input.email !== undefined) member.email = nullableTrimmed(input.email);
+	if (input.active !== undefined) member.active = input.active;
+	member.updatedAt = new Date().toISOString();
+	recordAuditEvent({
+		entityType: "staff_member",
+		entityId: member.id,
+		action: "staff_profile_updated",
+		reason: `${member.fullName}: карточка сотрудника обновлена.`,
+	});
+	return member;
+}
+
+/**
+ * Мягкое отключение сотрудника вместо физического удаления: на строку в users
+ * ссылаются приемы (doctor_user_id, assistant_user_id) и медицинские записи.
+ * Удаление строки либо упало бы на внешнем ключе, либо обезличило историю
+ * лечения — это медицинские данные, их нельзя терять.
+ */
+export function deactivateStaffMember(staffId: string): StaffMember {
+	const member = staffMembers.find((item) => item.id === staffId);
+	if (!member) {
+		throw new Error("Сотрудник не найден.");
+	}
+	member.active = false;
+	member.updatedAt = new Date().toISOString();
+	recordAuditEvent({
+		entityType: "staff_member",
+		entityId: member.id,
+		action: "staff_deactivated",
+		reason: `${member.fullName}: сотрудник отключен, приемы и медицинские записи сохранены.`,
+	});
+	return member;
+}
+
+export function updateChairProfile(
+	chairId: string,
+	input: UpdateChairProfileInput,
+): Chair {
+	const chair = chairs.find((item) => item.id === chairId);
+	if (!chair) {
+		throw new Error("Кресло не найдено.");
+	}
+	if (input.name !== undefined) chair.name = input.name.trim();
+	if (input.active !== undefined) chair.active = input.active;
+	recordAuditEvent({
+		entityType: "chair",
+		entityId: chair.id,
+		action: "chair_profile_updated",
+		reason: `${chair.name}: карточка кресла обновлена.`,
+	});
+	return chair;
+}
+
+/**
+ * Мягкое отключение кресла: на chairs.id ссылаются приемы (appointments.chair_id),
+ * поэтому строка не удаляется, а перестает быть активной. Уже назначенные
+ * приемы остаются на месте и не теряют привязку к кабинету.
+ */
+export function deactivateChair(chairId: string): Chair {
+	const chair = chairs.find((item) => item.id === chairId);
+	if (!chair) {
+		throw new Error("Кресло не найдено.");
+	}
+	chair.active = false;
+	recordAuditEvent({
+		entityType: "chair",
+		entityId: chair.id,
+		action: "chair_deactivated",
+		reason: `${chair.name}: кресло отключено, существующие приемы сохранены.`,
+	});
+	return chair;
+}
+
 function buildRecognitionOutput(input: CreateAiRecognitionJobInput) {
 	const normalized = input.inputText
 		.replace(/\r\n/g, "\n")
@@ -11269,26 +11659,30 @@ function speechRecordingRecoveryFromChunks(
 				left.createdAt.localeCompare(right.createdAt),
 		);
 	const assembly = assembleSpeechRecordingFromChunks(recordingId, sortedChunks);
+	// БЫЛО: семь отдельных проходов по массиву фрагментов. Считаем за один.
 	const statusCounts = {
-		transcribed: sortedChunks.filter((chunk) => chunk.status === "transcribed")
-			.length,
-		fallback_text: sortedChunks.filter(
-			(chunk) => chunk.status === "fallback_text",
-		).length,
-		needs_provider_key: sortedChunks.filter(
-			(chunk) => chunk.status === "needs_provider_key",
-		).length,
-		failed: sortedChunks.filter((chunk) => chunk.status === "failed").length,
+		transcribed: 0,
+		fallback_text: 0,
+		needs_provider_key: 0,
+		failed: 0,
 	};
-	const totalDurationMs = sortedChunks.some(
-		(chunk) => chunk.durationMs !== null,
-	)
-		? sortedChunks.reduce((total, chunk) => total + (chunk.durationMs ?? 0), 0)
-		: null;
-	const totalBytes = sortedChunks.reduce(
-		(total, chunk) => total + chunk.byteLength,
-		0,
-	);
+	let hasKnownDuration = false;
+	let durationSumMs = 0;
+	let totalBytes = 0;
+	for (const chunk of sortedChunks) {
+		if (chunk.status === "transcribed") statusCounts.transcribed += 1;
+		else if (chunk.status === "fallback_text") statusCounts.fallback_text += 1;
+		else if (chunk.status === "needs_provider_key")
+			statusCounts.needs_provider_key += 1;
+		else if (chunk.status === "failed") statusCounts.failed += 1;
+
+		if (chunk.durationMs !== null) {
+			hasKnownDuration = true;
+			durationSumMs += chunk.durationMs;
+		}
+		totalBytes += chunk.byteLength;
+	}
+	const totalDurationMs = hasKnownDuration ? durationSumMs : null;
 	const qualityCounts = countSpeechQualities(sortedChunks);
 	const transcriptPreview = assembly.transcript
 		.replace(/\s+/g, " ")
@@ -11707,7 +12101,9 @@ export function acceptVisitDraft(
 	if (duplicateReceipt) {
 		return {
 			visit: activeVisit,
-			visitCloseChecklist: buildVisitCloseChecklist(),
+			visitCloseChecklist: buildVisitCloseChecklist(
+				visitCloseChecklistFactsFor(activeVisit),
+			),
 			saveReceipt: {
 				...duplicateReceipt,
 				status: "duplicate",
@@ -11762,7 +12158,9 @@ export function acceptVisitDraft(
 
 	return {
 		visit: activeVisit,
-		visitCloseChecklist: buildVisitCloseChecklist(),
+		visitCloseChecklist: buildVisitCloseChecklist(
+			visitCloseChecklistFactsFor(activeVisit),
+		),
 		saveReceipt,
 	};
 }

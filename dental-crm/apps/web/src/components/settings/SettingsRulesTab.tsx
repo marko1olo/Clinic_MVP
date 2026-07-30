@@ -18,8 +18,15 @@ import {
 import "./SettingsRulesTab.css";
 import type React from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { useSettingsDerivations } from "../../useSettingsDerivations";
-import { CustomCrmTaskTypesWidget } from "../crm/CustomCrmTaskTypesWidget";
+import { SettingsModuleDisabled } from "./SettingsModuleDisabled";
+import { CLINICAL_RULES_GATE } from "./settingsModuleGate";
+/*
+ * Импорта CustomCrmTaskTypesWidget здесь больше нет намеренно: панель нечем
+ * заполнить. Причина подробно — в конце разметки, у места, откуда она убрана.
+ * Не возвращай импорт, не прочитав тот комментарий.
+ */
 
 const clinicalRuleOwnerRoles: StaffRole[] = [
 	"doctor",
@@ -96,6 +103,22 @@ export function SettingsRulesTab() {
 	const typedServiceCategories = Object.keys(
 		typedServiceCategoryLabels,
 	) as ServiceCategory[];
+
+	/*
+	 * ПАНЕЛЬ СПРАШИВАЕТ ТОТ ЖЕ ПРИЗНАК, ЧТО И КНОПКА ЕЁ ВКЛАДКИ.
+	 *
+	 * Кнопку «Правила» отсеивает `if (!flags.hasClinicalRules)` в SettingsView, а
+	 * панель признака не спрашивала вовсе — и открывалась по адресу
+	 * `#settings/rules` при выключенном модуле. Владелец выключал «Клинические
+	 * правила» на вкладке «Модули», нажимал «Назад» и снова видел полностью
+	 * рабочий экран правил. Источник признака тот же (useWorkspaceProfile),
+	 * поэтому разойтись им больше негде. Проверка стоит ПОСЛЕ всех хуков: правила
+	 * хуков React не позволяют выйти раньше их вызова.
+	 */
+	const flags = useWorkspaceProfile();
+	if (!flags.hasClinicalRules) {
+		return <SettingsModuleDisabled gate={CLINICAL_RULES_GATE} />;
+	}
 
 	return (
 		<div className="rules-studio-container animate-fade-in">
@@ -553,8 +576,7 @@ export function SettingsRulesTab() {
 									)}
 								</button>
 								<button
-									className="icon-button"
-									style={{ color: "var(--danger-color)" }}
+									className="icon-button text-rose-500 hover:text-rose-600 dark:text-rose-400"
 									type="button"
 									onClick={() => removeClinicalRule(rule.id)}
 									disabled={isClinicalRuleSaving}
@@ -568,7 +590,25 @@ export function SettingsRulesTab() {
 				</div>
 			</section>
 
-			<CustomCrmTaskTypesWidget />
+			{/*
+				Здесь стоял «Конструктор типов задач» (CustomCrmTaskTypesWidget).
+				Убран: заполнить его нечем. В таблице custom_crm_task_types на весь
+				репозиторий ноль вставок — только SELECT в
+				apps/api/src/db/customCrmTaskTypesQuery.ts, ни экрана создания, ни
+				формы, ни импорта. Панель писала «Типы задач отсутствуют» в любой
+				клинике и в любой день, причём в настройках, то есть ровно там, где
+				владелец и ждёт, что сможет что-то настроить, — обещание без кнопки
+				хуже отсутствия обещания.
+
+				По сути кабинету на два кресла отдельные типы задач и не нужны:
+				готовых назначений задач хватает.
+
+				Вкладка «Правила» от этого не пустеет: выше остаются сводка правил,
+				конструктор клинических правил и библиотека правил — они пишутся
+				настоящими роутами.
+
+				Вернуть можно только вместе с экраном создания типа задачи.
+			*/}
 		</div>
 	);
 }

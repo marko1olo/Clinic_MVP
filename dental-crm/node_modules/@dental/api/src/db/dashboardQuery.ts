@@ -1,290 +1,109 @@
-import { db } from "./client.js";
-import * as schema from "./schema.js";
-import { eq } from "drizzle-orm";
-import type { Dashboard } from "@dental/shared";
-import { buildDashboard as buildDashboardInMemory } from "../sampleData.js";
+/**
+ * dashboardQuery.ts — сводка главного экрана.
+ *
+ * ЧТО БЫЛО НЕ ТАК
+ *
+ * Функция собирала объект Dashboard вручную и НЕ проходила собственную же
+ * проверку контракта. dashboardSchema требует тридцать одно поле; собиралось
+ * двадцать одно. Отсутствовали: activeVisit, documents, appointmentReadiness,
+ * scheduleSuggestions, visitCloseChecklist, protocolTemplates,
+ * treatmentPlanScenarios, communicationTemplates, speechProviders,
+ * complianceWarnings. Три поля (visits, treatmentPlans, generatedDocuments)
+ * контрактом вообще не предусмотрены и молча отбрасывались.
+ *
+ * Значит, dashboardSchema.parse() бросал исключение ВСЕГДА, а routes/dashboard.ts
+ * ловил его и отдавал 500. То есть в рабочем режиме (DATABASE_URL задан,
+ * DENTAL_STATE_PERSISTENCE не выставлен в "off" — именно так настроено в .env
+ * проекта) главный экран не загружался никогда. Приложение это скрывало:
+ * во фронтенде стояла подстановка демонстрационной сводки при ошибке загрузки,
+ * поэтому пользователь видел выдуманного пациента вместо своих данных.
+ *
+ * Даже если бы поля добавили, данные всё равно не прошли бы проверку:
+ *   • записи отдавались как doctorId/startAt/endAt, контракт ждёт
+ *     doctorUserId/startsAt/endsAt — ни одна запись не была валидной;
+ *   • у снимков previewUrl обязателен и строковый, а подставлялся null;
+ *   • clinic_mode в базе по умолчанию "demo", такого режима в контракте нет;
+ *   • реквизиты клиники были выдуманы прямо в коде: ИНН 1234567890,
+ *     адрес "Default Address", телефон +70000000000;
+ *   • платежи, приёмы, план лечения, задачи коммуникаций отдавались пустыми
+ *     массивами, а финансовая сводка — нулями.
+ *
+ * ЧТО СТАЛО
+ *
+ * Строки читаются из Postgres, переносятся в доменные коллекции
+ * (db/domainStateHydration.ts) и сводка собирается тем же buildDashboard(),
+ * который используется в режиме без базы. Один расчёт вместо двух разошедшихся:
+ * готовность приёма, чек-лист закрытия, рекомендации, нагрузка смены и
+ * финансовая сводка считаются по настоящим данным клиники.
+ */
+
+import { dashboardSchema, type Dashboard } from "@dental/shared";
+import { buildDashboard } from "../sampleData.js";
+import { hydrateDomainStateFromDb } from "./domainStateHydration.js";
 
 function useInMemory() {
   return process.env.DENTAL_STATE_PERSISTENCE === "off";
 }
 
-// Temporary naive mapper to replace sampleData buildDashboard
+/**
+ * Клиники из сессии в базе нет.
+ *
+ * ЗАЧЕМ ОТДЕЛЬНЫЙ ТИП ОШИБКИ. Маршрут ловит любое исключение и отвечает 500
+ * «Не удалось загрузить сводку. Повторите позже.» — для этого случая это ложь
+ * дважды: сервер исправен, и повтор не поможет никогда. Отдельный тип позволяет
+ * маршруту ответить отказом по доступу и назвать причину, не разбирая текст
+ * сообщения.
+ *
+ * ПОЧЕМУ НЕ ПУСТАЯ СВОДКА. Раньше отдавалась именно она, и это закрывало вход в
+ * программу: экран разблокировки смены читал пустой список сотрудников как
+ * «сотрудников в клинике нет» и внутрь не пускал, а в реквизитах ответа
+ * оставались данные последней прочитанной чужой клиники. Разбор целиком —
+ * `db/domainStateHydration.ts` и `tests/routes/dashboardOrphanClinicSession.test.ts`.
+ */
+export class ClinicOrganizationMissingError extends Error {
+  readonly organizationId: string;
+
+  constructor(organizationId: string) {
+    super("Клиника из сессии не найдена в базе данных.");
+    this.name = "ClinicOrganizationMissingError";
+    this.organizationId = organizationId;
+  }
+}
+
 export async function getDashboardFromDb(organizationId: string): Promise<Dashboard> {
   if (useInMemory()) {
-    return buildDashboardInMemory();
-  }
-  let org: any = null;
-  let users: any[] = [];
-  let patients: any[] = [];
-  let appointments: any[] = [];
-  let documents: any[] = [];
-  let imagingStudies: any[] = [];
-  let chairs: any[] = [];
-  let serviceCatalog: any[] = [];
-  let clinicalRules: any[] = [];
-
-  try {
-    const result = await db.select().from(schema.organizations).where(eq(schema.organizations.id, organizationId)).limit(1);
-    org = result[0];
-    if (org) {
-      users = await db.select().from(schema.users).where(eq(schema.users.organizationId, organizationId)).catch(() => []);
-      patients = await db.select().from(schema.patients).where(eq(schema.patients.organizationId, organizationId)).catch(() => []);
-      appointments = await db.select().from(schema.appointments).where(eq(schema.appointments.organizationId, organizationId)).catch(() => []);
-      documents = await db.select().from(schema.generatedDocuments).where(eq(schema.generatedDocuments.organizationId, organizationId)).catch(() => []);
-      imagingStudies = await db.select().from(schema.imagingStudies).where(eq(schema.imagingStudies.organizationId, organizationId)).catch(() => []);
-      chairs = await db.select().from(schema.chairs).where(eq(schema.chairs.organizationId, organizationId)).catch(() => []);
-      serviceCatalog = await db.select().from(schema.services).where(eq(schema.services.organizationId, organizationId)).catch(() => []);
-      clinicalRules = await db.select().from(schema.clinicalRules).where(eq(schema.clinicalRules.organizationId, organizationId)).catch(() => []);
-    }
-
-  } catch (e) {
-    console.warn("[DashboardQuery] Database query fallback triggered:", e);
+    return buildDashboard();
   }
 
-  const effectiveOrgId = org?.id ?? organizationId;
-  const effectiveOrgName = org?.name ?? "Демо Клиника DENTE";
+  const report = await hydrateDomainStateFromDb(organizationId);
+  for (const warning of report.warnings) {
+    console.warn(`[DashboardQuery] ${warning}`);
+  }
+  /*
+   * Проверка стоит ДО buildDashboard(), а не после.
+   *
+   * buildDashboard() собирает сводку из доменных коллекций, общих на процесс. Для
+   * ненайденной клиники гидратация их сознательно не трогает, поэтому вызов
+   * собрал бы сводку из данных ПРЕДЫДУЩЕГО запроса — то есть чужой клиники. Это
+   * не «пустой ответ», а подмена, и допускать её нельзя даже на один кадр.
+   */
+  if (!report.organizationFound) {
+    throw new ClinicOrganizationMissingError(organizationId);
+  }
 
-  // Default skeleton matching the expected structure
-  return {
-    clinicName: effectiveOrgName,
-    todayIso: new Date().toISOString().split("T")[0],
-    clinicSettings: {
-      profile: {
-        id: effectiveOrgId,
-        organizationId: effectiveOrgId,
-        clinicName: effectiveOrgName,
-        legalName: effectiveOrgName,
-        inn: "1234567890",
-        taxId: "",
-        licenseNumber: "",
-        address: "Default Address",
-        phone: "+70000000000",
-        timezone: "Europe/Samara",
-        mode: "one_chair",
-        defaultVisitMinutes: 45,
-        scheduleDefaults: {
-          workingDays: [1,2,3,4,5],
-          workdayStart: "09:00",
-          workdayEnd: "20:00",
-          appointmentBufferMinutes: 15
-        },
-        networkEnabled: false,
-        egiszEnabled: false,
-        updatedAt: new Date().toISOString()
-      },
-      staff: users.map(u => ({
-        id: u.id,
-        organizationId: u.organizationId,
-        fullName: u.fullName,
-        role: u.role as any,
-        phone: u.phone,
-        email: u.email,
-        active: u.isActive,
-        specialties: [],
-        canSignMedicalRecords: u.role === "doctor",
-        canManageMoney: u.role === "owner" || u.role === "administrator",
-        canManageImports: u.role === "owner" || u.role === "administrator",
-        color: "#1e293b",
-        createdAt: u.createdAt.toISOString(),
-        updatedAt: u.createdAt.toISOString()
-      })),
-      chairs: chairs.map(c => ({
-        id: c.id,
-        organizationId: c.organizationId,
-        name: c.name,
-        room: "",
-        specialization: "therapist",
-        active: c.isActive,
-        hasXraySensor: false,
-        hasMicroscope: false,
-        hasSurgeryKit: false,
-        notes: null,
-        workingHours: null
-      })),
-      integrationPresets: [],
-      workspaceProfiles: [],
-      roleAccessPolicies: [],
-      modeHints: [],
-      soloDoctorMode: false
-    },
-    // 
-    patients: patients.map(p => ({
-      id: p.id,
-      organizationId: p.organizationId,
-      status: p.status,
-      fullName: p.fullName,
-      birthDate: p.birthDate,
-      phone: p.phone,
-      email: p.email,
-      notes: p.notes,
-      administrativeProfile: p.administrativeProfile as any,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString()
-    })),
-    patientInsights: [],
-    recommendedActions: [],
-    appointments: appointments.map(a => ({
-      id: a.id,
-      organizationId: a.organizationId,
-      patientId: a.patientId,
-      doctorUserId: a.doctorUserId,
-      assistantUserId: a.assistantUserId,
-      chairId: a.chairId,
-      status: a.status,
-      startsAt: a.startsAt.toISOString(),
-      endsAt: a.endsAt.toISOString(),
-      reason: a.reason,
-      comment: a.comment
-    })),
-    appointmentReadiness: [],
-    scheduleSuggestions: [],
-    activeVisit: {
-      id: "00000000-0000-0000-0000-000000000000",
-      organizationId: organizationId,
-      patientId: "00000000-0000-0000-0000-000000000000",
-      appointmentId: null,
-      status: "draft",
-      revision: 1,
-      complaint: null,
-      anamnesis: null,
-      objectiveStatus: null,
-      diagnosis: null,
-      treatmentPlan: null,
-      doctorSummary: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    visitCloseChecklist: {
-      visitId: "00000000-0000-0000-0000-000000000000",
-      readyToSign: false,
-      score: 0,
-      nextAction: "review",
-      blockingItems: 0,
-      items: []
-    },
-    shiftIntelligence: {
-      modeFit: { 
-        mode: "one_chair", 
-        title: "Один кабинет", 
-        fitScore: 100, 
-        blockers: [], 
-        upgrades: [], 
-        lowFrictionNextStep: "ready" 
-      },
-      doctorLoads: [],
-      assistantLoads: [],
-      chairLoads: [],
-      roleQueues: [],
-      scheduleWarnings: []
-    },
-    protocolTemplates: [],
-    treatmentPlanItems: [],
-    treatmentPlanScenarios: [],
-    clinicalRuleEvaluations: [],
-    clinicalRuleSummary: {
-      activeRules: 0,
-      evaluatedRules: 0,
-      unresolved: 0,
-      blockers: 0,
-      warnings: 0,
-      requiredServices: 0,
-      coveredRules: 0
-    },
-    payments: [],
-    billingSummary: {
-      totalPlannedRub: 0,
-      totalDiscountRub: 0,
-      totalPaidRub: 0,
-      totalDueRub: 0,
-      taxDeductionEligibleRub: 0,
-      draftDocumentAmountRub: 0,
-      openTreatmentItems: 0,
-      unpaidDocuments: 0
-    },
-    communicationTemplates: [],
-    communicationEvents: [],
-    communicationSummary: {
-      openTasks: 0,
-      urgentTasks: 0,
-      dueToday: 0,
-      overdue: 0,
-      completedToday: 0,
-      appointmentConfirmations: 0,
-      paymentReminders: 0,
-      postVisitInstructions: 0
-    },
-    importBatches: [],
-    speechProviders: [],
-    auditEvents: [],
-    complianceWarnings: [],
-    documents: documents.map(d => ({
-      id: d.id,
-      organizationId: d.organizationId,
-      patientId: d.patientId,
-      kind: d.kind as any,
-      status: d.status as any,
-      payload: d.payloadJson ? JSON.parse(d.payloadJson) : {},
-      schemaVersion: 1,
-      createdAt: d.createdAt.toISOString(),
-      updatedAt: d.createdAt.toISOString()
-    })) as any,
-    imagingStudies: imagingStudies.map(s => ({
-      id: s.id,
-      organizationId: s.organizationId,
-      patientId: s.patientId,
-      visitId: s.visitId,
-      kind: s.kind as any,
-      status: s.status as any,
-      sourceKind: s.sourceKind as any,
-      acquiredAt: s.createdAt.toISOString(),
-      capturedAt: s.createdAt.toISOString(),
-      studyDescription: s.title,
-      title: s.title,
-      reviewerUserId: null,
-      sourceName: "",
-      toothCode: null,
-      region: null,
-      aiSummary: null,
-      previewUrl: undefined,
-      viewerUrl: undefined,
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.createdAt.toISOString()
-    })),
-    serviceCatalog: serviceCatalog.map(s => ({
-      id: s.id,
-      organizationId: s.organizationId,
-      code: s.code,
-      title: s.title,
-      category: s.category as any,
-      specialty: s.specialty as any,
-      basePriceRub: s.basePriceRub,
-      priceRub: s.priceRub,
-      durationMinutes: s.durationMinutes,
-      taxDeductible: s.taxDeductible,
-      taxDeductionCode: s.taxDeductionCode,
-      aliases: [],
-      active: s.isActive
-    })),
-    clinicalRules: clinicalRules.map(r => ({
-      id: r.id,
-      organizationId: r.organizationId,
-      title: r.title,
-      category: r.category,
-      specialty: r.specialty,
-      action: r.action,
-      severity: r.severity,
-      ownerRole: r.ownerRole as any,
-      triggerServiceIds: JSON.parse(r.triggerServiceIdsJson || "[]"),
-      requiredServiceIds: JSON.parse(r.requiredServiceIdsJson || "[]"),
-      requiresCompletedServiceIds: JSON.parse(r.requiresCompletedServiceIdsJson || "[]"),
-      blockedServiceIds: JSON.parse(r.blockedServiceIdsJson || "[]"),
-      condition: r.condition,
-      warningText: r.warningText,
-      patientText: r.patientText,
-      active: r.isActive,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString()
-    })),
-    communicationTasks: []
-  } as unknown as Dashboard;
+  const dashboard = buildDashboard();
+
+  // Проверка остаётся, но теперь она осмысленна: если контракт разойдётся с
+  // расчётом, это должно быть видно в логе, а не превращаться в 500 на пустом
+  // месте. Ответ отдаём даже при расхождении — пустой экран хуже, чем экран
+  // с предупреждением в журнале.
+  const parsed = dashboardSchema.safeParse(dashboard);
+  if (!parsed.success) {
+    console.error(
+      "[DashboardQuery] Сводка не соответствует контракту:",
+      JSON.stringify(parsed.error.issues.slice(0, 20), null, 2)
+    );
+    return dashboard;
+  }
+  return parsed.data;
 }

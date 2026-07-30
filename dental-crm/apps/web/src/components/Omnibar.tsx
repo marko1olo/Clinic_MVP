@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/appStore';
 import { Search, Calendar, Users, FileText, Settings, Banknote, Stethoscope, Camera, MessageSquare, X, CheckCircle2 } from 'lucide-react';
+import { WorkspaceActionsSlot } from './workspaceActions/WorkspaceActions';
+import { workspaceActionsLabels } from './workspaceActions/workspaceActionsLabels';
 
 export function Omnibar() {
   const { isOmnibarOpen, setOmnibarOpen, setCurrentView } = useAppStore();
@@ -71,25 +74,61 @@ export function Omnibar() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isOmnibarOpen, setOmnibarOpen]);
 
+  /* Кнопка поиска живёт в слоте `search` группы действий рабочей области, в
+     обычном потоке страницы, и НИЧЕГО не перекрывает. Раньше она портировалась
+     в body своим `position: fixed` островом с z-index 9998; затем — в плавающий
+     док, который пытался «уступать» контенту под собой и по геометрии не мог:
+     именно эта кнопка была замерена сидящей на `<label>Email</label>` формы
+     пациента при 1600x1100 (доля перекрытия 0.443 < порога 0.5, подъёма нет),
+     и `document.elementFromPoint` в центре подписи возвращал её, а не поле.
+     Обоснование и удаление механизма —
+     `workspaceActions/workspaceActionsPlacement.ts`.
+
+     Портал в body для раскрытого окна поиска обязателен и остаётся.
+     Omnibar монтируется внутри <section class="workspace">, у которой задан
+     backdrop-filter. ИСТОЧНИК, чтобы это больше не искали: `premium.css:147`
+     перечисляет `.workspace` первым селектором правила, объявляющего на
+     `premium.css:172` `backdrop-filter: var(--glass-blur) saturate(180%)`, где
+     `--glass-blur: blur(12px)` (`premium.css:14/60/106` — по одному объявлению
+     на тему). Браузер приводит это к `blur(12px) saturate(1.8)`, поэтому поиск
+     по литералу «saturate(1.8)» в styles/*.css НИЧЕГО НЕ НАХОДИТ, хотя свойство
+     реально применено. Проверено на живой странице: вычисленный
+     `backdrop-filter` у `section.workspace` равен `blur(12px) saturate(1.8)` на
+     390x844, 840x900 и 1600x1100 (`scratch/probe-corner-reserve.mjs`).
+     Ненулевой backdrop-filter создаёт контейнерный блок для потомков с
+     position: fixed, поэтому `fixed inset-0` растягивался по секции, а не по
+     экрану.
+     Замерено, scratch/probe-fixed-containing-block.mjs:
+       окно 1600x1100 — секция ровно 1100 высотой, попадание в угол было
+         правильным ПО СОВПАДЕНИЮ;
+       окно 390x844 — секция 1637 высотой, элемент оказывался на y=1532,
+         то есть ниже окна.
+     Раскрытое окно поиска — модальный слой, а не сегмент группы действий,
+     поэтому оно не переезжает в неё: у группы слой ниже модальных окон по
+     шкале main.css. */
   return (
     <>
-      <AnimatePresence>
-        {!isOmnibarOpen && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setOmnibarOpen(true)}
-            className="omnibar-trigger-btn"
-            title="Глобальный поиск и команды (Cmd+K)"
-          >
-            <Search size={18} />
-            <span className="omnibar-trigger-text">Поиск (Cmd+K)</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Кнопка не снимается с экрана, когда окно поиска открыто, и не
+          выезжает анимацией. Она сегмент группы: исчезающий сегмент дёргал бы
+          всю строку топбара, а выезд снизу был жестом плавающего угла, которого
+          больше нет. Состояние читается с самой кнопки — `aria-expanded`
+          подсвечивает её, пока окно открыто. */}
+      <WorkspaceActionsSlot slot="search">
+        <button
+          type="button"
+          onClick={() => setOmnibarOpen(!isOmnibarOpen)}
+          aria-expanded={isOmnibarOpen}
+          className="dnt-actions__control"
+          title={workspaceActionsLabels.search.title}
+        >
+          <Search className="dnt-actions__control-icon" aria-hidden="true" />
+          <span className="dnt-actions__control-text">
+            <span className="dnt-actions__control-label">{workspaceActionsLabels.search.label}</span>
+            <span className="dnt-actions__control-hint">{workspaceActionsLabels.search.hint}</span>
+          </span>
+        </button>
+      </WorkspaceActionsSlot>
+      {createPortal(
       <AnimatePresence>
         {isOmnibarOpen && (
           <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] px-4 pointer-events-auto">
@@ -200,7 +239,9 @@ export function Omnibar() {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </>
   );
 }

@@ -1,5 +1,14 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { countLabel, money } from "../AppHelpers";
+import { actionFailureToast } from "../lib/panelStateText";
+import {
+	PATIENT_TOKEN_KEY,
+	safeLocalStorageGetItem,
+	safeLocalStorageRemoveItem,
+	safeLocalStorageSetItem,
+} from "../lib/safeLocalStorage";
+import { EmptyState } from "./EmptyState";
 import "./PatientPortal.css";
 
 interface TreatmentStage {
@@ -7,6 +16,41 @@ interface TreatmentStage {
 	description: string;
 	cost: number;
 	status: "pending" | "completed";
+}
+
+/**
+ * Сумма из денежной колонки базы.
+ *
+ * /api/portal/me отдаёт строки таблиц как есть, без маппинга (routes/portal.ts:
+ * `select()` из treatment_plans и patient_invoices). Денежные колонки там
+ * объявлены numeric без mode "number", а такие значения драйвер отдаёт
+ * СТРОКОЙ — «6800.00». Поэтому здесь разбор строки, а не приведение типа.
+ *
+ * null означает «цены нет», и это не ноль: ноль на экране пациента — это
+ * утверждение «лечение бесплатно».
+ */
+function rubFromDbValue(value: unknown): number | null {
+	if (typeof value === "number") return Number.isFinite(value) ? value : null;
+	if (typeof value === "string" && value.trim() !== "") {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+	return null;
+}
+
+/**
+ * Стоимость плана лечения.
+ *
+ * БЫЛО: `plan.totalAmount`. Такого поля нет ни в ответе портала, ни в таблице
+ * treatment_plans: там total_price_rub и total_price (db/schema.ts), причём
+ * записывает план единственный маршрут (routes/odontogram.ts) и только в
+ * total_price — поэтому его читаем первым. Из-за несуществующего поля «Итого
+ * план», «Оплачено» и «Остаток» ВСЕГДА печатались нулями, и то же самое
+ * показывала цена каждого плана в списке.
+ */
+function planTotalRub(plan: unknown): number | null {
+	const row = (plan ?? {}) as Record<string, unknown>;
+	return rubFromDbValue(row.totalPrice) ?? rubFromDbValue(row.totalPriceRub);
 }
 
 /* ── OTP Input Component ── */
@@ -60,18 +104,15 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 			// Auto-advance
 			if (idx < OTP_LENGTH - 1) {
 				focus(idx + 1);
-			} else {
-				// Last digit filled — read all after state settles
-				setTimeout(() => {
-					setDigits((prev) => {
-						const code = prev.join("");
-						if (code.length === OTP_LENGTH) onComplete(code);
-						return prev;
-					});
-				}, 0);
 			}
+			// БЫЛО: здесь стоял setTimeout ВНУТРИ обновления состояния, который
+			// тоже вызывал onComplete. Вместе с эффектом ниже и обработчиком
+			// вставки один ввод кода отправлял на сервер ТРИ запроса проверки.
+			// Портал ограничен 10 запросами в минуту на IP, поэтому в клинике
+			// за одним внешним адресом четвёртый пациент получал 429 на
+			// правильный код с первой попытки. Отправку оставляем только в эффекте.
 		},
-		[onComplete],
+		[],
 	);
 
 	const handlePaste = useCallback(
@@ -93,19 +134,24 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 
 			const nextFocus = Math.min(startIdx + pasted.length, OTP_LENGTH - 1);
 			focus(nextFocus);
-			if (pasted.length === OTP_LENGTH) {
-				setTimeout(() => onComplete(pasted), 50);
-			}
+			// onComplete не вызываем: заполненные цифры подхватит эффект ниже.
 		},
-		[onComplete],
+		[],
 	);
 
-	// Fire onComplete when digits are fully filled (handles last-digit path too)
+	// Единственная точка отправки кода. Ref защищает от повторной отправки того же
+	// кода при перерисовке и от двойного вызова в StrictMode.
+	const submittedCodeRef = useRef<string | null>(null);
 	useEffect(() => {
 		const code = digits.join("");
-		if (code.length === OTP_LENGTH && !digits.includes("")) {
-			onComplete(code);
+		if (code.length !== OTP_LENGTH || digits.includes("")) {
+			// Код изменился — разрешаем отправку следующего.
+			if (code.length < OTP_LENGTH) submittedCodeRef.current = null;
+			return;
 		}
+		if (submittedCodeRef.current === code) return;
+		submittedCodeRef.current = code;
+		onComplete(code);
 	}, [digits, onComplete]);
 
 	return (
@@ -149,10 +195,13 @@ export const PatientPortal: React.FC = () => {
 
 	const [patientData, setPatientData] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(false);
+	// Отказ сервера при чтении кабинета — отдельно от «код неверный».
+	const [sessionError, setSessionError] = useState<string | null>(null);
 
 	const fetchPatientData = async (token: string) => {
 		try {
 			setIsLoading(true);
+			setSessionError(null);
 			const res = await fetch("/api/portal/me", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
@@ -160,32 +209,65 @@ export const PatientPortal: React.FC = () => {
 				const data = await res.json();
 				setPatientData(data);
 				setIsAuthenticated(true);
-			} else {
-				localStorage.removeItem("patient_token");
-				setIsAuthenticated(false);
+				return;
 			}
+			// Пропуск действительно недействителен — только в этих двух случаях
+			// его есть смысл выбрасывать и просить войти заново.
+			if (res.status === 401 || res.status === 403) {
+				safeLocalStorageRemoveItem(PATIENT_TOKEN_KEY);
+				setIsAuthenticated(false);
+				return;
+			}
+			// БЫЛО: ЛЮБОЙ не-ok ответ стирал сохранённый пропуск и молча возвращал
+			// пациента к вводу телефона. При 500 или 404 это выглядело как «вас
+			// разлогинило»: человек заново просил код, а вход на портал ограничен
+			// 10 запросами в минуту на адрес — в клинике за одним внешним IP
+			// следующий пациент получал отказ на верный код.
+			setIsAuthenticated(false);
+			setSessionError(actionFailureToast("Кабинет не открылся", res.status));
 		} catch (e) {
-			console.error(e);
+			// Текст исключения английский, наружу не идёт.
+			console.error("[portal] не удалось прочитать кабинет пациента:", e);
+			setIsAuthenticated(false);
+			setSessionError(actionFailureToast("Кабинет не открылся", null));
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
+	// Повтор без нового СМС: пропуск сохранён, спрашивать код заново не за что.
+	const retrySession = useCallback(() => {
+		const token = safeLocalStorageGetItem(PATIENT_TOKEN_KEY);
+		if (!token) {
+			setSessionError(null);
+			return;
+		}
+		void fetchPatientData(token);
+	}, []);
+
 	useEffect(() => {
-		const token = localStorage.getItem("patient_token");
+		const token = safeLocalStorageGetItem(PATIENT_TOKEN_KEY);
 		if (token) fetchPatientData(token);
 		phoneRef.current?.focus();
 	}, []);
 
-	const totalCost =
-		patientData?.plans?.reduce(
-			(s: number, i: any) => s + (i.totalAmount || 0),
-			0,
-		) || 0;
-	const paid =
-		patientData?.invoices
-			?.filter((i: any) => i.status === "paid")
-			.reduce((s: number, i: any) => s + (i.amount || 0), 0) || 0;
+	const plans: any[] = Array.isArray(patientData?.plans) ? patientData.plans : [];
+	const invoices: any[] = Array.isArray(patientData?.invoices)
+		? patientData.invoices
+		: [];
+	// Планы без цены считаем отдельно и говорим о них вслух: иначе итог
+	// молча оказывается меньше настоящего, а пациент читает его как полный.
+	const planTotals = plans.map((plan) => planTotalRub(plan));
+	const pricedPlanTotals = planTotals.filter((value): value is number => value !== null);
+	const plansWithoutPrice = planTotals.length - pricedPlanTotals.length;
+	const totalCost = pricedPlanTotals.reduce((sum, value) => sum + value, 0);
+	// БЫЛО: `i.amount`. В patient_invoices такого поля нет — сумма счёта лежит
+	// в total_rub (db/schema.ts), и «Оплачено» всегда показывало 0 ₽.
+	// Частично оплаченные счёта (invoice_status допускает partially_paid) сюда
+	// не попадают: внесённой части в строке счёта нет, взять её неоткуда.
+	const paid = invoices
+		.filter((invoice) => invoice?.status === "paid")
+		.reduce((sum: number, invoice: any) => sum + (rubFromDbValue(invoice?.totalRub) ?? 0), 0);
 	const remaining = totalCost - paid;
 
 	useEffect(() => {
@@ -202,7 +284,7 @@ export const PatientPortal: React.FC = () => {
 
 	useEffect(() => {
 		if (viewingDoc) {
-			const token = localStorage.getItem("patient_token");
+			const token = safeLocalStorageGetItem(PATIENT_TOKEN_KEY);
 			if (!token) return;
 			setViewingDocLoading(true);
 			setViewingDocHtml(null);
@@ -224,16 +306,42 @@ export const PatientPortal: React.FC = () => {
 		}
 	}, [viewingDoc]);
 
+	const [isSendingOtp, setIsSendingOtp] = useState(false);
+	const [otpSendError, setOtpSendError] = useState<string | null>(null);
+
 	const handleSendOtp = useCallback(async () => {
-		if (phone.replace(/\D/g, "").length >= 10) {
-			setStep("otp");
-			await fetch("/api/portal/auth/send-otp", {
+		if (phone.replace(/\D/g, "").length < 10) {
+			setOtpSendError("Введите номер телефона полностью.");
+			return;
+		}
+		if (isSendingOtp) return;
+
+		// БЫЛО: setStep("otp") выполнялся ДО запроса, ответ не проверялся, ошибки
+		// не перехватывались, кнопка не блокировалась. При 429 или 500 пациент
+		// видел «Код отправлен» и ждал СМС, которого никто не отправлял.
+		setIsSendingOtp(true);
+		setOtpSendError(null);
+		try {
+			const response = await fetch("/api/portal/auth/send-otp", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ phone }),
 			});
+			if (!response.ok) {
+				setOtpSendError(
+					response.status === 429
+						? "Слишком много попыток. Подождите минуту и попробуйте снова."
+						: "Не удалось отправить код. Попробуйте позже или обратитесь в клинику.",
+				);
+				return;
+			}
+			setStep("otp");
+		} catch {
+			setOtpSendError("Нет связи с клиникой. Проверьте интернет и повторите.");
+		} finally {
+			setIsSendingOtp(false);
 		}
-	}, [phone]);
+	}, [phone, isSendingOtp]);
 
 	const handleOTPComplete = useCallback(
 		async (code: string) => {
@@ -245,7 +353,7 @@ export const PatientPortal: React.FC = () => {
 				});
 				const data = await res.json();
 				if (res.ok && data.token) {
-					localStorage.setItem("patient_token", data.token);
+					safeLocalStorageSetItem(PATIENT_TOKEN_KEY, data.token);
 					setOtpError("");
 					await fetchPatientData(data.token);
 				} else {
@@ -265,6 +373,26 @@ export const PatientPortal: React.FC = () => {
 					<div className="portal-auth-logo">🦷</div>
 					<h2 className="portal-auth-title">Кабинет пациента</h2>
 
+					{/* Третье состояние входа: пропуск сохранён, но кабинет ещё читается.
+					    Раньше в этот момент пациент видел пустую форму телефона и начинал
+					    вход заново, тратя лимит запросов кода. */}
+					{isLoading && <p className="auth-hint">Проверяем сохранённый вход…</p>}
+					{/* Отказ сервера — своим текстом и с повтором, без нового СМС.
+					    Раньше он был неотличим от «сессия истекла». */}
+					{sessionError && (
+						<div className="auth-step">
+							<p className="auth-error">{sessionError}</p>
+							<button
+								type="button"
+								onClick={retrySession}
+								className="auth-text-btn"
+								disabled={isLoading}
+							>
+								Повторить
+							</button>
+						</div>
+					)}
+
 					{step === "phone" ? (
 						<div className="auth-step">
 							<p className="auth-hint">Введите номер телефона для входа</p>
@@ -276,9 +404,17 @@ export const PatientPortal: React.FC = () => {
 								onChange={(e) => setPhone(e.target.value)}
 								className="auth-phone-input"
 								onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+								disabled={isSendingOtp}
 							/>
-							<button onClick={handleSendOtp} className="auth-primary-btn">
-								Получить СМС-код
+							{/* Ошибка отправки показывается пациенту, а не молчаливо
+							    проглатывается: раньше при сбое он ждал СМС, которого не было. */}
+							{otpSendError && <p className="auth-error">{otpSendError}</p>}
+							<button
+								onClick={handleSendOtp}
+								className="auth-primary-btn"
+								disabled={isSendingOtp}
+							>
+								{isSendingOtp ? "Отправляем..." : "Получить СМС-код"}
 							</button>
 						</div>
 					) : (
@@ -321,9 +457,12 @@ export const PatientPortal: React.FC = () => {
 				<section className="portal-card visits-card">
 					<h3>Мои приёмы</h3>
 					{(patientData?.visits || []).length === 0 && (
-						<p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-							У вас пока нет записей.
-						</p>
+						<EmptyState
+							title="Записей пока нет"
+							description="У вас пока нет истории приёмов или запланированных визитов."
+							glass={false}
+							style={{ padding: "20px 16px" }}
+						/>
 					)}
 					{(patientData?.visits || []).map((v: any) => (
 						<div
@@ -345,45 +484,72 @@ export const PatientPortal: React.FC = () => {
 
 				<section className="portal-card plan-card">
 					<h3>План лечения</h3>
+					{/* Суммы — общим money() из AppHelpers. БЫЛО toLocaleString() без
+					    локали и без знаков после запятой: 6800.5 печаталось как
+					    «6,800.5 ₽» (локаль браузера, точка как разделитель тысяч), а
+					    полтинник в такой записи читается как пять копеек. */}
 					<div className="financial-summary">
 						<div className="fin-stat">
 							<span>Итого план</span>
-							<strong>{totalCost.toLocaleString()} ₽</strong>
+							<strong>{money(totalCost)}</strong>
 						</div>
 						<div className="fin-stat">
 							<span>Оплачено</span>
-							<strong className="text-green">{paid.toLocaleString()} ₽</strong>
+							<strong className="text-green">{money(paid)}</strong>
 						</div>
+						{/* Отрицательный остаток — это переплата. «Остаток −5 000 ₽»
+						    пациент читает как ошибку программы, поэтому меняется подпись,
+						    а не знак у числа. */}
 						<div className="fin-stat">
-							<span>Остаток</span>
-							<strong className="text-orange">
-								{remaining.toLocaleString()} ₽
-							</strong>
+							<span>{remaining < 0 ? "Переплата" : "Остаток"}</span>
+							<strong className="text-orange">{money(Math.abs(remaining))}</strong>
 						</div>
 					</div>
+					{plansWithoutPrice > 0 && (
+						<p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
+							У {countLabel(plansWithoutPrice, "плана", "планов", "планов")} цена
+							пока не указана, поэтому итог неполный — уточните сумму в клинике.
+						</p>
+					)}
+					{plans.length === 0 && (
+						<EmptyState
+							title="Плана лечения пока нет"
+							description="План появится здесь после осмотра, когда врач его составит и согласует с вами."
+							glass={false}
+							style={{ padding: "20px 16px" }}
+						/>
+					)}
 					<div className="stages-list">
-						{(patientData?.plans || []).map((stage: any) => (
-							<div key={stage.id} className={`stage-item ${stage.status}`}>
-								<span className="stage-desc">
-									{stage.name || "План лечения"}
-								</span>
-								<span className="stage-cost">
-									{(stage.totalAmount || 0).toLocaleString()} ₽
-								</span>
-								{stage.status === "completed" && (
-									<span className="stage-icon">✓</span>
-								)}
-							</div>
-						))}
+						{plans.map((stage: any, index: number) => {
+							const stageTotal = planTotals[index] ?? null;
+							return (
+								<div key={stage.id} className={`stage-item ${stage.status}`}>
+									<span className="stage-desc">
+										{stage.name || "План лечения"}
+									</span>
+									{/* Цены нет — так и написано. Ноль здесь был бы обещанием
+									    бесплатного лечения. */}
+									<span className="stage-cost">
+										{stageTotal === null ? "цена не указана" : money(stageTotal)}
+									</span>
+									{stage.status === "completed" && (
+										<span className="stage-icon">✓</span>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				</section>
 
 				<section className="portal-card docs-card">
 					<h3>Документы</h3>
 					{(patientData?.documents || []).length === 0 && (
-						<p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-							Нет выпущенных документов.
-						</p>
+						<EmptyState
+							title="Документов нет"
+							description="Нет выпущенных медицинских документов."
+							glass={false}
+							style={{ padding: "20px 16px" }}
+						/>
 					)}
 					{(patientData?.documents || []).map((doc: any) => (
 						<div key={doc.id} className="doc-item">

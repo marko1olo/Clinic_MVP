@@ -3,6 +3,7 @@ import type { KeyboardEvent, ChangeEvent } from "react";
 import { Bot, ShieldCheck, Copy, Download, RefreshCw, Send, CheckCircle2, Image as ImageIcon, ExternalLink, FileCheck2, CreditCard, CalendarDays, ClipboardCheck, Users } from "lucide-react";
 import { DenteTelegramFeature } from "@dental/shared";
 import { PatientPortal } from "../PatientPortal";
+import { EmptyState } from "../EmptyState";
 
 type TextInputChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
 type InputChangeEvent = ChangeEvent<HTMLInputElement>;
@@ -291,8 +292,8 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                 </div>
                 <div className="telegram-link-controls">
                   <div className="settings-field">
-                    <span className="field-label" style={{ fontSize: "14px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Кого подключаем</span>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Кого подключаем</span>
+                    <div className="flex gap-2 flex-wrap mb-2">
                       {[
                         { value: "patient", label: "Активный пациент" },
                         { value: "staff", label: "Сотрудник клиники" }
@@ -300,13 +301,16 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                         <button
                           key={option.value}
                           type="button"
-                          className={`quick-chip ${telegramLinkSubjectType === option.value ? 'active' : ''}`}
                           onClick={() => {
                             setTelegramLinkSubjectType(normalizedTelegramLinkSubjectType(option.value));
                             setTelegramLinkCode(null);
                             setTelegramLinkActionState(null);
                           }}
-                          style={{ background: telegramLinkSubjectType === option.value ? 'var(--brand-500)' : 'var(--slate-100)', color: telegramLinkSubjectType === option.value ? '#fff' : 'var(--slate-700)', padding: "6px 12px", borderRadius: "16px", border: "none", cursor: "pointer", fontSize: "14px" }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                            telegramLinkSubjectType === option.value 
+                              ? 'bg-sky-600 text-white border-sky-600' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
                         >
                           {option.label}
                         </button>
@@ -456,7 +460,11 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                       ) : null}
                     </div>
                   ) : (
-                    <p className="telegram-empty-state">Связанных Telegram-чатов пока нет. Создайте QR и попросите пациента открыть бота.</p>
+                    <EmptyState
+                      title="Нет связанных чатов"
+                      description="Связанных Telegram-чатов пока нет. Создайте QR и попросите пациента открыть бота."
+                      className="py-6"
+                    />
                   )}
                   <div className="telegram-link-ledger-codes">
                     <span>
@@ -503,8 +511,8 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                 </div>
                 <div className="telegram-settings-form">
                   <div className="settings-field">
-                    <span className="field-label" style={{ fontSize: "14px", fontWeight: 600, color: "var(--slate-700)", display: "block", marginBottom: "8px" }}>Режим бота</span>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Режим бота</span>
+                    <div className="flex gap-2 flex-wrap mb-1">
                       {[
                         { value: "shared_dente_bot", label: telegramModeLabels.shared_dente_bot },
                         { value: "disabled", label: telegramModeLabels.disabled },
@@ -513,12 +521,15 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                         <button
                           key={option.value}
                           type="button"
-                          className={`quick-chip ${telegramModeDraft === option.value ? 'active' : ''}`}
                           onClick={() => {
                             setTelegramModeDraft(normalizedTelegramBotMode(option.value));
                             markTelegramSettingsDirty();
                           }}
-                          style={{ background: telegramModeDraft === option.value ? 'var(--brand-500)' : 'var(--slate-100)', color: telegramModeDraft === option.value ? '#fff' : 'var(--slate-700)', padding: "6px 12px", borderRadius: "16px", border: "none", cursor: "pointer", fontSize: "14px" }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                            telegramModeDraft === option.value 
+                              ? 'bg-sky-600 text-white border-sky-600' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
                         >
                           {option.label}
                         </button>
@@ -599,43 +610,10 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                   </label>
 
                   {showPatientPortalPreview && (
-                    <div
-                      style={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: "rgba(0, 0, 0, 0.7)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 1000,
-                        padding: "20px"
-                      }}
-                    >
-                      <div
-                        style={{
-                          background: "var(--paper)",
-                          borderRadius: "16px",
-                          width: "100%",
-                          maxWidth: "480px",
-                          maxHeight: "90vh",
-                          overflowY: "auto",
-                          position: "relative",
-                          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid var(--line)",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                          }}
-                        >
-                          <strong style={{ fontSize: "14px", color: "var(--ink)" }}>Превью Портала Пациента</strong>
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl relative">
+                        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                          <strong className="text-sm font-semibold text-slate-900 dark:text-white">Превью Портала Пациента</strong>
                           <button
                             type="button"
                             className="ghost-button"
@@ -1121,10 +1099,10 @@ export function SettingsTelegramTab({ props, settingsTab }: { props?: any, setti
                   </div>
                 ) : null}
                 {typedTelegramOutbox && (typedTelegramOutbox.items?.length ?? 0) > 0 && (filteredTelegramOutboxItems?.length ?? 0) === 0 ? (
-                  <p className="telegram-empty-state">По выбранным фильтрам задач нет.</p>
+                  <EmptyState title="Задач не найдено" description="По выбранным фильтрам Telegram-задач не найдено." className="py-6" />
                 ) : null}
                 {typedTelegramOutbox && (typedTelegramOutbox.items?.length ?? 0) === 0 ? (
-                  <p className="telegram-empty-state">Нет Telegram-задач в текущей очереди связи.</p>
+                  <EmptyState title="Очередь пуста" description="Нет Telegram-задач в текущей очереди связи." className="py-6" />
                 ) : null}
               </div>
               {typedTelegramOutbox?.warnings?.length ? (

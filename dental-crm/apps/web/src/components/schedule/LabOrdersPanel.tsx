@@ -1,14 +1,9 @@
-import {
-	Calendar,
-	DollarSign,
-	FlaskConical,
-	Link,
-	Plus,
-	Trash2,
-} from "lucide-react";
+import { Calendar, FlaskConical, Link, Plus, Trash2 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { denteAdminSecretRequestHeaders, money } from "../../AppHelpers";
+import { normalizeRubAmountInput } from "../../rubAmountInput";
 import { useAppStore } from "../../store/appStore";
 import { showToast } from "../GlobalToast";
 
@@ -40,9 +35,48 @@ interface LabOrder {
 
 export function LabOrdersPanel({ patientId }: { patientId: string }) {
 	const { auth, dashboard } = useAppLogicContext();
+
+	/*
+	 * ЗАКАЗЫ В ЛАБОРАТОРИЮ МОЛЧА НЕ ЗАГРУЖАЛИСЬ. Панель стоит на вкладке
+	 * «Рентгены и Диагностика» экрана «Приём», а этот экран отрисован ВЫШЕ
+	 * AppLogicProvider — контекст здесь пуст, и `auth` равен undefined. Запрос
+	 * падал на `auth.denteClinicalReadHeaders()` внутри catch, список
+	 * оставался пустым, и врач видел «заказов нет» вместо настоящих заказов.
+	 *
+	 * denteAdminSecretRequestHeaders — тот же построитель заголовков, только
+	 * без секрета клинической зоны: токены клиники и сотрудника он берёт сам.
+	 * Когда контекст есть, работает прежний путь с секретом.
+	 */
+	const readHeaders = (extra: Record<string, string> = {}) =>
+		auth?.denteClinicalReadHeaders
+			? auth.denteClinicalReadHeaders(extra)
+			: denteAdminSecretRequestHeaders(extra);
 	const liveStatus = useAppStore((state) => (state as any).labOrderStatuses?.[patientId]);
 	const [orders, setOrders] = useState<LabOrder[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
+	/*
+		Первая отрисовка — уже загрузка, а не пустота: запрос уходит сразу после
+		неё. Раньше кадр между ними успевал показать «Нет активных заказов ЗТЛ».
+	*/
+	const [isLoading, setIsLoading] = useState(Boolean(patientId));
+	/*
+		ОТКАЗ СЕРВЕРА ПОКАЗЫВАЛСЯ КАК «НЕТ ЗАКАЗОВ».
+
+		ЧТО БЫЛО СЛОМАНО. Загрузка списка проверяла `if (res.ok)` и на любом другом
+		ответе не делала НИЧЕГО: ни сообщения, ни следа. Ошибка сети попадала в
+		catch и уходила в console.error — туда врач не смотрит. Список при этом
+		оставался пустым, и экран говорил «Нет активных заказов ЗТЛ».
+
+		ЧТО ВИДЕЛ ВРАЧ. Коронка заказана и делается в лаборатории, но сервер
+		ответил отказом (истёк доступ, упала база, нет сети) — на экране ровно то
+		же, что у пациента без заказов. Дальше врач либо заказывает ту же коронку
+		ВТОРОЙ раз, либо говорит пациенту «ничего не заказано». Отсюда и деньги, и
+		сорванный приём под установку.
+
+		ЧТО СТАЛО. Три раздельных состояния: идёт загрузка; отказ — человеческим
+		текстом, с прямым предупреждением не заказывать повторно и кнопкой
+		повторить; честная пустота — с указанием, откуда здесь берутся наряды.
+	*/
+	const [loadError, setLoadError] = useState<string | null>(null);
 
 	// Form state for new ZTL order
 	const [toothFdi, setToothFdi] = useState("");
@@ -64,29 +98,90 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		}
 	}, [doctors, doctorId]);
 
+	/*
+		Чей список мы показываем прямо сейчас. Нужен потому, что ответ сервера по
+		ПРОШЛОМУ пациенту приходит уже после переключения карточки: без этой
+		отметки он спокойно затирал список нового пациента чужими нарядами.
+	*/
+	const shownPatientIdRef = useRef(patientId);
+
+	/** Отказ сервера словами, которые понятны без обучения. Кода состояния мало. */
+	const loadFailureText = (status: number): string => {
+		if (status === 401 || status === 403)
+			return "Нет прав смотреть заказы в лабораторию: доступ к карте закрыт или истёк вход.";
+		if (status === 404) return "Раздел заказов в лабораторию не отвечает.";
+		if (status >= 500)
+			return "Программа не смогла получить список заказов: сбой на сервере клиники.";
+		return `Программа не смогла получить список заказов (ответ ${status}).`;
+	};
+
 	const fetchOrders = async () => {
+		const requestedPatientId = patientId;
 		try {
 			setIsLoading(true);
 			const res = await fetch(
-				`/api/clinical/lab-orders?patientId=${patientId}`,
+				`/api/clinical/lab-orders?patientId=${requestedPatientId}`,
 				{
-					headers: auth.denteClinicalReadHeaders(),
+					headers: readHeaders(),
 				},
 			);
+			// Пока ждали ответ, врач ушёл в другую карту — этот ответ уже не про неё.
+			if (shownPatientIdRef.current !== requestedPatientId) return;
 			if (res.ok) {
 				const data = await res.json();
 				setOrders(Array.isArray(data) ? data : []);
+				setLoadError(null);
+			} else {
+				setLoadError(loadFailureText(res.status));
 			}
 		} catch (e) {
 			console.error("Failed to load lab orders", e);
+			if (shownPatientIdRef.current !== requestedPatientId) return;
+			setLoadError(
+				"Программа не смогла связаться с сервером клиники, чтобы получить список заказов.",
+			);
 		} finally {
-			setIsLoading(false);
+			if (shownPatientIdRef.current === requestedPatientId) {
+				setIsLoading(false);
+			}
 		}
 	};
 
+	/*
+		ПАНЕЛЬ НЕ ПЕРЕСОЗДАЁТСЯ ПРИ СМЕНЕ ПАЦИЕНТА, И ЭТО СТОИЛО БЫ ЧУЖОГО НАРЯДА.
+
+		ЧТО БЫЛО СЛОМАНО. Панель стоит в карточке приёма (VisitDiagnosticsTab) как
+		<LabOrdersPanel patientId={activePatient.id} /> — без key. React такой
+		компонент не пересоздаёт, он лишь отдаёт ему новый patientId, а всё
+		внутреннее состояние остаётся от ПРЕДЫДУЩЕГО пациента: и поля наряда, и
+		уже загруженный список.
+
+		ЧТО ВИДЕЛ ВРАЧ. Набрал по Петрову «зуб 16, цирконий, 25 000, уступ
+		пришеечный», не отправил, перешёл в карту Сидорова — и увидел на экране
+		Сидорова заполненный наряд Петрова. Кнопка «Создать наряд ЗТЛ» отправляет
+		patientId Сидорова: зуб, цена и примечание уезжают в лабораторию под чужим
+		именем. Список ниже врал так же — под именем Сидорова висели наряды
+		Петрова, и «удалить» со сменой статуса в этих строках работали по
+		настоящим, то есть по чужим, заказам.
+
+		ЧТО СТАЛО. Смена пациента чистит и список, и поля наряда. Пустой список
+		честнее заряженного чужим. «Лечащий врач» намеренно не сбрасывается: это
+		выбор смены, а не свойство пациента, и он всё равно тут же вернулся бы к
+		первому врачу из списка.
+	*/
 	useEffect(() => {
+		shownPatientIdRef.current = patientId;
+		setOrders([]);
+		// Отказ по прошлому пациенту к новому не относится.
+		setLoadError(null);
+		setToothFdi("");
+		setDueDate("");
+		setClinicalNotes("");
+		setPriceRub("");
+		setMaterial("zirconia");
+		setColorVita("A3");
 		if (patientId) {
-			fetchOrders();
+			void fetchOrders();
 		}
 	}, [patientId]);
 
@@ -101,10 +196,34 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 	const handleCreateOrder = async (e: React.FormEvent) => {
 		e.preventDefault();
+		/*
+			ЦЕНА РАБОТЫ СЧИТАЛАСЬ ЦЕЛЫМИ РУБЛЯМИ И МОЛЧА ТЕРЯЛАСЬ.
+
+			ЧТО БЫЛО СЛОМАНО. Сумма уходила на сервер как parseInt(priceRub):
+			«12500,50» превращалось в 12500 (parseInt читает до запятой), «12 500»
+			с пробелом — в 12, а «двенадцать тысяч» — в NaN, то есть в null.
+
+			ЧТО ВИДЕЛ ВРАЧ. Всплывало «Заказ успешно создан», и наряд действительно
+			создавался — но с ценой, которой врач не вводил, или совсем без цены.
+			Разбирается это через месяц при сверке с лабораторией.
+
+			ЧТО СТАЛО. Разбор суммы один на всё приложение —
+			normalizeRubAmountInput: он понимает пробелы и запятую и держит копейки.
+			Непонятная сумма больше не превращается в null втихую: заказ не уходит,
+			а экран говорит, что поправить.
+		*/
+		const priceRubValue = normalizeRubAmountInput(priceRub);
+		if (priceRub.trim() && priceRubValue === null) {
+			showToast(
+				"Стоимость непонятна. Впишите сумму цифрами, например 12500 или 12500,50 — и создайте наряд заново.",
+				"error",
+			);
+			return;
+		}
 		try {
 			const res = await fetch("/api/clinical/lab-orders", {
 				method: "POST",
-				headers: auth.denteClinicalReadHeaders({
+				headers: readHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
@@ -115,7 +234,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					colorVita,
 					dueDate: dueDate || null,
 					clinicalNotes,
-					priceRub: priceRub ? parseInt(priceRub) : null,
+					priceRub: priceRubValue,
 				}),
 			});
 
@@ -143,7 +262,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		try {
 			const res = await fetch(`/api/clinical/lab-orders/${id}`, {
 				method: "DELETE",
-				headers: auth.denteClinicalReadHeaders(),
+				headers: readHeaders(),
 			});
 			if (res.ok) {
 				showToast("Заказ удален", "success");
@@ -165,7 +284,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		try {
 			const res = await fetch(`/api/clinical/lab-orders/${id}`, {
 				method: "PUT",
-				headers: auth.denteClinicalReadHeaders({
+				headers: readHeaders({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({ status }),
@@ -300,10 +419,18 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Стоимость (₽)</label>
+						<label className="text-xs text-slate-400">Стоимость, ₽</label>
+						{/*
+							Было type="number". Такое поле в русском браузере не принимает
+							запятую: «12500,50» стирается в пустоту прямо под рукой, и наряд
+							уходит без цены. Обычное текстовое поле с цифровой клавиатурой на
+							телефоне принимает и «12 500», и «12500,50» — разбирает их
+							normalizeRubAmountInput при отправке.
+						*/}
 						<input
-							type="number"
-							placeholder="0"
+							type="text"
+							inputMode="decimal"
+							placeholder="например 12500"
 							value={priceRub}
 							onChange={(e) => setPriceRub(e.target.value)}
 							className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
@@ -362,15 +489,47 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 			{/* Orders List */}
 			<div className="space-y-2">
+				{loadError ? (
+					<div
+						role="alert"
+						className="border border-rose-500/40 bg-rose-500/10 rounded-xl p-3 text-[13px] text-rose-200 space-y-2"
+					>
+						<p className="font-semibold m-0">{loadError}</p>
+						<p className="m-0 text-rose-100/90">
+							Это не значит, что заказов нет: список просто не пришёл. Не
+							заказывайте работу повторно, пока список не откроется, — иначе
+							лаборатория сделает и выставит её дважды. Нажмите «Попробовать
+							снова», а если не открывается — уточните состояние работы у
+							зуботехника по телефону.
+						</p>
+						<button
+							type="button"
+							onClick={() => void fetchOrders()}
+							disabled={isLoading}
+							className="py-1.5 px-3 bg-rose-500/20 hover:bg-rose-500/30 disabled:opacity-60 text-rose-100 border border-rose-500/40 rounded-lg font-semibold transition-colors"
+						>
+							{isLoading ? "Загружаем…" : "Попробовать снова"}
+						</button>
+					</div>
+				) : null}
+
 				{isLoading && orders.length === 0 ? (
 					<div className="text-center py-4 text-xs text-slate-400">
-						Загрузка...
+						Загрузка…
 					</div>
-				) : orders.length === 0 ? (
+				) : orders.length === 0 && !loadError ? (
 					<div className="text-center py-6 text-xs text-slate-500 border border-dashed border-slate-700/60 rounded-xl">
-						Нет активных заказов ЗТЛ
+						{/*
+							Честная пустота: сказано, что список пришёл и он пуст, и откуда
+							здесь вообще берутся наряды. Без второй строки «нет заказов»
+							читается как «не загрузилось».
+						*/}
+						Заказов в зуботехническую лабораторию по этому пациенту пока нет.
+						<br />
+						Первый появится здесь сразу после того, как вы заполните наряд выше и
+						нажмёте «Создать наряд ЗТЛ».
 					</div>
-				) : (
+				) : orders.length > 0 ? (
 					<div className="space-y-2">
 						{orders.map((order) => (
 							<div
@@ -383,14 +542,20 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 											Зуб {order.toothFdi || "весь рот"}
 										</span>
 										<span className="text-slate-400">·</span>
+										{/*
+											Было «не указ.» — обрубок с точкой, каким программы
+											печатают отчёты, а не каким говорят с людьми. Слово
+											дописано целиком и согласовано по роду: материал не
+											указан, цвет не указан.
+										*/}
 										<span className="text-slate-300">
 											{order.material
 												? (materialLabels[order.material] ?? order.material)
-												: "не указ."}
+												: "материал не указан"}
 										</span>
 										<span className="text-slate-400">·</span>
 										<span className="text-slate-300">
-											Цвет: {order.colorVita || "не указ."}
+											Цвет: {order.colorVita || "не указан"}
 										</span>
 										<span
 											className={`px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wide uppercase ${statusColors[order.status]}`}
@@ -403,11 +568,23 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 											«{order.clinicalNotes}»
 										</p>
 									)}
+									{/*
+										Дата печаталась в формате браузера: toLocaleDateString() без
+										языка на системе с английской локалью даёт «7/29/2026», и врач
+										читает месяц как число дня. Срок готовности работы — не то
+										место, где можно угадывать. Пишем по-русски и словами месяца,
+										чтобы спутать было нечем.
+									*/}
 									{order.dueDate && (
 										<div className="text-[11px] text-slate-400 flex items-center gap-1">
 											<Calendar className="w-3.5 h-3.5 text-teal-400/80" />
-											Срок: {new Date(order.dueDate).toLocaleDateString()} в{" "}
-											{new Date(order.dueDate).toLocaleTimeString([], {
+											Срок:{" "}
+											{new Date(order.dueDate).toLocaleDateString("ru-RU", {
+												day: "numeric",
+												month: "long",
+											})}{" "}
+											в{" "}
+											{new Date(order.dueDate).toLocaleTimeString("ru-RU", {
 												hour: "2-digit",
 												minute: "2-digit",
 											})}
@@ -416,12 +593,24 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 								</div>
 
 								<div className="flex items-center gap-2">
-									{order.priceRub && (
-										<span className="font-semibold text-teal-400 flex items-center gap-0.5 mr-2">
-											<DollarSign className="w-3.5 h-3.5" />
-											{order.priceRub.toLocaleString()} ₽
+									{/*
+										ДЕНЬГИ ТОЛЬКО ЧЕРЕЗ money(). Было
+										`order.priceRub.toLocaleString() ₽` — это формат браузера,
+										а не клиники: копейки терялись (12500.5 печаталось как
+										«12 500,5»), а на английской раскладке системы выходило
+										«12,500 ₽». И знак доллара рядом с рублями стоял тоже:
+										иконка DollarSign убрана, money() сам ставит ₽.
+
+										Условие было `order.priceRub && (...)`: при цене 0 такое
+										выражение возвращает 0, и React честно печатал в строке
+										одинокий «0» без подписи. Теперь ноль — это «0 ₽», а
+										«цены нет» (null) по-прежнему не показывается вовсе.
+									*/}
+									{order.priceRub !== null && order.priceRub !== undefined ? (
+										<span className="font-semibold text-teal-400 mr-2">
+											{money(order.priceRub)}
 										</span>
-									)}
+									) : null}
 									<select
 										value={order.status}
 										onChange={(e) =>
@@ -451,7 +640,13 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 										className="py-1 px-2.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 rounded-lg font-semibold transition-colors flex items-center gap-1"
 									>
 										<Link className="w-3.5 h-3.5" />
-										Линк
+										{/*
+											Было «Линк» — английское слово русскими буквами, которое
+											на этом экране не объясняет ничего. Кнопка копирует
+											ссылку для зуботехника, о чём и говорит всплывающая
+											подсказка после нажатия.
+										*/}
+										Ссылка технику
 									</button>
 									<button
 										onClick={() => handleDeleteOrder(order.id)}
@@ -463,7 +658,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 							</div>
 						))}
 					</div>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

@@ -740,13 +740,14 @@ import {
 import {
 	documentPayloadForKind,
 	validateDocumentPayloadForKind,
+	withDocumentCreationTimestamps,
 } from "./documentLogic";
 import { useAuthLogic } from "./hooks/domains/useAuthLogic";
 import { usePatientLogic } from "./hooks/domains/usePatientLogic";
 import { useScheduleLogic } from "./hooks/domains/useScheduleLogic";
 import { useVisitLogic } from "./hooks/domains/useVisitLogic";
 import { useTelegramSettings } from "./hooks/useTelegramSettings.js";
-import { useWorkspaceProfileStore } from "./hooks/useWorkspaceProfile";
+import { loadWorkspaceProfile, useWorkspaceProfileStore } from "./hooks/useWorkspaceProfile";
 import {
 	type ImagingStudyRow,
 	imagingCaptureDistanceMs,
@@ -791,6 +792,7 @@ import {
 	pricelistParserModeLabels,
 } from "./imagingUiLabels";
 import { motionSafeScrollIntoView } from "./motionPreference";
+import { safeLocalStorageSetItem } from "./lib/safeLocalStorage";
 import {
 	buildMprClinicalChecklist,
 	buildMprOperatorSummary,
@@ -823,7 +825,6 @@ import {
 import { useAppStore } from "./store/appStore";
 import { useDocumentStore } from "./store/documentStore";
 import { useImagingStore } from "./store/imagingStore";
-import { usePatientStore } from "./store/patientStore";
 import { useScheduleStore } from "./store/scheduleStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useVisitStore } from "./store/visitStore";
@@ -2290,6 +2291,16 @@ export function useAppLogic(): any {
 	const initialTelegramHandoffTargetRef =
 		useRef<DenteTelegramHandoffTarget | null>(readDenteTelegramHandoffTarget());
 	const initialUiPreferencesRef = useRef<UiPreferences | null>(null);
+	// Ключ идемпотентности платежа. Живёт между повторными нажатиями «Принять
+	// оплату», чтобы сервер распознал повтор и не создал второй платёж.
+	const paymentMutationIdRef = useRef<string | null>(null);
+	// Порядковый номер запроса данных клиники: применяем только последний ответ.
+	const dashboardRequestSeqRef = useRef(0);
+	// Защита от двойного создания сотрудников и кресел (двойной клик по кнопке).
+	const staffCreateInFlightRef = useRef(false);
+	const chairCreateInFlightRef = useRef(false);
+	const [isStaffCreating, setIsStaffCreating] = useState(false);
+	const [isChairCreating, setIsChairCreating] = useState(false);
 	const uiPreferencesServerReadyRef = useRef(false);
 	const uiPreferencesHydratedRef = useRef(false);
 	const pendingUiPreferencesSyncRef = useRef<UiPreferences | null>(null);
@@ -2316,6 +2327,28 @@ export function useAppLogic(): any {
 	const localImagingRecoveryHydratedOrganizationIdRef = useRef<string | null>(
 		null,
 	);
+	/*
+	 * Последняя карточка, о которой уже отправлена отметка просмотра.
+	 *
+	 * Без неё запрос уходил бы на каждый перерисовке рабочего места с тем же
+	 * пациентом: карточка открыта весь приём, а строка в истории переписывалась
+	 * бы десятки раз подряд.
+	 */
+	const recordedPatientViewRef = useRef<string | null>(null);
+	/** Набор модулей уже запрашивали с сервера в этом сеансе. */
+	const workspaceProfileLoadedRef = useRef(false);
+	/*
+	 * Счётчик состоявшихся отметок просмотра.
+	 *
+	 * Виджет «Недавние» читает историю при своём появлении, а отметка уходит
+	 * отсюда — и почти всегда позже. Пациент восстанавливается из настроек ещё
+	 * до того, как виджет смонтируется, поэтому «перечитать при смене пациента»
+	 * не спасает: смены не происходит. Проверено живьём — счётчик оставался
+	 * нулём, хотя строка в базе уже была. Номер меняется только после успешного
+	 * ответа сервера, и виджет перечитывает список именно тогда, когда там
+	 * появилось что-то новое.
+	 */
+	const [recentPatientViewsVersion, setRecentPatientViewsVersion] = useState(0);
 	if (initialUiPreferencesRef.current === null) {
 		initialUiPreferencesRef.current = loadUiPreferences();
 	}
@@ -2343,7 +2376,7 @@ export function useAppLogic(): any {
 	const activeOrganizationId =
 		dashboard?.clinicSettings?.profile?.organizationId ?? null;
 	const isOmniRoleMode =
-		dashboard?.clinicSettings?.profile?.isOmniRole ?? false;
+		(dashboard?.clinicSettings?.profile as { isOmniRole?: boolean } | undefined)?.isOmniRole ?? false;
 
 	const [dicomFirstFramePreviewRequest, setDicomFirstFramePreviewRequest] =
 		useState<DicomFirstFramePreviewRequestContext | null>(null);
@@ -2366,16 +2399,14 @@ export function useAppLogic(): any {
 		loadTelegramControlPlane: telegramSettingsModule.loadTelegramControlPlane,
 	});
 
+	/*
+	 * Россыпь сеттеров формы оплаты сюда больше не передаётся: сброс при смене
+	 * пациента берёт их из documentStore целиком, поэтому забыть поле нельзя.
+	 * Раньше передавались шесть из четырнадцати — ровно те шесть и очищались.
+	 */
 	const patient = usePatientLogic({
 		dashboard,
 		query,
-		setPaymentFeedback,
-		setPaymentPayerFullName,
-		setPaymentPayerInn,
-		setPaymentPayerBirthDate,
-		setPaymentPayerIdentityDocument,
-		setPaymentPayerRelationship,
-		setPaymentTaxDeductionCode,
 		setError,
 		auth,
 		setDashboard,
@@ -2409,6 +2440,7 @@ export function useAppLogic(): any {
 		setIsPatientCreating,
 		setNewRulePatientText,
 		activePatient,
+		activeVisitPatient,
 		selectedPatient,
 		documentPatient,
 		documentPatientMatchesActiveVisit,
@@ -2426,6 +2458,21 @@ export function useAppLogic(): any {
 		savePatientAdministrativeProfile,
 		createPatient,
 	} = patient;
+
+	/**
+	 * Идентификатор ОТКРЫТОГО приёма — или null, если приёма нет.
+	 *
+	 * Гидратация базы кладёт в `activeVisit` заготовку с нулевым UUID, когда
+	 * черновиков нет вовсе. Этот нулевой UUID уходил на сервер как visitId, и
+	 * касса получала «Прием для оплаты не найден»: сервер честно не находит
+	 * приём с таким идентификатором. Кнопка «Принять оплату» при этом была
+	 * доступна — кассир нажимал и не понимал, почему деньги не проходят.
+	 */
+	const realActiveVisitId =
+		dashboard?.activeVisit?.id &&
+		dashboard.activeVisit.id !== "00000000-0000-0000-0000-000000000000"
+			? dashboard.activeVisit.id
+			: null;
 
 	const activeAppointment = useMemo(() => {
 		if (!dashboard) return null;
@@ -2468,6 +2515,7 @@ export function useAppLogic(): any {
 		setVisitNoteForm,
 		visitToothStateByCode,
 		setToothState,
+		resetVisitToothState,
 		applyAiToothCodes,
 		lastServerDraftSavedAt,
 		setLastServerDraftSavedAt,
@@ -2683,6 +2731,15 @@ export function useAppLogic(): any {
 	} = schedule;
 
 	async function loadDashboard(options: { adminSecret?: string } = {}) {
+		// БЫЛО: защиты от гонки не было, а loadDashboard вызывается из 34 мест.
+		// Сценарий: загрузка при открытии экрана ещё идёт, врач сохраняет запись
+		// приёма — сохранение тоже вызывает loadDashboard и получает свежие данные,
+		// но МЕДЛЕННЫЙ первый ответ приходит последним и перезаписывает состояние
+		// данными ДО сохранения. Только что записанный приём исчезал с экрана
+		// до ручного обновления страницы.
+		// Применяем только ответ последнего по времени запроса.
+		const requestId = ++dashboardRequestSeqRef.current;
+		const isStaleResponse = () => requestId !== dashboardRequestSeqRef.current;
 		try {
 			const response = await fetch("/api/dashboard", {
 				cache: "no-store",
@@ -2695,89 +2752,41 @@ export function useAppLogic(): any {
 				);
 				throw new WorkflowResponseError(message, response.status);
 			}
-			const payload = await response.json();
-			setDashboard(payload as any);
+			const payload = (await response.json()) as Dashboard;
+			// Пока ждали ответ, стартовал более свежий запрос — его результат
+			// актуальнее, этот молча игнорируем.
+			if (isStaleResponse()) return;
+			setDashboard(payload);
 			setAccessUnlockRequired(false);
 			setAccessUnlockMessage("");
 		} catch (err) {
-			console.warn("[Dente] loadDashboard fallback triggered:", err);
-			// Fallback mock dashboard payload to ensure UI always loads
-			const fallbackDashboard: any = {
-				clinicName: "Демо Клиника DENTE",
-				todayIso: new Date().toISOString().split("T")[0],
-				clinicSettings: {
-					profile: {
-						id: "00000000-0000-0000-0000-000000000001",
-						organizationId: "00000000-0000-0000-0000-000000000001",
-						clinicName: "Демо Клиника DENTE",
-						legalName: "ООО Демо Клиника",
-						inn: "1234567890",
-						taxId: "",
-						licenseNumber: "",
-						address: "г. Москва, ул. Стоматологическая, д. 10",
-						phone: "+7 (495) 000-00-00",
-						timezone: "Europe/Moscow",
-						mode: "standard",
-						defaultVisitMinutes: 45,
-						scheduleDefaults: {
-							workingDays: [1,2,3,4,5],
-							workdayStart: "09:00",
-							workdayEnd: "20:00",
-							appointmentBufferMinutes: 15
-						},
-						networkEnabled: false,
-						egiszEnabled: false,
-						updatedAt: new Date().toISOString()
-					},
-					staff: [
-						{ id: "doc-1", fullName: "Иванов И.И.", role: "doctor", active: true, email: "doctor@clinic.com" },
-						{ id: "admin-1", fullName: "Петрова А.А.", role: "administrator", active: true, email: "admin@clinic.ru" }
-					],
-					chairs: [
-						{ id: "chair-1", name: "Кабинет 1 (Терапия)", active: true },
-						{ id: "chair-2", name: "Кабинет 2 (Ортопедия)", active: true }
-					],
-					modeHints: [],
-					integrationPresets: [],
-					workspaceProfiles: [],
-					roleAccessPolicies: []
-				},
-				patients: [
-					{ id: "pat-1", fullName: "Смирнов Алексей Петрович", phone: "+79991112233", birthDate: "1990-05-15", status: "active" },
-					{ id: "pat-2", fullName: "Васильева Елена Игоревна", phone: "+79992223344", birthDate: "1985-11-20", status: "active" }
-				],
-				appointments: [
-					{
-						id: "apt-1",
-						patientId: "pat-1",
-						doctorId: "doc-1",
-						doctorUserId: "doc-1",
-						chairId: "chair-1",
-						status: "in_progress",
-						startsAt: new Date().toISOString(),
-						endsAt: new Date(Date.now() + 45 * 60000).toISOString(),
-						reason: "Первичный прием и диктовка",
-						comment: "Срочный осмотр"
-					}
-				],
-				activeVisit: {
-					appointmentId: "apt-1",
-					patientId: "pat-1",
-					startedAt: new Date().toISOString()
-				},
-				documents: [],
-				imagingStudies: [],
-				shiftIntelligence: { roleQueues: [], urgentRequests: [], shiftStats: {} },
-				billingSummary: { totalPaidRub: 0, totalDueRub: 0 },
-				patientInsights: [],
-				auditEvents: [],
-				importBatches: [],
-				speechProviders: []
-			};
-			setDashboard(fallbackDashboard);
-			usePatientStore.getState().setSelectedPatientId("pat-1");
-			setAccessUnlockRequired(false);
-			setAccessUnlockMessage("");
+			if (isStaleResponse()) return;
+			// БЫЛО: любая ошибка загрузки (обрыв сети, 401, 500) подменяла реальные
+			// данные клиники ВЫМЫШЛЕННЫМИ: «Демо Клиника DENTE» и пациент
+			// «Смирнов Алексей Петрович» с id "pat-1", который тут же выбирался
+			// активным. Врач мог диктовать приём в карту несуществующего человека.
+			// Кроме того, catch никогда не пробрасывал ошибку дальше, поэтому
+			// все .catch() у вызывающих (в том числе принудительный релогин при 401)
+			// были мёртвым кодом, и истёкшая сессия не приводила к повторному входу.
+			console.error("[Dente] Не удалось загрузить данные клиники:", err);
+			const isAuthError =
+				err instanceof Error && /401|403|Требуется авторизация|Сессия истекла/i.test(err.message);
+			if (isAuthError) {
+				setAccessUnlockRequired(true);
+				setAccessUnlockMessage("Сессия истекла. Войдите в кабинет клиники заново.");
+			} else {
+				setError(
+					"Не удалось загрузить данные клиники. Проверьте связь с сервером и повторите — введённые данные не потеряны.",
+				);
+			}
+			// Прежнее состояние НЕ затираем: пусть на экране останутся последние
+			// корректные данные, а не подделка.
+			//
+			// Ошибку намеренно НЕ пробрасываем: loadDashboard вызывается из 34 мест,
+			// часть — через `void loadDashboard()`, и бросок превратился бы в
+			// необработанные отклонения промисов. Вместо этого истёкшая сессия
+			// обрабатывается прямо здесь (setAccessUnlockRequired выше) — именно
+			// этого добивались внешние .catch(), которые раньше не срабатывали.
 		}
 		void loadPersistenceHealth({
 			silent: true,
@@ -2839,7 +2848,7 @@ export function useAppLogic(): any {
 			dashboard?.patients?.find((patient) => patient.status === "active")?.id ??
 			null;
 		const doctorIds = new Set(
-			dashboard?.clinicSettings?.staff
+			(dashboard?.clinicSettings?.staff || [])
 				.filter(
 					(member) =>
 						member.active &&
@@ -3132,6 +3141,7 @@ export function useAppLogic(): any {
 			postVisitCareTopic,
 			pricelistSourceKind,
 			usePricelistAi,
+			odontogramUseSurfaces,
 			recognitionKind,
 			recognitionTarget,
 			importSourceKind,
@@ -3588,7 +3598,7 @@ export function useAppLogic(): any {
 		setPostVisitCareTopic(preferences.postVisitCareTopic);
 		setPricelistSourceKind(preferences.pricelistSourceKind);
 		setUsePricelistAi(preferences.usePricelistAi);
-		setOdontogramUseSurfaces((preferences as any).odontogramUseSurfaces ?? false);
+		setOdontogramUseSurfaces(preferences.odontogramUseSurfaces ?? false);
 		setRecognitionKind(preferences.recognitionKind);
 		setRecognitionTarget(preferences.recognitionTarget);
 		setImportSourceKind(preferences.importSourceKind);
@@ -3627,7 +3637,7 @@ export function useAppLogic(): any {
 							serverPreferences.savedAt > localPreferences.savedAt))
 				) {
 					applyUiPreferences(serverPreferences);
-					window.localStorage.setItem(
+					safeLocalStorageSetItem(
 						uiPreferencesStorageKey,
 						JSON.stringify(serverPreferences),
 					);
@@ -3688,6 +3698,57 @@ export function useAppLogic(): any {
 		uiPreferencesHydrated,
 	]);
 
+	/*
+	 * Отметка об открытии карточки пациента.
+	 *
+	 * Виджет «Недавние» в шапке рабочего места читал таблицу
+	 * recent_patient_history, в которую не писал никто и никогда: ни одной
+	 * вставки во всём сервере, ноль строк в живой базе. Каждому пользователю
+	 * каждый день показывалось «История просмотров пуста», и выглядело это как
+	 * «функция есть, просто ещё не накопилось».
+	 *
+	 * Отметка ставится здесь, а не в обработчиках нажатий: карточка выбирается
+	 * из списка, из поиска, из задачи, из расписания и из самого виджета —
+	 * пришлось бы дописывать пять мест и забыть шестое. Смена selectedPatientId
+	 * — единственное общее событие.
+	 *
+	 * Ошибка запроса намеренно проглатывается: история просмотров не стоит
+	 * того, чтобы мешать врачу работать сообщением о сбое.
+	 */
+	/*
+	 * Набор включённых модулей читается с сервера при запуске.
+	 *
+	 * loadWorkspaceProfile() в собственном комментарии заявлена «used in App
+	 * startup» — и её не звал НИКТО. Из-за этого набор модулей жил только в
+	 * localStorage браузера: на втором устройстве, в другом браузере и у второго
+	 * сотрудника клиника получала все модули включёнными, а выбор владельца никуда
+	 * не доходил. Вместе с тем, что сервер до миграции 0139 отдавал константу и не
+	 * сохранял ничего, вся модульность держалась на одном лишь localStorage.
+	 *
+	 * Запрос уходит один раз за сеанс, после загрузки рабочей смены: до неё нет ни
+	 * токена сотрудника, ни организации.
+	 */
+	useEffect(() => {
+		if (!dashboard || workspaceProfileLoadedRef.current) return;
+		workspaceProfileLoadedRef.current = true;
+		void loadWorkspaceProfile();
+	}, [dashboard]);
+
+	useEffect(() => {
+		if (!selectedPatientId || !dashboard) return;
+		if (recordedPatientViewRef.current === selectedPatientId) return;
+		recordedPatientViewRef.current = selectedPatientId;
+		void fetch("/api/hr/recent-patients", {
+			method: "POST",
+			headers: auth.denteClinicalMutationHeaders({ "Content-Type": "application/json" }),
+			body: JSON.stringify({ patientId: selectedPatientId }),
+		})
+			.then((response) => {
+				if (response.ok) setRecentPatientViewsVersion((version) => version + 1);
+			})
+			.catch(() => {});
+	}, [selectedPatientId, dashboard]);
+
 	useEffect(() => {
 		const organizationId =
 			dashboard?.clinicSettings?.profile?.organizationId?.trim() ?? "";
@@ -3721,52 +3782,7 @@ export function useAppLogic(): any {
 
 	useEffect(() => {
 		if (!uiPreferencesHydrated) return undefined;
-		const savedPreferences = saveUiPreferences({
-			uiLanguage,
-			selectedWorkspaceRole,
-			selectedSpecialty,
-			selectedProtocolId,
-			selectedPatientId,
-			scheduleDoctorFilterId,
-			scheduleAssistantFilterId,
-			scheduleChairFilterId,
-			scheduleDefaultDoctorUserId,
-			scheduleDefaultAssistantUserId,
-			scheduleDefaultChairId,
-			scheduleStatusFilter,
-			scheduleDateFilter,
-			paymentMethod,
-			taxDocumentYear,
-			selectedDocumentKind,
-			taxApplicationForm,
-			taxApplicationDeliveryChannel,
-			paymentReceiptTaxSupportRequested,
-			documentIssueSignatureMode,
-			documentIssueStaffFullName,
-			documentIssueStaffRole,
-			procedureConsentProcedureType,
-			postVisitCareTopic,
-			pricelistSourceKind,
-			usePricelistAi,
-			recognitionKind,
-			recognitionTarget,
-			importSourceKind,
-			documentIngestionTarget,
-			imagingImportSourceKind,
-			smartImportMode,
-			imagingKindFilter,
-			dicomWebEndpointUrl,
-			ohifBaseUrl,
-			telegramBotConfigId: telegramBotConfigId.trim(),
-			telegramLinkSubjectType,
-			telegramLinkStaffId: telegramLinkStaffId || null,
-			telegramOutboxStatusFilter,
-			telegramOutboxTemplateFilter,
-			onboardingDismissed,
-			onboardingDismissedAt,
-			onboardingStep,
-			onboardingDraftMode,
-		});
+		const savedPreferences = saveUiPreferences(currentUiPreferencesInput());
 		if (!savedPreferences) {
 			setUiPreferencesSyncError(
 				"Настройки интерфейса не сохранены: браузер заблокировал локальное хранилище.",
@@ -4465,11 +4481,31 @@ export function useAppLogic(): any {
 		let cancelled = false;
 		visitDraftUserEditedRef.current = false;
 		setLocalAutosaveReady(false);
-		const savedDraft = loadVisitLocalDraft(
-			dashboard?.activeVisit?.id,
-			activeOrganizationId,
-		);
-		const serverUpdatedAt = Date.parse(dashboard?.activeVisit?.updatedAt);
+		// Отметки зубов и ИИ-диагнозы относятся к КОНКРЕТНОМУ приёму. Без сброса
+		// они переносились на следующего пациента (см. resetVisitToothState).
+		resetVisitToothState();
+		/*
+		 * ЧЕРНОВИК В ПАМЯТИ БРАУЗЕРА ПРИНАДЛЕЖИТ КОНКРЕТНОМУ ПРИЁМУ, А НЕ «ЛЮБОМУ».
+		 *
+		 * Сводка теперь честно отвечает `activeVisit: null`, когда в клинике не
+		 * открыт ни один приём (`dashboardSchema.activeVisit` — `visitSchema.nullable()`).
+		 * До этого сервер подставлял заготовку с нулевым идентификатором, и черновик
+		 * врача сохранялся в памяти браузера под ключом этого несуществующего приёма,
+		 * а затем восстанавливался в СЛЕДУЮЩИЙ открытый приём: ключ у всех «приёмов,
+		 * которых нет», один и тот же. Продиктованное про одного человека всплывало в
+		 * записи другого.
+		 *
+		 * Раннего выхода здесь НЕТ намеренно: ветка `else` ниже очищает поля ЭМК от
+		 * предыдущего приёма (`visitNoteFormFromVisit` на `null` даёт пустую форму).
+		 * Выйти сразу значило бы оставить на экране текст закрытого приёма.
+		 */
+		const openVisitId = dashboard.activeVisit?.id ?? null;
+		const savedDraft = openVisitId
+			? loadVisitLocalDraft(openVisitId, activeOrganizationId)
+			: null;
+		const serverUpdatedAt = dashboard.activeVisit
+			? Date.parse(dashboard.activeVisit.updatedAt)
+			: Number.NaN;
 		const savedAt = savedDraft ? Date.parse(savedDraft.savedAt) : Number.NaN;
 
 		if (savedDraft && Number.isFinite(savedAt) && savedAt > serverUpdatedAt) {
@@ -4538,13 +4574,16 @@ export function useAppLogic(): any {
 	]);
 
 	useEffect(() => {
-		if (!dashboard || !localAutosaveReady) return;
+		// Приёма нет — сохранять черновик некуда. Раньше он уходил под ключ
+		// несуществующего приёма и всплывал у следующего пациента.
+		const openVisitId = dashboard?.activeVisit?.id;
+		if (!dashboard || !localAutosaveReady || !openVisitId) return;
 		const savedAt = new Date().toISOString();
 		const timeout = window.setTimeout(() => {
 			saveVisitLocalDraft(
 				{
 					version: 1,
-					visitId: dashboard?.activeVisit?.id,
+					visitId: openVisitId,
 					savedAt,
 					transcript,
 					selectedSpecialty,
@@ -5008,44 +5047,76 @@ export function useAppLogic(): any {
 		);
 	}, [dashboard, documentPatient?.id]);
 
-	const patientBillingSummary = useMemo<Dashboard["billingSummary"]>(() => {
-		if (!dashboard || !documentPatient)
-			return {
-				totalPlannedRub: 0,
-				totalDiscountRub: 0,
-				totalPaidRub: 0,
-				totalDueRub: 0,
-				taxDeductionEligibleRub: 0,
-				draftDocumentAmountRub: 0,
-				openTreatmentItems: 0,
-				unpaidDocuments: 0,
-				insuranceCoverageRub: 0,
-			};
+	/*
+	 * НЕПОСЧИТАННЫЙ ИТОГ — null, А НЕ ОБЪЕКТ ИЗ НУЛЕЙ.
+	 *
+	 * БЫЛО: при `!dashboard || !documentPatient` возвращалась сводка, у которой
+	 * все восемь полей равны нулю. Общая money() (AppHelpers.tsx) к тому времени
+	 * уже печатала «не определено» вместо «0 ₽» для неизвестной суммы, но через
+	 * ЭТУ дверь та правка ИНЕРТНА: до форматирования доезжал настоящий ноль, и
+	 * экран финансов уверенно писал «План лечения 0 ₽ · Оплачено 0 ₽ · Остаток
+	 * 0 ₽». Администратор читает это как «пациент ничего не должен», тогда как
+	 * программа утверждала «дашборд ещё не загружен» или «пациент не выбран».
+	 * Про деньги это два разных утверждения, и на экране они были одним.
+	 *
+	 * ПОЧЕМУ ПРИЗНАК СТОИТ НА СВОДКЕ, А НЕ В ПОЛЯХ ОБЩЕЙ СХЕМЫ. Поля
+	 * billingSummarySchema объявлены nonNegativeMoneyRubSchema, то есть number
+	 * без null (packages/shared/src/index.ts). Сделать их nullable — правка
+	 * общего контракта денег: рябь в api, в базу и во всех потребителей сводки.
+	 * Здесь же неизвестна ВСЯ сводка целиком, а не отдельное поле, поэтому
+	 * неопределённость выражена самим отсутствием объекта. Потребитель ровно
+	 * один: App.tsx -> FinanceView -> FinancePlanningOverview, и он рисует блок
+	 * как неопределённый.
+	 */
+	const patientBillingSummary = useMemo<Dashboard["billingSummary"] | null>(() => {
+		if (!dashboard || !documentPatient) return null;
 		const activePlanItems = activeTreatmentPlanItems.filter(
 			(item) => item.status !== "cancelled",
 		);
+		/*
+		 * Округление до копейки, а не до рубля.
+		 *
+		 * Умножение и сложение денег в плавающей точке оставляет хвост
+		 * (1500.10 * 3 = 4500.299999999999), и без этого шага он доезжает до
+		 * экрана и до тела запроса. Тот же приём — Math.round(x * 100) / 100 —
+		 * уже применяется на сервере в apps/api/src/documents/guards.ts, где
+		 * строки сметы сверяются с итогом, поэтому веб и сервер считают строку
+		 * одинаково. Целочисленная алгебра копеек живёт в
+		 * packages/shared/src/utils/money.ts, но её parseKopecks по замыслу
+		 * БРОСАЕТ на неожидаемом значении, а данные дашборда на клиенте схемой не
+		 * проверяются: исключение внутри useMemo погасило бы экран целиком.
+		 */
+		const roundToKopecks = (value: number) =>
+			Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
 		const treatmentLineTotal = (item: (typeof activePlanItems)[number]) =>
-			Math.max(0, item.unitPriceRub * item.quantity - item.discountRub);
-		const totalPlannedRub = activePlanItems.reduce(
-			(total, item) => total + treatmentLineTotal(item),
-			0,
-		);
-		const totalDiscountRub = activePlanItems.reduce(
-			(total, item) => total + item.discountRub,
-			0,
-		);
-		const totalPaidRub = activePayments
-			.filter((payment) => payment.status === "paid")
-			.reduce((total, payment) => total + payment.amountRub, 0);
-		const taxDeductionEligibleRub = activePlanItems.reduce((total, item) => {
-			const service = dashboard.serviceCatalog?.find(
-				(candidate) => candidate.id === item.serviceId,
+			Math.max(
+				0,
+				roundToKopecks(item.unitPriceRub * item.quantity - item.discountRub),
 			);
-			return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
-		}, 0);
-		const draftDocumentAmountRub = activeUsableDocuments
-			.filter((document) => document.status === "draft")
-			.reduce((total, document) => total + (document.totalAmountRub ?? 0), 0);
+		const totalPlannedRub = roundToKopecks(
+			activePlanItems.reduce((total, item) => total + treatmentLineTotal(item), 0),
+		);
+		const totalDiscountRub = roundToKopecks(
+			activePlanItems.reduce((total, item) => total + item.discountRub, 0),
+		);
+		const totalPaidRub = roundToKopecks(
+			activePayments
+				.filter((payment) => payment.status === "paid")
+				.reduce((total, payment) => total + payment.amountRub, 0),
+		);
+		const taxDeductionEligibleRub = roundToKopecks(
+			activePlanItems.reduce((total, item) => {
+				const service = dashboard.serviceCatalog?.find(
+					(candidate) => candidate.id === item.serviceId,
+				);
+				return total + (service?.taxDeductible ? treatmentLineTotal(item) : 0);
+			}, 0),
+		);
+		const draftDocumentAmountRub = roundToKopecks(
+			activeUsableDocuments
+				.filter((document) => document.status === "draft")
+				.reduce((total, document) => total + (document.totalAmountRub ?? 0), 0),
+		);
 		const unpaidDocuments = activeUsableDocuments.filter(
 			(document) =>
 				document.status === "draft" &&
@@ -5086,7 +5157,27 @@ export function useAppLogic(): any {
 					else if (category === "hygiene")
 						pct = contract.coverageHygienePct || 0;
 
-					insuranceCoverageRub += treatmentLineTotal(item) * (pct / 100);
+					// БЫЛО: накапливалась сырая дробь. 8 999 ₽ при покрытии 70% дают
+					// 6299.299999999999, из-за чего долг превращался в
+					// 2699.7000000000007.
+					// Округляем каждую строку отдельно, как это делает страховая, но до
+					// КОПЕЙКИ: Math.round до целого рубля отбрасывал у клиники до 50
+					// копеек с каждой строки покрытия, а на плане из двадцати позиций
+					// это уже десять рублей, взявшихся из округления.
+					insuranceCoverageRub += roundToKopecks(
+						(treatmentLineTotal(item) * pct) / 100,
+					);
+				}
+
+				// БЫЛО: annualLimitRub сохранялся в договоре, но нигде не читался.
+				// План на 500 000 ₽ при покрытии 70% и лимите 100 000 ₽ показывал
+				// покрытие 350 000 ₽ — клиника недосчитывалась 250 000 ₽ и узнавала
+				// об этом только при отказе страховой.
+				const annualLimitRub = roundToKopecks(
+						Number(contract.annualLimitRub ?? 0),
+					);
+				if (annualLimitRub > 0) {
+					insuranceCoverageRub = Math.min(insuranceCoverageRub, annualLimitRub);
 				}
 			}
 		}
@@ -5095,9 +5186,22 @@ export function useAppLogic(): any {
 			totalPlannedRub,
 			totalDiscountRub,
 			totalPaidRub,
+			/*
+			 * Долг — с копейками.
+			 *
+			 * БЫЛО: Math.round до целого рубля с объяснением «ровно так его
+			 * принимает поле оплаты и колонка payments.amount_rub (integer)».
+			 * Обе половины этого утверждения к моменту правки уже были неверны:
+			 * колонка payments.amount_rub — numeric(12, 2), createPaymentSchema
+			 * .amountRub — positiveMoneyRubSchema, а поле ввода суммы разбирает
+			 * копейки (apps/web/src/rubAmountInput.ts). Округление осталось и
+			 * врало: при долге 1500,50 кнопка «оплатить долг» подставляла 1501, и
+			 * пациент переплачивал полтинник, либо — при 1500,49 — недоплачивал и
+			 * оставался в должниках на копейки без объяснимой причины.
+			 */
 			totalDueRub: Math.max(
 				0,
-				totalPlannedRub - insuranceCoverageRub - totalPaidRub,
+				roundToKopecks(totalPlannedRub - insuranceCoverageRub - totalPaidRub),
 			),
 			taxDeductionEligibleRub,
 			draftDocumentAmountRub,
@@ -5148,8 +5252,8 @@ export function useAppLogic(): any {
 				key: payerKey,
 				inn: payerInn,
 				label: payerInn
-					? `${payerName} В· ИНН ${payerInn}${payerRelationship ? ` В· ${payerRelationship}` : ""}`
-					: `${payerName} В· документ ${payerIdentity || "без ИНН"}${payerRelationship ? ` В· ${payerRelationship}` : ""}`,
+					? `${payerName} · ИНН ${payerInn}${payerRelationship ? ` · ${payerRelationship}` : ""}`
+					: `${payerName} · документ ${payerIdentity || "без ИНН"}${payerRelationship ? ` · ${payerRelationship}` : ""}`,
 				amountRub: payment.amountRub,
 				paymentCount: 1,
 			});
@@ -5884,10 +5988,28 @@ export function useAppLogic(): any {
 
 	const activeImagingStudies = useMemo(() => {
 		if (!dashboard) return [];
+		/* БЫЛО: сравнение строго с dashboard.activeVisit.patientId. Когда приём
+		   не открыт, сервер отдаёт синтетический activeVisit с нулевым
+		   идентификатором 00000000-0000-0000-0000-000000000000 — проверено
+		   запросом к /api/dashboard, scratch/probe-active-visit.mjs. Ни один
+		   снимок с таким пациентом не совпадает, поэтому лента была пуста
+		   ВСЕГДА, пока не начат приём.
+
+		   При этом шапка того же экрана показывает пациента через
+		   activePatient, у которого есть запасные варианты (активный приём ->
+		   первый активный пациент -> первый пациент). Получалось «Пациент:
+		   Ковальчук Дмитрий Игоревич · В ленте 0», хотя у Ковальчука снимок
+		   есть — сверено с /api/imaging/studies. Врач, открывший «Снимки» без
+		   начатого приёма, видел «Снимков по пациенту нет» и не мог посмотреть
+		   ни прошлогоднюю ОПТГ, ни только что загруженный снимок.
+
+		   Лента обязана показывать того же пациента, что назван в шапке. */
+		const feedPatientId = activePatient?.id ?? dashboard?.activeVisit?.patientId ?? null;
+		if (!feedPatientId) return [];
 		return (dashboard.imagingStudies || [])
-			.filter((study) => study.patientId === dashboard?.activeVisit?.patientId)
+			.filter((study) => study.patientId === feedPatientId)
 			.sort((left, right) => right.capturedAt.localeCompare(left.capturedAt));
-	}, [dashboard]);
+	}, [activePatient, dashboard]);
 
 	const imagingKindOptions = useMemo(
 		() => Array.from(new Set(activeImagingStudies.map((study) => study.kind))),
@@ -6311,7 +6433,7 @@ export function useAppLogic(): any {
 					: "",
 			]
 				.filter(Boolean)
-				.join(" В· "),
+				.join(" · "),
 			createdByUserId: null,
 			createdAt: now,
 			updatedAt: now,
@@ -6498,6 +6620,12 @@ export function useAppLogic(): any {
 			brightness: sessionState.brightness,
 			contrast: sessionState.contrast,
 			zoom: sessionState.zoom,
+			panX: sessionState.panX ?? 0,
+			panY: sessionState.panY ?? 0,
+			projection: sessionState.projection ?? "axial",
+			preset: isMprWindowPreset(sessionState.windowPreset)
+				? sessionState.windowPreset
+				: "bone",
 		});
 		setMprProjection(
 			resolveMprWorkbenchProjection(
@@ -6510,13 +6638,9 @@ export function useAppLogic(): any {
 		setMprSliceIndex(
 			clampMprSliceIndex(sessionState.sliceIndex ?? 0, mprSliceMaxIndex),
 		);
-		if (
-			sessionState.windowPreset === "bone" ||
-			sessionState.windowPreset === "soft_tissue" ||
-			sessionState.windowPreset === "implant" ||
-			sessionState.windowPreset === "custom"
-		) {
-			setMprWindowPreset(sessionState.windowPreset);
+		const preset = sessionState.windowPreset;
+		if (isMprWindowPreset(preset)) {
+			setMprWindowPreset(preset);
 		}
 		setMprCrosshairEnabled(sessionState.crosshair);
 		setMprLinkedPlanesEnabled(sessionState.linkedPlanes);
@@ -7057,7 +7181,7 @@ export function useAppLogic(): any {
 		: browserContinuityCritical
 			? browserContinuity.warnings.slice(0, 2).join(", ") ||
 				"локальная защита ограничена"
-			: `${browserContinuity.localStorageWritable ? "черновики ок" : "черновики выкл."} В· ${
+			: `${browserContinuity.localStorageWritable ? "черновики ок" : "черновики выкл."} · ${
 					browserContinuity.indexedDbSupported
 						? "очередь аудио ок"
 						: "очередь аудио выкл."
@@ -7443,7 +7567,17 @@ export function useAppLogic(): any {
 			setError("Введите ФИО сотрудника перед добавлением в команду.");
 			return;
 		}
-		if (!(await saveClinicProfileIfDirty())) return;
+		// БЫЛО: защиты от повторного нажатия не было, а поле имени очищалось
+		// только ПОСЛЕ ответа сервера — двойной клик заводил двух одинаковых
+		// сотрудников. Ref, а не state: значение проверяется синхронно.
+		if (staffCreateInFlightRef.current) return;
+		staffCreateInFlightRef.current = true;
+		setIsStaffCreating(true);
+		if (!(await saveClinicProfileIfDirty())) {
+			staffCreateInFlightRef.current = false;
+			setIsStaffCreating(false);
+			return;
+		}
 		try {
 			const response = await fetch("/api/settings/staff", {
 				method: "POST",
@@ -7476,6 +7610,9 @@ export function useAppLogic(): any {
 			setError(
 				operatorWorkflowFailureMessage("Сотрудник не добавлен", staffError),
 			);
+		} finally {
+			staffCreateInFlightRef.current = false;
+			setIsStaffCreating(false);
 		}
 	}
 
@@ -7485,7 +7622,15 @@ export function useAppLogic(): any {
 			setError("Введите название кресла или кабинета перед добавлением.");
 			return;
 		}
-		if (!(await saveClinicProfileIfDirty())) return;
+		// См. addStaffMember: двойной клик создавал два одинаковых кресла.
+		if (chairCreateInFlightRef.current) return;
+		chairCreateInFlightRef.current = true;
+		setIsChairCreating(true);
+		if (!(await saveClinicProfileIfDirty())) {
+			chairCreateInFlightRef.current = false;
+			setIsChairCreating(false);
+			return;
+		}
 		try {
 			const response = await fetch("/api/settings/chairs", {
 				method: "POST",
@@ -7519,6 +7664,9 @@ export function useAppLogic(): any {
 			setError(
 				operatorWorkflowFailureMessage("Кресло не добавлено", chairError),
 			);
+		} finally {
+			chairCreateInFlightRef.current = false;
+			setIsChairCreating(false);
 		}
 	}
 
@@ -10732,7 +10880,7 @@ export function useAppLogic(): any {
 			mediaRecorderRef.current?.state === "recording"
 		) {
 			setError(
-				"Запись уже идет. Нажмите В«Стоп записьВ», чтобы завершить текущий фрагмент.",
+				"Запись уже идет. Нажмите «Стоп запись», чтобы завершить текущий фрагмент.",
 			);
 			return;
 		}
@@ -10795,12 +10943,51 @@ export function useAppLogic(): any {
 			}
 			setIsServerVoiceRecording(true);
 		} catch (recordingError) {
+			// БЫЛО: поток микрофона уже получен выше через getUserMedia, но при
+			// ошибке (например, MediaRecorder.start() бросил исключение) дорожки
+			// не останавливались. Интерфейс писал «Микрофон недоступен» и что
+			// запись не идёт, а индикатор микрофона в браузере продолжал гореть.
+			stopSpeechMonitor();
+			try {
+				mediaRecorderRef.current?.stop();
+			} catch {
+				// Рекордер мог не запуститься — это нормально.
+			}
+			mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+			mediaRecorderRef.current = null;
+			mediaStreamRef.current = null;
 			setIsServerVoiceRecording(false);
 			setError(
 				browserCapabilityFailureMessage("Микрофон недоступен", recordingError),
 			);
 		}
 	}
+
+	/**
+	 * Освобождение микрофона при размонтировании.
+	 *
+	 * БЫЛО: остановка происходила только по действию пользователя (recorder.onstop
+	 * и stopServerVoiceRecording). Если врач уходил со страницы приёма или сессия
+	 * блокировалась во время диктовки, таймер каждые 250 мс продолжал запрашивать
+	 * данные и отправлять аудио на сервер, а индикатор микрофона горел до закрытия
+	 * вкладки. AudioContext тоже не закрывался, а браузер держит их ограниченное число.
+	 */
+	useEffect(() => {
+		return () => {
+			stopSpeechMonitor();
+			try {
+				const recorder = mediaRecorderRef.current;
+				if (recorder && recorder.state !== "inactive") recorder.stop();
+			} catch {
+				// Останов на размонтировании — best effort.
+			}
+			mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+			mediaRecorderRef.current = null;
+			mediaStreamRef.current = null;
+		};
+		// Пустой массив зависимостей: очистка должна выполниться ровно один раз,
+		// при размонтировании, с актуальными значениями из ref-ов.
+	}, []);
 
 	function stopServerVoiceRecording() {
 		const recorder = mediaRecorderRef.current;
@@ -11168,8 +11355,26 @@ export function useAppLogic(): any {
 		);
 	}
 
+	/*
+	 * Сумма, вписанная руками в поле документа.
+	 *
+	 * Раньше все такие поля разбирались как `Number(текст.replace(/[^\d]/g,""))`
+	 * — оставались одни цифры. «1500,50» превращалось в 150050: договор на
+	 * полторы тысячи становился договором на сто пятьдесят тысяч, и ошибка
+	 * ничем не выдавала себя, потому что поле выглядело принятым.
+	 *
+	 * Теперь работает тот же разбор, что и в кассе: копейки через запятую или
+	 * точку, разделители разрядов и знак рубля отбрасываются, три знака после
+	 * запятой не принимаются. Непонятный текст даёт ноль, а ноль означает
+	 * «руками не задано» — подставится расчётная сумма, как и прежде.
+	 */
+	function manualRubAmount(value: string): number {
+		const withoutCurrency = value.replace(/₽|руб\.?/gi, "");
+		return normalizeRubAmountInput(withoutCurrency) ?? 0;
+	}
+
 	function paidContractTotalRubValue(): number {
-		const manual = Number(paidContractTotalRub.replace(/[^\d]/g, ""));
+		const manual = manualRubAmount(paidContractTotalRub);
 		return manual > 0 ? manual : treatmentAcceptancePlannedTotalRub();
 	}
 
@@ -11201,7 +11406,7 @@ export function useAppLogic(): any {
 	}
 
 	function completedActPaidRubValue(): number {
-		const manual = Number(completedActPaidRub.replace(/[^\d]/g, ""));
+		const manual = manualRubAmount(completedActPaidRub);
 		if (manual > 0) return manual;
 		return activePaidPaymentsForVisit().reduce(
 			(total, payment) => total + payment.amountRub,
@@ -11283,7 +11488,7 @@ export function useAppLogic(): any {
 	}
 
 	function treatmentEstimateTotalRubValue(): number {
-		const manual = Number(treatmentEstimateTotalRub.replace(/[^\d]/g, ""));
+		const manual = manualRubAmount(treatmentEstimateTotalRub);
 		return manual > 0 ? manual : paymentInvoiceTotalRubValue();
 	}
 
@@ -11375,12 +11580,12 @@ export function useAppLogic(): any {
 	}
 
 	function installmentScheduleTotalRubValue(): number {
-		const manual = Number(installmentScheduleTotalRub.replace(/[^\d]/g, ""));
+		const manual = manualRubAmount(installmentScheduleTotalRub);
 		return manual > 0 ? manual : treatmentAcceptancePlannedTotalRub();
 	}
 
 	function installmentSchedulePrepaidRubValue(): number {
-		const manual = Number(installmentSchedulePrepaidRub.replace(/[^\d]/g, ""));
+		const manual = manualRubAmount(installmentSchedulePrepaidRub);
 		if (manual > 0) return manual;
 		return activePaidPaymentsForVisit().reduce(
 			(total, payment) => total + payment.amountRub,
@@ -11788,8 +11993,8 @@ export function useAppLogic(): any {
 					objectiveData: recordExtractObjectiveStatusValue(),
 					primaryDiagnosis: recordExtractDiagnosisValue(),
 					primaryDiagnosisIcd10: null,
-					complications: dashboard?.activeVisit?.diary?.complications ?? null,
-					comorbidities: dashboard?.activeVisit?.diary?.comorbidities ?? null,
+					complications: null,
+					comorbidities: null,
 					externalCause: null,
 					healthGroup: null,
 					dispensaryObservation: null,
@@ -11889,12 +12094,138 @@ export function useAppLogic(): any {
 		const amountSource = documentAmountSource(kind);
 		const metadata = documentKindMetadata[kind];
 		const isTaxDocument = metadata.group === "tax";
-		const payloadError = validateDocumentPayloadForKind(kind, documentState);
+		/*
+		 * Отметки времени подставляются здесь, в момент создания документа.
+		 *
+		 * В хранилище они пусты. Раньше они вычислялись один раз при загрузке
+		 * страницы и несли время открытия вкладки: договор, созданный вечером,
+		 * уходил на подпись с утренним часом. Заполняем ДО проверки полей — иначе
+		 * пустая обязательная дата упёрлась бы в валидатор и потребовала вписать
+		 * руками то, что программа знает сама.
+		 *
+		 * Введённое человеком не трогается, заполняются только пустые поля.
+		 */
+		/*
+		 * ВЫЧИСЛЯЕМЫЕ ЗНАЧЕНИЯ, БЕЗ КОТОРЫХ ДОКУМЕНТ НЕ СОБИРАЕТСЯ.
+		 *
+		 * Валидаторы (documentValidators.ts) и сборщик содержимого
+		 * (documentPayloadForKind) достают из объекта состояния не только поля
+		 * формы, но и вычисляемые значения: суммы по плану, ФИО плательщика,
+		 * строки этапов, разбор многострочных полей. Все они объявлены ЗДЕСЬ, в
+		 * useAppLogic, а состояние — это хранилище useDocumentStore, где их нет.
+		 *
+		 * Что из этого следовало. Нажатие «Создать выбранный документ» падало на
+		 * первом же отсутствующем имени: «requiredDocumentField is not a
+		 * function», документ не создавался, пользователю ни слова. Две чистые
+		 * функции уже подставляются в documentLogic.ts, но оставались вычисляемые
+		 * значения, и виды документов, которым они нужны, продолжали упираться в ту
+		 * же ошибку с другим именем.
+		 *
+		 * Пересчитано по исходникам (scratch/audit-document-payload-inputs.mjs): из
+		 * 32 видов документов со структурным содержимым 23 требовали имён, которых
+		 * в хранилище нет; всего таких имён 79, и все 79 объявлены в этом файле.
+		 * То есть не создавались договор платных услуг, акт выполненных работ,
+		 * смета, счёт, квитанция, график рассрочки, согласие законного
+		 * представителя, план лечения и его согласование, выписка из карты, карта
+		 * 025/у, гарантийный талон — вся бумажная работа клиники.
+		 *
+		 * Перечислены по именам намеренно, а не собраны хитростью: проверка типов
+		 * ловит опечатку и переименование, а список читается как контракт между
+		 * формой документа и его сборщиком. Функции передаются ссылкой — валидаторы
+		 * зовут их как paidContractTotalRubValue() и documentTextLines(текст).
+		 */
+		const documentDerivedValues = {
+			activeDoctor,
+			attendanceEndedAtValue,
+			attendanceSignedByValue,
+			attendanceStartedAtValue,
+			clinicProfileDraft,
+			clinicalToothRowsValue,
+			completedActDoctorFullNameValue,
+			completedActFiscalReceiptLines,
+			completedActPaidRubValue,
+			completedActServicesSummaryValue,
+			completedActTotalRubValue,
+			dashboard,
+			documentPatient,
+			documentTextLines,
+			inferredTreatmentArea,
+			installmentScheduleBaseDocumentTitleValue,
+			installmentScheduleInstallmentRows,
+			installmentSchedulePayerFullNameValue,
+			installmentSchedulePrepaidRubValue,
+			installmentScheduleRemainingRubValue,
+			installmentScheduleResponsibleFullNameValue,
+			installmentScheduleTotalRubValue,
+			minorConsentDiagnosisOrIndicationValue,
+			minorConsentDoctorFullNameValue,
+			minorConsentInterventionScopeValue,
+			minorConsentPatientBirthDateValue,
+			minorConsentPatientFullNameValue,
+			minorRepresentativeFullNameValue,
+			minorRepresentativeIdentityDocumentValue,
+			minorRepresentativePhoneValue,
+			minorRepresentativeRelationshipValue,
+			outpatient025uMedicalCardNumberValue,
+			outpatient025uPayloadValue,
+			outpatient025uSourceVisitIdsValue,
+			paidContractCareReasonValue,
+			paidContractCustomerFullNameValue,
+			paidContractDoctorFullNameValue,
+			paidContractServiceScopeValue,
+			paidContractTotalRubValue,
+			paymentInvoiceBankDetailsValue,
+			paymentInvoicePayerFullNameValue,
+			paymentInvoiceTotalRubValue,
+			paymentReceiptFiscalReceiptLines,
+			paymentReceiptIssuedByValue,
+			paymentReceiptPayerBirthDateValue,
+			paymentReceiptPayerFullNameValue,
+			paymentReceiptPayerIdentityDocumentValue,
+			paymentReceiptPayerInnValue,
+			paymentReceiptPayerRelationshipValue,
+			plannedServiceLinesForFinancialPayload,
+			postVisitDoctorFullNameValue,
+			postVisitProcedureNameValue,
+			postVisitToothOrAreaValue,
+			recordExtractComplaintAndAnamnesisValue,
+			recordExtractDiagnosisValue,
+			recordExtractObjectiveStatusValue,
+			recordExtractTreatmentProvidedValue,
+			releaseProtectionNote,
+			selectedCompletedActContractDocumentId,
+			selectedPaymentReceiptPayments,
+			selectedPaymentReceiptTotalRub,
+			selectedReleaseSourceRequestDocumentId,
+			selectedTaxPaymentIdsForCurrentDocument,
+			treatmentAcceptanceStageRows,
+			treatmentAcceptanceTotalRubValue,
+			treatmentEstimateDoctorFullNameValue,
+			treatmentEstimatePatientOrPayerFullNameValue,
+			treatmentEstimateTotalRubValue,
+			treatmentEstimateTreatmentBasisValue,
+			treatmentPlanClinicalReasonValue,
+			treatmentPlanDiagnosisSummaryValue,
+			treatmentPlanDoctorFullNameValue,
+			treatmentPlanStageRows,
+			treatmentPlanTeethOrAreaValue,
+			treatmentPlanTotalRubValue,
+			warrantyDoctorFullNameValue,
+			warrantyLinkedActOrContractValue,
+			warrantyServiceOrWorkNameValue,
+			warrantyTeethOrAreaValue,
+		};
+
+		const documentStateForCreation = withDocumentCreationTimestamps({
+			...documentState,
+			...documentDerivedValues,
+		});
+		const payloadError = validateDocumentPayloadForKind(kind, documentStateForCreation);
 		if (payloadError) {
 			setError(payloadError);
 			return;
 		}
-		const documentPayload = documentPayloadForKind(kind, documentState);
+		const documentPayload = documentPayloadForKind(kind, documentStateForCreation);
 		if (
 			(kind === "tax_deduction_certificate" ||
 				kind === "tax_deduction_registry") &&
@@ -11966,7 +12297,7 @@ export function useAppLogic(): any {
 			(metadata.group !== "tax" && metadata.amountSource !== "none");
 		if (linkActiveVisit && !documentPatientMatchesActiveVisit) {
 			setError(
-				`Документ В«${metadata.label}В» требует активного приема пациента ${documentPatient.fullName}. Сейчас открыт прием другого пациента, поэтому система не создаст документ с чужой привязкой к приему. Откройте нужный прием или выберите документ без привязки к визиту.`,
+				`Документ «${metadata.label}» требует активного приема пациента ${documentPatient.fullName}. Сейчас открыт прием другого пациента, поэтому система не создаст документ с чужой привязкой к приему. Откройте нужный прием или выберите документ без привязки к визиту.`,
 			);
 			return;
 		}
@@ -12423,13 +12754,25 @@ export function useAppLogic(): any {
 			return;
 		}
 		if (!documentPatient || !dashboard) {
-			setError("Выберите пациента и активный прием перед записью оплаты.");
+			setError("Выберите пациента, за которого принимаете оплату.");
 			return;
 		}
-		if (!documentPatientMatchesActiveVisit) {
+		/*
+		 * Барьер стоял на совпадении пациента с пациентом открытого приёма, и
+		 * это запирало кассу наглухо: когда открытых приёмов нет, гидратация
+		 * кладёт в activeVisit заготовку с нулевым UUID, совпадения не бывает
+		 * никогда. Кнопка «Принять оплату» была доступна, нажатие молча
+		 * ничего не делало — деньги принять было нельзя.
+		 *
+		 * Сервер оплату без приёма принимает: visitId необязателен, пациент
+		 * платит и авансом, и по счёту, и по долгу. Опасен ровно один случай —
+		 * открыт приём ДРУГОГО пациента; его и не пропускаем. Условие живёт в
+		 * одном месте, в paymentPatientContextReady.
+		 */
+		if (!paymentPatientContextReady) {
 			setError(
 				paymentPatientContextMessage ||
-					"Оплата не записана: выбранный пациент не совпадает с активным приемом.",
+					"Оплата не записана: сначала переключите открытый прием на этого пациента.",
 			);
 			return;
 		}
@@ -12526,19 +12869,34 @@ export function useAppLogic(): any {
 					}),
 					body: JSON.stringify({
 						organizationId:
-							dashboard?.clinicSettings?.profile?.id ||
+							dashboard?.clinicSettings?.profile?.organizationId ||
 							dashboard?.activeVisit?.organizationId ||
 							"00000000-0000-0000-0000-000000000000",
 						patientId: documentPatient.id,
 						familyGroupId: famData.id,
 						amountRub,
-						visitId: dashboard?.activeVisit?.id || undefined,
+						/* Только настоящий приём: нулевой UUID заготовки сервер не найдёт. */
+						visitId: realActiveVisitId ?? undefined,
 						documentId: documentForPayment?.id || undefined,
+						// БЫЛО: оплата с семейного кошелька шла вообще без ключа
+						// идемпотентности. Повтор после обрыва связи списывал деньги
+						// с баланса семьи ДВАЖДЫ за одно лечение.
+						clientMutationId: (paymentMutationIdRef.current ||= browserGeneratedId("family-payment")),
 					}),
 				});
 			} else {
 				// Normal payment
-				const paymentClientMutationId = browserGeneratedId("payment");
+				// БЫЛО: browserGeneratedId вызывался ЗДЕСЬ, то есть при каждом нажатии
+				// «Принять оплату» генерировался новый ключ. Серверная защита от
+				// дублей (findPaymentByClientMutationIdInDb) не могла сработать
+				// никогда. Сценарий: платёж 15 000 ₽ дошёл до сервера, ответ пропал
+				// из-за обрыва связи, оператор нажал повторно — в базе два платежа
+				// по 15 000 ₽, касса не сходится. Теперь ключ создаётся один раз на
+				// заполненную форму и сбрасывается только после успеха.
+				if (!paymentMutationIdRef.current) {
+					paymentMutationIdRef.current = browserGeneratedId("payment");
+				}
+				const paymentClientMutationId = paymentMutationIdRef.current;
 				response = await fetch("/api/billing/payments", {
 					method: "POST",
 					headers: auth.denteClinicalMutationHeaders({
@@ -12546,7 +12904,8 @@ export function useAppLogic(): any {
 					}),
 					body: JSON.stringify({
 						patientId: documentPatient.id,
-						visitId: dashboard?.activeVisit?.id,
+						/* Только настоящий приём: нулевой UUID заготовки сервер не найдёт. */
+						visitId: realActiveVisitId,
 						documentId: documentForPayment?.id ?? null,
 						clientMutationId: paymentClientMutationId,
 						amountRub,
@@ -12586,6 +12945,8 @@ export function useAppLogic(): any {
 				setError(await responseErrorMessage(response, "Оплата не записана"));
 				return;
 			}
+			// Платёж принят — следующий платёж должен получить НОВЫЙ ключ.
+			paymentMutationIdRef.current = null;
 			setPaymentAmount("");
 			setPaymentFiscalReceiptNumber("");
 			setPaymentFiscalReceiptIssuedAt("");
@@ -12650,7 +13011,7 @@ export function useAppLogic(): any {
 		if (dashboard && task.patientId !== dashboard?.activeVisit?.patientId) {
 			const taskPatientName = patientName(dashboard.patients, task.patientId);
 			setError(
-				`Открыта форма В«${documentLabels[kind]}В» для заявки пациента ${taskPatientName}. Перед выпуском документа переключите активный прием на этого пациента, чтобы не создать документ по текущему визиту.`,
+				`Открыта форма «${documentLabels[kind]}» для заявки пациента ${taskPatientName}. Перед выпуском документа переключите активный прием на этого пациента, чтобы не создать документ по текущему визиту.`,
 			);
 		}
 	}
@@ -13209,8 +13570,23 @@ export function useAppLogic(): any {
 						kind === "cbct" || kind === "opg" || kind === "ceph"
 							? "Импорт КТ/снимков"
 							: "Локальный RVG-датчик",
-					aiSummary:
-						"Черновик: снимок добавлен в карту. Описание требует проверки врача.",
+					/*
+					 * ЗДЕСЬ ЗАПИСЫВАЛОСЬ ПОДЛОЖНОЕ ЗАКЛЮЧЕНИЕ ИИ.
+					 * В aiSummary клали строку «Черновик: снимок добавлен в карту.
+					 * Описание требует проверки врача». Весь экран «Снимки» считает
+					 * непустой aiSummary признаком состоявшегося разбора: загорается
+					 * бейдж «AI» с подсказкой «Есть AI-заключение ShadowAnalyst»,
+					 * раскрывается панель «ShadowAnalyst · AI Expert», и в разделе
+					 * «Заключение» стоит эта служебная фраза. Кнопка разбора при этом
+					 * меняется с «AI-Диагностика» на «Обновить анализ».
+					 *
+					 * То есть снимок, которого никто не смотрел, помечался как
+					 * имеющий заключение искусственного интеллекта. Настоящий разбор в
+					 * проекте есть — apps/api/src/ai/visionAnalyzer.ts, две модели с
+					 * перекрёстной проверкой, — тем важнее не путать его с заглушкой.
+					 *
+					 * Поле не заполняется: заключение появляется только после разбора.
+					 */
 				}),
 			});
 			if (!response.ok) {
@@ -13255,7 +13631,7 @@ export function useAppLogic(): any {
 		imagingViewerSaveError,
 	]
 		.filter(Boolean)
-		.join(" В· ");
+		.join(" · ");
 	const canRetryImagingViewerSave =
 		imagingViewerSessionReady &&
 		Boolean(selectedImagingStudy?.id) &&
@@ -13285,10 +13661,27 @@ export function useAppLogic(): any {
 		) ?? dashboard?.shiftIntelligence?.roleQueues?.[0];
 	const activeRoleWritableSections = activeRolePolicy?.canWrite ?? [];
 	const activeRoleRestrictedSections = activeRolePolicy?.restricted ?? [];
+	/**
+	 * Роли, которые в клинике никто не занимает. Владелец соло-практики сам себе
+	 * и врач, и администратор: если такие дела спрятать «не по его роли», он их
+	 * не увидит вообще — сделать их некому. Поэтому владелец получает дела всех
+	 * незанятых ролей вдобавок к своим.
+	 */
+	const uncoveredStaffRoles = useMemo(() => {
+		const covered = new Set(
+			(dashboard?.clinicSettings?.staff ?? [])
+				.filter((member) => member.active && member.role !== "owner")
+				.map((member) => member.role as string),
+		);
+		return (["doctor", "administrator", "assistant", "manager"] as const).filter(
+			(role) => !covered.has(role),
+		) as string[];
+	}, [dashboard?.clinicSettings?.staff]);
 	const roleRecommendedActions = (dashboard?.recommendedActions ?? []).filter(
 		(action) =>
 			action.role === selectedWorkspaceRole ||
-			(selectedWorkspaceRole === "owner" && action.role === "manager"),
+			(selectedWorkspaceRole === "owner" &&
+				(action.role === "manager" || uncoveredStaffRoles.includes(action.role))),
 	);
 	const visibleRecommendedActions = (
 		roleRecommendedActions.length
@@ -13324,8 +13717,10 @@ export function useAppLogic(): any {
 	const onboardingReadyToFinish = onboardingFirstAppointmentIssues.length === 0;
 	const onboardingDocumentsReady =
 		onboardingDocumentReadinessIssues.length === 0;
-	const newStaffReadyToCreate = newStaffName.trim().length > 0;
-	const newChairReadyToCreate = newChairName.trim().length > 0;
+	// Флаг «готово к созданию» дополнительно учитывает выполняющийся запрос,
+	// поэтому кнопки гаснут сразу после первого нажатия, а не после ответа сервера.
+	const newStaffReadyToCreate = newStaffName.trim().length > 0 && !isStaffCreating;
+	const newChairReadyToCreate = newChairName.trim().length > 0 && !isChairCreating;
 	const onboardingStaffCreateGuidanceId = "onboarding-staff-create-guidance";
 	const onboardingChairCreateGuidanceId = "onboarding-chair-create-guidance";
 	const onboardingFinishGuidanceId = "onboarding-finish-guidance";
@@ -13407,6 +13802,25 @@ export function useAppLogic(): any {
 	return {
 		...telegramSettingsModule,
 		...auth,
+		/*
+		 * auth отдаётся ещё и целиком, отдельным полем.
+		 *
+		 * Выше он разложен через `...auth`, поэтому denteClinicalReadHeaders и
+		 * соседние функции лежали в контексте по верхнему уровню — а поля `auth`
+		 * не было вовсе. При этом 31 файл достаёт из контекста именно его:
+		 * `const { auth } = useAppLogicContext()`. Большинство прикрывалось
+		 * проверкой `auth ? auth.denteClinicalReadHeaders() : {}` и молча уходило
+		 * на сервер БЕЗ заголовков клиники, полагаясь на общую обёртку fetch.
+		 * Те, кто проверку не поставил, падали: ScannerView.tsx:102 и
+		 * LandingFieldMappingsWidget.tsx:20 звали auth.denteClinicalReadHeaders()
+		 * напрямую.
+		 *
+		 * Поймано обходом разделов после того, как «Стерилизация» появилась в
+		 * списке проверяемых: экран открывался, но дважды писал в консоль
+		 * «Cannot read properties of undefined (reading
+		 * 'denteClinicalReadHeaders')», и журнал автоклава не загружался.
+		 */
+		auth,
 		acceptDraftToVisit,
 		activeAppointment,
 		activeChair,
@@ -13416,6 +13830,7 @@ export function useAppLogic(): any {
 		activeImagingStudies,
 		activeIssuedPaidContracts,
 		activePatient,
+		activeVisitPatient,
 		activePatientCallablePhone,
 		activePatientHasCallablePhone,
 		activePatientInsight,
@@ -13653,6 +14068,7 @@ export function useAppLogic(): any {
 		imagingViewerCapabilities,
 		imagingViewerHref,
 		imagingViewerImageStyle,
+		recentPatientViewsVersion,
 		imagingViewerNote,
 		imagingViewerNoteMissingId,
 		imagingViewerNoteReady,
@@ -13836,6 +14252,7 @@ export function useAppLogic(): any {
 		newChairHasXraySensor,
 		newChairName,
 		newChairReadyToCreate,
+		isChairCreating,
 		newRuleAction,
 		newRuleBlockedServiceId,
 		newRuleCategory,
@@ -13849,6 +14266,7 @@ export function useAppLogic(): any {
 		newRuleWarningText,
 		newStaffName,
 		newStaffReadyToCreate,
+		isStaffCreating,
 		newStaffRole,
 		newStaffSpecialty,
 		nextOnboardingStep,

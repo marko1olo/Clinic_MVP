@@ -31,11 +31,27 @@ import {
 } from "@dental/shared";
 
 import { create } from "zustand";
+import { resolveUpdater } from './updater';
 
 export type ClinicMode = "solo_doctor" | "one_chair" | "small_clinic" | "network_clinic";
 
 export interface SettingsState {
-  clinicMode: ClinicMode;
+  /**
+   * Режим клиники, каким его знает клиент.
+   *
+   * Здесь стояло `"network_clinic"` с подписью `// default` — то есть до ответа
+   * сервера клиент считал любую клинику сетью филиалов, самым крупным из четырёх
+   * режимов. Неизвестное значение подменялось константой, причём максимальной.
+   *
+   * `null` означает «сервер ещё не сказал». Разделы при этом показываются
+   * целиком (см. lib/clinicCapabilities.ts): отнимать возможности у клиники,
+   * режим которой не известен, нельзя — пропавший раздел выглядит как поломка.
+   *
+   * Источник правды — ответ сервера `clinicSettings.profile.mode`; меняется он
+   * через changeClinicMode (useAppLogic) → POST /api/settings/clinic/mode.
+   * Читать режим для решений следует оттуда через resolveClinicMode.
+   */
+  clinicMode: ClinicMode | null;
   onboardingDismissed: any;
   onboardingDismissedAt: string | null;
   onboardingStep: OnboardingStep;
@@ -85,13 +101,19 @@ export interface SettingsState {
   settingsAdminSecretSession: string;
   scheduleAdminSecretSession: string;
   telegramAdminSecretSession: string;
+  /**
+   * Сервер отказал в изменении расписания и потребовал секрет администратора.
+   * Пустая строка — не требовал. Поле нужно, чтобы поле секрета появлялось в
+   * ответ на настоящий отказ, а не висело на экране постоянно.
+   */
+  scheduleAdminSecretDemand: string;
   telegramSendingItemId: string | null;
   telegramRevokingLinkId: string | null;
 
 }
 
 export interface SettingsActions {
-  setClinicMode: (val: ClinicMode | ((prev: ClinicMode) => ClinicMode)) => void;
+  setClinicMode: (val: ClinicMode | null | ((prev: ClinicMode | null) => ClinicMode | null)) => void;
   setOnboardingDismissed: (val: any | ((prev: any) => any)) => void;
   setOnboardingDismissedAt: (val: string | null | ((prev: string | null) => string | null)) => void;
   setOnboardingStep: (val: OnboardingStep | ((prev: OnboardingStep) => OnboardingStep)) => void;
@@ -141,13 +163,14 @@ export interface SettingsActions {
   setSettingsAdminSecretSession: (val: string | ((prev: string) => string)) => void;
   setScheduleAdminSecretSession: (val: string | ((prev: string) => string)) => void;
   setTelegramAdminSecretSession: (val: string | ((prev: string) => string)) => void;
+  setScheduleAdminSecretDemand: (val: string | ((prev: string) => string)) => void;
   setTelegramSendingItemId: (val: string | null | ((prev: string | null) => string | null)) => void;
   setTelegramRevokingLinkId: (val: string | null | ((prev: string | null) => string | null)) => void;
 
 }
 
 const initialSettingsState: SettingsState = {
-  clinicMode: "network_clinic", // default
+  clinicMode: null,
   onboardingDismissed: (loadUiPreferences() ?? defaultUiPreferences).onboardingDismissed,
   onboardingDismissedAt: (loadUiPreferences() ?? defaultUiPreferences).onboardingDismissedAt,
   onboardingStep: (loadUiPreferences() ?? defaultUiPreferences).onboardingStep,
@@ -197,6 +220,7 @@ const initialSettingsState: SettingsState = {
   settingsAdminSecretSession: "",
   scheduleAdminSecretSession: "",
   telegramAdminSecretSession: "",
+  scheduleAdminSecretDemand: "",
   telegramSendingItemId: null,
   telegramRevokingLinkId: null,
 
@@ -204,57 +228,58 @@ const initialSettingsState: SettingsState = {
 
 export const useSettingsStore = create<SettingsState & SettingsActions>()((set) => ({
   ...initialSettingsState,
-  setClinicMode: (val) => set((state) => ({ clinicMode: typeof val === 'function' ? (val as any)(state.clinicMode) : val })),
-  setOnboardingDismissed: (val) => set((state) => ({ onboardingDismissed: typeof val === 'function' ? (val as any)(state.onboardingDismissed) : val })),
-  setOnboardingDismissedAt: (val) => set((state) => ({ onboardingDismissedAt: typeof val === 'function' ? (val as any)(state.onboardingDismissedAt) : val })),
-  setOnboardingStep: (val) => set((state) => ({ onboardingStep: typeof val === 'function' ? (val as any)(state.onboardingStep) : val })),
-  setOnboardingDraftMode: (val) => set((state) => ({ onboardingDraftMode: typeof val === 'function' ? (val as any)(state.onboardingDraftMode) : val })),
-  setOnboardingGuideExpanded: (val) => set((state) => ({ onboardingGuideExpanded: typeof val === 'function' ? (val as any)(state.onboardingGuideExpanded) : val })),
-  setTelegramHandoffNotice: (val) => set((state) => ({ telegramHandoffNotice: typeof val === 'function' ? (val as any)(state.telegramHandoffNotice) : val })),
-  setTelegramStatus: (val) => set((state) => ({ telegramStatus: typeof val === 'function' ? (val as any)(state.telegramStatus) : val })),
-  setTelegramFeaturePlan: (val) => set((state) => ({ telegramFeaturePlan: typeof val === 'function' ? (val as any)(state.telegramFeaturePlan) : val })),
-  setTelegramOutbox: (val) => set((state) => ({ telegramOutbox: typeof val === 'function' ? (val as any)(state.telegramOutbox) : val })),
-  setTelegramOutboxStatusFilter: (val) => set((state) => ({ telegramOutboxStatusFilter: typeof val === 'function' ? (val as any)(state.telegramOutboxStatusFilter) : val })),
-  setTelegramOutboxTemplateFilter: (val) => set((state) => ({ telegramOutboxTemplateFilter: typeof val === 'function' ? (val as any)(state.telegramOutboxTemplateFilter) : val })),
-  setTelegramLinkCodes: (val) => set((state) => ({ telegramLinkCodes: typeof val === 'function' ? (val as any)(state.telegramLinkCodes) : val })),
-  setTelegramChatLinks: (val) => set((state) => ({ telegramChatLinks: typeof val === 'function' ? (val as any)(state.telegramChatLinks) : val })),
-  setTelegramLinkCodeLedger: (val) => set((state) => ({ telegramLinkCodeLedger: typeof val === 'function' ? (val as any)(state.telegramLinkCodeLedger) : val })),
-  setTelegramChatLinkLedger: (val) => set((state) => ({ telegramChatLinkLedger: typeof val === 'function' ? (val as any)(state.telegramChatLinkLedger) : val })),
-  setTelegramLinkSubjectType: (val) => set((state) => ({ telegramLinkSubjectType: typeof val === 'function' ? (val as any)(state.telegramLinkSubjectType) : val })),
-  setTelegramLinkStaffId: (val) => set((state) => ({ telegramLinkStaffId: typeof val === 'function' ? (val as any)(state.telegramLinkStaffId) : val })),
-  setTelegramLinkCode: (val) => set((state) => ({ telegramLinkCode: typeof val === 'function' ? (val as any)(state.telegramLinkCode) : val })),
-  setTelegramLinkActionState: (val) => set((state) => ({ telegramLinkActionState: typeof val === 'function' ? (val as any)(state.telegramLinkActionState) : val })),
-  setTelegramPreview: (val) => set((state) => ({ telegramPreview: typeof val === 'function' ? (val as any)(state.telegramPreview) : val })),
-  setTelegramModeDraft: (val) => set((state) => ({ telegramModeDraft: typeof val === 'function' ? (val as any)(state.telegramModeDraft) : val })),
-  setTelegramBotUsernameDraft: (val) => set((state) => ({ telegramBotUsernameDraft: typeof val === 'function' ? (val as any)(state.telegramBotUsernameDraft) : val })),
-  setTelegramOwnBotUsernameDraft: (val) => set((state) => ({ telegramOwnBotUsernameDraft: typeof val === 'function' ? (val as any)(state.telegramOwnBotUsernameDraft) : val })),
-  setTelegramBotConfigId: (val) => set((state) => ({ telegramBotConfigId: typeof val === 'function' ? (val as any)(state.telegramBotConfigId) : val })),
-  setTelegramWebhookBaseUrlDraft: (val) => set((state) => ({ telegramWebhookBaseUrlDraft: typeof val === 'function' ? (val as any)(state.telegramWebhookBaseUrlDraft) : val })),
-  setTelegramPatientPortalBaseUrlDraft: (val) => set((state) => ({ telegramPatientPortalBaseUrlDraft: typeof val === 'function' ? (val as any)(state.telegramPatientPortalBaseUrlDraft) : val })),
-  setTelegramWelcomeImageUrlDraft: (val) => set((state) => ({ telegramWelcomeImageUrlDraft: typeof val === 'function' ? (val as any)(state.telegramWelcomeImageUrlDraft) : val })),
-  setTelegramVisualCardUrlDrafts: (val) => set((state) => ({ telegramVisualCardUrlDrafts: typeof val === 'function' ? (val as any)(state.telegramVisualCardUrlDrafts) : val })),
-  setTelegramReviewUrlDraft: (val) => set((state) => ({ telegramReviewUrlDraft: typeof val === 'function' ? (val as any)(state.telegramReviewUrlDraft) : val })),
-  setTelegramMapsUrlDraft: (val) => set((state) => ({ telegramMapsUrlDraft: typeof val === 'function' ? (val as any)(state.telegramMapsUrlDraft) : val })),
-  setTelegramEnabledFeaturesDraft: (val) => set((state) => ({ telegramEnabledFeaturesDraft: typeof val === 'function' ? (val as any)(state.telegramEnabledFeaturesDraft) : val })),
-  setTelegramTokenTtlDraft: (val) => set((state) => ({ telegramTokenTtlDraft: typeof val === 'function' ? (val as any)(state.telegramTokenTtlDraft) : val })),
-  setTelegramReminderLeadTimesDraft: (val) => set((state) => ({ telegramReminderLeadTimesDraft: typeof val === 'function' ? (val as any)(state.telegramReminderLeadTimesDraft) : val })),
-  setTelegramReviewRequestDelayDraft: (val) => set((state) => ({ telegramReviewRequestDelayDraft: typeof val === 'function' ? (val as any)(state.telegramReviewRequestDelayDraft) : val })),
-  setTelegramPostVisitCheckupDelayDrafts: (val) => set((state) => ({ telegramPostVisitCheckupDelayDrafts: typeof val === 'function' ? (val as any)(state.telegramPostVisitCheckupDelayDrafts) : val })),
-  setTelegramAllowVoiceIntakeDraft: (val) => set((state) => ({ telegramAllowVoiceIntakeDraft: typeof val === 'function' ? (val as any)(state.telegramAllowVoiceIntakeDraft) : val })),
-  setTelegramStaffEscalationChannelDraft: (val) => set((state) => ({ telegramStaffEscalationChannelDraft: typeof val === 'function' ? (val as any)(state.telegramStaffEscalationChannelDraft) : val })),
-  setTelegramPrivacyModeDraft: (val) => set((state) => ({ telegramPrivacyModeDraft: typeof val === 'function' ? (val as any)(state.telegramPrivacyModeDraft) : val })),
-  setTelegramSettingsDirty: (val) => set((state) => ({ telegramSettingsDirty: typeof val === 'function' ? (val as any)(state.telegramSettingsDirty) : val })),
-  setTelegramSettingsSaveState: (val) => set((state) => ({ telegramSettingsSaveState: typeof val === 'function' ? (val as any)(state.telegramSettingsSaveState) : val })),
-  setTelegramSettingsSaveError: (val) => set((state) => ({ telegramSettingsSaveError: typeof val === 'function' ? (val as any)(state.telegramSettingsSaveError) : val })),
-  setClinicalAdminSecretDraft: (val) => set((state) => ({ clinicalAdminSecretDraft: typeof val === 'function' ? (val as any)(state.clinicalAdminSecretDraft) : val })),
-  setSettingsAdminSecretDraft: (val) => set((state) => ({ settingsAdminSecretDraft: typeof val === 'function' ? (val as any)(state.settingsAdminSecretDraft) : val })),
-  setScheduleAdminSecretDraft: (val) => set((state) => ({ scheduleAdminSecretDraft: typeof val === 'function' ? (val as any)(state.scheduleAdminSecretDraft) : val })),
-  setTelegramAdminSecretDraft: (val) => set((state) => ({ telegramAdminSecretDraft: typeof val === 'function' ? (val as any)(state.telegramAdminSecretDraft) : val })),
-  setClinicalAdminSecretSession: (val) => set((state) => ({ clinicalAdminSecretSession: typeof val === 'function' ? (val as any)(state.clinicalAdminSecretSession) : val })),
-  setSettingsAdminSecretSession: (val) => set((state) => ({ settingsAdminSecretSession: typeof val === 'function' ? (val as any)(state.settingsAdminSecretSession) : val })),
-  setScheduleAdminSecretSession: (val) => set((state) => ({ scheduleAdminSecretSession: typeof val === 'function' ? (val as any)(state.scheduleAdminSecretSession) : val })),
-  setTelegramAdminSecretSession: (val) => set((state) => ({ telegramAdminSecretSession: typeof val === 'function' ? (val as any)(state.telegramAdminSecretSession) : val })),
-  setTelegramSendingItemId: (val) => set((state) => ({ telegramSendingItemId: typeof val === 'function' ? (val as any)(state.telegramSendingItemId) : val })),
-  setTelegramRevokingLinkId: (val) => set((state) => ({ telegramRevokingLinkId: typeof val === 'function' ? (val as any)(state.telegramRevokingLinkId) : val })),
+  setClinicMode: (val) => set((state) => ({ clinicMode: resolveUpdater(val, state.clinicMode) })),
+  setOnboardingDismissed: (val) => set((state) => ({ onboardingDismissed: resolveUpdater(val, state.onboardingDismissed) })),
+  setOnboardingDismissedAt: (val) => set((state) => ({ onboardingDismissedAt: resolveUpdater(val, state.onboardingDismissedAt) })),
+  setOnboardingStep: (val) => set((state) => ({ onboardingStep: resolveUpdater(val, state.onboardingStep) })),
+  setOnboardingDraftMode: (val) => set((state) => ({ onboardingDraftMode: resolveUpdater(val, state.onboardingDraftMode) })),
+  setOnboardingGuideExpanded: (val) => set((state) => ({ onboardingGuideExpanded: resolveUpdater(val, state.onboardingGuideExpanded) })),
+  setTelegramHandoffNotice: (val) => set((state) => ({ telegramHandoffNotice: resolveUpdater(val, state.telegramHandoffNotice) })),
+  setTelegramStatus: (val) => set((state) => ({ telegramStatus: resolveUpdater(val, state.telegramStatus) })),
+  setTelegramFeaturePlan: (val) => set((state) => ({ telegramFeaturePlan: resolveUpdater(val, state.telegramFeaturePlan) })),
+  setTelegramOutbox: (val) => set((state) => ({ telegramOutbox: resolveUpdater(val, state.telegramOutbox) })),
+  setTelegramOutboxStatusFilter: (val) => set((state) => ({ telegramOutboxStatusFilter: resolveUpdater(val, state.telegramOutboxStatusFilter) })),
+  setTelegramOutboxTemplateFilter: (val) => set((state) => ({ telegramOutboxTemplateFilter: resolveUpdater(val, state.telegramOutboxTemplateFilter) })),
+  setTelegramLinkCodes: (val) => set((state) => ({ telegramLinkCodes: resolveUpdater(val, state.telegramLinkCodes) })),
+  setTelegramChatLinks: (val) => set((state) => ({ telegramChatLinks: resolveUpdater(val, state.telegramChatLinks) })),
+  setTelegramLinkCodeLedger: (val) => set((state) => ({ telegramLinkCodeLedger: resolveUpdater(val, state.telegramLinkCodeLedger) })),
+  setTelegramChatLinkLedger: (val) => set((state) => ({ telegramChatLinkLedger: resolveUpdater(val, state.telegramChatLinkLedger) })),
+  setTelegramLinkSubjectType: (val) => set((state) => ({ telegramLinkSubjectType: resolveUpdater(val, state.telegramLinkSubjectType) })),
+  setTelegramLinkStaffId: (val) => set((state) => ({ telegramLinkStaffId: resolveUpdater(val, state.telegramLinkStaffId) })),
+  setTelegramLinkCode: (val) => set((state) => ({ telegramLinkCode: resolveUpdater(val, state.telegramLinkCode) })),
+  setTelegramLinkActionState: (val) => set((state) => ({ telegramLinkActionState: resolveUpdater(val, state.telegramLinkActionState) })),
+  setTelegramPreview: (val) => set((state) => ({ telegramPreview: resolveUpdater(val, state.telegramPreview) })),
+  setTelegramModeDraft: (val) => set((state) => ({ telegramModeDraft: resolveUpdater(val, state.telegramModeDraft) })),
+  setTelegramBotUsernameDraft: (val) => set((state) => ({ telegramBotUsernameDraft: resolveUpdater(val, state.telegramBotUsernameDraft) })),
+  setTelegramOwnBotUsernameDraft: (val) => set((state) => ({ telegramOwnBotUsernameDraft: resolveUpdater(val, state.telegramOwnBotUsernameDraft) })),
+  setTelegramBotConfigId: (val) => set((state) => ({ telegramBotConfigId: resolveUpdater(val, state.telegramBotConfigId) })),
+  setTelegramWebhookBaseUrlDraft: (val) => set((state) => ({ telegramWebhookBaseUrlDraft: resolveUpdater(val, state.telegramWebhookBaseUrlDraft) })),
+  setTelegramPatientPortalBaseUrlDraft: (val) => set((state) => ({ telegramPatientPortalBaseUrlDraft: resolveUpdater(val, state.telegramPatientPortalBaseUrlDraft) })),
+  setTelegramWelcomeImageUrlDraft: (val) => set((state) => ({ telegramWelcomeImageUrlDraft: resolveUpdater(val, state.telegramWelcomeImageUrlDraft) })),
+  setTelegramVisualCardUrlDrafts: (val) => set((state) => ({ telegramVisualCardUrlDrafts: resolveUpdater(val, state.telegramVisualCardUrlDrafts) })),
+  setTelegramReviewUrlDraft: (val) => set((state) => ({ telegramReviewUrlDraft: resolveUpdater(val, state.telegramReviewUrlDraft) })),
+  setTelegramMapsUrlDraft: (val) => set((state) => ({ telegramMapsUrlDraft: resolveUpdater(val, state.telegramMapsUrlDraft) })),
+  setTelegramEnabledFeaturesDraft: (val) => set((state) => ({ telegramEnabledFeaturesDraft: resolveUpdater(val, state.telegramEnabledFeaturesDraft) })),
+  setTelegramTokenTtlDraft: (val) => set((state) => ({ telegramTokenTtlDraft: resolveUpdater(val, state.telegramTokenTtlDraft) })),
+  setTelegramReminderLeadTimesDraft: (val) => set((state) => ({ telegramReminderLeadTimesDraft: resolveUpdater(val, state.telegramReminderLeadTimesDraft) })),
+  setTelegramReviewRequestDelayDraft: (val) => set((state) => ({ telegramReviewRequestDelayDraft: resolveUpdater(val, state.telegramReviewRequestDelayDraft) })),
+  setTelegramPostVisitCheckupDelayDrafts: (val) => set((state) => ({ telegramPostVisitCheckupDelayDrafts: resolveUpdater(val, state.telegramPostVisitCheckupDelayDrafts) })),
+  setTelegramAllowVoiceIntakeDraft: (val) => set((state) => ({ telegramAllowVoiceIntakeDraft: resolveUpdater(val, state.telegramAllowVoiceIntakeDraft) })),
+  setTelegramStaffEscalationChannelDraft: (val) => set((state) => ({ telegramStaffEscalationChannelDraft: resolveUpdater(val, state.telegramStaffEscalationChannelDraft) })),
+  setTelegramPrivacyModeDraft: (val) => set((state) => ({ telegramPrivacyModeDraft: resolveUpdater(val, state.telegramPrivacyModeDraft) })),
+  setTelegramSettingsDirty: (val) => set((state) => ({ telegramSettingsDirty: resolveUpdater(val, state.telegramSettingsDirty) })),
+  setTelegramSettingsSaveState: (val) => set((state) => ({ telegramSettingsSaveState: resolveUpdater(val, state.telegramSettingsSaveState) })),
+  setTelegramSettingsSaveError: (val) => set((state) => ({ telegramSettingsSaveError: resolveUpdater(val, state.telegramSettingsSaveError) })),
+  setClinicalAdminSecretDraft: (val) => set((state) => ({ clinicalAdminSecretDraft: resolveUpdater(val, state.clinicalAdminSecretDraft) })),
+  setSettingsAdminSecretDraft: (val) => set((state) => ({ settingsAdminSecretDraft: resolveUpdater(val, state.settingsAdminSecretDraft) })),
+  setScheduleAdminSecretDraft: (val) => set((state) => ({ scheduleAdminSecretDraft: resolveUpdater(val, state.scheduleAdminSecretDraft) })),
+  setTelegramAdminSecretDraft: (val) => set((state) => ({ telegramAdminSecretDraft: resolveUpdater(val, state.telegramAdminSecretDraft) })),
+  setClinicalAdminSecretSession: (val) => set((state) => ({ clinicalAdminSecretSession: resolveUpdater(val, state.clinicalAdminSecretSession) })),
+  setSettingsAdminSecretSession: (val) => set((state) => ({ settingsAdminSecretSession: resolveUpdater(val, state.settingsAdminSecretSession) })),
+  setScheduleAdminSecretSession: (val) => set((state) => ({ scheduleAdminSecretSession: resolveUpdater(val, state.scheduleAdminSecretSession) })),
+  setTelegramAdminSecretSession: (val) => set((state) => ({ telegramAdminSecretSession: resolveUpdater(val, state.telegramAdminSecretSession) })),
+  setScheduleAdminSecretDemand: (val) => set((state) => ({ scheduleAdminSecretDemand: resolveUpdater(val, state.scheduleAdminSecretDemand) })),
+  setTelegramSendingItemId: (val) => set((state) => ({ telegramSendingItemId: resolveUpdater(val, state.telegramSendingItemId) })),
+  setTelegramRevokingLinkId: (val) => set((state) => ({ telegramRevokingLinkId: resolveUpdater(val, state.telegramRevokingLinkId) })),
 
 }));

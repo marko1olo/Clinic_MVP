@@ -328,6 +328,51 @@ function groqVisionConfigured() {
 function planStep(order, title, owner, path, storesLocalFirst, blocking, detail) {
     return { order, title, owner, path, storesLocalFirst, blocking, detail };
 }
+/**
+ * Что на самом деле происходит с аудио на серверном маршруте распознавания.
+ *
+ * БЫЛО: «Сервер клиники использует резервные маршруты распознавания и удаляет
+ * исходное аудио после обработки». Удаления не существовало ни одной строкой:
+ * у AssemblyAI загруженный файл и расшифровка оставались лежать бессрочно.
+ * Продукт сообщал клинике об удалении медицинских данных, которого не делал.
+ *
+ * СТАЛО: текст описывает разные маршруты по-разному, потому что они и есть разные.
+ * Асинхронный AssemblyAI создаёт объект на своей стороне — его шлюз теперь удаляет
+ * запросом DELETE, а неудачу удаления записывает туда, где она действительно
+ * оказывается. Остальные источники получают аудио внутри одного запроса: сервер
+ * клиники его не хранит (в базу уходит только текст), но их собственную политику
+ * хранения CRM не контролирует и обещать за неё не может.
+ *
+ * Две правки после разбора:
+ *  • Фраза «попадает в предупреждения фрагмента» обещала клинике видимость,
+ *    которой нет: `chunk.quality.providerWarnings` не отрисовывает ни один
+ *    компонент в `apps/web` (`rg -n providerWarnings apps/web/src` -> 0 попаданий),
+ *    врач видит только уровень качества «Требует проверки». Текст теперь называет
+ *    настоящие адреса записи: журнал сервера, карточка фрагмента и строка `ai_jobs`.
+ *  • Ветки были взаимоисключающими, поэтому появление AssemblyAI в цепочке
+ *    стирало честную оговорку про одноразовые источники, хотя Groq/OpenAI из той же
+ *    цепочки никуда не девались. Смешанная цепочка теперь получает ОБА
+ *    утверждения — по одному на каждый вид маршрута.
+ */
+function serverAudioRetentionDetail(speech) {
+    const chainProviderIds = speech.fallbackProviderIds.length
+        ? [...speech.fallbackProviderIds]
+        : [speech.providerId];
+    const hasAsyncUploadProvider = chainProviderIds.includes("assemblyai_async");
+    const hasOneShotProvider = chainProviderIds.some((providerId) => providerId !== "assemblyai_async");
+    const base = "Сервер клиники использует резервные маршруты распознавания и не хранит присланное аудио: в базу записывается только текст.";
+    const asyncSentence = `Загруженное в ${providerLabelForRetention(speech)} аудио и расшифровку сервер удаляет отдельным запросом сразу после обработки; неудачу удаления он записывает в журнал сервера, в карточку фрагмента и в строку задания ai_jobs, и такой фрагмент помечается как требующий проверки, но отдельной надписи об оставшемся аудио на экране приёма нет — удалять запись придётся в панели источника.`;
+    const oneShotSentence = "Аудио уходит источнику внутри одного запроса и удаляется по его собственной политике хранения, которой CRM не управляет.";
+    const sentences = [
+        base,
+        ...(hasAsyncUploadProvider ? [asyncSentence] : []),
+        ...(hasOneShotProvider ? [oneShotSentence] : [])
+    ];
+    return sentences.join(" ");
+}
+function providerLabelForRetention(speech) {
+    return speech.providerId === "assemblyai_async" ? speech.providerLabel : "асинхронный источник распознавания";
+}
 function buildVisitDictationPlan(readiness) {
     const speech = getSpeechGatewayStatus();
     const whisper = readyBridge(readiness, "speech_whisper");
@@ -354,7 +399,7 @@ function buildVisitDictationPlan(readiness) {
             planStep(2, localBridge ? `Использовать ${localBridge.title}` : serverSttAvailable ? `Использовать ${speech.providerLabel}` : "Оставить аудио и текст в очереди", "system", primaryPath, true, false, localBridge
                 ? "Локальный модуль может распознавать фрагменты на рабочей станции клиники после подключения маршрута приема аудиофрагментов."
                 : serverSttAvailable
-                    ? "Сервер клиники использует резервные маршруты распознавания и удаляет исходное аудио после обработки."
+                    ? serverAudioRetentionDetail(speech)
                     : "Готового модуля распознавания нет; держите локальную очередь и используйте детерминированную очистку."),
             planStep(3, "Черновик через детерминированный парсер", "system", "browser_local", true, false, "Общий парсер строит профильный черновик ЭМК без облачной зависимости."),
             planStep(4, "Проверка врачом и сохранение", "doctor", "manual_review", true, false, "Предупреждения не блокируют сохранение проверенной записи.")

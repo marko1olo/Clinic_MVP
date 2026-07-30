@@ -1,8 +1,27 @@
 import { and, eq, ilike } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 import { db } from "../db/client.js";
 import { communicationEvents, patients } from "../db/schema.js";
 import { wsBroker } from "../services/websocketBroker.js";
+import { verifyWebhookSecret } from "../security/webhookAuth.js";
+
+/**
+ * Тела вебхуков АТС/SMS раньше читались через bare destructure `const { … } = request.body`.
+ * При null/undefined body деструктуризация бросала TypeError → 500 вместо 400.
+ * Zod safeParse после verifyWebhookSecret закрывает путь; тексты отказов сохранены.
+ */
+const telephonyCallBodySchema = z.object({
+	event: z.enum(["ringing", "answered", "ended"]).optional(),
+	from: z.string().optional(),
+	to: z.string().optional(),
+	call_id: z.string().optional(),
+});
+
+const telephonySmsBodySchema = z.object({
+	from: z.string().optional(),
+	message: z.string().optional(),
+});
 
 export const telephonyRoutes: FastifyPluginAsync = async (
 	server: FastifyInstance,
@@ -17,8 +36,20 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 			call_id?: string;
 		};
 	}>("/:organizationId/webhook", async (request, reply) => {
+		// БЫЛО: вебхук АТС принимал любой POST — посторонний мог показывать
+		// врачам всплывающие уведомления о фиктивных звонках и заводить
+		// пациентов/лиды в чужой клинике.
+		if (!verifyWebhookSecret(request, reply, {
+			channel: "telephony",
+			secretEnvNames: ["TELEPHONY_WEBHOOK_SECRET", "DENTE_WEBHOOK_SECRET"],
+		})) return reply;
+
 		const { organizationId } = request.params;
-		const { event, from } = request.body;
+		const parsedCall = telephonyCallBodySchema.safeParse(request.body);
+		if (!parsedCall.success) {
+			return reply.status(400).send({ error: "Missing 'from' phone number" });
+		}
+		const { event, from } = parsedCall.data;
 
 		if (!from) {
 			return reply.status(400).send({ error: "Missing 'from' phone number" });
@@ -28,12 +59,12 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 			// Пытаемся найти пациента по номеру телефона
 			// Убираем всё лишнее из номера, оставляя только цифры для поиска
 			const rawPhone = from.replace(/\D/g, "");
-			let patient: any = null;
+			let patient: typeof patients.$inferSelect | null = null;
+			const phoneSuffix = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
 
 			if (rawPhone.length >= 10) {
 				// Ищем по последним 10 цифрам, строго в пределах этой организации,
 				// чтобы номер не сматчился с пациентом другой клиники.
-				const phoneSuffix = rawPhone.slice(-10);
 				const searchResult = await db
 					.select()
 					.from(patients)
@@ -45,6 +76,37 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 					)
 					.limit(1);
 				patient = searchResult[0] || null;
+			}
+
+			// Если пациент не найден — создаем черновик лида в crmLeads (идемпотентно, без гонки потоков)
+			if (!patient && phoneSuffix.length >= 7) {
+				try {
+					const { crmLeads } = await import("../db/schema.js");
+					const existingLeads = await db
+						.select()
+						.from(crmLeads)
+						.where(
+							and(
+								eq(crmLeads.organizationId, organizationId),
+								ilike(crmLeads.phone, `%${phoneSuffix}%`),
+							),
+						)
+						.limit(1);
+
+					if (existingLeads.length === 0) {
+						await db.insert(crmLeads).values({
+							organizationId,
+							name: `Входящий звонок ${from}`,
+							patientName: `Звонок ${from}`,
+							phone: from,
+							source: "telephony",
+							status: "new",
+							notes: "Автоматический черновик лида из входящего звонка АТС",
+						});
+					}
+				} catch (leadErr) {
+					console.warn("[Telephony Idempotent Lead Creation Warning]:", leadErr);
+				}
 			}
 
 			// Броадкастим всем админам этой клиники
@@ -73,15 +135,27 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 			message: string;
 		};
 	}>("/:organizationId/sms/webhook", async (request, reply) => {
+		// БЫЛО: вебхук АТС принимал любой POST — посторонний мог показывать
+		// врачам всплывающие уведомления о фиктивных звонках и заводить
+		// пациентов/лиды в чужой клинике.
+		if (!verifyWebhookSecret(request, reply, {
+			channel: "telephony",
+			secretEnvNames: ["TELEPHONY_WEBHOOK_SECRET", "DENTE_WEBHOOK_SECRET"],
+		})) return reply;
+
 		const { organizationId } = request.params;
-		const { from, message } = request.body;
+		const parsedSms = telephonySmsBodySchema.safeParse(request.body);
+		if (!parsedSms.success) {
+			return reply.status(400).send({ error: "Missing 'from' or 'message'" });
+		}
+		const { from, message } = parsedSms.data;
 
 		if (!from || !message) {
 			return reply.status(400).send({ error: "Missing 'from' or 'message'" });
 		}
 
 		const rawPhone = from.replace(/\D/g, "");
-		let patient: any = null;
+		let patient: typeof patients.$inferSelect | null = null;
 
 		if (rawPhone.length >= 10) {
 			const phoneSuffix = rawPhone.slice(-10);
@@ -100,7 +174,7 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 
 		if (!patient) {
 			// Создаем лида, если пришла SMS с неизвестного номера
-			const insertedPatients = (await db
+			const insertedPatients = await db
 				.insert(patients)
 				.values({
 					organizationId,
@@ -109,9 +183,11 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 					notes: `Лид из SMS`,
 					status: "active",
 				})
-				.returning()) as any;
-			patient = insertedPatients[0];
+				.returning();
+			patient = insertedPatients[0] || null;
 		}
+
+		if (!patient) return { success: false };
 
 		// Сохраняем входящее SMS в Inbox
 		const { communicationEvents } = await import("../db/schema.js");

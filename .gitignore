@@ -62,6 +62,10 @@ yarn-error.log*
 *.dump
 *.sql.gz
 pgsql/data/
+pgdata-backup-*/
+**/pgdata/
+**/scratch/pgdata/
+
 
 # ---- OS / IDE ----------------------------------------
 .DS_Store

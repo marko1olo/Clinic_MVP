@@ -22,11 +22,23 @@ onClick={unlockTelegramAdminSession}
 typedRecognitionJob.warnings.map((warning) => (
                       <span key={warning}>{aiRecognitionWarningText(warning)}</span>
 */
-import { useState, useEffect } from "react";
-import { DadataGeocodedAddressesWidget } from "./components/integrations/DadataGeocodedAddressesWidget";
+/*
+ * Импорта useState/useEffect здесь больше нет: единственными состояниями этого
+ * файла были два списка под мёртвые адреса /api/system/ram-watchdogs и
+ * /api/crm/patient-duplicate-merge-queues, и они убраны вместе с запросами
+ * (причина — у комментария «ЗДЕСЬ СТОЯЛИ ДВА ЗАПРОСА» ниже). Раздел настроек
+ * своего состояния не держит: всё приходит из useAppLogicContext,
+ * useSettingsStore и useSettingsDerivations.
+ */
+/*
+ * Импортов DadataGeocodedAddressesWidget и SingleSessionEnforcementsWidget
+ * здесь больше нет намеренно: обе панели физически нечем заполнить. Причины
+ * подробно — у места, где они монтировались, в конце этого файла (ищи
+ * «Отсюда убраны две панели»). Не возвращай импорт, не прочитав тот
+ * комментарий.
+ */
 import { EgiszBlankPermissionsWidget } from "./components/integrations/EgiszBlankPermissionsWidget";
 import { YandexCalendarSyncsWidget } from "./components/integrations/YandexCalendarSyncsWidget";
-import { SingleSessionEnforcementsWidget } from "./components/settings/SingleSessionEnforcementsWidget";
 
 import type {
   AiRecognitionJob,
@@ -146,7 +158,15 @@ import {
   ZoomOut,
 } from "lucide-react";
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from "react";
-import { InventoryView } from "./components/InventoryView";
+/*
+ * Разделы левого меню берутся из общего объявления, а не собираются здесь.
+ *
+ * settingsTabs приходит пропом, а группы раньше задавались списками
+ * идентификаторов прямо в разметке этого файла — четвёртое место, где надо
+ * помнить про каждую вкладку. Забыть в нём вкладку означало убрать её из меню
+ * без всякого следа.
+ */
+import { money, settingsTabGroups, type SettingsTabGroup } from "./AppHelpers";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { InsuranceContractsPanel } from "./components/settings/InsuranceContractsPanel";
 import { SettingsAccessTab } from "./components/settings/SettingsAccessTab";
@@ -154,6 +174,8 @@ import { SettingsAiTab } from "./components/settings/SettingsAiTab";
 import { SettingsAuditTab } from "./components/settings/SettingsAuditTab";
 import { SettingsClinicTab } from "./components/settings/SettingsClinicTab";
 import { SettingsImportsTab } from "./components/settings/SettingsImportsTab";
+import { MigrationWizard } from "./components/settings/MigrationWizard";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SettingsMessengersTab } from "./components/settings/SettingsMessengersTab";
 import { SettingsModulesTab } from "./components/settings/SettingsModulesTab";
 import { SettingsPricesTab } from "./components/settings/SettingsPricesTab";
@@ -162,7 +184,6 @@ import { SettingsProtocolsTab } from "./components/settings/SettingsProtocolsTab
 import { SettingsRulesTab } from "./components/settings/SettingsRulesTab";
 import { SettingsSourcesTab } from "./components/settings/SettingsSourcesTab";
 import { SettingsStaffTab } from "./components/settings/SettingsStaffTab";
-import { SettingsTelegramTab } from "./components/settings/SettingsTelegramTab";
 import { SettingsBpmnTab } from "./components/settings/SettingsBpmnTab";
 import { SettingsMarketingTab } from "./components/settings/SettingsMarketingTab";
 import { SettingsReportingTab } from "./components/settings/SettingsReportingTab";
@@ -233,7 +254,6 @@ import {
   mprSlicePresetFractions,
   resolveMprKeyboardAdjustment,
 } from "./utils/math/mprMath";
-import { viewLabels as workspaceViewLabels } from "./workspaceShell";
 
 type MprAxisVisualizerStyle = CSSProperties & {
   "--mpr-axis-deg": string;
@@ -328,7 +348,7 @@ type SettingsTabId =
   | "marketing"
   | "bpmn"
   | "reporting";
-type SettingsTab = { id: SettingsTabId; title: string };
+type SettingsTab = { id: SettingsTabId; title: string; group: SettingsTabGroup };
 type CbctWorkbenchPlane = { key: MprProjection; title: string; detail: string };
 type MigrationOperatorActionScope = "primary" | "script";
 type InputChangeEvent = ChangeEvent<HTMLInputElement>;
@@ -345,6 +365,12 @@ export interface SettingsViewProps {
 }
 
 export function SettingsView({ activeStaffUser }: SettingsViewProps) {
+  /*
+    Источники значений держим целиком, а не только россыпью имён: из них
+    собирается мешок пропсов для вкладок (см. settingsProps ниже). Раньше мешок
+    набивался руками, и вкладки получали малую часть того, что читают.
+  */
+  const appLogic = useAppLogicContext();
   const {
     activePatient,
     activeSettingsTabButtonRef,
@@ -352,9 +378,7 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     activeWorkspaceProfile,
     addChair,
     addStaffMember,
-    // analyzePricelist,
     applyProtocolTemplate,
-    // attachPricelistImage,
     browserCanRequestPersistentStorage,
     browserContinuity,
     browserContinuityChecks,
@@ -393,7 +417,6 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     clearBrowserPickedImagingFolderPreview,
     clearDicomWorkbenchRecovery,
     clearLocalImagingFolderRecovery,
-    // clearPricelistImage,
     clinicalRuleActionLabels,
     clinicalRuleSeverityLabels,
     clinicModeLabels,
@@ -490,6 +513,7 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     integrationStatusLabels,
     isBrowserImagingFolderPicking,
     isBrowserMigrationScanning,
+    isChairCreating,
     isClinicPublicLookupLoading,
     isClinicalRuleSaving,
     isDicomFirstFramePreviewing,
@@ -519,8 +543,8 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     isMigrationSourceProbeLoading,
     isMigrationSourceWorkupLoading,
     isPersistenceExporting,
-    // isPricelistAnalyzing,
     isRecognitionLoading,
+    isStaffCreating,
     isSmartImportCommitting,
     isSmartImportLoading,
     isSmartReportLoading,
@@ -625,19 +649,26 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     previewImport,
     previewSmartImport,
     previewTelegramTemplate,
-    // pricelistAnalysis,
-    // pricelistImageBase64,
-    // pricelistImageName,
-    // pricelistImageNote,
-    // pricelistItemMaterialText,
-    // pricelistMaterialSummaryText,
-    // pricelistWarningsText,
-    // pricelistParserModeLabels,
-    // pricelistRecognitionBrandGroups,
-    // pricelistRecognitionServiceGroups,
-    // pricelistSourceKind,
-    // pricelistSourceKindLabels,
-    // pricelistText,
+    pricelistAnalysis,
+    /*
+      Три имени ниже приезжают в useAppLogic и НИ РАЗУ не читались.
+
+      pricelistImageNote — живая строка, её пишет preparePricelistImage
+      (AppHelpers.tsx:5928) и переписывает общий импорт файлов
+      (useAppLogic.tsx:7844): «Фото подготовлено: 1600x1200, 1.9 Мп, JPEG 82%.».
+      Клиника грузила фото прайса, разбор шёл по СЖАТОЙ картинке, и узнать
+      степень сжатия было нельзя ниоткуда — а именно она объясняет, почему с
+      мелкого шрифта строки не прочитались.
+
+      pricelistItemMaterialText и pricelistMaterialSummaryText — готовые функции
+      pricelistUiMeta (:107 и :95). Разбор честно считает materialKind для каждой
+      строки и ставит material_uncertain, то есть жаловался на поле, которого
+      клиника не видела ни в одной вкладке.
+    */
+    pricelistImageNote,
+    pricelistItemMaterialText,
+    pricelistMaterialSummaryText,
+    pricelistWarningsText,
     recognitionJob,
     recognitionKind,
     recognitionPresets,
@@ -726,9 +757,6 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     setNewStaffRole,
     setNewStaffSpecialty,
     setOhifBaseUrl,
-    // setPricelistAnalysis,
-    // setPricelistSourceKind,
-    // setPricelistText,
     setRecognitionJob,
     setRecognitionText,
     setSettingsTab,
@@ -739,7 +767,6 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     settingsTab,
     settingsTabs,
     setUiLanguage,
-    // setUsePricelistAi,
     smartImportCommit,
     smartImportMode,
     smartImportModeLabels,
@@ -846,27 +873,11 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     updateStaffScheduleDraft,
     updateTelegramPostVisitCheckupDelayDraft,
     updateTelegramVisualCardUrlDraft,
-    // usePricelistAi,
     visibleTelegramOutboxItems,
     weekdayOptions,
     workspaceScopeLabels,
-  } = useAppLogicContext();
-  // Collect all destructured variables into a single props bag for legacy sub-tab components
-  const settingsProps: Record<string, any> = {
-    staffRoleLabels, dashboard, activePatient, activeStaffUser, activeWorkspaceProfile,
-    addChair, addStaffMember, clinicProfileDraft, clinicProfileSaveState, updateClinicProfileDraft,
-    toggleClinicWorkingDay, toggleStaffWorkingDay, toggleChairWorkingDay, weekdayOptions,
-    newChairName, newChairHasMicroscope, newChairHasSurgeryKit, newChairHasXraySensor,
-    setNewChairName, setNewChairHasMicroscope, setNewChairHasSurgeryKit, setNewChairHasXraySensor,
-    newStaffName, newStaffRole, newStaffSpecialty, setNewStaffName, setNewStaffRole, setNewStaffSpecialty,
-    uiLanguage, uiLanguageOptions, normalizeUiLanguageInput,
-    telegramModeDraft, telegramBotUsernameDraft, telegramModeLabels, telegramModeHints,
-    createTelegramLinkCode, telegramLinkCode, telegramLinkCodes, telegramLinkCodeStatusLabels,
-    telegramChatLinks, telegramChatLinkLedger, markTelegramSettingsDirty,
-    loadTelegramControlPlane, copyTelegramTextToClipboard, unlockTelegramAdminSession,
-    telegramAdminSecretDraft, telegramAdminSecretSession, adminSecretReady: false,
-    normalizedTelegramBotMode, normalizedTelegramPrivacyMode, normalizedTelegramLinkSubjectType,
-  };
+  } = appLogic;
+  const settingsStore = useSettingsStore();
   const {
     clinicMode,
     setClinicMode,
@@ -894,15 +905,24 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     setTelegramStaffEscalationChannelDraft,
     setTelegramPrivacyModeDraft,
     setTelegramAdminSecretDraft,
-  } = useSettingsStore();
+  } = settingsStore;
 
   const recognitionInputReady = (recognitionText || "").trim().length > 0;
   const smartImportInputReady = (smartImportText || "").trim().length > 0;
   const imagingImportInputReady = (imagingImportText || "").trim().length > 0;
   const patientImportInputReady = (importText || "").trim().length > 0;
   const localImagingFolderReady = (imagingFolderPath || "").trim().length > 0;
-  const newStaffReadyToCreate = (newStaffName || "").trim().length > 0;
-  const newChairReadyToCreate = (newChairName || "").trim().length > 0;
+  /*
+    Флаг «готово к созданию» обязан учитывать выполняющийся запрос, иначе кнопка остаётся активной до
+    ответа сервера и второй клик создаёт дубль сотрудника или кресла. Защищённая версия живёт в
+    useAppLogic, но её здесь недостаточно: `settingsProps` ниже собирается как `Record<string, any>`,
+    где `...appLogic` приносит защищённое значение, `...derivations` перекрывает его своей копией без
+    защиты, а явные ключи в конце объекта перекрывают ещё раз — последний ключ выигрывает. Поэтому
+    защиту надо ставить именно здесь: это то значение, которое уезжает и в кнопки этого файла, и в
+    SettingsClinicTab, где персонал добавляют на самом деле. Типы молчат из-за `Record<string, any>`.
+  */
+  const newStaffReadyToCreate = (newStaffName || "").trim().length > 0 && !isStaffCreating;
+  const newChairReadyToCreate = (newChairName || "").trim().length > 0 && !isChairCreating;
   const adminSecretReady = (telegramAdminSecretDraft || "").trim().length > 0;
   const adminSecretScopeWarning =
     settingsTab === "telegram"
@@ -1144,14 +1164,159 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     typedServiceCategoryLabels,
     typedServiceCategories,
   } = derivations;
+
+  /*
+    МЕШОК ПРОПСОВ ДЛЯ ВКЛАДОК НАСТРОЕК.
+
+    Вкладки вынесены в отдельные компоненты копированием тела этого файла и
+    достают значения по именам из объекта `props`. Раньше мешок набивался
+    руками — и набивался неполно: вкладка «Клиника» читала 65 имён при 28
+    переданных, вкладка «ТГ-бот» — 139 при 21. Недостающее приходило как
+    undefined, и первое же обращение по ключу или вызов роняли отрисовку:
+    раздел «Настройки» не открывался вообще, а «ТГ-бот» падал на
+    `typedTelegramChatLinks.filter`.
+
+    Ручной список обречён отставать: любое новое значение во вкладке снова даёт
+    падение, и заметить это можно только открыв вкладку. Поэтому мешок
+    собирается из тех же источников, из которых берёт значения сам
+    SettingsView: контекст логики, хранилище настроек, производные значения.
+    Порядок важен — производные считаются из первых двух и должны побеждать.
+
+    Локальные значения этого файла (их нет ни в одном источнике) добавляются
+    последними, поимённо.
+  */
+  const settingsProps: Record<string, any> = {
+    ...appLogic,
+    ...settingsStore,
+    ...derivations,
+    activeStaffUser,
+    adminSecretReady: false,
+    adminSecretScopeWarning,
+    legalMissingFields,
+    legalReadinessPercent,
+    newChairReadyToCreate,
+    newStaffReadyToCreate,
+    telegramPreviewLoadingGuidanceId,
+    telegramPreviewPatientGuidanceId,
+    telegramPreviewStaffGuidanceId,
+    /*
+      Приведения `typed*` для вкладки «ТГ-бот» считаются здесь, а не в
+      useSettingsDerivations: там одноимённые значения объявлены, но наружу не
+      возвращаются. Без них вкладка падала на `typedTelegramChatLinks.filter`.
+      Список получен сверкой локальных объявлений этого файла с тем, что читают
+      вкладки: scratch/probe-settings-locals.mjs.
+    */
+    typedTelegramChatLinks,
+    typedTelegramEnabledFeaturesDraft,
+    typedTelegramFeatureOptions,
+    typedTelegramInlineButtonKindLabels,
+    typedTelegramLinkCodes,
+    typedTelegramLinkStaffOptions,
+    typedTelegramPostVisitCheckupDelayDrafts,
+  };
+
   const flags = useWorkspaceProfile();
   let typedSettingsTabs = settingsTabs as SettingsTab[];
   if (!flags.hasMarketingModule) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "marketing");
   if (!flags.hasAnalyticsModule) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "reporting");
-  if (!flags.hasInventoryModule) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "inventory");
+  /* Признак склада остался при самом разделе: вкладки настроек у него больше нет. */
   if (!flags.hasBpmWorkflows) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "bpmn");
   if (!flags.hasClinicalRules) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "rules");
   if (!flags.hasInsuranceCoPay) typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "insurance");
+  /*
+   * Настройки мессенджеров врачу не показываем: бот клиники, номер WhatsApp и
+   * рассылки — дело администратора. Это условие стояло в прежней раскладке
+   * меню, но проверяло идентификатор "messengers", которого в списке вкладок
+   * не было, и потому не срабатывало ни разу. Сохраняю замысел, но в том же
+   * месте, что и признаки модулей, — чтобы кнопка и панель не разошлись.
+   */
+  if (activeStaffUser?.role === "doctor")
+    typedSettingsTabs = typedSettingsTabs.filter(t => t.id !== "telegram");
+  /*
+   * Строки прайса, которые разбор просит проверить руками.
+   *
+   * Правило отказа от догадки о цене (apps/api/src/pricelist/analyzer.ts:713)
+   * обосновано тем, что клиника видит price_not_found и проверяет одну строку
+   * руками. Обоснование было ложным для отгруженного интерфейса: analyzer
+   * складывал предупреждения в item.warnings, useAppLogic отдавал
+   * pricelistWarningsText наружу, а нарисовать его не пробовал никто — имя
+   * доезжало до трёх вкладок и в каждой обрывалось на строке деструктуризации.
+   * Отказ выглядел как молчаливая потеря цены.
+   *
+   * Считаю по ВСЕМ позициям, а не по предпросмотру: SettingsPricesTab
+   * показывает только items.slice(0, 12), и за пределами первых двенадцати
+   * строк отказ не был виден вовсе.
+   */
+  /*
+   * Тип берётся из схемы ответа, а не переписывается четырьмя полями от руки.
+   *
+   * Локальный `as Array<{ id; sourceLine; title; warnings }>` отрезал от позиции
+   * ровно то, чем она описана: materialKind, brand, crownType, restorationType.
+   * Пока список полей был здесь, вызвать pricelistItemMaterialText было
+   * НЕВОЗМОЖНО — функция ждёт позицию целиком, и приведение молча запрещало ей
+   * дойти до экрана.
+   */
+  const typedPricelistItems = (pricelistAnalysis?.items ??
+    []) as DentalPricelistAnalysisResponse["items"];
+  const pricelistWarningRows = typedPricelistItems.filter(
+    (item) => item.warnings.length > 0,
+  );
+  /*
+   * ПРЕДУПРЕЖДЕНИЯ ОТВЕТА — ВТОРОЙ УРОВЕНЬ, И ЕГО НЕ ЧИТАЛ НИКТО.
+   *
+   * У разбора прайса их два, и они про разное:
+   *   item.warnings              — про ОДНУ строку (price_not_found,
+   *                                category_uncertain, material_uncertain);
+   *   pricelistAnalysis.warnings — про ВЕСЬ присланный прайс
+   *                                (no_pricelist_rows_detected,
+   *                                pricelist_rows_skipped:N,
+   *                                image_payload_invalid, groq_failed:…,
+   *                                groq_key_pool_empty).
+   * Первый уровень рисуется ниже. Второй не читал НИ ОДИН файл apps/web/src:
+   * поиск по `pricelistAnalysis.warnings` давал только запись в стор.
+   *
+   * Почему это дороже, чем кажется. analyzer.ts:1153 считает отброшенные строки
+   * и уводит счёт в pricelist_rows_skipped:N ровно затем, чтобы клиника узнала,
+   * что услуги в её прайсе НЕТ. Раз массив не рисовался, починка кончалась на
+   * границе экрана: сервер считал, ответ везл, интерфейс молчал. Это тот же
+   * дефект, что описан выше для предупреждений ПОЗИЦИЙ, — имя доезжало и
+   * обрывалось на строке деструктуризации.
+   *
+   * Первый уровень второй не заменяет: строка может разобраться без единого
+   * замечания, а прайс при этом доехать не полностью.
+   */
+  const typedPricelistResponseWarnings = (pricelistAnalysis?.warnings ??
+    []) as DentalPricelistAnalysisResponse["warnings"];
+  const typedPricelistSummary = (pricelistAnalysis?.summary ??
+    []) as DentalPricelistAnalysisResponse["summary"];
+  /*
+   * ОТСУТСТВИЕ ЦЕНЫ ОБЯЗАНО ЧИТАТЬСЯ КАК ОТСУТСТВИЕ, А НЕ КАК НОЛЬ.
+   *
+   * minPriceRub / maxPriceRub / averagePriceRub объявлены nullable
+   * (packages/shared/src/index.ts:1774-1776) и равны null у категории, где ни
+   * одна строка цены не отдала. Передать такое значение прямо в money() НЕЛЬЗЯ:
+   * money(null) внутри делает `Number.isFinite(amount) ? amount : 0` и печатает
+   * «0 ₽» (AppHelpers.tsx:2592-2594). Клиника прочитала бы «в ортопедии цены от
+   * 0 ₽» — то есть неизвестное превратилось бы в измеренный ноль, и владелец
+   * пошёл бы спорить с прайсом, в котором этой цены просто не было.
+   *
+   * Поэтому null отсекается ДО форматирования и печатается словами. Ноль как
+   * настоящая цена при этом остаётся отличим: 0 проходит проверку на null и
+   * уходит в money() как обычная сумма.
+   */
+  const pricelistSummaryPriceRangeText = (
+    summary: DentalPricelistAnalysisResponse["summary"][number],
+  ): string => {
+    if (summary.minPriceRub === null || summary.maxPriceRub === null)
+      return "не определяются — ни одна строка категории не отдала цену";
+    const range =
+      summary.minPriceRub === summary.maxPriceRub
+        ? money(summary.minPriceRub)
+        : `${money(summary.minPriceRub)} — ${money(summary.maxPriceRub)}`;
+    if (summary.averagePriceRub === null)
+      return `${range}, среднее не определяется`;
+    return `${range}, в среднем ${money(summary.averagePriceRub)}`;
+  };
   const settingsTabButtonId = (tabId: SettingsTabId) => `settings-tab-${tabId}`;
   const settingsTabPanelId = (tabId: SettingsTabId) =>
     `settings-panel-${tabId}`;
@@ -1216,19 +1381,42 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     );
   };
 
-  const [ramWatchdogs, setRamWatchdogs] = useState<any[]>([]);
-  const [mergeQueues, setMergeQueues] = useState<any[]>([]);
+  /*
+    ЗДЕСЬ СТОЯЛИ ДВА ЗАПРОСА, УХОДИВШИЕ В НИКУДА ПРИ КАЖДОМ ОТКРЫТИИ НАСТРОЕК,
+    и две врезки в шапке, которые их читали. Убраны вместе.
 
-  useEffect(() => {
-    fetch("/api/system/ram-watchdogs", { headers: { "x-organization-id": "00000000-0000-0000-0000-000000000001" } })
-      .then((r) => r.json()).then((d) => setRamWatchdogs(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch("/api/crm/patient-duplicate-merge-queues", { headers: { "x-organization-id": "00000000-0000-0000-0000-000000000001" } })
-      .then((r) => r.json()).then((d) => setMergeQueues(Array.isArray(d) ? d : [])).catch(() => {});
-  }, []);
+    Оба адреса на сервере не существуют и отвечают 404 — это зафиксировано
+    списком известного долга в apps/api/src/tests/webCallsExistingRoutes.test.ts
+    ("/api/system/ram-watchdogs", "/api/crm/patient-duplicate-merge-queues") и
+    подтверждено тем, что ни в одном файле apps/api/src/routes они не
+    зарегистрированы. Обёртка `r.ok ? r.json() : []` превращала отказ в пустой
+    список, поэтому увидеть 404 было нельзя: врезки просто не появлялись.
+
+    Даже появись маршруты, врезки остались бы пустыми: они читали поля, которых
+    нет ни в одной таблице. Нагрузка ОЗУ печатала clientHostName / usedRamMb /
+    totalRamMb / warningLevel, а в system_ram_watchdogs лежат heap_used_mb,
+    heap_total_mb, rss_mb, external_mb, gc_count. Очередь дубликатов печатала
+    primaryPatientName / duplicatePatientName / similarityScorePercent, а в
+    patient_duplicate_merge_queues есть только source_patient_id,
+    target_patient_id и match_score. Ни одно имя не совпадает.
+
+    Писателя нет ни у одной из двух таблиц: во всём apps/api/src обе упомянуты
+    только в объявлении схемы, в живой базе по нулю строк.
+
+    ЧЕМ ЭТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ, помимо двух холостых запросов на каждое
+    открытие настроек. Телеметрия ОЗУ рабочих станций — работа сисадмина, а не
+    стоматологии: чтобы её собрать, нужен агент на каждом рабочем месте, и для
+    клиники из трёх кресел это не та цена. А разбор дублей карточек уже сделан
+    по-настоящему и живым расчётом — /api/patients/duplicates, панель
+    components/crm/PatientDuplicateMergeQueuesWidget. Вторая, мёртвая врезка про
+    те же дубли в шапке настроек могла показать только другое число и тем самым
+    поссорить владельца с работающим экраном.
+  */
 
   return (
     <motion.section
-      className="settings-zone glass-panel bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-4"
+      className="settings-zone panel"
+      style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)", borderRadius: "14px", padding: "20px" }}
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -1238,22 +1426,22 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
     >
       <div className="settings-heading">
         <div>
-          <p className="eyebrow text-slate-500 dark:text-slate-400">Настройки</p>
+          <p className="eyebrow" style={{ color: "var(--muted)" }}>Настройки</p>
           <h2 title="Раздел административных настроек: управление персоналом, прайс-листом, интеграцией с ЕГИСЗ/ОФД и бланками">Настройки клиники</h2>
         </div>
 
-        {/* Real Feature Integrations in Settings Header */}
-        {ramWatchdogs.length > 0 && (
-          <div data-testid="system-ram-watchdog-indicator" style={{ background: 'var(--surface-100)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            🖥️ Нагрузка ОЗУ ({ramWatchdogs[0].clientHostName}): <strong>{ramWatchdogs[0].usedRamMb} MB / {ramWatchdogs[0].totalRamMb} MB</strong> ({ramWatchdogs[0].warningLevel})
-          </div>
-        )}
+        {/*
+          Здесь были две врезки — «Нагрузка ОЗУ» и «Очередь дубликатов». Причина
+          удаления и доказательства — у места, где стояли их запросы (ищи
+          «ЗДЕСЬ СТОЯЛИ ДВА ЗАПРОСА» выше в этом файле). Не возвращать, не
+          прочитав тот комментарий: у обеих таблиц нет писателя, а имена полей
+          во врезках не совпадали со схемой ни в одном знаке.
 
-        {mergeQueues.length > 0 && (
-          <div data-testid="duplicate-merge-queue-panel" style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            👥 Очередь дубликатов: <strong>{mergeQueues[0].primaryPatientName}</strong> ↔ {mergeQueues[0].duplicatePatientName} ({mergeQueues[0].similarityScorePercent}% совпадения)
-          </div>
-        )}
+          Отдельно про цвета: врезка дубликатов была прибита гвоздями к светлой
+          теме (#fef2f2 / #fca5a5 / #991b1b) в обход токенов темы, то есть в
+          тёмной теме это был красный текст на почти белом фоне. Возвращать такую
+          разметку нельзя даже с живыми данными — только через var(--...).
+        */}
         <div className="settings-heading-actions">
           <span>Не показывается врачу в рабочей смене</span>
           <button
@@ -1270,62 +1458,30 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
         className="settings-tabs"
         role="tablist"
         aria-label="Раздел настроек"
+        style={{ overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch" }}
       >
-        <div className="settings-tabs-group">
-          <span className="settings-tabs-group-header">Мой аккаунт</span>
-          {typedSettingsTabs
-            .filter((t) => ["profile"].includes(t.id))
-            .map(renderTabButton)}
-        </div>
-        <div className="settings-tabs-group">
-          <span className="settings-tabs-group-header">Основные</span>
-          {typedSettingsTabs
-            .filter((t) => {
-              if (t.id === "messengers") {
-                return activeStaffUser?.role !== "doctor";
-              }
-              return ["clinic", "staff", "access", "modules"].includes(t.id);
-            })
-            .map(renderTabButton)}
-        </div>
-        <div className="settings-tabs-group">
-          <span className="settings-tabs-group-header">Клинические</span>
-          {typedSettingsTabs
-            .filter((t) =>
-              ["protocols", "rules", "prices", "ai"].includes(t.id),
-            )
-            .map(renderTabButton)}
-        </div>
-        {(activeWorkspaceProfile?.hasMarketingModule ||
-          activeWorkspaceProfile?.hasBpmWorkflows) && (
-          <div className="settings-tabs-group">
-            <span className="settings-tabs-group-header">Маркетинг</span>
-            {typedSettingsTabs
-              .filter((t) => {
-                if (t.id === "marketing")
-                  return activeWorkspaceProfile?.hasMarketingModule;
-                if (t.id === "bpmn")
-                  return activeWorkspaceProfile?.hasBpmWorkflows;
-                return false;
-              })
-              .map(renderTabButton)}
-          </div>
-        )}
-        <div className="settings-tabs-group">
-          <span className="settings-tabs-group-header">Системные</span>
-          {typedSettingsTabs
-            .filter((t) => {
-              if (
-                t.id === "reporting" &&
-                !activeWorkspaceProfile?.hasAnalyticsModule
-              )
-                return false;
-              return ["sources", "imports", "audit", "reporting"].includes(
-                t.id,
-              );
-            })
-            .map(renderTabButton)}
-        </div>
+        {/*
+          Группы берутся из объявления вкладки, а не из списков в разметке.
+
+          Раньше каждая группа фильтровала по своему набору идентификаторов, и
+          вкладка, не попавшая ни в один набор, исчезала из меню без следа.
+          Так пропала кнопка настроек Telegram: раздел работал и открывался по
+          адресу, но нажать было негде. Признаки модулей уже отсеяли лишнее в
+          typedSettingsTabs выше, здесь остаётся только раскладка.
+
+          Пустая группа не рисуется — иначе у маленькой клиники висели бы
+          заголовки без единой строчки под ними.
+        */}
+        {settingsTabGroups.map((group) => {
+          const tabsInGroup = typedSettingsTabs.filter((t) => t.group === group.id);
+          if (tabsInGroup.length === 0) return null;
+          return (
+            <div className="settings-tabs-group" key={group.id}>
+              <span className="settings-tabs-group-header">{group.title}</span>
+              {tabsInGroup.map(renderTabButton)}
+            </div>
+          );
+        })}
       </div>
 
       <div
@@ -1429,43 +1585,349 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
 
         {settingsTab === "clinic" ? <SettingsClinicTab props={settingsProps} settingsTab={settingsTab} /> : null}
         {settingsTab === "access" ? <SettingsAccessTab {...({ props: settingsProps, settingsTab } as any)} /> : null}
-        {settingsTab === "telegram" ? <SettingsTelegramTab props={settingsProps} settingsTab={settingsTab} /> : null}
+        {/*
+          Вкладка мессенджеров показывает все три канала, а не один Telegram.
+
+          Здесь стоял SettingsTelegramTab — только Telegram. Панель со всеми
+          каналами (Telegram, WhatsApp, MAX) была смонтирована строкой ниже под
+          идентификатор "messengers", которого нет в списке вкладок: попасть в
+          неё было нельзя ниоткуда. Настройки WhatsApp и MAX существовали и не
+          открывались.
+
+          Внутри SettingsMessengersTab начальный канал выбирается по значению
+          settingsTab, поэтому с "telegram" вкладка открывается на Telegram —
+          как и раньше.
+        */}
+        {settingsTab === "telegram" && activeStaffUser?.role !== "doctor" ? (
+          <SettingsMessengersTab props={settingsProps} settingsTab={settingsTab} />
+        ) : null}
 
         {settingsTab === "insurance" ? <InsuranceContractsPanel /> : null}
-        {settingsTab === "inventory" ? (
-          <InventoryView
-            organizationId={dashboard?.clinicSettings?.profile?.organizationId ?? ""}
-          />
-        ) : null}
-        {settingsTab === "messengers" ? <SettingsMessengersTab props={settingsProps} settingsTab={settingsTab} /> : null}
+        {/*
+          Склад отсюда убран: он стал разделом рабочего места (#inventory).
+
+          Экран был недоступен вовсе, и я открыл его вкладкой настроек — дешёвым
+          способом. Правильнее оказалось иначе: приход и списание материалов —
+          ежедневная работа ассистента, а не настройка клиники, поэтому склад
+          живёт на рельсе с правами по ролям. Две двери в одну комнату хуже
+          одной: непонятно, какая «настоящая», и правки начинают расходиться.
+        */}
         {settingsTab === "protocols" ? <SettingsProtocolsTab /> : null}
 
         {settingsTab === "rules" ? <SettingsRulesTab /> : null}
 
-        {settingsTab === "prices" ? <SettingsPricesTab /> : null}
+        {settingsTab === "prices" ? (
+          <>
+            {typedPricelistResponseWarnings.length > 0 ? (
+              <section
+                aria-label="Замечания к разбору всего прайса"
+                role="status"
+                aria-live="polite"
+                style={{
+                  border: "1px solid var(--warning-color)",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                  background: "var(--surface-muted)",
+                }}
+              >
+                <strong style={{ color: "var(--warning-color)" }}>
+                  Прайс целиком: замечаний —{" "}
+                  {typedPricelistResponseWarnings.length}
+                </strong>
+                <p
+                  style={{
+                    margin: "6px 0 10px",
+                    color: "var(--text-muted)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Это замечания не к отдельной строке, а ко всему присланному
+                  файлу: сколько строк не признано услугами, прочиталось ли фото,
+                  работала ли нейро-проверка. Список ниже их не заменяет — строка
+                  может разобраться без единого замечания, а прайс при этом
+                  доехать не полностью.
+                </p>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "18px",
+                    fontSize: "13px",
+                  }}
+                >
+                  {typedPricelistResponseWarnings.map((warning) => (
+                    <li
+                      key={warning}
+                      style={{
+                        marginBottom: "4px",
+                        color: "var(--warning-color)",
+                      }}
+                    >
+                      {/*
+                        Разбирает ключ ТА ЖЕ функция, что и предупреждения
+                        позиций. Ключи с хвостом («pricelist_rows_skipped:3»,
+                        «groq_failed:…») уже разбираются внутри
+                        pricelistWarningText (pricelistUiMeta.ts:143-156), и
+                        второго места, где префикс отрезают руками, быть не
+                        должно: разойдясь, они дадут клинике два разных текста
+                        про одно событие. Массив из одного элемента — потому
+                        что склейка запятой здесь не нужна, каждое замечание
+                        своей строкой.
+                      */}
+                      {pricelistWarningsText([warning])}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {typeof pricelistImageNote === "string" &&
+            pricelistImageNote.trim() ? (
+              <p
+                aria-label="Как подготовлено фото прайса"
+                style={{
+                  margin: "0 0 16px",
+                  padding: "10px 14px",
+                  border: "1px solid var(--line)",
+                  borderRadius: "10px",
+                  background: "var(--surface-muted)",
+                  color: "var(--text-muted)",
+                  fontSize: "13px",
+                }}
+              >
+                {/*
+                  Разбор шёл по СЖАТОЙ картинке, и до сих пор это было не видно.
+                  preparePricelistImage уменьшает фото до 1600/1200/900/720 px и
+                  жмёт JPEG до 82/72/62%, лишь бы влезть в предел base64, — то
+                  есть с мелкого шрифта строки могли не прочитаться именно из-за
+                  сжатия. Клиника обязана видеть, что именно ушло на разбор,
+                  прежде чем решать «прайс плохой» или «фото плохое».
+                */}
+                Фото прайса: {pricelistImageNote}
+              </p>
+            ) : null}
+            {typedPricelistSummary.length > 0 ? (
+              <section
+                aria-label="Материалы и бренды, распознанные в прайсе"
+                style={{
+                  border: "1px solid var(--line)",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                  background: "var(--surface-muted)",
+                }}
+              >
+                <strong>Материалы, распознанные в прайсе</strong>
+                <p
+                  style={{
+                    margin: "6px 0 10px",
+                    color: "var(--text-muted)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Разбор ставит материал каждой строке и жалуется на него
+                  предупреждением «Материал требует проверки». Сводка по
+                  категориям показывает, что он в итоге увидел, — иначе проверять
+                  предупреждение было бы нечем.
+                </p>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "18px",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    fontSize: "13px",
+                  }}
+                >
+                  {typedPricelistSummary.map((summary) => (
+                    <li
+                      key={`${summary.category}-${summary.specialty}`}
+                      style={{ marginBottom: "6px" }}
+                    >
+                      {serviceCategoryLabels[summary.category] ??
+                        summary.category}{" "}
+                      — строк {summary.count}, с ценой {summary.pricedCount}:{" "}
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {pricelistMaterialSummaryText(summary)}
+                      </span>
+                      <br />
+                      <span
+                        style={{
+                          color: "var(--text-muted)",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Цены в категории:{" "}
+                        {pricelistSummaryPriceRangeText(summary)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {pricelistWarningRows.length > 0 ? (
+              <section
+                aria-label="Строки прайса, требующие ручной проверки"
+                style={{
+                  border: "1px solid var(--warning-color)",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                  background: "var(--surface-muted)",
+                }}
+              >
+                <strong style={{ color: "var(--warning-color)" }}>
+                  Проверьте руками: строк с предупреждениями —{" "}
+                  {pricelistWarningRows.length} из {typedPricelistItems.length}
+                </strong>
+                <p
+                  style={{
+                    margin: "6px 0 10px",
+                    color: "var(--text-muted)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Разбор не подтвердил эти строки. Откройте исходный прайс,
+                  найдите каждую строку по её номеру и сверьте цену и категорию
+                  вручную: кнопка «Сохранить в каталог клиники» занесёт разобранные
+                  строки как есть, а строку без цены пропустит молча.
+                </p>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "18px",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    fontSize: "13px",
+                  }}
+                >
+                  {pricelistWarningRows.map((item) => (
+                    <li key={item.id} style={{ marginBottom: "6px" }}>
+                      Строка {item.sourceLine} — {item.title}:{" "}
+                      <span style={{ color: "var(--warning-color)" }}>
+                        {pricelistWarningsText(item.warnings)}
+                      </span>
+                      {/*
+                        Материал стоит здесь, а не отдельной вкладкой: одно из
+                        предупреждений — ровно «Материал требует проверки», и
+                        проверять его без того, что разбор решил, нельзя. Функция
+                        pricelistItemMaterialText была написана, экспортирована и
+                        протянута через App → AppHelpers → useAppLogic в три
+                        вкладки, но не вызвана НИ РАЗУ; это её первый вызов.
+                      */}
+                      <br />
+                      <span
+                        style={{
+                          color: "var(--text-muted)",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Материал по разбору: {pricelistItemMaterialText(item)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            <SettingsPricesTab />
+          </>
+        ) : null}
         {settingsTab === "sources" ? <SettingsSourcesTab /> : null}
         {settingsTab === "ai" ? <SettingsAiTab /> : null}
         {settingsTab === "modules" ? <SettingsModulesTab /> : null}
-        {settingsTab === "marketing" &&
-        activeWorkspaceProfile?.hasMarketingModule ? (
+        {/*
+          Кнопка вкладки и сама панель обязаны спрашивать одно и то же.
+
+          Список вкладок фильтруется по flags из useWorkspaceProfile()
+          (хранилище с сохранением в браузере), а эти три панели спрашивали
+          activeWorkspaceProfile — профиль из дашборда, приходящий пропом и
+          равный null, пока клиника его не завела. Расхождение давало худший из
+          возможных исходов: кнопка на месте, нажимается, вкладка выделяется —
+          и под ней пустота. Проверено обходом: «Отзывы и NPS», «Сценарии» и
+          «Отчёты» показывали ровно 1374 знака, столько же, сколько пустой
+          каркас страницы.
+
+          Источник теперь один — flags. Признак модуля выключен, значит нет ни
+          кнопки, ни панели.
+        */}
+        {settingsTab === "marketing" && flags.hasMarketingModule ? (
           <SettingsMarketingTab />
         ) : null}
-        {settingsTab === "bpmn" && activeWorkspaceProfile?.hasBpmWorkflows ? (
+        {settingsTab === "bpmn" && flags.hasBpmWorkflows ? (
           <SettingsBpmnTab />
         ) : null}
-        {settingsTab === "reporting" &&
-        activeWorkspaceProfile?.hasAnalyticsModule ? (
+        {settingsTab === "reporting" && flags.hasAnalyticsModule ? (
           <SettingsReportingTab />
         ) : null}
 
-        {settingsTab === "imports" ? <SettingsImportsTab props={settingsProps} settingsTab={settingsTab} /> : null}
-        {settingsTab === "audit" ? <SettingsAuditTab props={settingsProps} settingsTab={settingsTab} /> : null}
+        {/*
+          Мастер переноса стоит здесь, а не внутри SettingsImportsTab.
 
-        <div style={{ marginTop: "32px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "16px" }}>
-          <DadataGeocodedAddressesWidget />
+          Он самодостаточен: сам ходит в /api/migration/* и не принимает ни
+          одного пропса. Вкладка импорта, наоборот, ждёт сотни пропсов из общего
+          объекта настроек, и отсутствие любого из них роняет её целиком вместе
+          со всем, что внутри. Вкладывать в неё рабочий инструмент переноса
+          значит ставить перенос базы клиники в зависимость от чужих пропсов.
+        */}
+        {settingsTab === "imports" ? <MigrationWizard /> : null}
+        {/*
+          Умный разбор — в собственной границе ошибок.
+
+          Компонент ждёт сотни значений из общего объекта настроек, и часть до
+          него не доходит: при выносе из этого файла потерялись защитные `?.`,
+          которые здесь стоят на каждом обращении к дашборду. Любое такое
+          обращение роняет компонент, а общая граница гасила вместе с ним ВЕСЬ
+          раздел настроек — включая мастер переноса, который от этих пропсов не
+          зависит вовсе.
+
+          Своя граница ограничивает падение одним блоком.
+        */}
+        {settingsTab === "imports" ? (
+          <ErrorBoundary moduleName="Умный разбор выгрузки">
+            {/*
+              Обе тяжёлые вкладки объявлены как `SettingsImportsTab(props:
+              Record<string, any>)` и достают значения прямо из `props`. Им
+              передавался объект `{ props: settingsProps, settingsTab }`, то
+              есть всё лежало на уровень глубже: `props.dashboard` было
+              undefined, и вкладка падала на `dashboard.clinicSettings`.
+              Раскладываем мешок так, как объявлен сам компонент.
+            */}
+            <SettingsImportsTab {...settingsProps} settingsTab={settingsTab} />
+          </ErrorBoundary>
+        ) : null}
+        {settingsTab === "audit" ? <SettingsAuditTab {...settingsProps} settingsTab={settingsTab} /> : null}
+
+        {/*
+          Отсюда убраны две панели, которые нечем заполнить.
+
+          Этот блок висит под КАЖДОЙ вкладкой настроек, поэтому цена пустой
+          карточки здесь максимальная: её видит владелец на любом экране и
+          перестаёт верить живым числам рядом.
+
+          «DaData: геокодирование и проверка адресов пациентов» обещала
+          стандартизацию адреса, которого в карточке пациента не существует: нет
+          ни колонки адреса, ни поля в форме. Чтобы она хоть раз что-то
+          показала, нужны колонка, поле ввода, платный внешний сервис и решение
+          по 152-ФЗ о передаче адреса пациента наружу.
+
+          «Контроль единственного параллельного входа» обещала не журнал, а
+          вытеснение сессии — колонку «Токен сессии» и плашку «Вытеснена
+          предыдущая». Вытеснения в системе нет: токены подписанные и stateless,
+          на сервере не хранятся, хранилища сессий и отзыва токенов нет вовсе.
+          Подотчётность в кабинете уже дают PIN сотрудника и журнал аудита
+          (вкладка «Аудит»).
+
+          Проверено поиском по всему репозиторию: в dadata_geocoded_addresses и
+          single_session_enforcements нет ни одной вставки — только SELECT в
+          apps/api/src/db/*Query.ts. Значит в любой клинике, сколько бы она ни
+          работала, обе панели показывали «данных нет».
+
+          Не возвращать, пока не появится код, который в эти таблицы пишет.
+          Файлы виджетов пока на месте — их снимает ведущий отдельным коммитом
+          вместе с серверной частью.
+        */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <EgiszBlankPermissionsWidget />
           <YandexCalendarSyncsWidget />
-          <SingleSessionEnforcementsWidget />
         </div>
       </div>
     </motion.section>

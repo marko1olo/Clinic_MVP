@@ -2,8 +2,7 @@ import { Dashboard } from "@dental/shared";
 import { motion } from "framer-motion";
 import { UserCheck } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
-import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { usePatientStore } from "../../store/patientStore";
@@ -12,15 +11,14 @@ import { PatientJourneyTimeline } from "../PatientJourneyTimeline";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
 import { OrthodonticProgressWidget } from "./OrthodonticProgressWidget";
 import { PatientFamilyCard } from "./PatientFamilyCard";
+import { PatientDuplicateAlert } from "./PatientDuplicateAlert";
 import { PatientLoyaltyHeader } from "./PatientLoyaltyHeader";
 import { PatientNoShowRisk } from "./PatientNoShowRisk";
 import { PatientReclamationsWidget } from "./PatientReclamationsWidget";
 import { PatientTaskTicketsWidget } from "./PatientTaskTicketsWidget";
 import { PatientCommunicationTimelineWidget } from "./PatientCommunicationTimelineWidget";
 import { PatientArchiveAndBlacklistWidget } from "./PatientArchiveAndBlacklistWidget";
-import { PatientServiceLineagesWidget } from "../crm/PatientServiceLineagesWidget";
 import { PatientDuplicateMergeQueuesWidget } from "../crm/PatientDuplicateMergeQueuesWidget";
-import { BulkImageOperationLogsWidget } from "../crm/BulkImageOperationLogsWidget";
 
 
 
@@ -52,50 +50,98 @@ export function PatientOverviewTab() {
 				: null;
 	const patientCoreSaveGuidanceId = "patientCoreSaveGuidanceId";
 	const [familyData, setFamilyData] = useState<any>(null);
+	/*
+	 * БЫЛО: любой неудачный ответ приравнивался к «семьи нет» — `if (!res.ok)
+	 * throw`, а `catch` ставил familyData в null. Карточка семейного счёта на этот
+	 * null пишет «Пациент не состоит в семейной группе. Вы можете создать новую
+	 * семью или привязать его к существующей» и даёт кнопку «Создать семью».
+	 *
+	 * Что видел администратор: при обрыве связи, слёте смены (401/403) или сбое
+	 * сервера (500) у пациента, который в семье СОСТОИТ, экран уверенно сообщал,
+	 * что он в ней не состоит. Дальше по этому экрану создавалась вторая семья на
+	 * того же человека — и общий счёт родственников расходился на два кошелька,
+	 * а оплата с семейного баланса уходила не туда.
+	 *
+	 * 404 этот маршрут возвращает ровно в двух случаях: у пациента нет
+	 * familyGroupId либо группа не найдена (apps/api/src/routes/finance_family.ts,
+	 * GET /api/finance/family/patient/:patientId). Только он и означает «семьи
+	 * нет»; всё остальное — непрочитанный ответ, и об этом надо сказать вслух.
+	 */
+	const [familyLoadFailure, setFamilyLoadFailure] = useState<{
+		status: number | null;
+	} | null>(null);
+
+	// Ответ по прежнему пациенту не должен перетирать карточку текущего: запросы
+	// возвращаются не в том порядке, в каком уходили.
+	const selectedPatientIdRef = useRef(selectedPatientId);
+	selectedPatientIdRef.current = selectedPatientId;
+
+	/*
+	 * Одна загрузка на два вызова. БЫЛО две дословные копии этого запроса — в
+	 * эффекте и в onFamilyDataChanged; правка обработки отказа в одной из них
+	 * оставила бы вторую врать по-прежнему.
+	 */
+	const loadFamily = useCallback(() => {
+		if (!selectedPatientId) {
+			setFamilyData(null);
+			setFamilyLoadFailure(null);
+			return;
+		}
+		const requestedPatientId = selectedPatientId;
+		const headers = appLogic?.auth
+			? appLogic.auth.denteClinicalReadHeaders()
+			: {};
+		fetch(`/api/finance/family/patient/${requestedPatientId}`, { headers })
+			.then(async (res) => {
+				if (selectedPatientIdRef.current !== requestedPatientId) return;
+				if (res.ok) {
+					const data = await res.json().catch(() => null);
+					setFamilyData(data ?? null);
+					// Ответ 200 без тела — тоже не прочитанные данные, а не «нет семьи».
+					setFamilyLoadFailure(data ? null : { status: res.status });
+					return;
+				}
+				setFamilyData(null);
+				setFamilyLoadFailure(res.status === 404 ? null : { status: res.status });
+			})
+			.catch(() => {
+				if (selectedPatientIdRef.current !== requestedPatientId) return;
+				setFamilyData(null);
+				setFamilyLoadFailure({ status: null });
+			});
+	}, [selectedPatientId, appLogic]);
 
 	useEffect(() => {
-		if (selectedPatientId) {
-			const headers = appLogic?.auth
-				? appLogic.auth.denteClinicalReadHeaders()
-				: { "x-organization-id": "00000000-0000-0000-0000-000000000001" };
-			fetch(`/api/finance/family/patient/${selectedPatientId}`, { headers })
-				.then((res) => {
-					if (!res.ok) throw new Error("No family");
-					return res.json();
-				})
-				.then((data) => setFamilyData(data))
-				.catch(() => setFamilyData(null));
-		} else {
-			setFamilyData(null);
-		}
-	}, [selectedPatientId, appLogic]);
+		setFamilyData(null);
+		setFamilyLoadFailure(null);
+		loadFamily();
+	}, [loadFamily]);
 
 	return (
 		<div data-testid="patient-overview-tab">
-			<div className="panel-heading compact-heading patients-no-border-mb-8">
-				<div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-					<span
-						style={{
-							fontSize: "14px",
-							fontWeight: 600,
-							color: "var(--ink)",
-							display: "flex",
-							alignItems: "center",
-							gap: "8px",
-						}}
-					>
-						Карточка пациента
+			{/*
+				ЗДЕСЬ БЫЛА ВТОРАЯ КАРТОЧКА ПАЦИЕНТА — не похожая, а буквально та же.
+				Оба блока правили один и тот же `patientCoreDraft` и вызывали один и
+				тот же `savePatientCore`. На экране «Пациенты» получалось: два поля
+				«ФИО пациента», две даты рождения, два телефона, две кнопки
+				сохранения («Сохранить данные» и «Сохранить карточку»), два значка
+				состояния и два разных набора быстрых пометок, дописывающих в одно и
+				то же поле заметок. Текст, набранный в одном поле, тут же появлялся
+				во втором, и понять, какую из карточек заполнять, было нельзя.
+
+				Оставлена одна форма — в PatientsView. Полезное из этой копии
+				перенесено туда: пропуск повторной пометки и приведение телефона к
+				формату. Уникальные части этого блока (семейный счёт, лояльность,
+				рекламации, лента приёмов, архив) сохранены ниже.
+			*/}
+			<div className="panel-heading compact-heading patients-no-border-mb-8 flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div className="flex gap-3 items-center">
+					<span className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+						Пациент в клинике
 						{dashboard?.activeVisit?.patientId === selectedPatientId && (
 							<span
 								title="Пациент сейчас находится в клинике (Активный приём)"
-								style={{
-									width: "8px",
-									height: "8px",
-									borderRadius: "50%",
-									backgroundColor: "var(--emerald)",
-									display: "inline-block",
-									boxShadow: "0 0 8px var(--emerald)",
-								}}
+								className="w-2 h-2 rounded-full bg-emerald-500 inline-block shadow-[0_0_8px_#10b981]"
 							/>
 						)}
 					</span>
@@ -103,174 +149,11 @@ export function PatientOverviewTab() {
 						<PatientLoyaltyHeader patientId={selectedPatientId} />
 					)}
 				</div>
-				<span
-					className={`status-pill status-${patientCoreSaveState === "error" || patientAdministrativeProfileSaveState === "error" ? "cancelled" : "confirmed"}`}
-				>
-					{patientCoreSaveState === "saving"
-						? "сохранение"
-						: patientAdministrativeProfileSaveState === "saving"
-							? "сохранение"
-							: patientCoreSaveState === "error" ||
-									patientAdministrativeProfileSaveState === "error"
-								? "ошибка"
-								: patientCoreDirty || patientAdministrativeProfileDirty
-									? "Ждет сохранения"
-									: "сохранено"}
-				</span>
 			</div>
-			<div
-				className="clinic-profile-form-grid patient-core-form-grid"
-				style={{
-					gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-				}}
-			>
-				<label className="form-span-2">
-					ФИО пациента
-					<input
-						autoComplete="name"
-						value={patientCoreDraft?.fullName ?? ""}
-						onChange={(event: TextFieldChangeEvent) =>
-							updatePatientCoreDraft("fullName", event.target.value)
-						}
-						placeholder="Фамилия Имя Отчество"
-					/>
-				</label>
-				<label>
-					Дата рождения
-					<input
-						type="date"
-						autoComplete="bday"
-						value={patientCoreDraft?.birthDate ?? ""}
-						onChange={(event: TextFieldChangeEvent) =>
-							updatePatientCoreDraft("birthDate", event.target.value)
-						}
-					/>
-				</label>
-				<label>
-					Телефон
-					<input
-						type="tel"
-						inputMode="tel"
-						autoComplete="tel"
-						value={patientCoreDraft?.phone ?? ""}
-						onChange={(event: TextFieldChangeEvent) =>
-							updatePatientCoreDraft(
-								"phone",
-								formatPhoneNumber(event.target.value),
-							)
-						}
-						placeholder="+7..."
-					/>
-				</label>
-				<label>
-					Email
-					<input
-						type="email"
-						autoComplete="email"
-						value={patientCoreDraft?.email ?? ""}
-						onChange={(event: TextFieldChangeEvent) =>
-							updatePatientCoreDraft("email", event.target.value)
-						}
-						placeholder="patient@example.ru"
-					/>
-				</label>
-				<div className="form-span-2 patients-flex-col-gap-4">
-					<div className="patients-flex-between">
-						<span
-							style={{
-								fontSize: "13px",
-								fontWeight: 600,
-								color: "var(--muted)",
-							}}
-						>
-							Заметки для команды
-						</span>
-						<SmartMicrophoneButton
-							context="general"
-							onResult={(t) => {
-								const prev = patientCoreDraft?.notes || "";
-								updatePatientCoreDraft("notes", prev ? `${prev}, ${t}` : t);
-							}}
-						/>
-					</div>
-					<textarea
-						value={patientCoreDraft?.notes ?? ""}
-						onChange={(e) => updatePatientCoreDraft("notes", e.target.value)}
-						placeholder="важное для связи, приема и документов"
-						style={{
-							width: "100%",
-							padding: "8px 12px",
-							borderRadius: "8px",
-							border: "1px solid var(--line)",
-							fontSize: "14px",
-							resize: "vertical",
-							background: "var(--paper)",
-							color: "var(--ink)",
-						}}
-					/>
-					<div className="patients-chips-row">
-						{[
-							"Очень тревожный",
-							"Сложный пациент",
-							"VIP",
-							"Просит звонить заранее",
-							"Часто отменяет",
-							"Плохо переносит анестезию",
-							"Должник",
-							"Рвотный рефлекс",
-						].map((chip) => (
-							<button
-								key={chip}
-								type="button"
-								onClick={() => {
-									const currentVal = (patientCoreDraft?.notes ?? "").trim();
-									const chipLower = chip.toLowerCase();
-									if (currentVal.toLowerCase().includes(chipLower)) return;
-									const newVal = currentVal
-										? `${currentVal}, ${chipLower}`
-										: chipLower;
-									updatePatientCoreDraft("notes", newVal);
-								}}
-								style={{
-									padding: "4px 10px",
-									fontSize: "12px",
-									background: "var(--glass-panel, rgba(30, 41, 59, 0.5))",
-									border: "1px solid var(--line, rgba(255, 255, 255, 0.1))",
-									borderRadius: "12px",
-									cursor: "pointer",
-									color: "var(--ink)",
-								}}
-							>
-								+ {chip}
-							</button>
-						))}
-					</div>
-				</div>
-			</div>
-			<div className="patient-admin-actions patients-mt-16-flex">
-				<button
-					className="primary-button"
-					type="button"
-					onClick={savePatientCore}
-					aria-busy={patientCoreSaveState === "saving" || undefined}
-					aria-describedby={
-						patientCoreSaveGuidance ? patientCoreSaveGuidanceId : undefined
-					}
-					disabled={!patientCoreReadyToSave}
-				>
-					<UserCheck aria-hidden="true" /> Сохранить карточку
-				</button>
-			</div>
-			{patientCoreSaveGuidance ? (
-				<p
-					className="patient-save-guidance"
-					id={patientCoreSaveGuidanceId}
-					role="status"
-					aria-live="polite"
-				>
-					{patientCoreSaveGuidance}
-				</p>
-			) : null}
+			{/* Предупреждение о второй карточке того же человека стоит выше полей:
+			    иначе администратор успевает внести данные не в ту карточку. Само
+			    себя не показывает, когда дублей нет. */}
+			{selectedPatientId ? <PatientDuplicateAlert patientId={selectedPatientId} /> : null}
 
 			<div
 				className="patient-clinical-grid patients-my-0"
@@ -281,20 +164,9 @@ export function PatientOverviewTab() {
 						patientId={selectedPatientId}
 						patientName={selectedPatient?.fullName || null}
 						familyData={familyData}
-						onFamilyDataChanged={() => {
-							if (selectedPatientId) {
-								const headers = appLogic?.auth
-									? appLogic.auth.denteClinicalReadHeaders()
-									: { "x-organization-id": "00000000-0000-0000-0000-000000000001" };
-								fetch(`/api/finance/family/patient/${selectedPatientId}`, { headers })
-									.then((res) => {
-										if (!res.ok) throw new Error("No family");
-										return res.json();
-									})
-									.then((data) => setFamilyData(data))
-									.catch(() => setFamilyData(null));
-							}
-						}}
+						loadFailure={familyLoadFailure}
+						onRetryLoad={loadFamily}
+						onFamilyDataChanged={loadFamily}
 					/>
 
 					{selectedPatientId && (
@@ -304,9 +176,6 @@ export function PatientOverviewTab() {
 						/>
 					)}
 
-					{selectedPatientId && (
-						<PatientServiceLineagesWidget patientId={selectedPatientId} />
-					)}
 				</div>
 				<div className="clinical-col-right" style={{ flex: 1 }}>
 					{selectedPatientId && (
@@ -335,10 +204,6 @@ export function PatientOverviewTab() {
 
 					{selectedPatientId && (
 						<PatientDuplicateMergeQueuesWidget />
-					)}
-
-					{selectedPatientId && (
-						<BulkImageOperationLogsWidget />
 					)}
 				</div>
 			</div>

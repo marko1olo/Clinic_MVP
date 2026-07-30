@@ -1,11 +1,58 @@
 import { fetchWithProviderTimeout, keyRetryLimit, selectProviderKey, recordProviderKeySuccess, recordProviderKeyFailure, shouldTryNextProviderKey } from "../speech/keyPool.js";
-export async function parseDictationWithLLM(transcript, context) {
-    const modelName = "llama-3.3-70b-versatile";
-    const baseUrl = "https://api.groq.com/openai/v1";
-    const keyProviderId = "groq_whisper"; // Assuming this key pool has Groq keys
-    let systemPrompt = "";
+/**
+ * СЕГОДНЯШНЯЯ ДАТА ДЛЯ ПОДСКАЗКИ МОДЕЛИ — ДЕНЬ КЛИНИКИ, А НЕ ДЕНЬ ПО UTC.
+ *
+ * ЧТО БЫЛО СЛОМАНО. В подсказку подставлялось
+ * `new Date().toISOString().split("T")[0]` — календарный день по UTC. У всех
+ * российских поясов смещение положительное, поэтому день по UTC отстаёт от
+ * местного каждую ночь: в Москве с 00:00 до 03:00, в Самаре (пояс по умолчанию
+ * в схеме клиник) до 04:00, на Камчатке — половину суток. Вечерняя смена
+ * работает именно в этом окне.
+ *
+ * ЧЕМ ЭТО ПЛОХО ДЛЯ КЛИНИКИ. Врач диктует «запиши на завтра», модель отсчитывает
+ * «завтра» от вчерашнего числа и возвращает СЕГОДНЯ. Ошибка приходит из модели
+ * уже готовой датой в поле `date`, и проверить её на глаз в тексте ответа
+ * нельзя: администратор видит правдоподобную дату и сохраняет запись.
+ *
+ * Пояс приходит из `clinics.timezone` от вызывающего маршрута. Если пояс
+ * неизвестен или не разбирается, берётся местный день СЕРВЕРА — не UTC:
+ * сервер клиники стоит в её же поясе куда чаще, чем в нулевом.
+ */
+export function dictationTodayDate(timeZone, now = new Date()) {
+    const pad = (value) => String(value).padStart(2, "0");
+    const serverCalendarDay = () => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    if (!timeZone)
+        return serverCalendarDay();
+    try {
+        const parts = new Map(new Intl.DateTimeFormat("en-CA", {
+            timeZone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        })
+            .formatToParts(now)
+            .map((part) => [part.type, part.value]));
+        const year = parts.get("year");
+        const month = parts.get("month");
+        const day = parts.get("day");
+        if (!year || !month || !day)
+            return serverCalendarDay();
+        return `${year}-${month}-${day}`;
+    }
+    catch {
+        // Пояс не существует в ICU. Подсказка модели обязана содержать дату, поэтому
+        // отказываться нельзя — отдаём день сервера.
+        return serverCalendarDay();
+    }
+}
+/**
+ * Системная подсказка для разбора диктовки. Вынесена из `parseDictationWithLLM`
+ * отдельной функцией, чтобы дату в подсказке можно было проверить прогоном, не
+ * обращаясь к внешнему провайдеру.
+ */
+export function buildDictationSystemPrompt(context, timeZone, now = new Date()) {
     if (context === "schedule") {
-        systemPrompt = `Вы — AI-ассистент администратора стоматологии. Ваша задача — извлечь данные о записи на прием из диктовки и вернуть СТРОГО в формате JSON.
+        return `Вы — AI-ассистент администратора стоматологии. Ваша задача — извлечь данные о записи на прием из диктовки и вернуть СТРОГО в формате JSON.
 Формат JSON:
 {
   "patientName": "Имя пациента",
@@ -15,10 +62,10 @@ export async function parseDictationWithLLM(transcript, context) {
   "reason": "Услуга/Причина",
   "note": "Комментарий"
 }
-Если данных для поля нет, не добавляйте его. Для вычисления даты сегодня: ${new Date().toISOString().split("T")[0]}. Время переводи в 24ч (например, в 2 часа -> 14:00).`;
+Если данных для поля нет, не добавляйте его. Для вычисления даты сегодня: ${dictationTodayDate(timeZone, now)}. Время переводи в 24ч (например, в 2 часа -> 14:00).`;
     }
-    else if (context === "patient") {
-        systemPrompt = `Вы — AI-ассистент администратора стоматологии. Ваша задача — извлечь данные нового пациента из диктовки и вернуть СТРОГО в формате JSON.
+    if (context === "patient") {
+        return `Вы — AI-ассистент администратора стоматологии. Ваша задача — извлечь данные нового пациента из диктовки и вернуть СТРОГО в формате JSON.
 Формат JSON:
 {
   "fullName": "ФИО (с заглавной буквы)",
@@ -29,8 +76,8 @@ export async function parseDictationWithLLM(transcript, context) {
 }
 Если данных для поля нет, не добавляйте его.`;
     }
-    else if (context === "visit") {
-        systemPrompt = `Вы — AI-ассистент врача-стоматолога. Ваша задача — извлечь данные для ЭМК (электронной медицинской карты) из диктовки врача и вернуть СТРОГО в формате JSON.
+    if (context === "visit") {
+        return `Вы — AI-ассистент врача-стоматолога. Ваша задача — извлечь данные для ЭМК (электронной медицинской карты) из диктовки врача и вернуть СТРОГО в формате JSON.
 Формат JSON:
 {
   "toothUpdates": [
@@ -46,6 +93,13 @@ export async function parseDictationWithLLM(transcript, context) {
 }
 Если врач упоминает зубы, распределяй их статусы. Кариес/лечение = "treatment", удаление = "missing", наблюдение = "watch". Если данных для поля нет, не возвращайте его в JSON.`;
     }
+    return "";
+}
+export async function parseDictationWithLLM(transcript, context, timeZone) {
+    const modelName = "llama-3.3-70b-versatile";
+    const baseUrl = "https://api.groq.com/openai/v1";
+    const keyProviderId = "groq_whisper"; // Assuming this key pool has Groq keys
+    const systemPrompt = buildDictationSystemPrompt(context, timeZone);
     const requestBody = {
         model: modelName,
         temperature: 0.1,

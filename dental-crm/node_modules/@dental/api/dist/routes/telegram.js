@@ -1,7 +1,22 @@
 import { createHash } from "node:crypto";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 import { createDenteTelegramLinkCodeSchema, denteTelegramBotStatusSchema, denteTelegramChatLinkPublicSchema, denteTelegramChatLinkStatusSchema, denteTelegramLinkCodeStatusSchema, denteTelegramMessagePreviewRequestSchema, denteTelegramOutboxDeliveryStatusSchema, denteTelegramOutboxSendDueResponseSchema, denteTelegramOutboxSendRequestSchema, denteTelegramOutboxSendResponseSchema, denteTelegramSubjectTypeSchema, denteTelegramTemplateKindSchema, denteTelegramWebhookResponseSchema, denteTelegramWebhookUpdateSchema, updateDenteTelegramBotSettingsSchema } from "@dental/shared";
-import { buildDenteTelegramChatLinkList, buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, buildDenteTelegramOutbox, claimDenteTelegramOutboxDeliveryReceipt, claimDenteTelegramWebhookUpdate, consumeDenteTelegramLinkCode, createDenteTelegramContactRequest, createDenteTelegramCareRequest, createDenteTelegramDocumentRequest, createDenteTelegramLinkCode, denteTelegramVisualCardUrlFor, extractDenteTelegramLinkCode, findDenteTelegramOutboxDeliveryReceipt, getDenteTelegramBotSettings, handleDenteTelegramAppointmentCallback, hasDenteTelegramWebhookUpdate, listDenteTelegramChatLinks, listDenteTelegramLinkCodes, listDenteTelegramWebhookEvents, prepareDenteTelegramOutboxDelivery, recordDenteTelegramWebhookEvent, recordDenteTelegramOutboxDelivery, renderDenteTelegramMessagePreview, revokeDenteTelegramChatLink, safeDenteTelegramPublicHttpsUrl, updateDenteTelegramBotSettings } from "../telegram/legacyMocks.js";
+import { buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, buildDenteTelegramOutbox, claimDenteTelegramOutboxDeliveryReceipt, claimDenteTelegramWebhookUpdate, consumeDenteTelegramLinkCode, createDenteTelegramContactRequest, createDenteTelegramCareRequest, createDenteTelegramDocumentRequest, createDenteTelegramLinkCode, denteTelegramOutboxDeliveryReceipts, denteTelegramVisualCardUrlFor, extractDenteTelegramLinkCode, findDenteTelegramOutboxDeliveryReceipt, getDenteTelegramBotSettings, handleDenteTelegramAppointmentCallback, hasDenteTelegramWebhookUpdate, listDenteTelegramLinkCodes, listDenteTelegramWebhookEvents, prepareDenteTelegramOutboxDelivery, recordDenteTelegramWebhookEvent, recordDenteTelegramOutboxDelivery, renderDenteTelegramMessagePreview, revokeDenteTelegramChatLink as revokeLegacyInMemoryTelegramChatLink, safeDenteTelegramPublicHttpsUrl, updateDenteTelegramBotSettings } from "../sampleData.js";
+/**
+ * СВЯЗКИ TELEGRAM-ЧАТОВ ЧИТАЮТСЯ И ПИШУТСЯ В POSTGRES.
+ *
+ * Владельцев у этого правила было два: реализация в памяти (`sampleData.ts`) и
+ * реализация на базе (`telegram/chatLinks.ts`), и подключена была та, что живёт
+ * в массиве процесса. Отправители же — `services/notificationWorker.ts` и
+ * `services/communications/channelRouter.ts` — читают ТАБЛИЦУ, поэтому
+ * привязанного пациента не видел никто из них.
+ *
+ * Синхронная версия отзыва пока вызывается ВТОРОЙ, рядом: очередь отправки ещё
+ * не переведена и ищет связку в массиве. Снять привязку только в базе означало
+ * бы продолжать отправку в чат, который клиника уже отключила.
+ */
+import { buildDenteTelegramChatLinkList, countActiveDenteTelegramChatLinks, revokeDenteTelegramChatLink, upsertDenteTelegramChatLink } from "../telegram/chatLinks.js";
+import { hydrateDomainStateFromDb } from "../db/domainStateHydration.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../text/repairMojibake.js";
 import { answerTelegramCallbackQuery, sendTelegramPhotoMessage, sendTelegramTextMessage } from "../telegramTransport.js";
 const telegramSecretHeader = "x-telegram-bot-api-secret-token";
@@ -10,7 +25,14 @@ const telegramOutboxDeliveryClaims = new Set();
 const telegramLinkCodeRateLimitWindowMs = 10 * 60_000;
 const telegramLinkCodeRejectedAttemptLimit = 5;
 const telegramPhotoCaptionMaxLength = 1024;
-const telegramSplitPhotoCaption = "DENTE: ��������� �������. ������ ����� ����.";
+const telegramSplitPhotoCaption = "DENTE: сообщение клиники. Полный текст ниже.";
+// Фото ушло пациенту, а второе сообщение с полным текстом — нет. Отдельная причина отказа нужна,
+// чтобы повторная попытка знала, какая часть уже на телефоне, и не отправляла фото второй раз.
+export const telegramPhotoSentTextFailedBlockedReason = "telegram_photo_sent_text_failed";
+// Время отправки в позиции не разбирается как дата. Отправлять по такому значению нельзя: «не смогли
+// прочитать время» — это не «пора отправлять». Нужна отдельная причина отказа, иначе позиция молча
+// выпадает из очереди и никто не узнает, что в задаче битое время.
+export const telegramOutboxScheduleUnreadableBlockedReason = "telegram_outbox_schedule_unreadable";
 function isRecord(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -34,51 +56,51 @@ function parseTelegramRouteBody(schema, body) {
     catch {
         return {
             ok: false,
-            message: "������������ ������ Telegram. ��������� ������������ ���� � ���� ��������."
+            message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений."
         };
     }
 }
 function sendTelegramValidationError(reply, error = "TelegramValidationFailed") {
     return reply.code(400).send({
         error,
-        message: "������������ ������ Telegram. ��������� ������������ ���� � ���� ��������."
+        message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений."
     });
 }
 const telegramSettingsFieldLabels = {
-    botUsername: "��� Telegram-����",
-    webhookBaseUrl: "����� ������ ��������� Telegram",
-    patientPortalBaseUrl: "������ �� ������ ��������",
-    welcomeImageUrl: "�������� �����������",
-    clinicReviewUrl: "������ ��� �������",
-    clinicMapsUrl: "������ �� ����� �������",
-    "visualCardUrls.mainMenu": "�������� �������� ����",
-    "visualCardUrls.appointment": "�������� ������",
-    "visualCardUrls.documents": "�������� ����������",
-    "visualCardUrls.tax": "�������� ��������� ����������",
-    "visualCardUrls.billing": "�������� ������",
-    "visualCardUrls.care": "�������� �������",
-    "visualCardUrls.review": "�������� ������"
+    botUsername: "Имя Telegram-бота",
+    webhookBaseUrl: "Адрес приема сообщений Telegram",
+    patientPortalBaseUrl: "Ссылка на портал пациента",
+    welcomeImageUrl: "Картинка приветствия",
+    clinicReviewUrl: "Ссылка для отзывов",
+    clinicMapsUrl: "Ссылка на карту клиники",
+    "visualCardUrls.mainMenu": "Карточка главного меню",
+    "visualCardUrls.appointment": "Карточка записи",
+    "visualCardUrls.documents": "Карточка документов",
+    "visualCardUrls.tax": "Карточка налоговых документов",
+    "visualCardUrls.billing": "Карточка оплаты",
+    "visualCardUrls.care": "Карточка памятки",
+    "visualCardUrls.review": "Карточка отзыва"
 };
 const telegramSettingsReasonLabels = {
-    invalid_url: "������� ������ ����� ���� https://...",
-    https_required: "����� HTTPS-������.",
-    credentials_not_allowed: "������� ����� � ������ �� ������.",
-    invalid_path_encoding: "��������� ��������� ���� � ������.",
-    patient_identifying_path_not_allowed: "������ ������ ����� �� ����� ��������� �������� ��� ��������, ������, ���������, ������ ��� ������.",
-    patient_identifying_path_value_not_allowed: "������� �� ���� �������������� ��������, ���������, �������� ��� ������� ������.",
-    patient_identifying_query_not_allowed: "������� ������������ ��������� �� ������.",
-    patient_identifying_query_value_not_allowed: "������� �������, ���, ����� ��� ������ ������ ����� �� ����������."
+    invalid_url: "укажите полный адрес вида https://...",
+    https_required: "нужна HTTPS-ссылка.",
+    credentials_not_allowed: "уберите логин и пароль из ссылки.",
+    invalid_path_encoding: "исправьте кодировку пути в ссылке.",
+    patient_identifying_path_not_allowed: "ссылка должна вести на общую публичную страницу без пациента, приема, документа, оплаты или токена.",
+    patient_identifying_path_value_not_allowed: "уберите из пути идентификаторы пациента, документа, телефона или личного номера.",
+    patient_identifying_query_not_allowed: "уберите персональные параметры из ссылки.",
+    patient_identifying_query_value_not_allowed: "уберите телефон, ИНН, СНИЛС или другой личный номер из параметров."
 };
 function telegramSettingsFieldLabel(fieldName) {
     const normalized = fieldName.trim();
-    return telegramSettingsFieldLabels[normalized] ?? telegramSettingsFieldLabels[normalized.replace(/\[(\w+)\]/g, ".$1")] ?? "���� Telegram";
+    return telegramSettingsFieldLabels[normalized] ?? telegramSettingsFieldLabels[normalized.replace(/\[(\w+)\]/g, ".$1")] ?? "Поле Telegram";
 }
 function readableTelegramSettingsValidationMessage(error) {
     const rawMessage = error instanceof Error ? repairMojibakeText(error.message).trim() : "";
     if (!rawMessage)
-        return "��������� Telegram �� ���������. ��������� ���� �����.";
+        return "Настройки Telegram не сохранены. Проверьте поля формы.";
     if (rawMessage.includes("DENTE_TELEGRAM_CALLBACK_SECRET") || rawMessage.includes("DENTE_TELEGRAM_WEBHOOK_SECRET")) {
-        return "����������� ������ ������ ���������; �������� ������ ����������� ������ � ��������� ����������.";
+        return "Подписанные кнопки приема отключены; включите секрет подписанных кнопок в серверных настройках.";
     }
     const rawReason = telegramSettingsReasonLabels[rawMessage];
     if (rawReason)
@@ -90,7 +112,7 @@ function readableTelegramSettingsValidationMessage(error) {
         if (reason)
             return `${fieldLabel}: ${reason}`;
     }
-    return "��������� Telegram �� ���������. ��������� ���� ����� � ��������� ������.";
+    return "Настройки Telegram не сохранены. Проверьте поля формы и публичные ссылки.";
 }
 function readableTelegramSettingsSchemaMessage(error) {
     const issues = Array.isArray(error.issues)
@@ -98,33 +120,33 @@ function readableTelegramSettingsSchemaMessage(error) {
         : [];
     const firstIssue = issues[0];
     if (!firstIssue)
-        return "��������� Telegram �� ���������. ��������� ���� �����.";
+        return "Настройки Telegram не сохранены. Проверьте поля формы.";
     const fieldName = Array.isArray(firstIssue.path) ? firstIssue.path.map((part) => String(part)).join(".") : "";
     const fieldLabel = telegramSettingsFieldLabel(fieldName);
     const message = typeof firstIssue.message === "string" ? repairMojibakeText(firstIssue.message).trim() : "";
     const looksTechnical = /invalid|required|expected|string|number|boolean|uuid|literal|received/i.test(message);
     if (message && !looksTechnical)
         return `${fieldLabel}: ${message}`;
-    return `${fieldLabel}: ��������� �������� ����.`;
+    return `${fieldLabel}: проверьте значение поля.`;
 }
-const telegramLinkCodeEncryptionMissingMessage = "��� �������� Telegram �� �������: �������� ���������� �������� Telegram-���� � ��������� ����������.";
-const telegramLinkCodeScopeInvalidMessage = "��� �������� Telegram �� �������: �������� ��������� �������� ��� ���������� ������� �������.";
-const telegramPreviewPatientNotFoundMessage = "������������ Telegram �� �����������: �������� ����������� ��������.";
-const telegramPreviewAppointmentNotFoundMessage = "������������ Telegram �� �����������: �������� ���������� ������.";
-const telegramPreviewDocumentNotFoundMessage = "������������ Telegram �� �����������: �������� ���������� ��������.";
-const telegramPreviewTaskNotFoundMessage = "������������ Telegram �� �����������: �������� ���������� ������ ������������.";
-const telegramPreviewUnavailableMessage = "������������ Telegram �� �����������: ��������� ������, ������� � ��������� ������.";
-const telegramChatLinkNotFoundMessage = "�������� Telegram-���� �� ��������: ����� �� ������� ��� ��� ���������� ��� ���������� ����.";
+const telegramLinkCodeEncryptionMissingMessage = "Код привязки Telegram не выпущен: включите защищенную привязку Telegram-чата в серверных настройках.";
+const telegramLinkCodeScopeInvalidMessage = "Код привязки Telegram не выпущен: выберите активного пациента или сотрудника текущей клиники.";
+const telegramPreviewPatientNotFoundMessage = "Предпросмотр Telegram не подготовлен: выберите актуального пациента.";
+const telegramPreviewAppointmentNotFoundMessage = "Предпросмотр Telegram не подготовлен: выберите актуальную запись.";
+const telegramPreviewDocumentNotFoundMessage = "Предпросмотр Telegram не подготовлен: выберите актуальный документ.";
+const telegramPreviewTaskNotFoundMessage = "Предпросмотр Telegram не подготовлен: выберите актуальную задачу коммуникации.";
+const telegramPreviewUnavailableMessage = "Предпросмотр Telegram не подготовлен: проверьте шаблон, клинику и связанные записи.";
+const telegramChatLinkNotFoundMessage = "Привязка Telegram-чата не отозвана: связь не найдена или уже недоступна для выбранного бота.";
 function telegramLinkCodeRejection(error) {
     const message = error instanceof Error ? repairMojibakeText(error.message) : "";
-    if (message.includes("DENTE_TELEGRAM_CHAT_ENCRYPTION_KEY") || message.includes("���������� ������ Telegram-����")) {
+    if (message.includes("DENTE_TELEGRAM_CHAT_ENCRYPTION_KEY") || message.includes("Защищенная связка Telegram-чата")) {
         return {
             error: "TelegramChatEncryptionKeyMissing",
             reason: "chat_encryption_missing",
             message: telegramLinkCodeEncryptionMissingMessage
         };
     }
-    if (message.includes("��������� ��������") || message.includes("��������� ����������")) {
+    if (message.includes("активному пациенту") || message.includes("активному сотруднику")) {
         return {
             error: "TelegramLinkCodeScopeInvalid",
             reason: "link_code_scope_invalid",
@@ -139,29 +161,29 @@ function telegramLinkCodeRejection(error) {
 }
 function telegramMessagePreviewRejection(error) {
     const message = error instanceof Error ? repairMojibakeText(error.message) : "";
-    if (message.includes("������� ��� ������������� Telegram �� ������")) {
+    if (message.includes("Пациент для предпросмотра Telegram не найден")) {
         return { reason: "patient_not_found", message: telegramPreviewPatientNotFoundMessage };
     }
-    if (message.includes("������ ��� ������������� Telegram �� �������")) {
+    if (message.includes("Запись для предпросмотра Telegram не найдена")) {
         return { reason: "appointment_not_found", message: telegramPreviewAppointmentNotFoundMessage };
     }
-    if (message.includes("�������� ��� ������������� Telegram �� ������")) {
+    if (message.includes("Документ для предпросмотра Telegram не найден")) {
         return { reason: "document_not_found", message: telegramPreviewDocumentNotFoundMessage };
     }
-    if (message.includes("������ ������������ ��� ������������� Telegram �� �������")) {
+    if (message.includes("Задача коммуникации для предпросмотра Telegram не найдена")) {
         return { reason: "task_not_found", message: telegramPreviewTaskNotFoundMessage };
     }
     return { reason: "preview_unavailable", message: telegramPreviewUnavailableMessage };
 }
 const telegramTransportFailureLabels = {
-    rate_limited: "Telegram �������� ��������� ������� ��������",
-    auth: "����� ���� �� ������ Telegram",
-    chat_blocked: "��� ���������� ��� ������������ ������������ ����",
-    bad_request: "Telegram �������� ������ ���������",
-    timeout: "Telegram �� ������� �� ���������� �����",
-    network: "��� ����������� ���������� � Telegram",
-    server: "������ Telegram �������� ����������",
-    unknown: "������� �� ����������"
+    rate_limited: "Telegram временно ограничил частоту отправки",
+    auth: "токен бота не принят Telegram",
+    chat_blocked: "чат недоступен или пользователь заблокировал бота",
+    bad_request: "Telegram отклонил формат сообщения",
+    timeout: "Telegram не ответил за отведенное время",
+    network: "нет устойчивого соединения с Telegram",
+    server: "сервис Telegram временно недоступен",
+    unknown: "причина не определена"
 };
 function telegramRetryAfterSeconds(result) {
     return typeof result.retryAfterSeconds === "number" && Number.isFinite(result.retryAfterSeconds) && result.retryAfterSeconds >= 0
@@ -170,25 +192,34 @@ function telegramRetryAfterSeconds(result) {
 }
 function telegramRetryAfterSuffix(result) {
     const retryAfterSeconds = telegramRetryAfterSeconds(result);
-    return retryAfterSeconds !== null ? ` ��������� �������� ����� ${retryAfterSeconds} �.` : "";
+    return retryAfterSeconds !== null ? ` Повторите отправку через ${retryAfterSeconds} с.` : "";
 }
 function telegramTransportFailureText(result, scope) {
     return `${scope}: ${telegramTransportFailureLabels[result.errorClass]}.${telegramRetryAfterSuffix(result)}`;
 }
 function telegramPhotoFallbackWarning(result) {
-    return telegramTransportFailureText(result, "���� �� ������� Telegram; ��������� ��������� �������");
+    return telegramTransportFailureText(result, "Фото не принято Telegram; отправлен текстовый вариант");
 }
 function telegramPhotoCaptionSplitTextWarning(result) {
-    return telegramTransportFailureText(result, "���� �������, �� ������ ����� ��� ��� �� ���������");
+    return telegramTransportFailureText(result, "Фото принято, но полный текст под ним не отправлен");
+}
+function telegramPhotoMessageReference(photoMessageId) {
+    return photoMessageId !== null ? ` (сообщение ${photoMessageId})` : "";
+}
+function telegramPhotoPartialDeliveryWarning(photoMessageId) {
+    return `Частичная доставка: фото уже у пациента${telegramPhotoMessageReference(photoMessageId)}. Повторная попытка отправит только текст, фото заново не уйдет.`;
+}
+function telegramPhotoAlreadyDeliveredWarning(photoMessageId) {
+    return `Фото доставлено пациенту в предыдущей попытке${telegramPhotoMessageReference(photoMessageId)}; повторно отправляется только текст.`;
 }
 function telegramOutboxTransportFailureWarning(result) {
-    return telegramTransportFailureText(result, "Telegram �� ������ ���������");
+    return telegramTransportFailureText(result, "Telegram не принял сообщение");
 }
 function telegramCallbackTransportFailureWarning(result) {
-    return telegramTransportFailureText(result, "����� �� Telegram-������ �� ���������");
+    return telegramTransportFailureText(result, "Ответ на Telegram-кнопку не отправлен");
 }
 function telegramWebhookReplyFailureWarning(result) {
-    return telegramTransportFailureText(result, "����� Telegram �� ���������");
+    return telegramTransportFailureText(result, "Ответ Telegram не отправлен");
 }
 function outboxDeliveryClaimKey(outboxItemId, clientMutationId) {
     return `${outboxItemId}:${clientMutationId}`;
@@ -304,9 +335,127 @@ function dueOutboxClientMutationId(outboxItemId, scheduledAt) {
     const digest = createHash("sha256").update(`${outboxItemId}:${scheduledAt}`).digest("hex").slice(0, 40);
     return `due-${digest}`;
 }
+/**
+ * БЫЛО: `return !Number.isFinite(scheduledAtMs) || scheduledAtMs <= nowMs;` — неразобранная дата
+ * означала «пора отправлять». То есть отказ прочитать время превращался в разрешение отправить
+ * немедленно: напоминание, назначенное на следующий вторник, ушло бы пациенту сегодня ночью.
+ * Fail-open на времени отправки не бывает правильным ни в одном случае, поэтому нечитаемое время —
+ * отдельное состояние, и вызывающий обязан его обработать, а не спутать с «пора».
+ */
+export function telegramOutboxScheduleState(scheduledAt, nowMs) {
+    const scheduledAtMs = Date.parse(scheduledAt);
+    if (!Number.isFinite(scheduledAtMs))
+        return "unreadable";
+    return scheduledAtMs <= nowMs ? "due" : "not_due";
+}
 function isDenteTelegramOutboxItemDue(item, nowMs) {
-    const scheduledAtMs = Date.parse(item.scheduledAt);
-    return !Number.isFinite(scheduledAtMs) || scheduledAtMs <= nowMs;
+    return telegramOutboxScheduleState(item.scheduledAt, nowMs) === "due";
+}
+/** Значение показывается оператору как есть, поэтому обрезается: в поле может лежать что угодно. */
+function telegramOutboxScheduleUnreadableWarning(scheduledAt) {
+    const shown = scheduledAt.trim().slice(0, 64) || "пусто";
+    return `Время отправки не распознано как дата (${shown}). Сообщение НЕ отправлено; исправьте время в задаче коммуникации.`;
+}
+const telegramOutboxNothingDelivered = {
+    photoDelivered: false,
+    photoMessageId: null
+};
+/**
+ * Признак доставленной части читается из причины отказа, а не из наличия message_id:
+ * Telegram может принять фото и не вернуть message_id, и такая доставка все равно состоялась.
+ */
+export function telegramOutboxDeliveredParts(receipt) {
+    if (!receipt || receipt.status !== "failed")
+        return telegramOutboxNothingDelivered;
+    if (receipt.blockedReason !== telegramPhotoSentTextFailedBlockedReason)
+        return telegramOutboxNothingDelivered;
+    return {
+        photoDelivered: true,
+        photoMessageId: typeof receipt.telegramMessageId === "number" ? receipt.telegramMessageId : null
+    };
+}
+/**
+ * БЫЛО: признак «фото уже у пациента» искался только по паре (позиция, clientMutationId) —
+ * `findDenteTelegramOutboxDeliveryReceipt` (`sampleData.ts:8776-8786`) это Map по
+ * `${outboxItemId}:${clientMutationId}`. Автоповтор воркера строит clientMutationId детерминированно
+ * и потому признак находил, а два других повтора — нет:
+ *  1. оператор из интерфейса: `sendTelegramOutboxItem` (`useAppLogic.tsx:13140-13143`) берёт НОВЫЙ
+ *     `crypto.randomUUID()` на каждый клик, поэтому его повтор после частичной доставки не находил
+ *     ничего и звал sendPhoto заново — пациент получал фото второй раз;
+ *  2. сдвиг времени: `dueOutboxClientMutationId(item.id, item.scheduledAt)` включает scheduledAt в
+ *     хеш, поэтому смена времени между тиками меняла ключ и признак терялся так же.
+ * Фото лежит в чате у ПОЗИЦИИ, а не у попытки, поэтому и признак ищется по позиции. Квитанции лежат
+ * новыми вперёд (`unshift`), так что первый найденный message_id — самый свежий.
+ */
+export function telegramOutboxDeliveredPartsForItem(outboxItemId, replay) {
+    const fromReplay = telegramOutboxDeliveredParts(replay);
+    if (fromReplay.photoDelivered && fromReplay.photoMessageId !== null)
+        return fromReplay;
+    let photoDeliveredWithoutMessageId = fromReplay.photoDelivered;
+    for (const receipt of denteTelegramOutboxDeliveryReceipts) {
+        if (receipt.outboxItemId !== outboxItemId)
+            continue;
+        const delivered = telegramOutboxDeliveredParts(receipt);
+        if (!delivered.photoDelivered)
+            continue;
+        if (delivered.photoMessageId !== null)
+            return delivered;
+        photoDeliveredWithoutMessageId = true;
+    }
+    return photoDeliveredWithoutMessageId ? { photoDelivered: true, photoMessageId: null } : telegramOutboxNothingDelivered;
+}
+const telegramOutboxLiveSenders = {
+    sendPhoto: sendTelegramPhotoMessage,
+    sendText: sendTelegramTextMessage
+};
+/**
+ * БЫЛО: последовательность "фото, затем полный текст" жила безымянной IIFE внутри отправки и
+ * возвращала только результат ПОСЛЕДНЕГО вызова Telegram. Если фото уходило, а текст под ним нет,
+ * вся позиция помечалась как полностью проваленная, message_id фото выбрасывался, и повторная
+ * попытка (её включает clientMutationId с префиксом "due-") начинала с нуля — пациент получал
+ * фото второй раз. Теперь доставленные части передаются внутрь и уже отправленное не повторяется.
+ */
+export async function deliverTelegramOutboxParts(input) {
+    const senders = input.senders ?? telegramOutboxLiveSenders;
+    const warnings = [...input.warnings];
+    const photoUrl = input.photoUrl?.trim() || null;
+    let delivered = input.alreadyDelivered;
+    if (photoUrl && delivered.photoDelivered) {
+        warnings.push(telegramPhotoAlreadyDeliveredWarning(delivered.photoMessageId));
+    }
+    else if (photoUrl) {
+        const shouldSplitPhotoCaption = input.text.length > telegramPhotoCaptionMaxLength;
+        const photoTransport = await senders.sendPhoto({
+            botToken: input.botToken,
+            chatId: input.chatId,
+            photoUrl,
+            caption: shouldSplitPhotoCaption ? telegramSplitPhotoCaption : input.text,
+            replyMarkup: shouldSplitPhotoCaption ? null : input.replyMarkup,
+            timeoutMs: input.timeoutMs
+        });
+        if (photoTransport.ok && !shouldSplitPhotoCaption) {
+            return { transport: photoTransport, warnings, delivered };
+        }
+        if (photoTransport.ok) {
+            delivered = { photoDelivered: true, photoMessageId: photoTransport.telegramMessageId };
+            warnings.push("telegram_photo_caption_split");
+        }
+        else {
+            warnings.push(telegramPhotoFallbackWarning(photoTransport));
+        }
+    }
+    const textTransport = await senders.sendText({
+        botToken: input.botToken,
+        chatId: input.chatId,
+        text: input.text,
+        replyMarkup: input.replyMarkup,
+        timeoutMs: input.timeoutMs
+    });
+    if (!textTransport.ok && delivered.photoDelivered) {
+        warnings.push(telegramPhotoCaptionSplitTextWarning(textTransport));
+        warnings.push(telegramPhotoPartialDeliveryWarning(delivered.photoMessageId));
+    }
+    return { transport: textTransport, warnings, delivered };
 }
 async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
     const clientMutationId = input.clientMutationId?.trim() || null;
@@ -344,6 +493,25 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 warnings: prepared.warnings,
                 retryAfterSeconds: null,
                 blockedReason: prepared.blockedReason
+            })
+        };
+    }
+    // Нечитаемое время отправки останавливает отправку и в ручном роуте, и в пакетном: оба входа идут
+    // через эту функцию. Проверка стоит ДО dry-run, потому что предпросмотр «отправлю» по битому времени
+    // так же обманывает оператора, как и сама отправка.
+    if (telegramOutboxScheduleState(prepared.item.scheduledAt, Date.now()) === "unreadable") {
+        return {
+            statusCode: 409,
+            body: denteTelegramOutboxSendResponseSchema.parse({
+                status: "blocked",
+                outboxItem: prepared.item,
+                taskId: prepared.item.taskId,
+                eventId: null,
+                telegramMessageId: null,
+                clientMutationId,
+                warnings: [...prepared.warnings, telegramOutboxScheduleUnreadableWarning(prepared.item.scheduledAt)],
+                retryAfterSeconds: null,
+                blockedReason: telegramOutboxScheduleUnreadableBlockedReason
             })
         };
     }
@@ -428,58 +596,38 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
     telegramOutboxDeliveryClaims.add(claimKey);
     const deliveryText = repairMojibakeText(prepared.text);
     const deliveryReplyMarkup = readableTelegramPayload(prepared.replyMarkup);
-    const deliveryWarnings = [...prepared.warnings];
-    const transport = await (async () => {
-        const photoUrl = prepared.photoUrl?.trim() || null;
-        if (photoUrl) {
-            const shouldSplitPhotoCaption = deliveryText.length > telegramPhotoCaptionMaxLength;
-            const photoTransport = await sendTelegramPhotoMessage({
-                botToken: token,
-                chatId: prepared.chatId,
-                photoUrl,
-                caption: shouldSplitPhotoCaption ? telegramSplitPhotoCaption : deliveryText,
-                replyMarkup: shouldSplitPhotoCaption ? null : deliveryReplyMarkup,
-                timeoutMs: configuredSendTimeoutMs()
-            });
-            if (photoTransport.ok) {
-                if (!shouldSplitPhotoCaption)
-                    return photoTransport;
-                deliveryWarnings.push("telegram_photo_caption_split");
-                const textTransport = await sendTelegramTextMessage({
-                    botToken: token,
-                    chatId: prepared.chatId,
-                    text: deliveryText,
-                    replyMarkup: deliveryReplyMarkup,
-                    timeoutMs: configuredSendTimeoutMs()
-                });
-                if (textTransport.ok)
-                    return textTransport;
-                deliveryWarnings.push(telegramPhotoCaptionSplitTextWarning(textTransport));
-                return textTransport;
-            }
-            deliveryWarnings.push(telegramPhotoFallbackWarning(photoTransport));
-        }
-        return sendTelegramTextMessage({
-            botToken: token,
-            chatId: prepared.chatId,
-            text: deliveryText,
-            replyMarkup: deliveryReplyMarkup,
-            timeoutMs: configuredSendTimeoutMs()
-        });
-    })().finally(() => {
+    const partDelivery = await deliverTelegramOutboxParts({
+        botToken: token,
+        chatId: prepared.chatId,
+        text: deliveryText,
+        photoUrl: prepared.photoUrl,
+        replyMarkup: deliveryReplyMarkup,
+        timeoutMs: configuredSendTimeoutMs(),
+        warnings: prepared.warnings,
+        alreadyDelivered: telegramOutboxDeliveredPartsForItem(prepared.item.id, replay)
+    }).finally(() => {
         telegramOutboxDeliveryClaims.delete(claimKey);
     });
+    const transport = partDelivery.transport;
+    const deliveryWarnings = partDelivery.warnings;
     if (!transport.ok) {
         const retryAfterSeconds = telegramRetryAfterSeconds(transport);
         const transportWarning = telegramOutboxTransportFailureWarning(transport);
         const warnings = [...deliveryWarnings, transportWarning];
+        // Фото уже у пациента — фиксируем это в квитанции, иначе повтор отправит его снова.
+        const photoAlreadyWithPatient = partDelivery.delivered.photoDelivered;
+        const failureBlockedReason = photoAlreadyWithPatient
+            ? telegramPhotoSentTextFailedBlockedReason
+            : "telegram_transport_failed";
+        const deliveredPhotoMessageId = photoAlreadyWithPatient ? partDelivery.delivered.photoMessageId : null;
         const delivery = recordDenteTelegramOutboxDelivery({
             item: prepared.item,
             status: "failed",
             message: transportWarning,
+            telegramMessageId: deliveredPhotoMessageId,
             clientMutationId: deliveryClientMutationId,
             warnings,
-            blockedReason: "telegram_transport_failed"
+            blockedReason: failureBlockedReason
         });
         return {
             statusCode: 502,
@@ -488,11 +636,11 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
                 outboxItem: prepared.item,
                 taskId: delivery.taskId,
                 eventId: delivery.eventId,
-                telegramMessageId: null,
+                telegramMessageId: deliveredPhotoMessageId,
                 clientMutationId: deliveryClientMutationId,
                 warnings,
                 retryAfterSeconds,
-                blockedReason: "telegram_transport_failed"
+                blockedReason: failureBlockedReason
             })
         };
     }
@@ -548,10 +696,30 @@ export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
     }
     const outbox = buildDenteTelegramOutbox({ limit: Math.max(input.limit, 50), status: "due" }, runtimeResult.runtime.runtimeScope);
     const nowMs = Date.now();
-    const dueItems = outbox.items
-        .filter((item) => item.deliveryStatus === "ready" && isDenteTelegramOutboxItemDue(item, nowMs))
+    const readyItems = outbox.items.filter((item) => item.deliveryStatus === "ready");
+    const dueItems = readyItems.filter((item) => isDenteTelegramOutboxItemDue(item, nowMs)).slice(0, input.limit);
+    // Позиция с нечитаемым временем не отправляется, но и не исчезает молча: она уходит в ответ как
+    // заблокированная, поэтому попадает в blockedCount, в лог воркера и в ответ роута со статусом 409.
+    // Без этого fail-closed превратился бы в «тихо не отправляем и никому не говорим».
+    const unreadableItems = readyItems
+        .filter((item) => telegramOutboxScheduleState(item.scheduledAt, nowMs) === "unreadable")
         .slice(0, input.limit);
-    const results = await Promise.all(dueItems.map(async (item) => {
+    const unreadableResults = unreadableItems.map((item) => ({
+        itemId: item.id,
+        statusCode: 409,
+        result: denteTelegramOutboxSendResponseSchema.parse({
+            status: "blocked",
+            outboxItem: item,
+            taskId: item.taskId,
+            eventId: null,
+            telegramMessageId: null,
+            clientMutationId: null,
+            warnings: [...item.warnings, telegramOutboxScheduleUnreadableWarning(item.scheduledAt)],
+            retryAfterSeconds: null,
+            blockedReason: telegramOutboxScheduleUnreadableBlockedReason
+        })
+    }));
+    const sendResults = await Promise.all(dueItems.map(async (item) => {
         const sendResult = await executeTelegramOutboxSend(item.id, {
             dryRun: input.dryRun,
             clientMutationId: input.dryRun ? null : dueOutboxClientMutationId(item.id, item.scheduledAt)
@@ -562,6 +730,7 @@ export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
             result: sendResult.body
         };
     }));
+    const results = [...sendResults, ...unreadableResults];
     const sentCount = results.filter((entry) => "status" in entry.result && entry.result.status === "sent").length;
     const dryRunCount = results.filter((entry) => "status" in entry.result && entry.result.status === "dry_run").length;
     const blockedCount = results.filter((entry) => "status" in entry.result && entry.result.status === "blocked").length;
@@ -572,7 +741,8 @@ export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
         requestedLimit: input.limit,
         dueCount: outbox.dueCount,
         notDueCount: outbox.notDueCount,
-        attemptedCount: results.length,
+        // Отправкой считается только реальная попытка: отказ по нечитаемому времени попыткой не был.
+        attemptedCount: sendResults.length,
         sentCount,
         dryRunCount,
         blockedCount,
@@ -878,7 +1048,7 @@ function resolveTelegramRuntimeContext(requestedOrganizationId = null, requested
             ok: false,
             statusCode: 404,
             error: "TelegramTenantNotFound",
-            message: "Telegram webhook ��������� � ������ ����������� DENTE."
+            message: "Telegram webhook относится к другой организации DENTE."
         };
     }
     const { settings } = runtimeSettings;
@@ -932,6 +1102,65 @@ function resolveTelegramOutboxRuntimeScopeFromQuery(query) {
         return runtimeResult;
     return { ok: true, runtime: denteTelegramResolvedOutboxRuntime(runtimeResult.context) };
 }
+/**
+ * Подтягивает записи, пациентов, платежи и документы клиники из Postgres перед
+ * тем, как строить очередь отправок.
+ *
+ * БЫЛО: очередь считалась по демонстрационным массивам, которые заполняются
+ * один раз при старте процесса и не получают ни одной строки из базы. Приёмы,
+ * заведённые в расписании или через онлайн-запись, туда не попадали никогда.
+ * Пациент, привязавший Telegram, получал напоминания о выдуманных визитах, а о
+ * своём настоящем приёме не узнавал. Отдельно опасен обратный случай:
+ * напоминание об отменённой демонстрационной записи выглядит как подтверждение
+ * приёма, которого нет.
+ *
+ * Ошибка чтения не должна ронять веб-хук: Telegram при 5xx повторяет доставку
+ * и в итоге отключает адрес. Поэтому сбой только пишется в журнал.
+ */
+async function hydrateTelegramDomainState(request, organizationId) {
+    try {
+        const report = await hydrateDomainStateFromDb(organizationId);
+        for (const warning of report.warnings) {
+            request.log.warn({ organizationId }, `[Telegram] ${warning}`);
+        }
+    }
+    catch (error) {
+        request.log.error({ err: error, organizationId }, "[Telegram] Не удалось загрузить данные клиники из базы");
+    }
+}
+/**
+ * Переносит только что созданную связку чата в таблицу `dente_telegram_chat_links`.
+ *
+ * ЗАЧЕМ ЭТО ВООБЩЕ НУЖНО. Привязка приходит из синхронной реализации, которая
+ * держит связки в массиве процесса. Читают же связку из ТАБЛИЦЫ два живых
+ * отправителя: `services/notificationWorker.ts` (кому отправлять) и
+ * `services/communications/channelRouter.ts` (адрес чата `chatTransportRef`, без
+ * которого сообщение не уходит). Без этой записи пациент нажимал `/start` с
+ * кодом, получал «привязано» — и оставался невидимым для обоих, а после
+ * перезапуска без файла состояния привязка исчезала совсем.
+ *
+ * Сбой записи НЕ роняет веб-хук: Telegram на 5xx повторяет доставку и в итоге
+ * отключает адрес, а код привязки к этому моменту уже использован — повтор всё
+ * равно ничего не исправит. Поэтому ошибка попадает в журнал с уровнем error,
+ * а не наружу.
+ */
+async function persistTelegramChatLinkToDatabase(request, runtime, chatLink) {
+    try {
+        await upsertDenteTelegramChatLink({
+            organizationId: runtime.organizationId,
+            clinicId: chatLink.clinicId ?? runtime.clinicId,
+            botConfigId: runtime.botConfigId,
+            subjectType: chatLink.subjectType,
+            subjectId: chatLink.subjectId,
+            chatFingerprint: chatLink.chatFingerprint,
+            chatTransportRef: chatLink.chatTransportRef ?? null,
+            chatIdLast4: chatLink.chatIdLast4 ?? null
+        });
+    }
+    catch (error) {
+        request.log.error({ err: error, organizationId: runtime.organizationId, subjectType: chatLink.subjectType }, "[Telegram] Связка чата не записана в базу: напоминания этому пациенту не уйдут");
+    }
+}
 function configuredTelegramAdminSecret() {
     return process.env.DENTE_TELEGRAM_ADMIN_SECRET?.trim() || null;
 }
@@ -946,7 +1175,7 @@ async function requireTelegramControlPlaneAccess(request, reply) {
         }
         return reply.code(503).send({
             error: "TelegramAdminSecretMissing",
-            message: "�� ������� �� ����� ������ �������������� ��� ���������� Telegram. ��� ���������� ������ ����� ���� �������� ����� ��� �������� � ��������� ����������."
+            message: "На сервере не задан секрет администратора для управления Telegram. Для локального стенда можно явно включить режим без проверки в серверных настройках."
         });
     }
     const providedSecret = request.headers[denteAdminSecretHeader];
@@ -954,7 +1183,7 @@ async function requireTelegramControlPlaneAccess(request, reply) {
     if (!timingSafeSecretEqual(typeof normalizedProvidedSecret === "string" ? normalizedProvidedSecret : null, adminSecret)) {
         return reply.code(403).send({
             error: "TelegramAdminSecretRequired",
-            message: "��� ���������� Telegram ����� ����������� ������ �������������� �������."
+            message: "Для управления Telegram нужен действующий секрет администратора клиники."
         });
     }
 }
@@ -1098,7 +1327,7 @@ function portalButton(settings, section = "home") {
         portal.searchParams.set("dente_source", "telegram");
         portal.searchParams.set("dente_section", section);
         portal.hash = "";
-        return [{ text: "������� DENTE", url: portal.toString() }];
+        return [{ text: "Открыть DENTE", url: portal.toString() }];
     }
     catch {
         return [];
@@ -1118,12 +1347,12 @@ function safeHttpsTelegramButton(raw, text) {
 }
 function reviewButtons(settings) {
     return [
-        ...safeHttpsTelegramButton(settings.clinicReviewUrl, "������� �������"),
-        ...safeHttpsTelegramButton(settings.clinicMapsUrl, "������� �����")
+        ...safeHttpsTelegramButton(settings.clinicReviewUrl, "Оценить клинику"),
+        ...safeHttpsTelegramButton(settings.clinicMapsUrl, "Открыть карту")
     ];
 }
 function mapButtons(settings) {
-    return safeHttpsTelegramButton(settings.clinicMapsUrl, "������� �����");
+    return safeHttpsTelegramButton(settings.clinicMapsUrl, "Открыть карту");
 }
 function telegramInlineKeyboardRows(markup) {
     const rows = markup?.inline_keyboard;
@@ -1132,7 +1361,7 @@ function telegramInlineKeyboardRows(markup) {
     return rows.filter((row) => Array.isArray(row) && row.every((button) => isRecord(button) && typeof button.text === "string"));
 }
 function mainMenuTelegramRow() {
-    return [{ text: "������� ����", callback_data: "dente:start" }];
+    return [{ text: "Главное меню", callback_data: "dente:start" }];
 }
 const telegramCareCallbackTopicByAction = {
     "dente:care-extraction": "extraction",
@@ -1147,25 +1376,25 @@ const telegramCareCallbackTopicByAction = {
     "dente:care-periodontology": "periodontology"
 };
 function careTopicFromFreeText(text) {
-    if (freeTextIncludes(text, ["������", "�����", "�����"]))
+    if (freeTextIncludes(text, ["удален", "лунка", "лунку"]))
         return "extraction";
-    if (freeTextIncludes(text, ["������"]))
+    if (freeTextIncludes(text, ["имплан"]))
         return "implant";
-    if (freeTextIncludes(text, ["�����", "���������"]))
+    if (freeTextIncludes(text, ["пломб", "реставрац"]))
         return "filling";
-    if (freeTextIncludes(text, ["����", "�����", "����"]))
+    if (freeTextIncludes(text, ["эндо", "канал", "нерв"]))
         return "endo";
-    if (freeTextIncludes(text, ["������", "������", "���", "���"]))
+    if (freeTextIncludes(text, ["хирург", "операц", "шов", "швы"]))
         return "surgery";
-    if (freeTextIncludes(text, ["�������", "������", "������"]))
+    if (freeTextIncludes(text, ["анестез", "онемен", "онемел"]))
         return "anesthesia";
-    if (freeTextIncludes(text, ["������", "�����", "����������"]))
+    if (freeTextIncludes(text, ["гигиен", "чистк", "профгигиен"]))
         return "hygiene";
-    if (freeTextIncludes(text, ["������", "������", "�����", "����"]))
+    if (freeTextIncludes(text, ["протез", "коронк", "винир", "мост"]))
         return "prosthetics";
-    if (freeTextIncludes(text, ["��������", "������", "�������", "����"]))
+    if (freeTextIncludes(text, ["ортодонт", "брекет", "элайнер", "капп"]))
         return "orthodontics";
-    if (freeTextIncludes(text, ["��������", "����", "�������"]))
+    if (freeTextIncludes(text, ["пародонт", "десн", "кюретаж"]))
         return "periodontology";
     return null;
 }
@@ -1180,11 +1409,11 @@ function safeCommandKeyboard(settings, mode) {
     const portal = portalButton(settings, mode === "appointment_callback" || mode === "linked" ? "schedule" : "home");
     const review = reviewButtons(settings);
     const maps = mapButtons(settings);
-    const schedule = [{ text: "����������", callback_data: "dente:schedule" }];
-    const documents = [{ text: "���������", callback_data: "dente:documents" }];
-    const care = [{ text: "�������", callback_data: "dente:care" }];
-    const contact = [{ text: "������� ��������������", callback_data: "dente:contact" }];
-    const privacy = [{ text: "������������������", callback_data: "dente:privacy" }];
+    const schedule = [{ text: "Расписание", callback_data: "dente:schedule" }];
+    const documents = [{ text: "Документы", callback_data: "dente:documents" }];
+    const care = [{ text: "Памятки", callback_data: "dente:care" }];
+    const contact = [{ text: "Позвать администратора", callback_data: "dente:contact" }];
+    const privacy = [{ text: "Конфиденциальность", callback_data: "dente:privacy" }];
     const home = mainMenuTelegramRow();
     if (mode === "appointment_callback") {
         const rows = [[...schedule, ...documents], [...contact, ...privacy], home, portal].filter((row) => row.length);
@@ -1197,7 +1426,7 @@ function safeCommandKeyboard(settings, mode) {
     if (mode === "rejected") {
         return {
             inline_keyboard: [
-                [{ text: "�������� QR � �������", callback_data: "dente:clinic" }],
+                [{ text: "Получить QR в клинике", callback_data: "dente:clinic" }],
                 [...documents, ...care],
                 contact,
                 home,
@@ -1212,8 +1441,8 @@ function safeCommandKeyboard(settings, mode) {
                 maps,
                 [...schedule, ...contact],
                 [
-                    { text: "������", callback_data: "dente:help" },
-                    { text: "������������������", callback_data: "dente:privacy" }
+                    { text: "Помощь", callback_data: "dente:help" },
+                    { text: "Конфиденциальность", callback_data: "dente:privacy" }
                 ],
                 home
             ].filter((row) => row.length)
@@ -1223,8 +1452,8 @@ function safeCommandKeyboard(settings, mode) {
         return {
             inline_keyboard: [
                 [
-                    { text: "��� ����� ���", callback_data: "dente:help" },
-                    { text: "�����������", callback_data: "dente:clinic" }
+                    { text: "Что умеет бот", callback_data: "dente:help" },
+                    { text: "Подключение", callback_data: "dente:clinic" }
                 ],
                 [...schedule, ...documents],
                 care,
@@ -1236,22 +1465,22 @@ function safeCommandKeyboard(settings, mode) {
     return {
         inline_keyboard: [
             [
-                { text: "���������� �������", callback_data: "dente:clinic" },
-                { text: "������������������", callback_data: "dente:privacy" }
+                { text: "Подключить клинику", callback_data: "dente:clinic" },
+                { text: "Конфиденциальность", callback_data: "dente:privacy" }
             ],
             [
-                { text: "���������", callback_data: "dente:documents" },
-                { text: "�������", callback_data: "dente:care" }
+                { text: "Документы", callback_data: "dente:documents" },
+                { text: "Памятки", callback_data: "dente:care" }
             ],
             review.length
                 ? review
                 : [
-                    { text: "������", callback_data: "dente:review" },
-                    { text: "�����", callback_data: "dente:map" }
+                    { text: "Отзывы", callback_data: "dente:review" },
+                    { text: "Карта", callback_data: "dente:map" }
                 ],
             [
-                { text: "����������", callback_data: "dente:schedule" },
-                { text: "������� ��������������", callback_data: "dente:contact" }
+                { text: "Расписание", callback_data: "dente:schedule" },
+                { text: "Позвать администратора", callback_data: "dente:contact" }
             ],
             portal
         ].filter((row) => row.length)
@@ -1261,12 +1490,12 @@ function reviewReplyFor(settings) {
     const buttons = reviewButtons(settings);
     if (!buttons.length) {
         return {
-            text: "������ ��� ������ ������� ���� �� ���������. ��������� �������������� �������� ������ �� ������ ��� �������� ������� � ���������� DENTE.",
+            text: "Ссылка для оценки клиники пока не настроена. Попросите администратора добавить ссылку на отзывы или карточку клиники в настройках DENTE.",
             replyMarkup: safeCommandKeyboard(settings, "help")
         };
     }
     return {
-        text: "������� �� �����. ����� �������� ����� � ������� �� ���������� ����� ������ ����.",
+        text: "Спасибо за визит. Можно оставить отзыв о клинике по безопасной общей ссылке ниже.",
         replyMarkup: replyMarkupWithNextActions([buttons], settings),
         photoUrl: patientMenuCardPhoto(settings, "review")
     };
@@ -1275,12 +1504,12 @@ function mapReplyFor(settings) {
     const buttons = mapButtons(settings);
     if (!buttons.length) {
         return {
-            text: "������ �� ����� ������� ���� �� ���������. ��������� �������������� �������� �������� ������� � ���������� DENTE.",
+            text: "Ссылка на карту клиники пока не настроена. Попросите администратора добавить карточку клиники в настройках DENTE.",
             replyMarkup: safeCommandKeyboard(settings, "clinic")
         };
     }
     return {
-        text: "����� ������� �������� �� ���������� ����� ������ ����.",
+        text: "Карта клиники доступна по безопасной общей ссылке ниже.",
         replyMarkup: replyMarkupWithNextActions([buttons], settings),
         photoUrl: patientMenuCardPhoto(settings, "review")
     };
@@ -1292,22 +1521,22 @@ function documentsReplyFor(settings) {
     const portal = portalButton(settings, "documents");
     const rows = [
         [
-            { text: "���������", callback_data: "dente:tax" },
-            { text: "������ � ����", callback_data: "dente:billing" }
+            { text: "Налоговая", callback_data: "dente:tax" },
+            { text: "Оплата и чеки", callback_data: "dente:billing" }
         ],
         [
-            { text: "��������", callback_data: "dente:medical-docs" }
+            { text: "Медкарта", callback_data: "dente:medical-docs" }
         ],
-        [{ text: "����� ��������", callback_data: "dente:patient-forms" }],
+        [{ text: "Формы пациента", callback_data: "dente:patient-forms" }],
         portal,
         [
-            { text: "������� ��������������", callback_data: "dente:contact" },
-            { text: "�������", callback_data: "dente:care" }
+            { text: "Позвать администратора", callback_data: "dente:contact" },
+            { text: "Памятки", callback_data: "dente:care" }
         ],
         mainMenuTelegramRow()
     ].filter((row) => row.length);
     return {
-        text: "DENTE: ��������, ��������, ����, �����, ����, �������� � ��������� ������� ����������� ������ � ���������� ������� �������. � Telegram �������� ����������� � ������ ��������, ��� �������� � ����������.",
+        text: "DENTE: договоры, согласия, акты, счета, чеки, возвраты и налоговые справки открываются только в защищенном портале клиники. В Telegram доступны уведомления и кнопка перехода, без вложений с медданными.",
         replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "documents")
     };
@@ -1316,36 +1545,36 @@ function careReplyFor(settings) {
     const portal = portalButton(settings, "care");
     const rows = [
         [
-            { text: "����� ��������", callback_data: "dente:care-extraction" },
-            { text: "����� �����������", callback_data: "dente:care-implant" }
+            { text: "После удаления", callback_data: "dente:care-extraction" },
+            { text: "После имплантации", callback_data: "dente:care-implant" }
         ],
         [
-            { text: "����� ������", callback_data: "dente:care-filling" },
-            { text: "����� ����������", callback_data: "dente:care-endo" }
+            { text: "После пломбы", callback_data: "dente:care-filling" },
+            { text: "После эндодонтии", callback_data: "dente:care-endo" }
         ],
         [
-            { text: "����� ��������", callback_data: "dente:care-surgery" },
-            { text: "����� ���������", callback_data: "dente:care-anesthesia" }
+            { text: "После хирургии", callback_data: "dente:care-surgery" },
+            { text: "После анестезии", callback_data: "dente:care-anesthesia" }
         ],
         [
-            { text: "����� �������", callback_data: "dente:care-hygiene" }
+            { text: "После гигиены", callback_data: "dente:care-hygiene" }
         ],
         [
-            { text: "����� ��������������", callback_data: "dente:care-prosthetics" },
-            { text: "����� ����������", callback_data: "dente:care-orthodontics" }
+            { text: "После протезирования", callback_data: "dente:care-prosthetics" },
+            { text: "После ортодонтии", callback_data: "dente:care-orthodontics" }
         ],
         [
-            { text: "����� ��������������", callback_data: "dente:care-periodontology" }
+            { text: "После пародонтологии", callback_data: "dente:care-periodontology" }
         ],
         portal,
         [
-            { text: "���������", callback_data: "dente:documents" },
-            { text: "������� ��������������", callback_data: "dente:contact" }
+            { text: "Документы", callback_data: "dente:documents" },
+            { text: "Позвать администратора", callback_data: "dente:contact" }
         ],
         mainMenuTelegramRow()
     ].filter((row) => row.length);
     return {
-        text: "DENTE: ������� ����� ��������, �����������, ������, ����������, ��������, ���������, �������, ��������������, ���������� � �������������� �������� � ������� ����� ���������� ������. �������� ������ ������� ������� ����; ��� ��������� ���������� ����������� � ������, ����� ������� ������.",
+        text: "DENTE: памятки после удаления, имплантации, пломбы, эндодонтии, хирургии, анестезии, гигиены, протезирования, ортодонтии и пародонтологии выдаются в портале после оформления приема. Выберите нужную памятку кнопкой ниже; бот присылает безопасное уведомление и кнопку, когда памятка готова.",
         replyMarkup: rows.length ? { inline_keyboard: rows } : safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "care")
     };
@@ -1353,21 +1582,21 @@ function careReplyFor(settings) {
 function documentSubmenuReplyFor(settings, topic, requestResult) {
     const portal = portalButton(settings, topic === "tax" ? "tax" : topic === "billing" ? "billing" : "documents");
     const texts = {
-        tax: "���������: DENTE �������� ����������� ���������, ������ ��� ��� 1151156, ������ ������� ��� �������� 2021-2023 � ������ �����. ����� ���������� ���� � ������ �����������. ������� ������� ����������� � ���������� �������.",
-        billing: "������ � ����: DENTE �������� ����������� ����, ���, ��� ����������� �����, ������ ��������� ��� ������ �� �������������/�������. ����� � ��������� �������� ������ ����� ���������� ������ ����� �������� ���������������.",
-        medical: "��������: �������, ������ �����, �������� ������, DICOM/���� � ������ ����������� ��������� ��������� � DENTE � �������� ����� ���������� ������ ����� �������� �������� � ����������.",
-        patientForms: "����� ��������: ������, ��������, �����, ���, �������������, ����/����� � ��������� ������ ����������� � DENTE. ���� ����� �������� ����� ��� ������, ������� ������ ��������������."
+        tax: "Налоговая: DENTE помогает подготовить заявление, данные для КНД 1151156, старую справку для расходов 2021-2023 и реестр оплат. Нужны фискальные чеки и данные плательщика. Готовые справки открываются в защищенном портале.",
+        billing: "Оплата и чеки: DENTE помогает подготовить счет, чек, акт выполненных работ, график рассрочки или запрос на корректировку/возврат. Суммы и документы выдаются только через защищенный портал после проверки администратором.",
+        medical: "Медкарта: выписка, запрос копий, расписка выдачи, DICOM/КЛКТ и другие медицинские документы готовятся в DENTE и выдаются через защищенный портал после проверки личности и полномочий.",
+        patientForms: "Формы пациента: анкета, согласия, отказ, ПДн, представитель, фото/видео и документы визита заполняются в DENTE. Если нужна бумажная копия или помощь, нажмите кнопку администратора."
     };
     const rows = [
         portal,
         requestResult && !requestResult.linked
             ? [
-                { text: "��� �������� ���", callback_data: "dente:clinic" },
-                { text: "���������", callback_data: "dente:documents" }
+                { text: "Как получить код", callback_data: "dente:clinic" },
+                { text: "Документы", callback_data: "dente:documents" }
             ]
             : [
-                { text: "���������", callback_data: "dente:documents" },
-                { text: "������� ��������������", callback_data: "dente:contact" }
+                { text: "Документы", callback_data: "dente:documents" },
+                { text: "Позвать администратора", callback_data: "dente:contact" }
             ],
         mainMenuTelegramRow()
     ].filter((row) => row.length);
@@ -1380,22 +1609,22 @@ function documentSubmenuReplyFor(settings, topic, requestResult) {
 function careTopicReplyFor(settings, topic, requestResult) {
     const portal = portalButton(settings, "care");
     const texts = {
-        extraction: "����� ��������: �� ������ �������, �� �������� ������� ������ �����, �� �������� �����, �� ������ � �� ������������ ��������. ��� ����������� ����, �����, ����������� ��� ������������ ��������� � ��������.",
-        implant: "����� �����������: ���������� ����� � ����� �� ����������, �� ������������ �������, ���������� ��������� ������ �� ����� �����. ��� ����, �����, �����������, ����������� ��� ������������ ������� ��������������.",
-        filling: "����� ������: ��������� ��������� ��������� ����� ����, ��������� ������� �������� �� ��� � ������ ����. ���� ������ ������, ���� ���� ��� ����������� ��� ���������������� �����������, ��������� � ��������.",
-        endo: "����� ����������: �������� ���������������� ��� �����������. �� ������������ ���, ���������� ����� ���������� ����� � �� ����������� � ���������� ������������. ��� ����������� ����, ����� ��� ����������� ������� ��������������.",
-        surgery: "����� ��������: �� ������ �������, �� �������� ���, �� �������� ������� ������ �����, ���������� ����������� � ���������� �����. ��� ������������, �����������, ����������� ����� ��� ������� ���� ������� ��������������.",
-        anesthesia: "����� ���������: �� �����, ���� ����������� ��������, ����� �� ������������ ���� ��� ����. ���� �������� �������� �������� �����, ���� ����������� ��� ��������� ������������� �������, ������� ��������������.",
-        hygiene: "����� �����������: ������ �����, ���������� �������, �������� ��������� �������� ���� �� ������������ �����. ���� ����� ������ ����� ��� ���� �����������, ������� ��������������.",
-        prosthetics: "����� ��������������: ���������� � ����������� ����������, �� ������������ �� ������� ����� � �� ������������� ��������������. ���� �������, ����, ����� ��� ������ ������, �������� ��� �����������������, ������� ��������������.",
-        orthodontics: "����� ����������: ���������� ����� ������� �������� ��� ���������, ����������� ����������� ���� � �� ������������� �������� ��� �����. ���� ������ ���������, ���� ����� ��� ������� ��������, ������� ��������������.",
-        periodontology: "����� ��������������: ��������� �������� ����� �� ����� �����, �� ����������� ����������� �������� � ��������. ���� ��������������, ����, ���� ��� ���������� ����� �����������, ������� ��������������."
+        extraction: "После удаления: не грейте область, не полощите активно первые сутки, не трогайте лунку, не курите и не употребляйте алкоголь. При нарастающей боли, отеке, температуре или кровотечении свяжитесь с клиникой.",
+        implant: "После имплантации: соблюдайте холод и покой по назначению, не перегружайте область, принимайте препараты только по схеме врача. При боли, отеке, подвижности, температуре или кровотечении нажмите администратора.",
+        filling: "После пломбы: дождитесь окончания анестезии перед едой, избегайте сильной нагрузки на зуб в первые часы. Если мешает прикус, есть боль при накусывании или чувствительность усиливается, свяжитесь с клиникой.",
+        endo: "После эндодонтии: возможна чувствительность при накусывании. Не перегружайте зуб, соблюдайте схему препаратов врача и не затягивайте с постоянной реставрацией. При нарастающей боли, отеке или температуре нажмите администратора.",
+        surgery: "После хирургии: не грейте область, не трогайте швы, не полощите активно первые сутки, соблюдайте ограничения и назначения врача. При кровотечении, температуре, нарастающем отеке или сильной боли нажмите администратора.",
+        anesthesia: "После анестезии: не ешьте, пока сохраняется онемение, чтобы не травмировать щеку или язык. Если онемение держится необычно долго, боль усиливается или появилась аллергическая реакция, нажмите администратора.",
+        hygiene: "После профгигиены: мягкая щетка, аккуратная гигиена, временно избегайте красящей пищи по рекомендации врача. Если десна кровит долго или боль усиливается, нажмите администратора.",
+        prosthetics: "После протезирования: привыкайте к конструкции постепенно, не перегружайте ее твердой пищей и не корректируйте самостоятельно. Если коронка, мост, винир или протез мешает, натирает или расцементировался, нажмите администратора.",
+        orthodontics: "После ортодонтии: соблюдайте режим ношения аппарата или элайнеров, используйте назначенный уход и не подкручивайте элементы без врача. Если брекет отклеился, дуга колет или аппарат натирает, нажмите администратора.",
+        periodontology: "После пародонтологии: аккуратно очищайте десны по схеме врача, не пропускайте назначенные средства и контроль. Если кровоточивость, отек, боль или неприятный запах усиливаются, нажмите администратора."
     };
     const rows = [
         portal,
         [
-            { text: "��� �������", callback_data: "dente:care" },
-            { text: "������� ��������������", callback_data: "dente:contact" }
+            { text: "Все памятки", callback_data: "dente:care" },
+            { text: "Позвать администратора", callback_data: "dente:contact" }
         ],
         mainMenuTelegramRow()
     ].filter((row) => row.length);
@@ -1412,11 +1641,11 @@ function contactRequestReplyFor(settings, chatFingerprintValue, scope = {}) {
         portal,
         result.linked
             ? [
-                { text: "����������", callback_data: "dente:schedule" },
-                { text: "���������", callback_data: "dente:documents" }
+                { text: "Расписание", callback_data: "dente:schedule" },
+                { text: "Документы", callback_data: "dente:documents" }
             ]
-            : [{ text: "��� �������� ���", callback_data: "dente:clinic" }],
-        [{ text: "������", callback_data: "dente:help" }],
+            : [{ text: "Как получить код", callback_data: "dente:clinic" }],
+        [{ text: "Помощь", callback_data: "dente:help" }],
         mainMenuTelegramRow()
     ].filter((row) => row.length);
     return {
@@ -1430,67 +1659,67 @@ function telegramFeatureEnabled(settings, feature) {
 }
 function featureDisabledReplyFor(settings, title) {
     return {
-        text: `${title} ������ ��������� � ���������� ������� DENTE. �������� ��������� �������� �������� ���� ��� �������� ��������������.`,
+        text: `${title} сейчас отключены в настройках клиники DENTE. Выберите доступное действие кнопками ниже или позовите администратора.`,
         replyMarkup: safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "mainMenu")
     };
 }
 function unsafeTelegramAttachmentReplyFor(settings, updateKind) {
     const label = updateKind === "voice"
-        ? "��������� ���������"
+        ? "Голосовые сообщения"
         : updateKind === "photo"
-            ? "���� � ������"
-            : "PDF, ��������� � �����";
+            ? "Фото и снимки"
+            : "PDF, документы и файлы";
     return {
-        text: `${label} � Telegram �� ����������� ��� ����������� ��������� DENTE. �������� ���������� ������ ��� �������� ������: ���������, ������� ��� �������������. ��� ������� �� �������� ���� � �� ������� ��� � ����� ������.`,
+        text: `${label} в Telegram не принимаются как медицинские документы DENTE. Откройте защищенный портал или выберите кнопку: документы, памятки или администратор. Так клиника не потеряет файл и не смешает его с чужой картой.`,
         replyMarkup: safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "documents")
     };
 }
 function normalizedFreeText(value) {
-    return value?.trim().toLocaleLowerCase("ru-RU").replaceAll("�", "�") ?? "";
+    return value?.trim().toLocaleLowerCase("ru-RU").replaceAll("ё", "е") ?? "";
 }
 function freeTextIncludes(value, fragments) {
     return fragments.some((fragment) => value.includes(fragment));
 }
 function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {}) {
     const text = normalizedFreeText(messageText);
-    if (freeTextIncludes(text, ["�����", "����", "�����", "���", "1151156"]) ||
-        (freeTextIncludes(text, ["������"]) && freeTextIncludes(text, ["�����", "���", "����"]))) {
+    if (freeTextIncludes(text, ["налог", "ндфл", "вычет", "кнд", "1151156"]) ||
+        (freeTextIncludes(text, ["справк"]) && freeTextIncludes(text, ["оплат", "чек", "фиск"]))) {
         return telegramFeatureEnabled(settings, "tax_document_request")
             ? documentSubmenuReplyFor(settings, "tax", createDenteTelegramDocumentRequest(chatFingerprintValue, "tax", scope))
-            : featureDisabledReplyFor(settings, "��������� �������");
+            : featureDisabledReplyFor(settings, "Налоговые запросы");
     }
-    if (freeTextIncludes(text, ["�����", "����", "����", "���", "�������", "�������", "�������", "���"])) {
+    if (freeTextIncludes(text, ["оплат", "счет", "счёт", "чек", "квитанц", "возврат", "рассроч", "акт"])) {
         return telegramFeatureEnabled(settings, "secure_portal_links")
             ? documentSubmenuReplyFor(settings, "billing", createDenteTelegramDocumentRequest(chatFingerprintValue, "billing", scope))
-            : featureDisabledReplyFor(settings, "���������� ���������");
+            : featureDisabledReplyFor(settings, "Финансовые документы");
     }
-    if (freeTextIncludes(text, ["�������", "������", "����", "dicom", "����", "��", "�����"])) {
+    if (freeTextIncludes(text, ["медкарт", "выписк", "копи", "dicom", "клкт", "кт", "снимк"])) {
         return telegramFeatureEnabled(settings, "secure_portal_links")
             ? documentSubmenuReplyFor(settings, "medical", createDenteTelegramDocumentRequest(chatFingerprintValue, "medical", scope))
-            : featureDisabledReplyFor(settings, "����������� ���������");
+            : featureDisabledReplyFor(settings, "Медицинские документы");
     }
-    if (freeTextIncludes(text, ["������", "������", "�����", "���", "��������"])) {
+    if (freeTextIncludes(text, ["соглас", "анкета", "форма", "пдн", "персонал"])) {
         return telegramFeatureEnabled(settings, "secure_portal_links")
             ? documentSubmenuReplyFor(settings, "patientForms", createDenteTelegramDocumentRequest(chatFingerprintValue, "patientForms", scope))
-            : featureDisabledReplyFor(settings, "����� ��������");
+            : featureDisabledReplyFor(settings, "Формы пациента");
     }
-    if (freeTextIncludes(text, ["��������", "�������", "���"])) {
+    if (freeTextIncludes(text, ["документ", "договор", "акт"])) {
         return documentsReplyFor(settings);
     }
     const careTopic = careTopicFromFreeText(text);
     if (careTopic) {
         return telegramFeatureEnabled(settings, "post_visit_instructions")
             ? careTopicReplyFor(settings, careTopic, createDenteTelegramCareRequest(chatFingerprintValue, careTopic, scope))
-            : featureDisabledReplyFor(settings, "������� ����� ������");
+            : featureDisabledReplyFor(settings, "Памятки после приема");
     }
-    if (freeTextIncludes(text, ["�����", "��������", "������", "������", "�����", "������", "�����"])) {
+    if (freeTextIncludes(text, ["памят", "рекоменд", "удален", "имплан", "пломб", "гигиен", "после"])) {
         return telegramFeatureEnabled(settings, "post_visit_instructions")
             ? careReplyFor(settings)
-            : featureDisabledReplyFor(settings, "������� ����� ������");
+            : featureDisabledReplyFor(settings, "Памятки после приема");
     }
-    if (freeTextIncludes(text, ["������", "�����", "�����", "�����", "�����"])) {
+    if (freeTextIncludes(text, ["распис", "запис", "прием", "визит", "время"])) {
         const scheduleReply = buildDenteTelegramLinkedScheduleReply(chatFingerprintValue, scope, settings);
         return {
             text: scheduleReply.text,
@@ -1498,21 +1727,21 @@ function freeTextReplyFor(settings, chatFingerprintValue, messageText, scope = {
             photoUrl: patientMenuCardPhoto(settings, "appointment")
         };
     }
-    if (freeTextIncludes(text, ["����", "��������", "�����", "��������", "����", "����", "����", "����", "����������"])) {
+    if (freeTextIncludes(text, ["звон", "перезвон", "админ", "оператор", "связ", "боль", "отек", "кров", "температур"])) {
         return contactRequestReplyFor(settings, chatFingerprintValue, scope);
     }
-    if (freeTextIncludes(text, ["�����", "����", "�������"]))
+    if (freeTextIncludes(text, ["отзыв", "оцен", "рейтинг"]))
         return reviewReplyFor(settings);
-    if (freeTextIncludes(text, ["�����", "�����", "��� ���������", "��� ��"]))
+    if (freeTextIncludes(text, ["адрес", "карта", "как добраться", "где вы"]))
         return mapReplyFor(settings);
     return {
-        text: "DENTE ������ ���������. ����� ������� ������ ������ ������, �������� �������� �������� ����. ������� ������ �� �����.",
+        text: "DENTE принял сообщение. Чтобы клиника быстро поняла запрос, выберите действие кнопками ниже. Команды писать не нужно.",
         replyMarkup: safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "mainMenu")
     };
 }
 function suggestedReplyFor(command, callbackAction, settings, chatFingerprintValue, updateKind, messageText, scope = {}) {
-    const portal = settings.patientPortalBaseUrl || "���������� ������ DENTE";
+    const portal = settings.patientPortalBaseUrl || "защищенный портал DENTE";
     const normalizedCommand = command?.split("@")[0] ?? null;
     if (updateKind === "photo" || updateKind === "document" || (updateKind === "voice" && !settings.allowVoiceIntake)) {
         return unsafeTelegramAttachmentReplyFor(settings, updateKind);
@@ -1522,8 +1751,8 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
         if (linkedStartReply.linked) {
             return {
                 text: linkedStartReply.subjectType === "staff"
-                    ? "DENTE: ������� Telegram ���������. �������� ����������, ����� ��� �������� ���������� DENTE-������. ��� ��������� � ����������� ������ � Telegram �� ������������."
-                    : "DENTE: Telegram ��������� � �������. �������� ����������, ���������, ������� ��� ����� � ��������������� �������� ����. ����������� ��������� ����������� ������ � ���������� �������.",
+                    ? "DENTE: рабочий Telegram подключен. Выберите расписание, связь или откройте защищенный DENTE-портал. ФИО пациентов и медицинские детали в Telegram не отправляются."
+                    : "DENTE: Telegram подключен к клинике. Выберите расписание, документы, памятки или связь с администратором кнопками ниже. Медицинские документы открываются только в защищенном портале.",
                 replyMarkup: linkedStartReply.subjectType === "staff"
                     ? linkedStartReply.replyMarkup ?? safeCommandKeyboard(settings, "linked")
                     : safeCommandKeyboard(settings, "linked"),
@@ -1531,28 +1760,28 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
             };
         }
         return {
-            text: "��� DENTE ���������. ������������ QR �� ���������� ������� ��� ��������� ����������� ��� �������, ����� ��������� ��������� ���. ������ ��������� �������� �������� ����; ������� ����� ������ ��� �������� �������. ����������� ��������� ����������� ������ � ���������� �������.",
+            text: "Бот DENTE подключен. Отсканируйте QR из приложения клиники или отправьте одноразовый код вручную, чтобы безопасно привязать чат. Дальше выбирайте действия кнопками ниже; команды нужны только как запасной вариант. Медицинские документы открываются только в защищенном портале.",
             replyMarkup: safeCommandKeyboard(settings, "start"),
             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
         };
     }
     if (normalizedCommand === "/help" || callbackAction === "dente:help") {
         return {
-            text: "DENTE �������� ��������: ����������, ���������, �������, ����� � ���������������, ����� � ����� �������. ������� �������� �������� ���������. ����������� ������ � Telegram �� ������������.",
+            text: "DENTE работает кнопками: расписание, документы, памятки, связь с администратором, отзыв и карта клиники. Команды остаются запасным вариантом. Медицинские данные в Telegram не отправляются.",
             replyMarkup: safeCommandKeyboard(settings, "help"),
             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
         };
     }
     if (normalizedCommand === "/privacy" || callbackAction === "dente:privacy") {
         return {
-            text: "DENTE �� ��������� �� ���������� ��������, ��, �������, ����� ������� � ��������� PDF ����� Telegram. � Telegram ������ ������ ���������� ����������� � ������.",
+            text: "DENTE по умолчанию не отправляет диагнозы, КТ, рентген, планы лечения и налоговые PDF через Telegram. В Telegram уходят только безопасные уведомления и ссылки.",
             replyMarkup: safeCommandKeyboard(settings, "privacy"),
             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
         };
     }
     if (normalizedCommand === "/clinic" || callbackAction === "dente:clinic") {
         return {
-            text: `��������� �������������� ������� DENTE � �������� QR-��� �����������. QR ��� ������� ��� � ����������� �����; ���� ������ ����������, ��� ����� ��������� ���� �������. ������ �������: ${portal}.`,
+            text: `Попросите администратора открыть DENTE и показать QR-код подключения. QR сам откроет бот с одноразовым кодом; если камера недоступна, код можно отправить сюда вручную. Портал клиники: ${portal}.`,
             replyMarkup: safeCommandKeyboard(settings, "clinic"),
             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
         };
@@ -1570,22 +1799,22 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
     }
     if (callbackAction === "dente:tax") {
         if (!telegramFeatureEnabled(settings, "tax_document_request"))
-            return featureDisabledReplyFor(settings, "��������� �������");
+            return featureDisabledReplyFor(settings, "Налоговые запросы");
         return documentSubmenuReplyFor(settings, "tax", createDenteTelegramDocumentRequest(chatFingerprintValue, "tax", scope));
     }
     if (callbackAction === "dente:billing") {
         if (!telegramFeatureEnabled(settings, "secure_portal_links"))
-            return featureDisabledReplyFor(settings, "���������� ���������");
+            return featureDisabledReplyFor(settings, "Финансовые документы");
         return documentSubmenuReplyFor(settings, "billing", createDenteTelegramDocumentRequest(chatFingerprintValue, "billing", scope));
     }
     if (callbackAction === "dente:medical-docs") {
         if (!telegramFeatureEnabled(settings, "secure_portal_links"))
-            return featureDisabledReplyFor(settings, "����������� ���������");
+            return featureDisabledReplyFor(settings, "Медицинские документы");
         return documentSubmenuReplyFor(settings, "medical", createDenteTelegramDocumentRequest(chatFingerprintValue, "medical", scope));
     }
     if (callbackAction === "dente:patient-forms") {
         if (!telegramFeatureEnabled(settings, "secure_portal_links"))
-            return featureDisabledReplyFor(settings, "����� ��������");
+            return featureDisabledReplyFor(settings, "Формы пациента");
         return documentSubmenuReplyFor(settings, "patientForms", createDenteTelegramDocumentRequest(chatFingerprintValue, "patientForms", scope));
     }
     if (normalizedCommand === "/care" ||
@@ -1593,13 +1822,13 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
         normalizedCommand === "/recommendations" ||
         callbackAction === "dente:care") {
         if (!telegramFeatureEnabled(settings, "post_visit_instructions"))
-            return featureDisabledReplyFor(settings, "������� ����� ������");
+            return featureDisabledReplyFor(settings, "Памятки после приема");
         return careReplyFor(settings);
     }
     const callbackCareTopic = callbackAction ? telegramCareCallbackTopicByAction[callbackAction] : null;
     if (callbackCareTopic) {
         if (!telegramFeatureEnabled(settings, "post_visit_instructions"))
-            return featureDisabledReplyFor(settings, "������� ����� ������");
+            return featureDisabledReplyFor(settings, "Памятки после приема");
         return careTopicReplyFor(settings, callbackCareTopic, createDenteTelegramCareRequest(chatFingerprintValue, callbackCareTopic, scope));
     }
     if (normalizedCommand === "/contact" || normalizedCommand === "/call" || callbackAction === "dente:contact") {
@@ -1614,12 +1843,19 @@ function suggestedReplyFor(command, callbackAction, settings, chatFingerprintVal
     if (!command && !callbackAction)
         return freeTextReplyFor(settings, chatFingerprintValue, messageText, scope);
     return {
-        text: "DENTE ������ ���������. �������� ���������� �������� �������� ����.",
+        text: "DENTE принял сообщение. Выберите безопасное действие кнопками ниже.",
         replyMarkup: safeCommandKeyboard(settings, "help"),
         photoUrl: patientMenuCardPhoto(settings, "mainMenu")
     };
 }
-function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null) {
+/**
+ * Стала асинхронной вместе с переездом связок чатов в базу: счётчик активных
+ * привязок теперь запрос к таблице, а не длина массива процесса. Показывать
+ * здесь длину массива после переезда означало бы разные числа на панели и в
+ * списке связок — при выключенном файле состояния панель после перезапуска
+ * рисовала бы ноль привязок при полной таблице.
+ */
+async function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null) {
     const runtimeResult = resolveTelegramRuntimeContext(requestedOrganizationId, requestedBotConfigId);
     if (!runtimeResult.ok) {
         throw new Error(runtimeResult.message);
@@ -1630,23 +1866,37 @@ function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null
     const warnings = [];
     const nextActions = [];
     if (settings.mode !== "disabled" && !runtime.tokenConfigured && settings.mode !== "clinic_owned_bot") {
-        warnings.push("��� Telegram �� ��������� � ��������� ���������� DENTE.");
-        nextActions.push("���������� ������ ���� � ��������� ���������� �������; �� ������� ��� � ��������, ������������ ��� ���������� ����.");
+        warnings.push("Бот Telegram не подключен в серверных настройках DENTE.");
+        nextActions.push("Подключите секрет бота в серверных настройках клиники; не храните его в браузере, документации или клиентском коде.");
     }
     if (settings.mode !== "disabled" && !runtime.webhookSecretConfigured) {
-        warnings.push("������ ������� Telegram �� ��������; �������� ������� ������ ����������� ������ � ��������� ��������.");
-        nextActions.push("������������ ������ ������� � ���������� ��� � ��������� ���������� Telegram.");
+        warnings.push("Защита вебхука Telegram не включена; входящие события должны приниматься только с серверным секретом.");
+        nextActions.push("Сгенерируйте секрет вебхука и подключите его в серверных настройках Telegram.");
     }
     if (settings.mode === "clinic_owned_bot" && !runtime.clinicOwnedBotReady) {
-        warnings.push("����������� ��� ������� �������, �� �� �����: �������� ��� ���� � ��� ������ � ��������� ���������.");
-        nextActions.push("��������� ��� ������������ ���� � ��������� ������ � ��� �������� ��� ��������� �������.");
+        warnings.push("Собственный бот клиники включен, но не готов: добавьте имя бота и его секрет в серверные настройки.");
+        nextActions.push("Проверьте имя собственного бота и серверную запись с его секретом для выбранной клиники.");
     }
     if (settings.privacyMode !== "no_phi_by_default") {
-        warnings.push("Telegram-������� � ���������� ������� �����������, �������� � tenant-policy �� production.");
+        warnings.push("Telegram-шаблоны с медданными требуют авторизацию, согласия и tenant-policy до production.");
     }
     if (!settings.patientPortalBaseUrl) {
-        nextActions.push("������� patientPortalBaseUrl ����� ��������� ������ �� ������� ��������� � ��������� ���������.");
+        nextActions.push("Укажите patientPortalBaseUrl перед отправкой ссылок на готовые документы и налоговые документы.");
     }
+    // Считает база, а не память: `where status = 'active'` вместо выборки
+    // страницы и `filter` по ней — прежний вариант с лимитом 100 переставал
+    // расти после сотой связки и молча занижал счётчик.
+    //
+    // Условие `isPrimaryRuntime` здесь снято намеренно. Оно существовало потому,
+    // что реализация в памяти игнорировала запрошенную клинику и отдавала связки
+    // основной: для второй клиники единственным безопасным ответом был ноль.
+    // Запрос ниже отбирает по `organizationId`, поэтому число верно для любой
+    // клиники, а ноль вместо него был бы уже неправдой.
+    const activeChatLinkCount = await countActiveDenteTelegramChatLinks({
+        organizationId: runtime.organizationId,
+        clinicId: runtime.clinicId,
+        botConfigId: runtime.botConfigId
+    });
     return denteTelegramBotStatusSchema.parse(readableTelegramPayload({
         settings,
         organizationId: runtime.organizationId,
@@ -1662,7 +1912,7 @@ function buildStatus(requestedOrganizationId = null, requestedBotConfigId = null
         nextActions,
         processedUpdateCount: listDenteTelegramWebhookEvents(300, runtime.organizationId, runtime.botConfigId).filter((event) => event.status === "processed").length,
         pendingLinkCodeCount: isPrimaryRuntime ? listDenteTelegramLinkCodes(100).filter((code) => code.status === "pending").length : 0,
-        activeChatLinkCount: isPrimaryRuntime ? listDenteTelegramChatLinks(100).filter((link) => link.status === "active").length : 0,
+        activeChatLinkCount,
         recentEvents: listDenteTelegramWebhookEvents(50, runtime.organizationId, runtime.botConfigId)
     }));
 }
@@ -1671,37 +1921,37 @@ function buildFeaturePlan(settings) {
         productName: "DENTE",
         botUsername: configuredBotUsername(settings),
         modes: [
-            "shared_dente_bot: ����� ������������� ���, ������� ������������ �� ������������ ����",
-            "clinic_owned_bot: ����������� ��� �������; ��� � ����������, ������ ������ � ��������� ������������"
+            "shared_dente_bot: общий платформенный бот, клиника определяется по одноразовому коду",
+            "clinic_owned_bot: собственный бот клиники; имя в настройках, секрет только в серверной конфигурации"
         ],
         enabledFeatures: settings.enabledFeatures,
         releaseReadyLayers: [
-            "linking: ����������� QR/deep-link ����",
-            "outbox: ���������� ������� ����������� � ��������� ����������",
-            "transport: �������� ���� ������ ����� ������������� ���� � ���������� ������ ����",
-            "audit: webhook-������� � ������������ �������� � DENTE"
+            "linking: одноразовые QR/deep-link коды",
+            "outbox: безопасная очередь напоминаний с причинами блокировки",
+            "transport: отправка идет только через подключенного бота и защищенную связку чата",
+            "audit: webhook-события и коммуникации остаются в DENTE"
         ],
         patientSafeActions: [
-            "����������� ��� ��������",
-            "������������� ������",
-            "������� ������ ��� ������ ������",
-            "����������� � ���������� ��������� ����� ������ �� ���������� ������",
-            "������ ���������� ������� ��� �������� PDF",
-            "����� ������� ����� ������ �� ������������ ��������"
+            "одноразовый код привязки",
+            "подтверждение приема",
+            "перенос приема или запрос звонка",
+            "уведомление о готовности документа через ссылку на защищенный портал",
+            "статус налогового запроса без передачи PDF",
+            "общие памятки после визита по утвержденным шаблонам"
         ],
         staffSafeActions: [
-            "���������� ������ ����������",
-            "������� �������������",
-            "��������� ����� �����",
-            "�������� ���������� ���������� ��� ���� ����������",
-            "������������� �������� ��������� ������"
+            "ежедневная сводка расписания",
+            "очередь подтверждений",
+            "эскалация задач связи",
+            "счетчики готовности документов без тела документов",
+            "маршрутизация запросов обратного звонка"
         ],
         blockedByDefault: [
-            "����� ��������",
-            "������ ����� � ������ �������",
-            "�������� DICOM/����/��������/����",
-            "��������� PDF � ����� �������� ��� ����� Telegram",
-            "��������� ����������� ������������"
+            "текст диагноза",
+            "номера зубов и детали лечения",
+            "передача DICOM/КЛКТ/рентгена/фото",
+            "налоговые PDF и копии медкарты как файлы Telegram",
+            "свободные клинические рекомендации"
         ]
     });
 }
@@ -1709,7 +1959,7 @@ async function sendWebhookSuggestedReply(chatId, suggestedReply, botToken) {
     if (!chatId || !suggestedReply.text?.trim())
         return null;
     if (!botToken)
-        return "����� Telegram �� ���������: ����� ���� �� ��������.";
+        return "Ответ Telegram не отправлен: токен бота не настроен.";
     const text = repairMojibakeText(suggestedReply.text);
     const replyMarkup = readableTelegramPayload(suggestedReply.replyMarkup);
     const photoUrl = suggestedReply.photoUrl?.trim();
@@ -1761,13 +2011,18 @@ async function handleWebhook(request, reply) {
             error: "TelegramWebhookSecretMismatch"
         });
     }
+    // Ответы бота («когда мой приём», подтверждение записи) строятся по
+    // расписанию клиники. Без этой загрузки пациент получал бы ответ по
+    // демонстрационным данным. Загрузка идёт ПОСЛЕ проверки секрета, чтобы
+    // посторонний запрос не мог заставить сервер читать базу.
+    await hydrateTelegramDomainState(request, runtime.organizationId);
     if (settings.mode === "disabled") {
         return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
             ok: true,
             duplicate: false,
             action: "ignored_telegram_disabled",
             suggestedReply: null,
-            warnings: ["Telegram �������� � ���������� �������; update �� ���������, ��� �������� �� �����������."],
+            warnings: ["Telegram отключен в настройках клиники; update не обработан, код привязки не использован."],
             event: null
         }));
     }
@@ -1837,32 +2092,35 @@ async function handleWebhook(request, reply) {
             botConfigId: runtime.botConfigId
         })
         : null;
+    if (linkResult?.ok === true && linkResult.chatLink) {
+        await persistTelegramChatLinkToDatabase(request, runtime, linkResult.chatLink);
+    }
     const warnings = [
         ...webhookClaim.event.warnings,
         ...appointmentCallbackResult.warnings,
-        ...(expectedSecret ? [] : ["Webhook secret �� ��������; update ����������� ������ ��� ��������� ����������."])
+        ...(expectedSecret ? [] : ["Webhook secret не настроен; update принимается только для локальной разработки."])
     ];
     if (linkCodeRejectedByChatType) {
-        warnings.push("����������� ��� Telegram ����� ������������ ������ � ������ ���� � �����; �������� � ������� � ������� �������������.");
+        warnings.push("Одноразовый код Telegram можно использовать только в личном чате с ботом; привязка в группах и каналах заблокирована.");
     }
     if (linkCodeRejectedByRateLimit) {
-        warnings.push("������� ����� �������� ����� Telegram-�������� �� �������� �����; ����� ����� ��� ����� ���� �������� ���������.");
+        warnings.push("Слишком много неверных кодов Telegram-привязки за короткое время; прием кодов для этого чата временно ограничен.");
     }
     if (updateKind === "voice" && !settings.allowVoiceIntake) {
-        warnings.push("��������� ���� ��������; ����� �� Telegram �� ������ �������� � ����������� ������ �� ���������.");
+        warnings.push("Голосовой ввод отключен; аудио из Telegram не должно попадать в медицинскую запись по умолчанию.");
     }
     if (updateKind === "photo" || updateKind === "document") {
-        warnings.push("�������� ������ Telegram �� ����������� ��� ������������� � ������� � ���������� �������� �� ���������.");
+        warnings.push("Передача файлов Telegram не принимается для меддокументов и снимков в безопасной политике по умолчанию.");
     }
     if (linkResult && !linkResult.ok) {
         if (linkResult.reason === "chat_encryption_key_missing") {
-            warnings.push("���������� ������ Telegram-���� �� ���������; ����������� ��� Telegram �� ��� �����������.");
+            warnings.push("Защищенная связка Telegram-чата не настроена; одноразовый код Telegram не был использован.");
         }
         else if (linkResult.reason === "missing_chat_transport" || linkResult.reason === "chat_encryption_failed") {
-            warnings.push("��� Telegram �� ������� ��������� � ���������� ������; ����������� ��� Telegram �� ��� �����������.");
+            warnings.push("Чат Telegram не удалось сохранить в защищенной связке; одноразовый код Telegram не был использован.");
         }
         else {
-            warnings.push("����������� ��� Telegram ��������, �����, ��� ����������� ��� �������.");
+            warnings.push("Одноразовый код Telegram неверный, истек, уже использован или отозван.");
         }
     }
     const action = appointmentCallbackResult.handled
@@ -1894,14 +2152,14 @@ async function handleWebhook(request, reply) {
             : linkCodeRejectedByChatType || suppressPublicChatReply
                 ? {
                     text: linkCodeRejectedByChatType
-                        ? "��� DENTE �� ������ � ��������� ����. �������� ������ ��� � ����� � ��������� ������� �������� QR ����������� ��� ��������� ����������� ��� ���."
-                        : "DENTE �������� ������ � ������ ���� � �����. �������� ������ ���, ����� ���������� ����������� �������.",
+                        ? "Код DENTE не принят в публичном чате. Откройте личный чат с ботом и попросите клинику показать QR подключения или отправьте одноразовый код там."
+                        : "DENTE отвечает только в личном чате с ботом. Откройте личный чат, чтобы подключить уведомления клиники.",
                     replyMarkup: safeCommandKeyboard(settings, "rejected"),
                     photoUrl: patientMenuCardPhoto(settings, "mainMenu")
                 }
                 : linkResult?.ok === true
                     ? {
-                        text: "�������� DENTE ���������. Telegram ����� �������� ������ ���������� ����������� �������. ����������� ��������� �������� � ���������� �������.",
+                        text: "Привязка DENTE завершена. Telegram будет получать только безопасные уведомления клиники. Медицинские документы остаются в защищенном портале.",
                         replyMarkup: safeCommandKeyboard(settings, "linked"),
                         photoUrl: patientMenuCardPhoto(settings, "mainMenu")
                     }
@@ -1910,8 +2168,8 @@ async function handleWebhook(request, reply) {
                             text: linkResult.reason === "chat_encryption_key_missing" ||
                                 linkResult.reason === "missing_chat_transport" ||
                                 linkResult.reason === "chat_encryption_failed"
-                                ? "DENTE �������� �� ����� ��������� ��������� Telegram. ��������� ������� ��������� ��������� ���� � ��������� ��� ����� �����������."
-                                : "��� DENTE �� ������. ��������� ������� �������� ����� QR ����������� ��� ������ ����� ����������� ���.",
+                                ? "DENTE временно не может безопасно привязать Telegram. Попросите клинику проверить настройки бота и повторить код после исправления."
+                                : "Код DENTE не принят. Попросите клинику показать новый QR подключения или выдать новый одноразовый код.",
                             replyMarkup: safeCommandKeyboard(settings, "rejected"),
                             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
                         }
@@ -1925,7 +2183,7 @@ async function handleWebhook(request, reply) {
         const callbackAnswer = await answerTelegramCallbackQuery({
             botToken,
             callbackQueryId,
-            text: appointmentCallbackResult.handled ? appointmentCallbackResult.callbackAnswerText : "DENTE: ���������� ����� ���������.",
+            text: appointmentCallbackResult.handled ? appointmentCallbackResult.callbackAnswerText : "DENTE: безопасный ответ отправлен.",
             timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
         });
         if (!callbackAnswer.ok)
@@ -1933,7 +2191,7 @@ async function handleWebhook(request, reply) {
     }
     const replyWarning = suppressPublicChatReply ? null : await sendWebhookSuggestedReply(chatId, suggestedReply, runtime.botToken);
     if (suppressPublicChatReply) {
-        warnings.push("����� Telegram �� ��������� � ������ ��� �����: DENTE �������� ������ � ������ ����.");
+        warnings.push("Ответ Telegram не отправлен в группу или канал: DENTE отвечает только в личном чате.");
     }
     if (replyWarning)
         warnings.push(replyWarning);
@@ -1968,12 +2226,13 @@ async function handleWebhook(request, reply) {
     }));
 }
 export async function registerTelegramWebhookRoutes(app) {
-    app.post("/api/telegram/webhook", handleWebhook);
-    app.post("/api/telegram/webhook/:organizationId/:botConfigId", handleWebhook);
-    app.post("/api/telegram/webhook/:organizationId", handleWebhook);
+    const options = { bodyLimit: 256 * 1024 };
+    app.post("/api/telegram/webhook", options, handleWebhook);
+    app.post("/api/telegram/webhook/:organizationId/:botConfigId", options, handleWebhook);
+    app.post("/api/telegram/webhook/:organizationId", options, handleWebhook);
 }
 function registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions) {
-    app.get("/api/telegram/status", telegramControlPlaneRouteOptions, async () => buildStatus());
+    app.get("/api/telegram/status", telegramControlPlaneRouteOptions, async () => await buildStatus());
     app.get("/api/telegram/status/:organizationId", telegramControlPlaneRouteOptions, async (request, reply) => {
         const runtimeResult = resolveTelegramRuntimeContext(request.params.organizationId);
         if (!runtimeResult.ok) {
@@ -1982,7 +2241,7 @@ function registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions) {
                 message: runtimeResult.message
             });
         }
-        return buildStatus(request.params.organizationId);
+        return await buildStatus(request.params.organizationId);
     });
     app.get("/api/telegram/status/:organizationId/:botConfigId", telegramControlPlaneRouteOptions, async (request, reply) => {
         const runtimeResult = resolveTelegramRuntimeContext(request.params.organizationId, request.params.botConfigId);
@@ -1992,11 +2251,11 @@ function registerTelegramStatusRoutes(app, telegramControlPlaneRouteOptions) {
                 message: runtimeResult.message
             });
         }
-        return buildStatus(request.params.organizationId, request.params.botConfigId);
+        return await buildStatus(request.params.organizationId, request.params.botConfigId);
     });
 }
 function registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions) {
-    app.get("/api/settings/telegram", telegramControlPlaneRouteOptions, async () => buildStatus());
+    app.get("/api/settings/telegram", telegramControlPlaneRouteOptions, async () => await buildStatus());
     app.put("/api/settings/telegram", telegramControlPlaneRouteOptions, async (request, reply) => {
         const parsedInput = parseTelegramRouteBody(updateDenteTelegramBotSettingsSchema, request.body);
         if (!parsedInput.ok) {
@@ -2017,7 +2276,7 @@ function registerTelegramSettingsRoutes(app, telegramControlPlaneRouteOptions) {
                 message: readableTelegramSettingsValidationMessage(settingsError)
             });
         }
-        return buildStatus();
+        return await buildStatus();
     });
     app.get("/api/telegram/feature-plan", telegramControlPlaneRouteOptions, async () => buildFeaturePlan(getDenteTelegramBotSettings()));
 }
@@ -2030,6 +2289,7 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
                 message: runtimeResult.message
             });
         }
+        await hydrateTelegramDomainState(request, runtimeResult.runtime.context.organizationId);
         return buildDenteTelegramOutbox(parseTelegramOutboxQuery(request.query), runtimeResult.runtime.runtimeScope);
     });
     app.post("/api/telegram/outbox/:itemId/send", telegramControlPlaneRouteOptions, async (request, reply) => {
@@ -2043,6 +2303,7 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
                 message: runtimeResult.message
             });
         }
+        await hydrateTelegramDomainState(request, runtimeResult.runtime.context.organizationId);
         const result = await executeTelegramOutboxSend(request.params.itemId, parsedInput.value, runtimeResult.runtime);
         return reply.code(result.statusCode).send(result.body);
     });
@@ -2057,6 +2318,7 @@ function registerTelegramOutboxRoutes(app, telegramControlPlaneRouteOptions) {
                 message: runtimeResult.message
             });
         }
+        await hydrateTelegramDomainState(request, runtimeResult.runtime.context.organizationId);
         const response = await executeDenteTelegramOutboxDueBatch(input, runtimeResult.runtime);
         return reply.code(response.failedCount > 0 ? 502 : response.blockedCount > 0 ? 409 : 200).send(response);
     });
@@ -2081,13 +2343,13 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
         if (requestedClinicId && requestedClinicId !== runtime.clinicId) {
             return reply.code(409).send({
                 error: "TelegramLinkCodeScopeInvalid",
-                message: "��� �������� Telegram ��������� � ������ �������."
+                message: "Код привязки Telegram относится к другой клинике."
             });
         }
         if (settings.mode === "disabled" || !settings.enabledFeatures.includes("patient_linking")) {
             return reply.code(409).send({
                 error: "TelegramLinkingDisabled",
-                message: "�������� Telegram ��������� � ���������� �������."
+                message: "Привязка Telegram отключена в настройках клиники."
             });
         }
         try {
@@ -2133,7 +2395,7 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
             });
         }
         const runtime = runtimeResult.runtime.context;
-        return buildDenteTelegramChatLinkList({
+        return await buildDenteTelegramChatLinkList({
             ...parseTelegramChatLinkListQuery(request.query),
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
@@ -2149,7 +2411,15 @@ function registerTelegramLinkRoutes(app, telegramControlPlaneRouteOptions) {
             });
         }
         const runtime = runtimeResult.runtime.context;
-        const revoked = revokeDenteTelegramChatLink(request.params.linkId, {
+        const revoked = await revokeDenteTelegramChatLink({
+            organizationId: runtime.organizationId,
+            clinicId: runtime.clinicId,
+            botConfigId: runtime.botConfigId
+        }, request.params.linkId);
+        // Копия в памяти снимается второй и её результат ни на что не влияет: пока
+        // очередь отправки читает массив процесса, оставить там активную связку
+        // значило бы продолжать писать в отключённый чат.
+        revokeLegacyInMemoryTelegramChatLink(request.params.linkId, {
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
             botConfigId: runtime.botConfigId

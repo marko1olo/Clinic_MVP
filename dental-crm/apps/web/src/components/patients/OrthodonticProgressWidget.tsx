@@ -3,6 +3,8 @@ import { Calendar, Save, Smile, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { actionFailureToast } from "../../lib/panelStateText";
+import { countLabel } from "../../lib/russianPlural";
 import { showToast } from "../GlobalToast";
 
 interface OrthoData {
@@ -53,21 +55,55 @@ export function OrthodonticProgressWidget({
 	const [saving, setSaving] = useState(false);
 
 	const patient = dashboard?.patients?.find((p: any) => p.id === patientId);
-	if (!patient) return null;
 
-	// Backwards compatibility migration logic:
-	// If the new structured DB field is missing, fallback to parsing legacy notes.
-	const orthoFromProfile = patient.administrativeProfile?.orthodonticProgress;
-	const { cleanNotes, legacyOrtho } = parseLegacyOrthoNotes(patient.notes);
+	// Если новое структурированное поле не заполнено, читаем старую запись,
+	// которую раньше складывали в конец заметок.
+	const orthoFromProfile = patient?.administrativeProfile?.orthodonticProgress;
+	const { cleanNotes, legacyOrtho } = parseLegacyOrthoNotes(patient?.notes);
 
 	const ortho: OrthoData | null = orthoFromProfile || legacyOrtho || null;
 
-	// Form states
+	// Поля формы
 	const [formCurrent, setFormCurrent] = useState(ortho?.currentAligner ?? 1);
 	const [formTotal, setFormTotal] = useState(ortho?.totalAligners ?? 40);
 	const [formStart, setFormStart] = useState(
 		ortho?.startDate ?? getTodayString(),
 	);
+
+	/*
+	 * БЫЛО: номера капп и дата начала брались из пациента ОДИН раз, при первом
+	 * появлении виджета — `useState(ortho?.currentAligner ?? 1)` — и дальше не
+	 * пересчитывались никогда. Виджет не размонтируется при переключении карточки
+	 * (PatientOverviewTab рендерит его без key), а сброс стоял только в
+	 * handleStartEdit, то есть при нажатии «Изменить».
+	 *
+	 * Что видел врач: открыл настройку трекера у пациента с 12-й каппой из 40,
+	 * не закрыл, переключился на другого пациента — и в его карточке стоит форма
+	 * с числами 12 и 40 от первого. «Сохранить» записывало эти числа в
+	 * administrative-profile ВТОРОГО пациента: чужой этап лечения, по которому
+	 * потом считают, когда менять каппу и когда снимать элайнеры.
+	 *
+	 * Сброс в фазе рендера: `ortho` здесь уже относится к новому пациенту, потому
+	 * что поиск идёт по актуальному patientId.
+	 */
+	const [formPatientId, setFormPatientId] = useState(patientId);
+	if (formPatientId !== patientId) {
+		setFormPatientId(patientId);
+		setIsEditing(false);
+		setFormCurrent(ortho?.currentAligner ?? 1);
+		setFormTotal(ortho?.totalAligners ?? 40);
+		setFormStart(ortho?.startDate ?? getTodayString());
+	}
+
+	/*
+	 * БЫЛО: этот выход стоял ВЫШЕ трёх useState. Пока пациент находился в
+	 * dashboard, компонент вызывал шесть хуков, а на первом же рендере, где его
+	 * там нет (обновление списка пациентов, выбор пациента, ещё не попавшего в
+	 * dashboard), — только три. React такое считает ошибкой и роняет всё дерево:
+	 * «Rendered fewer hooks than expected», то есть у врача гаснет вся карточка
+	 * пациента, а не один виджет. Проверка обязана стоять после всех хуков.
+	 */
+	if (!patient) return null;
 
 	// Reset form states if patient changes or edits are cancelled
 	const handleStartEdit = () => {
@@ -109,12 +145,33 @@ export function OrthodonticProgressWidget({
 				},
 			);
 
-			if (!resAdmin.ok)
-				throw new Error("Failed to save patient administrative profile");
+			/*
+			 * БЫЛО: `throw new Error("Failed to save patient administrative profile")`
+			 * и один общий текст «Не удалось сохранить изменения». Он не говорил ни
+			 * почему, ни что делать, и врач жал «Сохранить» снова и снова.
+			 *
+			 * А повторять здесь бесполезно: сервер отвечает 400. В схеме
+			 * административного профиля orthodonticProgress объявлен строкой
+			 * (packages/shared/src/index.ts, z.string().max(500)), а виджет отправляет
+			 * объект с номерами капп — разбор не проходит. Причина отказа берётся из
+			 * общей формулировки по коду ответа: для 400 она прямо говорит, что
+			 * повторение не поможет и нужен администратор. Схему правит ведущий, это
+			 * не наш файл; экран обязан хотя бы не врать и не гонять по кругу.
+			 */
+			if (!resAdmin.ok) {
+				showToast(
+					`${actionFailureToast("Отсчёт капп не сохранён", resAdmin.status)} Пока запишите этап лечения в заметку к пациенту.`,
+					"error",
+				);
+				return;
+			}
 
-			// Migrate: Clean up the legacy stringified JSON from notes if it exists
+			// Убираем старую техническую запись из заметок, если она там была.
+			// БЫЛО: ответ на этот запрос не проверялся вовсе, и при его отказе врач
+			// всё равно видел зелёное «обновлено», хотя в заметках пациента остался
+			// хвост со служебными данными — он виден в поле заметок карточки.
 			if (legacyOrtho) {
-				await fetch(`/api/patients/${patientId}`, {
+				const resNotes = await fetch(`/api/patients/${patientId}`, {
 					method: "PUT",
 					headers: auth.denteClinicalMutationHeaders({
 						"Content-Type": "application/json",
@@ -123,13 +180,27 @@ export function OrthodonticProgressWidget({
 						notes: cleanNotes,
 					}),
 				});
+				if (!resNotes.ok) {
+					showToast(
+						"Этап лечения сохранён, но старая служебная запись в заметках не удалена — она осталась видна в поле заметок. Повторите сохранение позже.",
+						"warning",
+					);
+					setIsEditing(false);
+					await loadDashboard();
+					return;
+				}
 			}
 
 			showToast("Ортодонтический этап обновлен", "success");
 			setIsEditing(false);
 			await loadDashboard();
 		} catch (err) {
-			showToast("Не удалось сохранить изменения", "error");
+			// Сюда попадают только обрывы связи: отказы сервера разобраны выше.
+			console.error("[OrthodonticProgressWidget save]", err);
+			showToast(
+				`${actionFailureToast("Отсчёт капп не сохранён", null)} Пока запишите этап лечения в заметку к пациенту.`,
+				"error",
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -161,11 +232,19 @@ export function OrthodonticProgressWidget({
 				},
 			);
 
-			if (!resAdmin.ok)
-				throw new Error("Failed to clear patient administrative profile");
+			// Тот же отказ, что и при сохранении, и так же бесполезно повторять.
+			if (!resAdmin.ok) {
+				showToast(
+					`${actionFailureToast("Отсчёт капп не убран", resAdmin.status)} Каппы остались в карточке.`,
+					"error",
+				);
+				return;
+			}
 
+			// Тот же непроверенный ответ, что и при сохранении: «удалено» показывалось
+			// даже когда служебный хвост остался в заметках.
 			if (legacyOrtho) {
-				await fetch(`/api/patients/${patientId}`, {
+				const resNotes = await fetch(`/api/patients/${patientId}`, {
 					method: "PUT",
 					headers: auth.denteClinicalMutationHeaders({
 						"Content-Type": "application/json",
@@ -174,13 +253,26 @@ export function OrthodonticProgressWidget({
 						notes: cleanNotes,
 					}),
 				});
+				if (!resNotes.ok) {
+					showToast(
+						"Отслеживание капп убрано, но старая служебная запись в заметках не удалена — она осталась видна в поле заметок. Повторите позже.",
+						"warning",
+					);
+					setIsEditing(false);
+					await loadDashboard();
+					return;
+				}
 			}
 
 			showToast("Трекер ортодонтии удален", "success");
 			setIsEditing(false);
 			await loadDashboard();
 		} catch (err) {
-			showToast("Не удалось сбросить трекер", "error");
+			console.error("[OrthodonticProgressWidget reset]", err);
+			showToast(
+				`${actionFailureToast("Отсчёт капп не убран", null)} Каппы остались в карточке.`,
+				"error",
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -220,54 +312,23 @@ export function OrthodonticProgressWidget({
 						exit={{ opacity: 0, x: 10 }}
 						style={{ display: "flex", flexDirection: "column", gap: "12px" }}
 					>
-						<div
-							style={{
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								marginBottom: "8px",
-							}}
-						>
-							<span
-								style={{
-									fontSize: "14px",
-									fontWeight: 600,
-									color: "var(--ink)",
-								}}
-							>
-								Настройка трекера (глубокий JSONB)
+						<div className="flex justify-between items-center mb-2">
+							<span className="text-sm font-semibold text-slate-900 dark:text-white">
+								{/* БЫЛО: «Настройка трекера (глубокий JSONB)». JSONB — название типа
+								    столбца в базе данных; на экране врача оно не значит ничего. */}
+								Сколько капп пройдено
 							</span>
 							<button
 								type="button"
 								onClick={() => setIsEditing(false)}
-								style={{
-									background: "none",
-									border: "none",
-									color: "var(--muted)",
-									cursor: "pointer",
-									padding: 0,
-								}}
+								className="bg-transparent border-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0"
 							>
 								<X size={18} />
 							</button>
 						</div>
 
-						<div
-							style={{
-								display: "grid",
-								gridTemplateColumns: "1fr 1fr",
-								gap: "12px",
-							}}
-						>
-							<label
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "6px",
-									fontSize: "12px",
-									color: "var(--muted)",
-								}}
-							>
+						<div className="grid grid-cols-2 gap-3">
+							<label className="flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400">
 								Текущая каппа
 								<input
 									type="number"
@@ -277,25 +338,10 @@ export function OrthodonticProgressWidget({
 									onChange={(e) =>
 										setFormCurrent(Math.max(1, Number(e.target.value)))
 									}
-									style={{
-										padding: "8px 12px",
-										borderRadius: "8px",
-										background: "var(--paper-soft)",
-										border: "1px solid var(--line)",
-										color: "var(--ink)",
-										fontSize: "14px",
-									}}
+									className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none"
 								/>
 							</label>
-							<label
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "6px",
-									fontSize: "12px",
-									color: "var(--muted)",
-								}}
-							>
+							<label className="flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400">
 								Всего капп
 								<input
 									type="number"
@@ -304,41 +350,18 @@ export function OrthodonticProgressWidget({
 									onChange={(e) =>
 										setFormTotal(Math.max(1, Number(e.target.value)))
 									}
-									style={{
-										padding: "8px 12px",
-										borderRadius: "8px",
-										background: "var(--paper-soft)",
-										border: "1px solid var(--line)",
-										color: "var(--ink)",
-										fontSize: "14px",
-									}}
+									className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none"
 								/>
 							</label>
 						</div>
 
-						<label
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								gap: "6px",
-								fontSize: "12px",
-								color: "var(--muted)",
-							}}
-						>
+						<label className="flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400">
 							Дата начала
 							<input
 								type="date"
 								value={formStart}
 								onChange={(e) => setFormStart(e.target.value)}
-								style={{
-									padding: "8px 12px",
-									borderRadius: "8px",
-									background: "var(--paper-soft)",
-									border: "1px solid var(--line)",
-									color: "var(--ink)",
-									fontSize: "14px",
-									width: "100%",
-								}}
+								className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm w-full outline-none"
 							/>
 						</label>
 
@@ -346,21 +369,26 @@ export function OrthodonticProgressWidget({
 							<button
 								type="submit"
 								disabled={saving}
-								className="primary-button"
-								style={{
-									flex: 1,
-									background: "var(--teal)",
-									color: "white",
-									borderRadius: "8px",
-									padding: "10px",
-									border: "none",
-									fontWeight: 600,
-									display: "flex",
-									justifyContent: "center",
-									alignItems: "center",
-									gap: "8px",
-									cursor: "pointer",
-								}}
+								/*
+									ГЛАВНАЯ КНОПКА ВИДЖЕТА БЫЛА ХОЛОДНОЙ В ТЁПЛОЙ НОЧНОЙ ТЕМЕ.
+
+									БЫЛО: `bg-teal-600 hover:bg-teal-700 text-white`. Палитра
+									Tailwind в проекте не переопределена — файла tailwind.config.*
+									в дереве нет вовсе, `@theme` в листах стилей тоже нет, — значит
+									teal-600 это стоковый холодный oklch(60% 0.118 184.704)
+									одинаково в светлой, тёмной и ночной. Токен --teal при этом
+									#0d9488 в светлой, #2dd4bf в тёмной и ТЁПЛЫЙ #e0a458 в ночной:
+									её включают в вечернюю смену, чтобы экран не бил синим.
+
+									ПОЧЕМУ --teal-dark, А НЕ --teal. Пара «фон --teal-dark + текст
+									--on-teal» проходит норму во всех трёх темах, а пара с --teal в
+									светлой даёт 3.74:1 при норме 4.5:1 — то же решение и по той же
+									причине, что у кнопки ящика листа ожидания (ffdad856a).
+									Наведение — яркостью, а не вторым цветом: brightness двигает фон
+									и текст вместе и контраст не теряет. transition-all вместо
+									transition-colors потому, что brightness это фильтр, а не цвет.
+								*/
+								className="flex-1 bg-[var(--teal-dark)] hover:brightness-110 active:brightness-95 text-[var(--on-teal)] rounded-lg p-2.5 font-semibold text-xs flex justify-center items-center gap-2 border-0 cursor-pointer transition-all"
 							>
 								{saving ? (
 									"Сохранение..."
@@ -375,16 +403,7 @@ export function OrthodonticProgressWidget({
 									type="button"
 									disabled={saving}
 									onClick={handleResetWidget}
-									style={{
-										background: "rgba(239, 68, 68, 0.1)",
-										color: "var(--red)",
-										borderRadius: "8px",
-										padding: "10px 16px",
-										border: "1px solid rgba(239, 68, 68, 0.2)",
-										fontWeight: 600,
-										cursor: "pointer",
-										transition: "all 0.2s",
-									}}
+									className="px-4 py-2.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
 								>
 									Удалить
 								</button>
@@ -408,213 +427,86 @@ export function OrthodonticProgressWidget({
 									padding: "16px 0",
 								}}
 							>
-								<div
-									style={{
-										width: 48,
-										height: 48,
-										borderRadius: "50%",
-										background: "var(--paper-soft)",
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										color: "var(--muted)",
-										border: "1px solid var(--line)",
-									}}
-								>
+								<div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700">
 									<Smile size={24} />
 								</div>
-								<p
-									style={{
-										margin: 0,
-										fontSize: "14px",
-										color: "var(--muted)",
-										textAlign: "center",
-									}}
-								>
-									Ортодонтическое лечение не запущено.
+								<p className="m-0 text-sm text-slate-500 dark:text-slate-400 text-center">
+									Лечение каппами пока не начато.
 								</p>
 								<button
+									type="button"
 									onClick={handleStartEdit}
-									style={{
-										marginTop: "8px",
-										background: "transparent",
-										border: "1px solid var(--teal)",
-										color: "var(--teal)",
-										padding: "8px 16px",
-										borderRadius: "8px",
-										fontSize: "13px",
-										fontWeight: 600,
-										cursor: "pointer",
-										transition: "all 0.2s ease",
-									}}
+									/* Вариант dark: здесь не спасал: он честно переведён на data-theme и
+									   в ночной теме срабатывает, но dark:text-teal-400 — это тоже
+									   стоковый холодный цвет, а не --teal. Токены меняются по теме сами,
+									   поэтому второй вариант больше не нужен. */
+									className="mt-2 bg-transparent border border-[var(--teal-ring)] text-[var(--teal-dark)] px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer hover:bg-[var(--teal-surface)] transition-colors"
 								>
-									Добавить орто-трекер (JSONB)
+									{/* БЫЛО: «Добавить орто-трекер (JSONB)» — на кнопке, которую жмёт
+									    врач, стояло название типа данных в базе. */}
+									Начать отсчёт капп
 								</button>
 							</div>
 						) : (
-							<div
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: "16px",
-								}}
-							>
-								<div
-									style={{
-										display: "flex",
-										justifyContent: "space-between",
-										alignItems: "flex-start",
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											gap: "10px",
-										}}
-									>
-										<div
-											style={{
-												width: 40,
-												height: 40,
-												borderRadius: "10px",
-												background: "var(--teal-light)",
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "center",
-												color: "var(--teal-dark)",
-											}}
-										>
+							<div className="flex flex-col gap-4">
+								<div className="flex justify-between items-start">
+									<div className="flex items-center gap-2.5">
+										<div className="w-10 h-10 rounded-xl bg-[var(--teal-soft)] flex items-center justify-center text-[var(--teal-dark)]">
 											<Smile size={20} />
 										</div>
 										<div>
-											<h4
-												style={{
-													margin: 0,
-													fontSize: "15px",
-													fontWeight: 600,
-													color: "var(--ink)",
-												}}
-											>
+											<h4 className="m-0 text-sm font-semibold text-slate-900 dark:text-white">
 												Элайнеры
 											</h4>
-											<span
-												style={{
-													fontSize: "12px",
-													color: "var(--muted)",
-													display: "flex",
-													alignItems: "center",
-													gap: "4px",
-												}}
-											>
+											<span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
 												<Calendar size={12} /> с {formatDate(ortho.startDate)}
 											</span>
 										</div>
 									</div>
 									<button
 										onClick={handleStartEdit}
-										style={{
-											background: "var(--paper-soft)",
-											border: "1px solid var(--line)",
-											color: "var(--ink)",
-											padding: "6px 12px",
-											borderRadius: "6px",
-											fontSize: "12px",
-											fontWeight: 600,
-											cursor: "pointer",
-										}}
+										className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer"
 									>
 										Изменить
 									</button>
 								</div>
 
-								<div
-									style={{
-										display: "flex",
-										flexDirection: "column",
-										gap: "8px",
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											justifyContent: "space-between",
-											alignItems: "flex-end",
-										}}
-									>
-										<span
-											style={{
-												fontSize: "28px",
-												fontWeight: 700,
-												color: "var(--ink)",
-												lineHeight: 1,
-											}}
-										>
+								<div className="flex flex-col gap-2">
+									<div className="flex justify-between items-end">
+										<span className="text-3xl font-bold text-slate-900 dark:text-white leading-none">
 											{currentAligner}{" "}
-											<span
-												style={{
-													fontSize: "16px",
-													fontWeight: 500,
-													color: "var(--muted)",
-												}}
-											>
+											<span className="text-base font-medium text-slate-500 dark:text-slate-400">
 												/ {totalAligners}
 											</span>
 										</span>
-										<span
-											style={{
-												fontSize: "13px",
-												fontWeight: 600,
-												color: "var(--teal)",
-											}}
-										>
+										<span className="text-xs font-semibold text-[var(--teal-dark)]">
 											{progressPercent}%
 										</span>
 									</div>
 
-									<div
-										style={{
-											height: "8px",
-											background: "var(--paper-soft)",
-											borderRadius: "4px",
-											overflow: "hidden",
-										}}
-									>
+									<div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
 										<motion.div
 											initial={{ width: 0 }}
 											animate={{ width: `${progressPercent}%` }}
 											transition={{ duration: 1, ease: "easeOut" }}
-											style={{
-												height: "100%",
-												background: "var(--teal)",
-												borderRadius: "4px",
-											}}
+											className="h-full bg-[var(--teal)] rounded-full"
 										/>
 									</div>
 								</div>
 
 								{weeksRemaining > 0 ? (
-									<p
-										style={{
-											margin: 0,
-											fontSize: "13px",
-											color: "var(--muted)",
-										}}
-									>
+									<p className="m-0 text-xs text-slate-500 dark:text-slate-400">
+										{/* БЫЛО: «Осталось примерно 1 капп до завершения этапа» —
+										    число подставлялось к неизменяемому слову. Согласование
+										    берём из общей countLabel, а не считаем на месте. */}
 										Осталось примерно{" "}
-										<strong style={{ color: "var(--ink)" }}>
-											{weeksRemaining}
+										<strong className="text-slate-900 dark:text-white">
+											{countLabel(weeksRemaining, "каппа", "каппы", "капп")}
 										</strong>{" "}
-										капп до завершения этапа.
+										до конца этапа.
 									</p>
 								) : (
-									<p
-										style={{
-											margin: 0,
-											fontSize: "13px",
-											color: "var(--green)",
-										}}
-									>
+									<p className="m-0 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
 										🎉 Все каппы пройдены! Запланируйте контрольный осмотр.
 									</p>
 								)}

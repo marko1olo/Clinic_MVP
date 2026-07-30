@@ -4,14 +4,45 @@ import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { CompletedServicesChecklist } from "./CompletedServicesChecklist";
 import { VisitFlowProgress } from "./VisitFlowProgress";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
-import { visitDraftQualityLabels, visitDraftSignalLabel, visitDraftMissingFieldLabel, visitSaveReceiptText } from "../../AppHelpers";
+import { visitDraftQualityLabels, visitDraftSignalLabel, visitDraftMissingFieldLabel, visitSaveReceiptText, visitNoteFormFromVisit } from "../../AppHelpers";
 import { specialtyLabels } from "../../workspaceUiLabels";
+import { countLabel } from "../../lib/russianPlural";
+import { useVisitStore } from "../../store/visitStore";
+import {
+	forgetVisitFlowResultOwner,
+	rememberVisitFlowResultOwner,
+	visitFlowOwnerKey,
+	visitFlowResultIsForeign,
+	visitSaveReceiptBelongsToVisit,
+} from "./visitFlowResultOwner";
+import {
+	commitNoteFormVisit,
+	peekNoteFormForeignVisit,
+	realVisitFieldId,
+} from "./visitIdentity";
+
+/**
+ * Дописывает текст к содержимому поля ЭМК так, как это сделал бы врач руками.
+ *
+ * БЫЛО: разделитель выбирался по `!curr.endsWith(" ")`. Из-за этого текст,
+ * заканчивающийся пробелом (а диктовка почти всегда так и заканчивается),
+ * склеивался без запятой — «Жалоб нет Острая боль», — а текст, заканчивающийся
+ * запятой, получал вторую: «Острая боль, , Коффердам». Смотрим на последний
+ * ЗНАЧИМЫЙ символ, а не на пробел.
+ */
+function appendClinicalText(current: string, addition: string, separator: string): string {
+	const base = current.replace(/\s+$/, "");
+	if (!base) return addition;
+	if (/[,;.:-]$/.test(base)) return `${base} ${addition}`;
+	return `${base}${separator}${addition}`;
+}
 
 export function VisitEmkTab() {
-	const appLogic = (useAppLogicContext() || {}) as any;
+	// `|| {}` убран: useAppLogicContext() либо отдаёт контекст, либо бросает
+	// исключение (contexts/AppLogicContext.tsx) — пустой объект он больше не
+	// выдумывает, и вторая ветка была недостижима.
+	const appLogic = useAppLogicContext() as any;
 	const {
-		activeEmkTab,
-		setActiveEmkTab,
 		visitNoteForm = {},
 		updateVisitNoteField,
 		isVisitNoteDirty,
@@ -25,13 +56,79 @@ export function VisitEmkTab() {
 		isDraftAccepting,
 		visitNoteActionLabel,
 		visitNoteStatusLabel,
-		visitFlowResult,
 		visitNoteFieldDefinitions = [],
-		visitNoteAcceptMissingSteps
+		visitNoteAcceptMissingSteps,
+		activePatient
 	} = appLogic;
 
+	/*
+	 * БЫЛО: activeEmkTab и setActiveEmkTab брались из useAppLogicContext, а таких
+	 * полей в контексте нет вообще (проверено: во всём useAppLogic.tsx этих имён
+	 * не существует). Последствия на экране «Прием», вкладка «ЭМК и Диктовка» —
+	 * та, что открыта по умолчанию:
+	 *   • activeEmkTab === undefined, поэтому сравнение с "all" ложно, а
+	 *     фильтр `f.key === undefined` не пропускал НИ ОДНОГО поля: панель
+	 *     «ЭМК после диктовки» показывала шапку, полоску вкладок и ничего
+	 *     больше. Ни жалоб, ни анамнеза, ни диагноза — записывать приём было
+	 *     физически некуда;
+	 *   • setActiveEmkTab === undefined, поэтому все шесть кнопок вкладок были
+	 *     кнопками-пустышками: клик молча падал с TypeError в консоль.
+	 * Состояние вкладки — локальное дело этой панели, в общий контекст его
+	 * выносить незачем: держим его здесь.
+	 */
+	const [activeEmkTab, setActiveEmkTab] = React.useState<string>("all");
+
 	const noteForm = visitNoteForm;
-	const draft = appLogic.visitDraft;
+	/*
+	 * БЫЛО: appLogic.visitDraft. Черновик лежит в контексте под именем `draft`
+	 * (useAppLogic.tsx возвращает именно его), а `visitDraft` не существует.
+	 * Из-за опечатки панель никогда не признавала, что черновик собран: шапка
+	 * говорила «Структура приема» вместо «Проверьте черновик», блок качества
+	 * разбора не показывался, а предупреждения нейро-черновика («проверьте
+	 * диагноз», «зуб не указан») не доходили до врача вовсе.
+	 */
+	const draft = appLogic.draft ?? null;
+	/*
+	 * БЫЛО: visitFlowResult из контекста, которого там нет — useAppLogic даже не
+	 * забирает это поле из useVisitLogic. Панель «Ассистент обработки приема» не
+	 * показывалась НИ РАЗУ, хотя сборка нейро-черновика её результат заполняет.
+	 * Читаем прямо из хранилища визита — это и есть источник, куда пишет
+	 * buildDraft.
+	 */
+	const visitFlowResult = useVisitStore((state) => state.visitFlowResult);
+	const setVisitFlowResult = useVisitStore((state) => state.setVisitFlowResult);
+
+	/*
+	 * РАЗБОР ПРЕДЫДУЩЕГО ПАЦИЕНТА БОЛЬШЕ НЕ ВИСИТ НА ЭКРАНЕ ТЕКУЩЕГО.
+	 *
+	 * visitFlowResult лежит в общем хранилище визита и записывается один раз —
+	 * после удачного ответа /api/ai/visit-flow. Обнулять его не умеет НИКТО:
+	 * сохранение записи приёма делает setDraft(null) и этого поля не касается,
+	 * смена пациента и смена приёма его тоже не трогают. Врач разбирал приём
+	 * пациента А, начинал приём пациента Б — и под шапкой ЭМК оставалась панель
+	 * «Ассистент обработки приема» с диагнозом ДЛЯ ПАЦИЕНТА, рекомендациями после
+	 * процедуры и предложенными документами пациента А. У кресла это читается как
+	 * разбор текущего человека.
+	 *
+	 * Сам ответ сервера пациента не называет (visitFlowResultSchema — четыре шага
+	 * и общий статус), поэтому владельца запоминаем на клиенте, вне компонента:
+	 * вкладка «ЭМК и Диктовка» размонтируется при уходе на «Зубную формулу», и
+	 * привязка в useRef исчезла бы вместе с ней.
+	 */
+	const visitOwnerKey = visitFlowOwnerKey(activePatient?.id, dashboard?.activeVisit?.id);
+	const visitFlowResultIsOfAnotherVisit = visitFlowResultIsForeign(visitFlowResult, visitOwnerKey);
+
+	React.useEffect(() => {
+		if (!visitFlowResult) return;
+		if (visitFlowResultIsOfAnotherVisit) {
+			// Чужой разбор убираем из хранилища, иначе он вернётся на экран при
+			// следующем переключении вкладок приёма.
+			forgetVisitFlowResultOwner();
+			setVisitFlowResult(null);
+			return;
+		}
+		rememberVisitFlowResultOwner(visitFlowResult, visitOwnerKey);
+	}, [visitFlowResult, visitOwnerKey, visitFlowResultIsOfAnotherVisit, setVisitFlowResult]);
 
 		const emkTabs = [
 		{ id: "all", label: "Все поля" },
@@ -47,6 +144,87 @@ export function VisitEmkTab() {
 		activeEmkTab === "all"
 			? allFields
 			: allFields.filter((f: any) => f.key === activeEmkTab);
+	/*
+	 * Поля приходят из контекста. Если их нет (карта приёма ещё не загрузилась
+	 * или загрузка не удалась), врач должен видеть причину, а не молча пустое
+	 * место: пустой экран и отказ сервера выглядят одинаково, и врач начинает
+	 * искать, куда пропала запись.
+	 */
+	const fieldsUnavailable = allFields.length === 0;
+
+	/*
+	 * БЫЛО: под щитом печаталось `(draft.warnings ?? []).join(" ")`. Когда разбор
+	 * возвращает черновик без предупреждений, это пустая строка: врач видел
+	 * иконку и пустое место рядом — панель молчала о том, собран ли черновик и
+	 * что делать дальше. Ровно этот же дефект уже правили у последней ветки
+	 * (пустой doctorSummary), а у первой он остался.
+	 */
+	const draftWarningsText = (draft?.warnings ?? [])
+		.filter((warning: unknown): warning is string => typeof warning === "string" && warning.trim().length > 0)
+		.join(" ");
+	const draftNoteText =
+		draftWarningsText ||
+		"Нейро-черновик собран, замечаний к нему нет. Проверьте поля выше и сохраните запись приёма.";
+
+	/*
+	 * Сколько записей ждут отправки — счётное слово склоняется общим countLabel,
+	 * иначе выходит «1 записей». Раньше строка не называла ни числа, ни того, что
+	 * записи уже целы: врач читал «серверная синхронизация ожидает» и не понимал,
+	 * потеряна работа или нет.
+	 */
+	const pendingSavesText = `Ждут отправки на сервер клиники: ${countLabel(Number(pendingVisitSaveCount) || 0, "запись приёма", "записи приёма", "записей приёма")}. Всё сохранено на этом компьютере, ничего не потеряно — как только связь появится, отправка пойдёт сама. Ждать не обязательно: нажмите «Отправить сейчас».`;
+
+	/*
+	 * РАСПИСКА О СОХРАНЕНИИ — ТОЛЬКО ОТ ЭТОГО ПРИЁМА.
+	 *
+	 * БЫЛО: печаталась последняя расписка, какая была в хранилище. А она пишется
+	 * один раз (после удачного /draft/accept) и не обнуляется ничем. Врач
+	 * сохранял приём пациента А, открывал ПУСТУЮ запись пациента Б — и читал
+	 * «Сервер подтвердил сохранение 14:32, версия карты 3». Пустая запись
+	 * отчитывалась как сохранённая, чужим временем и чужой версией карты, а
+	 * настоящая подсказка «Запись приёма пока пустая. Продиктуйте или впишите
+	 * жалобы…» до врача не доходила: она стоит последней в той же цепочке.
+	 *
+	 * Расписка несёт visitId — сверяем с открытым приёмом. Чужую не показываем и
+	 * не выбрасываем: вернётся врач к тому приёму — расписка снова на месте.
+	 */
+	const saveReceiptOfThisVisit = visitSaveReceiptBelongsToVisit(
+		lastVisitSaveReceipt,
+		dashboard?.activeVisit?.id,
+	)
+		? lastVisitSaveReceipt
+		: null;
+
+	/*
+	 * НЕЗАПИСАННЫЙ ТЕКСТ ПРЕДЫДУЩЕГО ПРИЁМА БОЛЬШЕ НЕ УХОДИТ В ЧУЖУЮ КАРТУ.
+	 *
+	 * Форма записи приёма лежит в общем хранилище визита и при смене приёма НЕ
+	 * перечитывается: во всём дереве нет ни одного места, где visitNoteForm
+	 * заново собиралась бы из нового dashboard.activeVisit. Врач набрал жалобы,
+	 * осмотр и диагноз пациента А, не сохранил, открылся приём пациента Б — поля
+	 * остались с текстом А, признак «есть правки» стал истинным, панель показала
+	 * «Проверьте правки» и кнопку «Сохранить». Одно нажатие писало жалобы и
+	 * диагноз пациента А в медицинскую карту пациента Б.
+	 *
+	 * Признак «есть правки» сам по себе не отличает это от честной правки
+	 * текущего приёма, поэтому память о том, к какому приёму относится текст,
+	 * держится в visitIdentity.ts — вне компонента, потому что вкладка
+	 * размонтируется при уходе на «Зубную формулу».
+	 */
+	const openVisitId = realVisitFieldId(dashboard?.activeVisit?.id);
+	const noteTextOfAnotherVisit = peekNoteFormForeignVisit(
+		openVisitId,
+		Boolean(isVisitNoteDirty),
+	);
+
+	React.useEffect(() => {
+		commitNoteFormVisit(openVisitId, Boolean(isVisitNoteDirty));
+	}, [openVisitId, isVisitNoteDirty]);
+
+	const setVisitNoteForm = useVisitStore((state) => state.setVisitNoteForm);
+	const showRecordOfOpenVisit = () => {
+		setVisitNoteForm(visitNoteFormFromVisit(dashboard?.activeVisit ?? null));
+	};
 
 	return (
 				<section
@@ -69,7 +247,37 @@ export function VisitEmkTab() {
 								{visitNoteStatusLabel}
 							</span>
 						</div>
-						{visitFlowResult && <VisitFlowProgress result={visitFlowResult} />}
+						{noteTextOfAnotherVisit ? (
+							<div
+								role="alert"
+								aria-live="assertive"
+								id="visit-note-foreign-text"
+								data-testid="visit-note-foreign-text"
+								className="mt-3 mb-3 p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900/60 text-sm text-rose-900 dark:text-rose-200"
+							>
+								<strong className="block mb-1">
+									В полях остался текст предыдущего приёма
+								</strong>
+								<p className="m-0">
+									Открыт другой приём
+									{activePatient?.fullName ? ` — ${activePatient.fullName}` : ""}, а в полях
+									лежит незаписанный текст прошлого приёма. Сохранять его отсюда нельзя:
+									жалобы и диагноз уйдут в карту не того человека, а снять такую запись
+									можно только ревизией. Что нужно перенести — скопируйте из полей себе, а
+									затем нажмите кнопку ниже: поля покажут запись открытого приёма.
+								</p>
+								<button
+									type="button"
+									className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-colors"
+									onClick={showRecordOfOpenVisit}
+								>
+									Показать запись открытого приёма
+								</button>
+							</div>
+						) : null}
+						{visitFlowResult && !visitFlowResultIsOfAnotherVisit ? (
+							<VisitFlowProgress result={visitFlowResult} />
+						) : null}
 
 						{/* Красивые вкладки (EMK Tabs) для уменьшения перегруженности */}
 						<div className="emk-tabs-container" role="tablist">
@@ -98,6 +306,20 @@ export function VisitEmkTab() {
 						<div
 							className={`visit-fields ${activeEmkTab !== "all" ? "single-tab-mode" : ""}`}
 						>
+							{fieldsUnavailable ? (
+								<div
+									className="p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300"
+									role="status"
+									aria-live="polite"
+								>
+									<strong className="block mb-1 text-slate-900 dark:text-white">
+										Поля приёма пока не открылись
+									</strong>
+									Карта приёма ещё загружается. Если через несколько секунд поля не
+									появились — обновите страницу; набранный текст сохраняется на этом
+									компьютере и не потеряется.
+								</div>
+							) : null}
 							{visibleFields.map((field) => {
 								const QUICK_CHIPS: Record<string, string[]> = {
 									complaint: [
@@ -167,10 +389,12 @@ export function VisitEmkTab() {
 												context="visit"
 												sterileMode={false}
 												onResult={(text) => {
+													if (!updateVisitNoteField) return;
 													const curr = visitNoteForm[field.key] || "";
-													const sep =
-														curr.length > 0 && !curr.endsWith(" ") ? " " : "";
-													updateVisitNoteField(field.key, curr + sep + text);
+													updateVisitNoteField(
+														field.key,
+														appendClinicalText(curr, text, " "),
+													);
 												}}
 												style={{ padding: "2px" }}
 											/>
@@ -188,14 +412,11 @@ export function VisitEmkTab() {
 														key={chip}
 														type="button"
 														onClick={() => {
+															if (!updateVisitNoteField) return;
 															const curr = visitNoteForm[field.key] || "";
-															const sep =
-																curr.length > 0 && !curr.endsWith(" ")
-																	? ", "
-																	: "";
 															updateVisitNoteField(
 																field.key,
-																curr + sep + chip,
+																appendClinicalText(curr, chip, ", "),
 															);
 														}}
 														className="quick-chip"
@@ -206,25 +427,12 @@ export function VisitEmkTab() {
 											</div>
 										)}
 										<textarea
+											aria-label={field.label}
 											value={visitNoteForm[field.key] ?? ""}
 											onChange={(event) =>
-												updateVisitNoteField(field.key, event.target.value)
+												updateVisitNoteField?.(field.key, event.target.value)
 											}
-											style={{
-												minHeight: "80px",
-												borderRadius: "8px",
-												padding: "0.6rem",
-												border: "1px solid var(--slate-300)",
-												resize: "vertical",
-												width: "100%",
-												outline: "none",
-											}}
-											onFocus={(e) =>
-												(e.target.style.borderColor = "var(--brand-400)")
-											}
-											onBlur={(e) =>
-												(e.target.style.borderColor = "var(--slate-300)")
-											}
+											className="min-h-[80px] rounded-lg p-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-y w-full outline-none focus:border-sky-500"
 										/>
 									</div>
 								);
@@ -247,10 +455,11 @@ export function VisitEmkTab() {
 								</div>
 								<p>{draft.quality.nextAction}</p>
 								<div className="visit-draft-signal-row">
+									{/* Было «FDI 36»: в записи приёма понятнее «зуб 36». */}
 									{(draft.quality.detectedToothCodes ?? [])
 										.slice(0, 6)
 										.map((toothCode) => (
-											<span key={`tooth-${toothCode}`}>FDI {toothCode}</span>
+											<span key={`tooth-${toothCode}`}>зуб {toothCode}</span>
 										))}
 									{(draft.quality.signals ?? []).slice(0, 7).map((signal) => (
 										<span key={signal}>{visitDraftSignalLabel(signal)}</span>
@@ -268,16 +477,25 @@ export function VisitEmkTab() {
 
 						<div className="ai-draft">
 							<ShieldCheck aria-hidden="true" />
+							{/*
+								Последняя ветка раньше подставляла doctorSummary без запаса: у
+								нового приёма его нет, и врач видел щит-иконку с пустой строкой
+								рядом — то есть панель молчала о том, записано ли что-нибудь.
+								Пустота теперь объясняет себя сама.
+							*/}
 							<p>
-								{draft
-									? (draft.warnings ?? []).join(" ")
+								{noteTextOfAnotherVisit
+									? "Сохранение заперто: в полях текст другого приёма. Разберите предупреждение выше."
+									: draft
+									? draftNoteText
 									: isVisitNoteDirty
 										? "Правки будут сохранены в ЭМК. Подпись приема остается отдельным действием."
 										: pendingVisitSaveCount
-											? "Локальное сохранение есть. Серверная синхронизация ожидает подключения или повторной попытки."
-											: lastVisitSaveReceipt
-												? visitSaveReceiptText(lastVisitSaveReceipt)
-												: dashboard?.activeVisit?.doctorSummary}
+											? pendingSavesText
+											: saveReceiptOfThisVisit
+												? visitSaveReceiptText(saveReceiptOfThisVisit)
+												: (dashboard?.activeVisit?.doctorSummary ||
+													"Запись приёма пока пустая. Продиктуйте или впишите жалобы, осмотр и диагноз — кнопка сохранения появится сразу после первой правки.")}
 							</p>
 							{pendingVisitSaveCount ? (
 								<button
@@ -286,7 +504,9 @@ export function VisitEmkTab() {
 									onClick={() => void flushPendingVisitSaves({ silent: false })}
 									disabled={isPendingVisitSyncing}
 								>
-									{isPendingVisitSyncing ? "Синхронизирую" : "Синхронизировать"}
+									{/* «Синхронизировать» — не то слово для врача у кресла: кнопка
+									    отправляет отложенные записи на сервер клиники. */}
+									{isPendingVisitSyncing ? "Отправляю" : "Отправить сейчас"}
 								</button>
 							) : null}
 							{draft || isVisitNoteDirty ? (
@@ -294,9 +514,17 @@ export function VisitEmkTab() {
 									className="primary-button"
 									type="button"
 									onClick={acceptDraftToVisit}
-									disabled={!visitNoteReadyToAccept || isDraftAccepting}
+									disabled={
+										!visitNoteReadyToAccept ||
+										isDraftAccepting ||
+										Boolean(noteTextOfAnotherVisit)
+									}
 									aria-describedby={
-										!visitNoteReadyToAccept ? "visit-note-missing" : undefined
+										noteTextOfAnotherVisit
+											? "visit-note-foreign-text"
+											: !visitNoteReadyToAccept
+												? "visit-note-missing"
+												: undefined
 									}
 								>
 									<Check aria-hidden="true" /> {visitNoteActionLabel}
@@ -304,34 +532,15 @@ export function VisitEmkTab() {
 							) : null}
 							{(draft || isVisitNoteDirty) && !visitNoteReadyToAccept ? (
 								<div
-									className="visit-note-missing"
+									className="visit-note-missing mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60"
 									id="visit-note-missing"
 									role="status"
 									aria-live="polite"
-									style={{
-										marginTop: "1rem",
-										background: "var(--amber-50)",
-										padding: "1rem",
-										borderRadius: "8px",
-										border: "1px solid var(--amber-200)",
-									}}
 								>
-									<strong
-										style={{
-											display: "block",
-											marginBottom: "0.5rem",
-											color: "var(--amber-900)",
-										}}
-									>
+									<strong className="block mb-2 text-amber-900 dark:text-amber-200 text-xs font-semibold">
 										Чтобы сохранить запись приема, осталось:
 									</strong>
-									<ul
-										style={{
-											margin: 0,
-											paddingLeft: "1.5rem",
-											color: "var(--amber-800)",
-										}}
-									>
+									<ul className="m-0 pl-5 text-xs text-amber-800 dark:text-amber-300 space-y-1">
 										{(visitNoteAcceptMissingSteps ?? []).map((step) => (
 											<li key={step}>{step}</li>
 										))}

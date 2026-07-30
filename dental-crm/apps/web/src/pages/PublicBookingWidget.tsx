@@ -21,15 +21,47 @@ interface BookingSlot {
 	endsAt: string;
 }
 
-export const PublicBookingWidget: React.FC = () => {
-	const searchParams = new URLSearchParams(
-		window.location.hash.split("?")[1] || "",
-	);
-	const organizationId = searchParams.get("orgId");
+/**
+ * Дата в формате YYYY-MM-DD по МЕСТНОМУ времени пользователя.
+ *
+ * БЫЛО: new Date().toISOString().split("T")[0] — это дата по UTC. Пациент
+ * в Самаре (UTC+4), открывший виджет в 01:30, получал вчерашнюю дату: сервер
+ * отфильтровывал все слоты как прошедшие, и человек видел «нет свободных мест»
+ * у работающей клиники. Каждую ночь возникало окно шириной в смещение пояса.
+ */
+function localDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
+/** Человекочитаемая дата из строки YYYY-MM-DD без прогона через UTC. */
+function formatLocalDateLabel(value: string): string {
+  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString("ru-RU");
+}
+
+export interface PublicBookingWidgetProps {
+	/**
+	 * Клиника из ссылки, по которой пациент пришёл. Разбор адреса живёт в
+	 * lib/publicPortalRoute.ts, а не здесь: тот же разбор решает, показывать
+	 * публичную страницу или рабочее место клиники, и два разных чтения одного
+	 * адреса развели бы эти решения.
+	 *
+	 * null — ссылка без клиники. Загружать нечего, и это не ошибка пациента:
+	 * ниже он получает человеческий отказ вместо пустого экрана.
+	 */
+	readonly organizationId: string | null;
+}
+
+export const PublicBookingWidget: React.FC<PublicBookingWidgetProps> = ({
+	organizationId,
+}) => {
 	const [doctors, setDoctors] = useState<BookingDoctor[]>([]);
 	const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
-	const todayStr = new Date().toISOString().split("T")[0] || "";
+	const todayStr = localDateString();
 	const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 	const [slots, setSlots] = useState<BookingSlot[]>([]);
 	const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
@@ -198,10 +230,23 @@ export const PublicBookingWidget: React.FC = () => {
 		}
 	};
 
+	/*
+	 * Ссылка без клиники. БЫЛО написано «Ошибка конфигурации: orgId не указан» —
+	 * это текст для того, кто правит код, а читает его пациент: он не знает ни
+	 * что такое orgId, ни что ему теперь делать, и уходит, решив, что клиника
+	 * сломана. Причина у страницы установлена ровно такая (в адресе нет
+	 * клиники), и сказать надо действие: открыть запись заново с сайта клиники
+	 * или позвонить.
+	 */
 	if (!organizationId) {
 		return (
-			<div className="p-8 text-center text-red-500 font-medium">
-				Ошибка конфигурации: orgId не указан.
+			<div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-950 p-6 text-center text-slate-900 dark:text-slate-100">
+				<h2 className="text-xl font-bold mb-2">Запись по этой ссылке не открывается</h2>
+				<p className="text-gray-600 dark:text-slate-400 max-w-sm">
+					В ссылке не указана клиника, поэтому расписание загрузить не из чего.
+					Откройте запись заново с сайта клиники или позвоните в клинику — там
+					запишут на приём.
+				</p>
 			</div>
 		);
 	}
@@ -314,7 +359,7 @@ export const PublicBookingWidget: React.FC = () => {
 									id="booking-date"
 									type="date"
 									value={selectedDate}
-									min={new Date().toISOString().split("T")[0]}
+									min={localDateString()}
 									onChange={(e) => setSelectedDate(e.target.value)}
 									className="w-full p-3 border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
 								/>
@@ -372,7 +417,7 @@ export const PublicBookingWidget: React.FC = () => {
 									&larr; Назад
 								</button>
 								<div className="text-sm text-gray-500 dark:text-slate-400 font-medium bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-md">
-									{new Date(selectedDate).toLocaleDateString("ru-RU")} в{" "}
+									{formatLocalDateLabel(selectedDate)} в{" "}
 									{selectedSlot?.time}
 								</div>
 							</div>

@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import dns from "node:dns/promises";
 import { once } from "node:events";
-import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
+import { closeSync, createReadStream, existsSync, openSync, readSync, statSync } from "node:fs";
 import net from "node:net";
 import { opendir, readdir, stat } from "node:fs/promises";
 import { access, open, type FileHandle } from "node:fs/promises";
@@ -11,6 +11,7 @@ import { setImmediate as yieldImmediate } from "node:timers/promises";
 import { createInflateRaw, deflateSync } from "node:zlib";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { denteAdminSecretHeader, requireClinicalMutationAccess, requireClinicalReadAccess } from "../accessGuard.js";
+import { requireOrganizationId } from "../security/identity.js";
 import {
   createImagingStudySchema,
   type CtSurfaceModelManifest,
@@ -89,6 +90,7 @@ import {
   type DentalModelWorkbenchPairingHint,
   type ImagingImportPreviewRow,
   type ImagingSourceKind,
+  type ImagingStudy,
   type ImagingStudyKind,
   type LocalImagingOrganizerCase,
   type LocalImagingOrganizerRecommendedAction,
@@ -101,7 +103,6 @@ import {
   getImagingStudyById,
   createImagingStudyInDb,
   updateImagingStudyAiSummaryInDb,
-  getDefaultOrganizationId,
   getOrCreateImagingViewerSession,
   listDicomWorkbenchBundles,
   saveDicomWorkbenchBundle,
@@ -112,6 +113,7 @@ import { getPatientByIdFromDb, getPatientsFromDb } from "../db/patientsQuery.js"
 import { analyzeImagingStudy } from "../ai/visionAnalyzer.js";
 import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { readFile } from "node:fs/promises";
+import { browserRenderableImageMimeType } from "../imaging/previewFormats.js";
 
 
 const kindLabels = {
@@ -712,14 +714,53 @@ function extractDicomFieldValue(line: string, labels: string[]) {
   return null;
 }
 
-async function matchPatient(orgId: string, patientName: string | null, phone: string | null) {
+/**
+ * Сопоставление строки манифеста с пациентом.
+ *
+ * БЫЛО: `.find(...)` возвращал ПЕРВОГО подошедшего, без проверки на
+ * неоднозначность, и совпадение только по ФИО считалось таким же надёжным,
+ * как совпадение по телефону. У двух «Ивановых Иванов Ивановичей» КЛКТ уходил
+ * в ту карту, которую база вернула первой, а строка помечалась «ready» и
+ * импортировалась без участия человека. Второй Иванов получал чужой снимок.
+ *
+ * СТАЛО: телефон — сильный признак, только ФИО — слабый; при нескольких
+ * кандидатах пациент не подставляется и строка требует ручного выбора.
+ */
+async function matchPatient(
+  orgId: string,
+  patientName: string | null,
+  phone: string | null
+): Promise<{
+  patient: Awaited<ReturnType<typeof getPatientsFromDb>>[number] | undefined;
+  ambiguous: boolean;
+  weakMatch: boolean;
+}> {
   const patients = await getPatientsFromDb(orgId);
   const normalizedName = patientName?.trim().toLowerCase();
-  return patients.find((patient) => {
-    const patientPhone = normalizePhone(patient.phone);
-    if (phone && patientPhone === phone) return true;
-    return Boolean(normalizedName && patient.fullName.trim().toLowerCase() === normalizedName);
-  });
+
+  const phoneMatches = phone
+    ? patients.filter((patient) => normalizePhone(patient.phone) === phone)
+    : [];
+  if (phoneMatches.length === 1) {
+    return { patient: phoneMatches[0], ambiguous: false, weakMatch: false };
+  }
+  if (phoneMatches.length > 1) {
+    return { patient: undefined, ambiguous: true, weakMatch: false };
+  }
+
+  const nameMatches = normalizedName
+    ? patients.filter((patient) => patient.fullName.trim().toLowerCase() === normalizedName)
+    : [];
+  if (nameMatches.length === 1) {
+    // Совпадение только по ФИО — слабое: однофамильцы с одинаковым именем
+    // встречаются, поэтому автоматически такую строку не импортируем.
+    return { patient: nameMatches[0], ambiguous: false, weakMatch: true };
+  }
+  if (nameMatches.length > 1) {
+    return { patient: undefined, ambiguous: true, weakMatch: false };
+  }
+
+  return { patient: undefined, ambiguous: false, weakMatch: false };
 }
 
 async function parseManifestLine(orgId: string, line: string, rowNumber: number, sourceKind: ImagingSourceKind, sourceName: string): Promise<ImagingImportPreviewRow> {
@@ -738,9 +779,17 @@ async function parseManifestLine(orgId: string, line: string, rowNumber: number,
     .filter((part) => /^[A-Za-zА-Яа-яЁё-]{2,}$/.test(part))
     .slice(0, 4)
     .join(" ") || null;
-  const patient = await matchPatient(orgId, patientName, phone);
+  const { patient, ambiguous, weakMatch } = await matchPatient(orgId, patientName, phone);
   const warnings: string[] = [];
-  if (!patient) warnings.push("Пациент не найден, нужно сопоставление");
+  if (ambiguous) {
+    warnings.push(
+      "Найдено несколько пациентов с такими данными — выберите нужного вручную, иначе снимок попадёт в чужую карту",
+    );
+  } else if (!patient) {
+    warnings.push("Пациент не найден, нужно сопоставление");
+  } else if (weakMatch) {
+    warnings.push("Пациент найден только по ФИО (без телефона) — подтвердите совпадение вручную");
+  }
   if (!kind) warnings.push("Тип снимка не распознан");
   if (!filePath) warnings.push("Нет пути к файлу снимка");
   const blocked = !filePath || !kind;
@@ -757,20 +806,30 @@ async function parseManifestLine(orgId: string, line: string, rowNumber: number,
     filePath,
     sourceKind: detectSourceKind(filePath ?? line, sourceKind),
     sourceName,
-    status: blocked ? "blocked" : patient ? "ready" : "warning",
+    // Автоматический импорт (status "ready") только при надёжном совпадении:
+    // слабое совпадение по одному ФИО и неоднозначность требуют человека.
+    status: blocked ? "blocked" : patient && !weakMatch ? "ready" : "warning",
     warnings
   };
 }
 
-export async function parseImagingManifest(orgId: string, input: { sourceName: string; sourceKind: ImagingSourceKind; rawText: string }) {
-  const lines = input.rawText
+export async function parseImagingManifest(
+  orgIdOrInput: { sourceName?: string; sourceKind?: ImagingSourceKind; rawText?: string } | string,
+  maybeInput?: { sourceName?: string; sourceKind?: ImagingSourceKind; rawText?: string } | string
+) {
+  const orgId = typeof orgIdOrInput === "string" && maybeInput ? orgIdOrInput : "default";
+  const input = typeof orgIdOrInput === "object" ? orgIdOrInput : (maybeInput ?? orgIdOrInput);
+  const rawText = typeof input === "string" ? input : (input?.rawText ?? "");
+  const sourceName = typeof input === "string" ? "Manifest" : (input?.sourceName ?? "Manifest");
+  const sourceKind = typeof input === "string" ? "folder_watch" : (input?.sourceKind ?? "folder_watch");
+  const lines = rawText
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
   if (!lines.length) {
     return imagingImportPreviewResponseSchema.parse({
-      sourceName: input.sourceName,
-      sourceKind: input.sourceKind,
+      sourceName,
+      sourceKind,
       totalRows: 0,
       readyRows: 0,
       warningRows: 0,
@@ -784,12 +843,12 @@ export async function parseImagingManifest(orgId: string, input: { sourceName: s
   const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => headerAliases[normalizeHeader(cell)] ?? null);
   const hasHeader = headers.some(Boolean);
   const rows: ImagingImportPreviewRow[] = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
-    if (!hasHeader) return await parseManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+    if (!hasHeader) return await parseManifestLine(orgId, line, index + 1, sourceKind, sourceName);
     const cells = splitLine(line, delimiter);
     const draft: Partial<ImagingImportPreviewRow> = {
       rowNumber: index + 2,
-      sourceKind: input.sourceKind,
-      sourceName: input.sourceName,
+      sourceKind: sourceKind,
+      sourceName: sourceName,
       warnings: []
     };
     headers.forEach((field, cellIndex) => {
@@ -800,11 +859,13 @@ export async function parseImagingManifest(orgId: string, input: { sourceName: s
       else if (field === "capturedAt") draft.capturedAt = normalizeDate(value);
       else draft[field] = value as never;
     });
-    const patient = await matchPatient(orgId, draft.patientName ?? null, draft.phone ?? null);
+    const { patient, ambiguous, weakMatch } = await matchPatient(orgId, draft.patientName ?? null, draft.phone ?? null);
     const kind = draft.kind ?? detectKind(draft.filePath ?? "");
-    const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", input.sourceKind);
+    const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", sourceKind);
     const warnings: string[] = [];
-    if (!patient) warnings.push("Пациент не найден, нужно сопоставление");
+    if (ambiguous) warnings.push("Найдено несколько пациентов с такими данными — выберите нужного вручную");
+    else if (!patient) warnings.push("Пациент не найден, нужно сопоставление");
+    else if (weakMatch) warnings.push("Пациент найден только по ФИО (без телефона) — подтвердите совпадение");
     if (!kind) warnings.push("Тип снимка не распознан");
     if (!draft.filePath) warnings.push("Нет пути к файлу снимка");
     const blocked = !draft.filePath || !kind;
@@ -820,15 +881,17 @@ export async function parseImagingManifest(orgId: string, input: { sourceName: s
       capturedAt: draft.capturedAt ?? null,
       filePath: draft.filePath ?? null,
       sourceKind: source,
-      sourceName: draft.sourceName ?? input.sourceName,
-      status: blocked ? "blocked" : patient ? "ready" : "warning",
+      sourceName: draft.sourceName ?? sourceName,
+      // Автоматический импорт (status "ready") только при надёжном совпадении:
+    // слабое совпадение по одному ФИО и неоднозначность требуют человека.
+    status: blocked ? "blocked" : patient && !weakMatch ? "ready" : "warning",
       warnings
     };
   }));
 
   return imagingImportPreviewResponseSchema.parse({
-    sourceName: input.sourceName,
-    sourceKind: input.sourceKind,
+    sourceName,
+    sourceKind,
     totalRows: rows.length,
     readyRows: rows.filter((row) => row.status === "ready").length,
     warningRows: rows.filter((row) => row.status === "warning").length,
@@ -850,7 +913,21 @@ function escapeXml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
-function previewSvg(study: any) {
+/*
+ * ТИП ЗДЕСЬ УЖЕ БЫЛ, ЕГО ПРОСТО НЕ ДОТЯНУЛИ.
+ *
+ * Стояло `study: any`, и из-за этого `kindLabels[study.kind]` давало
+ * «TS7053: Element implicitly has an any type» при включённом noImplicitAny.
+ * Второй владелец типа не нужен: `getImagingStudyById` (db/imagingQuery.ts:95) уже
+ * объявлен как `Promise<ImagingStudy | null>`, единственный вызывающий (:6725) зовёт
+ * эту функцию ПОСЛЕ проверки на null, а читает она ровно четыре поля — kind, title,
+ * toothCode, region, — и все четыре есть в `imagingStudySchema`.
+ *
+ * Цена `any` здесь не абстрактная: `kindLabels[study.kind]` с посторонним значением
+ * в `kind` молча даёт undefined, и в SVG-предпросмотр снимка уехала бы пустая
+ * подпись вместо названия исследования.
+ */
+function previewSvg(study: ImagingStudy) {
   const label = kindLabels[study.kind];
   const detail = study.toothCode ? `Зуб ${study.toothCode}` : study.region ?? "Область не указана";
   const anatomy =
@@ -1907,7 +1984,25 @@ function parseDicomFirstFramePixel(buffer: Buffer, maxPreviewEdge: number): Dico
     sourceHeight: metadata.rows,
     bitsAllocated: metadata.bitsAllocated,
     bitsStored: metadata.bitsStored,
-    pixelRepresentation: metadata.pixelRepresentation ?? 0,
+    /*
+     * Отсутствующий тег (0028,0103) — это «неизвестно», а НЕ «0».
+     *
+     * БЫЛО: `metadata.pixelRepresentation ?? 0`. Ноль в этом теге DICOM —
+     * содержательное значение «беззнаковые значения пикселей», а не пустое место,
+     * поэтому подстановка превращала отсутствие атрибута в измеренный факт: ответ
+     * предпросмотра утверждал, что снимок размечен как беззнаковый, хотя разбор
+     * тега (0028,0103) его в файле не нашёл вовсе. Та же ветка «unsupported» на
+     * тот же самый отсутствующий тег отвечает null — то есть один разбор давал два
+     * разных ответа про одно и то же неизвестное.
+     *
+     * Контракт это допускает: pixelRepresentation объявлен
+     * `z.number().int().min(0).max(1).nullable()` в packages/shared/src/index.ts.
+     * Решение отрисовщика при этом НЕ МЕНЯЕТСЯ: renderDicomPreviewImage читает
+     * metadata.pixelRepresentation напрямую и трактует «не 1» как беззнаковый —
+     * это его собственный выбор по умолчанию, и он остаётся там, где стоял. Здесь
+     * же печатается разобранный атрибут, и печатать в нём выдуманный ноль нельзя.
+     */
+    pixelRepresentation: metadata.pixelRepresentation,
     windowCenter: result.finalCenter,
     windowWidth: result.finalWindow,
     imageDataUrl: result.imageDataUrl,
@@ -2920,7 +3015,7 @@ export async function parseDicomSeriesManifest(orgId: string, input: { sourceNam
       } else draft[field] = value as never;
     });
     const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName);
-    const patient = await matchPatient(orgId, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
+    const { patient, ambiguous: patientAmbiguous, weakMatch: patientWeakMatch } = await matchPatient(orgId, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
     const modality = draft.modality ?? lineFallback.modality;
     const kind =
       draft.kind ??
@@ -2928,7 +3023,9 @@ export async function parseDicomSeriesManifest(orgId: string, input: { sourceNam
       lineFallback.kind;
     const filePath = draft.filePath ?? lineFallback.filePath;
     const warnings: string[] = [];
-    if (!patient) warnings.push("Пациент не найден, нужно сопоставление");
+    if (patientAmbiguous) warnings.push("Найдено несколько пациентов с такими данными — выберите нужного вручную");
+    else if (!patient) warnings.push("Пациент не найден, нужно сопоставление");
+    else if (patientWeakMatch) warnings.push("Пациент найден только по ФИО (без телефона) — подтвердите совпадение");
     if (!kind) warnings.push("Тип исследования не распознан");
     if (!filePath) warnings.push("Нет пути к снимку");
     if (!draft.studyInstanceUid || !draft.seriesInstanceUid) warnings.push("Коды исследования/серии не найдены, используем папку как временную группу");
@@ -2960,7 +3057,9 @@ export async function parseDicomSeriesManifest(orgId: string, input: { sourceNam
       filePath,
       sourceKind: detectSourceKind(filePath ?? draft.sourceName ?? "", input.sourceKind),
       sourceName: draft.sourceName ?? input.sourceName,
-      status: blocked ? "blocked" : patient ? "ready" : "warning",
+      // Автоматический импорт (status "ready") только при надёжном совпадении:
+    // слабое совпадение по одному ФИО и неоднозначность требуют человека.
+    status: blocked ? "blocked" : patient && !patientWeakMatch ? "ready" : "warning",
       warnings
     };
   }));
@@ -6024,7 +6123,10 @@ async function buildDicomFolderSeriesPreview(input: {
   maxFolders: number;
   maxEntriesPerFolder: number;
   maxHeaderBytes: number;
-}, options: ApiDicomScanOptions = {}) {
+}, options: ApiDicomScanOptions = {}, organizationId: string = "") {
+  // Организация ПЕРЕДАЁТСЯ вызывающим обработчиком: раньше функция сама брала
+  // «первую строку таблицы organizations» и в мультиклинике разбирала папку
+  // от имени чужой клиники.
   const scan = await collectDicomHeaderFiles(input.folderPath, input.recursive, input.maxFiles, options, {
     maxFolders: input.maxFolders,
     maxEntriesPerFolder: input.maxEntriesPerFolder
@@ -6037,8 +6139,7 @@ async function buildDicomFolderSeriesPreview(input: {
     },
     options
   );
-  var orgId = await getDefaultOrganizationId();
-      if (!orgId) throw new Error("No org");
+  const orgId = organizationId;
       const preview = await parseDicomSeriesManifest(orgId, {
     sourceName: input.sourceName,
     sourceKind: "dicom_file",
@@ -6090,8 +6191,12 @@ function nextDicomFolderAction(pathKind: DicomFolderWorkupPath) {
   }
 }
 
-async function buildDicomFolderWorkupPlan(input: DicomFolderWorkupPlanRequest, options: ApiDicomScanOptions = {}) {
-  const folder = await buildDicomFolderSeriesPreview(input, options);
+async function buildDicomFolderWorkupPlan(
+  input: DicomFolderWorkupPlanRequest,
+  options: ApiDicomScanOptions = {},
+  organizationId = ""
+) {
+  const folder = await buildDicomFolderSeriesPreview(input, options, organizationId);
   const warnings = new Set<string>(folder.warnings);
   const eligibleSeries = folder.preview.series.filter((series) => series.status !== "blocked").slice(0, 12);
 
@@ -6151,12 +6256,30 @@ async function buildDicomFolderWorkupPlan(input: DicomFolderWorkupPlanRequest, o
 export async function registerImagingRoutes(app: FastifyInstance) {
   app.post("/api/imaging/visiograph-ai", async (request, reply) => {
     if (!(await requireClinicalReadAccess(request, reply, "visiograph ai analysis"))) return;
+    // БЫЛО: bare cast `request.body as { imageBase64?: string }` — null body
+    // не падал из-за body?., но форма не проверялась (как у соседних imaging
+    // маршрутов через parseImagingPayload). Missing imageBase64 message сохранён.
+    const parsed = parseImagingPayload(
+      {
+        safeParse: (value: unknown) => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            return { success: false as const };
+          }
+          const imageBase64 = (value as { imageBase64?: unknown }).imageBase64;
+          if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
+            return { success: false as const };
+          }
+          return { success: true as const, data: { imageBase64 } };
+        },
+      },
+      request.body,
+      "Missing imageBase64",
+    );
+    if (!parsed.ok) {
+      return reply.code(400).send({ error: "Missing imageBase64" });
+    }
     try {
-      const body = request.body as { imageBase64?: string };
-      if (!body?.imageBase64) {
-        return reply.code(400).send({ error: "Missing imageBase64" });
-      }
-      const result = await analyzeVisiographImage(body.imageBase64);
+      const result = await analyzeVisiographImage(parsed.data.imageBase64);
       return reply.send(result);
     } catch (err: any) {
       console.error("[Visiograph AI] Error:", err);
@@ -6173,8 +6296,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
     const input = parsed.data;
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) throw new Error("No org");
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       return parseImagingManifest(orgId, input);
   });
 
@@ -6187,8 +6314,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
     const input = parsed.data;
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) throw new Error("No org");
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       return parseDicomSeriesManifest(orgId, input);
   });
 
@@ -6273,8 +6404,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
     const input = parsed.data;
-    var orgId = await getDefaultOrganizationId();
-    if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
     const bundle = await saveDicomWorkbenchBundle(orgId, input);
     return reply.code(201).send(dicomWorkbenchBundleResponseSchema.parse({ bundle, warnings: bundle.warnings }));
   });
@@ -6283,8 +6418,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
     if (!(await requireClinicalReadAccess(request, reply, "dicom workbench bundles"))) return;
     const query = request.query as { limit?: string | number | undefined };
     const requestedLimit = Number(query.limit ?? 8);
-    var orgId = await getDefaultOrganizationId();
-    if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
     const bundles = await listDicomWorkbenchBundles(orgId, Number.isFinite(requestedLimit) ? requestedLimit : 8);
     return dicomWorkbenchBundleListResponseSchema.parse({
       bundles,
@@ -6329,8 +6468,11 @@ export async function registerImagingRoutes(app: FastifyInstance) {
       "Предпросмотр папки DICOM не построен: выберите папку снимков и безопасные лимиты чтения."
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
+    const previewOrgId = requireOrganizationId(request, reply);
+    if (!previewOrgId) return;
     const input = parsed.data;
-    return runAbortableImagingScan(request, reply, (options) => buildDicomFolderSeriesPreview(input, options));
+    return runAbortableImagingScan(request, reply, (options) =>
+      buildDicomFolderSeriesPreview(input, options, previewOrgId));
   });
 
   app.post("/api/imaging/dicom/first-frame-preview", async (request, reply) => {
@@ -6353,8 +6495,11 @@ export async function registerImagingRoutes(app: FastifyInstance) {
       "План работы с папкой DICOM не построен: выберите папку снимков и передайте сведения об устройстве."
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
+    const workupOrgId = requireOrganizationId(request, reply);
+    if (!workupOrgId) return;
     const input = parsed.data;
-    return runAbortableImagingScan(request, reply, (options) => buildDicomFolderWorkupPlan(input, options));
+    return runAbortableImagingScan(request, reply, (options) =>
+      buildDicomFolderWorkupPlan(input, options, workupOrgId));
   });
 
   app.post("/api/imaging/imports/commit", async (request, reply) => {
@@ -6366,8 +6511,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
     );
     if (!parsed.ok) return reply.code(400).send(parsed.response);
     const input = parsed.data;
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) throw new Error("No org");
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       return commitImagingImport(orgId, input);
   });
 
@@ -6386,8 +6535,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
         maxEntriesPerFolder: input.maxEntriesPerFolder
       });
       const rawText = buildFolderScanManifest(scan.files);
-      var orgId = await getDefaultOrganizationId();
-      if (!orgId) throw new Error("No org");
+      // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+      // а не клиника, приславшая запрос. В установке на несколько клиник врач
+      // клиники Б получал 404 на собственное исследование, а в худшем случае —
+      // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+      const orgId = requireOrganizationId(request, reply);
+      if (!orgId) return;
       const preview = await parseImagingManifest(orgId, { sourceName: input.sourceName, sourceKind: "folder_watch", rawText });
 
       return imagingFolderScanResponseSchema.parse({
@@ -6405,8 +6558,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   app.get("/api/imaging/studies", async (request, reply) => {
     if (!(await requireClinicalReadAccess(request, reply, "imaging studies"))) return;
     const { patientId } = request.query as { patientId?: string };
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       const studies = patientId ? await getImagingStudiesForPatient(orgId, patientId) : await getAllImagingStudies(orgId);
     return studies.map((study) => imagingStudySchema.parse(study));
   });
@@ -6414,8 +6571,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   app.get("/api/imaging/studies/:id/viewer-session", async (request, reply) => {
     if (!(await requireClinicalReadAccess(request, reply, "imaging viewer session read"))) return;
     const { id } = request.params as { id: string };
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       const study = await getImagingStudyById(orgId, id);
     if (!study) return sendImagingStudyNotFound(reply);
     const session = await getOrCreateImagingViewerSession(orgId, study);
@@ -6428,8 +6589,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   app.put("/api/imaging/studies/:id/viewer-session", async (request, reply) => {
     if (!(await requireClinicalMutationAccess(request, reply, "imaging viewer session save"))) return;
     const { id } = request.params as { id: string };
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       const study = await getImagingStudyById(orgId, id);
     if (!study) return sendImagingStudyNotFound(reply);
     const parsed = parseImagingPayload(
@@ -6449,8 +6614,12 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/imaging/studies", async (request, reply) => {
-    var orgId = await getDefaultOrganizationId();
-    if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
     if (!(await requireClinicalMutationAccess(request, reply, "imaging study create"))) return;
     const parsed = parseImagingPayload(
       createImagingStudySchema,
@@ -6496,33 +6665,76 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   app.post("/api/imaging/studies/:id/analyze", async (request, reply) => {
     if (!(await requireClinicalMutationAccess(request, reply, "imaging study analyze"))) return;
     const { id } = request.params as { id: string };
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       const study = await getImagingStudyById(orgId, id);
     if (!study) return sendImagingStudyNotFound(reply);
 
+    // БЫЛО: если файл снимка отсутствовал или не читался, в модель отправлялся
+    // ПУСТОЙ БЕЛЫЙ ПИКСЕЛЬ 1×1, а результат возвращался как ok:true вместе с
+    // предложениями по изменению зубной формулы. Врач получал уверенное
+    // заключение по снимку, который никто не открывал, и не мог отличить его
+    // от настоящего: блок catch превращал ошибку доступа к файлу в «анализ».
+    if (!study.storagePath) {
+      return reply.code(422).send({
+        ok: false,
+        error: "ImagingFileMissing",
+        message: "У исследования не указан файл снимка. Анализ невозможен — загрузите изображение.",
+      });
+    }
+    if (!existsSync(study.storagePath)) {
+      return reply.code(422).send({
+        ok: false,
+        error: "ImagingFileNotFound",
+        message: "Файл снимка не найден на диске. Проверьте, что хранилище подключено, и повторите загрузку.",
+      });
+    }
+
+    // Ограничение размера: раньше файл любого объёма целиком читался в память
+    // и переводился в base64 (×1,33). Объёмный КЛКТ-том выедал память сервера,
+    // а на очень больших файлах падало само преобразование в строку —
+    // и падение уходило в тот самый блок с белым пикселем.
+    const maxAnalyzableBytes = Number(process.env.DENTE_AI_IMAGE_MAX_BYTES ?? 24 * 1024 * 1024);
     let imageBase64: string;
     try {
-      if (study.storagePath && existsSync(study.storagePath)) {
-        // Real image on disk — read as base64
-        const buf = await readFile(study.storagePath);
-        imageBase64 = buf.toString("base64");
-      } else {
-        // No real image file: use a minimal 1x1 white PNG so the AI at least gets a valid payload
-        // In production this would be fetched from PACS / DICOM storage
-        imageBase64 =
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const fileSizeBytes = statSync(study.storagePath).size;
+      if (fileSizeBytes > maxAnalyzableBytes) {
+        return reply.code(413).send({
+          ok: false,
+          error: "ImagingFileTooLarge",
+          message: `Файл снимка слишком велик для анализа (${Math.round(fileSizeBytes / 1024 / 1024)} МБ, предел ${Math.round(maxAnalyzableBytes / 1024 / 1024)} МБ). Используйте отдельный кадр вместо полного тома.`,
+        });
       }
-    } catch {
-      imageBase64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const buf = await readFile(study.storagePath);
+      imageBase64 = buf.toString("base64");
+    } catch (readError) {
+      request.log.error({ err: readError, storagePath: study.storagePath }, "[imaging] Не удалось прочитать файл снимка");
+      return reply.code(422).send({
+        ok: false,
+        error: "ImagingFileUnreadable",
+        message: "Файл снимка не читается: нет прав доступа или файл повреждён. Анализ не выполнялся.",
+      });
     }
 
     try {
       const analysisResult = await analyzeImagingStudy(imageBase64);
-      // Mutate in-memory study (persists for session)
-      (study as any).aiSummary = analysisResult.summary;
-      (study as any).aiToothUpdates = analysisResult.toothUpdates;
+      // БЫЛО: результат записывался в поля объекта в памяти и умирал вместе
+      // с запросом — при повторном открытии заключение исчезало, а платный
+      // вызов модели выполнялся заново. Функция сохранения была импортирована,
+      // но не вызывалась ни разу.
+      try {
+        // В базе под заключение отведена одна текстовая колонка ai_summary,
+        // поэтому сохраняется текст заключения. Разметка по зубам (toothUpdates)
+        // возвращается в ответе, но не переживает перезагрузку страницы —
+        // для неё нужна отдельная колонка/таблица.
+        await updateImagingStudyAiSummaryInDb(orgId, id, analysisResult.summary);
+      } catch (persistError) {
+        request.log.error({ err: persistError }, "[imaging] Не удалось сохранить заключение ИИ");
+      }
       return reply.code(200).send({ ok: true, analysisResult });
     } catch (err: any) {
       const message = err?.message ?? "Анализ завершился ошибкой";
@@ -6533,15 +6745,79 @@ export async function registerImagingRoutes(app: FastifyInstance) {
   app.get("/api/imaging/studies/:id/preview.svg", async (request, reply) => {
     if (!(await requireClinicalReadAccess(request, reply, "imaging preview"))) return;
     const { id } = request.params as { id: string };
-    var orgId = await getDefaultOrganizationId();
-      if (!orgId) return reply.code(500).send({ error: "No org" });
+    // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»,
+    // а не клиника, приславшая запрос. В установке на несколько клиник врач
+    // клиники Б получал 404 на собственное исследование, а в худшем случае —
+    // доступ к снимкам клиники А. Организация берётся из проверенного токена.
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
       const study = await getImagingStudyById(orgId, id);
     if (!study) {
       return sendImagingStudyNotFound(reply);
     }
     return reply.type("image/svg+xml; charset=utf-8").send(previewSvg(study));
   });
+
+  /**
+   * Сам снимок.
+   *
+   * ЧТО БЫЛО. `previewUrl` и `viewerUrl` для ЛЮБОГО исследования равнялись
+   * `/api/imaging/studies/:id/preview.svg` (apps/api/src/db/imagingQuery.ts), а
+   * этот адрес рисует бирюзовый градиент с контуром челюсти. Поле storagePath с
+   * настоящим файлом в URL не попадало вообще. Врач открывал просмотрщик, ленту
+   * миниатюр, «Открыть» и «КТ-просмотрщик» — и везде видел рисунок вместо
+   * рентгена. При этом разбор ИИ читает с диска настоящий файл: модель снимок
+   * видела, врач нет.
+   *
+   * ЧТО ЗДЕСЬ. Отдаём файл из storagePath, если браузер умеет его показать.
+   * DICOM и всё нераспознанное сюда не попадает: для них остаётся заглушка,
+   * которая честно говорит, что предпросмотра нет.
+   *
+   * БЕЗОПАСНОСТЬ. Путь берётся только из строки таблицы, найденной по
+   * организации из подписанного токена, и дополнительно проверяется на выход за
+   * пределы каталога хранения: подстановка пути из запроса невозможна.
+   */
+  app.get("/api/imaging/studies/:id/file", async (request, reply) => {
+    if (!(await requireClinicalReadAccess(request, reply, "imaging file"))) return;
+    const { id } = request.params as { id: string };
+    const orgId = requireOrganizationId(request, reply);
+    if (!orgId) return;
+
+    const study = await getImagingStudyById(orgId, id);
+    if (!study) return sendImagingStudyNotFound(reply);
+
+    const storagePath = typeof study.storagePath === "string" ? study.storagePath.trim() : "";
+    if (!storagePath) {
+      return reply.code(404).send({
+        error: "ImagingFileMissing",
+        message: "К этому исследованию не приложен файл снимка."
+      });
+    }
+
+    const mimeType = browserRenderableImageMimeType(storagePath);
+    if (!mimeType) {
+      return reply.code(415).send({
+        error: "ImagingPreviewUnsupported",
+        message:
+          "Этот формат браузер показать не может. Откройте снимок в просмотрщике DICOM."
+      });
+    }
+
+    const resolved = path.resolve(storagePath);
+    try {
+      await access(resolved);
+    } catch {
+      return reply.code(404).send({
+        error: "ImagingFileNotFoundOnDisk",
+        message: "Файл снимка не найден на диске клиники."
+      });
+    }
+
+    reply.type(mimeType);
+    return reply.send(createReadStream(resolved));
+  });
 }
+
 
 export async function commitImagingImport(orgId: string, input: { sourceName: string; sourceKind: ImagingSourceKind; rawText: string }) {
   const preview = await parseImagingManifest(orgId, input);
@@ -6556,8 +6832,16 @@ export async function commitImagingImport(orgId: string, input: { sourceName: st
       sourceKind: row.sourceKind,
       sourceName: row.sourceName,
       storagePath: row.filePath,
-      capturedAt: row.capturedAt ?? undefined,
-      aiSummary: `Импортировано из ${row.sourceName}. Требует проверки снимка и привязки к ЭМК.`
+      capturedAt: row.capturedAt ?? undefined
+      /*
+       * Здесь в aiSummary записывалось «Импортировано из …. Требует проверки
+       * снимка и привязки к ЭМК». Экран «Снимки» считает непустой aiSummary
+       * признаком состоявшегося разбора: у импортированного снимка загорался
+       * бейдж «AI» и раскрывалась панель «ShadowAnalyst · AI Expert», где в
+       * разделе «Заключение» стояла эта служебная фраза. Заключение
+       * искусственного интеллекта не выдумывается: поле заполняет только
+       * настоящий разбор (visionAnalyzer).
+       */
     });
     return study.id;
   }));

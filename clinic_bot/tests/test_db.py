@@ -53,6 +53,60 @@ class TestDB(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row['role'], 'patient')
         self.assertEqual(row['name'], '')
+
+    def test_add_users_empty_list(self):
+        # Should not raise an exception
+        try:
+            db.add_users([])
+        except Exception as e:
+            self.fail(f"add_users raised Exception unexpectedly: {e}")
+
+    def test_add_users_batch_insert(self):
+        users_to_add = [
+            (444, 'doctor', 'Doc Batch 1'),
+            (555, 'patient', 'Patient Batch 1'),
+            (666, 'admin', 'Admin Batch 1')
+        ]
+        db.add_users(users_to_add)
+
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT chat_id, role, name FROM users WHERE chat_id IN (444, 555, 666) ORDER BY chat_id')
+        rows = c.fetchall()
+
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0]['role'], 'doctor')
+        self.assertEqual(rows[0]['name'], 'Doc Batch 1')
+        self.assertEqual(rows[1]['role'], 'patient')
+        self.assertEqual(rows[1]['name'], 'Patient Batch 1')
+        self.assertEqual(rows[2]['role'], 'admin')
+        self.assertEqual(rows[2]['name'], 'Admin Batch 1')
+
+    def test_add_users_replace(self):
+        # Insert initial user
+        db.add_user(777, 'admin', 'Original Admin')
+
+        # Replace the user via batch insert
+        users_to_update = [
+            (777, 'doctor', 'Updated Doc'),
+            (888, 'patient', 'New Patient')
+        ]
+        db.add_users(users_to_update)
+
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (777,))
+        row_777 = c.fetchone()
+        self.assertIsNotNone(row_777)
+        self.assertEqual(row_777['role'], 'doctor')
+        self.assertEqual(row_777['name'], 'Updated Doc')
+
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (888,))
+        row_888 = c.fetchone()
+        self.assertIsNotNone(row_888)
+        self.assertEqual(row_888['role'], 'patient')
+        self.assertEqual(row_888['name'], 'New Patient')
+
     def test_get_user_role_existing(self):
         # Add a user to the temporary database
         db.add_user(12345, 'doctor', 'Test Doctor')

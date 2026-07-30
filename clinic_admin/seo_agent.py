@@ -82,7 +82,7 @@ def generate_seo_response(review_text: str) -> str:
         "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Вот текст отзыва: \"{review_text}\"\n\nНапиши ответ."}
+            {"role": "user", "content": f"Вот текст отзыва: {json.dumps(review_text, ensure_ascii=False)}\n\nНапиши ответ."}
         ],
         "temperature": 0.7,
         "max_tokens": 512

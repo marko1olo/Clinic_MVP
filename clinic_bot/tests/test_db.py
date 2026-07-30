@@ -53,6 +53,22 @@ class TestDB(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row['role'], 'patient')
         self.assertEqual(row['name'], '')
+
+    def test_add_users_empty_list(self):
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT COUNT(*) as count FROM users')
+        initial_count = c.fetchone()['count']
+
+        # Test calling add_users with an empty list
+        db.add_users([])
+
+        c.execute('SELECT COUNT(*) as count FROM users')
+        final_count = c.fetchone()['count']
+
+        # Ensure count is unchanged
+        self.assertEqual(initial_count, final_count)
+
     def test_get_user_role_existing(self):
         # Add a user to the temporary database
         db.add_user(12345, 'doctor', 'Test Doctor')

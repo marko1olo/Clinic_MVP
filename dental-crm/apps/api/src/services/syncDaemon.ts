@@ -256,12 +256,17 @@ export async function runSyncCycle(): Promise<SyncReport> {
           localMap.set(match.id, match);
         }
 
+        const toInsert: any[] = [];
+        const toUpdateCloudNewer: any[] = [];
+        const toUpdateLocalNewer: any[] = [];
+        const toInsertLedger: any[] = [];
+
         // 3. Process each cloud record
         for (const record of cloudRecords) {
           const local = localMap.get(record.id);
           if (!local) {
             // New record from cloud -> Insert locally
-            await db.insert(table).values({ ...record, isSynced: true });
+            toInsert.push({ ...record, isSynced: true });
             report.downloadedCount++;
             report.details[detailsKey].downloaded++;
           } else {
@@ -274,10 +279,7 @@ export async function runSyncCycle(): Promise<SyncReport> {
 
             if (cloudDate > localDate) {
               // Cloud is newer -> Update locally
-              await db
-                .update(table)
-                .set({ ...record, isSynced: true })
-                .where(eq(table.id, record.id));
+              toUpdateCloudNewer.push({ ...record, isSynced: true });
               report.downloadedCount++;
               report.details[detailsKey].downloaded++;
 
@@ -290,7 +292,7 @@ export async function runSyncCycle(): Promise<SyncReport> {
                 console.log(
                   `[SyncDaemon] Invoice ${record.id} was paid online. Logging transaction to cash_ledger`,
                 );
-                await db.insert(cashLedger).values({
+                toInsertLedger.push({
                   invoiceId: record.id,
                   paymentMethod: "card",
                   amountRub: record.totalAmountRub,
@@ -299,12 +301,40 @@ export async function runSyncCycle(): Promise<SyncReport> {
               }
             } else {
               // Local is newer -> Mark as unsynced to upload it in next cycle
-              await db
-                .update(table)
-                .set({ isSynced: false })
-                .where(eq(table.id, record.id));
+              toUpdateLocalNewer.push({ id: record.id, isSynced: false });
             }
           }
+        }
+
+        // 4. Execute grouped database operations
+        if (toInsert.length > 0) {
+          await db.insert(table).values(toInsert);
+        }
+
+        if (toInsertLedger.length > 0) {
+          await db.insert(cashLedger).values(toInsertLedger);
+        }
+
+        if (toUpdateCloudNewer.length > 0) {
+          await Promise.all(
+            toUpdateCloudNewer.map((record) =>
+              db
+                .update(table)
+                .set(record)
+                .where(eq(table.id, record.id)),
+            ),
+          );
+        }
+
+        if (toUpdateLocalNewer.length > 0) {
+          await Promise.all(
+            toUpdateLocalNewer.map((record) =>
+              db
+                .update(table)
+                .set({ isSynced: record.isSynced })
+                .where(eq(table.id, record.id)),
+            ),
+          );
         }
       };
 

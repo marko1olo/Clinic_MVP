@@ -56,10 +56,20 @@ async def cmd_start(message: Message):
         parse_mode="Markdown"
     )
 
+_status_cache = {'doctors': 0, 'admins': 0, 'timestamp': float('-inf')}
+CACHE_TTL = 60.0
+
 @router.message(Command("status"))
 async def cmd_status(message: Message):
-    doctors = len(await asyncio.to_thread(db.get_users_by_role, 'doctor'))
-    admins = len(await asyncio.to_thread(db.get_users_by_role, 'admin'))
+    now = time.monotonic()
+    if now - _status_cache['timestamp'] > CACHE_TTL:
+        _status_cache['doctors'] = len(await asyncio.to_thread(db.get_users_by_role, 'doctor'))
+        _status_cache['admins'] = len(await asyncio.to_thread(db.get_users_by_role, 'admin'))
+        _status_cache['timestamp'] = now
+
+    doctors = _status_cache['doctors']
+    admins = _status_cache['admins']
+
     await message.answer(
         f"*Система работает* ✅\n"
         f"Врачей: {doctors}, Админов: {admins}\n"

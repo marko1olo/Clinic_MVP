@@ -1,6 +1,0 @@
-🧹 [code health improvement] Remove unused json import in generate_json.py
-
-🎯 **What:** Removed unused json import in generate_json.py
-💡 **Why:** Cleans up namespace and improves maintainability
-✅ **Verification:** Verified file contents and ran the full test suite
-✨ **Result:** Cleaner code without changing behavior.

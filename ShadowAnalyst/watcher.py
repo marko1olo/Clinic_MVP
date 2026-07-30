@@ -216,17 +216,18 @@ def _worker_loop():
                     current_size = os.path.getsize(file_path)
                     last_size, stable_start = pending_files[file_path]
 
-                    if current_size == last_size and current_size > 0:
-                        if now - stable_start >= 1.0:
-                            # File is stable for 1 second, it's fully written!
-                            processing_files.add(file_path)
-                            del pending_files[file_path]
-
-                            # Process it in a background thread so we don't block the worker loop
-                            threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
-                    else:
+                    if current_size != last_size or current_size == 0:
                         # Size changed, reset stability timer
                         pending_files[file_path] = (current_size, now)
+                        continue
+
+                    if now - stable_start >= 1.0:
+                        # File is stable for 1 second, it's fully written!
+                        processing_files.add(file_path)
+                        del pending_files[file_path]
+
+                        # Process it in a background thread so we don't block the worker loop
+                        threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
                 except OSError:
                     pass
 

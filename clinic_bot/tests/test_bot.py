@@ -94,6 +94,24 @@ class TestBotMqtt(unittest.TestCase):
         # This should return cleanly
         on_mqtt_message(client, userdata, msg)
 
+    @patch('bot.handle_default')
+    def test_on_mqtt_message_json_decode_error(self, mock_handle_default):
+        """
+        Test that on_mqtt_message correctly handles JSONDecodeError by falling back
+        to a text payload dictionary.
+        """
+        client = MagicMock()
+        loop = MagicMock()
+        userdata = {'loop': loop}
+        msg = MagicMock()
+        msg.topic = 'test/topic'
+        msg.payload = b'{invalid_json}'
+
+        on_mqtt_message(client, userdata, msg)
+
+        mock_handle_default.assert_called_once_with('test/topic', {'text': '{invalid_json}'}, loop)
+
+
     @patch('bot.broadcast')
     def test_handle_review_neg_with_data(self, mock_broadcast):
         """Test handle_review_neg formats message correctly and broadcasts to admin."""

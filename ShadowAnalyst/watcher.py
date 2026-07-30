@@ -216,17 +216,20 @@ def _worker_loop():
                     current_size = os.path.getsize(file_path)
                     last_size, stable_start = pending_files[file_path]
 
-                    if current_size == last_size and current_size > 0:
-                        if now - stable_start >= 1.0:
-                            # File is stable for 1 second, it's fully written!
-                            processing_files.add(file_path)
-                            del pending_files[file_path]
-
-                            # Process it in a background thread so we don't block the worker loop
-                            threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
-                    else:
+                    if current_size != last_size or current_size == 0:
                         # Size changed, reset stability timer
                         pending_files[file_path] = (current_size, now)
+                        continue
+
+                    if now - stable_start < 1.0:
+                        continue
+
+                    # File is stable for 1 second, it's fully written!
+                    processing_files.add(file_path)
+                    del pending_files[file_path]
+
+                    # Process it in a background thread so we don't block the worker loop
+                    threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
                 except OSError:
                     pass
 
@@ -297,14 +300,16 @@ class XRayHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
-        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
+        if not event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            return
+        threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
 
     def on_modified(self, event):
         if event.is_directory:
             return
-        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
+        if not event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            return
+        threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
 
 def watch_loop():
     setup_dirs()
@@ -314,9 +319,10 @@ def watch_loop():
     try:
         with ThreadPoolExecutor(max_workers=10) as executor:
             for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    file_path = os.path.join(WATCH_DIR, filename)
-                    executor.submit(process_single_file, file_path)
+                if not filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                    continue
+                file_path = os.path.join(WATCH_DIR, filename)
+                executor.submit(process_single_file, file_path)
     except Exception as e:
         print(f"Ошибка при проверке существующих файлов: {e}")
 

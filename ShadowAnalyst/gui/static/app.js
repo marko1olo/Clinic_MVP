@@ -49,6 +49,44 @@ window.showToast = function(message, type = 'info') {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    function getEnhanceUrls(cleanUrl) {
+        if (cleanUrl.includes('_enhanced')) {
+            return { originalUrl: cleanUrl.replace('_enhanced', ''), enhancedUrl: cleanUrl };
+        }
+        const extIndex = cleanUrl.lastIndexOf('.');
+        if (extIndex !== -1) {
+            return {
+                originalUrl: cleanUrl,
+                enhancedUrl: `${cleanUrl.substring(0, extIndex)}_enhanced${cleanUrl.substring(extIndex)}`
+            };
+        }
+        return { originalUrl: cleanUrl, enhancedUrl: cleanUrl + '_enhanced' };
+    }
+
+    function updateImageDisplay(cleanUrl, forceResetSlider = false) {
+        const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
+
+        if (showSlider) {
+            imgElement.style.display = 'none';
+            comparisonContainer.style.display = 'flex';
+
+            const { originalUrl, enhancedUrl } = getEnhanceUrls(cleanUrl);
+
+            const timestamp = new Date().getTime();
+            xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
+            xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
+
+            if (forceResetSlider || !sliderHandle.style.left) {
+                sliderHandle.style.left = '50%';
+                xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
+            }
+        } else {
+            comparisonContainer.style.display = 'none';
+            imgElement.style.display = 'block';
+            imgElement.src = cleanUrl + "?t=" + new Date().getTime();
+        }
+    }
+
     const imgElement = document.getElementById('xray-image');
     const emptyState = document.getElementById('empty-state');
     const brightnessSlider = document.getElementById('brightness');
@@ -580,41 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.url) {
                     currentImage = data.url;
                     const cleanUrl = currentImage.split('?')[0];
-                    const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
-                    
-                    if (showSlider) {
-                        imgElement.style.display = 'none';
-                        comparisonContainer.style.display = 'flex';
-                        
-                        let originalUrl = cleanUrl;
-                        let enhancedUrl = cleanUrl;
-                        
-                        if (cleanUrl.includes('_enhanced')) {
-                            originalUrl = cleanUrl.replace('_enhanced', '');
-                        } else {
-                            const extIndex = cleanUrl.lastIndexOf('.');
-                            if (extIndex !== -1) {
-                                const base = cleanUrl.substring(0, extIndex);
-                                const ext = cleanUrl.substring(extIndex);
-                                enhancedUrl = `${base}_enhanced${ext}`;
-                            } else {
-                                enhancedUrl = cleanUrl + '_enhanced';
-                            }
-                        }
-                        
-                        const timestamp = new Date().getTime();
-                        xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
-                        xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
-                        
-                        if (!sliderHandle.style.left) {
-                            sliderHandle.style.left = '50%';
-                            xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
-                        }
-                    } else {
-                        comparisonContainer.style.display = 'none';
-                        imgElement.style.display = 'block';
-                        imgElement.src = cleanUrl + "?t=" + new Date().getTime();
-                    }
+                    updateImageDisplay(cleanUrl, false);
                 }
             } catch (e) {
                 console.error("Enhancement toggle failed", e);
@@ -662,40 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (floatingToolsPanel) floatingToolsPanel.style.display = 'none';
 
         // Only show slider if autoEnhance is checked
-        const showSlider = toggleAutoEnhance.checked && (toggleSliderOption ? toggleSliderOption.checked : true);
-
-        if (showSlider) {
-            imgElement.style.display = 'none';
-            comparisonContainer.style.display = 'flex';
-            
-            let originalUrl = cleanUrl;
-            let enhancedUrl = cleanUrl;
-            
-            if (cleanUrl.includes('_enhanced')) {
-                originalUrl = cleanUrl.replace('_enhanced', '');
-            } else {
-                const extIndex = cleanUrl.lastIndexOf('.');
-                if (extIndex !== -1) {
-                    const base = cleanUrl.substring(0, extIndex);
-                    const ext = cleanUrl.substring(extIndex);
-                    enhancedUrl = `${base}_enhanced${ext}`;
-                } else {
-                    enhancedUrl = cleanUrl + '_enhanced';
-                }
-            }
-            
-            const timestamp = new Date().getTime();
-            xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
-            xrayImageEnhanced.src = enhancedUrl + "?t=" + timestamp;
-            
-            // Default 50% split on load
-            sliderHandle.style.left = '50%';
-            xrayImageEnhanced.style.clipPath = 'inset(0 0 0 50%)';
-        } else {
-            comparisonContainer.style.display = 'none';
-            imgElement.style.display = 'block';
-            imgElement.src = cleanUrl + "?t=" + new Date().getTime();
-        }
+        updateImageDisplay(cleanUrl, true);
 
         // Render Summary
         if (summaryContent && summaryContent.trim() !== "") {

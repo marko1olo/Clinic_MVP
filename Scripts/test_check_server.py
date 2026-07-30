@@ -1,11 +1,9 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from io import StringIO
 
 class TestCheckServer(unittest.TestCase):
     @patch('paramiko.SSHClient')
-    @patch('sys.stdout', new_callable=StringIO)
-    def test_ssh_connection_failure(self, mock_stdout, mock_ssh_client):
+    def test_ssh_connection_failure(self, mock_ssh_client):
         # Set up the mock to raise an exception when connect is called
         mock_instance = MagicMock()
         mock_instance.connect.side_effect = Exception("Connection refused")
@@ -15,11 +13,11 @@ class TestCheckServer(unittest.TestCase):
         import Scripts.check_server
 
         # Call the main function explicitly to execute the logic
-        Scripts.check_server.main()
+        with self.assertLogs('Scripts.check_server', level='ERROR') as cm:
+            Scripts.check_server.main()
 
         # Assert the output contains the expected error message
-        output = mock_stdout.getvalue()
-        self.assertIn("Failed to connect or execute: Connection refused", output)
+        self.assertTrue(any("Failed to connect or execute: Connection refused" in msg for msg in cm.output))
 
 if __name__ == '__main__':
     unittest.main()

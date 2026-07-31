@@ -3,13 +3,16 @@ import tempfile
 import os
 from unittest.mock import patch
 
-import clinic_bot.db as db
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import db
 
 class TestDB(unittest.TestCase):
     def setUp(self):
         self.fd, self.temp_db = tempfile.mkstemp()
         # Patch the DB_FILE in clinic_bot.db to point to our temporary file
-        self.patcher = patch('clinic_bot.db.DB_FILE', self.temp_db)
+        self.patcher = patch('db.DB_FILE', self.temp_db)
         self.patcher.start()
 
         # Initialize the test database schema

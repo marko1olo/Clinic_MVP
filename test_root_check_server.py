@@ -21,5 +21,21 @@ class TestCheckServerEnv(unittest.TestCase):
                 check_server.main()
             mock_sys_exit.assert_called_once_with('ERROR: VPS_PASSWORD environment variable is not set.')
 
+
+    @patch('check_server.paramiko.SSHClient')
+    @patch('builtins.print')
+    def test_ssh_exception(self, mock_print, mock_ssh_client):
+        # Configure the mock to raise SSHException on connect
+        mock_instance = mock_ssh_client.return_value
+        import paramiko
+        test_exception = paramiko.SSHException("Connection failed")
+        mock_instance.connect.side_effect = test_exception
+
+        # Set required environment variables
+        with patch.dict('os.environ', {'VPS_HOST': '127.0.0.1', 'VPS_PASSWORD': 'test_password'}, clear=True):
+            check_server.main()
+
+        mock_print.assert_any_call(f"Failed to connect or execute: {test_exception}")
+
 if __name__ == '__main__':
     unittest.main()

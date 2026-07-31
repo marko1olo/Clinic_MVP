@@ -1,6 +1,10 @@
 import os
 import sys
 import paramiko
+import logging
+
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 def main():
     host = os.environ.get('VPS_HOST')
@@ -16,7 +20,7 @@ def main():
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        print(f"Connecting to {user}@{host}...")
+        logger.info(f"Connecting to {user}@{host}...")
         client.connect(hostname=host, username=user, password=password, timeout=10)
 
         commands = [
@@ -28,17 +32,17 @@ def main():
         ]
 
         for cmd in commands:
-            print(f"\n[Run] {cmd}")
+            logger.info(f"\n[Run] {cmd}")
             stdin, stdout, stderr = client.exec_command(cmd)
-            print(stdout.read().decode('utf-8', errors='replace').strip())
+            logger.info(stdout.read().decode('utf-8', errors='replace').strip())
             err = stderr.read().decode('utf-8', errors='replace').strip()
             if err:
-                print(f"Stderr: {err}")
+                logger.warning(f"Stderr: {err}")
 
         client.close()
-        print("\nConnection closed.")
+        logger.info("\nConnection closed.")
     except Exception as e:
-        print(f"Failed to connect or execute: {e}")
+        logger.error(f"Failed to connect or execute: {e}")
 
 if __name__ == '__main__':
     main()

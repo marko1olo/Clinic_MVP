@@ -4,95 +4,73 @@ from Scripts.setup_backups import ssh
 
 
 class TestSetupBackups(unittest.TestCase):
+    def setUp(self):
+        self.mock_client = Mock()
+        self.mock_stdin = Mock()
+        self.mock_stdout_ssh = Mock()
+        self.mock_stderr_ssh = Mock()
+        self.mock_client.exec_command.return_value = (
+            self.mock_stdin, self.mock_stdout_ssh, self.mock_stderr_ssh)
+
     @patch('sys.stdout')
     def test_ssh_success(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
+        self.mock_stdout_ssh.read.return_value = b"success output\n"
+        self.mock_stderr_ssh.read.return_value = b""
 
-        mock_stdout_ssh.read.return_value = b"success output\n"
-        mock_stderr_ssh.read.return_value = b""
-
-        mock_client.exec_command.return_value = (
-            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
-
-        out, err = ssh(mock_client, "echo test", desc="test desc")
+        out, err = ssh(self.mock_client, "echo test", desc="test desc")
 
         self.assertEqual(out, "success output")
         self.assertEqual(err, "")
-        mock_client.exec_command.assert_called_once_with(
+        self.mock_client.exec_command.assert_called_once_with(
             "echo test", timeout=60)
 
         mock_stdout.buffer.write.assert_has_calls([
             call(b'\n>>> test desc\n'),
             call(b'success output\n')
         ])
-        mock_stdin.close.assert_called_once()
-        mock_stdout_ssh.close.assert_called_once()
-        mock_stderr_ssh.close.assert_called_once()
+        self.mock_stdin.close.assert_called_once()
+        self.mock_stdout_ssh.close.assert_called_once()
+        self.mock_stderr_ssh.close.assert_called_once()
 
     @patch('sys.stdout')
     def test_ssh_error(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
+        self.mock_stdout_ssh.read.return_value = b""
+        self.mock_stderr_ssh.read.return_value = b"error output\n"
 
-        mock_stdout_ssh.read.return_value = b""
-        mock_stderr_ssh.read.return_value = b"error output\n"
-
-        mock_client.exec_command.return_value = (
-            mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
-
-        out, err = ssh(mock_client, "false", desc="")
+        out, err = ssh(self.mock_client, "false", desc="")
 
         self.assertEqual(out, "")
         self.assertEqual(err, "error output")
-        mock_client.exec_command.assert_called_once_with("false", timeout=60)
+        self.mock_client.exec_command.assert_called_once_with("false", timeout=60)
 
         mock_stdout.buffer.write.assert_has_calls([
             call(b'\n>>> false\n'),
             call(b'STDERR: error output\n')
         ])
-        mock_stdin.close.assert_called_once()
-        mock_stdout_ssh.close.assert_called_once()
-        mock_stderr_ssh.close.assert_called_once()
+        self.mock_stdin.close.assert_called_once()
+        self.mock_stdout_ssh.close.assert_called_once()
+        self.mock_stderr_ssh.close.assert_called_once()
 
     @patch('sys.stdout')
     def test_ssh_decode_error(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
+        self.mock_stdout_ssh.read.return_value = b"bad \xff data"
+        self.mock_stderr_ssh.read.return_value = b"bad \xff err"
 
-        mock_stdout_ssh.read.return_value = b"bad \xff data"
-        mock_stderr_ssh.read.return_value = b"bad \xff err"
-
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
-
-        out, err = ssh(mock_client, "echo bad", desc="")
+        out, err = ssh(self.mock_client, "echo bad", desc="")
 
         self.assertEqual(out, "bad \ufffd data")
         self.assertEqual(err, "bad \ufffd err")
 
     @patch('sys.stdout')
     def test_ssh_timeout(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
+        self.mock_stdout_ssh.read.return_value = b"timeout test\n"
+        self.mock_stderr_ssh.read.return_value = b""
 
-        mock_stdout_ssh.read.return_value = b"timeout test\n"
-        mock_stderr_ssh.read.return_value = b""
-
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
-
-        out, err = ssh(mock_client, "sleep 1", desc="timeout desc", timeout=120)
+        out, err = ssh(self.mock_client, "sleep 1", desc="timeout desc", timeout=120)
 
         self.assertEqual(out, "timeout test")
         self.assertEqual(err, "")
-        mock_client.exec_command.assert_called_once_with("sleep 1", timeout=120)
+        self.mock_client.exec_command.assert_called_once_with("sleep 1", timeout=120)
 
         mock_stdout.buffer.write.assert_has_calls([
             call(b'\n>>> timeout desc\n'),
@@ -102,38 +80,24 @@ class TestSetupBackups(unittest.TestCase):
 
     @patch('sys.stdout')
     def test_ssh_very_long_command(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
-
-        mock_stdout_ssh.read.return_value = b""
-        mock_stderr_ssh.read.return_value = b""
-
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
+        self.mock_stdout_ssh.read.return_value = b""
+        self.mock_stderr_ssh.read.return_value = b""
 
         long_cmd = "a" * 100
-        out, err = ssh(mock_client, long_cmd, desc="")
+        out, err = ssh(self.mock_client, long_cmd, desc="")
 
         self.assertEqual(out, "")
         self.assertEqual(err, "")
-        mock_client.exec_command.assert_called_once_with(long_cmd, timeout=60)
+        self.mock_client.exec_command.assert_called_once_with(long_cmd, timeout=60)
         mock_stdout.buffer.write.assert_called_once_with(f'\n>>> {"a"*60}\n'.encode())
 
 
     @patch('sys.stdout')
     def test_ssh_output_flush(self, mock_stdout):
-        mock_client = Mock()
-        mock_stdin = Mock()
-        mock_stdout_ssh = Mock()
-        mock_stderr_ssh = Mock()
+        self.mock_stdout_ssh.read.return_value = b""
+        self.mock_stderr_ssh.read.return_value = b""
 
-        mock_stdout_ssh.read.return_value = b""
-        mock_stderr_ssh.read.return_value = b""
-
-        mock_client.exec_command.return_value = (mock_stdin, mock_stdout_ssh, mock_stderr_ssh)
-
-        ssh(mock_client, "echo test", desc="")
+        ssh(self.mock_client, "echo test", desc="")
 
         self.assertEqual(mock_stdout.flush.call_count, 2)
 

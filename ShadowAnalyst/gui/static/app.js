@@ -48,6 +48,28 @@ window.showToast = function(message, type = 'info') {
     }
 };
 
+function getUrlsFromCleanUrl(cleanUrl) {
+    if (cleanUrl.includes('_enhanced')) {
+        return {
+            originalUrl: cleanUrl.replace('_enhanced', ''),
+            enhancedUrl: cleanUrl
+        };
+    }
+
+    const extIndex = cleanUrl.lastIndexOf('.');
+    if (extIndex !== -1) {
+        return {
+            originalUrl: cleanUrl,
+            enhancedUrl: `${cleanUrl.substring(0, extIndex)}_enhanced${cleanUrl.substring(extIndex)}`
+        };
+    }
+
+    return {
+        originalUrl: cleanUrl,
+        enhancedUrl: cleanUrl + '_enhanced'
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const imgElement = document.getElementById('xray-image');
     const emptyState = document.getElementById('empty-state');
@@ -586,21 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         imgElement.style.display = 'none';
                         comparisonContainer.style.display = 'flex';
                         
-                        let originalUrl = cleanUrl;
-                        let enhancedUrl = cleanUrl;
-                        
-                        if (cleanUrl.includes('_enhanced')) {
-                            originalUrl = cleanUrl.replace('_enhanced', '');
-                        } else {
-                            const extIndex = cleanUrl.lastIndexOf('.');
-                            if (extIndex !== -1) {
-                                const base = cleanUrl.substring(0, extIndex);
-                                const ext = cleanUrl.substring(extIndex);
-                                enhancedUrl = `${base}_enhanced${ext}`;
-                            } else {
-                                enhancedUrl = cleanUrl + '_enhanced';
-                            }
-                        }
+                        const { originalUrl, enhancedUrl } = getUrlsFromCleanUrl(cleanUrl);
                         
                         const timestamp = new Date().getTime();
                         xrayImageOriginal.src = originalUrl + "?t=" + timestamp;
@@ -668,21 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imgElement.style.display = 'none';
             comparisonContainer.style.display = 'flex';
             
-            let originalUrl = cleanUrl;
-            let enhancedUrl = cleanUrl;
-            
-            if (cleanUrl.includes('_enhanced')) {
-                originalUrl = cleanUrl.replace('_enhanced', '');
-            } else {
-                const extIndex = cleanUrl.lastIndexOf('.');
-                if (extIndex !== -1) {
-                    const base = cleanUrl.substring(0, extIndex);
-                    const ext = cleanUrl.substring(extIndex);
-                    enhancedUrl = `${base}_enhanced${ext}`;
-                } else {
-                    enhancedUrl = cleanUrl + '_enhanced';
-                }
-            }
+            const { originalUrl, enhancedUrl } = getUrlsFromCleanUrl(cleanUrl);
             
             const timestamp = new Date().getTime();
             xrayImageOriginal.src = originalUrl + "?t=" + timestamp;

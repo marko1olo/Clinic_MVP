@@ -20,6 +20,50 @@ class TestWatcher(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
+    @patch('ShadowAnalyst.watcher.OpenAI')
+    def test_get_openai_client_caching(self, mock_openai_class):
+        # Clear cache to ensure a clean state
+        watcher.get_openai_client.cache_clear()
+        mock_instance = MagicMock()
+        mock_openai_class.return_value = mock_instance
+
+        # First call (cache miss)
+        client1 = watcher.get_openai_client("key1", "url1")
+        self.assertEqual(client1, mock_instance)
+        mock_openai_class.assert_called_once_with(
+            api_key="key1",
+            base_url="url1",
+            timeout=30.0,
+            max_retries=0
+        )
+
+        # Second call with identical arguments (cache hit)
+        mock_openai_class.reset_mock()
+        client2 = watcher.get_openai_client("key1", "url1")
+        self.assertEqual(client2, mock_instance)
+        mock_openai_class.assert_not_called()
+
+        # Third call with different arguments (cache miss)
+        client3 = watcher.get_openai_client("key2", "url2", 15.0)
+        self.assertEqual(client3, mock_instance)
+        mock_openai_class.assert_called_once_with(
+            api_key="key2",
+            base_url="url2",
+            timeout=15.0,
+            max_retries=0
+        )
+
+        # Fourth call with empty api_key (fallback to dummy_key)
+        mock_openai_class.reset_mock()
+        client4 = watcher.get_openai_client("", "url3")
+        self.assertEqual(client4, mock_instance)
+        mock_openai_class.assert_called_once_with(
+            api_key="dummy_key",
+            base_url="url3",
+            timeout=30.0,
+            max_retries=0
+        )
+
     @patch('ShadowAnalyst.watcher.get_openai_client')
     def test_make_groq_client(self, mock_get_client):
         mock_get_client.return_value = "mock_client"

@@ -47,6 +47,61 @@ class TestDB(unittest.TestCase):
         self.assertEqual(row['role'], 'doctor')
         self.assertEqual(row['name'], 'New Doc')
 
+    def test_add_users_batch_insert(self):
+        users = [
+            (444, 'doctor', 'Doc Two'),
+            (555, 'admin', 'Admin Two'),
+            (666, 'patient', 'Patient One')
+        ]
+        db.add_users(users)
+        conn = db.get_connection()
+        c = conn.cursor()
+
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (444,))
+        row1 = c.fetchone()
+        self.assertIsNotNone(row1)
+        self.assertEqual(row1['role'], 'doctor')
+        self.assertEqual(row1['name'], 'Doc Two')
+
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (555,))
+        row2 = c.fetchone()
+        self.assertIsNotNone(row2)
+        self.assertEqual(row2['role'], 'admin')
+        self.assertEqual(row2['name'], 'Admin Two')
+
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (666,))
+        row3 = c.fetchone()
+        self.assertIsNotNone(row3)
+        self.assertEqual(row3['role'], 'patient')
+        self.assertEqual(row3['name'], 'Patient One')
+
+    def test_add_users_replace(self):
+        # Insert initial data
+        db.add_users([(777, 'patient', 'Old Patient')])
+
+        # Overwrite it with replace
+        db.add_users([(777, 'doctor', 'New Doctor')])
+
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT role, name FROM users WHERE chat_id = ?', (777,))
+        row = c.fetchone()
+
+        self.assertIsNotNone(row)
+        self.assertEqual(row['role'], 'doctor')
+        self.assertEqual(row['name'], 'New Doctor')
+
+    def test_add_users_empty_list(self):
+        # Should return early without error
+        db.add_users([])
+
+        # Verify db hasn't crashed and is accessible
+        conn = db.get_connection()
+        c = conn.cursor()
+        c.execute('SELECT COUNT(*) as count FROM users')
+        count = c.fetchone()['count']
+        self.assertEqual(count, 0)
+
     def test_add_user_default_name(self):
         db.add_user(333, 'patient')
         conn = db.get_connection()

@@ -1,4 +1,8 @@
-import subprocess, sys, os, time
+import os
+import shutil
+import subprocess
+import sys
+import time
 
 print("[1] Killing ShadowAnalyst processes...")
 subprocess.run(
@@ -20,7 +24,6 @@ for f in [
             print(f"  Could not delete {f}: {e}")
 
 print("[3] Removing build/dist folders...")
-import shutil
 for d in [
     r"C:\Clinic_MVP\ShadowAnalyst\gui\build",
     r"C:\Clinic_MVP\ShadowAnalyst\gui\dist",

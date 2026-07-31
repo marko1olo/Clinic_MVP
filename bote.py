@@ -1,3 +1,4 @@
+import os
 import asyncio
 import io
 import random
@@ -24,8 +25,10 @@ def new_getaddrinfo(*args, **kwargs):
 
 socket.getaddrinfo = new_getaddrinfo
 # ---------------------------------------------------------
-# Вставь сюда токен своего бота
-BOT_TOKEN = '8930684800:AAHGQmAMWEn2RCGPhUFW0Yxza_TUssugGkA'
+# Токен бота берется из переменных окружения
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is not set")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()

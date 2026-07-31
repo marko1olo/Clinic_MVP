@@ -120,7 +120,7 @@ async def handle_photo(message: Message):
 
 async def main():
     logging.basicConfig(level=logging.INFO)
-    print("Бот запущен и готов принимать пикчи!")
+    logging.info("Бот запущен и готов принимать пикчи!")
     # Запускаем поллинг (ожидание сообщений)
     await dp.start_polling(bot)
 

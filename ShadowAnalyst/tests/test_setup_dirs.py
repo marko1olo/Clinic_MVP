@@ -15,3 +15,14 @@ class TestSetupDirs(unittest.TestCase):
         ]
         mock_makedirs.assert_has_calls(expected_calls, any_order=True)
         self.assertEqual(mock_makedirs.call_count, 2)
+
+    @patch('ShadowAnalyst.watcher.os.makedirs')
+    def test_setup_dirs_error(self, mock_makedirs):
+        # Simulate an OSError during directory creation
+        mock_makedirs.side_effect = OSError("Permission denied")
+
+        # The exception should propagate up
+        with self.assertRaises(OSError) as context:
+            watcher.setup_dirs()
+
+        self.assertIn("Permission denied", str(context.exception))

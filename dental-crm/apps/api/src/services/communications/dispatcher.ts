@@ -131,16 +131,22 @@ export const DEFAULT_COMMUNICATION_SETTINGS: ResolvedCommunicationSettings = {
 };
 
 function parseChannelFallback(raw: string): CommunicationChannelCode[] {
+	let parsed: unknown;
 	try {
-		const parsed: unknown = JSON.parse(raw);
-		if (!Array.isArray(parsed)) return DEFAULT_COMMUNICATION_SETTINGS.channelFallback;
-		const channels = parsed.filter((value): value is CommunicationChannelCode =>
-			typeof value === "string" && isMachineDeliverableChannel(value)
-		);
-		return channels.length > 0 ? channels : DEFAULT_COMMUNICATION_SETTINGS.channelFallback;
+		parsed = JSON.parse(raw);
 	} catch {
 		return DEFAULT_COMMUNICATION_SETTINGS.channelFallback;
 	}
+
+	if (!Array.isArray(parsed)) return DEFAULT_COMMUNICATION_SETTINGS.channelFallback;
+
+	const channels = parsed.filter((value): value is CommunicationChannelCode =>
+		typeof value === "string" && isMachineDeliverableChannel(value)
+	);
+
+	if (channels.length === 0) return DEFAULT_COMMUNICATION_SETTINGS.channelFallback;
+
+	return channels;
 }
 
 /** Часы до приёма, когда отправлять напоминание. Порядок — от дальнего к ближнему. */
@@ -763,6 +769,40 @@ async function processRow(
 	return outcome.kind === "suppressed" ? "not_configured" : "failed";
 }
 
+function recordOutcome(outcome: RowOutcome, report: {
+	sent: number;
+	retried: number;
+	failed: number;
+	suppressed: number;
+	notConfigured: number;
+	deferred: number;
+}): void {
+	switch (outcome) {
+		case "sent":
+			report.sent += 1;
+			break;
+		case "retried":
+			report.retried += 1;
+			break;
+		case "failed":
+			report.failed += 1;
+			break;
+		case "suppressed":
+			report.suppressed += 1;
+			break;
+		case "not_configured":
+			report.notConfigured += 1;
+			break;
+		case "deferred":
+			report.deferred += 1;
+			break;
+		default: {
+			const unhandled: never = outcome;
+			throw new Error(`Неизвестный итог отправки: ${String(unhandled)}`);
+		}
+	}
+}
+
 /**
  * Один проход по очереди. Возвращает отчёт — вызывающий решает, логировать его
  * или показывать в интерфейсе.
@@ -826,30 +866,7 @@ export async function dispatchDueMessages(options: DispatchOptions = {}): Promis
 				 * новый — и он тихо посчитался бы отложенным. Здесь недостающая ветка
 				 * не компилируется.
 				 */
-				switch (outcome) {
-					case "sent":
-						report.sent += 1;
-						break;
-					case "retried":
-						report.retried += 1;
-						break;
-					case "failed":
-						report.failed += 1;
-						break;
-					case "suppressed":
-						report.suppressed += 1;
-						break;
-					case "not_configured":
-						report.notConfigured += 1;
-						break;
-					case "deferred":
-						report.deferred += 1;
-						break;
-					default: {
-						const unhandled: never = outcome;
-						throw new Error(`Неизвестный итог отправки: ${String(unhandled)}`);
-					}
-				}
+					recordOutcome(outcome, report);
 			} catch (error) {
 				// Непредвиденный сбой не должен оставить строку захваченной
 				// навсегда: возвращаем её в очередь с записанной причиной.

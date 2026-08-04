@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from clinic_admin.seo_agent import generate_seo_response, get_groq_api_key
 
-class TestSEOAgent(unittest.TestCase):
+class TestGetGroqApiKey(unittest.TestCase):
     def setUp(self):
         import clinic_admin.seo_agent
         clinic_admin.seo_agent._cached_groq_keys = None
@@ -70,8 +70,34 @@ class TestSEOAgent(unittest.TestCase):
         # Verify we get None when the key doesn't exist
         self.assertIsNone(result)
 
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
-    def test_missing_api_key(self, mock_get_api_key):
+    def test_get_groq_api_key_cached(self):
+        import clinic_admin.seo_agent
+        original_cache = clinic_admin.seo_agent._cached_groq_keys
+        try:
+            clinic_admin.seo_agent._cached_groq_keys = ["cached1", "cached2"]
+            with patch('clinic_admin.seo_agent.random.choice') as mock_choice:
+                mock_choice.return_value = "cached1"
+                result = get_groq_api_key()
+                self.assertEqual(result, "cached1")
+                mock_choice.assert_called_once_with(["cached1", "cached2"])
+        finally:
+            clinic_admin.seo_agent._cached_groq_keys = original_cache
+
+    def test_get_groq_api_key_cached_empty(self):
+        import clinic_admin.seo_agent
+        original_cache = clinic_admin.seo_agent._cached_groq_keys
+        try:
+            clinic_admin.seo_agent._cached_groq_keys = []
+            result = get_groq_api_key()
+            self.assertIsNone(result)
+        finally:
+            clinic_admin.seo_agent._cached_groq_keys = original_cache
+
+
+@patch('clinic_admin.seo_agent.requests.post')
+@patch('clinic_admin.seo_agent.get_groq_api_key')
+class TestGenerateSeoResponse(unittest.TestCase):
+    def test_missing_api_key(self, mock_get_api_key, mock_post):
         # Setup: Return None to simulate missing API key
         mock_get_api_key.return_value = None
 
@@ -82,8 +108,6 @@ class TestSEOAgent(unittest.TestCase):
         self.assertEqual(result, "Ошибка: Не найден API ключ Groq в конфигурации.")
         mock_get_api_key.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_happy_path_success(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and successful request
         mock_get_api_key.return_value = "fake-api-key"
@@ -112,8 +136,6 @@ class TestSEOAgent(unittest.TestCase):
         self.assertEqual(called_kwargs["json"]["model"], "llama-3.3-70b-versatile")
         self.assertEqual(called_kwargs["json"]["messages"][1]["content"], "Вот текст отзыва: \"Good doctor.\"\n\nНапиши ответ.")
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_request_exception(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and failed request (e.g., timeout)
         mock_get_api_key.return_value = "fake-api-key"
@@ -128,8 +150,6 @@ class TestSEOAgent(unittest.TestCase):
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_malformed_response(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and successful request but malformed JSON (missing choices)
         mock_get_api_key.return_value = "fake-api-key"
@@ -151,31 +171,6 @@ class TestSEOAgent(unittest.TestCase):
         mock_response.raise_for_status.assert_called_once()
 
 
-    def test_get_groq_api_key_cached(self):
-        import clinic_admin.seo_agent
-        original_cache = clinic_admin.seo_agent._cached_groq_keys
-        try:
-            clinic_admin.seo_agent._cached_groq_keys = ["cached1", "cached2"]
-            with patch('clinic_admin.seo_agent.random.choice') as mock_choice:
-                mock_choice.return_value = "cached1"
-                result = get_groq_api_key()
-                self.assertEqual(result, "cached1")
-                mock_choice.assert_called_once_with(["cached1", "cached2"])
-        finally:
-            clinic_admin.seo_agent._cached_groq_keys = original_cache
-
-    def test_get_groq_api_key_cached_empty(self):
-        import clinic_admin.seo_agent
-        original_cache = clinic_admin.seo_agent._cached_groq_keys
-        try:
-            clinic_admin.seo_agent._cached_groq_keys = []
-            result = get_groq_api_key()
-            self.assertIsNone(result)
-        finally:
-            clinic_admin.seo_agent._cached_groq_keys = original_cache
-
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_empty_review_text(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and successful request for empty text
         mock_get_api_key.return_value = "fake-api-key"
@@ -196,8 +191,7 @@ class TestSEOAgent(unittest.TestCase):
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
-    def test_generate_seo_response_missing_api_key_error(self, mock_get_api_key):
+    def test_generate_seo_response_missing_api_key_error(self, mock_get_api_key, mock_post):
         # Setup: Return None to simulate missing API key
         mock_get_api_key.return_value = None
 
@@ -208,8 +202,6 @@ class TestSEOAgent(unittest.TestCase):
         self.assertEqual(result, "Ошибка: Не найден API ключ Groq в конфигурации.")
         mock_get_api_key.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_request_http_error(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and HTTPError
         import requests
@@ -229,8 +221,6 @@ class TestSEOAgent(unittest.TestCase):
         mock_post.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_request_timeout(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and Timeout
         import requests
@@ -246,8 +236,6 @@ class TestSEOAgent(unittest.TestCase):
         mock_get_api_key.assert_called_once()
         mock_post.assert_called_once()
 
-    @patch('clinic_admin.seo_agent.requests.post')
-    @patch('clinic_admin.seo_agent.get_groq_api_key')
     def test_request_json_decode_error(self, mock_get_api_key, mock_post):
         # Setup: Simulate valid API key and JSONDecodeError on response.json()
         import requests

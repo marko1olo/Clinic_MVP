@@ -792,6 +792,86 @@ class Store:
             (status, limit))
         return [_outbox(row) for row in rows]
 
+    def account_sent_outbox(self, rows: list[OutboxRow]) -> None:
+        """Массовый учёт отправленных строк.
+
+        Оптимизация: вместо того, чтобы для каждой строки открывать транзакцию
+        и делать четыре одиночных запроса (touch_dialog, mark_followup_sent,
+        audit, mark_outbox_accounted), мы собираем данные и используем executemany.
+        """
+        if not rows:
+            return
+
+        now = hours.now()
+        now_iso = _iso(now, "now")
+
+        dialog_updates = []
+        followup_updates = []
+        audit_inserts = []
+        outbox_updates = []
+
+        for row in rows:
+            chat_id = row.chat_id
+            sent_at_iso = _iso(row.sent_at, "sent_at") if row.sent_at else None
+
+            # touch_dialog logic
+            first = sent_at_iso or now_iso
+            dialog_updates.append({
+                "chat_id": chat_id,
+                "first": first,
+                "patient": None,
+                "our": sent_at_iso,
+                "p_inc": 0,
+                "o_inc": 1 if sent_at_iso else 0
+            })
+
+            # mark_followup_sent logic
+            if row.kind == "followup" and sent_at_iso:
+                followup_updates.append((sent_at_iso, chat_id))
+
+            # audit logic
+            payload = {"outbox_id": row.id, "kind": row.kind, "draft_id": row.draft_id}
+            blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+            audit_inserts.append((now_iso, "sent", chat_id, blob))
+
+            # mark_outbox_accounted logic
+            outbox_updates.append((now_iso, row.id))
+
+        with self._write() as conn:
+            conn.executemany(
+                """
+                INSERT INTO dialogs(chat_id, first_seen_at, patient_last_message_at,
+                                    our_last_message_at, patient_messages, our_messages)
+                VALUES(:chat_id, :first, :patient, :our, :p_inc, :o_inc)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    patient_last_message_at = CASE
+                        WHEN :patient IS NULL THEN patient_last_message_at
+                        WHEN patient_last_message_at IS NULL
+                             OR :patient > patient_last_message_at THEN :patient
+                        ELSE patient_last_message_at END,
+                    our_last_message_at = CASE
+                        WHEN :our IS NULL THEN our_last_message_at
+                        WHEN our_last_message_at IS NULL
+                             OR :our > our_last_message_at THEN :our
+                        ELSE our_last_message_at END,
+                    patient_messages = patient_messages + :p_inc,
+                    our_messages = our_messages + :o_inc
+                """, dialog_updates)
+
+            if followup_updates:
+                conn.executemany(
+                    "UPDATE dialogs SET followups_sent = followups_sent + 1, "
+                    "last_followup_at = ? WHERE chat_id = ?", followup_updates)
+
+            conn.executemany(
+                "INSERT INTO audit(at, event, chat_id, payload) VALUES(?, ?, ?, ?)",
+                audit_inserts)
+
+            conn.executemany(
+                "UPDATE outbox SET accounted_at = ? WHERE id = ? AND status = 'sent' "
+                "AND accounted_at IS NULL", outbox_updates)
+
+
     def sent_unaccounted(self, limit: int = 50) -> list[OutboxRow]:
         """Отправленное, что демон ещё не учёл в состоянии диалога.
 

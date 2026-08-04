@@ -386,16 +386,10 @@ async def step_account(store: Store) -> Counters:
     """
     counters = Counters()
 
-    for row in store.sent_unaccounted(limit=50):
-        assert row.sent_at is not None  # гарантировано CHECK-ом в схеме
-        store.touch_dialog(row.chat_id, our_message_at=row.sent_at)
-        if row.kind == "followup":
-            store.mark_followup_sent(row.chat_id, row.sent_at)
-        store.audit("sent", chat_id=row.chat_id,
-                    payload={"outbox_id": row.id, "kind": row.kind,
-                             "draft_id": row.draft_id})
-        store.mark_outbox_accounted(row.id)
-        counters.accounted += 1
+    rows = store.sent_unaccounted(limit=50)
+    if rows:
+        store.account_sent_outbox(rows)
+        counters.accounted += len(rows)
 
     # Зависшие отправки: человек, а не повтор. Ушло сообщение или нет —
     # неизвестно, а дубликат в переписке выдаёт бота вернее любой формулировки.

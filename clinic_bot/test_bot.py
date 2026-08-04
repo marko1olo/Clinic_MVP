@@ -181,3 +181,30 @@ class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
                         self.assertIn("Failed to send photo to 123: Test send_photo error", mock_logger_error.call_args_list[0].args[0])
 
 
+
+from bot import handle_alert_admin
+
+class TestHandleAlertAdmin(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_alert_admin_with_text(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        loop = MagicMock()
+        payload = {'text': 'Test alert payload'}
+        mock_broadcast.return_value = 'mock_coroutine'
+
+        handle_alert_admin('test/topic', payload, loop)
+
+        mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\nTest alert payload", role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_alert_admin_without_text(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        loop = MagicMock()
+        payload = {'key': 'value'}
+        mock_broadcast.return_value = 'mock_coroutine'
+
+        handle_alert_admin('test/topic', payload, loop)
+
+        mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\n{'key': 'value'}", role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)

@@ -221,6 +221,28 @@ class TestDB(unittest.TestCase):
 
         # Assert that the conns dictionary was cleared
         self.assertEqual(len(db._local.conns), 0)
+    def test_get_connection_error_paths(self):
+        """Test the AttributeError and KeyError fallback paths in get_connection."""
+        class EmptyLocal:
+            pass
+
+        mock_local = EmptyLocal()
+
+        with patch.object(db, '_local', mock_local):
+            # 1. Trigger AttributeError by accessing _local.conns before it exists.
+            # This should initialize conns as an empty dict and then trigger a KeyError
+            # because the DB_FILE is not in the empty dict. It should then create the connection.
+            conn1 = db.get_connection()
+            self.assertIsNotNone(conn1)
+            self.assertIn(db.DB_FILE, mock_local.conns)
+
+            # 2. Trigger only KeyError by removing the DB_FILE from conns.
+            # conns exists, but the key is missing.
+            del mock_local.conns[db.DB_FILE]
+            conn2 = db.get_connection()
+            self.assertIsNotNone(conn2)
+            self.assertIn(db.DB_FILE, mock_local.conns)
+
     def test_get_connection_thread_local(self):
         """Test that get_connection returns a thread-local SQLite connection."""
         import threading

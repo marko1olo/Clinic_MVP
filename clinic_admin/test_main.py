@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import sqlite3
 import uuid
 
-import main
-import database
+import clinic_admin.main as main
+import clinic_admin.database as database
 
 client = TestClient(main.app)
 

@@ -549,6 +549,52 @@ class TestWatcher(unittest.TestCase):
             mock_print.assert_any_call("Ошибка при проверке существующих файлов: Listdir error")
             mock_observer_instance.start.assert_called_once()
 
+    @patch('ShadowAnalyst.watcher.os.replace')
+    def test_move_files_success(self, mock_replace):
+        with patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher._move_files('/tmp/original.jpg', None, 'original.jpg')
+            mock_replace.assert_called_once_with('/tmp/original.jpg', '/tmp/mock_processed/original.jpg')
+
+    @patch('ShadowAnalyst.watcher.time.sleep')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    def test_move_files_permission_error(self, mock_replace, mock_sleep):
+        mock_replace.side_effect = [PermissionError, None]
+        with patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'), \
+             patch('builtins.print') as mock_print:
+            watcher._move_files('/tmp/original.jpg', None, 'original.jpg')
+            mock_print.assert_any_call("    [!] Файл занят, повторная попытка через 2 сек...")
+            mock_sleep.assert_called_once_with(2)
+            self.assertEqual(mock_replace.call_count, 2)
+            mock_replace.assert_called_with('/tmp/original.jpg', '/tmp/mock_processed/original.jpg')
+
+    @patch('ShadowAnalyst.watcher.os.path.exists')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    def test_move_files_with_marked_path(self, mock_replace, mock_exists):
+        mock_exists.return_value = True
+        with patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
+            watcher._move_files('/tmp/original.jpg', '/tmp/marked.jpg', 'original.jpg')
+            self.assertEqual(mock_replace.call_count, 2)
+            mock_replace.assert_any_call('/tmp/original.jpg', '/tmp/mock_processed/original.jpg')
+            mock_replace.assert_any_call('/tmp/marked.jpg', '/tmp/mock_processed/marked.jpg')
+
+    @patch('ShadowAnalyst.watcher.os.path.exists')
+    @patch('ShadowAnalyst.watcher.os.replace')
+    def test_move_files_marked_path_exception(self, mock_replace, mock_exists):
+        mock_exists.return_value = True
+
+        def replace_side_effect(*args):
+            if args[0] == '/tmp/marked.jpg':
+                raise Exception("Marked path error")
+            return None
+
+        mock_replace.side_effect = replace_side_effect
+        with patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'), \
+             patch('builtins.print') as mock_print:
+            watcher._move_files('/tmp/original.jpg', '/tmp/marked.jpg', 'original.jpg')
+            self.assertEqual(mock_replace.call_count, 2)
+            mock_print.assert_any_call("    [!] Ошибка перемещения размеченного файла: Marked path error")
+
+
 if __name__ == '__main__':
     unittest.main()
 

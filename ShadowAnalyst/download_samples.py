@@ -12,7 +12,7 @@ downloaded = 0
 for item in items:
     img_url = item.get('imgLarge')
     if img_url:
-        full_url = 'https://openi.nlm.nih.gov' + img_url
+        full_url = f'https://openi.nlm.nih.gov{img_url}'
         try:
             img_data = requests.get(full_url, timeout=15).content
             fname = f'xray_{downloaded+1}.jpg'

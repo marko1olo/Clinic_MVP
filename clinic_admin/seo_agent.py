@@ -13,20 +13,15 @@ _cached_groq_keys = None
 def get_groq_api_key():
     global _cached_groq_keys
 
-    if _cached_groq_keys is not None:
-        if _cached_groq_keys:
-            return random.choice(_cached_groq_keys)
-        return None
+    if _cached_groq_keys is None:
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                _cached_groq_keys = json.load(f).get("groq_api_keys", [])
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            return None
 
-    try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            config = json.load(f)
-            _cached_groq_keys = config.get("groq_api_keys", [])
-            if _cached_groq_keys:
-                return random.choice(_cached_groq_keys)
-    except Exception as e:
-        print(f"Error loading config: {e}")
-    return None
+    return random.choice(_cached_groq_keys) if _cached_groq_keys else None
 
 def generate_seo_response(review_text: str) -> str:
     api_key = get_groq_api_key()

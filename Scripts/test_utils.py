@@ -113,5 +113,25 @@ class TestUtils(unittest.TestCase):
         mock_sftp.put.assert_called_once_with(local_path, remote_path)
         mock_sftp.close.assert_called_once()
 
+
+    def test_scp_file_error(self):
+        mock_client = MagicMock()
+        mock_sftp = MagicMock()
+        mock_client.open_sftp.return_value = mock_sftp
+
+        local_path = "local/file.txt"
+        remote_path = "remote/file.txt"
+
+        mock_sftp.put.side_effect = Exception("Upload failed")
+
+        with self.assertRaises(Exception) as context:
+            scp_file(mock_client, local_path, remote_path)
+
+        self.assertEqual(str(context.exception), "Upload failed")
+
+        mock_client.open_sftp.assert_called_once()
+        mock_sftp.put.assert_called_once_with(local_path, remote_path)
+        mock_sftp.close.assert_not_called()
+
 if __name__ == '__main__':
     unittest.main()

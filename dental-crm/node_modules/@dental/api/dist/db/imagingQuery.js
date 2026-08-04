@@ -194,6 +194,13 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
     const clientSavedAt = input.clientSavedAt ? new Date(input.clientSavedAt) : null;
     const now = new Date();
     if (existing) {
+        /*
+         * БЫЛО: UPDATE imaging_viewer_sessions ... WHERE id=existing.id
+         * (organizationId только в SELECT выше). SELECT-then-UPDATE по одному id
+         * ломает multi-tenant defense-in-depth: чужая клиника с тем же UUID
+         * могла перезаписать сессию просмотра снимка.
+         * СТАЛО: organizationId + id в WHERE; пустой RETURNING → ошибка.
+         */
         const [updated] = await db.update(imagingViewerSessions).set({
             patientId: input.patientId,
             visitId: input.visitId ?? null,
@@ -202,7 +209,7 @@ export async function saveImagingViewerSession(organizationId, studyId, input) {
             clientSavedAt,
             serverSavedAt: now,
             updatedAt: now
-        }).where(eq(imagingViewerSessions.id, existing.id)).returning();
+        }).where(and(eq(imagingViewerSessions.id, existing.id), eq(imagingViewerSessions.organizationId, organizationId))).returning();
         if (!updated)
             throw new Error("Failed to update session");
         return {
@@ -284,12 +291,18 @@ export async function saveDicomWorkbenchBundle(organizationId, input) {
         .where(and(eq(dicomWorkbenchBundles.organizationId, organizationId), eq(dicomWorkbenchBundles.seriesKey, existingSeriesKey)))
         .limit(1);
     if (existing) {
+        /*
+         * БЫЛО: UPDATE dicom_workbench_bundles ... WHERE id only после SELECT
+         * с organizationId+seriesKey. organizationId не в WHERE мутации —
+         * тот же класс дыры, что visits/family wallet.
+         * СТАЛО: organizationId + id; RETURNING обязателен (уже был).
+         */
         const [updated] = await db.update(dicomWorkbenchBundles).set({
             manifest: input.manifest,
             clientSavedAt,
             serverSavedAt: now,
             updatedAt: now
-        }).where(eq(dicomWorkbenchBundles.id, existing.id)).returning();
+        }).where(and(eq(dicomWorkbenchBundles.id, existing.id), eq(dicomWorkbenchBundles.organizationId, organizationId))).returning();
         if (!updated)
             throw new Error("Failed to update bundle");
         return {

@@ -8,7 +8,7 @@ export declare const appointmentStatusSchema: z.ZodEnum<["planned", "confirmed",
 export type AppointmentStatus = z.infer<typeof appointmentStatusSchema>;
 export declare const visitStatusSchema: z.ZodEnum<["draft", "signed", "voided"]>;
 export type VisitStatus = z.infer<typeof visitStatusSchema>;
-export declare const documentKindSchema: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+export declare const documentKindSchema: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
 export type DocumentKind = z.infer<typeof documentKindSchema>;
 export declare const legacyTaxDeductionCertificateMinYear = 2021;
 export declare const legacyTaxDeductionCertificateMaxYear = 2023;
@@ -171,6 +171,13 @@ export declare const documentKindSourceMetadata: {
         readonly sourceNote: "DENTE заполняет структуру формы 025/у только из карточки пациента, профиля клиники и подписанных визитов. Неизвестные разделы остаются явно пустыми; юридически значимый электронный обмен требует отдельного контура УКЭП/МИС/ЕГИСЗ.";
         readonly sourceCheckedAt: "2026-05-24";
     };
+    readonly dental_medical_card_043u: {
+        readonly sourceStatus: "official_form";
+        readonly sourceAuthority: "Минздрав России";
+        readonly sourceReference: "Приказ Минздрава России от 15.12.2014 N 834н (учетные формы), форма N 043/у";
+        readonly sourceNote: "DENTE заполняет структуру формы 043/у из дневника приёма (visit_diaries), карточки пациента и профиля клиники. Неизвестные разделы остаются явно пустыми; юридически значимый электронный обмен требует отдельного контура УКЭП/МИС/ЕГИСЗ.";
+        readonly sourceCheckedAt: "2026-05-24";
+    };
     readonly medical_record_extract: {
         readonly sourceStatus: "official_workflow";
         readonly sourceAuthority: "Минздрав России";
@@ -276,6 +283,7 @@ export declare const documentKindSourceUrls: {
     readonly installment_payment_schedule: readonly [];
     readonly post_visit_recommendations: readonly [];
     readonly outpatient_medical_card_025u: readonly ["https://publication.pravo.gov.ru/document/0001202505300033"];
+    readonly dental_medical_card_043u: readonly ["https://publication.pravo.gov.ru/document/0001202505300033"];
     readonly medical_record_extract: readonly ["https://publication.pravo.gov.ru/Document/View/0001202009240027", "https://publication.pravo.gov.ru/document/0001202505300033"];
     readonly medical_record_copy_request: readonly ["https://publication.pravo.gov.ru/Document/View/0001202009240027"];
     readonly medical_document_release_receipt: readonly ["https://publication.pravo.gov.ru/Document/View/0001202009240027"];
@@ -289,7 +297,7 @@ export declare const documentKindSourceUrls: {
     readonly tax_deduction_registry: readonly ["https://www.nalog.gov.ru/rn77/about_fts/docs/14112883/", "https://www.nalog.gov.ru/rn39/ifns/ob9/info/15134030/"];
     readonly patient_intake_questionnaire: readonly [];
 };
-export declare const documentKindMetadata: Record<"treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire", DocumentKindMetadata>;
+export declare const documentKindMetadata: Record<"treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire", DocumentKindMetadata>;
 export declare const documentFactoryGroups: readonly [{
     readonly title: "Прием";
     readonly kinds: readonly ["patient_intake_questionnaire", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "post_visit_recommendations", "visit_attendance_certificate"];
@@ -301,7 +309,7 @@ export declare const documentFactoryGroups: readonly [{
     readonly kinds: readonly ["tax_deduction_application", "tax_deduction_certificate", "legacy_tax_deduction_certificate", "tax_deduction_registry"];
 }, {
     readonly title: "Юр. и медкарта";
-    readonly kinds: readonly ["personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "warranty_service_memo"];
+    readonly kinds: readonly ["personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "warranty_service_memo"];
 }, {
     readonly title: "Лаборатория";
     readonly kinds: readonly ["lab_work_order"];
@@ -3994,7 +4002,7 @@ export declare const protocolTemplateSchema: z.ZodObject<{
     objectiveTemplate: z.ZodString;
     diagnosisHints: z.ZodArray<z.ZodString, "many">;
     treatmentPlanTemplate: z.ZodString;
-    requiredDocuments: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
+    requiredDocuments: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
     suggestedImaging: z.ZodArray<z.ZodEnum<["periapical", "bitewing", "opg", "ceph", "cbct", "photo", "other"]>, "many">;
     safetyWarnings: z.ZodArray<z.ZodString, "many">;
     updatedAt: z.ZodString;
@@ -4010,7 +4018,7 @@ export declare const protocolTemplateSchema: z.ZodObject<{
     objectiveTemplate: string;
     diagnosisHints: string[];
     treatmentPlanTemplate: string;
-    requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+    requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
     suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
     safetyWarnings: string[];
 }, {
@@ -4025,7 +4033,7 @@ export declare const protocolTemplateSchema: z.ZodObject<{
     objectiveTemplate: string;
     diagnosisHints: string[];
     treatmentPlanTemplate: string;
-    requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+    requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
     suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
     safetyWarnings: string[];
 }>;
@@ -7464,6 +7472,7 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
 }, "strip", z.ZodTypeAny, {
     identityDocument: string | null;
     taxpayerInn: string | null;
@@ -7482,6 +7491,7 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentNote: string | null;
     dataProcessingBasisNote: string | null;
     orthodonticProgress: string | null;
+    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -7500,6 +7510,7 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }>, {
     identityDocument: string | null;
     taxpayerInn: string | null;
@@ -7518,6 +7529,7 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentNote: string | null;
     dataProcessingBasisNote: string | null;
     orthodonticProgress: string | null;
+    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -7536,6 +7548,7 @@ export declare const patientAdministrativeProfileSchema: z.ZodEffects<z.ZodObjec
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }>;
 export type PatientAdministrativeProfile = z.infer<typeof patientAdministrativeProfileSchema>;
 export declare const patientSchema: z.ZodObject<{
@@ -7565,6 +7578,7 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
     }, "strip", z.ZodTypeAny, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -7583,6 +7597,7 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
@@ -7601,6 +7616,7 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     }>, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -7619,6 +7635,7 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
@@ -7637,8 +7654,10 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     }>>>;
     balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+    familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -7670,8 +7689,10 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     } | null;
     balanceRub: number;
+    familyGroupId?: string | null | undefined;
 }, {
     status: "active" | "archived";
     email: string | null;
@@ -7701,8 +7722,10 @@ export declare const patientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     } | null | undefined;
     balanceRub?: number | undefined;
+    familyGroupId?: string | null | undefined;
 }>;
 export type Patient = z.infer<typeof patientSchema>;
 export declare const patientInsightRiskSchema: z.ZodEnum<["low", "watch", "high"]>;
@@ -7715,7 +7738,7 @@ export declare const patientInsightSchema: z.ZodObject<{
     recallDueAt: z.ZodNullable<z.ZodString>;
     balanceDueRub: z.ZodEffects<z.ZodEffects<z.ZodNumber, number, number>, number, number>;
     openTasks: z.ZodNumber;
-    missingDocumentKinds: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
+    missingDocumentKinds: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
     clinicalFlags: z.ZodArray<z.ZodString, "many">;
     adminFlags: z.ZodArray<z.ZodString, "many">;
     lastActivityAt: z.ZodNullable<z.ZodString>;
@@ -7727,7 +7750,7 @@ export declare const patientInsightSchema: z.ZodObject<{
     nextBestAction: string;
     recallDueAt: string | null;
     balanceDueRub: number;
-    missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+    missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
     clinicalFlags: string[];
     adminFlags: string[];
     lastActivityAt: string | null;
@@ -7739,7 +7762,7 @@ export declare const patientInsightSchema: z.ZodObject<{
     nextBestAction: string;
     recallDueAt: string | null;
     balanceDueRub: number;
-    missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+    missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
     clinicalFlags: string[];
     adminFlags: string[];
     lastActivityAt: string | null;
@@ -10795,6 +10818,423 @@ export declare const outpatientMedicalCard025uPayloadSchema: z.ZodObject<{
     finalEpicrisis?: string | null | undefined;
 }>;
 export type OutpatientMedicalCard025uPayload = z.infer<typeof outpatientMedicalCard025uPayloadSchema>;
+/** Structured clinical anamnesis facts (additive; free-text narrative remains supported). */
+export declare const structuredAnamnesisSchema: z.ZodObject<{
+    narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    allergyStatus?: string | null | undefined;
+    currentMedications?: string | null | undefined;
+    pregnancyStatus?: string | null | undefined;
+    anticoagulants?: string | null | undefined;
+    narrative?: string | null | undefined;
+    chronicDiseases?: string | null | undefined;
+    infectiousDiseases?: string | null | undefined;
+    pastDentalHistory?: string | null | undefined;
+    generalHealthNotes?: string | null | undefined;
+}, {
+    allergyStatus?: string | null | undefined;
+    currentMedications?: string | null | undefined;
+    pregnancyStatus?: string | null | undefined;
+    anticoagulants?: string | null | undefined;
+    narrative?: string | null | undefined;
+    chronicDiseases?: string | null | undefined;
+    infectiousDiseases?: string | null | undefined;
+    pastDentalHistory?: string | null | undefined;
+    generalHealthNotes?: string | null | undefined;
+}>;
+export type StructuredAnamnesis = z.infer<typeof structuredAnamnesisSchema>;
+export declare const dentalMedicalCard043uOrganizationSchema: z.ZodObject<{
+    fullName: z.ZodString;
+    shortName: z.ZodNullable<z.ZodString>;
+    address: z.ZodNullable<z.ZodString>;
+    phone: z.ZodNullable<z.ZodString>;
+    ogrn: z.ZodNullable<z.ZodString>;
+    inn: z.ZodNullable<z.ZodString>;
+    licenseNumber: z.ZodNullable<z.ZodString>;
+    licenseIssueDate: z.ZodNullable<z.ZodString>;
+    licenseAuthority: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    phone: string | null;
+    inn: string | null;
+    ogrn: string | null;
+    address: string | null;
+    fullName: string;
+    shortName: string | null;
+    licenseNumber: string | null;
+    licenseIssueDate: string | null;
+    licenseAuthority: string | null;
+}, {
+    phone: string | null;
+    inn: string | null;
+    ogrn: string | null;
+    address: string | null;
+    fullName: string;
+    shortName: string | null;
+    licenseNumber: string | null;
+    licenseIssueDate: string | null;
+    licenseAuthority: string | null;
+}>;
+export type DentalMedicalCard043uOrganization = z.infer<typeof dentalMedicalCard043uOrganizationSchema>;
+export declare const dentalMedicalCard043uPatientSchema: z.ZodObject<{
+    fullName: z.ZodString;
+    birthDate: z.ZodNullable<z.ZodString>;
+    sex: z.ZodNullable<z.ZodString>;
+    phone: z.ZodNullable<z.ZodString>;
+    address: z.ZodNullable<z.ZodString>;
+    documentSeriesNumber: z.ZodNullable<z.ZodString>;
+    snils: z.ZodNullable<z.ZodString>;
+    medicalCardNumber: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    phone: string | null;
+    address: string | null;
+    fullName: string;
+    snils: string | null;
+    birthDate: string | null;
+    medicalCardNumber: string | null;
+    sex: string | null;
+    documentSeriesNumber: string | null;
+}, {
+    phone: string | null;
+    address: string | null;
+    fullName: string;
+    snils: string | null;
+    birthDate: string | null;
+    medicalCardNumber: string | null;
+    sex: string | null;
+    documentSeriesNumber: string | null;
+}>;
+export type DentalMedicalCard043uPatient = z.infer<typeof dentalMedicalCard043uPatientSchema>;
+export declare const dentalMedicalCard043uDoctorSchema: z.ZodObject<{
+    fullName: z.ZodString;
+    specialty: z.ZodNullable<z.ZodString>;
+    position: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    specialty: string | null;
+    fullName: string;
+    position: string | null;
+}, {
+    specialty: string | null;
+    fullName: string;
+    position: string | null;
+}>;
+export type DentalMedicalCard043uDoctor = z.infer<typeof dentalMedicalCard043uDoctorSchema>;
+/**
+ * Payload for form N 043/u (dental outpatient medical card / visit diary print).
+ * Mirrors visit_diaries SOAP fields + optional structured anamnesis.
+ */
+export declare const dentalMedicalCard043uPayloadSchema: z.ZodObject<{
+    formNumber: z.ZodLiteral<"043/у">;
+    organization: z.ZodObject<{
+        fullName: z.ZodString;
+        shortName: z.ZodNullable<z.ZodString>;
+        address: z.ZodNullable<z.ZodString>;
+        phone: z.ZodNullable<z.ZodString>;
+        ogrn: z.ZodNullable<z.ZodString>;
+        inn: z.ZodNullable<z.ZodString>;
+        licenseNumber: z.ZodNullable<z.ZodString>;
+        licenseIssueDate: z.ZodNullable<z.ZodString>;
+        licenseAuthority: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        phone: string | null;
+        inn: string | null;
+        ogrn: string | null;
+        address: string | null;
+        fullName: string;
+        shortName: string | null;
+        licenseNumber: string | null;
+        licenseIssueDate: string | null;
+        licenseAuthority: string | null;
+    }, {
+        phone: string | null;
+        inn: string | null;
+        ogrn: string | null;
+        address: string | null;
+        fullName: string;
+        shortName: string | null;
+        licenseNumber: string | null;
+        licenseIssueDate: string | null;
+        licenseAuthority: string | null;
+    }>;
+    patient: z.ZodObject<{
+        fullName: z.ZodString;
+        birthDate: z.ZodNullable<z.ZodString>;
+        sex: z.ZodNullable<z.ZodString>;
+        phone: z.ZodNullable<z.ZodString>;
+        address: z.ZodNullable<z.ZodString>;
+        documentSeriesNumber: z.ZodNullable<z.ZodString>;
+        snils: z.ZodNullable<z.ZodString>;
+        medicalCardNumber: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        phone: string | null;
+        address: string | null;
+        fullName: string;
+        snils: string | null;
+        birthDate: string | null;
+        medicalCardNumber: string | null;
+        sex: string | null;
+        documentSeriesNumber: string | null;
+    }, {
+        phone: string | null;
+        address: string | null;
+        fullName: string;
+        snils: string | null;
+        birthDate: string | null;
+        medicalCardNumber: string | null;
+        sex: string | null;
+        documentSeriesNumber: string | null;
+    }>;
+    doctor: z.ZodObject<{
+        fullName: z.ZodString;
+        specialty: z.ZodNullable<z.ZodString>;
+        position: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        specialty: string | null;
+        fullName: string;
+        position: string | null;
+    }, {
+        specialty: string | null;
+        fullName: string;
+        position: string | null;
+    }>;
+    visitDate: z.ZodString;
+    visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** Free-text anamnesis (backward-compatible diary field). */
+    anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** Structured anamnesis facts when collected. */
+    structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    }, {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    }>>>;
+    statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        toothOrArea: z.ZodString;
+        surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+        status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+        diagnosisOrFinding: z.ZodString;
+        indication: z.ZodString;
+        plannedAction: z.ZodString;
+        prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+        toothOrArea: string;
+        surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+        diagnosisOrFinding: string;
+        indication: string;
+        plannedAction: string;
+        prognosis?: string | null | undefined;
+        periodontalStatus?: string | null | undefined;
+        implantOrProstheticNotes?: string | null | undefined;
+        orthodonticNotes?: string | null | undefined;
+    }, {
+        status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+        toothOrArea: string;
+        surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+        diagnosisOrFinding: string;
+        indication: string;
+        plannedAction: string;
+        prognosis?: string | null | undefined;
+        periodontalStatus?: string | null | undefined;
+        implantOrProstheticNotes?: string | null | undefined;
+        orthodonticNotes?: string | null | undefined;
+    }>, "many">>;
+    recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    patient: {
+        phone: string | null;
+        address: string | null;
+        fullName: string;
+        snils: string | null;
+        birthDate: string | null;
+        medicalCardNumber: string | null;
+        sex: string | null;
+        documentSeriesNumber: string | null;
+    };
+    doctor: {
+        specialty: string | null;
+        fullName: string;
+        position: string | null;
+    };
+    organization: {
+        phone: string | null;
+        inn: string | null;
+        ogrn: string | null;
+        address: string | null;
+        fullName: string;
+        shortName: string | null;
+        licenseNumber: string | null;
+        licenseIssueDate: string | null;
+        licenseAuthority: string | null;
+    };
+    visitDate: string;
+    formNumber: "043/у";
+    visitId?: string | null | undefined;
+    complaint?: string | null | undefined;
+    anamnesis?: string | null | undefined;
+    objectiveStatus?: string | null | undefined;
+    treatmentPlan?: string | null | undefined;
+    clinicalToothRows?: {
+        status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+        toothOrArea: string;
+        surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+        diagnosisOrFinding: string;
+        indication: string;
+        plannedAction: string;
+        prognosis?: string | null | undefined;
+        periodontalStatus?: string | null | undefined;
+        implantOrProstheticNotes?: string | null | undefined;
+        orthodonticNotes?: string | null | undefined;
+    }[] | undefined;
+    recommendations?: string | null | undefined;
+    complications?: string | null | undefined;
+    comorbidities?: string | null | undefined;
+    diaryId?: string | null | undefined;
+    structuredAnamnesis?: {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    } | null | undefined;
+    statusLocalis?: string | null | undefined;
+    diagnosisIcd10?: string | null | undefined;
+    diagnosisTooth?: string | null | undefined;
+    diagnosisText?: string | null | undefined;
+    treatmentDescription?: string | null | undefined;
+    instrumentTrayBarcode?: string | null | undefined;
+    nextVisitPlan?: string | null | undefined;
+    content?: string | null | undefined;
+    lockedAt?: string | null | undefined;
+    contentHash?: string | null | undefined;
+}, {
+    patient: {
+        phone: string | null;
+        address: string | null;
+        fullName: string;
+        snils: string | null;
+        birthDate: string | null;
+        medicalCardNumber: string | null;
+        sex: string | null;
+        documentSeriesNumber: string | null;
+    };
+    doctor: {
+        specialty: string | null;
+        fullName: string;
+        position: string | null;
+    };
+    organization: {
+        phone: string | null;
+        inn: string | null;
+        ogrn: string | null;
+        address: string | null;
+        fullName: string;
+        shortName: string | null;
+        licenseNumber: string | null;
+        licenseIssueDate: string | null;
+        licenseAuthority: string | null;
+    };
+    visitDate: string;
+    formNumber: "043/у";
+    visitId?: string | null | undefined;
+    complaint?: string | null | undefined;
+    anamnesis?: string | null | undefined;
+    objectiveStatus?: string | null | undefined;
+    treatmentPlan?: string | null | undefined;
+    clinicalToothRows?: {
+        status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+        toothOrArea: string;
+        surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+        diagnosisOrFinding: string;
+        indication: string;
+        plannedAction: string;
+        prognosis?: string | null | undefined;
+        periodontalStatus?: string | null | undefined;
+        implantOrProstheticNotes?: string | null | undefined;
+        orthodonticNotes?: string | null | undefined;
+    }[] | undefined;
+    recommendations?: string | null | undefined;
+    complications?: string | null | undefined;
+    comorbidities?: string | null | undefined;
+    diaryId?: string | null | undefined;
+    structuredAnamnesis?: {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    } | null | undefined;
+    statusLocalis?: string | null | undefined;
+    diagnosisIcd10?: string | null | undefined;
+    diagnosisTooth?: string | null | undefined;
+    diagnosisText?: string | null | undefined;
+    treatmentDescription?: string | null | undefined;
+    instrumentTrayBarcode?: string | null | undefined;
+    nextVisitPlan?: string | null | undefined;
+    content?: string | null | undefined;
+    lockedAt?: string | null | undefined;
+    contentHash?: string | null | undefined;
+}>;
+export type DentalMedicalCard043uPayload = z.infer<typeof dentalMedicalCard043uPayloadSchema>;
 export declare const medicalRecordCopyRequestFormatSchema: z.ZodEnum<["paper", "pdf", "dicom_archive", "secure_link", "physical_media", "other"]>;
 export type MedicalRecordCopyRequestFormat = z.infer<typeof medicalRecordCopyRequestFormatSchema>;
 export declare const medicalRecordCopyRequestPayloadSchema: z.ZodObject<{
@@ -13597,6 +14037,310 @@ export declare const documentPayloadSchema: z.ZodObject<{
         allergyHistory?: string | null | undefined;
         finalEpicrisis?: string | null | undefined;
     }>>;
+    dentalMedicalCard043u: z.ZodOptional<z.ZodObject<{
+        formNumber: z.ZodLiteral<"043/у">;
+        organization: z.ZodObject<{
+            fullName: z.ZodString;
+            shortName: z.ZodNullable<z.ZodString>;
+            address: z.ZodNullable<z.ZodString>;
+            phone: z.ZodNullable<z.ZodString>;
+            ogrn: z.ZodNullable<z.ZodString>;
+            inn: z.ZodNullable<z.ZodString>;
+            licenseNumber: z.ZodNullable<z.ZodString>;
+            licenseIssueDate: z.ZodNullable<z.ZodString>;
+            licenseAuthority: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        }, {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        }>;
+        patient: z.ZodObject<{
+            fullName: z.ZodString;
+            birthDate: z.ZodNullable<z.ZodString>;
+            sex: z.ZodNullable<z.ZodString>;
+            phone: z.ZodNullable<z.ZodString>;
+            address: z.ZodNullable<z.ZodString>;
+            documentSeriesNumber: z.ZodNullable<z.ZodString>;
+            snils: z.ZodNullable<z.ZodString>;
+            medicalCardNumber: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        }, {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        }>;
+        doctor: z.ZodObject<{
+            fullName: z.ZodString;
+            specialty: z.ZodNullable<z.ZodString>;
+            position: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        }, {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        }>;
+        visitDate: z.ZodString;
+        visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** Free-text anamnesis (backward-compatible diary field). */
+        anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** Structured anamnesis facts when collected. */
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
+        statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            toothOrArea: z.ZodString;
+            surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+            status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+            diagnosisOrFinding: z.ZodString;
+            indication: z.ZodString;
+            plannedAction: z.ZodString;
+            prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }, {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }>, "many">>;
+        recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        patient: {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        };
+        doctor: {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        };
+        organization: {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        };
+        visitDate: string;
+        formNumber: "043/у";
+        visitId?: string | null | undefined;
+        complaint?: string | null | undefined;
+        anamnesis?: string | null | undefined;
+        objectiveStatus?: string | null | undefined;
+        treatmentPlan?: string | null | undefined;
+        clinicalToothRows?: {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }[] | undefined;
+        recommendations?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
+        diaryId?: string | null | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
+        statusLocalis?: string | null | undefined;
+        diagnosisIcd10?: string | null | undefined;
+        diagnosisTooth?: string | null | undefined;
+        diagnosisText?: string | null | undefined;
+        treatmentDescription?: string | null | undefined;
+        instrumentTrayBarcode?: string | null | undefined;
+        nextVisitPlan?: string | null | undefined;
+        content?: string | null | undefined;
+        lockedAt?: string | null | undefined;
+        contentHash?: string | null | undefined;
+    }, {
+        patient: {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        };
+        doctor: {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        };
+        organization: {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        };
+        visitDate: string;
+        formNumber: "043/у";
+        visitId?: string | null | undefined;
+        complaint?: string | null | undefined;
+        anamnesis?: string | null | undefined;
+        objectiveStatus?: string | null | undefined;
+        treatmentPlan?: string | null | undefined;
+        clinicalToothRows?: {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }[] | undefined;
+        recommendations?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
+        diaryId?: string | null | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
+        statusLocalis?: string | null | undefined;
+        diagnosisIcd10?: string | null | undefined;
+        diagnosisTooth?: string | null | undefined;
+        diagnosisText?: string | null | undefined;
+        treatmentDescription?: string | null | undefined;
+        instrumentTrayBarcode?: string | null | undefined;
+        nextVisitPlan?: string | null | undefined;
+        content?: string | null | undefined;
+        lockedAt?: string | null | undefined;
+        contentHash?: string | null | undefined;
+    }>>;
     medicalRecordExtract: z.ZodOptional<z.ZodObject<{
         periodStart: z.ZodString;
         periodEnd: z.ZodString;
@@ -14971,6 +15715,78 @@ export declare const documentPayloadSchema: z.ZodObject<{
         allergyHistory?: string | null | undefined;
         finalEpicrisis?: string | null | undefined;
     } | undefined;
+    dentalMedicalCard043u?: {
+        patient: {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        };
+        doctor: {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        };
+        organization: {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        };
+        visitDate: string;
+        formNumber: "043/у";
+        visitId?: string | null | undefined;
+        complaint?: string | null | undefined;
+        anamnesis?: string | null | undefined;
+        objectiveStatus?: string | null | undefined;
+        treatmentPlan?: string | null | undefined;
+        clinicalToothRows?: {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }[] | undefined;
+        recommendations?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
+        diaryId?: string | null | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
+        statusLocalis?: string | null | undefined;
+        diagnosisIcd10?: string | null | undefined;
+        diagnosisTooth?: string | null | undefined;
+        diagnosisText?: string | null | undefined;
+        treatmentDescription?: string | null | undefined;
+        instrumentTrayBarcode?: string | null | undefined;
+        nextVisitPlan?: string | null | undefined;
+        content?: string | null | undefined;
+        lockedAt?: string | null | undefined;
+        contentHash?: string | null | undefined;
+    } | undefined;
     medicalRecordExtract?: {
         objectiveStatus: string;
         diagnosis: string;
@@ -15721,6 +16537,78 @@ export declare const documentPayloadSchema: z.ZodObject<{
         allergyHistory?: string | null | undefined;
         finalEpicrisis?: string | null | undefined;
     } | undefined;
+    dentalMedicalCard043u?: {
+        patient: {
+            phone: string | null;
+            address: string | null;
+            fullName: string;
+            snils: string | null;
+            birthDate: string | null;
+            medicalCardNumber: string | null;
+            sex: string | null;
+            documentSeriesNumber: string | null;
+        };
+        doctor: {
+            specialty: string | null;
+            fullName: string;
+            position: string | null;
+        };
+        organization: {
+            phone: string | null;
+            inn: string | null;
+            ogrn: string | null;
+            address: string | null;
+            fullName: string;
+            shortName: string | null;
+            licenseNumber: string | null;
+            licenseIssueDate: string | null;
+            licenseAuthority: string | null;
+        };
+        visitDate: string;
+        formNumber: "043/у";
+        visitId?: string | null | undefined;
+        complaint?: string | null | undefined;
+        anamnesis?: string | null | undefined;
+        objectiveStatus?: string | null | undefined;
+        treatmentPlan?: string | null | undefined;
+        clinicalToothRows?: {
+            status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+            toothOrArea: string;
+            surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+            diagnosisOrFinding: string;
+            indication: string;
+            plannedAction: string;
+            prognosis?: string | null | undefined;
+            periodontalStatus?: string | null | undefined;
+            implantOrProstheticNotes?: string | null | undefined;
+            orthodonticNotes?: string | null | undefined;
+        }[] | undefined;
+        recommendations?: string | null | undefined;
+        complications?: string | null | undefined;
+        comorbidities?: string | null | undefined;
+        diaryId?: string | null | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
+        statusLocalis?: string | null | undefined;
+        diagnosisIcd10?: string | null | undefined;
+        diagnosisTooth?: string | null | undefined;
+        diagnosisText?: string | null | undefined;
+        treatmentDescription?: string | null | undefined;
+        instrumentTrayBarcode?: string | null | undefined;
+        nextVisitPlan?: string | null | undefined;
+        content?: string | null | undefined;
+        lockedAt?: string | null | undefined;
+        contentHash?: string | null | undefined;
+    } | undefined;
     medicalRecordExtract?: {
         objectiveStatus: string;
         diagnosis: string;
@@ -16420,6 +17308,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+            loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
         }, "strip", z.ZodTypeAny, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -16438,6 +17327,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
@@ -16456,6 +17346,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         }>, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -16474,6 +17365,7 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
@@ -16492,8 +17384,10 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         }>>>;
         balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+        familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -16525,8 +17419,10 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         } | null;
         balanceRub: number;
+        familyGroupId?: string | null | undefined;
     }, {
         status: "active" | "archived";
         email: string | null;
@@ -16556,8 +17452,10 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
+        familyGroupId?: string | null | undefined;
     }>;
     clinicProfile: z.ZodObject<{
         organizationId: z.ZodString;
@@ -16835,8 +17733,10 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         } | null;
         balanceRub: number;
+        familyGroupId?: string | null | undefined;
     };
     payments: {
         status: "planned" | "voided" | "paid" | "refunded";
@@ -16941,8 +17841,10 @@ export declare const taxXmlSourceSnapshotSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
+        familyGroupId?: string | null | undefined;
     };
     payments: {
         status: "planned" | "voided" | "paid" | "refunded";
@@ -17047,7 +17949,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     organizationId: z.ZodString;
     patientId: z.ZodString;
     visitId: z.ZodNullable<z.ZodString>;
-    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
     title: z.ZodString;
     status: z.ZodEnum<["draft", "issued", "voided"]>;
     issuedAt: z.ZodNullable<z.ZodString>;
@@ -19305,6 +20207,310 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         }>>;
+        dentalMedicalCard043u: z.ZodOptional<z.ZodObject<{
+            formNumber: z.ZodLiteral<"043/у">;
+            organization: z.ZodObject<{
+                fullName: z.ZodString;
+                shortName: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                ogrn: z.ZodNullable<z.ZodString>;
+                inn: z.ZodNullable<z.ZodString>;
+                licenseNumber: z.ZodNullable<z.ZodString>;
+                licenseIssueDate: z.ZodNullable<z.ZodString>;
+                licenseAuthority: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }>;
+            patient: z.ZodObject<{
+                fullName: z.ZodString;
+                birthDate: z.ZodNullable<z.ZodString>;
+                sex: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                documentSeriesNumber: z.ZodNullable<z.ZodString>;
+                snils: z.ZodNullable<z.ZodString>;
+                medicalCardNumber: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }>;
+            doctor: z.ZodObject<{
+                fullName: z.ZodString;
+                specialty: z.ZodNullable<z.ZodString>;
+                position: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }>;
+            visitDate: z.ZodString;
+            visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Free-text anamnesis (backward-compatible diary field). */
+            anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Structured anamnesis facts when collected. */
+            structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }>>>;
+            statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                toothOrArea: z.ZodString;
+                surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+                status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+                diagnosisOrFinding: z.ZodString;
+                indication: z.ZodString;
+                plannedAction: z.ZodString;
+                prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }>, "many">>;
+            recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }>>;
         medicalRecordExtract: z.ZodOptional<z.ZodObject<{
             periodStart: z.ZodString;
             periodEnd: z.ZodString;
@@ -20679,6 +21885,78 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -21429,6 +22707,78 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -21793,6 +23143,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+                loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
             }, "strip", z.ZodTypeAny, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -21811,6 +23162,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
@@ -21829,6 +23181,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             }>, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -21847,6 +23200,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
@@ -21865,8 +23219,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             }>>>;
             balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+            familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             createdAt: z.ZodString;
             updatedAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
@@ -21898,8 +23254,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             } | null;
             balanceRub: number;
+            familyGroupId?: string | null | undefined;
         }, {
             status: "active" | "archived";
             email: string | null;
@@ -21929,8 +23287,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
+            familyGroupId?: string | null | undefined;
         }>;
         clinicProfile: z.ZodObject<{
             organizationId: z.ZodString;
@@ -22208,8 +23568,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             } | null;
             balanceRub: number;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -22314,8 +23676,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -22426,7 +23790,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     totalAmountRub: number | null;
     issuedAt: string | null;
     taxYear?: number | null | undefined;
@@ -23046,6 +24410,78 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -23298,8 +24734,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             } | null;
             balanceRub: number;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -23395,7 +24833,7 @@ export declare const generatedDocumentSchema: z.ZodObject<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     totalAmountRub: number | null;
     issuedAt: string | null;
     taxYear?: number | null | undefined;
@@ -24015,6 +25453,78 @@ export declare const generatedDocumentSchema: z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -24267,8 +25777,10 @@ export declare const generatedDocumentSchema: z.ZodObject<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -24435,7 +25947,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     organizationId: z.ZodString;
     patientId: z.ZodString;
     visitId: z.ZodNullable<z.ZodString>;
-    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
     title: z.ZodString;
     status: z.ZodEnum<["draft", "issued", "voided"]>;
     issuedAt: z.ZodNullable<z.ZodString>;
@@ -26693,6 +28205,310 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         }>>;
+        dentalMedicalCard043u: z.ZodOptional<z.ZodObject<{
+            formNumber: z.ZodLiteral<"043/у">;
+            organization: z.ZodObject<{
+                fullName: z.ZodString;
+                shortName: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                ogrn: z.ZodNullable<z.ZodString>;
+                inn: z.ZodNullable<z.ZodString>;
+                licenseNumber: z.ZodNullable<z.ZodString>;
+                licenseIssueDate: z.ZodNullable<z.ZodString>;
+                licenseAuthority: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }>;
+            patient: z.ZodObject<{
+                fullName: z.ZodString;
+                birthDate: z.ZodNullable<z.ZodString>;
+                sex: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                documentSeriesNumber: z.ZodNullable<z.ZodString>;
+                snils: z.ZodNullable<z.ZodString>;
+                medicalCardNumber: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }>;
+            doctor: z.ZodObject<{
+                fullName: z.ZodString;
+                specialty: z.ZodNullable<z.ZodString>;
+                position: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }>;
+            visitDate: z.ZodString;
+            visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Free-text anamnesis (backward-compatible diary field). */
+            anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Structured anamnesis facts when collected. */
+            structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }>>>;
+            statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                toothOrArea: z.ZodString;
+                surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+                status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+                diagnosisOrFinding: z.ZodString;
+                indication: z.ZodString;
+                plannedAction: z.ZodString;
+                prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }>, "many">>;
+            recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }>>;
         medicalRecordExtract: z.ZodOptional<z.ZodObject<{
             periodStart: z.ZodString;
             periodEnd: z.ZodString;
@@ -28067,6 +29883,78 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -28817,6 +30705,78 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -29181,6 +31141,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                 orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+                loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
             }, "strip", z.ZodTypeAny, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -29199,6 +31160,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
@@ -29217,6 +31179,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             }>, {
                 identityDocument: string | null;
                 taxpayerInn: string | null;
@@ -29235,6 +31198,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             }, {
                 identityDocument?: string | null | undefined;
                 taxpayerInn?: string | null | undefined;
@@ -29253,8 +31217,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             }>>>;
             balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+            familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             createdAt: z.ZodString;
             updatedAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
@@ -29286,8 +31252,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             } | null;
             balanceRub: number;
+            familyGroupId?: string | null | undefined;
         }, {
             status: "active" | "archived";
             email: string | null;
@@ -29317,8 +31285,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
+            familyGroupId?: string | null | undefined;
         }>;
         clinicProfile: z.ZodObject<{
             organizationId: z.ZodString;
@@ -29596,8 +31566,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote: string | null;
                 dataProcessingBasisNote: string | null;
                 orthodonticProgress: string | null;
+                loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
             } | null;
             balanceRub: number;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -29702,8 +31674,10 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
                 preferredAppointmentNote?: string | null | undefined;
                 dataProcessingBasisNote?: string | null | undefined;
                 orthodonticProgress?: string | null | undefined;
+                loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
             } | null | undefined;
             balanceRub?: number | undefined;
+            familyGroupId?: string | null | undefined;
         };
         payments: {
             status: "planned" | "voided" | "paid" | "refunded";
@@ -29885,7 +31859,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     totalAmountRub: number | null;
     issuedAt: string | null;
     taxYear?: number | null | undefined;
@@ -29965,7 +31939,7 @@ export declare const publicGeneratedDocumentSchema: z.ZodObject<Omit<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     totalAmountRub: number | null;
     issuedAt: string | null;
     taxYear?: number | null | undefined;
@@ -30045,7 +32019,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     organizationId: z.ZodString;
     patientId: z.ZodString;
     visitId: z.ZodNullable<z.ZodString>;
-    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
     title: z.ZodString;
     status: z.ZodEnum<["draft", "issued", "voided"]>;
     issuedAt: z.ZodNullable<z.ZodString>;
@@ -30218,7 +32192,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     blockers: string[];
     documentId: string;
     issuedAt: string | null;
@@ -30300,7 +32274,7 @@ export declare const documentAuditFactsSchema: z.ZodObject<{
     patientId: string;
     visitId: string | null;
     organizationId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     blockers: string[];
     documentId: string;
     issuedAt: string | null;
@@ -31471,6 +33445,7 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+            loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
         }, "strip", z.ZodTypeAny, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -31489,6 +33464,7 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
@@ -31507,6 +33483,7 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         }>, {
             identityDocument: string | null;
             taxpayerInn: string | null;
@@ -31525,6 +33502,7 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         }, {
             identityDocument?: string | null | undefined;
             taxpayerInn?: string | null | undefined;
@@ -31543,8 +33521,10 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         }>>>;
         balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+        familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -31576,8 +33556,10 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         } | null;
         balanceRub: number;
+        familyGroupId?: string | null | undefined;
     }, {
         status: "active" | "archived";
         email: string | null;
@@ -31607,8 +33589,10 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
+        familyGroupId?: string | null | undefined;
     }>, "many">;
     patientInsights: z.ZodArray<z.ZodObject<{
         patientId: z.ZodString;
@@ -31618,7 +33602,7 @@ export declare const dashboardSchema: z.ZodObject<{
         recallDueAt: z.ZodNullable<z.ZodString>;
         balanceDueRub: z.ZodEffects<z.ZodEffects<z.ZodNumber, number, number>, number, number>;
         openTasks: z.ZodNumber;
-        missingDocumentKinds: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
+        missingDocumentKinds: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
         clinicalFlags: z.ZodArray<z.ZodString, "many">;
         adminFlags: z.ZodArray<z.ZodString, "many">;
         lastActivityAt: z.ZodNullable<z.ZodString>;
@@ -31630,7 +33614,7 @@ export declare const dashboardSchema: z.ZodObject<{
         nextBestAction: string;
         recallDueAt: string | null;
         balanceDueRub: number;
-        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         clinicalFlags: string[];
         adminFlags: string[];
         lastActivityAt: string | null;
@@ -31642,7 +33626,7 @@ export declare const dashboardSchema: z.ZodObject<{
         nextBestAction: string;
         recallDueAt: string | null;
         balanceDueRub: number;
-        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         clinicalFlags: string[];
         adminFlags: string[];
         lastActivityAt: string | null;
@@ -31928,7 +33912,7 @@ export declare const dashboardSchema: z.ZodObject<{
         organizationId: z.ZodString;
         patientId: z.ZodString;
         visitId: z.ZodNullable<z.ZodString>;
-        kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+        kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
         title: z.ZodString;
         status: z.ZodEnum<["draft", "issued", "voided"]>;
         issuedAt: z.ZodNullable<z.ZodString>;
@@ -34186,6 +36170,310 @@ export declare const dashboardSchema: z.ZodObject<{
                 allergyHistory?: string | null | undefined;
                 finalEpicrisis?: string | null | undefined;
             }>>;
+            dentalMedicalCard043u: z.ZodOptional<z.ZodObject<{
+                formNumber: z.ZodLiteral<"043/у">;
+                organization: z.ZodObject<{
+                    fullName: z.ZodString;
+                    shortName: z.ZodNullable<z.ZodString>;
+                    address: z.ZodNullable<z.ZodString>;
+                    phone: z.ZodNullable<z.ZodString>;
+                    ogrn: z.ZodNullable<z.ZodString>;
+                    inn: z.ZodNullable<z.ZodString>;
+                    licenseNumber: z.ZodNullable<z.ZodString>;
+                    licenseIssueDate: z.ZodNullable<z.ZodString>;
+                    licenseAuthority: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                }, {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                }>;
+                patient: z.ZodObject<{
+                    fullName: z.ZodString;
+                    birthDate: z.ZodNullable<z.ZodString>;
+                    sex: z.ZodNullable<z.ZodString>;
+                    phone: z.ZodNullable<z.ZodString>;
+                    address: z.ZodNullable<z.ZodString>;
+                    documentSeriesNumber: z.ZodNullable<z.ZodString>;
+                    snils: z.ZodNullable<z.ZodString>;
+                    medicalCardNumber: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                }, {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                }>;
+                doctor: z.ZodObject<{
+                    fullName: z.ZodString;
+                    specialty: z.ZodNullable<z.ZodString>;
+                    position: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                }, {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                }>;
+                visitDate: z.ZodString;
+                visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                /** Free-text anamnesis (backward-compatible diary field). */
+                anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                /** Structured anamnesis facts when collected. */
+                structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, "strip", z.ZodTypeAny, {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                }, {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                }>>>;
+                statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                    toothOrArea: z.ZodString;
+                    surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+                    status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+                    diagnosisOrFinding: z.ZodString;
+                    indication: z.ZodString;
+                    plannedAction: z.ZodString;
+                    prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, "strip", z.ZodTypeAny, {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }, {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }>, "many">>;
+                recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                patient: {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                };
+                doctor: {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                };
+                organization: {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                };
+                visitDate: string;
+                formNumber: "043/у";
+                visitId?: string | null | undefined;
+                complaint?: string | null | undefined;
+                anamnesis?: string | null | undefined;
+                objectiveStatus?: string | null | undefined;
+                treatmentPlan?: string | null | undefined;
+                clinicalToothRows?: {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }[] | undefined;
+                recommendations?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
+                diaryId?: string | null | undefined;
+                structuredAnamnesis?: {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                } | null | undefined;
+                statusLocalis?: string | null | undefined;
+                diagnosisIcd10?: string | null | undefined;
+                diagnosisTooth?: string | null | undefined;
+                diagnosisText?: string | null | undefined;
+                treatmentDescription?: string | null | undefined;
+                instrumentTrayBarcode?: string | null | undefined;
+                nextVisitPlan?: string | null | undefined;
+                content?: string | null | undefined;
+                lockedAt?: string | null | undefined;
+                contentHash?: string | null | undefined;
+            }, {
+                patient: {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                };
+                doctor: {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                };
+                organization: {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                };
+                visitDate: string;
+                formNumber: "043/у";
+                visitId?: string | null | undefined;
+                complaint?: string | null | undefined;
+                anamnesis?: string | null | undefined;
+                objectiveStatus?: string | null | undefined;
+                treatmentPlan?: string | null | undefined;
+                clinicalToothRows?: {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }[] | undefined;
+                recommendations?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
+                diaryId?: string | null | undefined;
+                structuredAnamnesis?: {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                } | null | undefined;
+                statusLocalis?: string | null | undefined;
+                diagnosisIcd10?: string | null | undefined;
+                diagnosisTooth?: string | null | undefined;
+                diagnosisText?: string | null | undefined;
+                treatmentDescription?: string | null | undefined;
+                instrumentTrayBarcode?: string | null | undefined;
+                nextVisitPlan?: string | null | undefined;
+                content?: string | null | undefined;
+                lockedAt?: string | null | undefined;
+                contentHash?: string | null | undefined;
+            }>>;
             medicalRecordExtract: z.ZodOptional<z.ZodObject<{
                 periodStart: z.ZodString;
                 periodEnd: z.ZodString;
@@ -35560,6 +37848,78 @@ export declare const dashboardSchema: z.ZodObject<{
                 allergyHistory?: string | null | undefined;
                 finalEpicrisis?: string | null | undefined;
             } | undefined;
+            dentalMedicalCard043u?: {
+                patient: {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                };
+                doctor: {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                };
+                organization: {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                };
+                visitDate: string;
+                formNumber: "043/у";
+                visitId?: string | null | undefined;
+                complaint?: string | null | undefined;
+                anamnesis?: string | null | undefined;
+                objectiveStatus?: string | null | undefined;
+                treatmentPlan?: string | null | undefined;
+                clinicalToothRows?: {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }[] | undefined;
+                recommendations?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
+                diaryId?: string | null | undefined;
+                structuredAnamnesis?: {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                } | null | undefined;
+                statusLocalis?: string | null | undefined;
+                diagnosisIcd10?: string | null | undefined;
+                diagnosisTooth?: string | null | undefined;
+                diagnosisText?: string | null | undefined;
+                treatmentDescription?: string | null | undefined;
+                instrumentTrayBarcode?: string | null | undefined;
+                nextVisitPlan?: string | null | undefined;
+                content?: string | null | undefined;
+                lockedAt?: string | null | undefined;
+                contentHash?: string | null | undefined;
+            } | undefined;
             medicalRecordExtract?: {
                 objectiveStatus: string;
                 diagnosis: string;
@@ -36310,6 +38670,78 @@ export declare const dashboardSchema: z.ZodObject<{
                 allergyHistory?: string | null | undefined;
                 finalEpicrisis?: string | null | undefined;
             } | undefined;
+            dentalMedicalCard043u?: {
+                patient: {
+                    phone: string | null;
+                    address: string | null;
+                    fullName: string;
+                    snils: string | null;
+                    birthDate: string | null;
+                    medicalCardNumber: string | null;
+                    sex: string | null;
+                    documentSeriesNumber: string | null;
+                };
+                doctor: {
+                    specialty: string | null;
+                    fullName: string;
+                    position: string | null;
+                };
+                organization: {
+                    phone: string | null;
+                    inn: string | null;
+                    ogrn: string | null;
+                    address: string | null;
+                    fullName: string;
+                    shortName: string | null;
+                    licenseNumber: string | null;
+                    licenseIssueDate: string | null;
+                    licenseAuthority: string | null;
+                };
+                visitDate: string;
+                formNumber: "043/у";
+                visitId?: string | null | undefined;
+                complaint?: string | null | undefined;
+                anamnesis?: string | null | undefined;
+                objectiveStatus?: string | null | undefined;
+                treatmentPlan?: string | null | undefined;
+                clinicalToothRows?: {
+                    status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                    toothOrArea: string;
+                    surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                    diagnosisOrFinding: string;
+                    indication: string;
+                    plannedAction: string;
+                    prognosis?: string | null | undefined;
+                    periodontalStatus?: string | null | undefined;
+                    implantOrProstheticNotes?: string | null | undefined;
+                    orthodonticNotes?: string | null | undefined;
+                }[] | undefined;
+                recommendations?: string | null | undefined;
+                complications?: string | null | undefined;
+                comorbidities?: string | null | undefined;
+                diaryId?: string | null | undefined;
+                structuredAnamnesis?: {
+                    allergyStatus?: string | null | undefined;
+                    currentMedications?: string | null | undefined;
+                    pregnancyStatus?: string | null | undefined;
+                    anticoagulants?: string | null | undefined;
+                    narrative?: string | null | undefined;
+                    chronicDiseases?: string | null | undefined;
+                    infectiousDiseases?: string | null | undefined;
+                    pastDentalHistory?: string | null | undefined;
+                    generalHealthNotes?: string | null | undefined;
+                } | null | undefined;
+                statusLocalis?: string | null | undefined;
+                diagnosisIcd10?: string | null | undefined;
+                diagnosisTooth?: string | null | undefined;
+                diagnosisText?: string | null | undefined;
+                treatmentDescription?: string | null | undefined;
+                instrumentTrayBarcode?: string | null | undefined;
+                nextVisitPlan?: string | null | undefined;
+                content?: string | null | undefined;
+                lockedAt?: string | null | undefined;
+                contentHash?: string | null | undefined;
+            } | undefined;
             medicalRecordExtract?: {
                 objectiveStatus: string;
                 diagnosis: string;
@@ -36674,6 +39106,7 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
                     orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+                    loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
                 }, "strip", z.ZodTypeAny, {
                     identityDocument: string | null;
                     taxpayerInn: string | null;
@@ -36692,6 +39125,7 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
                     orthodonticProgress: string | null;
+                    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
                 }, {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
@@ -36710,6 +39144,7 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
                     orthodonticProgress?: string | null | undefined;
+                    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
                 }>, {
                     identityDocument: string | null;
                     taxpayerInn: string | null;
@@ -36728,6 +39163,7 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
                     orthodonticProgress: string | null;
+                    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
                 }, {
                     identityDocument?: string | null | undefined;
                     taxpayerInn?: string | null | undefined;
@@ -36746,8 +39182,10 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
                     orthodonticProgress?: string | null | undefined;
+                    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
                 }>>>;
                 balanceRub: z.ZodDefault<z.ZodEffects<z.ZodNumber, number, number>>;
+                familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 createdAt: z.ZodString;
                 updatedAt: z.ZodString;
             }, "strip", z.ZodTypeAny, {
@@ -36779,8 +39217,10 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
                     orthodonticProgress: string | null;
+                    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
                 } | null;
                 balanceRub: number;
+                familyGroupId?: string | null | undefined;
             }, {
                 status: "active" | "archived";
                 email: string | null;
@@ -36810,8 +39250,10 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
                     orthodonticProgress?: string | null | undefined;
+                    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
                 } | null | undefined;
                 balanceRub?: number | undefined;
+                familyGroupId?: string | null | undefined;
             }>;
             clinicProfile: z.ZodObject<{
                 organizationId: z.ZodString;
@@ -37089,8 +39531,10 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote: string | null;
                     dataProcessingBasisNote: string | null;
                     orthodonticProgress: string | null;
+                    loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
                 } | null;
                 balanceRub: number;
+                familyGroupId?: string | null | undefined;
             };
             payments: {
                 status: "planned" | "voided" | "paid" | "refunded";
@@ -37195,8 +39639,10 @@ export declare const dashboardSchema: z.ZodObject<{
                     preferredAppointmentNote?: string | null | undefined;
                     dataProcessingBasisNote?: string | null | undefined;
                     orthodonticProgress?: string | null | undefined;
+                    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
                 } | null | undefined;
                 balanceRub?: number | undefined;
+                familyGroupId?: string | null | undefined;
             };
             payments: {
                 status: "planned" | "voided" | "paid" | "refunded";
@@ -37378,7 +39824,7 @@ export declare const dashboardSchema: z.ZodObject<{
         patientId: string;
         visitId: string | null;
         organizationId: string;
-        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
         totalAmountRub: number | null;
         issuedAt: string | null;
         taxYear?: number | null | undefined;
@@ -37458,7 +39904,7 @@ export declare const dashboardSchema: z.ZodObject<{
         patientId: string;
         visitId: string | null;
         organizationId: string;
-        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
         totalAmountRub: number | null;
         issuedAt: string | null;
         taxYear?: number | null | undefined;
@@ -37598,7 +40044,7 @@ export declare const dashboardSchema: z.ZodObject<{
         objectiveTemplate: z.ZodString;
         diagnosisHints: z.ZodArray<z.ZodString, "many">;
         treatmentPlanTemplate: z.ZodString;
-        requiredDocuments: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
+        requiredDocuments: z.ZodArray<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>, "many">;
         suggestedImaging: z.ZodArray<z.ZodEnum<["periapical", "bitewing", "opg", "ceph", "cbct", "photo", "other"]>, "many">;
         safetyWarnings: z.ZodArray<z.ZodString, "many">;
         updatedAt: z.ZodString;
@@ -37614,7 +40060,7 @@ export declare const dashboardSchema: z.ZodObject<{
         objectiveTemplate: string;
         diagnosisHints: string[];
         treatmentPlanTemplate: string;
-        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
         safetyWarnings: string[];
     }, {
@@ -37629,7 +40075,7 @@ export declare const dashboardSchema: z.ZodObject<{
         objectiveTemplate: string;
         diagnosisHints: string[];
         treatmentPlanTemplate: string;
-        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
         safetyWarnings: string[];
     }>, "many">;
@@ -38315,7 +40761,7 @@ export declare const dashboardSchema: z.ZodObject<{
         patientId: string;
         visitId: string | null;
         organizationId: string;
-        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
         totalAmountRub: number | null;
         issuedAt: string | null;
         taxYear?: number | null | undefined;
@@ -38418,8 +40864,10 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote: string | null;
             dataProcessingBasisNote: string | null;
             orthodonticProgress: string | null;
+            loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
         } | null;
         balanceRub: number;
+        familyGroupId?: string | null | undefined;
     }[];
     appointments: {
         status: "completed" | "planned" | "confirmed" | "arrived" | "in_treatment" | "cancelled" | "no_show";
@@ -38670,7 +41118,7 @@ export declare const dashboardSchema: z.ZodObject<{
         nextBestAction: string;
         recallDueAt: string | null;
         balanceDueRub: number;
-        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         clinicalFlags: string[];
         adminFlags: string[];
         lastActivityAt: string | null;
@@ -38779,7 +41227,7 @@ export declare const dashboardSchema: z.ZodObject<{
         objectiveTemplate: string;
         diagnosisHints: string[];
         treatmentPlanTemplate: string;
-        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
         safetyWarnings: string[];
     }[];
@@ -38978,7 +41426,7 @@ export declare const dashboardSchema: z.ZodObject<{
         patientId: string;
         visitId: string | null;
         organizationId: string;
-        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+        kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
         totalAmountRub: number | null;
         issuedAt: string | null;
         taxYear?: number | null | undefined;
@@ -39081,8 +41529,10 @@ export declare const dashboardSchema: z.ZodObject<{
             preferredAppointmentNote?: string | null | undefined;
             dataProcessingBasisNote?: string | null | undefined;
             orthodonticProgress?: string | null | undefined;
+            loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
         } | null | undefined;
         balanceRub?: number | undefined;
+        familyGroupId?: string | null | undefined;
     }[];
     appointments: {
         status: "completed" | "planned" | "confirmed" | "arrived" | "in_treatment" | "cancelled" | "no_show";
@@ -39333,7 +41783,7 @@ export declare const dashboardSchema: z.ZodObject<{
         nextBestAction: string;
         recallDueAt: string | null;
         balanceDueRub: number;
-        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        missingDocumentKinds: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         clinicalFlags: string[];
         adminFlags: string[];
         lastActivityAt: string | null;
@@ -39442,7 +41892,7 @@ export declare const dashboardSchema: z.ZodObject<{
         objectiveTemplate: string;
         diagnosisHints: string[];
         treatmentPlanTemplate: string;
-        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
+        requiredDocuments: ("treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire")[];
         suggestedImaging: ("periapical" | "bitewing" | "opg" | "ceph" | "cbct" | "photo" | "other")[];
         safetyWarnings: string[];
     }[];
@@ -39659,6 +42109,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         dataProcessingBasisNote: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         orthodonticProgress: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        loyaltyTier: z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>;
     }, "strip", z.ZodTypeAny, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -39677,6 +42128,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
@@ -39695,6 +42147,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     }>, {
         identityDocument: string | null;
         taxpayerInn: string | null;
@@ -39713,6 +42166,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     }, {
         identityDocument?: string | null | undefined;
         taxpayerInn?: string | null | undefined;
@@ -39731,6 +42185,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     }>>>;
 }, "strip", z.ZodTypeAny, {
     fullName: string;
@@ -39756,6 +42211,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote: string | null;
         dataProcessingBasisNote: string | null;
         orthodonticProgress: string | null;
+        loyaltyTier: "standard" | "silver" | "gold" | "platinum" | null;
     } | null | undefined;
 }, {
     fullName: string;
@@ -39781,6 +42237,7 @@ export declare const createPatientSchema: z.ZodObject<{
         preferredAppointmentNote?: string | null | undefined;
         dataProcessingBasisNote?: string | null | undefined;
         orthodonticProgress?: string | null | undefined;
+        loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
     } | null | undefined;
 }>;
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
@@ -39790,18 +42247,21 @@ export declare const updatePatientSchema: z.ZodObject<{
     phone: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
     email: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     notes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    familyGroupId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     email?: string | null | undefined;
     phone?: string | null | undefined;
     fullName?: string | undefined;
     notes?: string | null | undefined;
     birthDate?: string | null | undefined;
+    familyGroupId?: string | null | undefined;
 }, {
     email?: string | null | undefined;
     phone?: string | null | undefined;
     fullName?: string | undefined;
     notes?: string | null | undefined;
     birthDate?: string | null | undefined;
+    familyGroupId?: string | null | undefined;
 }>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.ZodObject<{
@@ -39822,6 +42282,7 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentNote: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     dataProcessingBasisNote: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
     orthodonticProgress: z.ZodOptional<z.ZodDefault<z.ZodNullable<z.ZodString>>>;
+    loyaltyTier: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodNullable<z.ZodEnum<["standard", "silver", "gold", "platinum"]>>>>>;
 }, "strip", z.ZodTypeAny, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -39840,6 +42301,7 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -39858,6 +42320,7 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }>, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -39876,6 +42339,7 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }, {
     identityDocument?: string | null | undefined;
     taxpayerInn?: string | null | undefined;
@@ -39894,6 +42358,7 @@ export declare const updatePatientAdministrativeProfileSchema: z.ZodEffects<z.Zo
     preferredAppointmentNote?: string | null | undefined;
     dataProcessingBasisNote?: string | null | undefined;
     orthodonticProgress?: string | null | undefined;
+    loyaltyTier?: "standard" | "silver" | "gold" | "platinum" | null | undefined;
 }>;
 export type UpdatePatientAdministrativeProfileInput = z.infer<typeof updatePatientAdministrativeProfileSchema>;
 export declare const updateClinicModeSchema: z.ZodObject<{
@@ -40350,7 +42815,7 @@ export type CreateChairInput = z.infer<typeof createChairSchema>;
 export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     patientId: z.ZodString;
     visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
+    kind: z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>;
     title: z.ZodOptional<z.ZodString>;
     totalAmountRub: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodEffects<z.ZodNumber, number, number>, number, number>>>;
     taxYear: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -42420,6 +44885,310 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         }>>;
+        dentalMedicalCard043u: z.ZodOptional<z.ZodObject<{
+            formNumber: z.ZodLiteral<"043/у">;
+            organization: z.ZodObject<{
+                fullName: z.ZodString;
+                shortName: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                ogrn: z.ZodNullable<z.ZodString>;
+                inn: z.ZodNullable<z.ZodString>;
+                licenseNumber: z.ZodNullable<z.ZodString>;
+                licenseIssueDate: z.ZodNullable<z.ZodString>;
+                licenseAuthority: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }, {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            }>;
+            patient: z.ZodObject<{
+                fullName: z.ZodString;
+                birthDate: z.ZodNullable<z.ZodString>;
+                sex: z.ZodNullable<z.ZodString>;
+                phone: z.ZodNullable<z.ZodString>;
+                address: z.ZodNullable<z.ZodString>;
+                documentSeriesNumber: z.ZodNullable<z.ZodString>;
+                snils: z.ZodNullable<z.ZodString>;
+                medicalCardNumber: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }, {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            }>;
+            doctor: z.ZodObject<{
+                fullName: z.ZodString;
+                specialty: z.ZodNullable<z.ZodString>;
+                position: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }, {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            }>;
+            visitDate: z.ZodString;
+            visitId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diaryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complaint: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Free-text anamnesis (backward-compatible diary field). */
+            anamnesis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            /** Structured anamnesis facts when collected. */
+            structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }>>>;
+            statusLocalis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            objectiveStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisIcd10: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisTooth: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            diagnosisText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            treatmentPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            complications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            comorbidities: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            instrumentTrayBarcode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            clinicalToothRows: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                toothOrArea: z.ZodString;
+                surfaces: z.ZodArray<z.ZodEnum<["occlusal", "mesial", "distal", "buccal", "lingual", "palatal", "incisal", "root", "implant_site", "not_applicable"]>, "many">;
+                status: z.ZodEnum<["sound", "watch", "caries", "pulpitis_periodontitis", "periodontal", "missing", "implant", "prosthetic", "orthodontic", "planned", "completed", "other"]>;
+                diagnosisOrFinding: z.ZodString;
+                indication: z.ZodString;
+                plannedAction: z.ZodString;
+                prognosis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                periodontalStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                implantOrProstheticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                orthodonticNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }, {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }>, "many">>;
+            recommendations: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            nextVisitPlan: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            content: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            lockedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            contentHash: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }, {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        }>>;
         medicalRecordExtract: z.ZodOptional<z.ZodObject<{
             periodStart: z.ZodString;
             periodEnd: z.ZodString;
@@ -43794,6 +46563,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -44544,6 +47385,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -44746,7 +47659,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     }>>>;
 }, "strip", z.ZodTypeAny, {
     patientId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     title?: string | undefined;
     visitId?: string | null | undefined;
     totalAmountRub?: number | null | undefined;
@@ -45303,6 +48216,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -45505,7 +48490,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     } | null | undefined;
 }, {
     patientId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     title?: string | undefined;
     visitId?: string | null | undefined;
     totalAmountRub?: number | null | undefined;
@@ -46061,6 +49046,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             otherBloodData?: string | null | undefined;
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
+        } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
         } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
@@ -46264,7 +49321,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     } | null | undefined;
 }>, {
     patientId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     title?: string | undefined;
     visitId?: string | null | undefined;
     totalAmountRub?: number | null | undefined;
@@ -46821,6 +49878,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
         } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
+        } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
             diagnosis: string;
@@ -47023,7 +50152,7 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
     } | null | undefined;
 }, {
     patientId: string;
-    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    kind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     title?: string | undefined;
     visitId?: string | null | undefined;
     totalAmountRub?: number | null | undefined;
@@ -47579,6 +50708,78 @@ export declare const createDocumentSchema: z.ZodEffects<z.ZodObject<{
             otherBloodData?: string | null | undefined;
             allergyHistory?: string | null | undefined;
             finalEpicrisis?: string | null | undefined;
+        } | undefined;
+        dentalMedicalCard043u?: {
+            patient: {
+                phone: string | null;
+                address: string | null;
+                fullName: string;
+                snils: string | null;
+                birthDate: string | null;
+                medicalCardNumber: string | null;
+                sex: string | null;
+                documentSeriesNumber: string | null;
+            };
+            doctor: {
+                specialty: string | null;
+                fullName: string;
+                position: string | null;
+            };
+            organization: {
+                phone: string | null;
+                inn: string | null;
+                ogrn: string | null;
+                address: string | null;
+                fullName: string;
+                shortName: string | null;
+                licenseNumber: string | null;
+                licenseIssueDate: string | null;
+                licenseAuthority: string | null;
+            };
+            visitDate: string;
+            formNumber: "043/у";
+            visitId?: string | null | undefined;
+            complaint?: string | null | undefined;
+            anamnesis?: string | null | undefined;
+            objectiveStatus?: string | null | undefined;
+            treatmentPlan?: string | null | undefined;
+            clinicalToothRows?: {
+                status: "completed" | "planned" | "other" | "implant" | "watch" | "sound" | "caries" | "pulpitis_periodontitis" | "periodontal" | "missing" | "prosthetic" | "orthodontic";
+                toothOrArea: string;
+                surfaces: ("not_applicable" | "occlusal" | "mesial" | "distal" | "buccal" | "lingual" | "palatal" | "incisal" | "root" | "implant_site")[];
+                diagnosisOrFinding: string;
+                indication: string;
+                plannedAction: string;
+                prognosis?: string | null | undefined;
+                periodontalStatus?: string | null | undefined;
+                implantOrProstheticNotes?: string | null | undefined;
+                orthodonticNotes?: string | null | undefined;
+            }[] | undefined;
+            recommendations?: string | null | undefined;
+            complications?: string | null | undefined;
+            comorbidities?: string | null | undefined;
+            diaryId?: string | null | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
+            statusLocalis?: string | null | undefined;
+            diagnosisIcd10?: string | null | undefined;
+            diagnosisTooth?: string | null | undefined;
+            diagnosisText?: string | null | undefined;
+            treatmentDescription?: string | null | undefined;
+            instrumentTrayBarcode?: string | null | undefined;
+            nextVisitPlan?: string | null | undefined;
+            content?: string | null | undefined;
+            lockedAt?: string | null | undefined;
+            contentHash?: string | null | undefined;
         } | undefined;
         medicalRecordExtract?: {
             objectiveStatus: string;
@@ -79853,6 +83054,37 @@ export type VisitNoteDraftQuality = z.infer<typeof visitNoteDraftQualitySchema>;
 export declare const visitNoteDraftSchema: z.ZodObject<{
     complaint: z.ZodNullable<z.ZodString>;
     anamnesis: z.ZodNullable<z.ZodString>;
+    structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    }, {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    }>>>;
     objectiveStatus: z.ZodNullable<z.ZodString>;
     diagnosis: z.ZodNullable<z.ZodString>;
     treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -79902,6 +83134,17 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
         missingCriticalFields: string[];
         detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
     } | undefined;
+    structuredAnamnesis?: {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    } | null | undefined;
 }, {
     warnings: string[];
     complaint: string | null;
@@ -79919,6 +83162,17 @@ export declare const visitNoteDraftSchema: z.ZodObject<{
         missingCriticalFields: string[];
         detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
     } | undefined;
+    structuredAnamnesis?: {
+        allergyStatus?: string | null | undefined;
+        currentMedications?: string | null | undefined;
+        pregnancyStatus?: string | null | undefined;
+        anticoagulants?: string | null | undefined;
+        narrative?: string | null | undefined;
+        chronicDiseases?: string | null | undefined;
+        infectiousDiseases?: string | null | undefined;
+        pastDentalHistory?: string | null | undefined;
+        generalHealthNotes?: string | null | undefined;
+    } | null | undefined;
 }>;
 export type VisitNoteDraft = z.infer<typeof visitNoteDraftSchema>;
 export declare const visitDraftAutosaveSchema: z.ZodObject<{
@@ -79929,6 +83183,37 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
     draft: z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -79978,6 +83263,17 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -79995,6 +83291,17 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>;
     baseRevision: z.ZodNullable<z.ZodNumber>;
     clientDraftId: z.ZodNullable<z.ZodString>;
@@ -80019,6 +83326,17 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80047,6 +83365,17 @@ export declare const visitDraftAutosaveSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80067,6 +83396,37 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
     draft: z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -80116,6 +83476,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -80133,6 +83504,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>;
     baseRevision: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     clientDraftId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80155,6 +83537,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80181,6 +83574,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80207,6 +83611,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80233,6 +83648,17 @@ export declare const visitDraftAutosaveRequestSchema: z.ZodEffects<z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     patientId: string;
     visitId: string;
@@ -80252,6 +83678,37 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
         draft: z.ZodObject<{
             complaint: z.ZodNullable<z.ZodString>;
             anamnesis: z.ZodNullable<z.ZodString>;
+            structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }>>>;
             objectiveStatus: z.ZodNullable<z.ZodString>;
             diagnosis: z.ZodNullable<z.ZodString>;
             treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -80301,6 +83758,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         }, {
             warnings: string[];
             complaint: string | null;
@@ -80318,6 +83786,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         }>;
         baseRevision: z.ZodNullable<z.ZodNumber>;
         clientDraftId: z.ZodNullable<z.ZodString>;
@@ -80342,6 +83821,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         };
         patientId: string;
         visitId: string;
@@ -80370,6 +83860,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         };
         patientId: string;
         visitId: string;
@@ -80400,6 +83901,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         };
         patientId: string;
         visitId: string;
@@ -80430,6 +83942,17 @@ export declare const visitDraftAutosaveResponseSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         };
         patientId: string;
         visitId: string;
@@ -80470,6 +83993,37 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
     draft: z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -80519,6 +84073,17 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -80536,6 +84101,17 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     draft: {
@@ -80555,6 +84131,17 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     warnings: string[];
     modelName: string | null;
@@ -80581,6 +84168,17 @@ export declare const speechTranscriptPolishResponseSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     warnings: string[];
     modelName: string | null;
@@ -80606,6 +84204,37 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
     draft: z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -80655,6 +84284,17 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -80672,6 +84312,17 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>;
     doctorSummary: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     clientMutationId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80695,6 +84346,17 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     visitId: string;
     clientMutationId?: string | null | undefined;
@@ -80719,6 +84381,17 @@ export declare const acceptVisitDraftSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     };
     visitId: string;
     clientMutationId?: string | null | undefined;
@@ -81756,7 +85429,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDateFilter: z.ZodDefault<z.ZodString>;
     paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>>;
     taxDocumentYear: z.ZodDefault<z.ZodNumber>;
-    selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
+    selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
     taxApplicationForm: z.ZodDefault<z.ZodEnum<["knd_1151156", "legacy_2021_2023"]>>;
     taxApplicationDeliveryChannel: z.ZodDefault<z.ZodEnum<["paper", "pdf", "secure_link", "email", "portal", "other"]>>;
     paymentReceiptTaxSupportRequested: z.ZodDefault<z.ZodBoolean>;
@@ -81806,7 +85479,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDateFilter: string;
     paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
     taxDocumentYear: number;
-    selectedDocumentKind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    selectedDocumentKind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     taxApplicationForm: "knd_1151156" | "legacy_2021_2023";
     taxApplicationDeliveryChannel: "email" | "other" | "paper" | "pdf" | "secure_link" | "portal";
     paymentReceiptTaxSupportRequested: boolean;
@@ -81854,7 +85527,7 @@ export declare const uiPreferencesSchema: z.ZodObject<{
     scheduleDateFilter?: string | undefined;
     paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
     taxDocumentYear?: number | undefined;
-    selectedDocumentKind?: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
+    selectedDocumentKind?: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
     taxApplicationForm?: "knd_1151156" | "legacy_2021_2023" | undefined;
     taxApplicationDeliveryChannel?: "email" | "other" | "paper" | "pdf" | "secure_link" | "portal" | undefined;
     paymentReceiptTaxSupportRequested?: boolean | undefined;
@@ -81902,7 +85575,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDateFilter: z.ZodDefault<z.ZodString>;
     paymentMethod: z.ZodDefault<z.ZodEnum<["cash", "card", "bank_transfer", "online", "insurance", "family_wallet", "other"]>>;
     taxDocumentYear: z.ZodDefault<z.ZodNumber>;
-    selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
+    selectedDocumentKind: z.ZodDefault<z.ZodEnum<["paid_medical_services_contract", "completed_works_act", "tax_deduction_certificate", "informed_consent", "procedure_specific_consent_packet", "treatment_plan", "treatment_plan_acceptance", "anesthesia_consent_log", "prescription_medication_order", "personal_data_processing_consent", "minor_legal_representative_consent", "photo_video_consent", "medical_intervention_refusal", "treatment_cost_estimate", "payment_invoice", "payment_receipt", "installment_payment_schedule", "post_visit_recommendations", "outpatient_medical_card_025u", "dental_medical_card_043u", "medical_record_extract", "medical_record_copy_request", "medical_document_release_receipt", "xray_cbct_referral", "lab_work_order", "visit_attendance_certificate", "warranty_service_memo", "payment_refund_correction_request", "tax_deduction_application", "legacy_tax_deduction_certificate", "tax_deduction_registry", "patient_intake_questionnaire"]>>;
     taxApplicationForm: z.ZodDefault<z.ZodEnum<["knd_1151156", "legacy_2021_2023"]>>;
     taxApplicationDeliveryChannel: z.ZodDefault<z.ZodEnum<["paper", "pdf", "secure_link", "email", "portal", "other"]>>;
     paymentReceiptTaxSupportRequested: z.ZodDefault<z.ZodBoolean>;
@@ -81953,7 +85626,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDateFilter: string;
     paymentMethod: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet";
     taxDocumentYear: number;
-    selectedDocumentKind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
+    selectedDocumentKind: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire";
     taxApplicationForm: "knd_1151156" | "legacy_2021_2023";
     taxApplicationDeliveryChannel: "email" | "other" | "paper" | "pdf" | "secure_link" | "portal";
     paymentReceiptTaxSupportRequested: boolean;
@@ -82003,7 +85676,7 @@ export declare const uiPreferencesInputSchema: z.ZodObject<Omit<{
     scheduleDateFilter?: string | undefined;
     paymentMethod?: "other" | "cash" | "card" | "bank_transfer" | "online" | "insurance" | "family_wallet" | undefined;
     taxDocumentYear?: number | undefined;
-    selectedDocumentKind?: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
+    selectedDocumentKind?: "treatment_plan" | "paid_medical_services_contract" | "completed_works_act" | "tax_deduction_certificate" | "informed_consent" | "procedure_specific_consent_packet" | "treatment_plan_acceptance" | "anesthesia_consent_log" | "prescription_medication_order" | "personal_data_processing_consent" | "minor_legal_representative_consent" | "photo_video_consent" | "medical_intervention_refusal" | "treatment_cost_estimate" | "payment_invoice" | "payment_receipt" | "installment_payment_schedule" | "post_visit_recommendations" | "outpatient_medical_card_025u" | "dental_medical_card_043u" | "medical_record_extract" | "medical_record_copy_request" | "medical_document_release_receipt" | "xray_cbct_referral" | "lab_work_order" | "visit_attendance_certificate" | "warranty_service_memo" | "payment_refund_correction_request" | "tax_deduction_application" | "legacy_tax_deduction_certificate" | "tax_deduction_registry" | "patient_intake_questionnaire" | undefined;
     taxApplicationForm?: "knd_1151156" | "legacy_2021_2023" | undefined;
     taxApplicationDeliveryChannel?: "email" | "other" | "paper" | "pdf" | "secure_link" | "portal" | undefined;
     paymentReceiptTaxSupportRequested?: boolean | undefined;
@@ -92175,6 +95848,37 @@ export declare const visitFlowDraftStepResultSchema: z.ZodObject<{
     data: z.ZodNullable<z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -92224,6 +95928,17 @@ export declare const visitFlowDraftStepResultSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -92241,6 +95956,17 @@ export declare const visitFlowDraftStepResultSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     message: string | null;
@@ -92263,6 +95989,17 @@ export declare const visitFlowDraftStepResultSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     } | null;
 }, {
     message: string | null;
@@ -92285,6 +96022,17 @@ export declare const visitFlowDraftStepResultSchema: z.ZodObject<{
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     } | null;
 }>;
 export type VisitFlowDraftStepResult = z.infer<typeof visitFlowDraftStepResultSchema>;
@@ -92686,6 +96434,37 @@ export declare const visitFlowStepResultSchema: z.ZodDiscriminatedUnion<"step", 
     data: z.ZodNullable<z.ZodObject<{
         complaint: z.ZodNullable<z.ZodString>;
         anamnesis: z.ZodNullable<z.ZodString>;
+        structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, "strip", z.ZodTypeAny, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }, {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        }>>>;
         objectiveStatus: z.ZodNullable<z.ZodString>;
         diagnosis: z.ZodNullable<z.ZodString>;
         treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -92735,6 +96514,17 @@ export declare const visitFlowStepResultSchema: z.ZodDiscriminatedUnion<"step", 
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }, {
         warnings: string[];
         complaint: string | null;
@@ -92752,6 +96542,17 @@ export declare const visitFlowStepResultSchema: z.ZodDiscriminatedUnion<"step", 
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     message: string | null;
@@ -92774,6 +96575,17 @@ export declare const visitFlowStepResultSchema: z.ZodDiscriminatedUnion<"step", 
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     } | null;
 }, {
     message: string | null;
@@ -92796,6 +96608,17 @@ export declare const visitFlowStepResultSchema: z.ZodDiscriminatedUnion<"step", 
             missingCriticalFields: string[];
             detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
         } | undefined;
+        structuredAnamnesis?: {
+            allergyStatus?: string | null | undefined;
+            currentMedications?: string | null | undefined;
+            pregnancyStatus?: string | null | undefined;
+            anticoagulants?: string | null | undefined;
+            narrative?: string | null | undefined;
+            chronicDiseases?: string | null | undefined;
+            infectiousDiseases?: string | null | undefined;
+            pastDentalHistory?: string | null | undefined;
+            generalHealthNotes?: string | null | undefined;
+        } | null | undefined;
     } | null;
 }>, z.ZodObject<{
     step: z.ZodLiteral<"plan">;
@@ -93562,6 +97385,37 @@ export declare const visitFlowResultSchema: z.ZodObject<{
         data: z.ZodNullable<z.ZodObject<{
             complaint: z.ZodNullable<z.ZodString>;
             anamnesis: z.ZodNullable<z.ZodString>;
+            structuredAnamnesis: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                narrative: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                allergyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                currentMedications: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                chronicDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                anticoagulants: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                infectiousDiseases: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pregnancyStatus: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                pastDentalHistory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                generalHealthNotes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, "strip", z.ZodTypeAny, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }, {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            }>>>;
             objectiveStatus: z.ZodNullable<z.ZodString>;
             diagnosis: z.ZodNullable<z.ZodString>;
             treatmentPlan: z.ZodNullable<z.ZodString>;
@@ -93611,6 +97465,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         }, {
             warnings: string[];
             complaint: string | null;
@@ -93628,6 +97493,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
         message: string | null;
@@ -93650,6 +97526,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         } | null;
     }, {
         message: string | null;
@@ -93672,6 +97559,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         } | null;
     }>;
     plan: z.ZodObject<{
@@ -94064,6 +97962,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         } | null;
     };
     documents: {
@@ -94164,6 +98073,17 @@ export declare const visitFlowResultSchema: z.ZodObject<{
                 missingCriticalFields: string[];
                 detectedToothStates?: Record<string, "done" | "planned" | "idle" | "watch" | "missing" | "treatment"> | undefined;
             } | undefined;
+            structuredAnamnesis?: {
+                allergyStatus?: string | null | undefined;
+                currentMedications?: string | null | undefined;
+                pregnancyStatus?: string | null | undefined;
+                anticoagulants?: string | null | undefined;
+                narrative?: string | null | undefined;
+                chronicDiseases?: string | null | undefined;
+                infectiousDiseases?: string | null | undefined;
+                pastDentalHistory?: string | null | undefined;
+                generalHealthNotes?: string | null | undefined;
+            } | null | undefined;
         } | null;
     };
     documents: {

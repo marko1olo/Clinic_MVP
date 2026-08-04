@@ -1,0 +1,7 @@
+# Avito Bot Goose Protocol
+
+1. **Primary Scope**: Avito Integration Bot (Python / FastAPI / asyncio).
+2. **Architecture Rules**:
+   - Secure lead processing with patient data confidentiality.
+   - Drafts-first validation before updating lead statuses.
+   - Zero hardcoded credentials or API tokens.

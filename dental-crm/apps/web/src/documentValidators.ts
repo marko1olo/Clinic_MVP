@@ -1333,6 +1333,96 @@ export function validateOutpatientMedicalCard025U(
   );
 }
 
+export function validateDentalMedicalCard043U(
+  state: DocumentState,
+): string[] | string | null {
+  const {
+    activeDoctor,
+    clinicalToothRowsValue,
+    recordExtractPeriodEnd,
+    recordExtractComplaintAndAnamnesisValue,
+    recordExtractObjectiveStatusValue,
+    recordExtractDiagnosisValue,
+    recordExtractTreatmentProvidedValue,
+    recordExtractDoctorFullName,
+    documentPatient,
+    clinicProfileDraft,
+    requiredDocumentField,
+    outpatient025uMedicalCardNumberValue,
+    dentalMedicalCard043uPayloadValue,
+  } = state as DocumentState & {
+    dentalMedicalCard043uPayloadValue?: () => {
+      visitDate?: string | null;
+      organization?: { fullName?: string | null; shortName?: string | null };
+      patient?: {
+        fullName?: string | null;
+        medicalCardNumber?: string | null;
+      };
+      complaint?: string | null;
+      anamnesis?: string | null;
+      objectiveStatus?: string | null;
+      diagnosisText?: string | null;
+      treatmentDescription?: string | null;
+      treatmentPlan?: string | null;
+      doctor?: { fullName?: string | null };
+      clinicalToothRows?: unknown[];
+    };
+  };
+
+  const payload = dentalMedicalCard043uPayloadValue?.();
+  const orgName =
+    payload?.organization?.fullName?.trim() ||
+    payload?.organization?.shortName?.trim() ||
+    clinicProfileDraft.legalName.trim() ||
+    clinicProfileDraft.clinicName.trim();
+  const cardNumber =
+    payload?.patient?.medicalCardNumber?.trim() ||
+    outpatient025uMedicalCardNumberValue();
+  const visitDate = payload?.visitDate?.trim() || recordExtractPeriodEnd;
+  const complaint =
+    payload?.complaint?.trim() ||
+    recordExtractComplaintAndAnamnesisValue().split(/\n{2,}/)[0]?.trim() ||
+    "";
+  const anamnesis =
+    payload?.anamnesis?.trim() || recordExtractComplaintAndAnamnesisValue();
+  const objective =
+    payload?.objectiveStatus?.trim() || recordExtractObjectiveStatusValue();
+  const diagnosis =
+    payload?.diagnosisText?.trim() || recordExtractDiagnosisValue();
+  const treatment =
+    payload?.treatmentDescription?.trim() ||
+    payload?.treatmentPlan?.trim() ||
+    recordExtractTreatmentProvidedValue();
+  const doctorName =
+    payload?.doctor?.fullName?.trim() ||
+    recordExtractDoctorFullName.trim() ||
+    activeDoctor?.fullName ||
+    "";
+  const toothRows =
+    payload?.clinicalToothRows?.length
+      ? payload.clinicalToothRows
+      : clinicalToothRowsValue();
+  const patientName =
+    payload?.patient?.fullName?.trim() || documentPatient?.fullName || "";
+
+  return (
+    requiredDocumentField(orgName, "карта 043/у, медорганизация") ??
+    requiredDocumentField(cardNumber, "карта 043/у, номер медицинской карты") ??
+    requiredDocumentField(visitDate, "карта 043/у, дата приема") ??
+    requiredDocumentField(patientName, "карта 043/у, пациент") ??
+    requiredDocumentField(complaint, "карта 043/у, жалобы") ??
+    requiredDocumentField(anamnesis, "карта 043/у, анамнез") ??
+    requiredDocumentField(objective, "карта 043/у, объективный статус") ??
+    requiredDocumentField(diagnosis, "карта 043/у, диагноз") ??
+    (toothRows.length
+      ? null
+      : "Добавьте клинические строки по зубам или сегментам для карты 043/у.") ??
+    requiredDocumentField(treatment, "карта 043/у, проведенное лечение") ??
+    requiredDocumentField(doctorName, "карта 043/у, врач")
+  );
+}
+
+
 export function validateMedicalRecordExtract(
   state: DocumentState,
 ): string[] | string | null {
@@ -1728,6 +1818,7 @@ export const documentPayloadValidators: Record<
   photo_video_consent: validatePhotoVideoConsent,
   xray_cbct_referral: validateXrayCbctReferral,
   outpatient_medical_card_025u: validateOutpatientMedicalCard025U,
+  dental_medical_card_043u: validateDentalMedicalCard043U,
   medical_record_extract: validateMedicalRecordExtract,
   medical_record_copy_request: validateMedicalRecordCopyRequest,
   visit_attendance_certificate: validateVisitAttendanceCertificate,

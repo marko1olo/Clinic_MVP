@@ -89,13 +89,27 @@ export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
             .filter(Boolean)
             .join("|"))
     };
-    await db.update(schema.visits)
+    /*
+     * БЫЛО: `.where(eq(schema.visits.id, input.visitId))` без organizationId и без
+     * проверки RETURNING. SELECT выше уже фильтрует по клинике, но между SELECT и
+     * UPDATE строка теоретически может сменить владельца/исчезнуть; важнее —
+     * UPDATE без org нарушает тот же инвариант, что ужесточили у patients
+     * (PUT чужой клиники по одному uuid). А без RETURNING autosave отвечал 200 с
+     * «сохранённым» черновиком, хотя в базе 0 строк изменилось: врач диктовал
+     * дальше, а после перезагрузки дневник был пуст.
+     * СТАЛО: organizationId в WHERE + пустой RETURNING → throw (маршрут честный).
+     */
+    const [saved] = await db.update(schema.visits)
         .set({
         draftAutosave: serverDraft,
         transcript: input.transcript,
         updatedAt: new Date()
     })
-        .where(eq(schema.visits.id, input.visitId));
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, input.visitId)))
+        .returning({ id: schema.visits.id });
+    if (!saved) {
+        throw new Error("Визит не найден");
+    }
     return serverDraft;
 }
 /**
@@ -169,6 +183,12 @@ export async function acceptVisitDraftInDb(organizationId, input) {
     const previousRevision = visit.revision;
     const newRevision = previousRevision + 1;
     const savedAt = new Date();
+    /*
+     * БЫЛО: UPDATE только по visitId. SELECT уже с org, но запись подписи —
+     * юридически значимое действие: условие области обязано быть на самом UPDATE
+     * (тот же класс, что patientsQuery updatePatientInDb после live cross-tenant PUT).
+     * СТАЛО: organizationId + id в WHERE.
+     */
     const [signedRow] = await db.update(schema.visits)
         .set({
         status: "signed",
@@ -182,7 +202,7 @@ export async function acceptVisitDraftInDb(organizationId, input) {
         signedAt: savedAt,
         updatedAt: savedAt
     })
-        .where(eq(schema.visits.id, input.visitId))
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, input.visitId)))
         .returning();
     // До этой строки приём ещё черновик: пустой RETURNING значит, что подписания не
     // случилось, и обычный доменный отказ здесь правдив.

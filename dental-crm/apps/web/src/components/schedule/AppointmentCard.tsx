@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import type { Appointment, AppointmentReadiness, Dashboard, ScheduleSuggestion } from "@dental/shared";
+import { WaitlistMatchesBlock } from "./WaitlistMatchesBlock";
 
 type TextFieldChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
 
@@ -24,14 +25,16 @@ export type AppointmentCardProps = {
   openAppointmentEditor: (appointment: Appointment) => void;
   /**
    * Переносит пациента, врача, ассистента, кресло, длительность и повод этой
-   * записи в форму новой и открывает её. Заменяет «Буфер обмена переноса
-   * записей расписания» — тот показывал пустую коробку с обещанием
-   * «из клика по визиту вы можете скопировать запись», хотя копировать было
-   * нечем: функция copyToBuffer не вызывалась ни из одного места, вставки не
-   * существовало вовсе, а у таблицы schedule_clipboard_items во всём проекте
-   * нет ни одного писателя — только чтение.
+   * записи в форму новой и открывает её. Удобно для «тот же пациент через
+   * неделю». Для переноса на произвольное время — «В буфер» + панель буфера.
    */
   repeatAppointment: (appointment: Appointment) => void;
+  /**
+   * Копирует снимок приёма в серверный буфер расписания (schedule_clipboard_items)
+   * и открывает панель «Буфер». Вставка создаёт новый приём на выбранное время.
+   */
+  copyAppointmentToBuffer?: (appointment: Appointment) => void;
+
   closeAppointmentEditor: (appointmentId: string) => void;
   updateAppointmentScheduleDraft: (appointmentId: string, key: any, value: any) => void;
   saveAppointmentSchedule: (appointmentId: string) => Promise<boolean>;
@@ -63,6 +66,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
     patientName,
     openAppointmentEditor,
     repeatAppointment,
+    copyAppointmentToBuffer,
     closeAppointmentEditor,
     updateAppointmentScheduleDraft,
     saveAppointmentSchedule,
@@ -155,7 +159,33 @@ export function AppointmentCard(props: AppointmentCardProps) {
         </p>
       ) : null}
 
+      {/*
+        ОСВОБОДИВШЕЕСЯ ОКНО → ПОЛНЫЙ ПОДБОР ИЗ ЛИСТА ОЖИДАНИЯ.
+
+        API GET /api/appointments/:id/waitlist-matches уже существовал, но веб
+        его не вызывал. Сводка FreedSlotsPanel показывает только top-3 из
+        freed-slots; здесь, на карточке отменённого / no_show приёма в ленте
+        дня, администратор видит полный список «кому звонить» с причиной.
+        Только future cancelled/no_show: API сам отвергает занятое и прошлое.
+      */}
+      {(appointment.status === "cancelled" || appointment.status === "no_show") &&
+      new Date(appointment.startsAt).getTime() > Date.now() ? (
+        <div
+          style={{
+            marginTop: 4,
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid var(--line)",
+            background: "var(--paper-soft)",
+          }}
+          data-testid="appointment-card-waitlist-matches"
+        >
+          <WaitlistMatchesBlock appointmentId={appointment.id} compact />
+        </div>
+      ) : null}
+
       <div className="appointment-card-footer flex justify-end gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+
         <button
           className="secondary-button appointment-repeat-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
           type="button"
@@ -166,6 +196,18 @@ export function AppointmentCard(props: AppointmentCardProps) {
         >
           Повторить
         </button>
+        {copyAppointmentToBuffer ? (
+          <button
+            className="secondary-button appointment-buffer-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
+            type="button"
+            onClick={() => copyAppointmentToBuffer(appointment)}
+            aria-label={`В буфер: ${appointmentPatientName}`}
+            title="Скопировать в буфер расписания для вставки на другое время"
+            style={{ padding: '4px 12px', minHeight: '28px', fontSize: '12px' }}
+          >
+            В буфер
+          </button>
+        ) : null}
         <button
           className="secondary-button appointment-edit-button focus:ring-2 focus:ring-teal-600 focus:outline-none transition-colors"
           type="button"
@@ -179,6 +221,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
           Настроить
         </button>
       </div>
+
 
       {appointmentEditing ? (
         <div className="appointment-editor form-span-2" id={appointmentEditorId} aria-label={`Редактирование записи: ${appointmentPatientName}`}>

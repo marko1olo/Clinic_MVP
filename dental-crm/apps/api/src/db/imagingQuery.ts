@@ -118,6 +118,29 @@ export async function createImagingStudyInDb(
     aiSummary?: string | null | undefined;
   }
 ): Promise<ImagingStudy> {
+  // Ownership assert: patient (and optional visit) must belong to caller org.
+  const [ownedPatient] = await db
+    .select({ id: schema.patients.id })
+    .from(schema.patients)
+    .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, input.patientId)))
+    .limit(1);
+  if (!ownedPatient) {
+    throw new Error("imaging create: patient does not belong to organization");
+  }
+  if (input.visitId) {
+    const [ownedVisit] = await db
+      .select({ id: schema.visits.id })
+      .from(schema.visits)
+      .where(and(
+        eq(schema.visits.organizationId, organizationId),
+        eq(schema.visits.id, input.visitId),
+        eq(schema.visits.patientId, input.patientId),
+      ))
+      .limit(1);
+    if (!ownedVisit) {
+      throw new Error("imaging create: visit does not belong to organization/patient");
+    }
+  }
   const [record] = await db
     .insert(schema.imagingStudies)
     .values({
@@ -238,6 +261,13 @@ export async function saveImagingViewerSession(organizationId: string, studyId: 
   const now = new Date();
 
   if (existing) {
+    /*
+     * БЫЛО: UPDATE imaging_viewer_sessions ... WHERE id=existing.id
+     * (organizationId только в SELECT выше). SELECT-then-UPDATE по одному id
+     * ломает multi-tenant defense-in-depth: чужая клиника с тем же UUID
+     * могла перезаписать сессию просмотра снимка.
+     * СТАЛО: organizationId + id в WHERE; пустой RETURNING → ошибка.
+     */
     const [updated] = await db.update(imagingViewerSessions).set({
       patientId: input.patientId,
       visitId: input.visitId ?? null,
@@ -246,7 +276,10 @@ export async function saveImagingViewerSession(organizationId: string, studyId: 
       clientSavedAt,
       serverSavedAt: now,
       updatedAt: now
-    }).where(eq(imagingViewerSessions.id, existing.id)).returning();
+    }).where(and(
+      eq(imagingViewerSessions.id, existing.id),
+      eq(imagingViewerSessions.organizationId, organizationId),
+    )).returning();
     if (!updated) throw new Error("Failed to update session");
 
     return {
@@ -335,12 +368,21 @@ export async function saveDicomWorkbenchBundle(organizationId: string, input: Sa
     .limit(1);
 
   if (existing) {
+    /*
+     * БЫЛО: UPDATE dicom_workbench_bundles ... WHERE id only после SELECT
+     * с organizationId+seriesKey. organizationId не в WHERE мутации —
+     * тот же класс дыры, что visits/family wallet.
+     * СТАЛО: organizationId + id; RETURNING обязателен (уже был).
+     */
     const [updated] = await db.update(dicomWorkbenchBundles).set({
       manifest: input.manifest,
       clientSavedAt,
       serverSavedAt: now,
       updatedAt: now
-    }).where(eq(dicomWorkbenchBundles.id, existing.id)).returning();
+    }).where(and(
+      eq(dicomWorkbenchBundles.id, existing.id),
+      eq(dicomWorkbenchBundles.organizationId, organizationId),
+    )).returning();
     if (!updated) throw new Error("Failed to update bundle");
 
     return {

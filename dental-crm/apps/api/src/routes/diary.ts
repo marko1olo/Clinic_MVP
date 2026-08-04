@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { and, count, desc, eq, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -15,10 +15,14 @@ import {
 	inventoryTransactions,
 	procedureMaterialRules,
 	treatmentItems,
+	sterilizationLogs,
+	users,
 	visitDiaries,
 	visitDiaryRevisions,
+	visits,
 } from "../db/schema.js";
 import { clinicNotIdentifiedMessage } from "../utils/clinicSessionRefusal.js";
+import { verifyCredential } from "../utils/cryptoHelper.js";
 
 /**
  * ДНЕВНИК ПРИЁМА ОТКАЗЫВАЛ КОДОМ, А НЕ ПРИЧИНОЙ.
@@ -111,18 +115,236 @@ const diaryReviseBodySchema = z.object({
 	diagnosisIcd10: z.unknown().optional(),
 	diagnosisTooth: z.unknown().optional(),
 	treatmentDescription: z.unknown().optional(),
+	/*
+	 * complications / comorbidities — поля visit_diaries и UI 043/у.
+	 * БЫЛО: схема revise их не принимала, handler не писал. Админ правил
+	 * «Осложнения»/«Сопутствующие» — после сохранения оставался старый
+	 * текст; в подписанной 043/у ошибка не исправлялась.
+	 */
+	complications: z.unknown().optional(),
+	comorbidities: z.unknown().optional(),
+	/*
+	 * instrumentTrayBarcode — элемент diary_hash и печать 043/у.
+	 * БЫЛО: revise схема/handler не принимали лоток; sterilization/link
+	 * при is_locked отвечал 409 «лоток можно править через
+	 * ревизию», но /revise лоток не менял — неверный штрихкод в
+	 * подписанной 043/у исправить было нельзя.
+	 */
+	instrumentTrayBarcode: z.unknown().optional(),
 	revisionReason: z.unknown().optional(),
 });
 
+/**
+ * Route params for e-signature diary paths.
+ * БЫЛО: bare cast `req.params as { visitId|id: string }` on GET visit,
+ * GET revisions, POST lock, POST revise. Non-UUID junk hit the DB and
+ * returned 404 NotFound, masking bad route input as “missing diary”.
+ * Zod after clinical access gates → 400 ValidationError; existing
+ * 404 for well-formed unknown ids is unchanged.
+ */
+const diaryVisitParamsSchema = z.object({
+	visitId: z.string().uuid(),
+});
+
+const diaryIdParamsSchema = z.object({
+	id: z.string().uuid(),
+});
+
+
+/**
+ * SHA-256 печать содержимого дневника 043/у.
+ *
+ * БЫЛО (раньше): visitId|patientId|S|O|P — без A (МКБ/зуб), осложнений,
+ * сопутствующих. Правка диагноза через /revise не меняла diaryHash.
+ *
+ * БЫЛО (после семи полей): instrument_tray_barcode печатается в 043/у
+ * («Инструментальный лоток»), но в хеш не входил. Смена лотка после
+ * черновика/подписи оставляла тот же diaryHash — ЭЦП-штамп «заверял»
+ * другую упаковку стерилизации, чем в карте.
+ *
+ * СТАЛО: семь клинических полей + instrumentTrayBarcode (8-й сегмент).
+ * Порядок фиксирован; пустое = "". Старые diary_hash без лотка остаются
+ * до ближайшего draft save / lock / revise (тогда пересчёт).
+ */
 function computeDiaryHash(
 	visitId: string,
 	patientId: string,
 	anamnesis: string | null | undefined,
 	statusLocalis: string | null | undefined,
 	treatmentDescription: string | null | undefined,
+	diagnosisIcd10?: string | null | undefined,
+	diagnosisTooth?: string | null | undefined,
+	complications?: string | null | undefined,
+	comorbidities?: string | null | undefined,
+	instrumentTrayBarcode?: string | null | undefined,
 ): string {
-	const raw = `${visitId}|${patientId}|${anamnesis ?? ""}|${statusLocalis ?? ""}|${treatmentDescription ?? ""}`;
+	const raw = [
+		visitId,
+		patientId,
+		anamnesis ?? "",
+		statusLocalis ?? "",
+		treatmentDescription ?? "",
+		diagnosisIcd10 ?? "",
+		diagnosisTooth ?? "",
+		complications ?? "",
+		comorbidities ?? "",
+		instrumentTrayBarcode ?? "",
+	].join("|");
 	return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
+/**
+ * Простая ЭП по PIN сотрудника → непрозрачная отметка, не цифры PIN.
+ *
+ * БЫЛО: клиент слал `PIN:<четыре цифры>`, /lock и церемония клали строку
+ * как есть в crypto_signature_pkcs7. PIN сотрудника лежал открытым текстом
+ * рядом с юридической записью 043/у; GET дневника отдавал его в браузер.
+ *
+ * СТАЛО: при префиксе PIN: сверяем цифры с users.pin_code_hash текущего
+ * подписанта (organizationId + userId). Успех → SIMPLE_PIN_EP|userId|iso|
+ * первые 12 hex diaryHash (или «nohash»). Отказ → null + код причины.
+ * PKCS#7 КриптоПро (без префикса PIN:) проходит без изменения.
+ */
+type SimplePinResolve =
+	| { ok: true; stored: string | null }
+	| {
+			ok: false;
+			code: "PinRequired" | "PinInvalid" | "PinNotSet" | "UserRequired";
+			message: string;
+	  };
+
+const SIMPLE_PIN_PREFIX = "PIN:";
+const SIMPLE_PIN_EP_MARK = "SIMPLE_PIN_EP";
+
+const DIARY_PIN_USER_REQUIRED_MESSAGE =
+	"Простую подпись по ПИН-коду может поставить только сотрудник, вошедший в смену. Войдите в смену заново и повторите подписание.";
+const DIARY_PIN_NOT_SET_MESSAGE =
+	"У вашей учётной записи не задан ПИН-код сотрудника, простую подпись поставить нельзя. Задайте ПИН в настройках персонала или подпишите дневник через КриптоПро.";
+const DIARY_PIN_INVALID_MESSAGE =
+	"ПИН-код не принят. Проверьте раскладку и введите ПИН-код сотрудника заново.";
+
+async function resolveSignatureForStorage(params: {
+	pkcs7Signature: string | null | undefined;
+	userId: string | null;
+	organizationId: string;
+	diaryHashForMark?: string | null;
+}): Promise<SimplePinResolve> {
+	const raw =
+		typeof params.pkcs7Signature === "string" ? params.pkcs7Signature : null;
+	if (raw == null || raw.length === 0) {
+		return { ok: true, stored: null };
+	}
+	if (!raw.startsWith(SIMPLE_PIN_PREFIX)) {
+		// УКЭП / PKCS#7 — без разбора; legacy SIMPLE_PIN_EP тоже проходит.
+		return { ok: true, stored: raw };
+	}
+	const pinDigits = raw.slice(SIMPLE_PIN_PREFIX.length);
+	if (!/^\d{4}$/.test(pinDigits)) {
+		return {
+			ok: false,
+			code: "PinInvalid",
+			message: DIARY_PIN_INVALID_MESSAGE,
+		};
+	}
+	if (!params.userId) {
+		return {
+			ok: false,
+			code: "UserRequired",
+			message: DIARY_PIN_USER_REQUIRED_MESSAGE,
+		};
+	}
+	const [user] = await db
+		.select({
+			id: users.id,
+			pinCodeHash: users.pinCodeHash,
+		})
+		.from(users)
+		.where(
+			and(
+				eq(users.id, params.userId),
+				eq(users.organizationId, params.organizationId),
+				eq(users.isActive, true),
+			),
+		)
+		.limit(1);
+	if (!user) {
+		return {
+			ok: false,
+			code: "UserRequired",
+			message: DIARY_PIN_USER_REQUIRED_MESSAGE,
+		};
+	}
+	if (!user.pinCodeHash) {
+		return {
+			ok: false,
+			code: "PinNotSet",
+			message: DIARY_PIN_NOT_SET_MESSAGE,
+		};
+	}
+	const matched = await verifyCredential(pinDigits, user.pinCodeHash);
+	if (!matched) {
+		return {
+			ok: false,
+			code: "PinInvalid",
+			message: DIARY_PIN_INVALID_MESSAGE,
+		};
+	}
+	const hashPart =
+		typeof params.diaryHashForMark === "string" &&
+		params.diaryHashForMark.length >= 12
+			? params.diaryHashForMark.slice(0, 12)
+			: "nohash";
+	const mark = [
+		SIMPLE_PIN_EP_MARK,
+		params.userId,
+		new Date().toISOString(),
+		hashPart,
+	].join("|");
+	return { ok: true, stored: mark };
+}
+
+const DENTAL_SPECIALTY_LABELS: Record<string, string> = {
+	therapist: "терапия",
+	orthopedist: "ортопедия",
+	surgeon: "хирургия",
+	orthodontist: "ортодонтия",
+	periodontist: "пародонтология",
+	hygienist: "гигиена",
+	pediatric: "детская",
+	implantologist: "имплантация",
+	radiologist: "рентген",
+	universal: "универсально",
+};
+
+/**
+ * DEFECT #41: RU-метка специальности врача для печати 043/у.
+ * users.specialties — jsonb string[]; prefer non-universal codes.
+ */
+function formatDoctorSpecialtyLabel(raw: unknown): string | null {
+	const codes: string[] = Array.isArray(raw)
+		? raw
+				.map((x) => (typeof x === "string" ? x.trim() : ""))
+				.filter(Boolean)
+		: typeof raw === "string" && raw.trim()
+			? [raw.trim()]
+			: [];
+	if (codes.length === 0) return null;
+	const meaningful = codes.filter((c) => c !== "universal");
+	const list = meaningful.length > 0 ? meaningful : codes;
+	const labels = list.map((c) => DENTAL_SPECIALTY_LABELS[c] ?? c);
+	const joined = labels.join(", ").trim();
+	return joined.length > 0 ? joined : null;
+}
+
+/** Legacy PIN:… в ответе GET не отдаём — только факт, что оттиск был. */
+function redactLegacyPinSignature(
+	value: string | null | undefined,
+): string | null {
+	if (typeof value !== "string" || value.length === 0) return value ?? null;
+	if (value.startsWith(SIMPLE_PIN_PREFIX)) {
+		return `${SIMPLE_PIN_EP_MARK}|redacted-legacy`;
+	}
+	return value;
 }
 
 /**
@@ -155,7 +377,9 @@ type DiarySigningFailureCode =
 	| "NotFound"
 	| "NotSaved"
 	| "AlreadyLocked"
-	| "InsufficientStock";
+	| "InsufficientStock"
+	| "Icd10Required"
+	| "PinRejected";
 
 /**
  * Отказ церемонии подписания. Раньше оба состояния передавались через
@@ -245,6 +469,24 @@ async function runDiarySigningCeremony(
 		throw new DiarySigningError("AlreadyLocked", "Дневник уже подписан.");
 	}
 
+	/*
+	 * DEFECT #69: signed 043/у must carry МКБ-10 before lock.
+	 * БЫЛО: runDiarySigningCeremony / POST lock / status:signed принимали
+	 * пустой diagnosisIcd10. Бумажная 043/у и diary_hash уходили без кода
+	 * диагноза; EGISZ CDA уже режет пустой МКБ (#62), а подписанная карта
+	 * клиники — нет. Суд/проверка качества видят заверенный дневник без
+	 * обязательного поля приказа 834н.
+	 * СТАЛО: trim diagnosisIcd10; пусто → 422 Icd10Required до замка/склада.
+	 */
+	const icdForLock =
+		typeof diary.diagnosisIcd10 === "string" ? diary.diagnosisIcd10.trim() : "";
+	if (!icdForLock) {
+		throw new DiarySigningError(
+			"Icd10Required",
+			"Перед подписью дневника 043/у укажите код диагноза по МКБ-10. Сохраните черновик с кодом и повторите подписание.",
+		);
+	}
+
 	// Хеш считается по СОХРАНЁННОЙ строке, а не по телу запроса.
 	// БЫЛО: POST хешировал присланные поля. Фронтенд сохраняет черновик отдельно и
 	// при подписании часто не присылает клинические поля вовсе — тогда в печать
@@ -257,17 +499,41 @@ async function runDiarySigningCeremony(
 		diary.anamnesis,
 		diary.statusLocalis,
 		diary.treatmentDescription,
+		diary.diagnosisIcd10,
+		diary.diagnosisTooth,
+		diary.complications,
+		diary.comorbidities,
+		diary.instrumentTrayBarcode,
 	);
 	const lockedAt = new Date();
 
 	// 1. Замок и печать
-	await tx
+	/*
+	 * DEFECT #76: lock UPDATE must only transition unlocked → locked.
+	 * БЫЛО: WHERE id+org only. Concurrent double POST /lock (two tabs /
+	 * two sessions that both passed the pre-check) could both set
+	 * is_locked=true, overwrite lockedAt/lockedByUserId/diaryHash/PKCS7
+	 * and double-run stock deductions + treatment completion below.
+	 * СТАЛО: WHERE is_locked=false + returning; zero rows → AlreadyLocked.
+	 */
+	const lockedRows = await tx
 		.update(visitDiaries)
 		.set({
 			isLocked: true,
 			lockedAt,
 			lockedByUserId: userId,
 			coSignedByUserId: userId,
+			/*
+			 * DEFECT #35: authorId + doctorId при подписании.
+			 * БЫЛО: колонки visit_diaries.author_id / doctor_id в schema есть,
+			 * но ceremony писала только lockedByUserId/coSignedByUserId.
+			 * biAnalyticsWorker джойнит visitDiaries.doctorId → users —
+			 * метрики врача всегда пустые; toothHistory фолбэк на doctorId
+			 * тоже не срабатывал.
+			 * СТАЛО: подписант = author и treating doctor записи 043/у.
+			 */
+			authorId: userId,
+			doctorId: userId,
 			diaryHash: hash,
 			cryptoSignaturePkcs7: params.pkcs7Signature,
 			updatedAt: lockedAt,
@@ -276,8 +542,17 @@ async function runDiarySigningCeremony(
 			and(
 				eq(visitDiaries.id, diaryId),
 				eq(visitDiaries.organizationId, organizationId),
+				eq(visitDiaries.isLocked, false),
 			),
+		)
+		.returning({ id: visitDiaries.id });
+	if (lockedRows.length === 0) {
+		throw new DiarySigningError(
+			"AlreadyLocked",
+			"Дневник подписан и заблокирован.",
 		);
+	}
+
 
 	// 2. Закрыть услуги визита и списать расходники.
 	// Все чтения ограничены организацией дневника. БЫЛО: правила материалов
@@ -481,6 +756,22 @@ async function runDiarySigningCeremony(
 		})
 		.returning({ id: clinicalAuditLogs.id });
 
+	/*
+	 * DEFECT #46: signed 043 must mirror into visits before EGISZ export.
+	 * Ceremony already holds the locked row; push non-empty SOAP → EMK.
+	 */
+	if (diary.visitId) {
+		await syncVisitEmkFromDiarySoap(tx, {
+			visitId: diary.visitId,
+			organizationId,
+			anamnesis: diary.anamnesis,
+			statusLocalis: diary.statusLocalis,
+			diagnosisIcd10: diary.diagnosisIcd10,
+			diagnosisTooth: diary.diagnosisTooth,
+			treatmentDescription: diary.treatmentDescription,
+		});
+	}
+
 	return {
 		diaryId,
 		hash,
@@ -505,15 +796,137 @@ async function runDiarySigningCeremony(
 const DIARY_SIGNING_ROLE_MESSAGE =
 	"Дневник приёма подписывает только врач или администратор клиники: у вашей смены такого права нет, и повторный вход его не добавит. Позовите врача, который вёл приём, — подписать может он.";
 
+/**
+ * DEFECT #46: dual-storage drift — 043 SOAP never reached visits EMK.
+ *
+ * БЫЛО: POST /api/diaries и /revise писали только visit_diaries.*.
+ * EGISZ CDA (`egisz.ts`) и вкладка ЭМК читают visits.anamnesis /
+ * objectiveStatus / diagnosis / treatmentPlan. Врач заполнял 043/у —
+ * юридический СЭМД уходил пустым/устаревшим; ЭМК оставалась пустой.
+ *
+ * СТАЛО: после draft save, signing ceremony и admin-revise пушим
+ * непустые SOAP-поля в visits той же org. Пустой SOAP не затирает
+ * более полный текст ЭМК (врач мог вести поля только в ЭМК).
+ * Маппинг обратен soapPrefillFromVisitNote:
+ *   anamnesis → visits.anamnesis
+ *   statusLocalis → visits.objectiveStatus
+ *   diagnosisIcd10 + diagnosisTooth → visits.diagnosis
+ *   treatmentDescription → visits.treatmentPlan
+ * complaint не трогаем (отдельное поле ЭМК; в S-блоке 043 оно уже
+ * могло быть склеено клиентом при prefill).
+ */
+function buildEmkDiagnosisText(
+	diagnosisIcd10?: string | null,
+	diagnosisTooth?: string | null,
+): string | null {
+	const icd = (diagnosisIcd10 ?? "").trim();
+	const tooth = (diagnosisTooth ?? "").trim();
+	/*
+	 * DEFECT #53: tooth-only must not become visits.diagnosis.
+	 * БЫЛО: return `Зуб ${tooth}` when ICD empty → draft/lock/revise sync
+	 * overwrote EMK diagnosis that still had МКБ (e.g. «K02.1 Кариес»)
+	 * with «Зуб 36». EGISZ gate and tab ЭМК lost the code; CDA then had to
+	 * recover via #52 fallback. СТАЛО: push diagnosis only when ICD present
+	 * (optionally with tooth). Tooth alone stays on visit_diaries only.
+	 */
+	if (!icd) return null;
+	if (tooth) return `${icd} | Зуб ${tooth}`;
+	return icd;
+}
+
+async function syncVisitEmkFromDiarySoap(
+	executor: Pick<DiaryDbTransaction, "update">,
+	params: {
+		visitId: string;
+		organizationId: string;
+		anamnesis?: string | null;
+		statusLocalis?: string | null;
+		diagnosisIcd10?: string | null;
+		diagnosisTooth?: string | null;
+		treatmentDescription?: string | null;
+	},
+): Promise<void> {
+	const visitId =
+		typeof params.visitId === "string" ? params.visitId.trim() : "";
+	if (!visitId) return;
+
+	const patch: {
+		anamnesis?: string;
+		objectiveStatus?: string;
+		diagnosis?: string;
+		treatmentPlan?: string;
+		updatedAt: Date;
+	} = { updatedAt: new Date() };
+
+	const anamnesis = (params.anamnesis ?? "").trim();
+	if (anamnesis) patch.anamnesis = anamnesis;
+
+	const objective = (params.statusLocalis ?? "").trim();
+	if (objective) patch.objectiveStatus = objective;
+
+	const diagnosisText = buildEmkDiagnosisText(
+		params.diagnosisIcd10,
+		params.diagnosisTooth,
+	);
+	if (diagnosisText) patch.diagnosis = diagnosisText;
+
+	const treatment = (params.treatmentDescription ?? "").trim();
+	if (treatment) patch.treatmentPlan = treatment;
+
+	if (
+		patch.anamnesis === undefined &&
+		patch.objectiveStatus === undefined &&
+		patch.diagnosis === undefined &&
+		patch.treatmentPlan === undefined
+	) {
+		return;
+	}
+
+	await executor
+		.update(visits)
+		.set(patch)
+		.where(
+			and(
+				eq(visits.id, visitId),
+				eq(visits.organizationId, params.organizationId),
+			),
+		);
+}
+
 export default async function registerDiaryRoutes(app: FastifyInstance) {
 	app.get("/api/diaries/visit/:visitId", async (req, reply) => {
 		if (!(await requireClinicalReadAccess(req, reply, "read diary"))) return;
-		const { visitId } = req.params as { visitId: string };
+		const parsedVisitParams = diaryVisitParamsSchema.safeParse(req.params);
+		if (!parsedVisitParams.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message:
+					"Идентификатор приёма в адресе должен быть UUID (visitId).",
+			});
+		}
+		const { visitId } = parsedVisitParams.data;
 		const orgId = await resolveOrganizationId(req);
 		if (!orgId)
 			return reply
 				.code(403)
 				.send({ error: "OrgRequired", message: DIARY_CLINIC_UNKNOWN_READ_MESSAGE });
+
+		/*
+		 * БЫЛО: нет строки visit_diaries → { diary: null } и для чужого UUID,
+		 * и для реального приёма без дневника. Клиент рисовал «пустой SOAP»
+		 * как новый приём. СТАЛО: visit ∉ org → 404; пустой дневник — null.
+		 */
+		const [visitRow] = await db
+			.select({ id: visits.id })
+			.from(visits)
+			.where(and(eq(visits.id, visitId), eq(visits.organizationId, orgId)))
+			.limit(1);
+		if (!visitRow) {
+			return reply.code(404).send({
+				error: "VisitNotFound",
+				message: "Приём не найден в этой клинике, дневник 043/у открыть нельзя.",
+			});
+		}
 
 		const [diary] = await db
 			.select()
@@ -525,13 +938,80 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				),
 			);
 
-		return reply.send({ diary: diary ?? null });
+		if (!diary) {
+			return reply.send({ diary: null });
+		}
+		/*
+		 * DEFECT #36: ФИО врача для печати 043/у.
+		 * БЫЛО: GET отдавал только UUID doctorId/lockedByUserId; клиент печати
+		 * брал ctx.activeDoctor (кто СЕЙЧАС в смене). Админ/другой врач
+		 * печатал чужой подписанный дневник — в «Врач:» попадало чужое ФИО.
+		 * СТАЛО: резолвим ФИО по doctorId → lockedByUserId → authorId →
+		 * draftAuthorId внутри org и отдаём doctorFullName / doctorSpecialty.
+		 */
+		const signingUserId =
+			diary.doctorId ??
+			diary.lockedByUserId ??
+			diary.authorId ??
+			diary.draftAuthorId ??
+			null;
+		let doctorFullName: string | null = null;
+		let doctorSpecialty: string | null = null;
+		if (typeof signingUserId === "string" && signingUserId.length > 0) {
+			const [docUser] = await db
+				.select({
+					fullName: users.fullName,
+					specialties: users.specialties,
+				})
+				.from(users)
+				.where(
+					and(
+						eq(users.id, signingUserId),
+						eq(users.organizationId, orgId),
+					),
+				)
+				.limit(1);
+			if (docUser) {
+				doctorFullName =
+					typeof docUser.fullName === "string" && docUser.fullName.trim()
+						? docUser.fullName.trim()
+						: null;
+				/*
+				 * DEFECT #41: specialty from users.specialties jsonb.
+				 * БЫЛО: doctorSpecialty = null всегда — печать 043/у «Врач: ФИО»
+				 * без «(терапия)» после F5 / чужой смены.
+				 */
+				doctorSpecialty = formatDoctorSpecialtyLabel(docUser.specialties);
+			}
+		}
+		/*
+		 * Не отдаём legacy PIN:<digits> в браузер: оттиск был, цифр PIN — нет.
+		 * SIMPLE_PIN_EP|… и PKCS#7 проходят как есть (цифр PIN в них нет).
+		 */
+		return reply.send({
+			diary: {
+				...diary,
+				cryptoSignaturePkcs7: redactLegacyPinSignature(
+					diary.cryptoSignaturePkcs7,
+				),
+				doctorFullName,
+				doctorSpecialty,
+			},
+		});
 	});
 
 	app.get("/api/diaries/:id/revisions", async (req, reply) => {
 		if (!(await requireClinicalReadAccess(req, reply, "read diary revisions")))
 			return;
-		const { id } = req.params as { id: string };
+		const parsedIdParams = diaryIdParamsSchema.safeParse(req.params);
+		if (!parsedIdParams.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message:
+					"Идентификатор дневника в адресе должен быть UUID (id).",
+			});
+		}
+		const { id } = parsedIdParams.data;
 		const orgId = await resolveOrganizationId(req);
 		if (!orgId)
 			return reply.code(403).send({
@@ -552,13 +1032,59 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				.code(404)
 				.send({ error: "NotFound", message: DIARY_NOT_FOUND_REVISIONS_MESSAGE });
 
+		/*
+		 * Tenant isolation: organizationId на каждом запросе.
+		 * БЫЛО: where только по diaryId — при известном UUID дневника чужой
+		 * клиники (или битой строке ревизии с чужим org) forensic-история
+		 * 043/у могла уйти не тому арендатору. diaryId уже проверен выше,
+		 * orgId в where — второй замок по правилу изоляции.
+		 */
 		const revisions = await db
 			.select()
 			.from(visitDiaryRevisions)
-			.where(eq(visitDiaryRevisions.diaryId, id))
+			.where(
+				and(
+					eq(visitDiaryRevisions.diaryId, id),
+					eq(visitDiaryRevisions.organizationId, orgId),
+				),
+			)
 			.orderBy(desc(visitDiaryRevisions.revisedAt));
 
-		return reply.send({ revisions });
+		/*
+		 * DEFECT #44: кто правил 043/у — ФИО, не UUID.
+		 * БЫЛО: GET …/revisions отдавал revisedByUserId сырым UUID;
+		 * клиент Forensic UI показывал только when + reason + previous_*.
+		 * Суд/проверка качества не видели, КТО внёс правку после подписи.
+		 * СТАЛО: batch-resolve fullName внутри org → revisedByFullName.
+		 */
+		const reviserIds = Array.from(
+			new Set(
+				revisions
+					.map((r) => r.revisedByUserId)
+					.filter((uid): uid is string => typeof uid === "string" && uid.length > 0),
+			),
+		);
+		const reviserNameById = new Map<string, string>();
+		if (reviserIds.length > 0) {
+			const reviserRows = await db
+				.select({ id: users.id, fullName: users.fullName })
+				.from(users)
+				.where(and(inArray(users.id, reviserIds), eq(users.organizationId, orgId)));
+			for (const row of reviserRows) {
+				const name = typeof row.fullName === "string" ? row.fullName.trim() : "";
+				if (name) reviserNameById.set(row.id, name);
+			}
+		}
+		const revisionsWithAuthor = revisions.map((r) => {
+			const uid =
+				typeof r.revisedByUserId === "string" && r.revisedByUserId.length > 0
+					? r.revisedByUserId
+					: null;
+			const revisedByFullName = uid ? (reviserNameById.get(uid) ?? null) : null;
+			return { ...r, revisedByFullName };
+		});
+
+		return reply.send({ revisions: revisionsWithAuthor });
 	});
 
 	app.post("/api/diaries", async (req, reply) => {
@@ -583,6 +1109,35 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				.send({ error: "OrgRequired", message: DIARY_CLINIC_UNKNOWN_SAVE_MESSAGE });
 		data.organizationId = orgId;
 
+		/*
+		 * Привязка 043/у к реальному приёму клиники.
+		 * БЫЛО: insert/update visit_diaries с visitId/patientId из тела без
+		 * проверки visits. У visit_diaries.visit_id НЕТ FK — любой UUID
+		 * принимался. Можно было завести дневник на чужой/несуществующий
+		 * приём или подменить patientId (хеш 043/у и печать — на «левом»
+		 * пациенте). СТАЛО: visit ∈ org, patientId совпадает с карточкой
+		 * приёма — до транзакции и до записи на диск/в БД.
+		 */
+		const [visitForDiary] = await db
+			.select({ id: visits.id, patientId: visits.patientId })
+			.from(visits)
+			.where(and(eq(visits.id, data.visitId), eq(visits.organizationId, orgId)))
+			.limit(1);
+		if (!visitForDiary) {
+			return reply.code(403).send({
+				error: "VisitNotInClinic",
+				message:
+					"Приём не найден в этой клинике — дневник 043/у к нему не привязать. Откройте приём заново из расписания.",
+			});
+		}
+		if (visitForDiary.patientId !== data.patientId) {
+			return reply.code(400).send({
+				error: "PatientVisitMismatch",
+				message:
+					"Пациент в запросе не совпадает с карточкой этого приёма. Обновите страницу приёма и сохраните дневник снова.",
+			});
+		}
+
 		const isSigning = data.status === "signed";
 
 		if (isSigning && role !== "doctor" && role !== "admin") {
@@ -603,6 +1158,18 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 			// без транзакции, поэтому упавшее списание оставляло дневник уже
 			// подписанным, а склад — нетронутым.
 			const outcome = await db.transaction(async (tx) => {
+				/*
+				 * DEFECT #73: Form 043/у clinical fields immutable when is_locked.
+				 *
+				 * БЫЛО: SELECT without FOR UPDATE, then UPDATE by id+org only.
+				 * Concurrent POST /lock could commit is_locked=true between the
+				 * read and the write; draft save still rewrote anamnesis /
+				 * diagnosis / treatment / tray on the already-signed 043/у.
+				 * Signing ceremony already uses FOR UPDATE; draft path did not.
+				 *
+				 * СТАЛО: row lock via FOR UPDATE, re-check isLocked, and UPDATE
+				 * WHERE is_locked=false. Zero matched rows → AlreadyLocked.
+				 */
 				const [existing] = await tx
 					.select()
 					.from(visitDiaries)
@@ -612,7 +1179,8 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 							eq(visitDiaries.organizationId, orgId),
 						),
 					)
-					.limit(1);
+					.limit(1)
+					.for("update");
 
 				if (existing?.isLocked) {
 					throw new DiarySigningError(
@@ -621,9 +1189,10 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					);
 				}
 
+
 				let diaryId: string;
 				if (existing) {
-					await tx
+					const updatedRows = await tx
 						.update(visitDiaries)
 						// БЫЛО: `data.X ?? existing.X` по всем клиническим полям. Пустая
 						// строка — это не undefined, но фронтенд часто не присылает поле
@@ -650,18 +1219,50 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 							comorbidities:
 								data.comorbidities !== undefined ? data.comorbidities : existing.comorbidities,
 							updatedAt: new Date(),
+							/*
+							 * Лоток в draft (DEFECT #33).
+							 * БЫЛО: пустая строка писалась как ""; клиент опускал
+							 * поле при clear → existing barcode оставался.
+							 * СТАЛО: поле есть → trim; пусто → null.
+							 */
 							instrumentTrayBarcode:
 								data.instrumentTrayBarcode !== undefined
-									? data.instrumentTrayBarcode
+									? data.instrumentTrayBarcode.trim() || null
 									: existing.instrumentTrayBarcode,
+							/*
+							 * DEFECT #40: progressive author/doctor + last draft editor.
+							 * БЫЛО: draft UPDATE не трогал authorId/doctorId/draftAuthorId.
+							 * Insert (#35) пишет их только при ПЕРВОМ create. Legacy-строки
+							 * с null doctorId и черновики, созданные до #35, оставались
+							 * без врача до /lock — GET doctorFullName null, печать 043/у
+							 * и BI на незакрытых приёмах пустые. draftAuthorId застывал
+							 * на создателе, хотя правки вносит другой сотрудник.
+							 * СТАЛО: authorId/doctorId заполняются только если null
+							 * (не переписываем лечащего после ассистента→врач до lock);
+							 * draftAuthorId = текущий userId (последний редактор черновика).
+							 * Lock ceremony по-прежнему authoritative для doctorId.
+							 */
+							authorId: existing.authorId ?? userId,
+							doctorId: existing.doctorId ?? userId,
+							draftAuthorId: userId,
 						})
 						.where(
 							and(
 								eq(visitDiaries.id, existing.id),
 								eq(visitDiaries.organizationId, orgId),
+								/* DEFECT #73: never rewrite clinical columns on locked 043/у */
+								eq(visitDiaries.isLocked, false),
 							),
+						)
+						.returning({ id: visitDiaries.id });
+					if (updatedRows.length === 0) {
+						throw new DiarySigningError(
+							"AlreadyLocked",
+							"Дневник подписан и заблокирован.",
 						);
+					}
 					diaryId = existing.id;
+
 				} else {
 					// Дневник всегда рождается черновиком. БЫЛО: при status "signed"
 					// вставка сразу ставила is_locked, время и хеш — дневник появлялся
@@ -680,7 +1281,16 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 							complications: data.complications,
 							comorbidities: data.comorbidities,
 							draftAuthorId: userId,
-							instrumentTrayBarcode: data.instrumentTrayBarcode,
+						/*
+						 * DEFECT #35: progressive fill author/doctor on first draft.
+						 * Lock ceremony overwrites with signing user (authoritative).
+						 */
+						authorId: userId,
+						doctorId: userId,
+							instrumentTrayBarcode:
+								typeof data.instrumentTrayBarcode === "string"
+									? data.instrumentTrayBarcode.trim() || null
+									: data.instrumentTrayBarcode ?? null,
 						})
 						.returning({ id: visitDiaries.id });
 					const insertedId = inserted[0]?.id;
@@ -698,23 +1308,123 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				}
 
 				if (!isSigning) {
-					return { diaryId, signing: null as DiarySigningResult | null };
+					/*
+					 * Отпечаток содержимого черновика — до подписания.
+					 *
+					 * БЫЛО: diary_hash писался только в runDiarySigningCeremony (/lock).
+					 * POST draft возвращал hash: null. CryptoProSigner подписывает
+					 * diaryHash; у неподписанного дневника он всегда null → вкладка
+					 * «КриптоПро» навсегда CRYPTO_SIGNING_UNAVAILABLE_TEXT, hasEcp=false
+					 * в печати 043/у до lock, а к lock без хеша КриптоПро не доходит.
+					 *
+					 * СТАЛО: после upsert считаем computeDiaryHash по строке в БД,
+					 * пишем diary_hash (замок is_locked не трогаем) и отдаём hash
+					 * клиенту — doSave кладёт его в state, окно ЭЦП может подписать.
+					 */
+					const [savedRow] = await tx
+						.select()
+						.from(visitDiaries)
+						.where(
+							and(
+								eq(visitDiaries.id, diaryId),
+								eq(visitDiaries.organizationId, orgId),
+							),
+						)
+						.limit(1);
+					if (!savedRow) {
+						return {
+							diaryId,
+							signing: null as DiarySigningResult | null,
+							draftHash: null as string | null,
+						};
+					}
+					const draftHash = computeDiaryHash(
+						savedRow.visitId,
+						savedRow.patientId ?? "",
+						savedRow.anamnesis,
+						savedRow.statusLocalis,
+						savedRow.treatmentDescription,
+						savedRow.diagnosisIcd10,
+						savedRow.diagnosisTooth,
+						savedRow.complications,
+						savedRow.comorbidities,
+						savedRow.instrumentTrayBarcode,
+					);
+					await tx
+						.update(visitDiaries)
+						.set({ diaryHash: draftHash, updatedAt: new Date() })
+						.where(
+							and(
+								eq(visitDiaries.id, diaryId),
+								eq(visitDiaries.organizationId, orgId),
+								/* DEFECT #73: draft hash only while unlocked */
+								eq(visitDiaries.isLocked, false),
+							),
+						);
+					/*
+					 * DEFECT #46: push 043 SOAP → visits EMK on draft save.
+					 * Same transaction as diary_hash write so EGISZ/EMK never
+					 * see a saved 043 without mirrored clinical fields.
+					 */
+					await syncVisitEmkFromDiarySoap(tx, {
+						visitId: savedRow.visitId,
+						organizationId: orgId,
+						anamnesis: savedRow.anamnesis,
+						statusLocalis: savedRow.statusLocalis,
+						diagnosisIcd10: savedRow.diagnosisIcd10,
+						diagnosisTooth: savedRow.diagnosisTooth,
+						treatmentDescription: savedRow.treatmentDescription,
+					});
+					return {
+						diaryId,
+						signing: null as DiarySigningResult | null,
+						draftHash,
+					};
 				}
 
+				/*
+				 * PIN:… нельзя класть в crypto_signature_pkcs7 как есть.
+				 * Резолв до ceremony; при отказе — throw DiarySigningError-подобный
+				 * через отдельный код (ниже catch → 403).
+				 */
+				const resolvedPost = await resolveSignatureForStorage({
+					pkcs7Signature: data.pkcs7Signature ?? null,
+					userId,
+					organizationId: orgId,
+					diaryHashForMark: null,
+				});
+				if (!resolvedPost.ok) {
+					throw new DiarySigningError(
+						// Pin* не в union DiarySigningFailureCode — используем NotSaved
+						// нельзя: это 500. Добавим PinInvalid в union ниже.
+						resolvedPost.code === "PinInvalid" ||
+							resolvedPost.code === "PinNotSet" ||
+							resolvedPost.code === "PinRequired" ||
+							resolvedPost.code === "UserRequired"
+							? "PinRejected"
+							: "NotFound",
+						resolvedPost.message,
+					);
+				}
 				const signing = await runDiarySigningCeremony(tx, {
 					diaryId,
 					organizationId: orgId,
 					userId,
-					pkcs7Signature: data.pkcs7Signature ?? null,
+					pkcs7Signature: resolvedPost.stored,
 				});
-				return { diaryId, signing };
+				return {
+					diaryId,
+					signing,
+					draftHash: null as string | null,
+				};
 			});
 
 			return reply.send({
 				success: true,
 				id: outcome.diaryId,
-				hash: outcome.signing?.hash ?? null,
+				hash: outcome.signing?.hash ?? outcome.draftHash ?? null,
 			});
+
 		} catch (err) {
 			if (err instanceof DiarySigningError) {
 				if (err.code === "AlreadyLocked") {
@@ -722,10 +1432,20 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 						.code(403)
 						.send({ error: "DiaryLocked", message: err.message });
 				}
+				if (err.code === "Icd10Required") {
+					return reply
+						.code(422)
+						.send({ error: "Icd10Required", message: err.message });
+				}
 				if (err.code === "InsufficientStock") {
 					return reply
 						.code(400)
 						.send({ error: "TransactionFailed", message: err.message });
+				}
+				if (err.code === "PinRejected") {
+					return reply
+						.code(403)
+						.send({ error: "PinRejected", message: err.message });
 				}
 				/*
 				 * ЧТО БЫЛО СЛОМАНО. Здесь стояло `return reply.code(404).send({ error:
@@ -759,7 +1479,15 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 	app.post("/api/diaries/:id/lock", async (req, reply) => {
 		if (!(await requireClinicalMutationAccess(req, reply, "lock diary")))
 			return;
-		const { id } = req.params as { id: string };
+		const parsedIdParams = diaryIdParamsSchema.safeParse(req.params);
+		if (!parsedIdParams.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message:
+					"Идентификатор дневника в адресе должен быть UUID (id).",
+			});
+		}
+		const { id } = parsedIdParams.data;
 		const parsedLockBody = diaryLockBodySchema.safeParse(req.body ?? {});
 		if (!parsedLockBody.success) {
 			return reply.code(400).send({
@@ -813,38 +1541,315 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				message:
 					"Дневник приёма не найден в этой клинике, подписывать нечего. Так бывает, если страница приёма открыта давно и дневник с тех пор удалён. Откройте приём заново, нажмите «Сохранить черновик» и повторите подписание.",
 			});
-		if (existing.isLocked)
-			return reply.code(409).send({
-				error: "AlreadyLocked",
-				hash: existing.diaryHash,
-				message:
-					"Дневник этого приёма уже подписан и заблокирован, второй раз подписывать его не нужно. Если нужна правка подписанного дневника, её проводит администратор клиники через ревизию.",
-			});
+		/*
+		 * Повторная УКЭП после admin-revise.
+		 *
+		 * БЫЛО: revise обнуляет crypto_signature_pkcs7 (хеш уже другой — старый
+		 * PKCS#7 врал бы «подпись ↔ содержимое»), но /lock при is_locked сразу
+		 * отвечал 409 AlreadyLocked. Клиент после правки показывал штамп
+		 * «ЭЦП (SHA-256)» по одному diaryHash, без PKCS#7, и повторно приложить
+		 * подпись к новому хешу было нечем. Печать 043/у выглядела заверенной
+		 * УКЭП, хотя оттиска в БД нет.
+		 *
+		 * СТАЛО: locked + crypto_signature_pkcs7 IS NULL + в теле есть PKCS#7 →
+		 * только прикрепляем подпись и пересчитываем hash по строке (без
+		 * повторной складской церемонии — услуги/склад уже закрыты первым lock).
+		 * locked + PKCS#7 уже есть → по-прежнему 409.
+		 *
+		 * DEFECT #85: re-attach must serialize on the locked 043/у row.
+		 * БЫЛО: outer SELECT without FOR UPDATE, then bare UPDATE by id+org.
+		 * Concurrent double POST /lock after revise both saw null PKCS#7 and
+		 * both wrote crypto_signature_pkcs7 / diaryHash — last writer won,
+		 * first УКЭП silently discarded; concurrent /revise could change SOAP
+		 * between hash snapshot and UPDATE so PKCS#7 sealed the wrong text.
+		 * СТАЛО: FOR UPDATE inside transaction; hash + author fill from locked
+		 * row; UPDATE WHERE is_locked=true AND crypto still empty; zero rows →
+		 * AlreadyLocked (same pattern as draft #73 / lock #76 / revise #84).
+		 */
+		if (existing.isLocked) {
+			const incomingPkcs7 =
+				typeof pkcs7Signature === "string" && pkcs7Signature.length > 0
+					? pkcs7Signature
+					: null;
+
+			const lockedAtIsoFrom = (
+				lockedAt: Date | string | null | undefined,
+			): string | null =>
+				lockedAt instanceof Date
+					? lockedAt.toISOString()
+					: typeof lockedAt === "string"
+						? lockedAt
+						: null;
+
+			if (!incomingPkcs7) {
+				const lockedAtIso = lockedAtIsoFrom(existing.lockedAt);
+				const hasPkcs7 =
+					typeof existing.cryptoSignaturePkcs7 === "string" &&
+					existing.cryptoSignaturePkcs7.length > 0;
+				/*
+				 * БЫЛО: 409 отдавал hash, но не lockedAt. Клиент doLock на 409 ставил
+				 * isLocked=true и hash, а lockedAt оставался null — печать 043/у и
+				 * штамп «Подписан:» показывали «—» / дату с ПК, хотя в БД locked_at есть.
+				 */
+				return reply.code(409).send({
+					error: "AlreadyLocked",
+					hash: existing.diaryHash,
+					lockedAt: lockedAtIso,
+					cryptoSignatureAttached: hasPkcs7,
+					message: hasPkcs7
+						? "Дневник этого приёма уже подписан и заблокирован, второй раз подписывать его не нужно. Если нужна правка подписанного дневника, её проводит администратор клиники через ревизию."
+						: "Дневник уже закрыт замком, но оттиск УКЭП после правки сброшен. Откройте подписание и приложите подпись КриптоПро или простую подпись к текущему отпечатку — склад и услуги повторно не спишутся.",
+				});
+			}
+
+			type ReattachTxResult =
+				| { kind: "not_found" }
+				| { kind: "not_locked" }
+				| {
+						kind: "already";
+						hash: string | null;
+						lockedAt: string | null;
+						hasPkcs7: boolean;
+				  }
+				| { kind: "pin_rejected"; code: string; message: string }
+				| {
+						kind: "ok";
+						hash: string;
+						lockedAt: string | null;
+						attached: boolean;
+				  };
+
+			const reattachResult: ReattachTxResult = await db.transaction(
+				async (tx) => {
+					const [row] = await tx
+						.select()
+						.from(visitDiaries)
+						.where(
+							and(
+								eq(visitDiaries.id, id),
+								eq(visitDiaries.organizationId, orgId),
+							),
+						)
+						.for("update");
+
+					if (!row) return { kind: "not_found" as const };
+					if (!row.isLocked) return { kind: "not_locked" as const };
+
+					const lockedAtIso = lockedAtIsoFrom(row.lockedAt);
+					const hasPkcs7 =
+						typeof row.cryptoSignaturePkcs7 === "string" &&
+						row.cryptoSignaturePkcs7.length > 0;
+					if (hasPkcs7) {
+						return {
+							kind: "already" as const,
+							hash: row.diaryHash,
+							lockedAt: lockedAtIso,
+							hasPkcs7: true,
+						};
+					}
+
+					const reattachHash = computeDiaryHash(
+						row.visitId,
+						row.patientId ?? "",
+						row.anamnesis,
+						row.statusLocalis,
+						row.treatmentDescription,
+						row.diagnosisIcd10,
+						row.diagnosisTooth,
+						row.complications,
+						row.comorbidities,
+						row.instrumentTrayBarcode,
+					);
+					const resolvedReattach = await resolveSignatureForStorage({
+						pkcs7Signature: incomingPkcs7,
+						userId,
+						organizationId: orgId,
+						diaryHashForMark: reattachHash,
+					});
+					if (!resolvedReattach.ok) {
+						return {
+							kind: "pin_rejected" as const,
+							code: resolvedReattach.code,
+							message: resolvedReattach.message,
+						};
+					}
+
+					const now = new Date();
+					/*
+					 * DEFECT #39: progressive fill author/doctor on re-attach.
+					 * БЫЛО: reattach писал только coSignedByUserId. Legacy-строки
+					 * (до DEFECT #35) оставались с doctorId/authorId = null даже
+					 * после повторной УКЭП — BI/print/toothHistory без врача.
+					 * СТАЛО: заполняем authorId/doctorId/lockedByUserId ТОЛЬКО
+					 * если колонка ещё null. После revise исходный doctorId
+					 * сохраняется — re-attach не подменяет лечащего врача.
+					 */
+					const updatedRows = await tx
+						.update(visitDiaries)
+						.set({
+							diaryHash: reattachHash,
+							cryptoSignaturePkcs7: resolvedReattach.stored,
+							coSignedByUserId: userId,
+							authorId: row.authorId ?? userId,
+							doctorId: row.doctorId ?? userId,
+							lockedByUserId: row.lockedByUserId ?? userId,
+							updatedAt: now,
+						})
+						.where(
+							and(
+								eq(visitDiaries.id, id),
+								eq(visitDiaries.organizationId, orgId),
+								eq(visitDiaries.isLocked, true),
+								/* only first successful re-attach wins the empty PKCS#7 slot */
+								or(
+									isNull(visitDiaries.cryptoSignaturePkcs7),
+									eq(visitDiaries.cryptoSignaturePkcs7, ""),
+								),
+							),
+						)
+						.returning({ id: visitDiaries.id });
+
+					if (updatedRows.length === 0) {
+						const [again] = await tx
+							.select({
+								diaryHash: visitDiaries.diaryHash,
+								lockedAt: visitDiaries.lockedAt,
+								cryptoSignaturePkcs7: visitDiaries.cryptoSignaturePkcs7,
+							})
+							.from(visitDiaries)
+							.where(
+								and(
+									eq(visitDiaries.id, id),
+									eq(visitDiaries.organizationId, orgId),
+								),
+							)
+							.limit(1);
+						const againHas =
+							typeof again?.cryptoSignaturePkcs7 === "string" &&
+							again.cryptoSignaturePkcs7.length > 0;
+						return {
+							kind: "already" as const,
+							hash: again?.diaryHash ?? row.diaryHash,
+							lockedAt: lockedAtIsoFrom(again?.lockedAt ?? row.lockedAt),
+							hasPkcs7: againHas,
+						};
+					}
+
+					return {
+						kind: "ok" as const,
+						hash: reattachHash,
+						lockedAt: lockedAtIso,
+						attached: Boolean(resolvedReattach.stored),
+					};
+				},
+			);
+
+			if (reattachResult.kind === "not_found") {
+				return reply.code(404).send({
+					error: "NotFound",
+					message:
+						"Дневник приёма не найден в этой клинике, подписывать нечего. Так бывает, если страница приёма открыта давно и дневник с тех пор удалён. Откройте приём заново, нажмите «Сохранить черновик» и повторите подписание.",
+				});
+			}
+			if (reattachResult.kind === "pin_rejected") {
+				return reply.code(403).send({
+					error: reattachResult.code,
+					message: reattachResult.message,
+				});
+			}
+			if (reattachResult.kind === "already") {
+				return reply.code(409).send({
+					error: "AlreadyLocked",
+					hash: reattachResult.hash,
+					lockedAt: reattachResult.lockedAt,
+					cryptoSignatureAttached: reattachResult.hasPkcs7,
+					message: reattachResult.hasPkcs7
+						? "Дневник этого приёма уже подписан и заблокирован, второй раз подписывать его не нужно. Если нужна правка подписанного дневника, её проводит администратор клиники через ревизию."
+						: "Дневник уже закрыт замком, но оттиск УКЭП после правки сброшен. Откройте подписание и приложите подпись КриптоПро или простую подпись к текущему отпечатку — склад и услуги повторно не спишутся.",
+				});
+			}
+			if (reattachResult.kind === "ok") {
+				return reply.send({
+					success: true,
+					hash: reattachResult.hash,
+					lockedAt: reattachResult.lockedAt,
+					cryptoSignatureAttached: reattachResult.attached,
+					reattached: true,
+				});
+			}
+			/* not_locked: row unlocked between outer read and FOR UPDATE — fall through to ceremony */
+		}
+
 
 		// Церемония — общая с POST /api/diaries, см. runDiarySigningCeremony.
+		// PIN:… → verify + opaque mark ДО транзакции (pbkdf2 вне tx-критики).
 		try {
+			const resolvedLock = await resolveSignatureForStorage({
+				pkcs7Signature: pkcs7Signature ?? null,
+				userId,
+				organizationId: orgId,
+				diaryHashForMark: existing.diaryHash,
+			});
+			if (!resolvedLock.ok) {
+				return reply.code(403).send({
+					error: resolvedLock.code,
+					message: resolvedLock.message,
+				});
+			}
 			const signing = await db.transaction((tx) =>
 				runDiarySigningCeremony(tx, {
 					diaryId: id,
 					organizationId: orgId,
 					userId,
-					pkcs7Signature: pkcs7Signature ?? null,
+					pkcs7Signature: resolvedLock.stored,
 				}),
 			);
 			return reply.send({
 				success: true,
 				hash: signing.hash,
 				lockedAt: signing.lockedAt.toISOString(),
+				cryptoSignatureAttached: Boolean(
+					resolvedLock.stored && String(resolvedLock.stored).length > 0,
+				),
 			});
 		} catch (err) {
 			if (err instanceof DiarySigningError) {
 				// Те же две ветки, что и в POST выше, теряли здесь готовую русскую
 				// причину из err.message — при том, что третья, соседняя, её отдавала.
 				if (err.code === "AlreadyLocked") {
-					return reply
-						.code(409)
-						.send({ error: "AlreadyLocked", message: err.message });
+					/*
+					 * Race TOCTOU: внешний SELECT ещё не locked, церемония FOR UPDATE
+					 * увидела is_locked. БЫЛО: 409 только {error, message} — без hash
+					 * и lockedAt. Клиент doLock на 409 ставил isLocked=true, но
+					 * diaryHash/lockedAt оставались null → печать 043/у без ЭЦП-штампа
+					 * и без даты подписи, хотя в БД оба поля уже есть.
+					 */
+					const [lockedRow] = await db
+						.select({
+							diaryHash: visitDiaries.diaryHash,
+							lockedAt: visitDiaries.lockedAt,
+						})
+						.from(visitDiaries)
+						.where(
+							and(
+								eq(visitDiaries.id, id),
+								eq(visitDiaries.organizationId, orgId),
+							),
+						)
+						.limit(1);
+					return reply.code(409).send({
+						error: "AlreadyLocked",
+						hash: lockedRow?.diaryHash ?? null,
+						lockedAt:
+							lockedRow?.lockedAt instanceof Date
+								? lockedRow.lockedAt.toISOString()
+								: typeof lockedRow?.lockedAt === "string"
+									? lockedRow.lockedAt
+									: null,
+						message: err.message,
+					});
 				}
+
 				if (err.code === "NotFound") {
 					return reply
 						.code(404)
@@ -854,6 +1859,11 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					return reply
 						.code(500)
 						.send({ error: "DiaryNotSaved", message: err.message });
+				}
+				if (err.code === "Icd10Required") {
+					return reply
+						.code(422)
+						.send({ error: "Icd10Required", message: err.message });
 				}
 				return reply
 					.code(400)
@@ -872,7 +1882,15 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 			!(await requireClinicalMutationAccess(req, reply, "revise locked diary"))
 		)
 			return;
-		const { id } = req.params as { id: string };
+		const parsedIdParams = diaryIdParamsSchema.safeParse(req.params);
+		if (!parsedIdParams.success) {
+			return reply.code(400).send({
+				error: "ValidationError",
+				message:
+					"Идентификатор дневника в адресе должен быть UUID (id).",
+			});
+		}
+		const { id } = parsedIdParams.data;
 		/* Body Zod before role gate (как /lock): non-object → 400, не 403 oracle. */
 		const parsedReviseBody = diaryReviseBodySchema.safeParse(req.body ?? {});
 		if (!parsedReviseBody.success) {
@@ -909,33 +1927,6 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				message: DIARY_CLINIC_UNKNOWN_REVISE_MESSAGE,
 			});
 
-		const [existing] = await db
-			.select()
-			.from(visitDiaries)
-			.where(
-				and(eq(visitDiaries.id, id), eq(visitDiaries.organizationId, orgId)),
-			);
-
-		if (!existing)
-			return reply
-				.code(404)
-				.send({ error: "NotFound", message: DIARY_NOT_FOUND_REVISE_MESSAGE });
-		if (!existing.isLocked)
-			return reply.code(409).send({
-				error: "NotLocked",
-				message: "Дневник не подписан — просто редактируйте его.",
-			});
-
-		/*
-		 * ДОЛГ, НЕ ЗАКРЫТ ЗДЕСЬ: причина ревизии принимается, но сохранить её
-		 * некуда — в модели drizzle нет колонки. В САМОЙ БАЗЕ она есть:
-		 * миграция 0116_add_soap_template_fields.sql добавила
-		 * visit_diary_revisions.revision_reason TEXT и
-		 * visit_diary_revisions.previous_diagnosis_tooth VARCHAR(10) (проверено
-		 * чтением information_schema на 127.0.0.1:5432). Отстала только
-		 * apps/api/src/db/schema.ts:1421-1434, а её правка вне рамок этого
-		 * пакета. Пока строка ревизии не хранит ни причину, ни прежний номер зуба.
-		 */
 		const body = {
 			anamnesis:
 				typeof parsedReviseBody.data.anamnesis === "string"
@@ -957,36 +1948,134 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				typeof parsedReviseBody.data.treatmentDescription === "string"
 					? parsedReviseBody.data.treatmentDescription
 					: undefined,
+			complications:
+				typeof parsedReviseBody.data.complications === "string"
+					? parsedReviseBody.data.complications
+					: undefined,
+			comorbidities:
+				typeof parsedReviseBody.data.comorbidities === "string"
+					? parsedReviseBody.data.comorbidities
+					: undefined,
+			/*
+			 * Лоток: string в теле (в т.ч. "") → переписать; undefined → оставить.
+			 * Пустая строка снимает ошибочный barcode с 043/у.
+			 */
+			instrumentTrayBarcode:
+				typeof parsedReviseBody.data.instrumentTrayBarcode === "string"
+					? parsedReviseBody.data.instrumentTrayBarcode
+					: undefined,
 			revisionReason:
 				typeof parsedReviseBody.data.revisionReason === "string"
 					? parsedReviseBody.data.revisionReason
 					: undefined,
 		};
 
-		const newHash = computeDiaryHash(
-			existing.visitId,
-			existing.patientId ?? "",
-			body.anamnesis ?? existing.anamnesis,
-			body.statusLocalis ?? existing.statusLocalis,
-			body.treatmentDescription ?? existing.treatmentDescription,
-		);
+		/*
+		 * DEFECT #84: admin revise of signed Form 043/у must serialize on the row.
+		 * БЫЛО: SELECT outside the transaction (no FOR UPDATE), then tx only
+		 * inserted visit_diary_revisions + UPDATE from that stale snapshot.
+		 * Two concurrent POST /revise both read previous_*=X, both write
+		 * forensic rows with previous=X, both bump version to N+1 — intermediate
+		 * SOAP Y is lost from the legal revision chain and diary_hash/version
+		 * can collide under READ COMMITTED.
+		 * СТАЛО: entire revise ceremony in one transaction: FOR UPDATE, re-check
+		 * is_locked, build previous_* + hash + version from the locked row, then
+		 * insert revision + UPDATE (same pattern as draft #73 / lock #76 / tray #82).
+		 */
+		type ReviseTxResult =
+			| { kind: "not_found" }
+			| { kind: "not_locked" }
+			| { kind: "invalid_tray" }
+			/*
+			 * DEFECT #113: zero-row revise UPDATE (locked/version belt lost).
+			 * Must not commit a forensic insert without the diary write.
+			 */
+			| { kind: "update_lost" }
+			| { kind: "ok"; hash: string; revisionCount: number };
 
-		// Одна транзакция на запись ревизии и правку дневника. БЫЛО: два отдельных
-		// запроса — упавшая правка оставляла в журнале ревизию об изменении,
-		// которого не произошло.
-		const revisionCount = await db.transaction(async (tx) => {
-			await tx.insert(visitDiaryRevisions).values({
-				organizationId: orgId,
-				diaryId: existing.id,
-				previousAnamnesis: existing.anamnesis,
-				previousStatusLocalis: existing.statusLocalis,
-				previousDiagnosisIcd10: existing.diagnosisIcd10,
-				previousTreatmentDescription: existing.treatmentDescription,
-				revisedByUserId: userId,
-			});
+		const reviseResult: ReviseTxResult = await db.transaction(async (tx) => {
+			const [existing] = await tx
+				.select()
+				.from(visitDiaries)
+				.where(
+					and(eq(visitDiaries.id, id), eq(visitDiaries.organizationId, orgId)),
+				)
+				.for("update");
 
-			// Update the diary (unlock for new content, then re-lock immediately)
-			await tx
+			if (!existing) return { kind: "not_found" as const };
+			if (!existing.isLocked) return { kind: "not_locked" as const };
+
+			/*
+			 * Непустой новый barcode — только если журнал стерилизации клиники
+			 * подтвердил цикл (тот же критерий, что POST /api/sterilization/link).
+			 * Иначе админ мог бы вписать произвольный штрихкод в подписанную 043/у.
+			 * Check inside the row lock so tray default uses the locked snapshot.
+			 */
+			const nextTrayBarcode =
+				body.instrumentTrayBarcode !== undefined
+					? body.instrumentTrayBarcode.trim()
+					: (existing.instrumentTrayBarcode ?? "");
+			if (
+				body.instrumentTrayBarcode !== undefined &&
+				nextTrayBarcode.length > 0
+			) {
+				const [trayLog] = await tx
+					.select({
+						id: sterilizationLogs.id,
+						status: sterilizationLogs.status,
+					})
+					.from(sterilizationLogs)
+					.where(
+						and(
+							eq(sterilizationLogs.organizationId, orgId),
+							eq(sterilizationLogs.barcode, nextTrayBarcode),
+						),
+					)
+					.orderBy(desc(sterilizationLogs.timestamp))
+					.limit(1);
+				if (!trayLog || trayLog.status !== "passed") {
+					return { kind: "invalid_tray" as const };
+				}
+			}
+
+			const newHash = computeDiaryHash(
+				existing.visitId,
+				existing.patientId ?? "",
+				body.anamnesis ?? existing.anamnesis,
+				body.statusLocalis ?? existing.statusLocalis,
+				body.treatmentDescription ?? existing.treatmentDescription,
+				body.diagnosisIcd10 ?? existing.diagnosisIcd10,
+				body.diagnosisTooth ?? existing.diagnosisTooth,
+				body.complications ?? existing.complications,
+				body.comorbidities ?? existing.comorbidities,
+				nextTrayBarcode,
+			);
+
+			const priorVersion = existing.version ?? 1;
+
+			/*
+			 * DEFECT #113: admin revise UPDATE must prove the row write.
+			 *
+			 * БЫЛО (#84): FOR UPDATE + UPDATE WHERE is_locked=true, but
+			 * visit_diary_revisions INSERT ran BEFORE the UPDATE, and the
+			 * UPDATE had no .returning() / row-count check. If the belt
+			 * matched zero rows (unlocked between snapshot and write, or
+			 * version drift), the transaction still committed an orphan
+			 * forensic row while diary SOAP/hash/version stayed old; the
+			 * HTTP 200 claimed success with a hash that was never stored.
+			 * Lock #76 / draft #73 / re-attach #85 all fail closed on
+			 * zero returning rows — revise did not.
+			 *
+			 * СТАЛО: UPDATE first with .returning() and optimistic
+			 * version belt (id+org+is_locked+version). Zero rows →
+			 * update_lost (no forensic insert). Only after a proven
+			 * diary write do we insert visit_diary_revisions previous_*
+			 * from the locked snapshot (existing still holds pre-image).
+			 *
+			 * PKCS#7 still cleared: old signature must not seal new hash.
+			 * is_locked and locked_at stay (re-УКЭП is a separate step).
+			 */
+			const updatedRows = await tx
 				.update(visitDiaries)
 				.set({
 					anamnesis: body.anamnesis ?? existing.anamnesis,
@@ -995,13 +2084,70 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					diagnosisTooth: body.diagnosisTooth ?? existing.diagnosisTooth,
 					treatmentDescription:
 						body.treatmentDescription ?? existing.treatmentDescription,
+					complications: body.complications ?? existing.complications,
+					comorbidities: body.comorbidities ?? existing.comorbidities,
+					instrumentTrayBarcode:
+						body.instrumentTrayBarcode !== undefined
+							? nextTrayBarcode || null
+							: existing.instrumentTrayBarcode,
 					diaryHash: newHash,
-					version: (existing.version ?? 1) + 1,
+					cryptoSignaturePkcs7: null,
+					version: priorVersion + 1,
 					updatedAt: new Date(),
 				})
 				.where(
-					and(eq(visitDiaries.id, id), eq(visitDiaries.organizationId, orgId)),
-				);
+					and(
+						eq(visitDiaries.id, id),
+						eq(visitDiaries.organizationId, orgId),
+						/* belt: only revise while still locked (Form 043/у signed) */
+						eq(visitDiaries.isLocked, true),
+						/* DEFECT #113: optimistic version — concurrent revise loses cleanly */
+						eq(visitDiaries.version, priorVersion),
+					),
+				)
+				.returning({ id: visitDiaries.id });
+
+			if (updatedRows.length === 0) {
+				return { kind: "update_lost" as const };
+			}
+
+			/*
+			 * Forensic previous_* snapshot from the locked pre-image (existing).
+			 * Insert only after UPDATE returned a row so the legal chain never
+			 * records a revision that did not change the signed diary.
+			 *
+			 * previous_diagnosis_tooth + revision_reason (миграция 0116),
+			 * complications/comorbidities (0149), instrument tray (0150).
+			 */
+			await tx.insert(visitDiaryRevisions).values({
+				organizationId: orgId,
+				diaryId: existing.id,
+				previousAnamnesis: existing.anamnesis,
+				previousStatusLocalis: existing.statusLocalis,
+				previousDiagnosisIcd10: existing.diagnosisIcd10,
+				previousDiagnosisTooth: existing.diagnosisTooth,
+				previousTreatmentDescription: existing.treatmentDescription,
+				previousComplications: existing.complications,
+				previousComorbidities: existing.comorbidities,
+				previousInstrumentTrayBarcode: existing.instrumentTrayBarcode,
+				revisionReason: body.revisionReason,
+				revisedByUserId: userId,
+			});
+
+			/*
+			 * DEFECT #46: admin revise of signed 043 must update EMK/EGISZ source.
+			 * Without this, forensic 043 shows new text but CDA still has old visits.*.
+			 */
+			await syncVisitEmkFromDiarySoap(tx, {
+				visitId: existing.visitId,
+				organizationId: orgId,
+				anamnesis: body.anamnesis ?? existing.anamnesis,
+				statusLocalis: body.statusLocalis ?? existing.statusLocalis,
+				diagnosisIcd10: body.diagnosisIcd10 ?? existing.diagnosisIcd10,
+				diagnosisTooth: body.diagnosisTooth ?? existing.diagnosisTooth,
+				treatmentDescription:
+					body.treatmentDescription ?? existing.treatmentDescription,
+			});
 
 			// БЫЛО: `revisionCount: 1` — константа вместо настоящего числа ревизий.
 			// Ответ утверждал «ревизия первая» и на десятой правке карты.
@@ -1014,11 +2160,53 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 						eq(visitDiaryRevisions.organizationId, orgId),
 					),
 				);
-			return tally?.total ?? 0;
+			return {
+				kind: "ok" as const,
+				hash: newHash,
+				revisionCount: tally?.total ?? 0,
+			};
 		});
 
-		return reply.send({ success: true, hash: newHash, revisionCount });
+		if (reviseResult.kind === "not_found") {
+			return reply
+				.code(404)
+				.send({ error: "NotFound", message: DIARY_NOT_FOUND_REVISE_MESSAGE });
+		}
+		if (reviseResult.kind === "not_locked") {
+			return reply.code(409).send({
+				error: "NotLocked",
+				message: "Дневник не подписан — просто редактируйте его.",
+			});
+		}
+		if (reviseResult.kind === "invalid_tray") {
+			return reply.code(400).send({
+				error: "InvalidTrayBarcode",
+				message:
+					"Лоток не подтверждён журналом стерилизации этой клиники: такого штрихкода нет или последний цикл не пройден. Укажите штрихкод с прошедшей стерилизацией или очистите поле лотка.",
+			});
+		}
+		if (reviseResult.kind === "update_lost") {
+			return reply.code(409).send({
+				error: "ReviseConflict",
+				message:
+					"Исправление подписанного дневника не применилось: запись уже изменилась или снята с подписи. Откройте приём заново и повторите исправление.",
+			});
+		}
+
+
+		/*
+		 * cryptoSignatureAttached: false — PKCS#7 обнулён вместе с newHash.
+		 * Клиент обязан снять hasCryptoSignature, иначе печать 043/у продолжит
+		 * показывать штамп «ЭЦП» без оттиска в БД.
+		 */
+		return reply.send({
+			success: true,
+			hash: reviseResult.hash,
+			revisionCount: reviseResult.revisionCount,
+			cryptoSignatureAttached: false,
+		});
 	});
+
 
 	// Legacy endpoint: sync-progress + plan signature (kept for backwards compat)
 	app.post("/api/diaries/sync-progress", async (req, reply) => {

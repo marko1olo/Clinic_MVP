@@ -1,4 +1,4 @@
-import { documentKindMetadata, documentPayloadDisallowedKeys, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionApplicationPayloadSchema, taxDeductionCertificateMinYear, kopecksToNumericString, parseKopecks, sumKopecks, } from "@dental/shared";
+import { documentKindMetadata, documentPayloadDisallowedKeys, legacyTaxDeductionCertificateMaxYear, legacyTaxDeductionCertificateMinYear, taxDeductionApplicationPayloadSchema, taxDeductionCertificateMinYear, kopecksToNumericString, multiplyKopecks, parseKopecks, sumKopecks, } from "@dental/shared";
 /*
  * Перевод слов разборщика в слова человека — ОДИН на весь сервер, рядом с домом
  * текстов отказа по кабинету клиники (utils/clinicSessionRefusal.ts).
@@ -535,6 +535,10 @@ function structuredPayloadMissingReason(input) {
         !input.payload?.outpatientMedicalCard025u) {
         return "Для медицинской карты 025/у нужны структурированные данные: организация, пациент, номер карты, период, подписанные врачебные записи, диагнозы, стоматологические строки и подтверждения проверки формы 274н.";
     }
+    if (input.kind === "dental_medical_card_043u" &&
+        !input.payload?.dentalMedicalCard043u) {
+        return "Для медицинской карты 043/у нужны структурированные данные: организация, пациент, номер карты, дата приема, жалобы, анамнез, объективный статус, диагноз, стоматологические строки, лечение и врач.";
+    }
     if (input.kind === "medical_record_copy_request" &&
         !input.payload?.medicalRecordCopyRequest) {
         return "Для запроса копий медицинской документации нужны структурированные данные: состав документов, период, формат, получатель, документ получателя, полномочия, контакт выдачи и проверка лишних данных третьих лиц.";
@@ -579,26 +583,31 @@ function structuredPayloadMissingReason(input) {
     }
     return null;
 }
-function expectedFinancialLineTotal(line) {
-    return Math.max(0, Math.round((line.quantity * line.unitPriceRub - line.discountRub) * 100) / 100);
+function expectedFinancialLineTotalKopecks(line) {
+    const unitKopecks = parseKopecks(line.unitPriceRub);
+    const quantity = Math.max(0, Math.round(line.quantity));
+    const lineSubtotalKopecks = multiplyKopecks(unitKopecks, quantity);
+    const discountKopecks = parseKopecks(line.discountRub);
+    return Math.max(0, lineSubtotalKopecks - discountKopecks);
 }
-function financialLinesTotal(lines) {
-    return Math.round(lines.reduce((total, line) => total + line.totalRub, 0) * 100) / 100;
+function financialLinesTotalKopecks(lines) {
+    return sumKopecks(lines.map((line) => parseKopecks(line.totalRub)));
 }
 function financialServiceLinesMismatchReason(lines, documentLabel) {
     for (const [index, line] of lines.entries()) {
-        const expectedTotalRub = expectedFinancialLineTotal(line);
-        if (Math.abs(line.totalRub - expectedTotalRub) > 0.01) {
-            return `${documentLabel}: строка ${index + 1} должна иметь сумму ${moneyRubText(expectedTotalRub)} руб. по количеству, цене и скидке; передано ${moneyRubText(line.totalRub)} руб.`;
+        const expectedTotalKopecks = expectedFinancialLineTotalKopecks(line);
+        const lineTotalKopecks = parseKopecks(line.totalRub);
+        if (lineTotalKopecks !== expectedTotalKopecks) {
+            return `${documentLabel}: строка ${index + 1} должна иметь сумму ${moneyRubText(kopecksToNumericString(expectedTotalKopecks))} руб. по количеству, цене и скидке; передано ${moneyRubText(line.totalRub)} руб.`;
         }
     }
     return null;
 }
 function financialServiceLinesGrandTotalMismatchReason(lines, totalAmountRub, documentLabel) {
-    const linesTotalRub = financialLinesTotal(lines);
-    const targetRub = Math.round(totalAmountRub * 100) / 100;
-    if (Math.abs(linesTotalRub - targetRub) > 0.01) {
-        return `${documentLabel}: общий итог ${moneyRubText(totalAmountRub)} руб. не совпадает с суммой строк ${moneyRubText(linesTotalRub)} руб.`;
+    const linesTotalKopecks = financialLinesTotalKopecks(lines);
+    const targetKopecks = parseKopecks(totalAmountRub);
+    if (linesTotalKopecks !== targetKopecks) {
+        return `${documentLabel}: общий итог ${moneyRubText(totalAmountRub)} руб. не совпадает с суммой строк ${moneyRubText(kopecksToNumericString(linesTotalKopecks))} руб.`;
     }
     return null;
 }

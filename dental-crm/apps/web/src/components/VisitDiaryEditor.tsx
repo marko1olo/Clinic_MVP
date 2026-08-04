@@ -1,14 +1,9 @@
 import {
 	Activity,
 	AlertTriangle,
-	Camera,
-	CheckCircle2,
-	ChevronDown,
-	Clipboard,
 	Clock,
 	FileText,
 	Lock,
-	Paperclip,
 	Printer,
 	Search,
 	ShieldCheck,
@@ -16,59 +11,41 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAppLogicContext } from "../contexts/AppLogicContext";
 import { getIcdColor, ICD_GROUP_COLORS, ICD10_DICTIONARY } from "../lib/icd10";
-import { useVisitStore } from "../store/visitStore";
-import {
-	type CryptoProCertificate,
-	checkCryptoProPlugin,
-	getPersonalCertificates,
-	signBase64WithCertificate,
-} from "../utils/cryptoPro";
-import { showToast } from "./GlobalToast";
+import { PanelLoadFailure } from "./PanelLoadFailure";
 import { SmartMicrophoneButton } from "./SmartMicrophoneButton";
 import { useVisitDiaryLogic } from "./useVisitDiaryLogic";
-import { VisitDiaryPhotoUpload } from "./VisitDiaryPhotoUpload";
+import {
+	VisitDiaryPhotoUpload,
+	type DiaryPrintPhoto,
+} from "./VisitDiaryPhotoUpload";
 import { VisitDiaryTemplateSelector } from "./VisitDiaryTemplateSelector";
 import { CryptoProSigner } from "./visit/CryptoProSigner";
+import { realVisitFieldId } from "./visit/visitIdentity";
+import { specialtyLabels } from "../workspaceUiLabels";
+import "../styles/visit-diary-043.css";
 
-interface DiaryState {
-	anamnesis: string;
-	statusLocalis: string;
-	diagnosisIcd10: string;
-	diagnosisTooth: string;
-	treatmentDescription: string;
-	complications: string;
-	comorbidities: string;
-}
-
-const EMPTY_DIARY: DiaryState = {
-	anamnesis: "",
-	statusLocalis: "",
-	diagnosisIcd10: "",
-	diagnosisTooth: "",
-	treatmentDescription: "",
-	complications: "",
-	comorbidities: "",
-};
-
-interface Template {
-	id: string;
-	title: string;
-	category?: string;
-	specialty?: string;
-	prefilledAnamnesis?: string;
-	prefilledObjective?: string;
-	prefilledTreatment?: string;
-	defaultIcd10?: string;
-	defaultIcd10Label?: string;
-	isBuiltIn?: boolean;
-}
 
 interface VisitDiaryEditorProps {
 	visitId: string;
 	patientId: string;
+}
+
+function formatPersonName(p: {
+	lastName?: string | null;
+	firstName?: string | null;
+	middleName?: string | null;
+	fullName?: string | null;
+} | null | undefined): string {
+	if (!p) return "—";
+	if (typeof p.fullName === "string" && p.fullName.trim()) return p.fullName.trim();
+	const parts = [p.lastName, p.firstName, p.middleName]
+		.map((x) => (typeof x === "string" ? x.trim() : ""))
+		.filter(Boolean);
+	return parts.length ? parts.join(" ") : "—";
 }
 
 export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
@@ -79,16 +56,26 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 		diary,
 		setDiary,
 		diaryId,
+		loadState,
+		loadStateText,
+		diarySubject,
+		reloadDiary,
 		isLocked,
 		lockedAt,
 		diaryHash,
+		hasCryptoSignature,
+		diaryDoctorFullName,
+		diaryDoctorSpecialty,
 		lastSavedAt,
 		revisionCount,
+		diaryRevisions,
 		isSaving,
 		showScanner,
 		setShowScanner,
 		trayBarcode,
 		setTrayBarcode,
+		clearTrayBarcode,
+		assignTrayBarcode,
 		showIcdDropdown,
 		setShowIcdDropdown,
 		icdSearch,
@@ -96,9 +83,159 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 		showPreview,
 		setShowPreview,
 		doSave,
+		ensureDraftSavedForSigning,
 		doLock,
+		isRevising,
+		revisionReason,
+		setRevisionReason,
+		isRevisingBusy,
+		beginRevise,
+		cancelRevise,
+		doRevise,
 		icdRef,
 	} = useVisitDiaryLogic(visitId, patientId);
+
+	/*
+	 * Снимки для печати 043/у. БЫЛО: PrintPreviewContent не знал про
+	 * VisitDiaryPhotoUpload — на бумаге не было фото лечения, хотя они
+	 * висели в галерее приёма. objectUrl = blob: с токеном (см. upload).
+	 */
+	const [printPhotos, setPrintPhotos] = useState<readonly DiaryPrintPhoto[]>(
+		[],
+	);
+	const handlePrintPhotosChange = useCallback(
+		(photos: readonly DiaryPrintPhoto[]) => {
+			setPrintPhotos(photos);
+		},
+		[],
+	);
+
+	/**
+	 * Поля закрыты, пока дневник не прочитан, и в подписанном виде (кроме revise).
+	 *
+	 * БЫЛО: disabled только при isLocked. Пока loadState=loading/failed форма
+	 * показывала EMPTY_DIARY как будто новый приём — врач набирал анамнез
+	 * поверх непрочитанной записи. Хук уже блокировал doSave/doLock; UI врал.
+	 */
+	const diaryUnread =
+		loadState.phase === "loading" || loadState.phase === "failed";
+	const fieldsDisabled = diaryUnread || (isLocked && !isRevising);
+	/*
+	 * Печать 043/у во время незавершённой правки.
+	 * БЫЛО: кнопка «Печать» и preview работали при isRevising=true — в лист
+	 * уходили textarea-правки + штамп ЭЦП/SHA-256 от ЕЩЁ НЕ сохранённой
+	 * ревизии. Юридическая 043/у выглядела подписанной с текстом, которого
+	 * в БД нет (и PKCS#7 после revise обнуляется только на save).
+	 */
+	/*
+	 * DEFECT #66: Form 043/у must not print as legal card while unlocked draft.
+	 * БЫЛО: printBlocked only diaryUnread | isRevising — черновик (!isLocked)
+	 * печатался кнопкой «Печать 043/у» / «Напечатать» без подписи и diaryHash.
+	 * Бумажная 043/у уходила в карту пациента как будто финальная.
+	 * СТАЛО: block when !isLocked (после load); keep revise/unread gates.
+	 */
+	// Always under AppLogicProvider when mounted from VisitOdontogramTab — call unconditionally (Rules of Hooks).
+	const ctx = useAppLogicContext();
+	const activePatient = ctx.activePatient;
+	const clinicSettings = ctx.dashboard?.clinicSettings;
+	const activeDoctor = ctx.activeDoctor;
+
+	/*
+	 * ПЕЧАТЬ 043/у — ТОЛЬКО ПАЦИЕНТ ЭТОГО ВИЗИТА.
+	 *
+	 * БЫЛО: шапка формы брала ctx.activePatient (выбор в разделе «Пациенты»).
+	 * SOAP/hash — от visitId/patientId пропа, а ФИО/дата рождения/номер карты —
+	 * от другого выбранного человека. Бумажная 043/у уходила с чужим ФИО.
+	 *
+	 * СТАЛО: если activePatient.id !== patientId пропа — не подставляем чужие
+	 * паспортные данные; печатаем «—» и блокируем печать (printPatientMismatch).
+	 */
+	const selectedPatientId = realVisitFieldId(
+		activePatient && typeof activePatient === "object"
+			? (activePatient as { id?: unknown }).id
+			: null,
+	);
+	const diaryPatientId = realVisitFieldId(patientId);
+	const printPatient =
+		diaryPatientId && selectedPatientId && selectedPatientId === diaryPatientId
+			? activePatient
+			: null;
+	const printPatientMismatch = Boolean(
+		diaryPatientId && selectedPatientId && selectedPatientId !== diaryPatientId,
+	);
+
+	const patientFullName = formatPersonName(printPatient);
+	const patientBirthDate =
+		typeof printPatient?.birthDate === "string"
+			? printPatient.birthDate
+			: typeof printPatient?.dateOfBirth === "string"
+				? printPatient.dateOfBirth
+				: "";
+	const patientCardNumber =
+		typeof printPatient?.cardNumber === "string"
+			? printPatient.cardNumber
+			: typeof printPatient?.medicalCardNumber === "string"
+				? printPatient.medicalCardNumber
+				: typeof printPatient?.chartNumber === "string"
+					? printPatient.chartNumber
+					: "";
+	const printBlockedReason = diaryUnread
+		? "Печать недоступна, пока записи приёма не прочитаны"
+		: isRevising
+			? "Печать недоступна, пока идёт правка подписанного дневника. Сохраните правку или нажмите «Отмена»."
+			: !isLocked
+				? "Печать формы 043/у доступна после подписи дневника"
+				: printPatientMismatch
+					? "Печать 043/у заблокирована: в разделе «Пациенты» выбран другой человек, не пациент этого визита. Верните выбор на пациента приёма."
+					: undefined;
+	const printBlocked = Boolean(printBlockedReason);
+
+	const clinicName =
+		typeof clinicSettings?.name === "string"
+			? clinicSettings.name
+			: typeof clinicSettings?.clinicName === "string"
+				? clinicSettings.clinicName
+				: "";
+	const clinicAddress =
+		typeof clinicSettings?.address === "string" ? clinicSettings.address : "";
+	const clinicInn =
+		typeof clinicSettings?.inn === "string" ? clinicSettings.inn : "";
+	/*
+	 * DEFECT #36: в печати 043/у — врач из строки дневника.
+	 * БЫЛО: formatPersonName(activeDoctor) — кто сейчас в смене.
+	 * Подписанный дневник другого врача печатался с чужим ФИО.
+	 * СТАЛО: diaryDoctorFullName с GET; fallback на activeDoctor только
+	 * пока дневник ещё не сохранён / врач в строке не проставлен.
+	 */
+	const sessionDoctorName = formatPersonName(activeDoctor);
+	/*
+	 * DEFECT #41: session fallback — StaffMember.specialties[], не .specialty.
+	 * БЫЛО: activeDoctor.specialty / specialization — полей нет у staff,
+	 * sessionDoctorSpecialty всегда "", печать без «(терапия)» до GET.
+	 */
+	const sessionDoctorSpecialty = (() => {
+		const raw = Array.isArray(activeDoctor?.specialties)
+			? activeDoctor.specialties
+			: [];
+		const codes = raw
+			.map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
+			.filter(Boolean);
+		const meaningful = codes.filter((c: string) => c !== "universal");
+		const list = meaningful.length > 0 ? meaningful : codes;
+		return list
+			.map((c: string) =>
+				specialtyLabels[c as keyof typeof specialtyLabels] ?? c,
+			)
+			.join(", ");
+	})();
+	const doctorName =
+		diaryDoctorFullName && diaryDoctorFullName.trim()
+			? diaryDoctorFullName.trim()
+			: sessionDoctorName;
+	const doctorSpecialty =
+		diaryDoctorSpecialty && diaryDoctorSpecialty.trim()
+			? diaryDoctorSpecialty.trim()
+			: sessionDoctorSpecialty;
 
 	// ── ICD-10 select
 	const handleIcdSelect = (code: string) => {
@@ -120,7 +257,6 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 		const typed = icdSearch.trim();
 		if (!typed) return;
 		const normalized = typed.toUpperCase();
-		// Точное совпадение по коду важнее совпадения по названию.
 		const exact = ICD10_DICTIONARY.find(
 			(item) => item.code.toUpperCase() === normalized,
 		);
@@ -144,108 +280,285 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 		e.target.style.height = e.target.scrollHeight + "px";
 	};
 
-	// ── Print preview content
 	const icdEntry = ICD10_DICTIONARY.find(
 		(i) => i.code === diary.diagnosisIcd10,
 	);
+
 	const PrintPreviewContent = (
-		<div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm print-layer">
-			<div className="bg-white dark:bg-slate-900 text-black dark:text-slate-100 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[92vh] print-content border border-gray-200 dark:border-slate-800">
-				<div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 rounded-t-xl no-print">
-					<h3 className="font-bold flex items-center gap-2 text-gray-800 dark:text-slate-100">
-						<Printer className="w-5 h-5 text-blue-500" /> Медицинская карта (Форма 043/у)
+		<div
+			className="vde-043-print-overlay print-layer"
+			data-testid="form-043-preview"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Медицинская карта Форма 043/у"
+		>
+			<div className="vde-043-print-sheet print-content">
+				<div className="vde-043-print-toolbar no-print">
+					<h3>
+						<Printer className="w-5 h-5" style={{ color: "var(--teal)" }} />{" "}
+						Медицинская карта (Форма 043/у)
 					</h3>
 					<button
+						type="button"
 						onClick={() => setShowPreview(false)}
-						className="text-gray-500 dark:text-slate-400 hover:text-black dark:hover:text-white flex items-center gap-1 text-sm transition-colors"
+						className="vde-043__btn vde-043__btn--ghost"
+						data-testid="form-043-close"
 					>
 						<X className="w-4 h-4" /> Закрыть
 					</button>
 				</div>
 
-				<div className="p-8 overflow-y-auto" id="print-043">
-					<div className="text-center mb-6 border-b-2 border-black dark:border-slate-700 pb-4">
-						<h1 className="text-xl font-bold uppercase">
-							Медицинская карта стоматологического больного
-						</h1>
-						<p className="text-sm text-gray-600 dark:text-slate-400">
+				<div className="vde-043-print-body" id="print-043">
+					<div className="vde-043-doc-header page-break-avoid">
+						<h1>Медицинская карта стоматологического больного</h1>
+						<p className="vde-043-doc-sub">
 							Форма № 043/у (Приказ МЗ РФ № 834н)
 						</p>
 					</div>
 
-					{isLocked && diaryHash && (
+					{(clinicName ||
+						clinicAddress ||
+						clinicInn ||
+						patientFullName !== "—" ||
+						patientBirthDate ||
+						patientCardNumber ||
+						doctorName !== "—") && (
+						<div className="vde-043-doc-meta page-break-avoid">
+							{clinicName ? (
+								<div>
+									<strong>Клиника:</strong>
+									{clinicName}
+								</div>
+							) : null}
+							{clinicAddress ? (
+								<div>
+									<strong>Адрес:</strong>
+									{clinicAddress}
+								</div>
+							) : null}
+							{clinicInn ? (
+								<div>
+									<strong>ИНН:</strong>
+									{clinicInn}
+								</div>
+							) : null}
+							<div>
+								<strong>Пациент:</strong>
+								{patientFullName}
+							</div>
+							{patientBirthDate ? (
+								<div>
+									<strong>Дата рождения:</strong>
+									{patientBirthDate}
+								</div>
+							) : null}
+							{patientCardNumber ? (
+								<div>
+									<strong>№ карты:</strong>
+									{patientCardNumber}
+								</div>
+							) : null}
+							{doctorName !== "—" ? (
+								<div>
+									<strong>Врач:</strong>
+									{doctorName}
+									{doctorSpecialty ? ` (${doctorSpecialty})` : ""}
+								</div>
+							) : null}
+						</div>
+					)}
+
+					{/*
+					 * Штамп «ЭЦП» только при реальном crypto_signature_pkcs7.
+					 * БЫЛО: isLocked && diaryHash — после revise PKCS#7 null, hash
+					 * новый, печать 043/у всё равно выглядела заверенной УКЭП.
+					 */}
+					{isLocked && diaryHash && hasCryptoSignature && !isRevising && (
 						<div
-							className="mb-6 mt-4 p-4 bg-green-50 dark:bg-emerald-950/60 border border-green-300 dark:border-emerald-800 rounded text-xs text-green-800 dark:text-emerald-300 font-mono break-all page-break-avoid"
-							style={{ clear: "both", display: "block", position: "relative" }}
+							className="vde-043-ecp page-break-avoid"
+							data-testid="form-043-ecp"
+							style={{
+								clear: "both",
+								display: "block",
+								position: "relative",
+							}}
 						>
 							<strong>ЭЦП (SHA-256):</strong> {diaryHash}
 							<br />
 							<strong>Подписан:</strong>{" "}
 							{lockedAt ? new Date(lockedAt).toLocaleString("ru-RU") : "—"}
 							{revisionCount > 0 && (
-								<span className="ml-3 text-orange-700 dark:text-amber-400">
-									{" "}
+								<span className="vde-043-ecp-rev">
 									⚠ Ревизий: {revisionCount}
 								</span>
 							)}
 						</div>
 					)}
-
-					<div className="space-y-5">
-						<div className="page-break-avoid">
-							<h4 className="font-bold border-b border-gray-300 dark:border-slate-800 mb-2">
-								S — Жалобы и анамнез (Subjective)
-							</h4>
-							<p className="text-sm whitespace-pre-wrap">
-								{diary.anamnesis || "—"}
-							</p>
-						</div>
-						<div className="page-break-avoid">
-							<h4 className="font-bold border-b border-gray-300 dark:border-slate-800 mb-2">
-								O — Объективный статус (Status Localis)
-							</h4>
-							<p className="text-sm whitespace-pre-wrap">
-								{diary.statusLocalis || "—"}
-							</p>
-						</div>
-						<div className="page-break-avoid">
-							<h4 className="font-bold border-b border-gray-300 dark:border-slate-800 mb-2">
-								A — Диагноз (Assessment)
-							</h4>
-							<p className="text-sm">
-								<strong>МКБ-10:</strong> {diary.diagnosisIcd10 || "—"}{" "}
-								{icdEntry ? `(${icdEntry.label})` : ""}
-								{diary.diagnosisTooth
-									? ` | Зуб по FDI: ${diary.diagnosisTooth}`
+					{isLocked && diaryHash && !hasCryptoSignature && !isRevising && (
+						<div
+							className="vde-043-soap-block page-break-avoid"
+							data-testid="form-043-ecp-missing"
+						>
+							<p>
+								Дневник закрыт замком
+								{lockedAt
+									? ` (${new Date(lockedAt).toLocaleString("ru-RU")})`
 									: ""}
+								, отпечаток SHA-256: {diaryHash.slice(0, 16)}… Оттиск УКЭП
+								отсутствует
+								{revisionCount > 0
+									? " (сброшен после правки подписанной записи)"
+									: ""}
+								— приложите подпись заново, прежде чем выдавать юридическую
+								копию 043/у.
+								{revisionCount > 0 ? ` Ревизий: ${revisionCount}.` : ""}
 							</p>
 						</div>
-						<div className="page-break-avoid">
-							<h4 className="font-bold border-b border-gray-300 dark:border-slate-800 mb-2">
-								P — Лечение и план (Plan)
-							</h4>
-							<p className="text-sm whitespace-pre-wrap">
-								{diary.treatmentDescription || "—"}
+					)}
+					{isRevising && (
+						<div
+							className="vde-043-soap-block page-break-avoid"
+							data-testid="form-043-revise-warn"
+						>
+							<p>
+								Идёт правка подписанного дневника. Текст на экране ещё не
+								сохранён в истории ревизий — печать юридической 043/у
+								недоступна, пока правка не сохранена или не отменена.
 							</p>
 						</div>
-					</div>
+					)}
 
-					<div className="mt-10 pt-6 border-t border-gray-300 dark:border-slate-800 flex justify-between text-sm page-break-avoid">
+					{/*
+					 * Не печатать пустые «—» пока дневник не прочитан: это выдало бы
+					 * непрочитанное за пустую карту. Кнопка печати уже disabled, но
+					 * showPreview мог остаться true со смены приёма.
+					 */}
+					{diaryUnread ? (
+						<div className="vde-043-soap-block page-break-avoid">
+							<p>
+								{loadStateText?.title ?? "Записи приёма не загружены"}
+								{loadStateText?.hint ? ` ${loadStateText.hint}` : ""}
+							</p>
+						</div>
+					) : (
+						<div>
+							<div className="vde-043-soap-block page-break-avoid">
+								<h4>S — Жалобы и анамнез (Subjective)</h4>
+								<p>{diary.anamnesis || "—"}</p>
+							</div>
+							<div className="vde-043-soap-block page-break-avoid">
+								<h4>O — Объективный статус (Status Localis)</h4>
+								<p>{diary.statusLocalis || "—"}</p>
+							</div>
+							<div className="vde-043-soap-block page-break-avoid">
+								<h4>A — Диагноз (Assessment)</h4>
+								<p>
+									<strong>МКБ-10:</strong> {diary.diagnosisIcd10 || "—"}{" "}
+									{icdEntry ? `(${icdEntry.label})` : ""}
+									{diary.diagnosisTooth
+										? ` | Зуб по FDI: ${diary.diagnosisTooth}`
+										: ""}
+								</p>
+							</div>
+							<div className="vde-043-soap-block page-break-avoid">
+								<h4>P — Лечение и план (Plan)</h4>
+								<p>{diary.treatmentDescription || "—"}</p>
+							</div>
+							{(diary.complications || diary.comorbidities) && (
+								<div className="vde-043-soap-block page-break-avoid">
+									{/*
+									 * БЫЛО: один <p> и "\n" между осложнениями и сопутствующими.
+									 * В HTML перевод строки схлопывается в пробел — в печати 043/у
+									 * две юридически разные строки сливались в одну.
+									 * СТАЛО: отдельные <p> на каждое непустое поле.
+									 */}
+									<h4>Осложнения и сопутствующие</h4>
+									{diary.complications ? (
+										<p>Осложнения: {diary.complications}</p>
+									) : null}
+									{diary.comorbidities ? (
+										<p>Сопутствующие: {diary.comorbidities}</p>
+									) : null}
+								</div>
+							)}
+							{/*
+							 * Лоток стерилизации в печати 043/у.
+							 * БЫЛО: trayBarcode только в no-print UI («Сканировать Лоток»).
+							 * В юридической распечатке карты не было связи приём↔лоток,
+							 * хотя barcode пишется в visit_diaries.instrument_tray_barcode
+							 * и линкуется через /api/sterilization/link.
+							 */}
+							{trayBarcode ? (
+								<div className="vde-043-soap-block page-break-avoid">
+									<h4>Инструментальный лоток</h4>
+									<p>Штрихкод: {trayBarcode}</p>
+								</div>
+							) : null}
+							{/*
+							 * Фото лечения в юридической 043/у.
+							 * БЫЛО: снимки только в no-print галерее — распечатка
+							 * карты не содержала визуального доказательства.
+							 * Печатаем blob: (уже авторизованные), не /api/... URL.
+							 */}
+							{printPhotos.length > 0 ? (
+								<div
+									className="vde-043-soap-block vde-043-print-photos page-break-avoid"
+									data-testid="form-043-photos"
+								>
+									<h4>Вложения (фотографии лечения)</h4>
+									<div className="vde-043-print-photos__grid">
+										{printPhotos.map((ph) => (
+											<figure
+												key={ph.id}
+												className="vde-043-print-photos__item"
+											>
+												<img
+													src={ph.objectUrl}
+													alt={ph.name}
+												/>
+												<figcaption>{ph.name}</figcaption>
+											</figure>
+										))}
+									</div>
+								</div>
+							) : null}
+						</div>
+					)}
+
+					<div className="vde-043-sign-row page-break-avoid">
 						<div>Подпись врача: ___________________</div>
-						<div>Дата: {new Date().toLocaleDateString("ru-RU")}</div>
+						{/*
+						 * Дата документа — дата подписи дневника, не момент печати.
+						 * БЫЛО: new Date() = «сегодня». Перепечатка через неделю
+						 * ставила в 043/у чужую дату приёма; юридически подписанная
+						 * карта расходилась с lockedAt/ЭЦП.
+						 */}
+						<div>
+							Дата:{" "}
+							{lockedAt
+								? new Date(lockedAt).toLocaleDateString("ru-RU")
+								: lastSavedAt
+									? lastSavedAt.toLocaleDateString("ru-RU")
+									: "—"}
+						</div>
 					</div>
 				</div>
 
-				<div className="p-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 flex justify-end rounded-b-xl no-print gap-3">
+				<div className="vde-043-print-footer no-print">
 					<button
+						type="button"
 						onClick={() => setShowPreview(false)}
-						className="px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+						className="vde-043__btn"
 					>
 						Закрыть
 					</button>
 					<button
+						type="button"
 						onClick={() => window.print()}
-						className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow flex items-center gap-2 text-sm transition-colors"
+						disabled={printBlocked}
+						title={printBlockedReason}
+						className="vde-043__btn vde-043__btn--primary"
+						data-testid="form-043-print"
 					>
 						<Printer className="w-4 h-4" /> Напечатать
 					</button>
@@ -255,23 +568,26 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 	);
 
 	return (
-		<div className="bg-zinc-950/90 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-5 shadow-[0_0_60px_-15px_rgba(16,185,129,0.15)] flex flex-col gap-5 relative overflow-hidden group no-print">
-			{/* Glow on hover */}
-			<div className="absolute -inset-px bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-blue-500/0 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-1000 pointer-events-none" />
+		<div
+			className="vde-043 no-print"
+			data-testid="visit-diary-editor"
+			data-form="043u"
+		>
+			<div className="vde-043__glow" aria-hidden="true" />
 
 			{/* ── Header ── */}
-			<div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-						<Activity className="w-5 h-5 text-emerald-400" />
+			<div className="vde-043__header">
+				<div className="vde-043__title-row">
+					<div className="vde-043__icon-badge">
+						<Activity className="w-5 h-5" />
 					</div>
 					<div>
-						<h2 className="text-lg font-bold text-zinc-100">
-							Клинический дневник SOAP
+						<h2 className="vde-043__title">
+							Клинический дневник SOAP · Форма 043/у
 						</h2>
-						<div className="flex items-center gap-2 text-xs text-zinc-500">
+						<div className="vde-043__meta">
 							{lastSavedAt && (
-								<span className="flex items-center gap-1">
+								<span className="vde-043__meta-item">
 									<Clock className="w-3 h-3" />
 									Сохранено{" "}
 									{lastSavedAt.toLocaleTimeString("ru-RU", {
@@ -281,7 +597,7 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 								</span>
 							)}
 							{revisionCount > 0 && (
-								<span className="text-orange-400 flex items-center gap-1">
+								<span className="vde-043__meta-item vde-043__meta-rev">
 									<ShieldCheck className="w-3 h-3" />
 									{revisionCount} ревиз.
 								</span>
@@ -291,52 +607,121 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 				</div>
 
 				{isLocked ? (
-					<div className="flex items-center gap-2 flex-shrink-0">
+					<div className="vde-043__actions">
 						<button
+							type="button"
 							id="diary-print-btn"
+							data-testid="diary-print-043"
 							onClick={() => setShowPreview(true)}
-							className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors text-sm border border-zinc-700"
+							disabled={printBlocked}
+							className="vde-043__btn vde-043__btn--print"
+							title={printBlockedReason}
 						>
 							<Printer className="w-4 h-4" /> Печать 043/у
 						</button>
-						<span className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl text-sm font-bold">
-							<Lock className="w-4 h-4" /> ПОДПИСАНО
-						</span>
+						{isRevising ? (
+							<span className="vde-043__badge vde-043__badge--revise">
+								<AlertTriangle className="w-4 h-4" /> ПРАВКА
+							</span>
+						) : (
+							<span className="vde-043__badge vde-043__badge--locked">
+								<Lock className="w-4 h-4" /> ПОДПИСАНО
+							</span>
+						)}
 					</div>
 				) : (
-					<VisitDiaryTemplateSelector
-						isLocked={isLocked}
-						onSelectTemplate={(tmpl: any) => {
-							setDiary((prev) => ({
-								...prev,
-								anamnesis: tmpl.prefilledAnamnesis || prev.anamnesis,
-								statusLocalis: tmpl.prefilledObjective || prev.statusLocalis,
-								treatmentDescription:
-									tmpl.prefilledTreatment || prev.treatmentDescription,
-								diagnosisIcd10: tmpl.defaultIcd10 || prev.diagnosisIcd10,
-							}));
-							if (tmpl.defaultIcd10) {
-								setIcdSearch(tmpl.defaultIcd10);
-							}
-						}}
-					/>
+					<div className="vde-043__actions">
+						<button
+							type="button"
+							id="diary-print-btn"
+							data-testid="diary-print-043"
+							onClick={() => setShowPreview(true)}
+							disabled={printBlocked}
+							className="vde-043__btn vde-043__btn--print"
+							title={printBlockedReason}
+						>
+							<Printer className="w-4 h-4" /> Печать 043/у
+						</button>
+						{!diaryUnread && (
+							<VisitDiaryTemplateSelector
+								isLocked={isLocked}
+								onSelectTemplate={(tmpl: any) => {
+									setDiary((prev) => ({
+										...prev,
+										anamnesis: tmpl.prefilledAnamnesis || prev.anamnesis,
+										statusLocalis:
+											tmpl.prefilledObjective || prev.statusLocalis,
+										treatmentDescription:
+											tmpl.prefilledTreatment || prev.treatmentDescription,
+										diagnosisIcd10: tmpl.defaultIcd10 || prev.diagnosisIcd10,
+									}));
+									if (tmpl.defaultIcd10) {
+										setIcdSearch(tmpl.defaultIcd10);
+									}
+								}}
+							/>
+						)}
+					</div>
 				)}
 			</div>
 
+			{/*
+			 * Честные состояния чтения. БЫЛО: loadState/loadStateText экспортировались
+			 * из хука, но редактор их не брал — loading и failed рисовали пустой
+			 * анамнез как новый приём. Пустые поля SOAP при unread — ложь.
+			 */}
+			{loadState.phase === "loading" && loadStateText && (
+				<div
+					className="vde-043__load-banner"
+					data-testid="diary-load-loading"
+					role="status"
+					aria-live="polite"
+					style={{
+						margin: "0 0 0.75rem",
+						padding: "0.75rem 1rem",
+						borderRadius: "0.5rem",
+						border: "1px solid var(--border, #e2e8f0)",
+						background: "var(--surface-muted, #f8fafc)",
+						fontSize: "0.8125rem",
+						lineHeight: 1.45,
+						color: "var(--text-secondary, #475569)",
+					}}
+				>
+					<div style={{ fontWeight: 600 }}>{loadStateText.title}</div>
+					{loadStateText.hint ? (
+						<div style={{ marginTop: 2 }}>{loadStateText.hint}</div>
+					) : null}
+				</div>
+			)}
+			{loadState.phase === "failed" && (
+				<div
+					className="vde-043__load-banner"
+					data-testid="diary-load-failed"
+					style={{ margin: "0 0 0.75rem" }}
+				>
+					<PanelLoadFailure
+						subject={diarySubject}
+						status={loadState.status}
+						onRetry={reloadDiary}
+					/>
+				</div>
+			)}
+
 			{/* ── SOAP Fields grid ── */}
-			<div className="relative grid grid-cols-1 lg:grid-cols-2 gap-4">
-				{/* S — Subjective (Жалобы) */}
-				<div className="flex flex-col space-y-1.5 h-full">
-					<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5 w-full">
-						<Stethoscope className="w-3 h-3 text-blue-400" />
-						<span className="text-blue-400 font-mono font-bold">S</span> —
+			<div className="vde-043__grid">
+
+				{/* S — Subjective */}
+				<div className="vde-043__field">
+					<label className="vde-043__label" htmlFor="diary-anamnesis">
+						<Stethoscope className="w-3 h-3" style={{ color: "#2563eb" }} />
+						<span className="vde-043__letter vde-043__letter--s">S</span> —
 						Жалобы и анамнез
-						{!isLocked && (
-							<div className="ml-auto">
+						{!fieldsDisabled && (
+							<div className="vde-043__label-mic">
 								<SmartMicrophoneButton
 									context="visit"
 									sterileMode={false}
-									className="hover:bg-zinc-800/80 transition-colors p-1"
+									className="p-1"
 									onResult={(text) =>
 										setDiary((p) => ({
 											...p,
@@ -349,9 +734,9 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</label>
 					<textarea
 						id="diary-anamnesis"
-						disabled={isLocked}
+						disabled={fieldsDisabled}
 						style={{ minHeight: "96px", overflowY: "hidden" }}
-						className="auto-resize-ta flex-1 w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-blue-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+						className="auto-resize-ta vde-043__ta"
 						value={diary.anamnesis}
 						onChange={(e) => {
 							handleAutoResize(e);
@@ -362,18 +747,18 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					/>
 				</div>
 
-				{/* O — Objective (Status Localis) */}
-				<div className="flex flex-col space-y-1.5 h-full">
-					<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5 w-full">
-						<Search className="w-3 h-3 text-purple-400" />
-						<span className="text-purple-400 font-mono font-bold">O</span> —
+				{/* O — Objective */}
+				<div className="vde-043__field">
+					<label className="vde-043__label" htmlFor="diary-status-localis">
+						<Search className="w-3 h-3" style={{ color: "#7c3aed" }} />
+						<span className="vde-043__letter vde-043__letter--o">O</span> —
 						Объективно (Status Localis)
-						{!isLocked && (
-							<div className="ml-auto">
+						{!fieldsDisabled && (
+							<div className="vde-043__label-mic">
 								<SmartMicrophoneButton
 									context="visit"
 									sterileMode={false}
-									className="hover:bg-zinc-800/80 transition-colors p-1"
+									className="p-1"
 									onResult={(text) =>
 										setDiary((p) => ({
 											...p,
@@ -388,9 +773,9 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</label>
 					<textarea
 						id="diary-status-localis"
-						disabled={isLocked}
+						disabled={fieldsDisabled}
 						style={{ minHeight: "96px", overflowY: "hidden" }}
-						className="auto-resize-ta flex-1 w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-purple-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+						className="auto-resize-ta vde-043__ta"
 						value={diary.statusLocalis}
 						onChange={(e) => {
 							handleAutoResize(e);
@@ -401,53 +786,54 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					/>
 				</div>
 
-				{/* A — Assessment (МКБ-10) + FDI Tooth */}
-				<div className="lg:col-span-2 bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/60 space-y-3">
-					<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-						{/* ICD-10 Search */}
-						<div className="sm:col-span-2 space-y-1.5 relative" ref={icdRef}>
-							<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5">
-								<span className="text-amber-400 font-mono font-bold">A</span> —
+				{/* A — Assessment */}
+				<div className="vde-043__assessment">
+					<div className="vde-043__assessment-grid">
+						<div className="vde-043__field" ref={icdRef}>
+							<label className="vde-043__label" htmlFor="diary-icd-search">
+								<span className="vde-043__letter vde-043__letter--a">A</span> —
 								Диагноз МКБ-10
 							</label>
 							{diary.diagnosisIcd10 ? (
 								<div
-									className={`w-full rounded-xl px-4 py-3 text-sm font-medium border flex items-center gap-2 ${getIcdColor(diary.diagnosisIcd10)} transition-all`}
+									className={`vde-043__icd-chip ${getIcdColor(diary.diagnosisIcd10)}`}
 								>
-									<span className="font-mono bg-black/20 px-2 py-0.5 rounded text-xs">
+									<span className="vde-043__icd-code">
 										{diary.diagnosisIcd10}
 									</span>
-									<span className="flex-1 truncate">
+									<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 										{ICD10_DICTIONARY.find(
 											(i) => i.code === diary.diagnosisIcd10,
 										)?.label ?? "Диагноз выбран"}
 									</span>
-									{!isLocked && (
+									{!fieldsDisabled && (
 										<button
+											type="button"
 											onClick={() => {
 												setDiary((p) => ({ ...p, diagnosisIcd10: "" }));
 												setIcdSearch("");
 											}}
-											className="ml-auto hover:bg-black/20 p-1 rounded"
+											className="vde-043__btn vde-043__btn--ghost vde-043__btn--icon"
 											title="Сбросить"
+											aria-label="Сбросить диагноз МКБ-10"
 										>
 											<X className="w-3.5 h-3.5" />
 										</button>
 									)}
 								</div>
 							) : (
-								<div className="relative">
-									<Search className="absolute left-3 top-3.5 w-4 h-4 text-zinc-500" />
+								<div className="vde-043__icd-search-wrap">
+									<Search className="w-4 h-4 vde-043__icd-search-icon" />
 									<input
 										id="diary-icd-search"
-										disabled={isLocked}
-										className="w-full bg-zinc-900/80 border border-zinc-700 rounded-xl pl-9 p-3 text-sm text-zinc-200 focus:ring-2 focus:ring-amber-500/50 outline-none disabled:opacity-50"
+										disabled={fieldsDisabled}
+										className="vde-043__input vde-043__icd-input"
 										value={icdSearch}
 										onChange={(e) => {
 											setIcdSearch(e.target.value);
 											setShowIcdDropdown(true);
 										}}
-										onFocus={() => !isLocked && setShowIcdDropdown(true)}
+										onFocus={() => !fieldsDisabled && setShowIcdDropdown(true)}
 										onKeyDown={(e) => {
 											if (e.key === "Enter") {
 												e.preventDefault();
@@ -455,7 +841,6 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 											}
 										}}
 										onBlur={() => {
-											// Небольшая задержка, чтобы клик по строке списка успел сработать.
 											window.setTimeout(() => {
 												commitIcdInput();
 												setShowIcdDropdown(false);
@@ -464,26 +849,26 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 										placeholder="K02.1 Кариес... или введите название"
 									/>
 									{showIcdDropdown && filteredIcd.length > 0 && (
-										<div className="absolute z-30 top-full left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
+										<div className="vde-043__icd-drop">
 											{filteredIcd.map((icd) => (
 												<div
 													key={icd.code}
-													className="p-3 hover:bg-zinc-700/80 cursor-pointer flex gap-3 items-center border-b border-zinc-700/40 last:border-0"
+													className="vde-043__icd-opt"
 													onMouseDown={(e) => {
 														e.preventDefault();
 														handleIcdSelect(icd.code);
 													}}
 												>
 													<span
-														className={`px-2 py-0.5 rounded text-xs font-mono border shrink-0 ${ICD_GROUP_COLORS[icd.group] ?? ""}`}
+														className={`vde-043__icd-opt-code ${ICD_GROUP_COLORS[icd.group] ?? ""}`}
 													>
 														{icd.code}
 													</span>
-													<div className="min-w-0">
-														<div className="text-sm text-zinc-200 truncate">
+													<div style={{ minWidth: 0 }}>
+														<div className="vde-043__icd-opt-label">
 															{icd.label}
 														</div>
-														<div className="text-xs text-zinc-500">
+														<div className="vde-043__icd-opt-group">
 															{icd.group}
 														</div>
 													</div>
@@ -495,15 +880,14 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 							)}
 						</div>
 
-						{/* FDI Tooth */}
-						<div className="space-y-1.5">
-							<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold">
+						<div className="vde-043__field">
+							<label className="vde-043__label" htmlFor="diary-tooth">
 								Зуб (FDI)
 							</label>
 							<input
 								id="diary-tooth"
-								disabled={isLocked}
-								className="w-full bg-zinc-900/80 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 focus:ring-2 focus:ring-amber-500/50 outline-none disabled:opacity-50 font-mono text-center"
+								disabled={fieldsDisabled}
+								className="vde-043__input vde-043__tooth-input"
 								value={diary.diagnosisTooth}
 								onChange={(e) =>
 									setDiary((p) => ({ ...p, diagnosisTooth: e.target.value }))
@@ -515,18 +899,18 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</div>
 				</div>
 
-				{/* P — Plan (Treatment) */}
-				<div className="space-y-1.5 lg:col-span-2">
-					<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5 w-full">
-						<FileText className="w-3 h-3 text-emerald-400" />
-						<span className="text-emerald-400 font-mono font-bold">P</span> —
+				{/* P — Plan */}
+				<div className="vde-043__field vde-043__field--span2">
+					<label className="vde-043__label" htmlFor="diary-treatment">
+						<FileText className="w-3 h-3" style={{ color: "var(--teal)" }} />
+						<span className="vde-043__letter vde-043__letter--p">P</span> —
 						Лечение и рекомендации
-						{!isLocked && (
-							<div className="ml-auto">
+						{!fieldsDisabled && (
+							<div className="vde-043__label-mic">
 								<SmartMicrophoneButton
 									context="visit"
 									sterileMode={false}
-									className="hover:bg-zinc-800/80 transition-colors p-1"
+									className="p-1"
 									onResult={(text) =>
 										setDiary((p) => ({
 											...p,
@@ -541,9 +925,9 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</label>
 					<textarea
 						id="diary-treatment"
-						disabled={isLocked}
+						disabled={fieldsDisabled}
 						style={{ minHeight: "96px", overflowY: "hidden" }}
-						className="auto-resize-ta w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-emerald-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+						className="auto-resize-ta vde-043__ta"
 						value={diary.treatmentDescription}
 						onChange={(e) => {
 							handleAutoResize(e);
@@ -554,17 +938,20 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					/>
 				</div>
 
-				{/* Complications & Comorbidities */}
-				<div className="space-y-1.5 lg:col-span-2">
-					<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center gap-1.5">
-						<AlertTriangle className="w-3 h-3 text-rose-400" />
+				{/* Complications */}
+				<div className="vde-043__field vde-043__field--span2">
+					<label className="vde-043__label">
+						<AlertTriangle
+							className="w-3 h-3"
+							style={{ color: "var(--rust, #b91c1c)" }}
+						/>
 						Осложнения и сопутствующие заболевания
 					</label>
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+					<div className="vde-043__complications-grid">
 						<textarea
-							disabled={isLocked}
+							disabled={fieldsDisabled}
 							style={{ minHeight: "72px", overflowY: "hidden" }}
-							className="auto-resize-ta w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-rose-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+							className="auto-resize-ta vde-043__ta vde-043__ta--sm"
 							value={diary.complications}
 							onChange={(e) => {
 								handleAutoResize(e);
@@ -574,9 +961,9 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 							placeholder="Осложнения лечения..."
 						/>
 						<textarea
-							disabled={isLocked}
+							disabled={fieldsDisabled}
 							style={{ minHeight: "72px", overflowY: "hidden" }}
-							className="auto-resize-ta w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-200 focus:ring-1 focus:ring-rose-500/50 outline-none disabled:opacity-50 resize-none transition-all"
+							className="auto-resize-ta vde-043__ta vde-043__ta--sm"
 							value={diary.comorbidities}
 							onChange={(e) => {
 								handleAutoResize(e);
@@ -588,32 +975,62 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					</div>
 				</div>
 
-				{/* Attachments (Photos) */}
 				<VisitDiaryPhotoUpload
 					visitId={visitId}
 					diaryId={diaryId}
 					isLocked={isLocked}
+					onPrintPhotosChange={handlePrintPhotosChange}
 				/>
 			</div>
 
 			{/* ── Actions Footer ── */}
 			{!isLocked ? (
-				<div className="relative flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-zinc-800/60 pt-4">
-					<span className="text-xs text-zinc-600 flex items-center gap-1 mr-auto hidden sm:flex">
+				<div className="vde-043__footer">
+					<span className="vde-043__footer-hint">
 						<AlertTriangle className="w-3 h-3" /> Автосохранение каждые 30 сек
 					</span>
 					<button
+						type="button"
+						data-testid="diary-tray-scan"
 						onClick={() => setShowScanner(true)}
-						className="w-full sm:w-auto px-5 py-2 text-sm text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-600 border border-blue-500/30 rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+						className="vde-043__btn"
+						style={{ color: "var(--brand-600, #0284c7)" }}
+						disabled={diaryUnread}
 					>
 						<Activity className="w-4 h-4" />
 						{trayBarcode ? `Лоток: ${trayBarcode}` : "Сканировать Лоток"}
 					</button>
+					{/*
+					 * Снять лоток в черновике (DEFECT #33).
+					 * БЫЛО: только сканер — ошибочный barcode нельзя убрать
+					 * до lock; doSave опускал null → БД хранила старый.
+					 */}
+					{trayBarcode ? (
+						<button
+							type="button"
+							data-testid="diary-tray-clear"
+							onClick={() => {
+								void clearTrayBarcode();
+							}}
+							disabled={isSaving || diaryUnread}
+							className="vde-043__btn vde-043__btn--ghost vde-043__btn--icon"
+							title="Снять лоток с черновика"
+							aria-label="Снять лоток с черновика"
+						>
+							<X className="w-4 h-4" />
+						</button>
+					) : null}
 					<button
+						type="button"
 						id="diary-save-btn"
 						onClick={() => doSave(false)}
-						disabled={isSaving}
-						className="w-full sm:w-auto px-5 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all focus:ring-2 focus:ring-teal-600 focus:outline-none"
+						disabled={isSaving || diaryUnread}
+						className="vde-043__btn"
+						title={
+							diaryUnread
+								? "Сохранение недоступно, пока записи приёма не прочитаны"
+								: undefined
+						}
 					>
 						{isSaving ? "Сохраняю..." : "Сохранить черновик"}
 					</button>
@@ -621,75 +1038,286 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 						diaryHash={diaryHash}
 						isLocked={isLocked}
 						lockedAt={lockedAt}
-						onLock={async (thumbprint, signature) => {
-							await doLock(thumbprint, signature);
+						ensureDraftSaved={() => ensureDraftSavedForSigning()}
+						onLock={async (thumbprint, signature, alreadySavedId) => {
+							await doLock(thumbprint, signature, alreadySavedId);
 						}}
 					/>
 				</div>
+			) : isRevising ? (
+				<div
+					className="vde-043__revise-panel"
+					data-testid="diary-revise-panel"
+				>
+					<div className="vde-043__revise-warn">
+						<AlertTriangle className="w-4 h-4 shrink-0" style={{ marginTop: 2 }} />
+						<span>
+							Режим правки подписанного дневника. Прежний текст сохранится в
+							истории. Доступно только администратору клиники.
+						</span>
+					</div>
+					<label className="vde-043__revise-label">
+						Инструментальный лоток (штрихкод)
+						<div
+							style={{
+								display: "flex",
+								gap: "0.5rem",
+								alignItems: "center",
+							}}
+						>
+							<input
+								data-testid="diary-revise-tray"
+								value={trayBarcode ?? ""}
+								onChange={(e) => {
+									const v = e.target.value.trim();
+									setTrayBarcode(v.length > 0 ? v : null);
+								}}
+								placeholder="Штрихкод лотка или пусто, чтобы снять"
+								className="vde-043__input"
+								style={{ flex: 1 }}
+								disabled={isRevisingBusy}
+							/>
+							<button
+								type="button"
+								data-testid="diary-revise-tray-scan"
+								onClick={() => setShowScanner(true)}
+								disabled={isRevisingBusy}
+								className="vde-043__btn"
+								title="Сканировать штрихкод лотка"
+							>
+								<Activity className="w-4 h-4" />
+							</button>
+						</div>
+					</label>
+					<label className="vde-043__revise-label">
+						Причина правки (обязательно)
+						<input
+							data-testid="diary-revise-reason"
+							value={revisionReason}
+							onChange={(e) => setRevisionReason(e.target.value)}
+							placeholder="Например: исправление опечатки в диагнозе МКБ-10"
+							className="vde-043__input"
+						/>
+					</label>
+					<div
+						style={{
+							display: "flex",
+							flexWrap: "wrap",
+							justifyContent: "flex-end",
+							gap: "0.5rem",
+						}}
+					>
+						<button
+							type="button"
+							data-testid="diary-revise-cancel"
+							onClick={() => cancelRevise()}
+							disabled={isRevisingBusy}
+							className="vde-043__btn"
+						>
+							Отмена
+						</button>
+						<button
+							type="button"
+							id="diary-revise-save-btn"
+							data-testid="diary-revise-save"
+							onClick={() => void doRevise()}
+							disabled={isRevisingBusy}
+							className="vde-043__btn vde-043__btn--amber"
+						>
+							{isRevisingBusy ? "Сохраняю правку…" : "Сохранить правку"}
+						</button>
+					</div>
+				</div>
 			) : (
-				<div className="border-t border-zinc-800/60 pt-4 flex items-center gap-3 text-xs text-zinc-500">
-					<ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+				<div className="vde-043__footer-locked">
+					<ShieldCheck
+						className="w-4 h-4 shrink-0"
+						style={{ color: "var(--green, #15803d)" }}
+					/>
 					<span>
-						Дневник подписан
+						{hasCryptoSignature
+							? "Дневник подписан"
+							: "Дневник закрыт, оттиск УКЭП отсутствует"}
 						{lockedAt ? ` • ${new Date(lockedAt).toLocaleString("ru-RU")}` : ""}
 						.
 						{diaryHash && (
-							<span className="ml-2 font-mono text-zinc-600">
+							<span className="vde-043__hash" style={{ marginLeft: 8 }}>
 								{diaryHash.slice(0, 16)}…
 							</span>
 						)}
 					</span>
+					{!hasCryptoSignature && (
+						<CryptoProSigner
+							diaryHash={diaryHash}
+							isLocked={false}
+							lockedAt={lockedAt}
+							ensureDraftSaved={async () =>
+								diaryId ? { id: diaryId, hash: diaryHash } : null
+							}
+							onLock={async (thumbprint, signature, alreadySavedId) => {
+								await doLock(
+									thumbprint,
+									signature,
+									alreadySavedId ?? diaryId,
+								);
+							}}
+						/>
+					)}
 					<button
+						type="button"
+						id="diary-revise-btn"
+						data-testid="diary-revise-begin"
+						onClick={() => beginRevise()}
+						disabled={diaryUnread}
+						className="vde-043__btn vde-043__btn--amber"
+						style={{ marginLeft: "auto" }}
+						title="Исправить подписанный дневник (только администратор)"
+					>
+						<FileText className="w-3.5 h-3.5" /> Исправить
+					</button>
+					<button
+						type="button"
 						onClick={() => setShowPreview(true)}
-						className="ml-auto flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors"
+						disabled={diaryUnread}
+						className="vde-043__btn vde-043__btn--ghost"
+						data-testid="diary-form-043-open"
+						title={
+							diaryUnread
+								? "Печать недоступна, пока записи приёма не прочитаны"
+								: undefined
+						}
 					>
 						<Printer className="w-3.5 h-3.5" /> Форма 043/у
 					</button>
+
 				</div>
 			)}
 
+
+			{/*
+			  Forensic 043/у: история правок подписанного дневника.
+			  БЫЛО: только badge «N ревиз.» — reason и previous_* с API
+			  (в т.ч. complications/comorbidities после 0149) нигде не
+			  показывались. Админ не мог сверить, что именно заменили.
+			*/}
+			{diaryRevisions.length > 0 && (
+				<details
+					className="vde-043__revisions no-print"
+					data-testid="diary-revisions-history"
+				>
+					<summary className="vde-043__revisions-summary">
+						История правок ({diaryRevisions.length})
+					</summary>
+					<ol className="vde-043__revisions-list">
+						{diaryRevisions.map((rev, idx) => {
+							const when = rev.revisedAt
+								? new Date(rev.revisedAt).toLocaleString("ru-RU")
+								: "дата не указана";
+							const prevBits: { label: string; text: string }[] = [];
+							const pushPrev = (label: string, text: string | null) => {
+								if (typeof text === "string" && text.trim().length > 0) {
+									prevBits.push({ label, text: text.trim() });
+								}
+							};
+							pushPrev("S (жалобы/анамнез)", rev.previousAnamnesis);
+							pushPrev("O (status localis)", rev.previousStatusLocalis);
+							pushPrev("A (МКБ-10)", rev.previousDiagnosisIcd10);
+							pushPrev("Зуб", rev.previousDiagnosisTooth);
+							pushPrev("P (лечение)", rev.previousTreatmentDescription);
+							pushPrev("Осложнения", rev.previousComplications);
+							pushPrev("Сопутствующие", rev.previousComorbidities);
+							pushPrev("Лоток (штрихкод)", rev.previousInstrumentTrayBarcode);
+							return (
+								<li
+									key={rev.id}
+									className="vde-043__revision-item"
+									data-testid={`diary-revision-item-${idx}`}
+								>
+									<div className="vde-043__revision-meta">
+										<span className="vde-043__revision-when">{when}</span>
+										{/*
+										  DEFECT #44: кто правил — revisedByFullName с API.
+										  БЫЛО: только when + reason; revisedByUserId UUID
+										  в UI не выводился — forensic «кто» отсутствовал.
+										*/}
+										{rev.revisedByFullName ? (
+											<span className="vde-043__revision-who">
+												Кто: {rev.revisedByFullName}
+											</span>
+										) : rev.revisedByUserId ? (
+											<span className="vde-043__revision-who vde-043__revision-who--unknown">
+												Кто: ФИО в записи не сохранено
+											</span>
+										) : null}
+										{rev.revisionReason ? (
+											<span className="vde-043__revision-reason">
+												Причина: {rev.revisionReason}
+											</span>
+										) : (
+											<span className="vde-043__revision-reason vde-043__revision-reason--missing">
+												Причина не указана
+											</span>
+										)}
+									</div>
+									{prevBits.length > 0 ? (
+										<ul className="vde-043__revision-prev">
+											{prevBits.map((b) => (
+												<li key={b.label}>
+													<strong>{b.label}:</strong>{" "}
+													<span className="vde-043__revision-prev-text">
+														{b.text.length > 280
+															? `${b.text.slice(0, 280)}…`
+															: b.text}
+													</span>
+												</li>
+											))}
+										</ul>
+									) : (
+										<p className="vde-043__revision-empty-prev">
+											Снимок прежних полей пуст (ревизия до forensic-полей
+											или поля были пустыми).
+										</p>
+									)}
+								</li>
+							);
+						})}
+					</ol>
+				</details>
+			)}
 			{showScanner &&
 				createPortal(
-					<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-						<div className="w-full max-w-sm bg-zinc-900 border border-zinc-700 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative overflow-hidden animate-in zoom-in-95 duration-200">
-							{/* The laser line */}
-							<div
-								className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_20px_10px_rgba(239,68,68,0.6)] z-50 pointer-events-none"
-								style={{ animation: "visitScanLaser 2s linear infinite" }}
-							/>
-
-							{/* Scanning area border */}
-							<div className="absolute inset-0 border-[3px] border-zinc-800 rounded-2xl pointer-events-none m-2" />
-							<div className="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-red-500/70 rounded-tl-xl pointer-events-none" />
-							<div className="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-red-500/70 rounded-tr-xl pointer-events-none" />
-							<div className="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-red-500/70 rounded-bl-xl pointer-events-none" />
-							<div className="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-red-500/70 rounded-br-xl pointer-events-none" />
-
+					<div className="vde-043-scanner-overlay">
+						<div className="vde-043-scanner">
+							<div className="vde-043-scanner__laser" aria-hidden="true" />
 							<button
+								type="button"
 								onClick={() => setShowScanner(false)}
-								className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+								className="vde-043-scanner__close"
+								aria-label="Закрыть сканер"
 							>
 								<X className="w-5 h-5" />
 							</button>
-							<h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-								<Activity className="w-5 h-5 text-red-400" />
+							<h2 className="vde-043-scanner__title">
+								<Activity
+									className="w-5 h-5"
+									style={{ color: "var(--red, #ef4444)" }}
+								/>
 								Сканер СанПиН
 							</h2>
-							<p className="text-sm text-zinc-300 mb-6 font-medium">
+							<p className="vde-043-scanner__hint">
 								Наведите сканер на штрихкод стерильного лотка или введите
 								вручную.
 							</p>
 							<input
 								autoFocus
-								className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-mono"
+								className="vde-043-scanner__input"
 								placeholder="000000000000"
 								onKeyDown={(e) => {
 									if (e.key === "Enter") {
 										const val = e.currentTarget.value.trim();
 										if (val) {
-											setTrayBarcode(val);
-											showToast("Лоток привязан", "success");
-											setShowScanner(false);
+											/* DEFECT #34: persist immediately (assignTrayBarcode POSTs draft). */
+											void assignTrayBarcode(val);
 										}
 									}
 								}}
@@ -699,30 +1327,6 @@ export const VisitDiaryEditor: React.FC<VisitDiaryEditorProps> = ({
 					document.body,
 				)}
 
-			{/* ── Print CSS ── */}
-			<style
-				dangerouslySetInnerHTML={{
-					__html: `
-        @media print {
-          body > *:not(.print-layer) { display: none !important; }
-          html, body { background: white !important; height: auto !important; overflow: visible !important; }
-          .print-layer { display: block !important; position: absolute; left: 0; top: 0; width: 100% !important; background: white !important; color: black !important; }
-          .no-print { display: none !important; }
-          .print-content { box-shadow: none !important; max-height: none !important; overflow: visible !important; border-radius: 0 !important; }
-          #print-043 { overflow: visible !important; }
-          .page-break-avoid { page-break-inside: avoid; }
-        }
-        @keyframes visitScanLaser {
-          0% { top: 10%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 90%; opacity: 0; }
-        }
-      `,
-				}}
-			/>
-
-			{/* ── Portals ── */}
 			{showPreview &&
 				typeof window !== "undefined" &&
 				createPortal(PrintPreviewContent, document.body)}

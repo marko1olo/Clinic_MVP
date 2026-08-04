@@ -5,6 +5,7 @@
  * POST /api/xray/scans/:id/analyze — запустить AI-анализ для конкретного скана
  * GET  /api/xray/scans          — список сканов пациента (?patientId=...)
  * GET  /api/xray/scans/:id      — один скан со всеми результатами
+ * PUT  /api/xray/scans/:id      — сохранить заключение врача (aiReport/notes)
  * DELETE /api/xray/scans/:id    — удалить скан
  */
 import { z } from "zod";
@@ -14,9 +15,7 @@ import { eq, and } from "drizzle-orm";
 import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { requireClinicalReadAccess, requireClinicalMutationAccess } from "../accessGuard.js";
 import { requireOrganizationId } from "../security/identity.js";
-// ────────────────────────────────────────────────
 // Schemas
-// ────────────────────────────────────────────────
 const createXrayScanSchema = z.object({
     patientId: z.string().uuid(),
     visitId: z.string().uuid().optional(),
@@ -27,6 +26,19 @@ const createXrayScanSchema = z.object({
     toothCode: z.string().optional(), // e.g. "46"
     notes: z.string().optional(),
     organizationId: z.string().uuid().optional(), // resolved from session context
+    /*
+     * БЫЛО: create принимал только картинку+notes → status всегда "pending".
+     * VisiographAnalyzer после синхронного /api/imaging/visiograph-ai делал
+     * POST (снимок без заключения) + PUT (текст). Если PUT отваливался
+     * (сеть, 403, рестарт), в карте оставался «голый» снимок без aiReport —
+     * врач видел заключение на экране, F5 — пусто.
+     * СТАЛО: опциональные AI-поля на create; при наличии отчёта статус "done"
+     * в одной транзакции insert. PUT остаётся для ручной правки позже.
+     */
+    aiReport: z.string().max(50000).nullable().optional(),
+    aiSummary: z.string().max(2000).nullable().optional(),
+    aiToothStates: z.record(z.string(), z.string()).nullable().optional(),
+    status: z.enum(["pending", "analyzing", "done", "error"]).optional(),
 });
 const xrayScanResponseSchema = z.object({
     id: z.string(),
@@ -48,9 +60,7 @@ const xrayScanResponseSchema = z.object({
     // We do NOT return imageDataUri in list to keep payloads small
     hasImage: z.boolean(),
 });
-// ────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────
 /**
  * БЫЛО: организация бралась из request.session (никогда не заполняется) либо из
  * DEFAULT_ORGANIZATION_ID, иначе — жёстко зашитый UUID. В сочетании с запросами
@@ -80,11 +90,8 @@ function scanToResponse(scan, includeImage = false) {
         ...(includeImage ? { imageDataUri: scan.imageDataUri ?? null } : {}),
     };
 }
-// ────────────────────────────────────────────────
 // Route registration
-// ────────────────────────────────────────────────
 export async function registerXrayRoutes(app) {
-    // ── POST /api/xray/scans — upload scan ──────────────────────────────────
     app.post("/api/xray/scans", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "upload xray scan")))
             return;
@@ -103,6 +110,14 @@ export async function registerXrayRoutes(app) {
         const imageDataUri = data.imageBase64.startsWith("data:")
             ? data.imageBase64
             : `data:${data.mimeType};base64,${data.imageBase64}`;
+        // Заключение с клиента (синхронный visiograph-ai) — в ту же строку, что и снимок.
+        const hasInlineReport = typeof data.aiReport === "string" && data.aiReport.trim().length > 0;
+        const inlineSummary = data.aiSummary !== undefined && data.aiSummary !== null
+            ? data.aiSummary
+            : hasInlineReport
+                ? extractSummary(data.aiReport)
+                : null;
+        const createStatus = data.status ?? (hasInlineReport ? "done" : "pending");
         const [inserted] = await db
             .insert(xrayScans)
             .values({
@@ -115,7 +130,11 @@ export async function registerXrayRoutes(app) {
             kind: data.kind,
             toothCode: data.toothCode ?? null,
             notes: data.notes ?? null,
-            status: "pending",
+            status: createStatus,
+            aiReport: data.aiReport ?? null,
+            aiSummary: inlineSummary,
+            aiToothStates: (data.aiToothStates ?? null),
+            aiAnalyzedAt: hasInlineReport ? new Date() : null,
         })
             .returning();
         if (!inserted) {
@@ -123,7 +142,6 @@ export async function registerXrayRoutes(app) {
         }
         return reply.code(201).send(scanToResponse(inserted));
     });
-    // ── POST /api/xray/scans/:id/analyze — run AI analysis ─────────────────
     app.post("/api/xray/scans/:id/analyze", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "analyze xray scan")))
             return;
@@ -177,7 +195,6 @@ export async function registerXrayRoutes(app) {
             }
         });
     });
-    // ── GET /api/xray/scans — list scans for patient ────────────────────────
     app.get("/api/xray/scans", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "list xray scans")))
             return;
@@ -195,7 +212,6 @@ export async function registerXrayRoutes(app) {
             .orderBy(xrayScans.capturedAt);
         return scans.map((s) => scanToResponse(s, false));
     });
-    // ── GET /api/xray/scans/:id — single scan with full details + image ─────
     app.get("/api/xray/scans/:id", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "get xray scan")))
             return;
@@ -213,7 +229,79 @@ export async function registerXrayRoutes(app) {
         }
         return scanToResponse(scan, true); // Include image
     });
-    // ── DELETE /api/xray/scans/:id ───────────────────────────────────────────
+    /*
+     * PUT /api/xray/scans/:id — заключение врача / правки AI-отчёта.
+     *
+     * БЫЛО: маршрута не было. VisiographAnalyzer.tsx слал
+     *   PUT /api/xray/scans/:id  { aiReport, notes, status: "done" }
+     * и получал 404. Кнопка «Сохранить заключение» врала успехом на клиенте
+     * или показывала ошибку сети; после F5 текст заключения пропадал.
+     * СТАЛО: org-scoped update только aiReport/notes/status (+ optional toothCode).
+     * imageDataUri и AI-метаданные этим маршрутом не трогаем.
+     */
+    const updateXrayScanSchema = z.object({
+        aiReport: z.string().max(50000).nullable().optional(),
+        /*
+         * UI VisiographAnalyzer шлёт aiSummary + aiToothStates вместе с
+         * aiReport (см. saveConclusion). Без них Zod strip → поля AI после
+         * ручной правки заключения оставались от старого analyze, а summary
+         * в списке снимков врал.
+         */
+        aiSummary: z.string().max(2000).nullable().optional(),
+        aiToothStates: z.record(z.string(), z.string()).nullable().optional(),
+        notes: z.string().max(5000).nullable().optional(),
+        status: z.enum(["pending", "analyzing", "done", "error"]).optional(),
+        toothCode: z.string().max(16).nullable().optional(),
+    });
+    app.put("/api/xray/scans/:id", async (request, reply) => {
+        if (!(await requireClinicalMutationAccess(request, reply, "update xray scan conclusion")))
+            return;
+        const organizationId = requireOrganizationId(request, reply);
+        if (!organizationId)
+            return;
+        const { id } = request.params;
+        const parsed = updateXrayScanSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            return reply.code(400).send({
+                error: "XrayScanValidationError",
+                message: "Неверный формат запроса сохранения заключения.",
+            });
+        }
+        const patch = parsed.data;
+        if (patch.aiReport === undefined &&
+            patch.aiSummary === undefined &&
+            patch.aiToothStates === undefined &&
+            patch.notes === undefined &&
+            patch.status === undefined &&
+            patch.toothCode === undefined) {
+            return reply.code(400).send({
+                error: "XrayScanValidationError",
+                message: "Нет полей для обновления.",
+            });
+        }
+        const updateData = { updatedAt: new Date() };
+        if (patch.aiReport !== undefined)
+            updateData.aiReport = patch.aiReport;
+        if (patch.aiSummary !== undefined)
+            updateData.aiSummary = patch.aiSummary;
+        if (patch.aiToothStates !== undefined)
+            updateData.aiToothStates = patch.aiToothStates;
+        if (patch.notes !== undefined)
+            updateData.notes = patch.notes;
+        if (patch.status !== undefined)
+            updateData.status = patch.status;
+        if (patch.toothCode !== undefined)
+            updateData.toothCode = patch.toothCode;
+        const [updated] = await db
+            .update(xrayScans)
+            .set(updateData)
+            .where(and(eq(xrayScans.id, id), eq(xrayScans.organizationId, organizationId)))
+            .returning();
+        if (!updated) {
+            return reply.code(404).send({ error: "XrayScanNotFound", message: "Снимок не найден." });
+        }
+        return scanToResponse(updated, false);
+    });
     app.delete("/api/xray/scans/:id", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "delete xray scan")))
             return;
@@ -231,9 +319,7 @@ export async function registerXrayRoutes(app) {
         return reply.code(204).send();
     });
 }
-// ────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────
 /**
  * Extracts a short summary from the AI markdown report.
  * Uses the "Заключение:" section if present, otherwise first 2 sentences.

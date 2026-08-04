@@ -110,9 +110,11 @@ export function LeadsKanbanView() {
 		updateLeadStatus,
 		updateLeadDetails,
 		addLead,
+		deleteLead,
 		isLoading,
 		error: loadError,
 	} = useLeadsStore();
+	const [isDeleting, setIsDeleting] = useState(false);
 	const { auth, dashboard } = useAppLogicContext();
 	const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
@@ -252,7 +254,18 @@ export function LeadsKanbanView() {
 				setConvertingLeadId(id);
 				setIsConvertOpen(true);
 			} else {
-				updateLeadStatus(id, status);
+				/*
+				 * Store rethrows RU ValidationError message (leadsFailureMessage).
+				 * Without await+toast the card snaps back silently — API text never
+				 * reaches the operator (feature without gameplay = declined).
+				 */
+				void updateLeadStatus(id, status).catch((err: unknown) => {
+					const text =
+						err instanceof Error && err.message.trim()
+							? err.message
+							: "Статус обращения не изменён.";
+					showToast(text, "error");
+				});
 			}
 		}
 		setDraggedLeadId(null);
@@ -355,10 +368,48 @@ export function LeadsKanbanView() {
 				showToast("Лид обновлен", "success");
 			}
 			setIsEditOpen(false);
-		} catch (e) {
-			showToast("Ошибка сохранения", "error");
+		} catch (e: unknown) {
+			/*
+			 * Store throws RU ValidationError message (leadsFailureMessage).
+			 * Generic «Ошибка сохранения» hid «Проверьте поля лида: нужно непустое имя.»
+			 */
+			const text =
+				e instanceof Error && e.message.trim()
+					? e.message
+					: "Лид не сохранён. Проверьте поля и повторите.";
+			showToast(text, "error");
 		}
 	};
+
+	/*
+	 * Permanent delete (DELETE /api/leads/:id) — not drag-to-«Отказ».
+	 * Trash column keeps the card for review; this removes the row from the DB.
+	 * Confirm first so a misclick does not erase a live inquiry.
+	 */
+	const handleDeleteLead = async () => {
+		if (!editingLeadId || editingLeadId === "new" || isDeleting) return;
+		const label = (editForm.name || "").trim() || "это обращение";
+		const ok = window.confirm(
+			`Удалить «${label}» навсегда? Карточка исчезнет с доски и из базы. Столбец «Отказ» обращение не удаляет — только помечает отказ.`,
+		);
+		if (!ok) return;
+		setIsDeleting(true);
+		try {
+			await deleteLead(editingLeadId);
+			showToast("Обращение удалено", "success");
+			setIsEditOpen(false);
+			setEditingLeadId(null);
+		} catch (e: unknown) {
+			const text =
+				e instanceof Error && e.message.trim()
+					? e.message
+					: "Обращение не удалено. Проверьте доступ и повторите.";
+			showToast(text, "error");
+		} finally {
+			setIsDeleting(false);
+		}
+	};
+
 
 	const filteredLeads = useMemo(() => {
 		return leads.filter((l) => {
@@ -500,8 +551,12 @@ export function LeadsKanbanView() {
 					role="alert"
 					className="mb-4 rounded-xl border border-[var(--rust)] bg-[var(--rust-soft)] px-4 py-3 text-[0.8125rem] leading-relaxed text-[var(--rust)]"
 				>
-					<strong>Обращения не загружены.</strong> Показанные столбцы неполные — не
-					считайте их пустыми. Проверьте связь с сервером и нажмите «Повторить».
+					{/*
+					 * Store already carries RU message-first text (leadsFailureMessage).
+					 * Generic banner alone hid server detail — operator must see it.
+					 */}
+					<strong>Обращения не загружены.</strong> {loadError} Показанные столбцы
+					неполные — не считайте их пустыми.
 					<button
 						type="button"
 						className="secondary-button ml-3 mt-2 inline-flex"
@@ -511,6 +566,7 @@ export function LeadsKanbanView() {
 					</button>
 				</div>
 			) : null}
+
 
 			{/* KANBAN BOARD */}
 			<div
@@ -1136,17 +1192,52 @@ export function LeadsKanbanView() {
 								/>
 							</div>
 
-							<button
-								type="submit"
-								className="primary-button"
+							<div
 								style={{
+									display: "flex",
+									gap: 10,
 									marginTop: 8,
-									width: "100%",
-									justifyContent: "center",
+									alignItems: "stretch",
 								}}
 							>
-								Сохранить
-							</button>
+								<button
+									type="submit"
+									className="primary-button"
+									disabled={isDeleting}
+									style={{
+										flex: 1,
+										justifyContent: "center",
+									}}
+								>
+									Сохранить
+								</button>
+								{/*
+								 * Permanent DELETE — not drag-to-«Отказ».
+								 * Shown only when editing an existing lead (not «new»).
+								 * Confirm dialog explains trash vs hard-delete.
+								 */}
+								{editingLeadId && editingLeadId !== "new" ? (
+									<button
+										type="button"
+										className="secondary-button"
+										data-testid="lead-delete-permanent"
+										disabled={isDeleting}
+										onClick={() => void handleDeleteLead()}
+										title="Удалить обращение из базы навсегда"
+										aria-label="Удалить обращение навсегда"
+										style={{
+											justifyContent: "center",
+											color: "var(--rust)",
+											borderColor: "var(--rust)",
+											minWidth: 44,
+											minHeight: 44,
+										}}
+									>
+										<Trash2 size={16} />
+										{isDeleting ? " Удаляем…" : " Удалить"}
+									</button>
+								) : null}
+							</div>
 						</form>
 					</motion.div>
 				</div>
@@ -1154,3 +1245,4 @@ export function LeadsKanbanView() {
 		</div>
 	);
 }
+

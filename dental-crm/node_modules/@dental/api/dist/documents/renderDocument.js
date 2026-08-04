@@ -353,6 +353,13 @@ function documentPayloadBlockReason(document) {
         !hasOutpatient025uClinicalRows(document.payload?.outpatientMedicalCard025u)) {
         return "Для выдачи медицинской карты 025/у нужны клинические строки по зубам или сегментам хотя бы в одной записи врача.";
     }
+    if (document.kind === "dental_medical_card_043u" && !document.payload?.dentalMedicalCard043u) {
+        return "Для выдачи медицинской карты 043/у нужны структурированные данные: организация, пациент, номер карты, дата приема, жалобы, анамнез, объективный статус, диагноз, стоматологические строки, лечение и врач.";
+    }
+    if (document.kind === "dental_medical_card_043u" &&
+        !hasClinicalToothRows(document.payload?.dentalMedicalCard043u)) {
+        return "Для выдачи медицинской карты 043/у нужны клинические строки по зубам или сегментам: зуб/область, поверхности, статус, диагноз/находка, показание и действие.";
+    }
     if (document.kind === "medical_record_copy_request" && !document.payload?.medicalRecordCopyRequest) {
         return "Для выдачи запроса копий медицинской документации нужны структурированные данные: состав документов, период, формат, получатель, документ получателя, полномочия, контакт выдачи и проверка лишних данных третьих лиц.";
     }
@@ -3608,6 +3615,69 @@ export function taxFiscalDocumentBlockReason(document, patient, context = {}) {
     const reason = taxDocumentBlockReason(document, patient, context);
     return reason ? repairMojibakeText(reason) : null;
 }
+function dentalMedicalCard043u(document, patient) {
+    const payload = document.payload?.dentalMedicalCard043u;
+    const title = "Медицинская карта стоматологического больного (форма 043/у)";
+    if (!payload) {
+        return `<section><h2>${escapeHtml(title)}</h2><p>Данные формы 043/у не заполнены.</p></section>`;
+    }
+    const rows = [
+        ["Организация", payload.organization?.fullName],
+        ["Адрес организации", payload.organization?.address],
+        ["Номер карты", payload.patient?.medicalCardNumber],
+        ["Дата приёма", payload.visitDate],
+        ["Пациент", payload.patient?.fullName ?? patient.fullName],
+        ["Дата рождения", payload.patient?.birthDate],
+        ["Жалобы", payload.complaint],
+        ["Анамнез заболевания/жизни", payload.anamnesis],
+        ["Внешний осмотр / status localis", payload.statusLocalis],
+        ["Объективный статус", payload.objectiveStatus],
+        ["Диагноз", payload.diagnosisText],
+        ["Диагноз (МКБ-10)", payload.diagnosisIcd10],
+        ["Зуб", payload.diagnosisTooth],
+        ["План лечения", payload.treatmentPlan],
+        ["Проведённое лечение", payload.treatmentDescription],
+        ["Рекомендации", payload.recommendations],
+        ["План следующего визита", payload.nextVisitPlan],
+        ["Осложнения", payload.complications],
+        ["Сопутствующие патологии", payload.comorbidities],
+        ["Лоток", payload.instrumentTrayBarcode],
+    ];
+    const body = rows
+        .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
+        .map(([k, v]) => `<p><strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}</p>`)
+        .join("");
+    const doctor = payload.doctor?.fullName
+        ? `<p><strong>Врач:</strong> ${escapeHtml(payload.doctor.fullName)}${payload.doctor.specialty ? ` (${escapeHtml(payload.doctor.specialty)})` : ""}</p>`
+        : "";
+    const toothRows = Array.isArray(payload.clinicalToothRows)
+        ? payload.clinicalToothRows
+            .map((row) => {
+            const surfaces = Array.isArray(row.surfaces)
+                ? row.surfaces.filter((part) => typeof part === "string" && part.trim().length > 0).join(", ")
+                : typeof row.surfaces === "string"
+                    ? row.surfaces
+                    : "";
+            const parts = [
+                row.toothOrArea,
+                surfaces,
+                row.status,
+                row.diagnosisOrFinding,
+                row.indication,
+                row.plannedAction,
+            ]
+                .filter((part) => typeof part === "string" && part.trim().length > 0)
+                .map((part) => String(part).trim());
+            return parts.length ? `<li>${escapeHtml(parts.join(" — "))}</li>` : "";
+        })
+            .filter(Boolean)
+            .join("")
+        : "";
+    const toothSection = toothRows
+        ? `<p><strong>Клинические строки по зубам:</strong></p><ul>${toothRows}</ul>`
+        : "";
+    return `<section><h2>${escapeHtml(title)}</h2>${doctor}${body}${toothSection}</section>`;
+}
 export function renderDocumentHtml(document, patient, context = {}) {
     const bodyByKind = {
         paid_medical_services_contract: paidMedicalServicesContract(document, context),
@@ -3630,6 +3700,7 @@ export function renderDocumentHtml(document, patient, context = {}) {
         post_visit_recommendations: postVisitRecommendations(document),
         medical_record_extract: medicalRecordExtract(document, patient),
         outpatient_medical_card_025u: outpatientMedicalCard025u(document, patient),
+        dental_medical_card_043u: dentalMedicalCard043u(document, patient),
         medical_record_copy_request: structuredMedicalRecordCopyRequest(document, patient),
         medical_document_release_receipt: medicalDocumentReleaseReceipt(document, patient),
         xray_cbct_referral: xrayCbctReferral(document),

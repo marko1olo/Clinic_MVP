@@ -181,6 +181,7 @@ export const documentKind = pgEnum("document_kind", [
     "installment_payment_schedule",
     "post_visit_recommendations",
     "outpatient_medical_card_025u",
+    "dental_medical_card_043u",
     "medical_record_extract",
     "medical_record_copy_request",
     "medical_document_release_receipt",
@@ -1542,6 +1543,29 @@ export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
     previousStatusLocalis: text("previous_status_localis"),
     previousDiagnosisIcd10: text("previous_diagnosis_icd10"),
     previousTreatmentDescription: text("previous_treatment_description"),
+    /*
+     * Колонки из drizzle/0116_add_soap_template_fields.sql.
+     * БЫЛО: schema отставала от БД — POST …/revise принимал revisionReason и
+     * previousDiagnosisTooth в теле, но insert в visit_diary_revisions их не
+     * писал. Причина правки и прежний зуб пропадали из forensic-истории 043/у.
+     */
+    previousDiagnosisTooth: text("previous_diagnosis_tooth"),
+    /*
+     * Forensic 043/у (миграция 0149).
+     * БЫЛО: revise принимал complications/comorbidities и писал их в visit_diaries,
+     * но previous_* в visit_diary_revisions не сохранялись — при админ-правке
+     * подписанного дневника терялся прежний текст осложнений и сопутствующих.
+     */
+    previousComplications: text("previous_complications"),
+    previousComorbidities: text("previous_comorbidities"),
+    /*
+     * Forensic 043/у (миграция 0150).
+     * БЫЛО: revise не принимал instrumentTrayBarcode; previous_* лотка
+     * не было. sterilization/link 409 обещал правку через ревизию,
+     * а forensic-история 043/у не фиксировала прежний штрихкод лотка.
+     */
+    previousInstrumentTrayBarcode: text("previous_instrument_tray_barcode"),
+    revisionReason: text("revision_reason"),
     revisedByUserId: uuid("revised_by_user_id"),
     revisedBy: uuid("revised_by"),
     revisedAt: timestamp("revised_at", { withTimezone: true }).notNull().defaultNow(),

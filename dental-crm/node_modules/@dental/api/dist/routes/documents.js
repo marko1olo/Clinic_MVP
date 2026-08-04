@@ -378,6 +378,12 @@ export function outpatientMedicalCard025uDatesAreValid(payload) {
     ];
     return dates.every(documentChainDateIsBlankOrValid) && documentChainDateRangeIsChronological(payload.periodStart, payload.periodEnd);
 }
+export function dentalMedicalCard043uDatesAreValid(payload) {
+    return (documentChainDateIsBlankOrValid(payload.visitDate) &&
+        documentChainDateIsBlankOrValid(payload.patient?.birthDate) &&
+        documentChainDateIsBlankOrValid(payload.organization?.licenseIssueDate) &&
+        documentChainDateIsBlankOrValid(payload.lockedAt));
+}
 export function medicalDocumentReleaseReceiptDatesAreValid(payload) {
     const deliveredAt = comparableDocumentChainDate(payload.deliveredAt);
     const accessExpiresAt = comparableDocumentChainDate(payload.accessExpiresAt);
@@ -776,6 +782,12 @@ export async function documentIssueChainBlockReason(document) {
         }
         if (!await outpatientMedicalCard025uSourcesAreValid(card025u, document)) {
             return "Карту 025/у нельзя выдать: исходные визиты не найдены, принадлежат другому пациенту, не подписаны врачом, не входят в период карты или запись врача ссылается на отсутствующий источник.";
+        }
+    }
+    const card043u = document.payload?.dentalMedicalCard043u;
+    if (document.kind === "dental_medical_card_043u" && card043u) {
+        if (!dentalMedicalCard043uDatesAreValid(card043u)) {
+            return "Карту 043/у нельзя выдать: дата приема, рождения пациента, лицензии или блокировки указаны в нераспознаваемом формате.";
         }
     }
     const extract = document.payload?.medicalRecordExtract;

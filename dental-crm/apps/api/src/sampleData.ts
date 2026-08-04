@@ -10529,6 +10529,24 @@ function normalizePatientAdministrativeProfile(
 			clockToMinutes(preferredAppointmentStart)
 			? requestedPreferredAppointmentEnd
 			: null;
+	/*
+	 * Уровень лояльности. БЫЛО: normalizePatientAdministrativeProfile
+	 * собирал profile без loyaltyTier — даже после добавления поля в Zod
+	 * schema PUT .../administrative-profile принимал tier, а normalize
+	 * молча выбрасывал ключ → JSONB/in-memory без tier, после F5 UI
+	 * показывал «стандарт». СТАЛО: whitelist enum + null.
+	 */
+	const rawTier = input?.loyaltyTier;
+	const loyaltyTier =
+		rawTier === "standard" ||
+		rawTier === "silver" ||
+		rawTier === "gold" ||
+		rawTier === "platinum"
+			? rawTier
+			: rawTier === null
+				? null
+				: null;
+
 	const profile: PatientAdministrativeProfile = {
 		identityDocument: nullableTrimmed(input?.identityDocument),
 		taxpayerInn: nullableTrimmed(input?.taxpayerInn),
@@ -10557,7 +10575,9 @@ function normalizePatientAdministrativeProfile(
 		preferredAppointmentNote: nullableTrimmed(input?.preferredAppointmentNote),
 		dataProcessingBasisNote: nullableTrimmed(input?.dataProcessingBasisNote),
 		orthodonticProgress: nullableTrimmed(input?.orthodonticProgress),
+		loyaltyTier,
 	};
+
 	const hasValue = Object.values(profile).some((value) =>
 		Array.isArray(value) ? value.length > 0 : Boolean(value),
 	);
@@ -10648,6 +10668,18 @@ export function updatePatient(
 	if (input.phone !== undefined) patient.phone = nullableTrimmed(input.phone);
 	if (input.email !== undefined) patient.email = nullableTrimmed(input.email);
 	if (input.notes !== undefined) patient.notes = nullableTrimmed(input.notes);
+	/*
+	 * Привязка к семейной группе (общий кошелёк).
+	 * БЫЛО: поле игнорировалось — UI слал familyGroupId, ответ 200, а в памяти
+	 * patients.familyGroupId не менялся. Семья создавалась пустой; оплата с
+	 * семейного счёта отказывала «пациент не в группе».
+	 * СТАЛО: null — отвязать; UUID — привязать (проверка существования группы
+	 * в org-режиме БД; в in-memory одна организация процесса).
+	 */
+	if (input.familyGroupId !== undefined) {
+		(patient as { familyGroupId?: string | null }).familyGroupId =
+			input.familyGroupId;
+	}
 	patient.updatedAt = new Date().toISOString();
 	recordAuditEvent({
 		entityType: "patient",
@@ -10658,6 +10690,7 @@ export function updatePatient(
 	});
 	return patient;
 }
+
 
 export function updatePatientAdministrativeProfile(
 	patientId: string,

@@ -15,6 +15,7 @@ import { parseVisitDictationLocal } from "./lib/smartVisitParser";
 import { useVisitStore } from "./store/visitStore";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { VisiographAnalyzer } from "./components/imaging/VisiographAnalyzer";
+import { SpeechChunksInspector } from "./components/visit/SpeechChunksInspector";
 import { VisitDiagnosticsTab } from "./components/visit/VisitDiagnosticsTab";
 import { VisitOdontogramTab } from "./components/visit/VisitOdontogramTab";
 import { VisitEmkTab } from "./components/visit/VisitEmkTab";
@@ -132,6 +133,10 @@ export interface VisitViewProps {
 }
 
 import { useAppLogicContext } from "./contexts/AppLogicContext";
+import { ClinicalTasksPanel } from "./ClinicalTasksPanel";
+import { ClinicalAiPersonalizePanel } from "./ClinicalAiPersonalizePanel";
+import { VisitNoteDraftPanel } from "./VisitNoteDraftPanel";
+
 
 export function VisitView(rawProps?: Partial<VisitViewProps>) {
   const logicContext = useAppLogicContext();
@@ -825,6 +830,8 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
               </div>
             </div>
 
+            <SpeechChunksInspector />
+
             <VisiographAnalyzer />
 
             <div className="tooth-map" aria-label="Зубная карта">
@@ -1299,6 +1306,12 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
                   context="visit"
                   // evaluations={activeVisitClinicalRuleEvaluations}
                   evaluations={dashboard?.clinicSettings?.profile?.mode === "solo_doctor" ? (activeVisitClinicalRuleEvaluations || []).filter((e: any) => e.ownerRole !== "assistant") : (activeVisitClinicalRuleEvaluations || [])}
+                  patientId={
+                    (typeof activePatient?.id === "string" && activePatient.id) ||
+                    (typeof dashboard?.activeVisit?.patientId === "string" &&
+                      dashboard.activeVisit.patientId) ||
+                    null
+                  }
                   serviceTitle={serviceTitle}
                   severityLabels={clinicalRuleSeverityLabels}
                   staffRoleLabels={staffRoleLabels}
@@ -1307,7 +1320,77 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
               </div>
             </details>
 
+            {/*
+              Передача между этапами: backend POST /api/clinical/phase-completions
+              и GET /api/clinical/tasks уже писали в clinical_tasks, но на экране
+              приёма кнопок не было — следующий врач не видел задачу. Панель
+              самодостаточная (как FreedSlotsPanel): сама ходит в API с clinical
+              headers из контекста.
+            */}
+            {activePatient?.id ? (
+              <ClinicalTasksPanel
+                patientId={activePatient.id}
+                assignedDoctorId={
+                  (typeof activeDoctor?.id === "string" && activeDoctor.id) ||
+                  (typeof activeDoctor?.userId === "string" && activeDoctor.userId) ||
+                  null
+                }
+                treatmentPlanId={
+                  (typeof activePatient?.activeTreatmentPlanId === "string" &&
+                    activePatient.activeTreatmentPlanId) ||
+                  (typeof activeAppointment?.treatmentPlanId === "string" &&
+                    activeAppointment.treatmentPlanId) ||
+                  null
+                }
+              />
+            ) : null}
+
+            {/*
+              ИИ-персонализация плана и памятки после приёма: backend
+              POST /api/ai/treatment-plan-personalize + post-visit-personalize
+              уже отдавали русский текст, но zero web callers. Панель сама
+              собирает payload из плана пациента и полей заметки.
+            */}
+            <ClinicalAiPersonalizePanel
+              context="visit"
+              patientId={
+                (typeof activePatient?.id === "string" && activePatient.id) ||
+                (typeof dashboard?.activeVisit?.patientId === "string" &&
+                  dashboard.activeVisit.patientId) ||
+                null
+              }
+              doctorFullName={
+                (typeof activeDoctor?.fullName === "string" && activeDoctor.fullName) ||
+                (typeof activeDoctor?.name === "string" && activeDoctor.name) ||
+                null
+              }
+              complaint={
+                (typeof visitNoteForm?.complaint === "string" && visitNoteForm.complaint) ||
+                (typeof draft?.complaint === "string" && draft.complaint) ||
+                null
+              }
+              diagnosis={
+                (typeof visitNoteForm?.diagnosis === "string" && visitNoteForm.diagnosis) ||
+                (typeof draft?.diagnosis === "string" && draft.diagnosis) ||
+                null
+              }
+              treatmentPlanText={
+                (typeof visitNoteForm?.treatmentPlan === "string" &&
+                  visitNoteForm.treatmentPlan) ||
+                (typeof draft?.treatmentPlan === "string" && draft.treatmentPlan) ||
+                null
+              }
+            />
+					{activePatient?.id ? (
+						<div className="mt-4" data-testid="visit-note-draft-mount">
+							<VisitNoteDraftPanel patientId={activePatient.id} />
+						</div>
+					) : null}
+
+
                         {visitCloseChecklist ? (
+
+
               <div className="close-checklist" aria-label="Предупреждения перед закрытием приема">
                 <div className="close-checklist-head">
                   <div>

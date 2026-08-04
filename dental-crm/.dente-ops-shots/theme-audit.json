@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-07-28T23:47:46.637Z",
-  "finishedAt": "2026-07-28T23:51:08.334Z",
+  "startedAt": "2026-07-31T12:34:33.709Z",
+  "finishedAt": "2026-07-31T12:39:45.823Z",
   "out": "C:/Clinic_MVP/dental-crm/.dente-ops-shots",
   "palettes": [
     {
@@ -20,9 +20,12 @@
       "fingerprint": "fb13b9804418"
     }
   ],
-  "plates": 46,
-  "uniqueMd5": 46,
-  "diagnostics": [],
+  "plates": 44,
+  "uniqueMd5": 44,
+  "diagnostics": [
+    "narrow_waitlist_ПУСТО.png",
+    "narrow_duplicates_ПУСТО.png"
+  ],
   "shots": [
     {
       "file": "light_callList.png",
@@ -31,8 +34,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "60da51ef9ae4cd1f9428984fc8513166",
-      "bytes": 105129,
+      "md5": "a7748c99ba20d42c8af4cbabc407abdc",
+      "bytes": 105261,
       "diagnostic": false
     },
     {
@@ -42,8 +45,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "6bd543ba1b0f6c35e15a2eb652f451e3",
-      "bytes": 189530,
+      "md5": "ff51e5786f44b12a43de64b9f2cb3b7e",
+      "bytes": 166810,
       "diagnostic": false
     },
     {
@@ -53,8 +56,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "8203c4368ffb03d0c2d1ad70e60997ef",
-      "bytes": 438794,
+      "md5": "6a32db753c45b3e03eb62bacdcc5e264",
+      "bytes": 572768,
       "diagnostic": false
     },
     {
@@ -64,8 +67,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "46ee415a0e4adbbf48c87d8710d40f3b",
-      "bytes": 219995,
+      "md5": "0cb8fabfe3b8da5bada0bc3c8560d0ea",
+      "bytes": 219807,
       "diagnostic": false
     },
     {
@@ -75,8 +78,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "a24775d25a3520dd38661151a060845a",
-      "bytes": 43327,
+      "md5": "3d79a6e456a5e2884bd5d563b355bd62",
+      "bytes": 43446,
       "diagnostic": false
     },
     {
@@ -86,8 +89,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "219c7ac72b4981003b8818a8c33eeb77",
-      "bytes": 159326,
+      "md5": "31bba312df1b38209d64a9be3afe8ccc",
+      "bytes": 27085,
       "diagnostic": false
     },
     {
@@ -97,8 +100,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "93468c034fdedbd8b354e2a9a054c428",
-      "bytes": 103815,
+      "md5": "83ed2c6308f79f8b9a811cc1992cc78a",
+      "bytes": 103463,
       "diagnostic": false
     },
     {
@@ -108,8 +111,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "8cd3a70d430c05347e0f8022bc866c8d",
-      "bytes": 28799,
+      "md5": "95483bc53540b6abee27d79ba4128d71",
+      "bytes": 29295,
       "diagnostic": false
     },
     {
@@ -119,8 +122,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "bd9db05cdc7de50f6c7b14c9e5dd14df",
-      "bytes": 132823,
+      "md5": "50af452d773b19aa1b55225e71cecd87",
+      "bytes": 134827,
       "diagnostic": false
     },
     {
@@ -141,8 +144,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "16e86404bfba4825070b1447f9dc94cc",
-      "bytes": 108526,
+      "md5": "ea95c4f77ec3865f90967030945085aa",
+      "bytes": 108665,
       "diagnostic": false
     },
     {
@@ -152,8 +155,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "3f6c016dee666c63e963b5630a8f72e6",
-      "bytes": 202203,
+      "md5": "a2abc039b538a5b7aeaba58af267dae9",
+      "bytes": 202092,
       "diagnostic": false
     },
     {
@@ -163,8 +166,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "59f798a5b2f1e0bb8173ac60506ccccc",
-      "bytes": 452582,
+      "md5": "c39618a6b95836006f04f4bbde80411a",
+      "bytes": 594744,
       "diagnostic": false
     },
     {
@@ -174,8 +177,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "23d69bca469a3ed98ba602a1c75beeaa",
-      "bytes": 226934,
+      "md5": "dafa7a061b6afcdb74c06c4d7f75360c",
+      "bytes": 226628,
       "diagnostic": false
     },
     {
@@ -185,8 +188,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "2e1b5b4c562afaf4973163f0d688c738",
-      "bytes": 45181,
+      "md5": "400aa5d8446ab84da5d18dc313a8943e",
+      "bytes": 45183,
       "diagnostic": false
     },
     {
@@ -196,8 +199,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "16a69cddbbd25c6a4a129373df6a1dc1",
-      "bytes": 162606,
+      "md5": "7ddd716f6960ef927a602eefa3c32f18",
+      "bytes": 30812,
       "diagnostic": false
     },
     {
@@ -207,8 +210,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "69427f7a8d692dec30a4b0638ace9642",
-      "bytes": 106225,
+      "md5": "d84aea5ab9f24971d548d4f88229e8a2",
+      "bytes": 99642,
       "diagnostic": false
     },
     {
@@ -218,8 +221,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "94fe48b43d8445e34b2a5b8f71ab6373",
-      "bytes": 29932,
+      "md5": "033cb190e2af4a59cb3ec411e59acbeb",
+      "bytes": 30540,
       "diagnostic": false
     },
     {
@@ -229,8 +232,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "2bd37c3949b092e46cf4f40eb870187a",
-      "bytes": 139107,
+      "md5": "559d1942f2a72d91e88e2241ec172a4c",
+      "bytes": 127914,
       "diagnostic": false
     },
     {
@@ -251,8 +254,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "ee691395093962fc1092d3db4fd10f3c",
-      "bytes": 108598,
+      "md5": "26dbe4037a2c0945fe30384d8c78e9da",
+      "bytes": 108715,
       "diagnostic": false
     },
     {
@@ -262,8 +265,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "844b476086f6e0efa42805674104ecce",
-      "bytes": 187735,
+      "md5": "37a54649b7b80de24056bf3b1b7664e0",
+      "bytes": 179235,
       "diagnostic": false
     },
     {
@@ -273,8 +276,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "f6680f51166fccdaec4c589e2e3d5375",
-      "bytes": 445331,
+      "md5": "ac34d17193c36cc7a6787613eab08214",
+      "bytes": 586533,
       "diagnostic": false
     },
     {
@@ -284,8 +287,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "46e39fa70c6cc53a71b1fc56d222a28e",
-      "bytes": 225981,
+      "md5": "fe6dea916c8fd6200360272a71e495da",
+      "bytes": 225190,
       "diagnostic": false
     },
     {
@@ -295,8 +298,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "8381f8790d815fe749abf9294e1b7f37",
-      "bytes": 45068,
+      "md5": "0f5e906ac34f7ae4754804171473deaa",
+      "bytes": 45113,
       "diagnostic": false
     },
     {
@@ -306,8 +309,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "843060647271f2c04a990c6f4cc0a3c4",
-      "bytes": 161247,
+      "md5": "7ff76193231b6936aed341f053bfcb45",
+      "bytes": 20647,
       "diagnostic": false
     },
     {
@@ -317,8 +320,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "7250111bcca8f80fa8fa5c35da64145b",
-      "bytes": 104520,
+      "md5": "e8e56fe09edc22b6b4bef4e812a8d9b7",
+      "bytes": 104124,
       "diagnostic": false
     },
     {
@@ -328,8 +331,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "d205c31148d6c11e2d45b5600ee103a9",
-      "bytes": 29541,
+      "md5": "3c73075c01e37a6e0d107a24855c0fbe",
+      "bytes": 24674,
       "diagnostic": false
     },
     {
@@ -361,20 +364,20 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "88a5509f18413a3656daf61d727399f6",
-      "bytes": 122643,
+      "md5": "0df164572274e8b4a44ee3b971061792",
+      "bytes": 18262,
       "diagnostic": false
     },
     {
-      "file": "narrow_waitlist.png",
+      "file": "narrow_waitlist_ПУСТО.png",
       "theme": "light",
       "dataTheme": "light",
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "ab9980bcd835302e0b0e0f0bcbc277b7",
-      "bytes": 115084,
-      "diagnostic": false
+      "md5": "7c00545a90e060e2fd3fdcdc739159e3",
+      "bytes": 118123,
+      "diagnostic": true
     },
     {
       "file": "narrow_visit.png",
@@ -383,8 +386,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "cf8ccba1690815588cf97d2d1771f123",
-      "bytes": 418826,
+      "md5": "4c6e12f18ae3edd23cbbcdb6c12f69c0",
+      "bytes": 406916,
       "diagnostic": false
     },
     {
@@ -394,8 +397,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "b33dc237d17874fab4824ceefc30da57",
-      "bytes": 268433,
+      "md5": "9d7caad4ca2e4fc1aeb0c384ae47c20c",
+      "bytes": 265716,
       "diagnostic": false
     },
     {
@@ -405,8 +408,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "8abbb3e02e3749fb2d1df1a36fb229ef",
-      "bytes": 49326,
+      "md5": "0555f2eee18075bf618db22e81577871",
+      "bytes": 49996,
       "diagnostic": false
     },
     {
@@ -416,8 +419,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "7293fd00c8d72eb2c31509ab7c39043f",
-      "bytes": 192170,
+      "md5": "f993df18b429a20a806f44d9cd642de1",
+      "bytes": 339578,
       "diagnostic": false
     },
     {
@@ -427,8 +430,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "ca33776b12fc8620c9a528e27d22f847",
-      "bytes": 128237,
+      "md5": "7aa96e882607e00155280c3215fedfaf",
+      "bytes": 136398,
       "diagnostic": false
     },
     {
@@ -438,20 +441,20 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "dc75e51c73c4eb4f8de2f1a65382cbcb",
-      "bytes": 31575,
+      "md5": "bf5afcc42df614214b326dfbc8eda97e",
+      "bytes": 32166,
       "diagnostic": false
     },
     {
-      "file": "narrow_duplicates.png",
+      "file": "narrow_duplicates_ПУСТО.png",
       "theme": "light",
       "dataTheme": "light",
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "b42a53c9fb23699c72ddad337e8cb4f8",
-      "bytes": 138281,
-      "diagnostic": false
+      "md5": "f1a5ec93696ba1701aea8bd18558c9a4",
+      "bytes": 86256,
+      "diagnostic": true
     },
     {
       "file": "narrow_duplicateAlert.png",
@@ -460,7 +463,7 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "f879773e26f038975c691583389ddbf7",
+      "md5": "a635b255622361ee7ad805110247e3f0",
       "bytes": 56983,
       "diagnostic": false
     },
@@ -471,8 +474,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "720x1100",
-      "md5": "caea5273d23372e256c79cad06aa47a4",
-      "bytes": 111702,
+      "md5": "7dbd99cd5c696e711fa87a82b8bd8ec1",
+      "bytes": 94753,
       "diagnostic": false
     },
     {
@@ -482,8 +485,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "02067f0649dc758cae4cade6388ba2c1",
-      "bytes": 114048,
+      "md5": "7fb553c160c06cbcf87b9b4113bc053c",
+      "bytes": 139190,
       "diagnostic": false
     },
     {
@@ -493,8 +496,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "67294bfaa3c6be74c007264814e89246",
-      "bytes": 184089,
+      "md5": "2aeb355000194dbc0b352f29bcd3c894",
+      "bytes": 183042,
       "diagnostic": false
     },
     {
@@ -504,8 +507,8 @@
       "storeMode": "dark",
       "palette": "85cb4671fb5f",
       "viewport": "1600x1000",
-      "md5": "e6aa9ea0d3fca81d952a13d61c8c4d7f",
-      "bytes": 208243,
+      "md5": "109e33bb0a2f453ae4b6e981916156bc",
+      "bytes": 208813,
       "diagnostic": false
     },
     {
@@ -515,8 +518,8 @@
       "storeMode": "night",
       "palette": "0cba16b88626",
       "viewport": "1600x1000",
-      "md5": "de461dc5c9349eee6cf248d6e398d39f",
-      "bytes": 211689,
+      "md5": "569079993651bbad0b2171c7b33476bf",
+      "bytes": 212368,
       "diagnostic": false
     },
     {
@@ -526,8 +529,8 @@
       "storeMode": "light",
       "palette": "fb13b9804418",
       "viewport": "1600x1000",
-      "md5": "45b2710a64857a22f1ec6d184b32efce",
-      "bytes": 156545,
+      "md5": "fad7cef5e75b8d92111ac6fe287132eb",
+      "bytes": 161711,
       "diagnostic": false
     }
   ]

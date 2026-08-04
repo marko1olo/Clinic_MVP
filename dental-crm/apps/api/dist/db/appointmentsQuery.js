@@ -274,6 +274,12 @@ export async function updateAppointmentInDb(organizationId, appointmentId, input
                 excludeAppointmentId: appointmentId,
             });
         }
+        /*
+         * БЫЛО: UPDATE только по appointments.id. SELECT+FOR UPDATE выше уже с org,
+         * но после patients (live cross-tenant PUT) область обязана быть на самом
+         * UPDATE: не полагаться на порядок вызовов.
+         * СТАЛО: organizationId + id в WHERE.
+         */
         const [row] = await tx.update(schema.appointments).set({
             patientId: input.patientId ?? existing.patientId,
             doctorUserId: input.doctorUserId ?? existing.doctorUserId,
@@ -284,7 +290,7 @@ export async function updateAppointmentInDb(organizationId, appointmentId, input
             endsAt: new Date(endsAtMs),
             reason: input.reason !== undefined ? input.reason : existing.reason,
             comment: input.comment !== undefined ? input.comment : existing.comment
-        }).where(eq(schema.appointments.id, appointmentId)).returning();
+        }).where(and(eq(schema.appointments.organizationId, organizationId), eq(schema.appointments.id, appointmentId))).returning();
         return row;
     });
     if (!updated)

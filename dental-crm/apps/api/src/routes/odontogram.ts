@@ -27,6 +27,7 @@ import {
 } from "../money/patientDebt.js";
 import { getRequestIdentity } from "../security/identity.js";
 import { wsBroker } from "../services/websocketBroker.js";
+import { evaluateClinicalRulesInDb } from "../db/clinicalQuery.js";
 
 /**
  * Создаёт таблицу истории, если миграция ещё не применена.
@@ -530,6 +531,12 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 				planId = await db.transaction(async (tx) => {
 					let savedPlanId = input.id ?? null;
 					if (savedPlanId) {
+						/*
+						 * БЫЛО: SELECT/UPDATE плана по id+patientId без organizationId;
+						 * DELETE позиций сметы — только по planId. Смета — денежный документ
+						 * (totalPrice → книга лечения). СТАЛО: organizationId в WHERE на
+						 * SELECT, UPDATE и DELETE позиций (колонка есть, INSERT её пишет).
+						 */
 						const [existing] = await tx
 							.select({
 								id: treatmentPlans.id,
@@ -540,6 +547,7 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 								and(
 									eq(treatmentPlans.id, savedPlanId),
 									eq(treatmentPlans.patientId, patientId),
+									eq(treatmentPlans.organizationId, organizationId),
 								),
 							)
 							.for("update")
@@ -554,7 +562,7 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 							throw err;
 						}
 
-						await tx
+						const [planUpdated] = await tx
 							.update(treatmentPlans)
 							.set({
 								name: input.name,
@@ -570,11 +578,20 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 								and(
 									eq(treatmentPlans.id, savedPlanId),
 									eq(treatmentPlans.patientId, patientId),
+									eq(treatmentPlans.organizationId, organizationId),
 								),
-							);
+							)
+							.returning({ id: treatmentPlans.id });
+						if (!planUpdated) return null;
+
 						await tx
 							.delete(treatmentPlanItemsNew)
-							.where(eq(treatmentPlanItemsNew.planId, savedPlanId));
+							.where(
+								and(
+									eq(treatmentPlanItemsNew.planId, savedPlanId),
+									eq(treatmentPlanItemsNew.organizationId, organizationId),
+								),
+							);
 					} else {
 						const [created] = await tx
 							.insert(treatmentPlans)
@@ -674,9 +691,23 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 						)
 						.map((row) => row.id);
 					if (rewritableIds.length > 0) {
+						/*
+						 * БЫЛО: DELETE только по inArray(id). Ids отобраны SELECT'ом
+						 * с organizationId, но сам DELETE шёл без tenant-ключа:
+						 * defense-in-depth того же класса, что family wallet /
+						 * appointments UPDATE — чужая строка с совпавшим UUID
+						 * (копия базы, сид) могла уйти. Смета пациента — деньги
+						 * и план лечения.
+						 * СТАЛО: organizationId + id в WHERE удаления.
+						 */
 						await tx
 							.delete(treatmentItems)
-							.where(inArray(treatmentItems.id, rewritableIds));
+							.where(
+								and(
+									eq(treatmentItems.organizationId, organizationId),
+									inArray(treatmentItems.id, rewritableIds),
+								),
+							);
 					}
 					const keptSlots = new Set(
 						ownedRows
@@ -719,6 +750,45 @@ export async function registerOdontogramRoutes(app: FastifyInstance) {
 											)
 									).map((row) => row.id),
 						);
+
+						/*
+						 * ПРОВЕРКА КЛИНИЧЕСКИХ ПРАВИЛ ДО ЗАПИСИ (Race Condition Fix)
+						 * Валидация Clinical Rules Engine ранее происходила только в `/evaluate`,
+						 * что позволяло сохранить план с противопоказаниями в обход блокировок.
+						 * Теперь мы принудительно проверяем правила внутри транзакции.
+						 */
+						const completedItems = await tx
+							.select({ serviceId: treatmentItems.serviceId })
+							.from(treatmentItems)
+							.where(
+								and(
+									eq(treatmentItems.organizationId, organizationId),
+									eq(treatmentItems.patientId, patientId),
+									eq(treatmentItems.status, "completed"),
+								),
+							);
+						
+						// NOTE: evaluateClinicalRulesInDb reads clinicalRules via global `db` (org-level config,
+						// not transactional data). Using global db here is intentional and safe — these rules
+						// are configuration, not rows mutated by this transaction. The dynamic import() was
+						// removed to eliminate cold-module-load latency and double pool connection on hot path.
+						const evaluation = await evaluateClinicalRulesInDb(organizationId, {
+							patientId,
+							serviceIds: Array.from(knownServiceIds),
+							completedServiceIds: completedItems.map((r) => r.serviceId).filter(Boolean) as string[],
+							enforceBlockers: true,
+						});
+
+						const blockingRule = evaluation.evaluations.find(
+							(e) => !e.resolved && e.severity === "blocker",
+						);
+						if (blockingRule) {
+							const err = new Error(
+								`Отказ: план содержит противопоказание. ${blockingRule.message}`,
+							);
+							(err as any).statusCode = 400;
+							throw err;
+						}
 
 						/*
 						 * Подписанный пациентом план — это согласие на лечение, поэтому

@@ -172,6 +172,7 @@ import { InsuranceContractsPanel } from "./components/settings/InsuranceContract
 import { SettingsAccessTab } from "./components/settings/SettingsAccessTab";
 import { SettingsAiTab } from "./components/settings/SettingsAiTab";
 import { SettingsAuditTab } from "./components/settings/SettingsAuditTab";
+import { AuditLogsPanel } from "./AuditLogsPanel";
 import { SettingsClinicTab } from "./components/settings/SettingsClinicTab";
 import { SettingsImportsTab } from "./components/settings/SettingsImportsTab";
 import { MigrationWizard } from "./components/settings/MigrationWizard";
@@ -1614,7 +1615,11 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
         */}
         {settingsTab === "protocols" ? <SettingsProtocolsTab /> : null}
 
-        {settingsTab === "rules" ? <SettingsRulesTab /> : null}
+        {settingsTab === "rules" ? (
+          <ErrorBoundary moduleName="Правила и регламенты">
+            <SettingsRulesTab />
+          </ErrorBoundary>
+        ) : null}
 
         {settingsTab === "prices" ? (
           <>
@@ -1858,6 +1863,12 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
         {settingsTab === "reporting" && flags.hasAnalyticsModule ? (
           <SettingsReportingTab />
         ) : null}
+        {settingsTab === "messengers" ? (
+          <ErrorBoundary moduleName="Мессенджеры и рассылки">
+            <SettingsMessengersTab props={settingsProps} settingsTab={settingsTab} />
+          </ErrorBoundary>
+        ) : null}
+        
 
         {/*
           Мастер переноса стоит здесь, а не внутри SettingsImportsTab.
@@ -1894,7 +1905,12 @@ export function SettingsView({ activeStaffUser }: SettingsViewProps) {
             <SettingsImportsTab {...settingsProps} settingsTab={settingsTab} />
           </ErrorBoundary>
         ) : null}
-        {settingsTab === "audit" ? <SettingsAuditTab {...settingsProps} settingsTab={settingsTab} /> : null}
+        {settingsTab === "audit" ? (
+          <>
+            <AuditLogsPanel />
+            <SettingsAuditTab {...settingsProps} settingsTab={settingsTab} />
+          </>
+        ) : null}
 
         {/*
           Отсюда убраны две панели, которые нечем заполнить.

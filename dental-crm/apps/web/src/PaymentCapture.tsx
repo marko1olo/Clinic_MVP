@@ -1,7 +1,8 @@
 import { CreditCard, UserRound, Mic, Bot } from "lucide-react";
-import type { PaymentMethod } from "@dental/shared";
+import { type PaymentMethod, parseKopecks, percentageOfKopecks, splitKopecks } from "@dental/shared";
 import { money } from "./AppHelpers";
 import { validateRubAmountInput, rubAmountInputMissingStep, normalizeRubAmountInput } from "./rubAmountInput";
+import { rubAmountForInput } from "./components/payments/cashDeskAmounts";
 import { textToNumbers } from "./lib/stringUtils";
 import { AiOrchestrator } from "./lib/aiOrchestrator";
 import { SmartParsePreview } from "./SmartParsePreview";
@@ -343,11 +344,17 @@ function InstallmentCalculator({ totalAmount, isOpen }: InstallmentCalculatorPro
   // 100 000 ₽ на 6 месяцев → 16 667 × 6 = 100 002 ₽ (пациенту называли на 2 ₽
   // больше стоимости лечения), 70 000 ₽ на 3 месяца → 69 999 ₽ (счёт не закрыть).
   // Теперь остаток от деления добирается последним платежом: сумма сходится точно.
-  const downPayment = Math.round((totalAmount * downPaymentPercent) / 100);
-  const remaining = Math.max(0, totalAmount - downPayment);
-  const monthlyPayment = months > 0 ? Math.floor(remaining / months) : 0;
-  const lastMonthPayment = months > 0 ? remaining - monthlyPayment * (months - 1) : 0;
-  const hasUnevenLastPayment = months > 0 && lastMonthPayment !== monthlyPayment;
+  const totalKopecks = parseKopecks(totalAmount);
+  const basisPoints = Math.round(downPaymentPercent * 100);
+  const downPaymentKopecks = percentageOfKopecks(totalKopecks, basisPoints);
+  const remainingKopecks = Math.max(0, totalKopecks - downPaymentKopecks);
+  const parts = months > 0 && remainingKopecks > 0 ? splitKopecks(remainingKopecks, months) : [0];
+  const monthlyPaymentKopecks = parts[0] ?? 0;
+  const lastMonthPaymentKopecks = parts[parts.length - 1] ?? 0;
+  const downPayment = downPaymentKopecks / 100;
+  const monthlyPayment = monthlyPaymentKopecks / 100;
+  const lastMonthPayment = lastMonthPaymentKopecks / 100;
+  const hasUnevenLastPayment = months > 0 && lastMonthPaymentKopecks !== monthlyPaymentKopecks;
 
   return (
     <details className="payment-capture-detail-section" open={isOpen} style={{ marginBottom: "20px" }}>
@@ -646,16 +653,16 @@ export function PaymentCapture({
               <button
                 type="button"
                 className="quick-chip"
-                /* БЫЛО: подставлялось сырое число с плавающей точкой, например
-                   2699.7000000000007 (после расчёта страхового покрытия).
-                   Поле принимает только целые рубли, поэтому кнопка «оплатить
-                   долг одним нажатием» просто не работала. Округляем. */
-                onClick={() => onAmountChange(String(Math.round(remainingDebt)))}
+                /*
+                 * БЫЛО: String(Math.round(...)) округлял долг до целых рублей.
+                 * 1500,24 ₽ → 1500 (копейки зависали); 1500,70 ₽ → 1501 (лишние 30 коп.).
+                 * Поле суммы уже принимает копейки (normalizeRubAmountInput).
+                 * СТАЛО: rubAmountForInput — копейки целыми, формат поля верный.
+                 */
+                onClick={() => onAmountChange(rubAmountForInput(remainingDebt))}
               >
-                {/* Подпись — общим money(). Показываем ровно то целое число,
-                    которое кнопка подставит в поле, иначе кассир видел бы одну
-                    сумму, а в поле получал другую. */}
-                Долг: {money(Math.round(remainingDebt))}
+                {/* Подпись money(remainingDebt) совпадает с тем, что уходит в поле. */}
+                Долг: {money(remainingDebt)}
               </button>
             )}
             {[1000, 2000, 3000, 5000].map((val) => (

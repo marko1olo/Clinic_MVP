@@ -1,48 +1,48 @@
-import { importCommitRequestSchema, importCommitResponseSchema, importIntakeRequestSchema, importIntakeResponseSchema, importPreviewRequestSchema, importPreviewResponseSchema, splitLine, normalizeDate } from "@dental/shared";
+import { importCommitRequestSchema, importCommitResponseSchema, importIntakeRequestSchema, importIntakeResponseSchema, importPreviewRequestSchema, importPreviewResponseSchema, splitLine, normalizeDate, } from "@dental/shared";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { patients, importBatches, auditEvents } from "../db/schema.js";
-import { requireClinicalMutationContext, requireClinicalReadContext } from "../accessGuard.js";
+import { requireClinicalMutationContext, requireClinicalReadContext, } from "../accessGuard.js";
 const headerAliases = {
     fio: "fullName",
     "full name": "fullName",
     fullname: "fullName",
     name: "fullName",
-    "фио": "fullName",
-    "пациент": "fullName",
-    "имя": "fullName",
-    "клиент": "fullName",
-    "patient": "fullName",
+    фио: "fullName",
+    пациент: "fullName",
+    имя: "fullName",
+    клиент: "fullName",
+    patient: "fullName",
     "patient name": "fullName",
-    "наименование": "fullName",
+    наименование: "fullName",
     phone: "phone",
     tel: "phone",
     telephone: "phone",
     mobile: "phone",
     cellphone: "phone",
     whatsapp: "phone",
-    "телефон": "phone",
-    "номер": "phone",
-    "моб": "phone",
-    "мобильный": "phone",
-    "контакт": "phone",
+    телефон: "phone",
+    номер: "phone",
+    моб: "phone",
+    мобильный: "phone",
+    контакт: "phone",
     birthdate: "birthDate",
     birthday: "birthDate",
     dob: "birthDate",
     born: "birthDate",
     "дата рождения": "birthDate",
-    "др": "birthDate",
+    др: "birthDate",
     "д.р.": "birthDate",
-    "рождение": "birthDate",
+    рождение: "birthDate",
     comment: "notes",
     comments: "notes",
     notes: "notes",
     note: "notes",
     memo: "notes",
-    "примечание": "notes",
-    "комментарий": "notes",
-    "заметка": "notes",
-    "коммент": "notes"
+    примечание: "notes",
+    комментарий: "notes",
+    заметка: "notes",
+    коммент: "notes",
 };
 function parseImportPayload(schema, value, message) {
     const parsed = schema.safeParse(value);
@@ -52,18 +52,26 @@ function parseImportPayload(schema, value, message) {
         ok: false,
         response: {
             error: "ImportValidationError",
-            message
-        }
+            message,
+        },
     };
 }
 function detectDelimiter(headerLine) {
     const candidates = [";", ",", "\t"];
-    return candidates
-        .map((delimiter) => ({ delimiter, count: headerLine.split(delimiter).length }))
-        .sort((left, right) => right.count - left.count)[0]?.delimiter ?? ";";
+    return (candidates
+        .map((delimiter) => ({
+        delimiter,
+        count: headerLine.split(delimiter).length,
+    }))
+        .sort((left, right) => right.count - left.count)[0]?.delimiter ?? ";");
 }
 function normalizeHeader(value) {
-    return value.trim().toLowerCase().replaceAll("_", " ").replaceAll("-", " ").replace(/\s+/g, " ");
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll("_", " ")
+        .replaceAll("-", " ")
+        .replace(/\s+/g, " ");
 }
 function normalizePhone(value) {
     if (!value)
@@ -100,8 +108,7 @@ function extractPhoneFromText(value) {
     return normalizePhone(withPrefix?.[0] ?? withoutPrefix?.[0] ?? null);
 }
 function extractNameFromText(value, phone, birthDate) {
-    const phoneMatch = value.match(/(?:\+7|7|8)[\s(.-]*\d{3}[\s). -]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}/) ??
-        value.match(/\b\d{3}[\s). -]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/);
+    const phoneMatch = value.match(/(?:\+7|7|8)[\s(.-]*\d{3}[\s). -]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}/) ?? value.match(/\b\d{3}[\s). -]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/);
     const dateMatch = value.match(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/);
     const commentMatch = /комментарий|примечание|жалоба|нужно|надо|боится|первичный|повторный/gi.exec(value);
     const cutAt = [phoneMatch?.index, dateMatch?.index, commentMatch?.index]
@@ -118,7 +125,9 @@ function extractNameFromText(value, phone, birthDate) {
     }
     if (birthDate)
         cleaned = cleaned.replace(birthDate, " ");
-    cleaned = cleaned.replace(/(?:\+?\d[\s().-]*){10,16}/g, " ").replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g, " ");
+    cleaned = cleaned
+        .replace(/(?:\+?\d[\s().-]*){10,16}/g, " ")
+        .replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g, " ");
     const words = cleaned
         .split(/\s+/)
         .map((part) => part.trim())
@@ -148,7 +157,7 @@ export async function buildPatientImportIntake(orgId, input) {
     const normalizedText = normalizeImportText(input);
     const notes = [
         "Сначала выполняется распознавание полей, затем preview. Запись в базу только после подтверждения.",
-        "Поддержаны табличные выгрузки, вставка из Excel, свободный текст, OCR-текст с фото журнала и надиктовка."
+        "Поддержаны табличные выгрузки, вставка из Excel, свободный текст, OCR-текст с фото журнала и надиктовка.",
     ];
     if (input.sourceKind === "image_ocr") {
         notes.push("Фото журнала должно проходить OCR/vision worker; этот endpoint принимает распознанный текст и нормализует его.");
@@ -158,14 +167,14 @@ export async function buildPatientImportIntake(orgId, input) {
     }
     const preview = await buildPatientImportPreview(orgId, {
         ...input,
-        rawText: normalizedText
+        rawText: normalizedText,
     });
     return importIntakeResponseSchema.parse({
         sourceName: input.sourceName,
         sourceKind: input.sourceKind,
         normalizedText,
         preview,
-        recognitionNotes: notes
+        recognitionNotes: notes,
     });
 }
 function emptyPreview(sourceName) {
@@ -175,7 +184,7 @@ function emptyPreview(sourceName) {
         readyRows: 0,
         warningRows: 0,
         blockedRows: 0,
-        rows: []
+        rows: [],
     });
 }
 export async function buildPatientImportPreview(orgId, input) {
@@ -194,8 +203,13 @@ export async function buildPatientImportPreview(orgId, input) {
     const delimiter = detectDelimiter(headerLine);
     const headerCells = splitLine(headerLine, delimiter).map(normalizeHeader);
     const mappedHeaders = headerCells.map((header) => headerAliases[header] ?? null);
-    const existingPatients = await db.select().from(patients).where(eq(patients.organizationId, orgId));
-    const knownPhones = new Set(existingPatients.map((patient) => normalizePhone(patient.phone)).filter(Boolean));
+    const existingPatients = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.organizationId, orgId));
+    const knownPhones = new Set(existingPatients
+        .map((patient) => normalizePhone(patient.phone))
+        .filter(Boolean));
     const knownNames = new Set(existingPatients.map((patient) => patient.fullName.trim().toLowerCase()));
     const rows = lines.slice(1).map((line, index) => {
         const cells = splitLine(line, delimiter);
@@ -206,7 +220,7 @@ export async function buildPatientImportPreview(orgId, input) {
             birthDate: null,
             notes: null,
             status: "ready",
-            warnings: []
+            warnings: [],
         };
         mappedHeaders.forEach((field, cellIndex) => {
             if (!field)
@@ -264,7 +278,7 @@ export async function buildPatientImportPreview(orgId, input) {
         readyRows: rows.filter((row) => row.status === "ready").length,
         warningRows: rows.filter((row) => row.status === "warning").length,
         blockedRows: rows.filter((row) => row.status === "blocked").length,
-        rows
+        rows,
     };
     return importPreviewResponseSchema.parse(response);
 }
@@ -327,25 +341,32 @@ export async function commitPatientImport(orgId, input) {
          * дублями — их пропуск и есть желаемое поведение.
          */
         const validRows = preview.rows.filter((row) => row.status === "ready" && row.fullName);
-        for (const row of validRows) {
-            const [inserted] = await tx.insert(patients).values({
+        if (validRows.length > 0) {
+            const patientPayloads = validRows.map((row) => ({
                 organizationId: orgId,
                 fullName: row.fullName ?? "",
                 birthDate: row.birthDate,
                 phone: row.phone,
                 notes: row.notes,
-                status: "active"
-            }).returning();
-            importedPatientIds.push(inserted.id);
-            await tx.insert(auditEvents).values({
+                status: "active",
+            }));
+            const insertedPatients = await tx
+                .insert(patients)
+                .values(patientPayloads)
+                .returning();
+            importedPatientIds.push(...insertedPatients.map((p) => p.id));
+            const auditPayloads = insertedPatients.map((inserted, idx) => ({
                 organizationId: orgId,
                 entityType: "patient",
                 entityId: inserted.id,
                 action: "patient_imported",
-                reason: `Импорт из ${input.sourceName}, строка ${row.rowNumber}.`
-            });
+                reason: `Импорт из ${input.sourceName}, строка ${validRows[idx].rowNumber}.`,
+            }));
+            await tx.insert(auditEvents).values(auditPayloads);
         }
-        const [batch] = await tx.insert(importBatches).values({
+        const [batch] = await tx
+            .insert(importBatches)
+            .values({
             organizationId: orgId,
             sourceName: input.sourceName,
             status: "completed",
@@ -353,14 +374,15 @@ export async function commitPatientImport(orgId, input) {
             importedRows: importedPatientIds.length,
             skippedRows: preview.totalRows - importedPatientIds.length,
             warningRows: preview.warningRows,
-            blockedRows: preview.blockedRows
-        }).returning();
+            blockedRows: preview.blockedRows,
+        })
+            .returning();
         await tx.insert(auditEvents).values({
             organizationId: orgId,
             entityType: "import_batch",
             entityId: batch.id,
             action: "import_committed",
-            reason: `Импортировано ${importedPatientIds.length}, пропущено ${preview.totalRows - importedPatientIds.length}.`
+            reason: `Импортировано ${importedPatientIds.length}, пропущено ${preview.totalRows - importedPatientIds.length}.`,
         });
         return { importedPatientIds };
     });
@@ -368,6 +390,6 @@ export async function commitPatientImport(orgId, input) {
         preview,
         importedCount: result.importedPatientIds.length,
         skippedCount: preview.totalRows - result.importedPatientIds.length,
-        importedPatientIds: result.importedPatientIds
+        importedPatientIds: result.importedPatientIds,
     });
 }

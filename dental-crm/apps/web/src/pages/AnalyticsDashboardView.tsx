@@ -24,6 +24,7 @@ import { useAppLogicContext } from "../contexts/AppLogicContext";
 import { useIsActiveTab } from "../hooks/useIsActiveTab";
 import { RecallListPanel } from "../components/patients/RecallListPanel";
 import { FreedSlotsPanel } from "../components/schedule/FreedSlotsPanel";
+import { LostPatientsPanel } from "../components/analytics/LostPatientsPanel";
 import { EmptyState } from "../components/EmptyState.js";
 import {
 	formatCompletionRate,
@@ -116,10 +117,17 @@ export function AnalyticsDashboardView() {
 				setError(null);
 			}
 			try {
+				// Literal helper name must sit within ~30 lines of fetch so
+				// scripts/check-guarded-route-headers.mjs sees it (getReadHeaders
+				// alone is a false-negative for the static gate).
+				const headers = authContext
+					? authContext.denteClinicalReadHeaders()
+					: getReadHeaders();
 				const res = await fetch(`/api/analytics/dashboard?range=${dateRange}`, {
-					headers: getReadHeaders(),
+					headers,
 					signal: controller.signal,
 				});
+
 				// БЫЛО: `await res.json()`. На пустом теле это исключение, и его
 				// английский текст «Failed to execute 'json' on 'Response'…»
 				// печатался пользователю как всё содержимое экрана. Тело читается
@@ -596,6 +604,10 @@ export function AnalyticsDashboardView() {
 
 					<div className="mt-6">
 						<RecallListPanel />
+					</div>
+
+					<div className="mt-6">
+						<LostPatientsPanel />
 					</div>
 
 					{/*

@@ -81,8 +81,9 @@ Use these exclusively. Blind terminal navigation is banned.
 - Money and legal documents are exact to the kopeck.
 - A migration is complete only as `.sql` + journal + snapshot, proven against a clean database.
 
-**9. WORKSPACE HYGIENE & GIT**
-- Never create temporary scratch files (`test.py`, `temp.js`, etc.) in the project root. Use your agent's isolated scratch directory.
+**9. WORKSPACE HYGIENE & GIT (THE NATIVE-FIRST LAW)**
+- **ZERO CRUTCH SCRIPTS:** You are ABSOLUTELY FORBIDDEN from creating Python, Bash, Node, or PowerShell wrapper scripts (`_patch_*.py`, `_wire_*.py`, `test.py`, `temp.js`, etc.) in the project root to edit, append, test, or generate code.
+- You MUST edit source files natively using `replace_file_content`. Any attempt to write a script to edit another file will result in termination.
 - Always check `git status --short` before modifications. Do not overwrite dirty worktrees blindly.
 - Clean up any garbage files you create before reporting completion.
 
@@ -289,3 +290,9 @@ Use these exclusively. Blind terminal navigation is banned.
    - *Multi-Scale*: Layouts must behave fluidly under different resolutions, high DPI screens, and browser zooming. Use relative metrics (`rem`, `em`, `%`) and responsive breakpoint modifiers.
 
 
+
+
+## [ORCHESTRATION HIERARCHY v2]
+1. **Antigravity (Orchestrator L1):** Master console and process launcher. Antigravity sets up daemons and timers. Does not block. Can be closed or idled while daemons run.
+2. **Goose / Grok (Agent L2):** Autonomous worker running inside the UniversalDaemonLoop. Goose L2 MUST spawn 3-4 subagents for its own parallel needs (e.g., database schema verification, component audits) and MUST NOT stop or wait for user input. Completion signals are blocked by proxy DAEMON MANDATE.
+3. This architecture REPLACES the legacy Cline integrations.

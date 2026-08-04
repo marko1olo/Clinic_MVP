@@ -56,27 +56,22 @@ export async function hashCredential(value) {
 }
 /**
  * Verify a plaintext credential against a stored hash (salt:hash format).
- * Falls back to simple equality check for legacy plain-stored values.
  */
 export async function verifyCredential(plain, stored) {
     try {
-        if (stored.includes(":")) {
-            const [salt, hash] = stored.split(":");
-            if (!salt || !hash)
-                return false;
-            const derived = await pbkdf2Async(plain, salt, ITERATIONS, KEYLEN, DIGEST);
-            const candidate = derived.toString("hex");
-            // Сравнение хешей идёт timingSafeEqual, а не `===`: посимвольное
-            // сравнение выходит на первом несовпавшем знаке, и по времени ответа
-            // хеш восстанавливается знак за знаком.
-            const a = Buffer.from(candidate, "utf8");
-            const b = Buffer.from(hash, "utf8");
-            if (a.length !== b.length)
-                return false;
-            return timingSafeEqual(a, b);
-        }
-        // Legacy: plain equality for initial seeding
-        return plain === stored;
+        const [salt, hash] = stored.split(":");
+        if (!salt || !hash)
+            return false;
+        const derived = await pbkdf2Async(plain, salt, ITERATIONS, KEYLEN, DIGEST);
+        const candidate = derived.toString("hex");
+        // Сравнение хешей идёт timingSafeEqual, а не `===`: посимвольное
+        // сравнение выходит на первом несовпавшем знаке, и по времени ответа
+        // хеш восстанавливается знак за знаком.
+        const a = Buffer.from(candidate, "utf8");
+        const b = Buffer.from(hash, "utf8");
+        if (a.length !== b.length)
+            return false;
+        return timingSafeEqual(a, b);
     }
     catch {
         return false;
@@ -87,9 +82,15 @@ export async function verifyCredential(plain, stored) {
  * Format: base64(payload).base64(sig)
  */
 export function signToken(payload, secret, ttlSeconds = 60 * 60 * 12) {
-    const full = { ...payload, exp: Math.floor(Date.now() / 1000) + ttlSeconds, iat: Math.floor(Date.now() / 1000) };
+    const full = {
+        ...payload,
+        exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+        iat: Math.floor(Date.now() / 1000),
+    };
     const data = Buffer.from(JSON.stringify(full)).toString("base64url");
-    const signature = createHmac("sha256", secret).update(data).digest("base64url");
+    const signature = createHmac("sha256", secret)
+        .update(data)
+        .digest("base64url");
     return `${data}.${signature}`;
 }
 /**
@@ -103,7 +104,9 @@ export function verifyToken(token, secret) {
         const [data, signature] = parts;
         if (!data || !signature)
             return null;
-        const expectedSig = createHmac("sha256", secret).update(data).digest("base64url");
+        const expectedSig = createHmac("sha256", secret)
+            .update(data)
+            .digest("base64url");
         const a = Buffer.from(expectedSig, "utf8");
         const b = Buffer.from(signature, "utf8");
         if (a.length !== b.length)
@@ -112,7 +115,8 @@ export function verifyToken(token, secret) {
             return null;
         const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
         // Check expiry
-        if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) {
+        if (typeof payload.exp === "number" &&
+            payload.exp < Math.floor(Date.now() / 1000)) {
             return null;
         }
         return payload;

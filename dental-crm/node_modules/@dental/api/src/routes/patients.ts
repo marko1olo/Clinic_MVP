@@ -472,6 +472,21 @@ export async function registerPatientRoutes(app: FastifyInstance) {
       // ошибку разбора ответа patientSchema.parse ПОСЛЕ успешной записи в базу.
       // Оператор видел «пациент не найден», считал, что данные не сохранились,
       // и заводил карточку заново — появлялись дубли уже сохранённых пациентов.
+      //
+      // familyGroupId: привязка к несуществующей/чужой группе — бизнес-ошибка
+      // 400, не 500. Иначе UI показывает «не удалось сохранить» при опечатке
+      // UUID семьи, хотя валидация отклонила запрос до записи.
+      const msg = e instanceof Error ? e.message : "";
+      if (
+        msg.includes("семейная группа не найдена") ||
+        msg.includes("уже состоит в другой семейной группе")
+      ) {
+        return reply.code(400).send({
+          error: "PatientValidationError",
+          message: msg,
+        });
+      }
+
       request.log.error({ err: e }, "[Patients] Ошибка обновления пациента");
       return reply.code(500).send({
         error: "PatientUpdateFailed",
@@ -479,6 +494,7 @@ export async function registerPatientRoutes(app: FastifyInstance) {
       });
     }
   });
+
 
   app.put("/api/patients/:patientId/administrative-profile", async (request, reply) => {
     const orgId = requireClinicOrganizationId(request, reply);
@@ -518,7 +534,21 @@ export async function registerPatientRoutes(app: FastifyInstance) {
         });
       }
 
-      const patient = await updatePatientAdministrativeProfileInDb(orgId, params.patientId, input);
+      /*
+       * БЫЛО: mergedProfile считали только для hasIncompleteRepresentativeIdentity,
+       * а в updatePatientAdministrativeProfileInDb уходил partial input.
+       * DB-путь пишет administrative_profile JSONB целиком (= input), без merge
+       * (patientsQuery.ts). Частичный PUT (loyaltyTier / snils) затирал
+       * остальные ключи: orthodonticProgress, адреса, представителя.
+       * In-memory путь мержит сам; Postgres — нет. После F5 tier и каппы
+       * пропадали при HTTP 200.
+       * СТАЛО: на диск уходит полный merge existing ∪ input.
+       */
+      const patient = await updatePatientAdministrativeProfileInDb(
+        orgId,
+        params.patientId,
+        mergedProfile as typeof input,
+      );
       if (!patient) return sendPatientNotFound(reply);
       return patientSchema.parse(patient);
     } catch (e) {

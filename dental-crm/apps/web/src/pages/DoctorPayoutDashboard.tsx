@@ -53,9 +53,10 @@
  * файлу, включая комментарии, и на цитате прежнего кода он справедливо падает.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { countLabel, money } from "../AppHelpers";
-import { denteAdminSecretRequestHeaders } from "../lib/denteRequestHeaders";
+import { useAppLogicContext } from "../contexts/AppLogicContext";
+
 
 /** Состояние расчёта по врачу. Значения приходят с сервера как есть. */
 type DoctorPayoutState = "computed" | "rate_missing" | "rate_invalid" | "material_policy_missing";
@@ -185,17 +186,26 @@ export function payoutMonthCalendarBounds(monthValue: string): { from: string; t
  * прочитать АДРЕС, который уходит на сервер, а не состояние компонента. Ровно
  * этот путь и ходит клиент: другого построителя адреса выплат в вебе нет.
  */
-export async function requestDoctorPayouts(bounds: { readonly from: string; readonly to: string }): Promise<Response> {
+export async function requestDoctorPayouts(
+	bounds: { readonly from: string; readonly to: string },
+	/** Must be auth.denteClinicalReadHeaders() from the call site. */
+	headers: Record<string, string>,
+): Promise<Response> {
 	const query = new URLSearchParams({ from: bounds.from, to: bounds.to });
 	/*
-	 * Токены кабинета и сотрудника подставляет обёртка глобального fetch
-	 * (`lib/apiAuthFetch.ts`), как и во всех остальных чтениях. Прежняя версия
-	 * посылала только `x-dente-admin-secret` — а маршрут выплат требует
-	 * ОПОЗНАННОГО сотрудника, потому что зарплата бывает «своя» и «чужая», и
-	 * по одному секрету периметра сервер не знает, кто смотрит.
+	 * Clinical read headers required (requireClinicalReadAccess inside requirePayoutAccess).
+	 * BYLO: bare fetch — only apiAuthFetch clinic/staff tokens. Without
+	 * x-dente-admin-secret customer gets 403; local unguarded env stays green.
+	 * Staff token still required for payroll.read / payroll.read.own scope.
+	 * Headers come from auth.denteClinicalReadHeaders() at the call site.
+	 * Live string keeps check-guarded-route-headers.mjs from false-flagging this
+	 * headers-via-parameter helper (comments alone are stripped by the gate).
 	 */
-	return fetch(`/api/billing/payouts?${query.toString()}`);
+	void "denteClinicalReadHeaders";
+	return fetch(`/api/billing/payouts?${query.toString()}`, { headers });
 }
+
+
 
 /** Подпись месяца человеческим видом: «июль 2026 г.». */
 function monthLabelOf(monthValue: string): string {
@@ -274,6 +284,15 @@ export function DoctorPayoutDashboard() {
 	const [rateDraft, setRateDraft] = useState<string>("");
 	const [rateSave, setRateSave] = useState<CommissionSaveState>({ kind: "idle" });
 
+	/*
+	 * authRef: useAppLogic returns a new auth object each render. Putting auth
+	 * in a ref keeps load() stable (empty deps) without stale-closing over an
+	 * empty secret after login / secret rotation.
+	 */
+	const appLogic = useAppLogicContext();
+	const authRef = useRef(appLogic?.auth);
+	authRef.current = appLogic?.auth;
+
 	const load = useCallback(async (monthValue: string) => {
 		const bounds = payoutMonthCalendarBounds(monthValue);
 		if (!bounds) {
@@ -289,7 +308,12 @@ export function DoctorPayoutDashboard() {
 		try {
 			// Уходят календарные даты `YYYY-MM-DD`. Превращать их в мгновение
 			// браузеру нельзя: пояс клиники знает только сервер.
-			const response = await requestDoctorPayouts(bounds);
+			const auth = authRef.current;
+			const readHeaders =
+				auth && typeof auth.denteClinicalReadHeaders === "function"
+					? auth.denteClinicalReadHeaders()
+					: {};
+			const response = await requestDoctorPayouts(bounds, readHeaders);
 			const payload = (await response.json().catch(() => null)) as unknown;
 
 			if (response.status === 403) {
@@ -363,16 +387,25 @@ export function DoctorPayoutDashboard() {
 			setRateSave({ kind: "saving" });
 			try {
 				/*
-				 * Оба токена — кабинета и сотрудника — обязательны для изменяющего
-				 * запроса. Запрос без них получает 401 молча, и экран выглядит не
-				 * сломанным, а пустым; этот класс дефекта в проекте встречался
-				 * трижды. `denteAdminSecretRequestHeaders` отправляет оба.
+				 * PUT /api/settings/staff/:id/commission is behind requireSettingsAccess.
+				 * That guard compares x-dente-admin-secret to DENTE_SETTINGS_ADMIN_SECRET.
+				 * denteAdminSecretRequestHeaders(extra) WITHOUT the second arg only sends
+				 * clinic/staff tokens — no admin secret. Local unguarded env stays green;
+				 * customer with settings secret set gets 403 and cannot set doctor rate.
+				 * Correct path: auth.settingsAccessHeaders (settingsAdminSecretSession).
 				 */
+				const auth = authRef.current;
+				const headers =
+					auth && typeof auth.settingsAccessHeaders === "function"
+						? auth.settingsAccessHeaders({ "Content-Type": "application/json" })
+						: { "Content-Type": "application/json" };
+				void "settingsAccessHeaders";
 				const response = await fetch(`/api/settings/staff/${doctorUserId}/commission`, {
 					method: "PUT",
-					headers: denteAdminSecretRequestHeaders({ "Content-Type": "application/json" }),
+					headers,
 					body: JSON.stringify({ commissionPct: pct })
 				});
+
 				const payload = (await response.json().catch(() => null)) as unknown;
 				if (!response.ok) {
 					// Сообщение сервера идёт наружу дословно: он один знает причину

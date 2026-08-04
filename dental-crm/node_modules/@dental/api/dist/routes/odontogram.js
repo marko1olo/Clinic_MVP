@@ -1,4 +1,4 @@
-import { fdiToothNumberSchema, sumKopecks } from "@dental/shared";
+import { fdiToothNumberSchema, nonNegativeMoneyRubSchema, sumKopecks, } from "@dental/shared";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireResolvedOrganizationId, requireResolvedStaffOrAdminOrganizationId, } from "../accessGuard.js";
@@ -77,13 +77,21 @@ const batchToothStateSchema = z.object({
     state: z.enum(toothStateValues),
     surfaces: z.array(z.string()).optional(),
 });
+/*
+ * Цена и скидка позиции сметы — деньги клиники, не «просто number».
+ * `z.number().finite().min(0)` пропускал 1500.505 (третья цифра после запятой),
+ * и отказ приходил только из `chargeLineKopecks` как 422. Единый контракт
+ * `nonNegativeMoneyRubSchema` режет подкопеечные суммы на входе (400), как прайс
+ * в settings. Верхняя граница — прежний потолок маршрута.
+ */
+const treatmentPlanMoneyRubSchema = nonNegativeMoneyRubSchema.refine((value) => value <= 100_000_000, { message: "сумма позиции плана не помещается в допустимый диапазон" });
 const treatmentPlanItemSchema = z.object({
     toothNumber: fdiToothNumberSchema.optional().nullable(),
     priceId: z.string().trim().min(1).max(200),
     name: z.string().trim().max(500).optional(),
     quantity: z.number().int().min(1).max(999).default(1),
-    price: z.number().finite().min(0).max(100_000_000),
-    discount: z.number().finite().min(0).max(100_000_000).default(0),
+    price: treatmentPlanMoneyRubSchema,
+    discount: treatmentPlanMoneyRubSchema.default(0),
     phase: z.number().int().min(1).max(12).default(1),
     isAuto: z.boolean().optional(),
 });
@@ -382,11 +390,11 @@ export async function registerOdontogramRoutes(app) {
              * строкой позиции целиком, поэтому вычитается один раз из итога
              * строки, а не умножается на количество).
              *
-             * Сумма мельче копейки (1500.505) схему маршрута проходит, но в
-             * копейках не представима: `chargeLineKopecks` бросает
-             * `MoneyPrecisionError` со `statusCode = 422`, и общий catch ниже
-             * отвечает врачу причиной. Тихое округление подтвердило бы чужую
-             * потерю точности подписью клиники.
+             * Сумма мельче копейки (1500.505) уже отсекается схемой позиции
+             * (`nonNegativeMoneyRubSchema` → 400). `chargeLineKopecks` остаётся
+             * второй линией: если кто-то обойдёт Zod, бросит
+             * `MoneyPrecisionError` со `statusCode = 422`. Тихое округление
+             * подтвердило бы чужую потерю точности подписью клиники.
              */
             const lineKopecks = input.items.map((item) => chargeLineKopecks({
                 patientId,
@@ -400,13 +408,19 @@ export async function registerOdontogramRoutes(app) {
             planId = await db.transaction(async (tx) => {
                 let savedPlanId = input.id ?? null;
                 if (savedPlanId) {
+                    /*
+                     * БЫЛО: SELECT/UPDATE плана по id+patientId без organizationId;
+                     * DELETE позиций сметы — только по planId. Смета — денежный документ
+                     * (totalPrice → книга лечения). СТАЛО: organizationId в WHERE на
+                     * SELECT, UPDATE и DELETE позиций (колонка есть, INSERT её пишет).
+                     */
                     const [existing] = await tx
                         .select({
                         id: treatmentPlans.id,
                         patientSignature: treatmentPlans.patientSignature,
                     })
                         .from(treatmentPlans)
-                        .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId)))
+                        .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId), eq(treatmentPlans.organizationId, organizationId)))
                         .for("update")
                         .limit(1);
                     if (!existing)
@@ -416,7 +430,7 @@ export async function registerOdontogramRoutes(app) {
                         err.statusCode = 409;
                         throw err;
                     }
-                    await tx
+                    const [planUpdated] = await tx
                         .update(treatmentPlans)
                         .set({
                         name: input.name,
@@ -428,10 +442,13 @@ export async function registerOdontogramRoutes(app) {
                         isSynced: false,
                         version: sql `${treatmentPlans.version} + 1`,
                     })
-                        .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId)));
+                        .where(and(eq(treatmentPlans.id, savedPlanId), eq(treatmentPlans.patientId, patientId), eq(treatmentPlans.organizationId, organizationId)))
+                        .returning({ id: treatmentPlans.id });
+                    if (!planUpdated)
+                        return null;
                     await tx
                         .delete(treatmentPlanItemsNew)
-                        .where(eq(treatmentPlanItemsNew.planId, savedPlanId));
+                        .where(and(eq(treatmentPlanItemsNew.planId, savedPlanId), eq(treatmentPlanItemsNew.organizationId, organizationId)));
                 }
                 else {
                     const [created] = await tx
@@ -518,9 +535,18 @@ export async function registerOdontogramRoutes(app) {
                     LEDGER_STATUSES_OWNED_BY_PLAN.has(row.status))
                     .map((row) => row.id);
                 if (rewritableIds.length > 0) {
+                    /*
+                     * БЫЛО: DELETE только по inArray(id). Ids отобраны SELECT'ом
+                     * с organizationId, но сам DELETE шёл без tenant-ключа:
+                     * defense-in-depth того же класса, что family wallet /
+                     * appointments UPDATE — чужая строка с совпавшим UUID
+                     * (копия базы, сид) могла уйти. Смета пациента — деньги
+                     * и план лечения.
+                     * СТАЛО: organizationId + id в WHERE удаления.
+                     */
                     await tx
                         .delete(treatmentItems)
-                        .where(inArray(treatmentItems.id, rewritableIds));
+                        .where(and(eq(treatmentItems.organizationId, organizationId), inArray(treatmentItems.id, rewritableIds)));
                 }
                 const keptSlots = new Set(ownedRows
                     .filter((row) => !rewritableIds.includes(row.id))

@@ -152,7 +152,11 @@ export async function registerImagingPlanningRoutes(app) {
                 .where(and(eq(patientCtPlannings.organizationId, orgId), eq(patientCtPlannings.patientId, patientId), eq(patientCtPlannings.studyInstanceUid, studyInstanceUid)))
                 .limit(1);
             if (existing) {
-                await db
+                // БЫЛО: UPDATE только по id после SELECT с org — TOCTOU/IDOR-класс:
+                // чужая клиника с угаданным id могла бы переписать разметку, а 0-row
+                // update всё равно отдавал success:true (врач думал, что дуга сохранена).
+                // СТАЛО: organizationId в WHERE + RETURNING; пустой результат — 500, не успех.
+                const [updated] = await db
                     .update(patientCtPlannings)
                     .set({
                     splinePointsJson: markupText(splinePointsJson),
@@ -160,17 +164,31 @@ export async function registerImagingPlanningRoutes(app) {
                     implantsJson: markupText(implantsJson),
                     updatedAt: new Date(),
                 })
-                    .where(eq(patientCtPlannings.id, existing.id));
+                    .where(and(eq(patientCtPlannings.id, existing.id), eq(patientCtPlannings.organizationId, orgId)))
+                    .returning({ id: patientCtPlannings.id });
+                if (!updated) {
+                    return reply
+                        .status(500)
+                        .send({ error: "Internal server error", message: SAVE_FAILED_MESSAGE });
+                }
             }
             else {
-                await db.insert(patientCtPlannings).values({
+                const [inserted] = await db
+                    .insert(patientCtPlannings)
+                    .values({
                     organizationId: orgId,
                     patientId,
                     studyInstanceUid,
                     splinePointsJson: markupText(splinePointsJson),
                     nervePointsJson: markupText(nervePointsJson),
                     implantsJson: markupText(implantsJson),
-                });
+                })
+                    .returning({ id: patientCtPlannings.id });
+                if (!inserted) {
+                    return reply
+                        .status(500)
+                        .send({ error: "Internal server error", message: SAVE_FAILED_MESSAGE });
+                }
             }
             return reply.status(200).send({ success: true });
         }

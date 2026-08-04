@@ -165,7 +165,11 @@ export async function registerLabRoutes(app: FastifyInstance) {
 			.returning();
 
 		if (!newOrder) {
-			return reply.code(500).send({ error: "Failed to create lab order" });
+			return reply.code(500).send({
+				error: "LabOrderNotSaved",
+				message:
+					"Заказ в лабораторию не создан: сервер не сохранил запись. Проверьте данные и повторите; если снова не выйдет — сообщите администратору клиники.",
+			});
 		}
 
 		// Notify clinic clients via WS
@@ -309,7 +313,11 @@ export async function registerLabRoutes(app: FastifyInstance) {
 			};
 		} catch (e) {
 			console.error("[LabPortal] GET error:", e);
-			return reply.code(500).send({ error: "DatabaseError" });
+			return reply.code(500).send({
+				error: "LabPortalError",
+				message:
+					"Портал лаборатории временно недоступен. Повторите попытку; если снова не выйдет — сообщите администратору клиники.",
+			});
 		}
 	});
 
@@ -339,22 +347,41 @@ export async function registerLabRoutes(app: FastifyInstance) {
 			const order = await getLabOrderByToken(token);
 			if (!order) return reply.code(404).send({ error: "OrderNotFound" });
 
+			/*
+			 * БЫЛО: updateLabOrderStatus мог вернуть null (гонка: заказ сняли,
+			 * токен сменили), а маршрут всё равно отвечал { success: true,
+			 * status: undefined }. Техник видел «сохранено», клиника по WS
+			 * ничего не получала, статус в базе не менялся — повторные клики
+			 * и расхождение портала с расписанием ЗТЛ.
+			 * СТАЛО: пустой RETURNING → честный 409; success только с реальным
+			 * статусом из строки; WS только после успешной записи.
+			 */
 			const updated = await updateLabOrderStatus(token, status);
-			if (updated) {
-				wsBroker.broadcastToOrganization(updated.organizationId, {
-					type: "LAB_ORDER_UPDATED",
-					payload: {
-						patientId: updated.patientId,
-						orderId: updated.id,
-						status: updated.status,
-					},
+			if (!updated) {
+				return reply.code(409).send({
+					error: "LabOrderStatusNotSaved",
+					message:
+						"Статус заказа не обновлён: запись уже изменена или недоступна. Обновите страницу портала и повторите.",
 				});
 			}
 
-			return { success: true, status: updated?.status };
+			wsBroker.broadcastToOrganization(updated.organizationId, {
+				type: "LAB_ORDER_UPDATED",
+				payload: {
+					patientId: updated.patientId,
+					orderId: updated.id,
+					status: updated.status,
+				},
+			});
+
+			return { success: true, status: updated.status };
 		} catch (e) {
 			console.error("[LabPortal] POST error:", e);
-			return reply.code(500).send({ error: "DatabaseError" });
+			return reply.code(500).send({
+				error: "LabPortalError",
+				message:
+					"Портал лаборатории временно недоступен. Повторите попытку; если снова не выйдет — сообщите администратору клиники.",
+			});
 		}
 	});
 }

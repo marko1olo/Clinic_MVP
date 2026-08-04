@@ -1,0 +1,216 @@
+STERIL: Проверьте данные стерилизации: barcode, autoclaveId и status.
+STERIL: Проверьте привязку стерилизации: visitId и barcode.
+=== LEADS MSGS ===
+Проверьте поля лида: нужно непустое имя.
+Проверьте статус лида.
+Проверьте поля лида: нужно непустое имя.
+Проверьте данные конвертации лида: даты, кресло и врач.
+=== LEADS safeParse ===
+58:const parsed = leadSchema.safeParse(req.body);
+61:error: "ValidationError",
+62:message: "Проверьте поля лида: нужно непустое имя.",
+96:.safeParse(req.body);
+99:error: "ValidationError",
+100:message: "Проверьте статус лида.",
+129:const parsed = leadSchema.safeParse(req.body);
+132:error: "ValidationError",
+133:message: "Проверьте поля лида: нужно непустое имя.",
+186:const convertParsed = convertLeadSchema.safeParse(req.body);
+189:error: "ValidationError",
+190:message: "Проверьте данные конвертации лида: даты, кресло и врач.",
+=== bookingFailure hits ===
+C:\Clinic_MVP\dental-crm\apps\web\src\App.tsx:823:operatorReadableErrorDetail,
+C:\Clinic_MVP\dental-crm\apps\web\src\App.tsx:824:operatorReadableErrorDetailFromUnknown,
+C:\Clinic_MVP\dental-crm\apps\web\src\AppHelpers.tsx:4266:const operatorDetail = operatorReadableErrorDetail(detail);
+C:\Clinic_MVP\dental-crm\apps\web\src\AppHelpers.tsx:4295:export function operatorReadableErrorDetail(detail: string | null): string | null {
+C:\Clinic_MVP\dental-crm\apps\web\src\AppHelpers.tsx:4303:export function operatorReadableErrorDetailFromUnknown(error: unknown): string | null {
+C:\Clinic_MVP\dental-crm\apps\web\src\AppHelpers.tsx:4304:return operatorReadableErrorDetail(error instanceof Error ? error.message : null);
+C:\Clinic_MVP\dental-crm\apps\web\src\AppHelpers.tsx:4308:const message = operatorReadableErrorDetailFromUnknown(error);
+C:\Clinic_MVP\dental-crm\apps\web\src\useAppLogic.tsx:526:operatorReadableErrorDetail,
+C:\Clinic_MVP\dental-crm\apps\web\src\useAppLogic.tsx:527:operatorReadableErrorDetailFromUnknown,
+C:\Clinic_MVP\dental-crm\apps\web\src\components\useVisitDiaryLogic.ts:2:import { operatorReadableErrorDetail } from "../AppHelpers";
+C:\Clinic_MVP\dental-crm\apps\web\src\components\useVisitDiaryLogic.ts:391:const serverDetail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\components\useVisitDiaryLogic.ts:494:const detail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\components\useVisitDiaryLogic.ts:566:const detail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useShortDictation.ts:4:import { operatorReadableErrorDetail, denteAdminSecretRequestHeaders } from '../AppHelpers';
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useShortDictation.ts:129:throw new Error(operatorReadableErrorDetail(payload.message || payload.error) || "Ошибка сервера");
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useTelegramSettings.ts:17:operatorReadableErrorDetailFromUnknown,
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useTelegramSettings.ts:330:operatorReadableErrorDetailFromUnknown(urlError) ??
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useVoiceAssistant.ts:5:import { denteAdminSecretRequestHeaders, operatorReadableErrorDetail } from '../AppHelpers';
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useVoiceAssistant.ts:317:const detail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useVoiceAssistant.ts:339:const detail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\useWorkspaceProfile.ts:301:* RU message-first from API body. Inline (not AppHelpers.operatorReadableErrorDetail):
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\domains\useVisitLogic.ts:33:operatorReadableErrorDetail,
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\domains\useVisitLogic.ts:34:operatorReadableErrorDetailFromUnknown,
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\domains\useVisitLogic.ts:683:operatorReadableErrorDetail(rawDetail) ??
+C:\Clinic_MVP\dental-crm\apps\web\src\hooks\domains\useVisitLogic.ts:1383:operatorReadableErrorDetailFromUnknown(speechError) ??
+C:\Clinic_MVP\dental-crm\apps\web\src\components\dicom\ctPlanningPersistence.ts:312:* `AppHelpers.tsx` (`operatorReadableErrorDetail`), но это файл на шесть тысяч
+C:\Clinic_MVP\dental-crm\apps\web\src\components\documents\DocumentUkepSignButton.tsx:4:operatorReadableErrorDetailFromUnknown,
+C:\Clinic_MVP\dental-crm\apps\web\src\components\documents\DocumentUkepSignButton.tsx:131:operatorReadableErrorDetailFromUnknown(error) ?? "",
+C:\Clinic_MVP\dental-crm\apps\web\src\components\documents\DocumentUkepSignButton.tsx:263:const detail = operatorReadableErrorDetailFromUnknown(error);
+C:\Clinic_MVP\dental-crm\apps\web\src\components\leads\LeadsKanbanView.tsx:42:async function bookingFailureMessage(response: Response): Promise<string> {
+C:\Clinic_MVP\dental-crm\apps\web\src\components\leads\LeadsKanbanView.tsx:306:showToast(await bookingFailureMessage(res), "error");
+C:\Clinic_MVP\dental-crm\apps\web\src\components\odontogram\TreatmentEstimator.tsx:6:import { denteAdminSecretRequestHeaders, money, operatorReadableErrorDetail } from "../../AppHelpers";
+C:\Clinic_MVP\dental-crm\apps\web\src\components\odontogram\TreatmentEstimator.tsx:399:const detail = operatorReadableErrorDetail(
+C:\Clinic_MVP\dental-crm\apps\web\src\components\reports\ManagerReportsPanel.tsx:41:import { money, operatorReadableErrorDetail } from "../../AppHelpers";
+C:\Clinic_MVP\dental-crm\apps\web\src\components\reports\ManagerReportsPanel.tsx:361:* человеку: решает это общий `operatorReadableErrorDetail` из AppHelpers.tsx —
+C:\Clinic_MVP\dental-crm\apps\web\src\components\reports\ManagerReportsPanel.tsx:373:const readable = operatorReadableErrorDetail(detail);
+=== Kanban exists True ===
+lines 1156
+23:import { showToast } from "../GlobalToast";
+29:* convert). Поля объявлены ровно те, что читает разметка.
+42:async function bookingFailureMessage(response: Response): Promise<string> {
+43:let payload: { error?: unknown; message?: unknown } = {};
+46:} catch {
+49:if (typeof payload.message === "string" && payload.message.trim() && payload.message !== "Internal Server Error") {
+50:return payload.message;
+52:const code = typeof payload.error === "string" ? payload.error : "";
+110:updateLeadStatus,
+111:updateLeadDetails,
+112:addLead,
+114:error: loadError,
+123:// Convert Modal State
+124:const [isConvertOpen, setIsConvertOpen] = useState(false);
+125:const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
+128:const [isBooking, setIsBooking] = useState(false);
+164:const { lastMessage } = useWebsocket(
+170:lastMessage?.type === "LEAD_CREATED" ||
+171:lastMessage?.type === "LEAD_UPDATED" ||
+172:lastMessage?.type === "LEAD_DELETED"
+176:}, [lastMessage, fetchLeads]);
+252:setConvertingLeadId(id);
+253:setIsConvertOpen(true);
+255:updateLeadStatus(id, status);
+261:const handleConvertSubmit = async (e: React.FormEvent) => {
+263:if (!convertingLeadId || isBooking) return;
+266:showToast(
+268:"error",
+274:showToast("Проверьте дату и время приема", "error");
+279:setIsBooking(true);
+286:const res = await fetch(`/api/leads/${convertingLeadId}/convert`, {
+306:showToast(await bookingFailureMessage(res), "error");
+309:showToast("Обращение записано на прием, карточка пациента создана", "success");
+310:setIsConvertOpen(false);
+311:setConvertingLeadId(null);
+312:updateLeadStatus(convertingLeadId, "consult_booked");
+314:} catch (e) {
+315:console.error(e);
+316:showToast("Нет связи с сервером: запись не создана", "error");
+318:setIsBooking(false);
+351:await addLead(payload);
+352:showToast("Новый лид добавлен", "success");
+354:await updateLeadDetails(editingLeadId, payload);
+355:showToast("Лид обновлен", "success");
+358:} catch (e) {
+359:showToast("Ошибка сохранения", "error");
+492:Хранилище (store/leadsStore.ts) записывает причину в error, но доска
+498:{loadError ? (
+772:{/* CONVERT MODAL */}
+773:{isConvertOpen && (
+821:onClick={() => setIsConvertOpen(false)}
+834:onSubmit={handleConvertSubmit}
+960:disabled={isBooking || staff.length === 0 || chairs.length === 0 || !visitMinutes}
+976:{isBooking ? "Записываем..." : "Подтвердить запись"}
+=== panelStateText ===
+1:/**
+2: * Что видит человек, когда панель грузится, когда данных действительно нет и
+3: * когда прочитать их не удалось. Три РАЗНЫХ состояния и три разных текста.
+4: *
+5: * ЗАЧЕМ ОТДЕЛЬНЫЙ МОДУЛЬ. Здесь нет ни React, ни fetch, ни CSS, поэтому
+6: * «что покажем при отказе сервера» проверяется обычным node:test, а не глазами
+7: * по скриншоту. Тот же приём, что в pages/analyticsDoctorMetrics.ts: экран
+8: * аналитики однажды напечатал пользователю английское исключение браузера
+9: * целиком именно потому, что решение о тексте жило внутри разметки.
+10: *
+11: * ЧТО БЫЛО СЛОМАНО И ПОЧЕМУ ЭТОТ ФАЙЛ СУЩЕСТВУЕТ
+12: *
+13: * 1. Голый код состояния в тексте для человека. hooks/usePatientResource.ts
+14: *    отдавал «Сервер ответил ошибкой 500. Данные не загружены.» — и три виджета
+15: *    карточки пациента печатали эту строку дословно. Администратору код 500 не
+16: *    говорит ни что случилось, ни что делать. Номер нужен разработчику: он
+17: *    уходит в console.error, а не на экран.
+18: *
+19: * 2. Отказ, выданный за пустоту. Виджеты, не забиравшие `error` из хука,
+20: *    показывали «Рекламации и осложнения отсутствуют» и «Нет активных задач»
+21: *    на карточке, где чтение упало с 401 или 500. Для журнала осложнений это
+22: *    не косметика: врач видит «осложнений нет» у пациента, у которого они есть.
+23: *
+24: * ПРАВИЛО ТЕКСТА. Каждое сообщение отвечает на три вопроса: что случилось,
+25: * почему и что делать дальше. Причина называется по существу («у смены нет
+26: * доступа»), а не по механизму («HTTP 403»). Придумывать причину, которой
+27: * сервер не сообщал, запрещено: на непонятный ответ так и говорим — непонятный.
+28: */
+29:
+30:/** Состояние панели. «Пусто» и «не удалось» — разные вещи и никогда не сливаются. */
+31:export type PanelPhase = "loading" | "empty" | "failed";
+32:
+33:/** То же плюс «данные есть и показаны». */
+34:export type PanelPhaseOrReady = PanelPhase | "ready";
+35:
+36:/**
+37: * Какое из состояний показывать. Правило вынесено из разметки, потому что
+38: * ошибались именно в нём: условие было одно — `length === 0 && !isLoading` — и
+39: * накрывало и честную пустоту, и непрочитанный список.
+40: *
+41: * Порядок обязателен и проверяется тестом:
+42: *   отказ важнее пустоты (иначе непрочитанное выдаётся за отсутствующее);
+43: *   загрузка важнее пустоты (иначе на долю секунды утверждается «данных нет»);
+44: *   при уже показанных данных обновление не гасит их в «загружаем».
+45: */
+46:export function resolvePanelPhase(input: {
+47:	readonly isLoading: boolean;
+48:	readonly hasFailure: boolean;
+49:	readonly isEmpty: boolean;
+50:}): PanelPhaseOrReady {
+51:	if (input.hasFailure) return "failed";
+52:	if (input.isLoading && input.isEmpty) return "loading";
+53:	if (input.isEmpty) return "empty";
+54:	return "ready";
+55:}
+56:
+57:export type PanelState =
+58:	| { readonly phase: "loading" }
+59:	| { readonly phase: "empty" }
+60:	/** `status` — код ответа сервера; `null` означает, что до сервера не дошли вовсе. */
+61:	| { readonly phase: "failed"; readonly status: number | null };
+62:
+63:/**
+64: * Как называется содержимое конкретной панели. Собирается рядом с самой
+65: * панелью: «задачи по пациенту» знает виджет задач, а не этот модуль.
+66: */
+67:export interface PanelSubject {
+68:	/**
+69:	 * Первая часть предложения об отказе, целиком и с согласованием:
+70:	 * «Задачи по пациенту не загружены», «Статус блокировки не прочитан».
+71:	 *
+72:	 * ЗАЧЕМ ЦЕЛОЙ СТРОКОЙ. Здесь стояло `title` («Задачи по пациенту»), а модуль
+73:	 * дописывал «не загружены» сам. Для трёх сегодняшних панелей форма совпала
+74:	 * случайно: все три названия — множественного числа. Любое название в
+75:	 * единственном («Статус») дало бы «Статус не загружены». Согласование живёт
+76:	 * рядом с существительным, поэтому ошибиться в нём больше негде.
+77:	 */
+78:	readonly notLoadedTitle: string;
+79:	/** Винительный падеж, строчными: «задачи по пациенту» — встанет после «Загружаем …». */
+80:	readonly accusative: string;
+81:	/** Заголовок честной пустоты: «Задач по пациенту пока нет». */
+82:	readonly emptyTitle: string;
+83:	/** Что делать дальше, когда пусто. Пустота без подсказки — тупик. */
+84:	readonly emptyHint: string;
+85:	/**
+86:	 * Чем отказ опасен именно здесь. Показывается после причины отказа.
+87:	 * Например: «Не считайте, что осложнений нет: список не прочитан.»
+88:	 */
+89:	readonly failureConsequence: string;
+90:}
+91:
+92:export interface PanelText {
+93:	readonly phase: PanelPhase;
+94:	readonly title: string;
+95:	readonly hint: string;
+96:	/**
+97:	 * Подпись кнопки повтора, либо `null` — если повторять тот же запрос
+98:	 * бессмысленно.
+99:	 *
+100:	 * БЫЛО: `retryable: boolean`, всегда `true` при отказе, и его никто не читал —
+=== apps/web/src/components/useVisitDiaryLogic.ts hits ===
+41:* `{error, message}`, он разбирался без исключения, поля `diary` в нём нет,

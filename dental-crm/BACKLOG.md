@@ -1,4 +1,210 @@
+## 2026-08-01 — AI recognition jobs history (GET /api/ai/recognition-jobs)
+
+**Gap:** `POST /api/ai/recognition-jobs` already created jobs from Settings → ИИ «Лаборатория нейросетей» and showed only the last `recognitionJob` in memory. `GET /api/ai/recognition-jobs` (`listAiRecognitionJobsFromDb`, requireClinicalReadAccess + org) had **zero web callers**. After reload or preset change staff could not see queue/history or reopen a prior draft.
+
+**Ship:** `AiRecognitionJobsPanel.tsx` — self-contained GET with `auth.denteClinicalReadHeaders`; table (when/kind/target/status/confidence/source/preview); row expand for resultText + warnings; «В лабораторию» via `setRecognitionJob` so «Передать в карту» works; refresh + auto-reload when workbench posts a new job id. Mounted under workbench in `SettingsAiTab` (`data-testid ai-recognition-jobs-mount`). data-testid: `ai-recognition-jobs-panel`, `ai-recognition-jobs-refresh`, `ai-recognition-jobs-list`, `ai-recognition-jobs-empty`, `ai-recognition-jobs-error`, `ai-recognition-jobs-loading`, `ai-recognition-job-row-*`, `ai-recognition-job-open-*`, `ai-recognition-job-detail-*`, `ai-recognition-job-status-*`.
+
+**Verify:** `npx tsc -p apps/web --noEmit` exit 0; live GET without auth → 401/403 (route up); web grep `recognition-jobs` → panel GET + useAppLogic POST.
+
+## 2026-08-01 — Public booking admin copy-link (Settings → Отзывы)
+
+**Gap:** `PublicBookingWidget` + `/api/public/booking` (doctors/slots/book) already LIVE; hash `#/portal/booking/<orgId>` parsed by `publicPortalRouteFromHash` — but **admin UI «скопировать ссылку» отсутствовал**. Owner could not hand a working booking URL from the cabinet without hand-building the path (old QrGatewayPanel printed broken `?clinicId=`). Lab-order already copies portal links; booking did not.
+
+**Ship:** `buildPublicBookingPortalUrl(organizationId, origin?)` in `publicPortalRoute.ts` — single builder matching `PUBLIC_BOOKING_PORTAL_PATH`. `PublicBookingLinkPanel.tsx` — reads `dashboard.clinicSettings.profile.organizationId`, readonly URL, clipboard copy + open tab, honest missing-org state. Mounted atop `SettingsMarketingTab` (`data-testid public-booking-link-mount`). data-testid: `public-booking-link-panel`, `public-booking-link-url`, `public-booking-link-copy`, `public-booking-link-open`, `public-booking-link-missing-org`.
+
+**Verify:** `npx tsc -p apps/web --noEmit` exit 0; web grep `buildPublicBookingPortalUrl` / `public-booking-link` → panel + Marketing mount + helper.
+
+## 2026-08-01 — Patient card attachments (GET/POST /api/patients/:id/attachments)
+
+**Gap:** `POST /api/patients/:patientId/attachments` already wrote multipart to disk + `attachments.patient_id` + sha256 and `GET /api/attachments/:id/download` worked — but **zero web callers** on patient-level POST. Visit diary photos used `/api/files/visits/...` only. No GET list for patient-level files: upload-without-list was incomplete gameplay (passport/scan/contract had no card UI).
+
+**Ship:** API `files.ts` — `GET /api/patients/:patientId/attachments` (org+patient scoped, `{files:[{id,url,name,type}]}` mirror of visit list); POST 201 also returns `file` shape alongside legacy `attachment`. Web `PatientAttachmentsPanel.tsx` — list + multipart upload field `file` + download via `fetchAuthedApiFileObjectUrl` (token headers; bare `<a href>` is 401). Headers: `denteAdminSecretRequestHeaders`. Mounted on `PatientsView` after WhatsApp when `selectedPatientId` set. data-testid: `patient-attachments-panel`, `patient-attachments-input`, `patient-attachments-list`, `patient-attachments-empty`, `patient-attachments-error`, `patient-attachment-row-*`, `patient-attachment-download-*`, `patient-attachments-mount`.
+
+**Verify:** `npx tsc -p apps/web --noEmit` exit 0; live GET/POST without auth → 401/403 (route up); web grep patient attachments → panel + PatientsView mount.
+
+## 2026-08-01 — WhatsApp direct send on patient card (POST /api/whatsapp/send)
+
+**Gap:** `POST /api/whatsapp/send` already called Meta Cloud API (`sendWhatsappTextMessage`), wrote `communication_events` sent|failed, broadcast `INBOX_NEW_MESSAGE` — but **zero web callers**. Settings had only settings/status; outbox is queue/campaign. Admin on patient card could not send one-off WhatsApp without CLI.
+
+**Ship:** `PatientWhatsappSendPanel.tsx` — self-contained compose (message + submit); `denteAdminSecretRequestHeaders` (same path as WhatsApp settings; `requireNonDoctorAccess`); RU errors for 400/403/404/422/502 + server `message`. Mounted on `PatientsView` after consents when `selectedPatientId` set (phone/name hints from selected + draft). data-testid: `patient-whatsapp-send-panel`, `patient-whatsapp-send-message`, `patient-whatsapp-send-submit`, `patient-whatsapp-send-error`, `patient-whatsapp-send-ok`, `patient-whatsapp-send-mount`.
+
+**Verify:** `npx tsc -p apps/web --noEmit` exit 0; live POST without auth → 401/403 (route up); web grep `whatsapp/send` → panel only.
+
+## 2026-08-01 — Outbox enqueue compose (POST /api/communications/outbox)
+
+**Gap:** API `POST /api/communications/outbox` accepted one-off queue items (template or free body + recipient), but MessageDeliveryConsole only listed/cancelled/retried/dispatched. Staff could not queue a single SMS/email/WhatsApp/Telegram without a campaign or auto-reminders.
+
+**Ship:** Compose form «Поставить в очередь» in `MessageDeliveryConsole.tsx` — channel, intent, scope, recipient, optional template or free body, email subject; POST with `denteClinicalMutationHeaders`; server message + journal reload. data-testids: `outbox-enqueue-*`.
+
+**Verify:** `npx tsc -p apps/web --noEmit` exit 0; live POST enqueue 201.
+
+## 2026-08-01 — Leads permanent DELETE (Kanban + store)
+
+- **Gap:** `DELETE /api/leads/:id` (leads.ts, requireResolvedStaffOrAdminOrganizationId, org-scoped, LEAD_DELETED WS) already removed a row from `crm_leads`, but **zero web callers**. Kanban could only drag to «Отказ» (status=trash) — card stayed in DB forever; spam/test/wrong inquiries could not be erased from the funnel without SQL/CLI. Store had GET/POST/PATCH/PUT + convert bare fetch; no `deleteLead`.
+- **Ship:** `leadsStore.ts` — `deleteLead(id)` via `DELETE ${API_URL}/leads/:id` + clinic/staff token headers; optimistic remove + rollback; RU `leadsFailureMessage` on failure. `LeadsKanbanView.tsx` — «Удалить» in edit modal (existing lead only, not «new»); confirm explains trash column vs hard-delete; toast on success/error; `data-testid="lead-delete-permanent"`; Trash2 + min 44×44 touch. Distinct from drag-to-«Отказ».
+- **Verify:** `npx tsc -p apps/web --noEmit` exit 0; live POST lead → DELETE 200 `{success:true}` → GET list absent (probe); WS LEAD_DELETED already refreshes board.
+
+## 2026-08-01 — Form 043/у layout polish + 4-state visual audit (VisitDiaryEditor)
+
+- **Gap:** Form № 043/у (VisitDiaryEditor SOAP diary) had incomplete draft-print path, sub-40px ICD clear touch target, and screenshot harness used path `/visit/:id` (hash router ignores it) plus a page.evaluate theme seed bug (`theme is not defined`). Visual audit could not prove Mobile/PC × Light/Dark.
+- **Ship:** `VisitDiaryEditor.tsx` — unconditional `useAppLogicContext` (Rules of Hooks); draft unlocked header «Печать 043/у» always available; ICD clear → `vde-043__btn--icon` 40×40 + aria-label. `visit-diary-043.css` — theme-safe vars, icon/mic ≥40px touch targets, mobile full-width excludes icon buttons. `scripts/form043-viewport-shots.mjs` — `#visit` hash routing, real demo auth, Edge preferred, theme seed fix `{s,t}`, open odontogram tab + print preview, overflow/touch/theme audit.
+- **Verify:** `npx tsc -p apps/web --noEmit` exit 0; 4 shots clean (form043_mobile_light/dark, form043_pc_light/dark): hasEditor+hasPreview, issues=[], smallTargets=0; report `.dente-ops-shots/form043_audit_report.json` (gitignored).
+
+## 2026-07-31 — Speech chunks inspector (GET /api/speech/chunks)
+
+- **Gap:** `GET /api/speech/chunks?recordingId&visitId&patientId` (speech.ts handleSpeechChunks, requireClinicalReadAccess, scope validateSpeechClinicalScope) already returned per-chunk transcript/status/quality/warnings via `listSpeechTranscriptionChunks`, but **zero web callers**. Visit screen only showed recovery KPI from `GET /api/speech/recordings/recovery` — when recoveryState was missing_chunks / failed_chunks / quality_review the doctor could not see WHICH fragment was empty, failed, or needs edit, nor assemble that recording back into the dictation field from a fragment table.
+- **Ship:** `SpeechChunksInspector.tsx` — self-contained (`useAppLogicContext`: auth clinical read headers, dashboard.activeVisit scope, speechRecordingRecovery, loadSpeechRecordingRecovery, assembleSpeechRecording); collapsible «Фрагменты диктовки»; recovery recording list with state labels; GET chunks on expand/select; table index/status/quality/transcript/when; «Собрать в диктовку» reuses existing assemble (does not write EMR itself). Mounted in `VisitView.tsx` after dictation-box, before VisiographAnalyzer. data-testid: `speech-chunks-inspector`, `speech-chunks-inspector-summary`, `speech-chunks-refresh-recovery`, `speech-chunks-reload`, `speech-chunks-assemble`, `speech-chunks-assemble-note`, `speech-chunks-recordings`, `speech-chunks-recording-*`, `speech-chunks-list`, `speech-chunk-row-*`, `speech-chunks-error`.
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); web grep `/api/speech/chunks` → SpeechChunksInspector only; mount markers SpeechChunksInspector in VisitView.
+
+## 2026-07-31 — X-ray scan DELETE (VisiographAnalyzer)
+
+- **Gap:** `DELETE /api/xray/scans/:id` (xray.ts:238, requireClinicalMutationAccess, org-scoped) already removed a row from `xray_scans`, but **zero web callers**. Visiograph history could only open a scan — wrong upload or foreign report stayed in the patient card forever.
+- **Ship:** `VisiographAnalyzer.tsx` — `deleteScan` via `DELETE /api/xray/scans/:id` + `denteClinicalMutationHeaders`; confirm dialog; trash on each history row + «Удалить из архива» on open history view; optimistic filter of `scanHistory`; clear current scan if ids match; human `deleteFailure` separate from history/save failures. data-testid: `xray-scan-delete-${id}`, `xray-scan-open-${id}`, `xray-scan-delete-current`, `xray-scan-delete-failure`.
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); markers Trash2 / method DELETE / denteClinicalMutationHeaders present; API route still 204/404 as before.
+
+## 2026-07-31 — Diary template CREATE (VisitDiaryTemplateSelector)
+
+- **Gap:** `POST /api/templates` already created custom visit templates (`isBuiltIn: false`, title required, optional category/prefilled*/defaultIcd10) under requireClinicalMutationAccess — but **zero web callers**. Doctor could seed built-ins and delete customs after prior ships, but could not add a clinic-specific protocol from the visit diary screen without SQL/CLI.
+- **Ship:** `VisitDiaryTemplateSelector.tsx` — create form (title required + category/anamnesis/objective/treatment/ICD-10); `createTemplate` via `POST /api/templates` + `denteClinicalMutationHeaders`; open «Свой» / «Создать свой протокол» when unlocked; reload list + select created id; server `message` on error. data-testid: `diary-template-create-open`, `diary-template-create-form`, `diary-template-create-title`, `diary-template-create-submit`, `diary-template-create-cancel`.
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); live POST without session → 401/403 (route up); web grep method POST bare `/api/templates` → selector only.
+
+## 2026-07-31 — Appointments byStatus table (ManagerReportsPanel)
+
+- **Gap:** `GET /api/reports/summary` already returned `appointments.byStatus` (group-by status counts from managerReports.ts) and the panel type included the field — but the UI only rendered arrival/completion/cancel/noShow **rates**. Owner saw «неявки 9 %» and could not see how many records were still «назначен» / «на приёме» / «подтверждён» — where the day stalls. No second API needed; numbers already in the summary payload.
+- **Ship:** `ManagerReportsPanel.tsx` — `appointmentStatusLabels` (RU for scheduled/confirmed/arrived/in_treatment/completed/cancelled/no_show/rescheduled/waiting); table after rates hint: Статус / Записей / Доля; filter count>0, sort desc; share via formatPercent; unknown status printed raw. data-testid: `manager-reports-appointments-by-status`.
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); no new fetch — data from existing summary load.
+
+## 2026-07-31 — Diary template DELETE (VisitDiaryTemplateSelector)
+
+- **Gap:** `DELETE /api/templates/:id` already enforced org scope, 404 NotFound, 403 CannotDeleteBuiltIn for `isBuiltIn`, and db delete for custom visit templates — but **zero web callers**. Doctor could seed/restore built-ins after seed ship, but could not remove an obsolete custom protocol from the visit diary dropdown without SQL/CLI.
+- **Ship:** `VisitDiaryTemplateSelector.tsx` — `isBuiltIn` on Template; `deleteSelectedTemplate` via `DELETE /api/templates/:id` + `denteClinicalMutationHeaders`; button «Удалить» only when selected template is custom and diary unlocked; Russian confirm; clear selection + reload list; server `message` on error (CannotDeleteBuiltIn). data-testid: `diary-template-delete`.
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); live DELETE without session → 401/403 (route up); web grep `diary-template-delete` → selector only.
+
+## 2026-07-31 — Diary clinical templates seed (VisitDiaryTemplateSelector)
+
+- **Gap:** `POST /api/templates/seed` already called `ensureClinicalTemplatesSeeded` (insert missing built-ins by title, `isBuiltIn: true`) and returned `{ success, count }`, but **zero web callers**. GET `/api/templates` auto-seeds only when the org list is fully empty; on 503 `ClinicalTemplatesSeedFailed`, partial customs without built-ins, or a failed first visit, the doctor saw a silent empty «Клинический шаблон» dropdown with no recovery — CLI/SQL only.
+- **Ship:** `VisitDiaryTemplateSelector.tsx` — empty/load-failure/503 state with Russian copy + button «Установить встроенные протоколы» (`POST /api/templates/seed` via `denteClinicalMutationHeaders`); non-empty list keeps select + subtle «Восстановить встроенные» (idempotent by title). Reload list after success; toast with count; server `message` on error. data-testid: `diary-template-empty`, `diary-template-seed`, `diary-template-restore`, `diary-template-select`. Mount already in `VisitDiaryEditor` (unlocked diary header).
+- **Verify:** panel clean under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); live POST seed without session → 403 OrgRequired (route up); web grep `templates/seed` → selector only.
+
+## 2026-07-31 — Staff authority grants panel (Settings → Персонал)
+
+- **Gap:** `PUT /api/settings/staff/:staffId/authority` already wrote column grants (`can_sign_medical_records` / `can_manage_money` / `can_manage_imports`) with roleDerived/grants/effective semantics and 409 on role-revocation, and POST create accepted the three flags in body (zod dropped them silently on create form) — but **zero web callers** on the PUT. Owner could not grant an assistant cash-desk access or import rights without SQL; role-locked flags had no UI.
+- **Ship:** `StaffAuthorityPanel.tsx` — self-contained (`useAppLogicContext` + `denteAdminSecretRequestHeaders`); staff list from dashboard; expandable rows; three checkboxes; role-locked disabled; local overrides after PUT (dashboard still returns roleDerived only — debt noted in panel header). Mounted on `SettingsStaffTab` after `StaffCommissionsPanel`. data-testid: `staff-authority-panel`, `staff-authority-list`, `staff-authority-check-*`.
+- **Verify:** panel has zero TS errors under `npx tsc -p apps/web --noEmit` (pre-existing dicom test noise only); live PUT without auth → 401 AuthRequired (route up); web grep `/authority` + `staff-authority-panel` → StaffAuthorityPanel only.
+
+## 2026-07-31 — Waitlist matches per appointment (schedule gameplay)
+
+- **Gap:** `GET /api/appointments/:appointmentId/waitlist-matches` already returned full ranked candidates (`WaitlistMatch` + reason, same doctor / time / priority / waiting days) for a cancelled or no_show future slot, but **zero web callers**. `FreedSlotsPanel` only showed `topMatches` (limit 3) from `/api/schedule/freed-slots`. Admin opening a cancelled card in the day timeline had no «кому звонить» list beyond the summary strip.
+- **Ship:** `WaitlistMatchesBlock.tsx` — self-contained (`useAppLogicContext` + clinical read headers); loads full report; phone / «Позвонил» / priority / reason. Mounted on `AppointmentCard` for future `cancelled`|`no_show`, and on `FreedSlotsPanel` expand («Полный подбор» / «Все из очереди»). data-testid: `waitlist-matches-block`, `appointment-card-waitlist-matches`, `freed-slot-full-matches`.
+- **Verify:** `npx tsc -p apps/web --noEmit` exit 0; live GET without auth → 401 AuthRequired; web grep `waitlist-matches` → block + AppointmentCard + FreedSlotsPanel.
+
+## 2026-07-31 — Staff commissions GET overview (Settings → Персонал)
+
+
+## 2026-07-31 — Ход рассылки в CampaignPanel (GET campaigns/:id/progress)
+
+**Проблема.** API `GET /api/communications/campaigns/:campaignId/progress` отдавал
+`byStatus` + `total` по outbox-строкам рассылки, но веб **ни разу** не вызывал
+маршрут. Администратор видел только бейдж «Выполняется» / «Завершена» и кнопку
+«Остановить» — сколько ушло, сколько в очереди, сколько failed, узнать было
+нельзя без ручного фильтра журнала доставки.
+
+**Сделано.** `CampaignPanel`: тип `CampaignProgress`, `loadProgress`, кнопка
+«Ход отправки» для running/completed/cancelled, панель метрик (queued/sent/
+delivered/failed/…), автоопрос 8 с пока status=running, обновление после
+launch/cancel, подгрузка вместе с предпросмотром. data-testid:
+`campaign-progress-panel`, `campaign-progress-metrics`, `campaign-progress-btn-*`.
+
+**Проверка.** `npx tsc -p apps/web --noEmit` exit 0; live GET progress без
+секрета → 401/403 (маршрут жив).
+
+
+- **Gap:** `GET /api/settings/staff/commissions` already returned active `doctor_commissions` rates (`userId`, `commissionPct`, `materialCostDeductionPct`, `effectiveFrom`), and PUT `/api/settings/staff/:staffId/commission` was already wired in `DoctorPayoutDashboard` — but **zero web callers** on the GET list. Owner only saw rates inside the monthly payouts table; doctors with no visits that month looked “без ставки” even when a rate row existed.
+- **Ship:** `StaffCommissionsPanel.tsx` — self-contained (`useAppLogicContext` + `denteAdminSecretRequestHeaders`); loads GET list, joins staff FIO from dashboard, inline edit via existing PUT; mounted at top of `SettingsStaffTab` (`data-testid staff-commissions-panel`).
+- **Verify:** `npx tsc -p apps/web --noEmit`; live GET `/api/settings/staff/commissions` → 401/403 without admin secret (route up); web grep `settings/staff/commissions` → panel.
+
+## 2026-07-31 — Patient communication consents gameplay (Patients)
+
+- **Gap:** `GET/PUT /api/communications/consents/:patientId` already stored per-channel service/marketing consent (granted|revoked, defaults service=granted marketing=revoked), but **zero web callers** — staff could not record opt-in/out; campaigns/outbox had no UI source of truth on the patient card.
+- **Ship:** `PatientCommunicationConsentsPanel.tsx` — self-contained (`useAppLogicContext` + clinical read/mutation headers); matrix SMS/WhatsApp/Telegram/email/phone/MAX/VK/in_person × service|marketing; save dirty cells via PUT. Mounted on `PatientsView` when `selectedPatientId` is set (next to communication timelines).
+- **Verify:** `npx tsc -p apps/web --noEmit`; live GET empty patient → 401 AuthRequired or 400; web grep `communications/consents` → panel + PatientsView.
+
+## 2026-07-31 — AI visit-note-draft gameplay (Visit)
+
+- **Gap:** `POST /api/ai/visit-note-draft` already built SOAP visit note fields from transcript + specialty (rule + optional neural, `visitNoteDraftRequestSchema` / `visitNoteDraftSchema`), but **zero web callers** — dictation never became a structured visit note on screen.
+- **Ship:** `VisitNoteDraftPanel.tsx` — self-contained (`useAppLogicContext` + `denteClinicalReadHeaders`); transcript + specialty; run → show complaint/anamnesis/objective/diagnosis/plan + quality; copy/apply. Mounted on `VisitView` when `activePatient.id` is set.
+- **Verify:** `npx tsc -p apps/web --noEmit`; live empty body → 400 `VisitNoteDraftValidationError`; web grep `visit-note-draft` → panel + VisitView.
+
+## 2026-07-31 — Diary revise gameplay (admin correct signed 043/у)
+
+- **Gap:** `POST /api/diaries/:id/revise` already archived prior SOAP text into `visit_diary_revisions` and updated the locked diary (admin-only `OnlyAdminsCanRevise`), and `GET …/revisions` already fed the revision counter — but the Visit diary editor had **zero web callers** for revise. After ЭЦП lock, admin could not fix a typo in МКБ-10 / SOAP without SQL.
+- **Ship:** `useVisitDiaryLogic.ts` — `beginRevise` / `cancelRevise` / `doRevise` (clinical mutation headers, reason ≥3 chars, message-first RU toasts, keeps `isLocked`, refreshes hash + revisionCount; autosave skips while revising). `VisitDiaryEditor.tsx` — `fieldsDisabled = isLocked && !isRevising` unlocks SOAP/ICD/tooth/complications in revise mode; locked footer «Исправить» (`diary-revise-begin`) + revise panel (reason + cancel/save); header badge «ПРАВКА» while revising.
+- **Verify:** `npx tsc -p apps/web --noEmit` GREEN; live `POST /api/diaries/:id/revise` without admin → 403 `OnlyAdminsCanRevise` (route up); web grep `/revise` → `useVisitDiaryLogic.ts`; `diary-revise-begin` / `diary-revise-panel` in editor; `disabled={isLocked}` on SOAP fields = 0 (all via `fieldsDisabled`).
+
+## 2026-07-31 — Live audit logs GET UI (Settings → Аудит)
+
+- **Gap:** `GET /api/audit/logs` returned the full org audit trail (entityType/entityId/limit filters, immutability 152-ФЗ), but the Settings audit tab only rendered `dashboard.auditEvents` (dashboard slice) — zero web callers for the live route.
+- **Ship:** Created self-contained `apps/web/src/AuditLogsPanel.tsx` — fetches `GET /api/audit/logs` with `denteClinicalReadHeaders`, Russian UI, entity filters, limit, refresh, immutable notice; mounted above `SettingsAuditTab` when `settingsTab === "audit"` in `SettingsView.tsx`.
+- **Verify:** web caller hit on `AuditLogsPanel.tsx`; live API `GET /api/audit/logs` → 401 AuthRequired (route up); `DELETE /api/audit/logs` → 403 AuditLogImmutable; `npx tsc -p apps/web --noEmit` GREEN.
+
+
+## 2026-07-31 — CRM Custom Task Types UI (ClinicalTasksPanel)
+
+- **Gap:** `GET /api/crm/custom-task-types` returned organization-customized task types from `custom_crm_task_types` DDL table, but had zero web callers — doctors were limited to standard hardcoded phase buttons.
+- **Ship:** Updated `ClinicalTasksPanel.tsx` — fetches `/api/crm/custom-task-types` via `denteClinicalReadHeaders` and dynamically renders organization-specific task buttons styled with `type.colorHex`.
+- **Verify:** `npm run check:encoding` clean (2822 files verified); `npm run typecheck` GREEN across all packages.
+
+## 2026-07-31 — EGISZ Multiple Diagnoses UI (VisitEmkTab)
+
+- **Gap:** `GET /api/egisz/multiple-diagnoses` queried structured accompanying diagnoses (`egiszMultipleDiagnoses` table) for EGISZ REMD CDA R2 compliance, but had zero web callers — doctors could not see or attach accompanying ICD-10 diagnoses to visit exports.
+- **Ship:** Built `EgiszMultipleDiagnosesWidget.tsx` — self-contained widget fetching `/api/egisz/multiple-diagnoses` with `denteClinicalReadHeaders`; mounted inside `VisitEmkTab.tsx` directly above the CDA R2 XML download section.
+- **Verify:** `npm run check:encoding` clean (2822 files verified); `npm run typecheck` GREEN across all packages.
+
+## 2026-07-31 — EGISZ Doctor SNILS Validation UI (SettingsStaffTab)
+
+- **Gap:** `POST /api/clinical/egisz/validate-doctor-snils` validated doctor SNILS format and 11-digit checksum against state EGISZ/FRMR standards, but had zero web callers — administrators entered doctor credentials blindly without validation.
+- **Ship:** Created `DoctorSnilsValidationWidget.tsx` — self-contained widget calling `POST /api/clinical/egisz/validate-doctor-snils` with staff token headers; mounted in `SettingsStaffTab.tsx` when adding or editing doctor staff.
+- **Verify:** `npm run check:encoding` clean (2820 files verified); `npm run typecheck` GREEN across `@dental/shared`, `@dental/api`, and `@dental/web`.
+
+## 2026-07-31 — NDFL Tax Certificate XML Export UI (DocumentsView)
+
+- **Gap:** `GET /api/documents/:id/tax-xml` generated valid KND 1151156 XML for FNS EDO submission, but button in `DocumentsView.tsx` had ambiguous label "Черновой файл ФНС" and lacked explicit ARIA metadata.
+- **Ship:** Updated `DocumentsView.tsx` with explicit action button «Справка НДФЛ в XML (ФНС)», emerald status styling, and full ARIA accessibility guidance.
+- **Verify:** `npm run check:encoding` clean (2819 files verified); `npm run typecheck` GREEN across `@dental/shared`, `@dental/api`, and `@dental/web`.
+
+## 2026-07-31 — AI personalize UI (Visit + Finance)
+
+- **Gap:** `POST /api/ai/treatment-plan-personalize` and `POST /api/ai/post-visit-personalize` already returned patient-friendly Russian text (rule fallback + optional neural), but **zero web callers** — doctor closed the visit and could only explain the plan / hand a memo manually.
+- **Ship:** `ClinicalAiPersonalizePanel.tsx` — self-contained panel (`useAppLogicContext` + `denteClinicalReadHeaders`); builds `treatmentPlanPayloadSchema`-valid body from `dashboard.treatmentPlanItems` / scenarios + visit note fields; buttons «Объяснить план пациенту» / «Памятка после приёма»; copy + markdownish render.
+- **Mount:** `VisitView.tsx` after ClinicalTasksPanel (complaint/diagnosis/treatmentPlan from visit note); `FinanceView.tsx` after ClinicalRulePanel (`patientId={documentPatient?.id ?? null}`, context=finance).
+- **Verify:** live empty body → 400 ValidationError; valid payload → 200 with `patientFriendlyExplanation` / `allowedAfter`+`telegramSummary`; mounts grep only Visit+Finance.
+
+## 2026-07-31 — Live clinical rules evaluate UI (Visit + Finance)
+
+
+- **Gap:** `POST /api/clinical/rules/evaluate` already counted org-scoped rules from the live treatment plan (`evaluateClinicalRulesInDb`, enforceBlockers → 400 `ClinicalRuleBlocker`), but **zero web callers** — Visit/Finance only painted `dashboard.clinicalRuleEvaluations` snapshot from shift open. Doctor changed the plan → stale warnings until full dashboard reload.
+- **Ship:** `ClinicalRulePanel.tsx` — self-fetch via `useAppLogicContext` + `denteClinicalReadHeaders`; `collectServiceIdsForPatient` mirrors sampleData (plan items + active scenarios); buttons «Пересчитать по плану» / «Проверить с блокировкой» (visit only); blocker 400 is gameplay signal, not generic error.
+- **Mount:** `VisitView.tsx` `patientId` from activePatient / activeVisit; `FinanceView.tsx` `patientId={documentPatient?.id ?? null}`.
+- **Verify:** `npx tsc -p apps/web --noEmit` clean; live POST without body → 400 `ClinicalRuleValidationError` (route up); web caller grep → only `ClinicalRulePanel.tsx`.
+
+## 2026-07-31 — Clinical phase handoff UI (VisitView)
+
+- **Gap:** `POST /api/clinical/phase-completions` + `GET /api/clinical/tasks` wrote to `clinical_tasks` (ClinicalRouter + clinicalTasksQuery) but had **zero web callers** — therapist/surgeon finished a phase and the prosthodontist never saw a task.
+- **Ship:** `apps/web/src/ClinicalTasksPanel.tsx` (self-contained FreedSlotsPanel pattern: `denteClinicalReadHeaders` / `denteClinicalMutationHeaders`).
+- **Mount:** `VisitView.tsx` after ClinicalRulePanel when `activePatient.id` is set; buttons «Завершить терапию — передать на ортопедию» / «Завершить хирургию — передать на ортопедию».
+- **Verify:** `npx tsc -p apps/web --noEmit` clean; live API AuthRequired then staff headers.
+
 # DENTE CRM — demon backlog (Lead Security + Full-Stack)
+## 2026-07-31 — communications/variables в редакторе шаблонов
+
+**БЫЛО:** GET `/api/communications/variables` отдавал каталог подстановок (`key`/`label`/`example`/`phi`) из `templateRenderer.communicationTemplateVariables`, но **zero web callers** — администратор набирал `{patient}` по памяти, мед. переменные не были видны до отказа предпросмотра.
+
+**ТЕПЕРЬ:** `MessageDeliveryConsole` грузит каталог вместе со шлюзами/шаблонами; под полем текста — чипы вставки `{key}` (phi помечены «мед.»).
+
+Файлы: `apps/web/src/components/communications/MessageDeliveryConsole.tsx`.
+
+---
+
 # Format: [ ] prio | what | where | proof
 # [~] in progress + agent id | [x] done + commit hash
 
@@ -35,7 +241,15 @@
 [x] P1 | leads+finance_family+sterilization body Zod (AUTH-first; null/array→400≠500; RU ValidationError) | leads.ts+finance_family.ts+sterilization.ts + leadsFinanceSterilBody.test.ts | 20/20 GREEN typecheck OK | a0eb58194
 
 [x] P1 | diary POST /api/diaries upsert body Zod (AUTH-first; null/array/{}→400≠500; RU ValidationError) | diary.ts + nextCastsBody.test.ts | 22/22 GREEN typecheck OK | 18050f0ec
-
+[x] P0 | diary gameplay: doSave → POST /api/diaries (not visit draft/autosave); return id for doLock; message-first RU toasts | useVisitDiaryLogic.ts | ee9c055a9
+[x] P1 | workspace profile POST body Zod (AUTH→safeParse→org; array/string→400 RU≠500/404) + saveWorkspaceFlags message-first gameplay | workspaceProfile.ts + useWorkspaceProfile.ts + egiszVkBody.test.ts | 17/17 GREEN | c61e6cc36
+[x] P1 | ScannerView sterilization message-first RU (payload.message Cyrillic; StaffAuthRequired kept) | ScannerView.tsx | 36dc0ce02
+[x] P1 | LeadsKanban message-first RU (leadsFailureMessage + toast on drag/edit; convert already OK) | leadsStore.ts + LeadsKanbanView.tsx | 36dc0ce02
+[x] P1 | API EN 500→RU message (files/waitlist/lab/inventory reply.send) | files.ts waitlist.ts lab.ts inventory.ts + en500ReplyMessageRu.test.ts | afb0fa8f0
+[x] P1 | useWorkspaceProfile applyWorkspacePreset message-first RU (no Failed to apply preset) | useWorkspaceProfile.ts | 28b2cef0f
+[x] P1 | ScheduleView DayConfirmations+FreedSlots panels + Settings messengers tab wire | ScheduleView.tsx SettingsView.tsx | 3f7dbcd6b
+[x] P0 | Schedule clipboard end-to-end (API writers + panel + AppointmentCard «В буфер» + ScheduleView toolbar) | schedule.ts + ScheduleClipboardPanel + AppointmentCard + ScheduleView | cd3fe5a69 typecheck GREEN; scheduleMutationGuard 6/6 (clipboard POST/DELETE/paste under admin secret)
+[x] P1 | hasClinicalRules default true (API workspace + web DEFAULT_FLAGS) | workspaceProfile.ts + useWorkspaceProfile.ts | cd3fe5a69 flipped both defaults
 
 
 [x] P2 | TODO/FIXME in settings components | apps/web/src/components/settings | none real (CSS .shift-todo only)
@@ -303,7 +517,7 @@
     > message: "сумма должна быть больше нуля"
     > });
     > export const nonNegativeMoneyRubSchema = moneyRubSchema.refine((value) => value >= 0, {
-    > message: "с��мма не может быть отрицательной"
+    > message: "сумма не может быть отрицательной"
     > });
 
 ## Salvaged fix from closed PR #526

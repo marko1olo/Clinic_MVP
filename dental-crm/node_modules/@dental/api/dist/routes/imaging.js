@@ -5552,12 +5552,26 @@ export async function registerImagingRoutes(app) {
     app.post("/api/imaging/visiograph-ai", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "visiograph ai analysis")))
             return;
+        // БЫЛО: bare cast `request.body as { imageBase64?: string }` — null body
+        // не падал из-за body?., но форма не проверялась (как у соседних imaging
+        // маршрутов через parseImagingPayload). Missing imageBase64 message сохранён.
+        const parsed = parseImagingPayload({
+            safeParse: (value) => {
+                if (!value || typeof value !== "object" || Array.isArray(value)) {
+                    return { success: false };
+                }
+                const imageBase64 = value.imageBase64;
+                if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
+                    return { success: false };
+                }
+                return { success: true, data: { imageBase64 } };
+            },
+        }, request.body, "Missing imageBase64");
+        if (!parsed.ok) {
+            return reply.code(400).send({ error: "Missing imageBase64" });
+        }
         try {
-            const body = request.body;
-            if (!body?.imageBase64) {
-                return reply.code(400).send({ error: "Missing imageBase64" });
-            }
-            const result = await analyzeVisiographImage(body.imageBase64);
+            const result = await analyzeVisiographImage(parsed.data.imageBase64);
             return reply.send(result);
         }
         catch (err) {

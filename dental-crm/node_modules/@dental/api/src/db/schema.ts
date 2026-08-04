@@ -13,8 +13,11 @@ import {
   unique,
   index,
   uniqueIndex,
-  uuid
+  uuid,
+  varchar,
+  check
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type {
   DocumentIssueSignatureAttestation,
   DocumentReleaseJournalEntry,
@@ -219,6 +222,7 @@ export const documentKind = pgEnum("document_kind", [
   "installment_payment_schedule",
   "post_visit_recommendations",
   "outpatient_medical_card_025u",
+  "dental_medical_card_043u",
   "medical_record_extract",
   "medical_record_copy_request",
   "medical_document_release_receipt",
@@ -477,7 +481,8 @@ export const appointments = pgTable("appointments", {
   comment: text("comment")
 }, (table) => {
   return {
-    idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt)
+    idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt),
+    timeOrderCheck: check("appointments_time_order_check", sql`${table.startsAt} < ${table.endsAt}`)
   };
 });
 
@@ -657,7 +662,8 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
   return {
-    idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt)
+    idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt),
+    paymentsOrgClientMutationUnique: unique("payments_org_client_mutation_unique").on(table.organizationId, table.clientMutationId)
   };
 });
 
@@ -1686,11 +1692,35 @@ export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
   previousStatusLocalis: text("previous_status_localis"),
   previousDiagnosisIcd10: text("previous_diagnosis_icd10"),
   previousTreatmentDescription: text("previous_treatment_description"),
+  /*
+   * Колонки из drizzle/0116_add_soap_template_fields.sql.
+   * БЫЛО: schema отставала от БД — POST …/revise принимал revisionReason и
+   * previousDiagnosisTooth в теле, но insert в visit_diary_revisions их не
+   * писал. Причина правки и прежний зуб пропадали из forensic-истории 043/у.
+   */
+  previousDiagnosisTooth: varchar("previous_diagnosis_tooth", { length: 10 }),
+  /*
+   * Forensic 043/у (миграция 0149).
+   * БЫЛО: revise принимал complications/comorbidities и писал их в visit_diaries,
+   * но previous_* в visit_diary_revisions не сохранялись — при админ-правке
+   * подписанного дневника терялся прежний текст осложнений и сопутствующих.
+   */
+  previousComplications: text("previous_complications"),
+  previousComorbidities: text("previous_comorbidities"),
+  /*
+   * Forensic 043/у (миграция 0150).
+   * БЫЛО: revise не принимал instrumentTrayBarcode; previous_* лотка
+   * не было. sterilization/link 409 обещал правку через ревизию,
+   * а forensic-история 043/у не фиксировала прежний штрихкод лотка.
+   */
+  previousInstrumentTrayBarcode: text("previous_instrument_tray_barcode"),
+  revisionReason: text("revision_reason"),
   revisedByUserId: uuid("revised_by_user_id"),
   revisedBy: uuid("revised_by"),
   revisedAt: timestamp("revised_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
 
 // visit examination photo links (links to uploaded exam photos)
 export const visitExaminationPhotoLinks = pgTable("visit_examination_photo_links", {
@@ -1805,6 +1835,11 @@ export const inventoryItems = pgTable("inventory_items", {
   expirationDate: date("expiration_date", { mode: "string" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => {
+  return {
+    stockCheck: check("inventory_items_stock_quantity_check", sql`CAST(${table.stockQuantity} AS NUMERIC) >= 0`),
+    currentQtyCheck: check("inventory_items_current_qty_check", sql`CAST(${table.currentQty} AS NUMERIC) >= 0`)
+  };
 });
 
 // inventory transactions (stock movements)

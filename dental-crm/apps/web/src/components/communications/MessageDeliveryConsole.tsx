@@ -10,7 +10,7 @@
  * Здесь всё опирается на настоящие данные:
  *   • состояние шлюзов — что действительно настроено и сколько денег на счету;
  *   • журнал очереди с причиной отказа по каждому сообщению;
- *   • редактор шаблонов с предпросмотром и счётчиком сегментов SMS;
+ *   • редактор шаблонов с предпросмотром, справочником {переменных} и счётчиком сегментов SMS;
  *   • правила: тихие часы, суточный предел, автоматические напоминания.
  *
  * Ничего не подставляется «на всякий случай»: если данных нет, так и написано.
@@ -73,6 +73,14 @@ type TemplateItem = {
 	body: string;
 	variables: string[];
 	isActive: boolean;
+};
+
+/** Справочник подстановок из GET /api/communications/variables */
+type TemplateVariable = {
+	key: string;
+	label: string;
+	example: string;
+	phi: boolean;
 };
 
 type OutboxItem = {
@@ -240,6 +248,25 @@ export function MessageDeliveryConsole() {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [preview, setPreview] = useState<PreviewResult | null>(null);
 	const [previewError, setPreviewError] = useState<string | null>(null);
+	/** Каталог {key} для редактора шаблона — GET /api/communications/variables */
+	const [variableCatalog, setVariableCatalog] = useState<TemplateVariable[]>([]);
+
+	/*
+	 * Разовая постановка в очередь (POST /api/communications/outbox).
+	 * БЫЛО: пульт умел отменять/повторять/разбирать очередь и править шаблоны,
+	 * но поставить одно сообщение вручную было нельзя — только кампании или
+	 * авто-напоминания. Администратор не мог отправить SMS «приходите завтра»
+	 * без конструктора рассылки.
+	 */
+	const [enqueueChannel, setEnqueueChannel] = useState<"sms" | "email" | "whatsapp" | "telegram">("sms");
+	const [enqueueIntent, setEnqueueIntent] = useState("general");
+	const [enqueueScope, setEnqueueScope] = useState<"service" | "marketing">("service");
+	const [enqueueTemplateId, setEnqueueTemplateId] = useState("");
+	const [enqueueBody, setEnqueueBody] = useState("");
+	const [enqueueRecipient, setEnqueueRecipient] = useState("");
+	const [enqueueSubject, setEnqueueSubject] = useState("");
+	const [enqueueBusy, setEnqueueBusy] = useState(false);
+
 
 	const loadAll = useCallback(async () => {
 		setLoadError(null);
@@ -253,23 +280,37 @@ export function MessageDeliveryConsole() {
 			 * той же шапке среди проверенных.
 			 */
 			const readHeaders = auth ? auth.denteClinicalReadHeaders() : {};
-			const [gatewayResponse, templateResponse, outboxResponse, settingsResponse] = await Promise.all([
-				fetch("/api/communications/gateway-status", { headers: readHeaders }),
-				fetch("/api/communications/templates", { headers: readHeaders }),
-				fetch(`/api/communications/outbox${query}`, { headers: readHeaders }),
-				fetch("/api/communications/settings", { headers: readHeaders })
-			]);
+			const [gatewayResponse, templateResponse, outboxResponse, settingsResponse, variablesResponse] =
+				await Promise.all([
+					fetch("/api/communications/gateway-status", { headers: readHeaders }),
+					fetch("/api/communications/templates", { headers: readHeaders }),
+					fetch(`/api/communications/outbox${query}`, { headers: readHeaders }),
+					fetch("/api/communications/settings", { headers: readHeaders }),
+					fetch("/api/communications/variables", { headers: readHeaders })
+				]);
 
 			const gatewayData = await readJson<GatewayStatus>(gatewayResponse);
 			const templateData = await readJson<{ templates: TemplateItem[] }>(templateResponse);
 			const outboxData = await readJson<{ items: OutboxItem[]; summary: Record<string, number> }>(outboxResponse);
 			const settingsData = await readJson<{ settings: CommunicationSettings }>(settingsResponse);
+			const variablesData = await readJson<{ variables: TemplateVariable[] }>(variablesResponse);
 
 			setGateways(gatewayData);
 			setTemplates(templateData.templates);
 			setOutbox(outboxData.items);
 			setSummary(outboxData.summary);
 			setSettings(settingsData.settings);
+			setVariableCatalog(
+				Array.isArray(variablesData.variables)
+					? variablesData.variables.filter(
+							(v) =>
+								v &&
+								typeof v.key === "string" &&
+								v.key.trim().length > 0 &&
+								typeof v.label === "string",
+						)
+					: [],
+			);
 		} catch (error) {
 			// Пустой экран без объяснения — это то, от чего здесь уходим.
 			setLoadError(error instanceof Error ? error.message : String(error));
@@ -335,6 +376,26 @@ export function MessageDeliveryConsole() {
 		setDraftIntent("appointment_confirmation");
 		setPreview(null);
 		setPreviewError(null);
+	}
+
+	/** Вставить {key} в текст шаблона в позицию курсора textarea (или в конец). */
+	function insertTemplateVariable(key: string) {
+		const token = `{${key}}`;
+		const el = document.getElementById("template-body") as HTMLTextAreaElement | null;
+		if (el && typeof el.selectionStart === "number") {
+			const start = el.selectionStart;
+			const end = el.selectionEnd;
+			const next = draftBody.slice(0, start) + token + draftBody.slice(end);
+			setDraftBody(next);
+			// Восстановить курсор после токена на следующем тике.
+			requestAnimationFrame(() => {
+				const pos = start + token.length;
+				el.focus();
+				el.setSelectionRange(pos, pos);
+			});
+			return;
+		}
+		setDraftBody((prev) => (prev ? `${prev}${token}` : token));
 	}
 
 	async function saveTemplate() {
@@ -508,6 +569,69 @@ export function MessageDeliveryConsole() {
 			setBusy(false);
 		}
 	}
+
+	/** Активные шаблоны выбранного канала — для разовой постановки. */
+	const enqueueTemplates = useMemo(
+		() => templates.filter((t) => t.isActive && t.channel === enqueueChannel),
+		[templates, enqueueChannel]
+	);
+
+	const enqueueCanSubmit =
+		enqueueRecipient.trim().length > 0 &&
+		(Boolean(enqueueTemplateId) || enqueueBody.trim().length > 0) &&
+		!enqueueBusy &&
+		!busy;
+
+	async function enqueueMessage() {
+		if (!enqueueCanSubmit) return;
+		setEnqueueBusy(true);
+		setNotice(null);
+		try {
+			const payload: Record<string, unknown> = {
+				channel: enqueueChannel,
+				intent: enqueueIntent,
+				scope: enqueueScope,
+				recipientAddress: enqueueRecipient.trim()
+			};
+			if (enqueueTemplateId) {
+				payload.templateId = enqueueTemplateId;
+			} else {
+				payload.body = enqueueBody.trim();
+			}
+			if (enqueueChannel === "email" && enqueueSubject.trim()) {
+				payload.subject = enqueueSubject.trim();
+			}
+			const response = await fetch("/api/communications/outbox", {
+				method: "POST",
+				headers: {
+					...(auth ? auth.denteClinicalMutationHeaders() : {}),
+					"content-type": "application/json"
+				},
+				body: JSON.stringify(payload)
+			});
+			const data = await readJson<{ outboxId: string; duplicate: boolean; message: string }>(response);
+			setNotice({
+				kind: "done",
+				text: data.message || (data.duplicate ? "Такое сообщение уже стоит в очереди." : "Сообщение поставлено в очередь.")
+			});
+			// После успешной постановки очищаем текст/шаблон, адрес оставляем —
+			// часто шлют несколько сообщений одному человеку подряд.
+			setEnqueueBody("");
+			setEnqueueTemplateId("");
+			setEnqueueSubject("");
+			await loadAll();
+		} catch (error) {
+			setNotice(
+				failNotice(
+					error,
+					"Сообщение не поставлено в очередь. Текст и адрес не пропали — исправьте и нажмите ещё раз."
+				)
+			);
+		} finally {
+			setEnqueueBusy(false);
+		}
+	}
+
 
 	if (loadError) {
 		return (
@@ -779,6 +903,154 @@ export function MessageDeliveryConsole() {
 				</div>
 			)}
 
+			{/*
+			  ── Поставить в очередь ───────────────────────────────────────────
+			  POST /api/communications/outbox. БЫЛО: API принимал разовую
+			  постановку (шаблон или готовый текст + адрес), а пульт умел только
+			  смотреть журнал, отменять и повторять. Администратор не мог
+			  отправить одно SMS/письмо без кампании или авто-напоминаний.
+			*/}
+			<h3 className="ops-section-title">Поставить в очередь</h3>
+			<div className="ops-editor" data-testid="outbox-enqueue-form">
+				<p className="ops-hint">
+					Одно сообщение одному получателю — без рассылки. Уйдёт через «Отправить из очереди» или
+					автоматический обработчик, если он включён.
+				</p>
+				<div className="ops-toolbar">
+					<span className="ops-field">
+						<label htmlFor="enqueue-channel">Канал</label>
+						<select
+							id="enqueue-channel"
+							data-testid="outbox-enqueue-channel"
+							value={enqueueChannel}
+							onChange={(event) => {
+								setEnqueueChannel(event.target.value as "sms" | "email" | "whatsapp" | "telegram");
+								setEnqueueTemplateId("");
+							}}
+						>
+							{(["sms", "email", "whatsapp", "telegram"] as const).map((code) => (
+								<option key={code} value={code}>
+									{channelLabels[code]}
+								</option>
+							))}
+						</select>
+					</span>
+					<span className="ops-field">
+						<label htmlFor="enqueue-intent">Назначение</label>
+						<select
+							id="enqueue-intent"
+							data-testid="outbox-enqueue-intent"
+							value={enqueueIntent}
+							onChange={(event) => setEnqueueIntent(event.target.value)}
+						>
+							{Object.entries(intentLabels).map(([code, label]) => (
+								<option key={code} value={code}>
+									{label}
+								</option>
+							))}
+						</select>
+					</span>
+					<span className="ops-field">
+						<label htmlFor="enqueue-scope">Тип</label>
+						<select
+							id="enqueue-scope"
+							data-testid="outbox-enqueue-scope"
+							value={enqueueScope}
+							onChange={(event) => setEnqueueScope(event.target.value as "service" | "marketing")}
+						>
+							<option value="service">Сервисное</option>
+							<option value="marketing">Рекламное</option>
+						</select>
+					</span>
+				</div>
+
+				<span className="ops-field ops-field--grow">
+					<label htmlFor="enqueue-recipient">
+						{enqueueChannel === "email" ? "Адрес почты" : "Телефон или идентификатор"}
+					</label>
+					<input
+						id="enqueue-recipient"
+						data-testid="outbox-enqueue-recipient"
+						type={enqueueChannel === "email" ? "email" : "text"}
+						value={enqueueRecipient}
+						onChange={(event) => setEnqueueRecipient(event.target.value)}
+						placeholder={
+							enqueueChannel === "email"
+								? "patient@example.com"
+								: enqueueChannel === "telegram"
+									? "chat_id или @username"
+									: "+79001234567"
+						}
+						autoComplete="off"
+					/>
+				</span>
+
+				{enqueueChannel === "email" ? (
+					<span className="ops-field ops-field--grow">
+						<label htmlFor="enqueue-subject">Тема письма</label>
+						<input
+							id="enqueue-subject"
+							data-testid="outbox-enqueue-subject"
+							type="text"
+							value={enqueueSubject}
+							onChange={(event) => setEnqueueSubject(event.target.value)}
+							placeholder="Сообщение из клиники"
+						/>
+					</span>
+				) : null}
+
+				<span className="ops-field ops-field--grow">
+					<label htmlFor="enqueue-template">Шаблон (необязательно)</label>
+					<select
+						id="enqueue-template"
+						data-testid="outbox-enqueue-template"
+						value={enqueueTemplateId}
+						onChange={(event) => {
+							const next = event.target.value;
+							setEnqueueTemplateId(next);
+							if (next) setEnqueueBody("");
+						}}
+					>
+						<option value="">Без шаблона — свой текст</option>
+						{enqueueTemplates.map((t) => (
+							<option key={t.id} value={t.id}>
+								{t.title}
+								{intentLabels[t.intent] ? ` · ${intentLabels[t.intent]}` : ""}
+							</option>
+						))}
+					</select>
+				</span>
+
+				{enqueueTemplateId ? (
+					<p className="ops-hint">
+						Текст возьмётся из шаблона. Переменные без значений сервер не подставит пустотой — для
+						разовой отправки с подстановками удобнее готовый текст ниже.
+					</p>
+				) : (
+					<span className="ops-field">
+						<label htmlFor="enqueue-body">Текст сообщения</label>
+						<textarea
+							id="enqueue-body"
+							data-testid="outbox-enqueue-body"
+							rows={3}
+							value={enqueueBody}
+							onChange={(event) => setEnqueueBody(event.target.value)}
+							placeholder="Здравствуйте! Напоминаем о визите завтра в 10:00."
+						/>
+					</span>
+				)}
+
+				<button
+					className="primary-button"
+					type="button"
+					data-testid="outbox-enqueue-submit"
+					disabled={!enqueueCanSubmit}
+					onClick={() => void enqueueMessage()}
+				>
+					{enqueueBusy ? "Ставлю в очередь…" : "Поставить в очередь"}
+				</button>
+			</div>
+
 			{/* ── Шаблоны ───────────────────────────────────────────────────── */}
 			<h3 className="ops-section-title">Шаблоны сообщений</h3>
 			{templates.length === 0 ? (
@@ -864,6 +1136,46 @@ export function MessageDeliveryConsole() {
 					placeholder="{patient}, напоминаем: приём {date} в {time}."
 				/>
 				</span>
+
+				{/*
+				  Справочник подстановок GET /api/communications/variables.
+				  БЫЛО: маршрут отдавал полный каталог (key/label/example/phi), но web
+				  его не вызывал — администратор набирал {patient} по памяти и не видел
+				  мед. переменные (phi) до отказа предпросмотра/отправки.
+				  ТЕПЕРЬ: чипы вставляют {key} в текст; phi помечены «мед.» — для каналов
+				  без согласия на медданные сервер всё равно отклонит при allowPhi=false.
+				*/}
+				{variableCatalog.length > 0 ? (
+					<div
+						className="ops-variable-catalog"
+						data-testid="comm-template-variables"
+						aria-label="Подстановки для шаблона"
+					>
+						<span className="ops-note ops-variable-catalog__title">
+							Подстановки — нажмите, чтобы вставить в текст:
+						</span>
+						{variableCatalog.map((v) => (
+							<button
+								key={v.key}
+								type="button"
+								data-testid={`comm-template-var-${v.key}`}
+								title={
+									v.phi
+										? `${v.label} · пример: ${v.example} · медицинские данные`
+										: `${v.label} · пример: ${v.example}`
+								}
+								onClick={() => insertTemplateVariable(v.key)}
+								className={v.phi ? "quick-chip quick-chip--phi" : "quick-chip"}
+							>
+								{`{${v.key}}`}
+								<span className="quick-chip__label">
+									{v.label}
+									{v.phi ? " · мед." : ""}
+								</span>
+							</button>
+						))}
+					</div>
+				) : null}
 
 				{previewError ? (
 					<p className="ops-notice ops-notice--error" role="alert">

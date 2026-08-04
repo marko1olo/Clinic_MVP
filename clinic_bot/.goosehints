@@ -1,0 +1,7 @@
+# Clinic Bot (Telegram) Goose Protocol
+
+1. **Primary Scope**: Clinic Telegram Bot (Python / aiogram / asyncio).
+2. **Architecture Rules**:
+   - Async-first architecture with strict exception logging.
+   - Draft-first validation before sending messages to patients.
+   - No hardcoded API keys or secrets; use environment variables.

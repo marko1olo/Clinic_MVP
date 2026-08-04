@@ -18,6 +18,9 @@ import { featureDistinguishes, patientListFeatureSalience } from "./components/p
 import { PatientCardSavePill } from "./components/patients/patientCardSavePill";
 import { PatientArchiveReasonsAndBlacklistsWidget } from "./components/crm/PatientArchiveReasonsAndBlacklistsWidget";
 import { PatientCommunicationTimelinesWidget } from "./components/crm/PatientCommunicationTimelinesWidget";
+import { PatientCommunicationConsentsPanel } from "./components/patients/PatientCommunicationConsentsPanel";
+import { PatientWhatsappSendPanel } from "./components/patients/PatientWhatsappSendPanel";
+import { PatientAttachmentsPanel } from "./components/patients/PatientAttachmentsPanel";
 import { PatientDuplicateMergeQueuesWidget } from "./components/crm/PatientDuplicateMergeQueuesWidget";
 import { useAppLogicContext } from "./contexts/AppLogicContext";
 
@@ -178,6 +181,37 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
       }),
     [patientInsightById, patientInsightRiskLabels],
   );
+
+  const [showLostPatientsOnly, setShowLostPatientsOnly] = useState(false);
+  const [lostPatientIds, setLostPatientIds] = useState<Set<string> | null>(null);
+  const [isLoadingLost, setIsLoadingLost] = useState(false);
+
+  const toggleLostPatients = () => {
+    if (showLostPatientsOnly) {
+      setShowLostPatientsOnly(false);
+      return;
+    }
+    setIsLoadingLost(true);
+    fetch("/api/analytics/lost-patients-filters")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Array<{ id: string }>) => {
+        const ids = new Set((data || []).map((item) => item.id));
+        setLostPatientIds(ids);
+        setShowLostPatientsOnly(true);
+      })
+      .catch(() => {
+        setLostPatientIds(new Set());
+        setShowLostPatientsOnly(true);
+      })
+      .finally(() => {
+        setIsLoadingLost(false);
+      });
+  };
+
+  const displayPatients = useMemo(() => {
+    if (!showLostPatientsOnly || !lostPatientIds) return filteredPatients;
+    return filteredPatients.filter((p) => lostPatientIds.has(p.id));
+  }, [filteredPatients, showLostPatientsOnly, lostPatientIds]);
 
   const patientNameReady = newPatientName.trim().length > 0;
   const patientCreatePhoneIssue = newPatientPhone.trim().length > 0 && newPatientPhone.replace(/\D/g, "").length < 5;
@@ -835,6 +869,29 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
               карточка показывает чужие звонки и чужие блокировки. */}
           <PatientArchiveReasonsAndBlacklistsWidget patientId={selectedPatientId} />
           <PatientCommunicationTimelinesWidget patientId={selectedPatientId} />
+          {selectedPatientId ? (
+            <div className="mt-4" data-testid="patient-comm-consents-mount">
+              <PatientCommunicationConsentsPanel patientId={selectedPatientId} />
+            </div>
+          ) : null}
+          {selectedPatientId ? (
+            <div className="mt-4" data-testid="patient-whatsapp-send-mount">
+              <PatientWhatsappSendPanel
+                patientId={selectedPatientId}
+                patientPhone={selectedPatient?.phone ?? patientCoreDraft.phone ?? null}
+                patientName={selectedPatient?.fullName ?? patientCoreDraft.fullName ?? null}
+              />
+            </div>
+          ) : null}
+          {selectedPatientId ? (
+            <div className="mt-4" data-testid="patient-attachments-mount">
+              <PatientAttachmentsPanel
+                patientId={selectedPatientId}
+                patientName={selectedPatient?.fullName ?? patientCoreDraft.fullName ?? null}
+              />
+            </div>
+          ) : null}
+
           {/*
             Отсюда убраны <BulkImageOperationLogsWidget /> и
             <PatientServiceLineagesWidget />. Журнал массовых операций со

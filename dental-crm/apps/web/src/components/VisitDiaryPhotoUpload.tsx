@@ -1,7 +1,8 @@
 import { Camera, Paperclip, Search } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AUTHED_API_FILE_FAILURE, fetchAuthedApiFileObjectUrl } from "../lib/authedApiFile";
+import { requestFailureCause } from "../lib/panelStateText";
 import { showToast } from "./GlobalToast";
 import { readDenteClinicToken } from "../lib/safeLocalStorage";
 
@@ -11,19 +12,54 @@ interface Attachment {
 	name: string;
 }
 
+/** Снимок, готовый к печати 043/у (blob: уже с токеном кабинета). */
+export type DiaryPrintPhoto = {
+	id: string;
+	name: string;
+	objectUrl: string;
+};
+
 interface VisitDiaryPhotoUploadProps {
 	visitId: string;
 	diaryId: string | null;
 	isLocked: boolean;
+	/**
+	 * БЫЛО: снимки жили только внутри галереи на экране приёма.
+	 * PrintPreviewContent в VisitDiaryEditor не знал про attachments —
+	 * юридическая 043/у печаталась без фотодоказательства лечения.
+	 * СТАЛО: отдаём готовые objectUrl вверх, когда blob загружен.
+	 */
+	onPrintPhotosChange?: (photos: readonly DiaryPrintPhoto[]) => void;
 }
+
+/**
+ * Список вложений дневника. Ровно одно из четырёх состояний чтения —
+ * «пусто» и «не прочитано» не сливаются.
+ *
+ * БЫЛО: при !r.ok или сети then(null)/catch только console.error, attachments
+ * оставался []. UI рисовал «Нажмите Прикрепить фото» / «Нет прикрепленных
+ * фото» — как будто снимков нет, хотя они могли быть на сервере. Врач
+ * считал, что фото не прикреплялись, и мог прикрепить повторно или не
+ * увидеть доказательство лечения в 043/у.
+ */
+type AttachmentsLoadState =
+	| { readonly phase: "loading" }
+	| { readonly phase: "empty" }
+	| { readonly phase: "ready" }
+	| { readonly phase: "failed"; readonly status: number | null };
 
 export function VisitDiaryPhotoUpload({
 	visitId,
 	diaryId,
 	isLocked,
+	onPrintPhotosChange,
 }: VisitDiaryPhotoUploadProps) {
 	const [attachments, setAttachments] = useState<Attachment[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
+	const [loadState, setLoadState] = useState<AttachmentsLoadState>({
+		phase: "loading",
+	});
+	const [reloadToken, setReloadToken] = useState(0);
 	/* Объектные адреса снимков по идентификатору вложения.
 	   ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ: адрес сервера подставлялся прямо в <img src>,
 	   а такой запрос посылает браузер без единого заголовка — подмена fetch из
@@ -37,6 +73,11 @@ export function VisitDiaryPhotoUpload({
 	   revokeObjectURL рабочее место держало бы в памяти копию каждого снимка
 	   каждого открытого за смену приёма. */
 	const createdPhotoObjectUrls = useRef<Map<string, string>>(new Map());
+
+	const reloadAttachments = useCallback(() => {
+		setReloadToken((t) => t + 1);
+	}, []);
+
 	useEffect(() => {
 		/* Сброс идёт до всех проверок и до запроса. Иначе при переходе к
 		   другому приёму в списке остаются снимки предыдущего, и они
@@ -46,31 +87,62 @@ export function VisitDiaryPhotoUpload({
 		setAttachments([]);
 		setPhotoObjectUrls({});
 		setUnreadablePhotoIds([]);
-		if (!visitId) return;
+		setLoadState({ phase: "loading" });
+		if (!visitId) {
+			setLoadState({ phase: "empty" });
+			return;
+		}
 
 		const controller = new AbortController();
 		let cancelled = false;
 		const clinicToken = readDenteClinicToken() || null;
-		fetch(`/api/files/visits/${visitId}/attachments`, {
-			headers: {
-				"x-dente-clinic-token": clinicToken || "",
-			},
-			signal: controller.signal,
-		})
-			.then((r) => {
-				if (r.ok) return r.json();
-				return null;
-			})
-			.then((data) => {
-				if (cancelled) return;
-				if (data?.files) {
-					setAttachments(data.files);
+
+		void (async () => {
+			let status: number | null = null;
+			try {
+				const response = await fetch(`/api/files/visits/${visitId}/attachments`, {
+					headers: {
+					...(clinicToken ? { "x-dente-clinic-token": clinicToken } : {}),
+				},
+					signal: controller.signal,
+				});
+				status = response.status;
+				if (!response.ok) {
+					console.error(
+						`[diary attachments] ${status} ${visitId}`,
+					);
+					if (!cancelled) setLoadState({ phase: "failed", status });
+					return;
 				}
-			})
-			.catch((error) => {
+				const data: unknown = await response.json().catch(() => null);
 				if (cancelled) return;
-				console.error(error);
-			});
+				const files =
+					data &&
+					typeof data === "object" &&
+					!Array.isArray(data) &&
+					Array.isArray((data as { files?: unknown }).files)
+						? ((data as { files: Attachment[] }).files)
+						: null;
+				if (!files) {
+					// 200 без files — испорченный ответ, не «снимков нет».
+					console.error(`[diary attachments] ${status}: тело без files`);
+					setLoadState({ phase: "failed", status });
+					return;
+				}
+				setAttachments(files);
+				setLoadState(
+					files.length === 0 ? { phase: "empty" } : { phase: "ready" },
+				);
+			} catch (error) {
+				if (cancelled) return;
+				// abort при смене приёма — не failed
+				if (error instanceof DOMException && error.name === "AbortError") {
+					return;
+				}
+				console.error("[diary attachments] запрос не выполнен", error);
+				setLoadState({ phase: "failed", status });
+			}
+		})();
 
 		return () => {
 			cancelled = true;
@@ -83,7 +155,8 @@ export function VisitDiaryPhotoUpload({
 			}
 			createdPhotoObjectUrls.current = new Map();
 		};
-	}, [visitId]);
+	}, [visitId, reloadToken]);
+
 
 	/* Снимки забираются через fetch по тому же адресу, который отдал сервер в
 	   поле url (apps/api/src/routes/files.ts:137,185), и только потом попадают в
@@ -126,20 +199,83 @@ export function VisitDiaryPhotoUpload({
 		};
 	}, [attachments]);
 
+
+	/*
+	 * Отдать снимки в печать 043/у только когда blob: готов.
+	 * Иначе <img src=/api/...> в window.print уйдёт без x-dente-clinic-token
+	 * и на бумаге будут битые картинки / 401.
+	 */
+	useEffect(() => {
+		if (!onPrintPhotosChange) return;
+		const ready: DiaryPrintPhoto[] = [];
+		for (const att of attachments) {
+			const objectUrl = photoObjectUrls[att.id];
+			if (!objectUrl) continue;
+			if (unreadablePhotoIds.includes(att.id)) continue;
+			ready.push({
+				id: att.id,
+				name: typeof att.name === "string" && att.name ? att.name : "снимок",
+				objectUrl,
+			});
+		}
+		onPrintPhotosChange(ready);
+	}, [attachments, photoObjectUrls, unreadablePhotoIds, onPrintPhotosChange]);
+
+	// Сброс списка печати при смене приёма / размонтировании — иначе
+	// в 043/у другого визита останутся чужие blob:.
+	useEffect(() => {
+		return () => {
+			onPrintPhotosChange?.([]);
+		};
+	}, [visitId, onPrintPhotosChange]);
 	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
-		if (!file || !diaryId) return;
+		if (!file) return;
+		/*
+		 * БЫЛО: if (!diaryId) return — молча. Врач выбирал файл, ничего не
+		 * происходило (кнопка видна только при diaryId, но race/state мог
+		 * обойти). СТАЛО: явный toast.
+		 */
+		if (!diaryId) {
+			showToast(
+				"Сначала сохраните черновик дневника — без id записи снимок прикрепить нельзя.",
+				"info",
+				10000,
+			);
+			e.target.value = "";
+			return;
+		}
+		if (isLocked) {
+			showToast(
+				"Дневник уже подписан — новые фото к закрытой 043/у не прикрепляются.",
+				"info",
+				10000,
+			);
+			e.target.value = "";
+			return;
+		}
 
 		setIsUploading(true);
+		let localObjectUrl: string | null = null;
 		try {
 			const img = new Image();
-			const objectUrl = URL.createObjectURL(file);
+			localObjectUrl = URL.createObjectURL(file);
 
-			await new Promise((resolve, reject) => {
-				img.onload = resolve;
-				img.onerror = reject;
-				img.src = objectUrl;
-			});
+			try {
+				await new Promise<void>((resolve, reject) => {
+					img.onload = () => resolve();
+					img.onerror = () =>
+						reject(new Error("FILE_NOT_IMAGE"));
+					img.src = localObjectUrl!;
+				});
+			} catch {
+				showToast(
+					"Файл не открылся как изображение. Выберите снимок JPG, PNG или WEBP.",
+					"error",
+					12000,
+				);
+				return;
+			}
 
 			const canvas = document.createElement("canvas");
 			let width = img.width;
@@ -157,14 +293,32 @@ export function VisitDiaryPhotoUpload({
 			canvas.width = width;
 			canvas.height = height;
 			const ctx = canvas.getContext("2d");
-			ctx?.drawImage(img, 0, 0, width, height);
+			if (!ctx) {
+				showToast(
+					"Не удалось подготовить снимок на этом рабочем месте (нет canvas). Попробуйте другой браузер или ПК.",
+					"error",
+					12000,
+				);
+				return;
+			}
+			ctx.drawImage(img, 0, 0, width, height);
 
 			const compressedBlob = await new Promise<Blob | null>((resolve) =>
 				canvas.toBlob(resolve, "image/webp", 0.8),
 			);
-			URL.revokeObjectURL(objectUrl);
 
-			if (!compressedBlob) throw new Error("Compression failed");
+			if (!compressedBlob) {
+				/*
+				 * БЫЛО: throw new Error("Compression failed") → toast
+				 * «Ошибка загрузки: Compression failed» латиницей у кресла.
+				 */
+				showToast(
+					"Не удалось сжать снимок перед отправкой. Выберите другой файл или уменьшите размер.",
+					"error",
+					12000,
+				);
+				return;
+			}
 
 			const formData = new FormData();
 			formData.append("file", compressedBlob, "photo.webp");
@@ -176,20 +330,80 @@ export function VisitDiaryPhotoUpload({
 			const res = await fetch(`/api/files/visits/${visitId}/attachments`, {
 				method: "POST",
 				headers: {
-					"x-dente-clinic-token": clinicToken || "",
+					...(clinicToken ? { "x-dente-clinic-token": clinicToken } : {}),
 				},
 				body: formData,
 			});
-			if (!res.ok) throw new Error("Upload failed");
-
-			const data = await res.json();
-			if (data.file) {
-				setAttachments((prev) => [...prev, data.file]);
-				showToast("Фото сжато в WebP и загружено", "success");
+			const rawBody = await res.text();
+			if (!res.ok) {
+				/*
+				 * БЫЛО: throw new Error("Upload failed") → «Ошибка загрузки:
+				 * Upload failed». Серверный message (RU) отбрасывался.
+				 */
+				console.error(`[diary photo upload] ${res.status} ${rawBody.slice(0, 300)}`);
+				let serverMessage: string | null = null;
+				try {
+					const parsed: unknown = rawBody.trim() ? JSON.parse(rawBody) : null;
+					if (
+						parsed &&
+						typeof parsed === "object" &&
+						!Array.isArray(parsed) &&
+						typeof (parsed as { message?: unknown }).message === "string"
+					) {
+						const m = (parsed as { message: string }).message.trim();
+						// Не показываем машинные коды латиницей (AttachmentNotSaved без message уже закрыт на API).
+						if (m && !/^[A-Za-z][A-Za-z0-9_]+$/.test(m)) serverMessage = m;
+					}
+				} catch {
+					/* тело не JSON — ниже status fallback */
+				}
+				showToast(
+					serverMessage ??
+						`Снимок не загружен: ${requestFailureCause(res.status)}. Повторите загрузку; файл на экране не пропал из выбора — выберите его снова.`,
+					"error",
+					14000,
+				);
+				return;
 			}
-		} catch (err: any) {
-			showToast(`Ошибка загрузки: ${err.message}`, "error");
+
+			let data: { file?: Attachment } | null = null;
+			try {
+				const parsed: unknown = rawBody.trim() ? JSON.parse(rawBody) : null;
+				if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+					data = parsed as { file?: Attachment };
+				}
+			} catch {
+				data = null;
+			}
+			const uploaded = data?.file;
+			if (
+				uploaded &&
+				typeof uploaded === "object" &&
+				typeof uploaded.id === "string" &&
+				uploaded.id
+			) {
+				setAttachments((prev) => [...prev, uploaded]);
+				setLoadState({ phase: "ready" });
+				showToast("Фото сжато в WebP и загружено", "success");
+			} else {
+				console.error("[diary photo upload] 2xx без file", rawBody.slice(0, 200));
+				showToast(
+					"Сервер принял снимок, но не вернул карточку вложения. Нажмите «Повторить» в списке снимков — файл мог уже сохраниться.",
+					"info",
+					14000,
+				);
+				reloadAttachments();
+			}
+		} catch (err) {
+			// Сеть / выключенный API — без err.message латиницей.
+			console.error("[diary photo upload] запрос не выполнен", err);
+			showToast(
+				`Снимок не загружен: ${requestFailureCause(null)}. Проверьте сеть и повторите.`,
+				"error",
+				14000,
+			);
 		} finally {
+			if (localObjectUrl) URL.revokeObjectURL(localObjectUrl);
 			setIsUploading(false);
 			e.target.value = "";
 		}
@@ -253,6 +467,27 @@ export function VisitDiaryPhotoUpload({
 							</div>
 						);
 					})}
+				</div>
+			) : loadState.phase === "loading" ? (
+				<div className="w-full bg-zinc-900/60 border border-zinc-800 border-dashed rounded-xl p-4 text-sm text-zinc-500 text-center">
+					Загрузка снимков…
+				</div>
+			) : loadState.phase === "failed" ? (
+				<div className="w-full bg-zinc-900/60 border border-rose-900/50 border-dashed rounded-xl p-4 text-sm text-zinc-400 text-center space-y-2">
+					<p>
+						Список снимков не прочитан
+						{loadState.status != null
+							? ` (${requestFailureCause(loadState.status)})`
+							: ""}
+						. Не считайте, что снимков нет — они могли остаться на сервере.
+					</p>
+					<button
+						type="button"
+						onClick={reloadAttachments}
+						className="text-xs px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200"
+					>
+						Повторить
+					</button>
 				</div>
 			) : (
 				<div className="w-full bg-zinc-900/60 border border-zinc-800 border-dashed rounded-xl p-4 text-sm text-zinc-500 text-center">

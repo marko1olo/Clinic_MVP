@@ -41,9 +41,17 @@ class TestHandleAlertAdmin(unittest.TestCase):
         mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
 
 class TestBotMqtt(unittest.TestCase):
-    @patch('bot.asyncio.run_coroutine_threadsafe')
-    @patch('bot.broadcast')
-    def test_handle_default(self, mock_broadcast, mock_run_coroutine_threadsafe):
+    def setUp(self):
+        self.patcher_run_coroutine = patch('bot.asyncio.run_coroutine_threadsafe')
+        self.mock_run_coroutine_threadsafe = self.patcher_run_coroutine.start()
+
+        self.patcher_broadcast = patch('bot.broadcast')
+        self.mock_broadcast = self.patcher_broadcast.start()
+
+    def tearDown(self):
+        patch.stopall()
+
+    def test_handle_default(self):
         """
         Test that handle_default formats the message correctly and broadcasts it.
         """
@@ -54,11 +62,11 @@ class TestBotMqtt(unittest.TestCase):
         handle_default(topic, payload, loop)
 
         expected_text = f"📨 `{topic}`\n\n{str(payload)}"
-        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        self.mock_broadcast.assert_called_once_with(expected_text, role='admin')
 
         # Verify run_coroutine_threadsafe was called with loop
-        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 1)
-        self.assertEqual(mock_run_coroutine_threadsafe.call_args[0][1], loop)
+        self.assertEqual(self.mock_run_coroutine_threadsafe.call_count, 1)
+        self.assertEqual(self.mock_run_coroutine_threadsafe.call_args[0][1], loop)
 
     def test_on_mqtt_message_exception_handling(self):
         """

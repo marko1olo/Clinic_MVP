@@ -1,7 +1,15 @@
 import os
 import re
+import enum
+
+
+class AIProvider(str, enum.Enum):
+    GEMINI = "gemini"
+    GROQ = "groq"
+
 
 import sys
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 import time
@@ -22,16 +30,23 @@ THINK_TAG_PATTERN = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
 # Config Defaults
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
 PROCESSED_DIR = r"C:\Clinic_MVP\Processed"
-MQTT_HOST = "62.84.100.97" # Default public IP
+MQTT_HOST = "62.84.100.97"  # Default public IP
 MQTT_PORT = 1883
 MQTT_USER = os.getenv("MQTT_USER", "")
 MQTT_PASS = os.getenv("MQTT_PASS", "")
 TOPIC_XRAY_RESULT = "clinic/xray/result"
 
 # API Defaults
-GROQ_API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()]
+GROQ_API_KEYS = [
+    key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(",") if key.strip()
+]
+GEMINI_PRIMARY_MODEL = "gemini-3.5-flash"
+GEMINI_FALLBACK_MODEL = "gemini-3-flash-preview"
+GROQ_PRIMARY_MODEL = "qwen/qwen3.6-27b"
 GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-GOOGLE_API_KEYS = [key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()]
+GOOGLE_API_KEYS = [
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
 
 # Load config dynamically if exists
 CONFIG_FILE = r"C:\Clinic_MVP\config.json"
@@ -52,29 +67,34 @@ if os.path.exists(CONFIG_FILE):
     except Exception as e:
         print(f"Error loading config.json: {e}")
 
+
 def setup_dirs():
     os.makedirs(WATCH_DIR, exist_ok=True)
     os.makedirs(PROCESSED_DIR, exist_ok=True)
+
 
 def prepare_image(file_path):
     """Сжимает картинку для отправки в Groq, возвращает base64 строку."""
     try:
         with Image.open(file_path) as img:
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
-            
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+
             # Ужимаем до 1000px по большей стороне для экономии трафика и лимитов
             max_size = 1000
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                
+
             buffer = BytesIO()
             img.save(buffer, format="JPEG", quality=80, optimize=True)
             img_bytes = buffer.getvalue()
-            return f"data:image/jpeg;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
+            return (
+                f"data:image/jpeg;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
+            )
     except Exception as e:
         print(f"Ошибка подготовки картинки: {e}")
         return None
+
 
 # Загружаем огромный экспертный промпт один раз при старте
 prompt_path = os.path.join(os.path.dirname(__file__), "dentalimage.md")
@@ -85,20 +105,26 @@ except Exception as e:
     print(f"Не удалось загрузить dentalimage.md: {e}")
     SYSTEM_PROMPT = "Опиши снимок зубов как стоматолог."
 
+
 @functools.lru_cache(maxsize=128)
 def get_openai_client(api_key, base_url, timeout=30.0):
     return OpenAI(
         api_key=api_key if api_key else "dummy_key",
         base_url=base_url,
         timeout=timeout,
-        max_retries=0
+        max_retries=0,
     )
+
 
 def make_groq_client(api_key: str) -> OpenAI:
     return get_openai_client(api_key, "https://api.groq.com/openai/v1")
 
+
 def make_gemini_client(api_key: str) -> OpenAI:
-    return get_openai_client(api_key, "https://generativelanguage.googleapis.com/v1beta/openai/")
+    return get_openai_client(
+        api_key, "https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+
 
 def _query_model(client, model_name, image_b64):
     response = client.chat.completions.create(
@@ -108,10 +134,10 @@ def _query_model(client, model_name, image_b64):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": SYSTEM_PROMPT},
-                    {"type": "image_url", "image_url": {"url": image_b64}}
-                ]
+                    {"type": "image_url", "image_url": {"url": image_b64}},
+                ],
             }
-        ]
+        ],
     )
     if response.choices and len(response.choices) > 0:
         val = response.choices[0].message.content
@@ -119,8 +145,9 @@ def _query_model(client, model_name, image_b64):
             return THINK_TAG_PATTERN.sub("", val).strip()
     return None
 
+
 def _try_model_with_keys(model_name, provider, image_b64):
-    if provider == "gemini":
+    if provider == AIProvider.GEMINI:
         keys = GOOGLE_API_KEYS.copy()
         client_maker = make_gemini_client
     else:
@@ -139,24 +166,25 @@ def _try_model_with_keys(model_name, provider, image_b64):
             if report:
                 return report, None
         except Exception as e:
-            print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
+            print(f"[!] Сбой ключа ИИ ({model_name}, {provider.value}): {e}")
             last_err = e
             continue
 
     return None, last_err
 
+
 def _run_model_cascade(image_b64):
     """Прогоняет картинку по каскаду моделей, возвращает (None, report) при успехе."""
     # Default cascade sequence
     models_with_providers = [
-        ("gemini-3.5-flash", "gemini"),
-        ("gemini-3-flash-preview", "gemini"),
-        ("qwen/qwen3.6-27b", "groq"),
-        (GROQ_VISION_MODEL, "groq")
+        (GEMINI_PRIMARY_MODEL, AIProvider.GEMINI),
+        (GEMINI_FALLBACK_MODEL, AIProvider.GEMINI),
+        (GROQ_PRIMARY_MODEL, AIProvider.GROQ),
+        (GROQ_VISION_MODEL, AIProvider.GROQ),
     ]
 
     last_err = "Нет доступных ключей"
-    
+
     for model_name, provider in models_with_providers:
         report, err = _try_model_with_keys(model_name, provider, image_b64)
         if report:
@@ -166,6 +194,7 @@ def _run_model_cascade(image_b64):
 
     return None, f"Сбой ИИ-анализа: все ключи исчерпаны. Ошибка: {last_err}"
 
+
 def analyze_image(file_path):
     """Анализирует снимок, используя каскад моделей Gemini -> Groq."""
     image_b64 = prepare_image(file_path)
@@ -174,30 +203,32 @@ def analyze_image(file_path):
 
     return _run_model_cascade(image_b64)
 
+
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
     import paho.mqtt.client as mqtt
+
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASS)
     try:
         client.connect(MQTT_HOST, MQTT_PORT, 5)
-        payload = {
-            "file": filename,
-            "findings": findings
-        }
+        payload = {"file": filename, "findings": findings}
         client.publish(TOPIC_XRAY_RESULT, json.dumps(payload, ensure_ascii=False))
         client.disconnect()
         print(f"-> Опубликовано в MQTT: {filename}")
     except Exception as e:
         print(f"Ошибка отправки MQTT: {e}")
 
+
 processing_files = set()
 processing_lock = threading.Lock()
-pending_files = {} # file_path -> (last_size, stable_start_time)
+pending_files = {}  # file_path -> (last_size, stable_start_time)
+
 
 def _worker_loop():
     import time
+
     while True:
         time.sleep(0.1)
         now = time.time()
@@ -227,12 +258,16 @@ def _worker_loop():
                         del pending_files[file_path]
 
                         # Process it in a background thread so we don't block the worker loop
-                        threading.Thread(target=_do_process, args=(file_path,), daemon=True).start()
+                        threading.Thread(
+                            target=_do_process, args=(file_path,), daemon=True
+                        ).start()
                 except OSError:
                     pass
 
+
 # Start the background worker loop
 threading.Thread(target=_worker_loop, daemon=True).start()
+
 
 def process_single_file(file_path):
     # This function is now just a non-blocking enqueue operation
@@ -241,9 +276,13 @@ def process_single_file(file_path):
             return
         if file_path not in pending_files:
             try:
-                pending_files[file_path] = (os.path.getsize(file_path), __import__("time").time())
+                pending_files[file_path] = (
+                    os.path.getsize(file_path),
+                    __import__("time").time(),
+                )
             except OSError:
                 pass
+
 
 def _process_and_publish(file_path, filename):
     print(f"\n[+] Найден новый снимок: {filename}")
@@ -261,6 +300,7 @@ def _process_and_publish(file_path, filename):
     publish_result(os.path.basename(final_file_for_popup), findings)
 
     return marked_path
+
 
 def _move_files(file_path, marked_path, filename):
     # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
@@ -282,40 +322,47 @@ def _move_files(file_path, marked_path, filename):
 
     print(f"    Файлы перемещены в {PROCESSED_DIR}")
 
+
 def _do_process(file_path):
     try:
         filename = os.path.basename(file_path)
         marked_path = _process_and_publish(file_path, filename)
         _move_files(file_path, marked_path, filename)
     except FileNotFoundError:
-        pass # File was already processed or moved
+        pass  # File was already processed or moved
     except Exception as e:
         print(f"Ошибка при обработке {file_path}: {e}")
     finally:
         threading.Timer(10.0, lambda: processing_files.discard(file_path)).start()
 
+
 class XRayHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
-        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
+        if event.src_path.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+            threading.Thread(
+                target=process_single_file, args=(event.src_path,), daemon=True
+            ).start()
 
     def on_modified(self, event):
         if event.is_directory:
             return
-        if event.src_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            threading.Thread(target=process_single_file, args=(event.src_path,), daemon=True).start()
+        if event.src_path.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+            threading.Thread(
+                target=process_single_file, args=(event.src_path,), daemon=True
+            ).start()
+
 
 def watch_loop():
     setup_dirs()
     print(f"[*] Shadow Analyst запущен. Жду снимки в: {WATCH_DIR}")
-    
+
     # Process existing files first
     try:
         with ThreadPoolExecutor(max_workers=10) as executor:
             for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                if filename.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
                     file_path = os.path.join(WATCH_DIR, filename)
                     executor.submit(process_single_file, file_path)
     except Exception as e:
@@ -336,6 +383,7 @@ def watch_loop():
         print(f"Глобальная ошибка: {e}")
         observer.stop()
     observer.join()
+
 
 if __name__ == "__main__":
     watch_loop()

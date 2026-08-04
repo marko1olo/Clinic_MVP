@@ -4,7 +4,6 @@
 Когда агент на ноуте пуляет событие в MQTT -> бот шлет сообщение в Telegram.
 """
 import asyncio
-import threading
 import logging
 import json
 import sys
@@ -221,13 +220,8 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
     )
     client.on_disconnect = lambda c, ud, d, rc, p: log.warning(f"MQTT disconnected rc={rc}")
 
-    while True:
-        try:
-            client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
-            client.loop_forever()
-        except Exception as e:
-            log.error(f"MQTT error: {e}, retrying in 5s...")
-            time.sleep(5)
+    client.connect_async(MQTT_HOST, MQTT_PORT, keepalive=60)
+    client.loop_start()
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
@@ -235,8 +229,7 @@ async def main():
     loop = asyncio.get_event_loop()
 
     # Запускаем MQTT в фоновом потоке
-    mqtt_thread = threading.Thread(target=start_mqtt, args=(loop,), daemon=True)
-    mqtt_thread.start()
+    start_mqtt(loop)
     log.info("MQTT bridge thread started")
 
     log.info("Starting Telegram bot polling...")

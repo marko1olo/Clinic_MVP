@@ -446,9 +446,6 @@ class TestStartMqtt(unittest.TestCase):
         mock_client = MagicMock()
         mock_mqtt_client_class.return_value = mock_client
 
-        # Break the infinite loop using BaseException
-        mock_client.loop_forever.side_effect = KeyboardInterrupt("Stop loop")
-
         loop = MagicMock()
 
         from bot import start_mqtt, on_mqtt_message
@@ -457,8 +454,7 @@ class TestStartMqtt(unittest.TestCase):
             MQTT_HOST, MQTT_PORT
         )
 
-        with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
+        start_mqtt(loop)
 
         # Assert client configurations
         mock_client.user_data_set.assert_called_once_with({'loop': loop})
@@ -479,8 +475,8 @@ class TestStartMqtt(unittest.TestCase):
         self.assertTrue(callable(mock_client.on_disconnect))
         mock_client.on_disconnect(mock_client, None, None, 0, None)
 
-        mock_client.connect.assert_called_once_with(MQTT_HOST, MQTT_PORT, keepalive=60)
-        mock_client.loop_forever.assert_called_once()
+        mock_client.connect_async.assert_called_once_with(MQTT_HOST, MQTT_PORT, keepalive=60)
+        mock_client.loop_start.assert_called_once()
 
     @patch('bot.mqtt.Client')
     @patch('bot.MQTT_USER', '')
@@ -488,37 +484,13 @@ class TestStartMqtt(unittest.TestCase):
         mock_client = MagicMock()
         mock_mqtt_client_class.return_value = mock_client
 
-        mock_client.connect.side_effect = KeyboardInterrupt("Stop loop")
-
         loop = MagicMock()
 
         from bot import start_mqtt
 
-        with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
+        start_mqtt(loop)
 
         mock_client.username_pw_set.assert_not_called()
-
-    @patch('bot.mqtt.Client')
-    @patch('bot.time.sleep')
-    @patch('bot.MQTT_USER', 'test_user')
-    @patch('bot.MQTT_PASS', 'test_pass')
-    def test_start_mqtt_exception_handling(self, mock_sleep, mock_mqtt_client_class):
-        mock_client = MagicMock()
-        mock_mqtt_client_class.return_value = mock_client
-
-        # Raise Exception first time, then KeyboardInterrupt to break loop
-        mock_client.loop_forever.side_effect = [Exception("Test connection error"), KeyboardInterrupt("Stop loop")]
-
-        loop = MagicMock()
-
-        from bot import start_mqtt
-
-        with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
-
-        mock_sleep.assert_called_once_with(5)
-        self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
 if __name__ == '__main__':

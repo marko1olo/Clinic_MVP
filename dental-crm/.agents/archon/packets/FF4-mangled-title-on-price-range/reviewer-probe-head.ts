@@ -56,9 +56,22 @@ const response = await analyzePricelist(
   EMPTY,
 );
 
+const exactMatchMap = new Map<string, typeof response.items[0]>();
+const fallbackCandidates: typeof response.items[0][] = [];
+for (const item of response.items) {
+  if (item.sourceText != null && !exactMatchMap.has(item.sourceText)) {
+    exactMatchMap.set(item.sourceText, item);
+  }
+  if (item.title && item.title.length > 2) {
+    fallbackCandidates.push(item);
+  }
+}
+
 for (const line of lines) {
-  const item = response.items.find((candidate) => candidate.sourceText === line)
-    ?? response.items.find((candidate) => line.includes(candidate.title) && candidate.title.length > 2);
+  let item = exactMatchMap.get(line);
+  if (!item) {
+    item = fallbackCandidates.find((candidate) => line.includes(candidate.title));
+  }
   if (!item) {
     console.log(`NO ITEM      | ${line}`);
     continue;

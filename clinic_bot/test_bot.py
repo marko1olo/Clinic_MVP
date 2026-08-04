@@ -1,8 +1,15 @@
 import unittest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, ANY
 from aiogram.types import Message, Chat, User
-from bot import cmd_start, cmd_status, cmd_test
+
+import sys
+import os
+sys.path.insert(0, '.')
+sys.path.insert(0, os.path.dirname(__file__))
+
+from clinic_bot.bot import cmd_start, cmd_status, cmd_test, on_mqtt_message
+from clinic_bot import bot
 
 class TestBotHandlers(unittest.IsolatedAsyncioTestCase):
 
@@ -13,6 +20,10 @@ class TestBotHandlers(unittest.IsolatedAsyncioTestCase):
         self.message_mock.from_user = MagicMock(spec=User)
         self.message_mock.from_user.full_name = "Test User"
         self.message_mock.answer = AsyncMock()
+
+        # Reset the status cache before each test (just in case cache logic is added/used later)
+        if hasattr(bot, '_status_cache'):
+            bot._status_cache = {'doctors': 0, 'admins': 0, 'timestamp': float('-inf')}
 
     async def test_cmd_start(self):
         with patch('db.get_user_role') as mock_get_role, \
@@ -25,15 +36,20 @@ class TestBotHandlers(unittest.IsolatedAsyncioTestCase):
              mock_add_user.assert_called_once_with(12345, 'guest', 'Test User')
              self.message_mock.answer.assert_called_once()
              self.assertIn("Денталия-2", self.message_mock.answer.call_args[0][0])
+             self.assertIn("guest", self.message_mock.answer.call_args[0][0])
 
     async def test_cmd_status(self):
         with patch('db.get_users_by_role') as mock_get_users:
+            # First call is doctors, second is admins
             mock_get_users.side_effect = [[1, 2], [3]] # 2 doctors, 1 admin
 
             await cmd_status(self.message_mock)
 
+            self.assertEqual(mock_get_users.call_count, 2)
+
             self.message_mock.answer.assert_called_once()
             ans = self.message_mock.answer.call_args[0][0]
+            self.assertIn("Система работает", ans)
             self.assertIn("Врачей: 2", ans)
             self.assertIn("Админов: 1", ans)
 
@@ -42,97 +58,64 @@ class TestBotHandlers(unittest.IsolatedAsyncioTestCase):
         self.message_mock.answer.assert_called_once()
         ans = self.message_mock.answer.call_args[0][0]
         self.assertIn("Тест уведомления", ans)
-from unittest.mock import AsyncMock, patch, MagicMock
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
+class TestBotMqttMessage(unittest.TestCase):
+    def test_on_mqtt_message_invalid_json(self):
+        client = MagicMock()
 
-from bot import cmd_start
+        loop = MagicMock()
+        userdata = {'loop': loop}
 
-class TestBot(unittest.IsolatedAsyncioTestCase):
-    @patch('bot.db')
-    async def test_cmd_start_default_role(self, mock_db):
-        mock_db.get_user_role.return_value = None
+        msg = MagicMock()
+        msg.topic = "some_unknown_topic"
+        msg.payload = b"not a json string"
 
-        message = AsyncMock(spec=Message)
-        message.chat = MagicMock(spec=Chat)
-        message.chat.id = 123
-        message.from_user = MagicMock(spec=User)
-        message.from_user.full_name = "Test User"
-        message.answer = AsyncMock()
+        with patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine, \
+             patch('clinic_bot.bot.broadcast') as mock_broadcast:
 
-        await cmd_start(message)
+            on_mqtt_message(client, userdata, msg)
 
-        mock_db.add_user.assert_called_with(123, 'guest', "Test User")
-        message.answer.assert_called_once()
-        self.assertIn('guest', message.answer.call_args[0][0])
+            # Verify it fallback to {"text": ...} for payload and hits the else branch
+            mock_broadcast.assert_called_once()
+            args, kwargs = mock_broadcast.call_args
 
-if __name__ == '__main__':
-    unittest.main()
-from unittest.mock import MagicMock, patch, ANY
+            assert "not a json string" in args[0]
+            assert "some_unknown_topic" in args[0]
+            assert kwargs.get('role') == 'admin'
 
-sys.path.insert(0, '.')
-from clinic_bot.bot import on_mqtt_message
+            mock_run_coroutine.assert_called_once_with(ANY, loop)
 
-def test_on_mqtt_message_invalid_json():
-    client = MagicMock()
+            # Clean up coroutine
+            coro = mock_run_coroutine.call_args.args[0]
+            coro.close()
 
-    loop = MagicMock()
-    userdata = {'loop': loop}
+    def test_on_mqtt_message_valid_json(self):
+        client = MagicMock()
 
-    msg = MagicMock()
-    msg.topic = "some_unknown_topic"
-    msg.payload = b"not a json string"
+        loop = MagicMock()
+        userdata = {'loop': loop}
 
-    with patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine, \
-         patch('clinic_bot.bot.broadcast') as mock_broadcast:
+        msg = MagicMock()
+        msg.topic = "some_unknown_topic"
+        msg.payload = b'{"key": "value"}'
 
-        on_mqtt_message(client, userdata, msg)
+        with patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine, \
+             patch('clinic_bot.bot.broadcast') as mock_broadcast:
 
-        # Verify it fallback to {"text": ...} for payload and hits the else branch
-        mock_broadcast.assert_called_once()
-        args, kwargs = mock_broadcast.call_args
+            on_mqtt_message(client, userdata, msg)
 
-        assert "not a json string" in args[0]
-        assert "some_unknown_topic" in args[0]
-        assert kwargs.get('role') == 'admin'
+            mock_broadcast.assert_called_once()
+            args, kwargs = mock_broadcast.call_args
 
-        mock_run_coroutine.assert_called_once_with(ANY, loop)
+            assert "{'key': 'value'}" in args[0]
+            assert "some_unknown_topic" in args[0]
+            assert kwargs.get('role') == 'admin'
 
-        # Clean up coroutine
-        coro = mock_run_coroutine.call_args.args[0]
-        coro.close()
+            mock_run_coroutine.assert_called_once_with(ANY, loop)
 
-def test_on_mqtt_message_valid_json():
-    client = MagicMock()
-
-    loop = MagicMock()
-    userdata = {'loop': loop}
-
-    msg = MagicMock()
-    msg.topic = "some_unknown_topic"
-    msg.payload = b'{"key": "value"}'
-
-    with patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe') as mock_run_coroutine, \
-         patch('clinic_bot.bot.broadcast') as mock_broadcast:
-
-        on_mqtt_message(client, userdata, msg)
-
-        mock_broadcast.assert_called_once()
-        args, kwargs = mock_broadcast.call_args
-
-        assert "{'key': 'value'}" in args[0]
-        assert "some_unknown_topic" in args[0]
-        assert kwargs.get('role') == 'admin'
-
-        mock_run_coroutine.assert_called_once_with(ANY, loop)
-
-        # Clean up coroutine
-        coro = mock_run_coroutine.call_args.args[0]
-        coro.close()
-from unittest.mock import AsyncMock, patch
-from clinic_bot import bot
+            # Clean up coroutine
+            coro = mock_run_coroutine.call_args.args[0]
+            coro.close()
 
 class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
     async def test_broadcast_photo_error_handling(self):
@@ -180,4 +163,5 @@ class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(mock_logger_error.call_count, 1)
                         self.assertIn("Failed to send photo to 123: Test send_photo error", mock_logger_error.call_args_list[0].args[0])
 
-
+if __name__ == '__main__':
+    unittest.main()

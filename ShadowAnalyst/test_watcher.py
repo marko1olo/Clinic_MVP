@@ -490,9 +490,19 @@ class TestWatcher(unittest.TestCase):
     @patch('ShadowAnalyst.watcher.Observer')
     @patch('ShadowAnalyst.watcher.time.sleep')
     @patch('ShadowAnalyst.watcher.setup_dirs')
-    @patch('ShadowAnalyst.watcher.os.listdir')
-    def test_watch_loop_keyboard_interrupt(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class, mock_process):
-        mock_listdir.return_value = ['test1.jpg', 'test2.txt']
+    @patch('ShadowAnalyst.watcher.os.scandir')
+    def test_watch_loop_keyboard_interrupt(self, mock_scandir, mock_setup_dirs, mock_sleep, mock_observer_class, mock_process):
+        mock_entry1 = MagicMock()
+        mock_entry1.is_file.return_value = True
+        mock_entry1.name = 'test1.jpg'
+        mock_entry1.path = os.path.join('/tmp/mock_watch', 'test1.jpg')
+
+        mock_entry2 = MagicMock()
+        mock_entry2.is_file.return_value = True
+        mock_entry2.name = 'test2.txt'
+        mock_entry2.path = os.path.join('/tmp/mock_watch', 'test2.txt')
+
+        mock_scandir.return_value.__enter__.return_value = [mock_entry1, mock_entry2]
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_observer_instance = MagicMock()
         mock_observer_class.return_value = mock_observer_instance
@@ -513,9 +523,9 @@ class TestWatcher(unittest.TestCase):
     @patch('ShadowAnalyst.watcher.Observer')
     @patch('ShadowAnalyst.watcher.time.sleep')
     @patch('ShadowAnalyst.watcher.setup_dirs')
-    @patch('ShadowAnalyst.watcher.os.listdir')
-    def test_watch_loop_general_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
-        mock_listdir.return_value = []
+    @patch('ShadowAnalyst.watcher.os.scandir')
+    def test_watch_loop_general_exception(self, mock_scandir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_scandir.return_value.__enter__.return_value = []
         mock_sleep.side_effect = Exception("General error")
         mock_observer_instance = MagicMock()
         mock_observer_class.return_value = mock_observer_instance
@@ -535,9 +545,9 @@ class TestWatcher(unittest.TestCase):
     @patch('ShadowAnalyst.watcher.Observer')
     @patch('ShadowAnalyst.watcher.time.sleep')
     @patch('ShadowAnalyst.watcher.setup_dirs')
-    @patch('ShadowAnalyst.watcher.os.listdir')
-    def test_watch_loop_listdir_exception(self, mock_listdir, mock_setup_dirs, mock_sleep, mock_observer_class):
-        mock_listdir.side_effect = Exception("Listdir error")
+    @patch('ShadowAnalyst.watcher.os.scandir')
+    def test_watch_loop_scandir_exception(self, mock_scandir, mock_setup_dirs, mock_sleep, mock_observer_class):
+        mock_scandir.side_effect = Exception("Listdir error")
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_observer_instance = MagicMock()
         mock_observer_class.return_value = mock_observer_instance

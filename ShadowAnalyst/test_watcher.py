@@ -486,6 +486,19 @@ class TestWatcher(unittest.TestCase):
         with patch('builtins.print') as mock_print, patch('ShadowAnalyst.watcher.PROCESSED_DIR', '/tmp/mock_processed'):
             watcher._do_process('dummy.jpg')
 
+    @patch('ShadowAnalyst.watcher.threading.Timer')
+    @patch('ShadowAnalyst.watcher._process_and_publish')
+    def test_do_process_exception(self, mock_process, mock_timer):
+        mock_process.side_effect = Exception("General error")
+
+        with patch('builtins.print') as mock_print:
+            watcher._do_process('dummy.jpg')
+
+            mock_print.assert_any_call("Ошибка при обработке dummy.jpg: General error")
+
+        mock_timer.assert_called_once()
+        mock_timer.return_value.start.assert_called_once()
+
     @patch('ShadowAnalyst.watcher.process_single_file')
     @patch('ShadowAnalyst.watcher.Observer')
     @patch('ShadowAnalyst.watcher.time.sleep')

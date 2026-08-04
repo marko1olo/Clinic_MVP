@@ -549,6 +549,103 @@ class TestWatcher(unittest.TestCase):
             mock_print.assert_any_call("Ошибка при проверке существующих файлов: Listdir error")
             mock_observer_instance.start.assert_called_once()
 
+
+    @patch('ShadowAnalyst.watcher.GOOGLE_API_KEYS', ['key1', 'key2'])
+    @patch('ShadowAnalyst.watcher.make_gemini_client')
+    @patch('ShadowAnalyst.watcher._query_model')
+    @patch('ShadowAnalyst.watcher.random.shuffle')
+    def test_try_model_with_keys_success(self, mock_shuffle, mock_query, mock_make_client):
+        # Setup: the first key works
+        mock_client = MagicMock()
+        mock_make_client.return_value = mock_client
+        mock_query.return_value = "Success report"
+
+        # Don't actually shuffle so order is predictable
+        mock_shuffle.side_effect = lambda x: x
+
+        report, err = watcher._try_model_with_keys("gemini-1.5", "gemini", "base64image")
+
+        self.assertEqual(report, "Success report")
+        self.assertIsNone(err)
+        mock_make_client.assert_called_once_with("key1")
+        mock_query.assert_called_once_with(mock_client, "gemini-1.5", "base64image")
+
+
+    @patch('ShadowAnalyst.watcher.GOOGLE_API_KEYS', ['key1', 'key2'])
+    @patch('ShadowAnalyst.watcher.make_gemini_client')
+    @patch('ShadowAnalyst.watcher._query_model')
+    @patch('ShadowAnalyst.watcher.random.shuffle')
+    def test_try_model_with_keys_all_fail(self, mock_shuffle, mock_query, mock_make_client):
+        # Setup: all keys fail
+        mock_client = MagicMock()
+        mock_make_client.return_value = mock_client
+        mock_query.side_effect = Exception("API Error")
+
+        # Don't actually shuffle so order is predictable
+        mock_shuffle.side_effect = lambda x: x
+
+        with patch('builtins.print') as mock_print:
+            report, err = watcher._try_model_with_keys("gemini-1.5", "gemini", "base64image")
+
+        self.assertIsNone(report)
+        self.assertIsInstance(err, Exception)
+        self.assertEqual(str(err), "API Error")
+        self.assertEqual(mock_make_client.call_count, 2)
+        self.assertEqual(mock_query.call_count, 2)
+
+        mock_make_client.assert_any_call("key1")
+        mock_make_client.assert_any_call("key2")
+
+
+    @patch('ShadowAnalyst.watcher.GOOGLE_API_KEYS', ['key1', 'key2'])
+    @patch('ShadowAnalyst.watcher.make_gemini_client')
+    @patch('ShadowAnalyst.watcher._query_model')
+    @patch('ShadowAnalyst.watcher.random.shuffle')
+    def test_try_model_with_keys_second_key_success(self, mock_shuffle, mock_query, mock_make_client):
+        # Setup: first key fails, second key succeeds
+        mock_client = MagicMock()
+        mock_make_client.return_value = mock_client
+        mock_query.side_effect = [Exception("API Error"), "Success report"]
+
+        # Don't actually shuffle so order is predictable
+        mock_shuffle.side_effect = lambda x: x
+
+        with patch('builtins.print') as mock_print:
+            report, err = watcher._try_model_with_keys("gemini-1.5", "gemini", "base64image")
+
+        self.assertEqual(report, "Success report")
+        self.assertIsNone(err)
+        self.assertEqual(mock_make_client.call_count, 2)
+        self.assertEqual(mock_query.call_count, 2)
+
+        mock_make_client.assert_any_call("key1")
+        mock_make_client.assert_any_call("key2")
+
+
+    @patch('ShadowAnalyst.watcher.GOOGLE_API_KEYS', ['key1', '', 'key2', None])
+    @patch('ShadowAnalyst.watcher.make_gemini_client')
+    @patch('ShadowAnalyst.watcher._query_model')
+    @patch('ShadowAnalyst.watcher.random.shuffle')
+    def test_try_model_with_keys_empty_keys_skipped(self, mock_shuffle, mock_query, mock_make_client):
+        # Setup: all valid keys fail to allow loop to traverse all keys
+        mock_client = MagicMock()
+        mock_make_client.return_value = mock_client
+        mock_query.side_effect = Exception("API Error")
+
+        # Don't actually shuffle so order is predictable
+        mock_shuffle.side_effect = lambda x: x
+
+        with patch('builtins.print') as mock_print:
+            report, err = watcher._try_model_with_keys("gemini-1.5", "gemini", "base64image")
+
+        self.assertIsNone(report)
+        self.assertIsInstance(err, Exception)
+        self.assertEqual(str(err), "API Error")
+        self.assertEqual(mock_make_client.call_count, 2)
+
+        mock_make_client.assert_any_call("key1")
+        mock_make_client.assert_any_call("key2")
+
 if __name__ == '__main__':
     unittest.main()
 

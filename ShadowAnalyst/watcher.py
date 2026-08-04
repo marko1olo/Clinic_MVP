@@ -49,7 +49,7 @@ if os.path.exists(CONFIG_FILE):
             GROQ_API_KEYS = config.get("groq_api_keys", GROQ_API_KEYS)
             GROQ_VISION_MODEL = config.get("groq_vision_model", GROQ_VISION_MODEL)
             GOOGLE_API_KEYS = config.get("google_api_keys", GOOGLE_API_KEYS)
-    except Exception as e:
+    except (OSError, ValueError, AttributeError) as e:
         print(f"Error loading config.json: {e}")
 
 def setup_dirs():

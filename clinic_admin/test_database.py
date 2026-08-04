@@ -1,9 +1,11 @@
 import unittest
+from contextlib import closing
 from unittest.mock import patch
 import sqlite3
 import os
 import tempfile
 import clinic_admin.database
+
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -24,7 +26,7 @@ class TestDatabase(unittest.TestCase):
         os.close(self.db_fd)
         os.unlink(self.db_path)
 
-    @patch('sqlite3.connect')
+    @patch("sqlite3.connect")
     def test_get_connection(self, mock_connect):
         # Call the function
         conn = clinic_admin.database.get_connection()
@@ -42,11 +44,14 @@ class TestDatabase(unittest.TestCase):
         # Verify it returns a connection object
         self.assertIsInstance(conn, sqlite3.Connection)
 
+
 import unittest
+from contextlib import closing
 import sqlite3
 import os
 import tempfile
 import clinic_admin.database
+
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
@@ -64,62 +69,83 @@ class TestDatabase(unittest.TestCase):
             pass
 
     def test_get_connection(self):
-        conn = clinic_admin.database.get_connection()
-        self.assertIsInstance(conn, sqlite3.Connection)
-        self.assertEqual(conn.row_factory, sqlite3.Row)
-        conn.close()
+        with closing(clinic_admin.database.get_connection()) as conn:
+            self.assertIsInstance(conn, sqlite3.Connection)
+            self.assertEqual(conn.row_factory, sqlite3.Row)
 
     def test_init_db(self):
         clinic_admin.database.init_db()
-        conn = clinic_admin.database.get_connection()
-        c = conn.cursor()
+        with closing(clinic_admin.database.get_connection()) as conn:
+            c = conn.cursor()
 
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='patients'")
-        self.assertIsNotNone(c.fetchone())
+            c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='patients'"
+            )
+            self.assertIsNotNone(c.fetchone())
 
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='appointments'")
-        self.assertIsNotNone(c.fetchone())
+            c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='appointments'"
+            )
+            self.assertIsNotNone(c.fetchone())
 
-        c.execute("PRAGMA table_info(patients)")
-        columns = [row['name'] for row in c.fetchall()]
-        self.assertIn('id', columns)
-        self.assertIn('name', columns)
-        self.assertIn('phone', columns)
-        self.assertIn('last_visit', columns)
-        self.assertIn('notes', columns)
-        self.assertIn('created_at', columns)
+            c.execute("PRAGMA table_info(patients)")
+            columns = [row["name"] for row in c.fetchall()]
+            self.assertIn("id", columns)
+            self.assertIn("name", columns)
+            self.assertIn("phone", columns)
+            self.assertIn("last_visit", columns)
+            self.assertIn("notes", columns)
+            self.assertIn("created_at", columns)
 
-        c.execute("PRAGMA table_info(appointments)")
-        columns = [row['name'] for row in c.fetchall()]
-        self.assertIn('id', columns)
-        self.assertIn('patient_id', columns)
-        self.assertIn('doctor', columns)
-        self.assertIn('appointment_date', columns)
-        self.assertIn('status', columns)
-        self.assertIn('created_at', columns)
-
-        conn.close()
+            c.execute("PRAGMA table_info(appointments)")
+            columns = [row["name"] for row in c.fetchall()]
+            self.assertIn("id", columns)
+            self.assertIn("patient_id", columns)
+            self.assertIn("doctor", columns)
+            self.assertIn("appointment_date", columns)
+            self.assertIn("status", columns)
+            self.assertIn("created_at", columns)
 
     def test_phone_validation(self):
         clinic_admin.database.init_db()
-        conn = clinic_admin.database.get_connection()
-        c = conn.cursor()
+        with closing(clinic_admin.database.get_connection()) as conn:
+            c = conn.cursor()
 
-        good_phones = ['+79991234567', '+7 (999) 000-00-00', '123-456-7890', '12345', '(123) 456 7890', None]
-        bad_phones = ['+79991234567A', '<script>', '000000000000000000000', '', '1234', 'abcde']
+            good_phones = [
+                "+79991234567",
+                "+7 (999) 000-00-00",
+                "123-456-7890",
+                "12345",
+                "(123) 456 7890",
+                None,
+            ]
+            bad_phones = [
+                "+79991234567A",
+                "<script>",
+                "000000000000000000000",
+                "",
+                "1234",
+                "abcde",
+            ]
 
-        for p in good_phones:
-            try:
-                c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test", p))
-                conn.commit()
-            except sqlite3.IntegrityError:
-                self.fail(f"Valid phone number {p} failed validation.")
+            for p in good_phones:
+                try:
+                    c.execute(
+                        "INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test", p)
+                    )
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    self.fail(f"Valid phone number {p} failed validation.")
 
-        for p in bad_phones:
-            with self.assertRaises(sqlite3.IntegrityError, msg=f"Invalid phone number {p} should have failed validation."):
-                c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test", p))
+            for p in bad_phones:
+                with self.assertRaises(
+                    sqlite3.IntegrityError,
+                    msg=f"Invalid phone number {p} should have failed validation.",
+                ):
+                    c.execute(
+                        "INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test", p)
+                    )
 
-        conn.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

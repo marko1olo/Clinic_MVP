@@ -805,6 +805,53 @@ class Store:
             "ORDER BY sent_at, id LIMIT ?", (limit,))
         return [_outbox(row) for row in rows]
 
+    def account_outbox_batch(self, rows: list[OutboxRow]) -> int:
+        if not rows:
+            return 0
+        now_stamp = _iso(hours.now(), "now")
+        accounted = 0
+        with self._write() as conn:
+            for row in rows:
+                if row.sent_at is None:
+                    continue
+                stamp = _iso(row.sent_at, "sent_at")
+
+                # touch_dialog logic
+                self._ensure_dialog(conn, row.chat_id, stamp)
+                conn.execute(
+                    """
+                    UPDATE dialogs SET
+                        our_last_message_at = CASE
+                            WHEN our_last_message_at IS NULL
+                                 OR :our > our_last_message_at THEN :our
+                            ELSE our_last_message_at END,
+                        our_messages = our_messages + 1
+                    WHERE chat_id = :chat_id
+                    """,
+                    {"chat_id": row.chat_id, "our": stamp}
+                )
+
+                # followup logic
+                if row.kind == "followup":
+                    conn.execute(
+                        "UPDATE dialogs SET followups_sent = followups_sent + 1, "
+                        "last_followup_at = ? WHERE chat_id = ?", (stamp, row.chat_id))
+
+                # audit logic
+                payload = {"outbox_id": row.id, "kind": row.kind, "draft_id": row.draft_id}
+                import json
+                blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+                conn.execute(
+                    "INSERT INTO audit(at, event, chat_id, payload) VALUES(?, ?, ?, ?)",
+                    (now_stamp, "sent", row.chat_id, blob))
+
+                # mark_outbox_accounted logic
+                cursor = conn.execute(
+                    "UPDATE outbox SET accounted_at = ? WHERE id = ? AND status = 'sent' "
+                    "AND accounted_at IS NULL", (now_stamp, row.id))
+                accounted += cursor.rowcount
+        return accounted
+
     def mark_outbox_accounted(self, outbox_id: int) -> bool:
         with self._write() as conn:
             cursor = conn.execute(

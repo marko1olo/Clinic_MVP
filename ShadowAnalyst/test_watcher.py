@@ -200,6 +200,18 @@ class TestWatcher(unittest.TestCase):
         self.assertEqual(result, "Analysis result")
 
     @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
+    def test__query_model_strips_multiline_think_tags(self):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "<think>\nThinking line 1\nThinking line 2\n</think>\nFinal answer"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        result = watcher._query_model(mock_client, "test-model", "base64img")
+
+        self.assertEqual(result, "Final answer")
+
+    @patch('ShadowAnalyst.watcher.SYSTEM_PROMPT', 'test prompt')
     def test__query_model_empty_choices(self):
         mock_client = MagicMock()
         mock_response = MagicMock()

@@ -122,7 +122,7 @@ class Counters:
 
 # --- шаг 1: входящие --------------------------------------------------------
 
-def _history(store: Store, row) -> tuple[Turn, ...]:
+def _history(row, history_rows: list) -> tuple[Turn, ...]:
     """История диалога для промпта, обрезанная позицией разбираемого сообщения.
 
     Время каждой реплики — `harvested_at`, а не то, что показал Авито: строку
@@ -131,7 +131,7 @@ def _history(store: Store, row) -> tuple[Turn, ...]:
     """
     return tuple(
         Turn(role=item.role, text=item.text, at=item.harvested_at)
-        for item in store.chat_history(row.chat_id, before_position=row.position)
+        for item in history_rows
         if item.external_id != row.external_id
     )
 
@@ -140,13 +140,20 @@ async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
     """Разобрать входящие. Один вызов LLM на сообщение, не больше."""
     counters = Counters()
 
-    for row in store.pending_inbox(limit=INBOX_BATCH):
+    pending = store.pending_inbox(limit=INBOX_BATCH)
+    if pending:
+        queries = [(row.chat_id, row.position) for row in pending]
+        histories_by_chat = store.chat_histories(queries)
+    else:
+        histories_by_chat = {}
+
+    for row in pending:
         incoming = router.Incoming(
             chat_id=row.chat_id,
             external_id=row.external_id,
             text=row.text,
             at=row.harvested_at,
-            history=_history(store, row),
+            history=_history(row, histories_by_chat.get(row.chat_id, [])),
         )
 
         try:

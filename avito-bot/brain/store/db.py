@@ -722,6 +722,43 @@ class Store:
                 (chat_id, before_position, limit))
         return [_inbox(row) for row in rows]
 
+
+    def chat_histories(self, queries: list[tuple[str, int]], limit: int = 40) -> dict[str, list[InboxRow]]:
+        """Массовая загрузка истории диалогов. Решает проблему N+1 запросов.
+
+        queries: список кортежей (chat_id, before_position)
+        Возвращает: словарь {chat_id: список InboxRow}
+        """
+        if not queries:
+            return {}
+
+        import collections
+        chat_ids = list({q[0] for q in queries})
+        placeholders = ",".join("?" * len(chat_ids))
+
+        rows = self._read(
+            f"SELECT *, rowid AS _rid FROM inbox WHERE chat_id IN ({placeholders}) "
+            "ORDER BY chat_id, position, _rid",
+            tuple(chat_ids)
+        )
+
+        histories = collections.defaultdict(list)
+        limits = {q[0]: q[1] for q in queries}
+
+        for row in rows:
+            chat_id = row["chat_id"]
+            before_pos = limits.get(chat_id)
+
+            if before_pos is not None and row["position"] >= before_pos:
+                continue
+
+            histories[chat_id].append(_inbox(row))
+
+        for chat_id, hist in histories.items():
+            histories[chat_id] = hist[-limit:]
+
+        return dict(histories)
+
     def patient_texts(self, chat_id: str, limit: int = 20) -> tuple[str, ...]:
         """Тексты пациента для followup.DialogState: отказ, обещание позвонить.
 

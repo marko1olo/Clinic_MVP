@@ -71,16 +71,13 @@ CREATE TABLE IF NOT EXISTS "employee_mobile_tokens" (
 	"last_accessed_at" timestamp
 );
         `);
-        console.log('Created all tables successfully.');
     } catch(e) { console.error("Error creating tables:", e); }
     
     // Also recreate the dropped constraint so Drizzle is happy later
     try {
         await db.exec(`ALTER TABLE "visits" ADD CONSTRAINT "visits_id_patient_organization_unique" UNIQUE("id","patient_id","organization_id");`);
         await db.exec(`ALTER TABLE "generated_documents" ADD CONSTRAINT "generated_documents_visit_patient_organization_fk" FOREIGN KEY ("visit_id","patient_id","organization_id") REFERENCES "visits"("id","patient_id","organization_id") ON DELETE no action ON UPDATE no action;`);
-        console.log("Restored constraints");
     } catch(e) { console.error("Could not restore constraints:", e.message); }
 
-    console.log("Done");
 }
 run();

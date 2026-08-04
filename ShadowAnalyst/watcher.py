@@ -262,9 +262,9 @@ def _process_and_publish(file_path, filename):
 
     return marked_path
 
-def _move_files(file_path, marked_path, filename):
+def _move_files(file_path, marked_path, filename, processed_dir):
     # Перемещение обработанного оригинала (с повторной попыткой, если заблокирован)
-    processed_path = os.path.join(PROCESSED_DIR, filename)
+    processed_path = os.path.join(processed_dir, filename)
     try:
         os.replace(file_path, processed_path)
     except PermissionError:
@@ -276,17 +276,17 @@ def _move_files(file_path, marked_path, filename):
     if marked_path and os.path.exists(marked_path):
         marked_filename = os.path.basename(marked_path)
         try:
-            os.replace(marked_path, os.path.join(PROCESSED_DIR, marked_filename))
+            os.replace(marked_path, os.path.join(processed_dir, marked_filename))
         except Exception as e:
             print(f"    [!] Ошибка перемещения размеченного файла: {e}")
 
-    print(f"    Файлы перемещены в {PROCESSED_DIR}")
+    print(f"    Файлы перемещены в {processed_dir}")
 
-def _do_process(file_path):
+def _do_process(file_path, processed_dir=PROCESSED_DIR):
     try:
         filename = os.path.basename(file_path)
         marked_path = _process_and_publish(file_path, filename)
-        _move_files(file_path, marked_path, filename)
+        _move_files(file_path, marked_path, filename, processed_dir)
     except FileNotFoundError:
         pass # File was already processed or moved
     except Exception as e:

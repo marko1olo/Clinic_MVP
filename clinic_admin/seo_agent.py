@@ -33,7 +33,7 @@ def generate_seo_response(review_text: str) -> str:
     if not api_key:
         return "Ошибка: Не найден API ключ Groq в конфигурации."
 
-    clinic_phone = os.getenv("CLINIC_PHONE", "+7 (XXX) XXX-XX-XX")
+    clinic_phone = os.getenv("CLINIC_PHONE", "+7 927 111-22-33")
 
     system_prompt = f"""Ты — ведущий PR-менеджер и Senior SEO-оптимизатор стоматологической клиники "DENTE" (г. Самара). Твой опыт работы в маркетинге медицинских услуг — 10 лет. Твоя цель — писать безупречные, профессиональные ответы на отзывы пациентов для публикации на платформах Яндекс.Карты, 2ГИС и ПроДокторов.
 

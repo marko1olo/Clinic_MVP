@@ -60,18 +60,29 @@ def allowed_amounts() -> frozenset[int]:
     for quote in data["quotes"]:
         if not quote.get("quote_allowed"):
             continue
+
         for key in ("price_rub", "min_rub", "max_rub"):
-            if isinstance(quote.get(key), int):
-                values.add(quote[key])
+            if key in quote:
+                val = quote[key]
+                if type(val) is int:
+                    values.add(val)
+
         addon = quote.get("upsell")
-        if isinstance(addon, dict) and isinstance(addon.get("price_rub"), int):
-            values.add(addon["price_rub"])
-        for variant in quote.get("variants", ()):
-            if variant.get("quote_allowed") is False:
-                continue
-            for key in ("price_rub", "min_rub", "max_rub"):
-                if isinstance(variant.get(key), int):
-                    values.add(variant[key])
+        if type(addon) is dict and "price_rub" in addon:
+            val = addon["price_rub"]
+            if type(val) is int:
+                values.add(val)
+
+        variants = quote.get("variants")
+        if variants:
+            for variant in variants:
+                if variant.get("quote_allowed") is False:
+                    continue
+                for key in ("price_rub", "min_rub", "max_rub"):
+                    if key in variant:
+                        val = variant[key]
+                        if type(val) is int:
+                            values.add(val)
     values.discard(0)  # «бесплатно» — слово, а не сумма
     return frozenset(values)
 

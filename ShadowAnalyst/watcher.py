@@ -10,6 +10,7 @@ import base64
 import random
 import threading
 import functools
+import enum
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from PIL import Image
@@ -18,6 +19,15 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 THINK_TAG_PATTERN = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
+
+
+class ModelProvider(str, enum.Enum):
+    GEMINI = "gemini"
+    GROQ = "groq"
+
+GEMINI_FLASH_MODEL = "gemini-3.5-flash"
+GEMINI_FLASH_PREVIEW_MODEL = "gemini-3-flash-preview"
+GROQ_QWEN_MODEL = "qwen/qwen3.6-27b"
 
 # Config Defaults
 WATCH_DIR = r"C:\Clinic_MVP\Dropzone_XRay"
@@ -120,7 +130,7 @@ def _query_model(client, model_name, image_b64):
     return None
 
 def _try_model_with_keys(model_name, provider, image_b64):
-    if provider == "gemini":
+    if provider == ModelProvider.GEMINI:
         keys = GOOGLE_API_KEYS.copy()
         client_maker = make_gemini_client
     else:
@@ -139,7 +149,7 @@ def _try_model_with_keys(model_name, provider, image_b64):
             if report:
                 return report, None
         except Exception as e:
-            print(f"[!] Сбой ключа ИИ ({model_name}, {provider}): {e}")
+            print(f"[!] Сбой ключа ИИ ({model_name}, {provider.value if hasattr(provider, 'value') else provider}): {e}")
             last_err = e
             continue
 
@@ -149,10 +159,10 @@ def _run_model_cascade(image_b64):
     """Прогоняет картинку по каскаду моделей, возвращает (None, report) при успехе."""
     # Default cascade sequence
     models_with_providers = [
-        ("gemini-3.5-flash", "gemini"),
-        ("gemini-3-flash-preview", "gemini"),
-        ("qwen/qwen3.6-27b", "groq"),
-        (GROQ_VISION_MODEL, "groq")
+        (GEMINI_FLASH_MODEL, ModelProvider.GEMINI),
+        (GEMINI_FLASH_PREVIEW_MODEL, ModelProvider.GEMINI),
+        (GROQ_QWEN_MODEL, ModelProvider.GROQ),
+        (GROQ_VISION_MODEL, ModelProvider.GROQ)
     ]
 
     last_err = "Нет доступных ключей"

@@ -350,7 +350,7 @@ export async function updateClinicModeInDb(organizationId: string, mode: ClinicM
 
 export async function updateClinicProfileInDb(organizationId: string, input: UpdateClinicProfileInput) {
   if (useInMemory()) return updateClinicProfileInMemory(input);
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Partial<typeof schema.organizations.$inferInsert> = { updatedAt: new Date() };
   if (input.legalName !== undefined) updateData.name = input.legalName;
   if (input.inn !== undefined) updateData.inn = input.inn;
   if (input.kpp !== undefined) updateData.kpp = input.kpp;
@@ -368,7 +368,7 @@ export async function updateClinicProfileInDb(organizationId: string, input: Upd
 
   await db.update(schema.organizations).set(updateData).where(eq(schema.organizations.id, organizationId));
 
-  const clinicUpdateData: any = {};
+  const clinicUpdateData: Partial<typeof schema.clinics.$inferInsert> = {};
   if (input.clinicName !== undefined) clinicUpdateData.name = input.clinicName;
   if (input.phone !== undefined) clinicUpdateData.phone = input.phone;
   if (input.timezone !== undefined) clinicUpdateData.timezone = input.timezone;

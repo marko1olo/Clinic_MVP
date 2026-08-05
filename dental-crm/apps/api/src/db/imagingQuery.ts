@@ -2,7 +2,7 @@ import { browserRenderableImageMimeType } from "../imaging/previewFormats.js";
 import { db } from "./client.js";
 import * as schema from "./schema.js";
 import { eq, and } from "drizzle-orm";
-import type { ImagingStudy, ImagingViewerSessionState } from "@dental/shared";
+import type { ImagingStudy, ImagingViewerSessionState, ImagingStudyKind, ImagingSourceKind } from "@dental/shared";
 
 /**
  * Canonical default state for a freshly-created imaging viewer session.

@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from functools import lru_cache
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data"
@@ -45,14 +44,7 @@ class Verdict:
 
 # --- разрешённые суммы ------------------------------------------------------
 
-@lru_cache(maxsize=1)
-def allowed_amounts() -> frozenset[int]:
-    """Каждая сумма, которую боту разрешено произнести.
-
-    Собирается ТОЛЬКО из записей с quote_allowed: true. Вариант внутри записи
-    может отменить разрешение для себя (например, 4-канальный пульпит —
-    экстраполяция, её называть нельзя).
-    """
+def _build_allowed_amounts() -> frozenset[int]:
     with QUOTES_PATH.open(encoding="utf-8") as fh:
         data = json.load(fh)
 
@@ -75,12 +67,26 @@ def allowed_amounts() -> frozenset[int]:
     values.discard(0)  # «бесплатно» — слово, а не сумма
     return frozenset(values)
 
-
-@lru_cache(maxsize=1)
-def allowed_links() -> frozenset[str]:
+def _build_allowed_links() -> frozenset[str]:
     with FACTS_PATH.open(encoding="utf-8") as fh:
         ident = json.load(fh)["identity"]
     return frozenset({ident["site"], ident["vk"], ident["online_booking"]})
+
+_ALLOWED_AMOUNTS = _build_allowed_amounts()
+_ALLOWED_LINKS = _build_allowed_links()
+
+def allowed_amounts() -> frozenset[int]:
+    """Каждая сумма, которую боту разрешено произнести.
+
+    Собирается ТОЛЬКО из записей с quote_allowed: true. Вариант внутри записи
+    может отменить разрешение для себя (например, 4-канальный пульпит —
+    экстраполяция, её называть нельзя).
+    """
+    return _ALLOWED_AMOUNTS
+
+
+def allowed_links() -> frozenset[str]:
+    return _ALLOWED_LINKS
 
 
 # --- вырезание всего, что выглядит как число, но не деньги ------------------

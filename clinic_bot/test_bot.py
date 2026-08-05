@@ -181,3 +181,84 @@ class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
                         self.assertIn("Failed to send photo to 123: Test send_photo error", mock_logger_error.call_args_list[0].args[0])
 
 
+
+import base64
+from bot import handle_xray_result
+
+class TestHandleXrayResult(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_with_image(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+        mock_broadcast_photo.return_value = "mocked_coro_photo"
+
+        loop = MagicMock()
+        payload = {
+            'image_b64': base64.b64encode(b"test_image").decode('utf-8'),
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov',
+            'file': 'xray.jpg'
+        }
+
+        handle_xray_result('test_topic', payload, loop)
+
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 2)
+        mock_broadcast_photo.assert_called_once_with(
+            b"test_image",
+            "🦷 *Новый рентген проанализирован!*\n👤 _Пациент: Ivan Ivanov_\nПолный отчет следующим сообщением.",
+            'Test report',
+            role='doctor'
+        )
+        mock_broadcast.assert_called_once_with(
+            "🔄 *Система*: Снимок xray.jpg (Пациент: Ivan Ivanov) отправлен врачам.",
+            role='admin'
+        )
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast_photo', new_callable=MagicMock)
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_without_image(self, mock_broadcast, mock_broadcast_photo, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+
+        loop = MagicMock()
+        payload = {
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov'
+        }
+
+        handle_xray_result('test_topic', payload, loop)
+
+        self.assertEqual(mock_run_coroutine_threadsafe.call_count, 1)
+        mock_broadcast.assert_called_once_with(
+            "🦷 *Анализ снимка готов*\n👤 _Пациент: Ivan Ivanov_\n\nНаходки:\nTest report\n",
+            role='doctor'
+        )
+        mock_broadcast_photo.assert_not_called()
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_xray_result_patient_name_formatting(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        mock_broadcast.return_value = "mocked_coro"
+        loop = MagicMock()
+
+        payload_unknown = {'report': 'Test report', 'patient_name': 'Неизвестен'}
+        handle_xray_result('test_topic', payload_unknown, loop)
+        mock_broadcast.assert_called_with(
+            "🦷 *Анализ снимка готов*\n👤 _Пациент: неизвестен (нет записи)_\n\nНаходки:\nTest report\n",
+            role='doctor'
+        )
+
+        payload_missing = {'report': 'Test report'}
+        handle_xray_result('test_topic', payload_missing, loop)
+        mock_broadcast.assert_called_with(
+            "🦷 *Анализ снимка готов*\n👤 _Пациент: неизвестен (нет записи)_\n\nНаходки:\nTest report\n",
+            role='doctor'
+        )
+
+        payload_valid = {'report': 'Test report', 'patient_name': 'Petr Petrov'}
+        handle_xray_result('test_topic', payload_valid, loop)
+        mock_broadcast.assert_called_with(
+            "🦷 *Анализ снимка готов*\n👤 _Пациент: Petr Petrov_\n\nНаходки:\nTest report\n",
+            role='doctor'
+        )

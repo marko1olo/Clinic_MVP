@@ -4,7 +4,6 @@
 Когда агент на ноуте пуляет событие в MQTT -> бот шлет сообщение в Telegram.
 """
 import asyncio
-import threading
 import logging
 import json
 import sys
@@ -202,8 +201,8 @@ def on_mqtt_message(client, userdata, msg):
     handler = TOPIC_HANDLERS.get(topic, handle_default)
     handler(topic, payload, loop)
 
-def start_mqtt(loop: asyncio.AbstractEventLoop):
-    """Запускает MQTT клиент в отдельном потоке."""
+async def start_mqtt(loop: asyncio.AbstractEventLoop):
+    """Запускает MQTT клиент в фоновой задаче, делегируя блокирующую работу в отдельный поток."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.user_data_set({'loop': loop})
     if MQTT_USER:
@@ -221,23 +220,32 @@ def start_mqtt(loop: asyncio.AbstractEventLoop):
     )
     client.on_disconnect = lambda c, ud, d, rc, p: log.warning(f"MQTT disconnected rc={rc}")
 
+    # Изолированный executor для блокирующего MQTT цикла (daemon thread)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="MQTT_Thread")
+
     while True:
         try:
-            client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
-            client.loop_forever()
+            await loop.run_in_executor(executor, client.connect, MQTT_HOST, MQTT_PORT, 60)
+            await loop.run_in_executor(executor, client.loop_forever)
+        except asyncio.CancelledError:
+            log.info("MQTT background task cancelled")
+            client.disconnect()
+            executor.shutdown(wait=False, cancel_futures=True)
+            break
         except Exception as e:
             log.error(f"MQTT error: {e}, retrying in 5s...")
-            time.sleep(5)
+            await asyncio.sleep(5)
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
     loop = asyncio.get_event_loop()
 
-    # Запускаем MQTT в фоновом потоке
-    mqtt_thread = threading.Thread(target=start_mqtt, args=(loop,), daemon=True)
-    mqtt_thread.start()
-    log.info("MQTT bridge thread started")
+    # Запускаем MQTT в фоновой задаче
+    global _mqtt_task
+    _mqtt_task = asyncio.create_task(start_mqtt(loop))
+    log.info("MQTT background task started")
 
     log.info("Starting Telegram bot polling...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

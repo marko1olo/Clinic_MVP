@@ -39,7 +39,12 @@ async function run() {
 
   if (hasUnlockForm) {
     console.log('Unlock form detected. Filling it out...');
-    await page.fill('input[type="password"]', 'dente-secret-key-1234'); // dummy secret
+    const secretKey = process.env.DENTE_SECRET_KEY;
+    if (!secretKey) {
+      console.error('DENTE_SECRET_KEY environment variable is not set');
+      process.exit(1);
+    }
+    await page.fill('input[type="password"]', secretKey);
     await page.click('button[type="submit"]');
     await page.waitForTimeout(4000);
   }

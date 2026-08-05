@@ -181,3 +181,104 @@ class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
                         self.assertIn("Failed to send photo to 123: Test send_photo error", mock_logger_error.call_args_list[0].args[0])
 
 
+
+from clinic_bot.bot import handle_xray_result
+import base64
+
+class TestHandleXrayResult(unittest.TestCase):
+    def setUp(self):
+        self.loop = MagicMock()
+        self.topic = "test/xray"
+
+    def tearDown(self):
+        import asyncio
+        loop = asyncio.new_event_loop()
+        try:
+            for task in asyncio.all_tasks(loop):
+                task.cancel()
+        except:
+            pass
+        finally:
+            loop.close()
+
+    @patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe')
+    @patch('clinic_bot.bot.broadcast')
+    @patch('clinic_bot.bot.broadcast_photo')
+    def test_handle_xray_result_with_image(self, mock_broadcast_photo, mock_broadcast, mock_run_coroutine):
+        pass
+        pass
+
+        # valid base64
+        fake_b64 = base64.b64encode(b"fake_image_data").decode('utf-8')
+        payload = {
+            'image_b64': fake_b64,
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov',
+            'file': 'test.png'
+        }
+
+        handle_xray_result(self.topic, payload, self.loop)
+
+        mock_broadcast_photo.assert_called_once()
+        args, kwargs = mock_broadcast_photo.call_args
+        self.assertEqual(args[0], b"fake_image_data")
+        self.assertIn("Ivan Ivanov", args[1])
+        self.assertEqual(args[2], 'Test report')
+        self.assertEqual(kwargs['role'], 'doctor')
+
+        mock_broadcast.assert_called_once()
+        args, kwargs = mock_broadcast.call_args
+        self.assertIn("Ivan Ivanov", args[0])
+        self.assertIn("test.png", args[0])
+        self.assertEqual(kwargs['role'], 'admin')
+
+        self.assertEqual(mock_run_coroutine.call_count, 2)
+        args1, _ = mock_run_coroutine.call_args_list[0]
+        self.assertTrue(asyncio.iscoroutine(args1[0]))
+        args1[0].close()
+        self.assertEqual(args1[1], self.loop)
+        args2, _ = mock_run_coroutine.call_args_list[1]
+        self.assertTrue(asyncio.iscoroutine(args2[0]))
+        args2[0].close()
+        self.assertEqual(args2[1], self.loop)
+
+    @patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe')
+    @patch('clinic_bot.bot.broadcast')
+    def test_handle_xray_result_without_image(self, mock_broadcast, mock_run_coroutine):
+        pass
+
+        payload = {
+            'report': 'Test report',
+            'patient_name': 'Ivan Ivanov'
+        }
+
+        handle_xray_result(self.topic, payload, self.loop)
+
+        mock_broadcast.assert_called_once()
+        args, kwargs = mock_broadcast.call_args
+        self.assertIn("Ivan Ivanov", args[0])
+        self.assertIn("Test report", args[0])
+        self.assertEqual(kwargs['role'], 'doctor')
+
+        self.assertEqual(mock_run_coroutine.call_count, 1)
+        args, _ = mock_run_coroutine.call_args
+        self.assertTrue(asyncio.iscoroutine(args[0]))
+        args[0].close()
+        self.assertEqual(args[1], self.loop)
+
+    @patch('clinic_bot.bot.asyncio.run_coroutine_threadsafe')
+    @patch('clinic_bot.bot.broadcast')
+    def test_handle_xray_result_unknown_patient(self, mock_broadcast, mock_run_coroutine):
+        payloads = [
+            {'report': 'Test report'}, # Missing patient_name
+            {'report': 'Test report', 'patient_name': 'Неизвестен'}, # Explicit unknown
+            {'report': 'Test report', 'patient_name': ''} # Empty string
+        ]
+
+        for payload in payloads:
+            mock_broadcast.reset_mock()
+            handle_xray_result(self.topic, payload, self.loop)
+
+            mock_broadcast.assert_called_once()
+            args, kwargs = mock_broadcast.call_args
+            self.assertIn("неизвестен (нет записи)", args[0])

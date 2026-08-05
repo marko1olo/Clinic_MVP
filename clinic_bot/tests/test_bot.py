@@ -521,5 +521,19 @@ class TestStartMqtt(unittest.TestCase):
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
+
+class TestBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db.get_users_by_role')
+    @patch('bot.log')
+    async def test_broadcast_photo_unknown_role(self, mock_log, mock_get_users_by_role):
+        """Test broadcast_photo returns early when no users are found for a role."""
+        from bot import broadcast_photo
+        mock_get_users_by_role.return_value = []
+
+        await broadcast_photo(b'fakebytes', 'caption', 'report', role='unknown_role')
+
+        mock_get_users_by_role.assert_called_once_with('unknown_role')
+        mock_log.warning.assert_called_once_with("No registered unknown_roles to send photo to.")
+
 if __name__ == '__main__':
     unittest.main()

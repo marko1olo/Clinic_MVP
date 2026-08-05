@@ -136,71 +136,76 @@ def _history(store: Store, row) -> tuple[Turn, ...]:
     )
 
 
+async def _process_inbox_row(store: Store, row, counters: Counters, *, dry_run: bool) -> None:
+    """Обработать одно входящее сообщение."""
+    incoming = router.Incoming(
+        chat_id=row.chat_id,
+        external_id=row.external_id,
+        text=row.text,
+        at=row.harvested_at,
+        history=_history(store, row),
+    )
+
+    try:
+        outcome = await router.handle(incoming, store)
+    except Exception as exc:  # noqa: BLE001 - демон не имеет права упасть
+        # Сообщение НЕ помечается разобранным: следующая итерация попробует
+        # снова. Единственная альтернатива — потерять обращение молча.
+        counters.errors += 1
+        store.audit("router_error", chat_id=row.chat_id,
+                    payload={"external_id": row.external_id,
+                             "error": type(exc).__name__})
+        _log(f"ОШИБКА роутера на {row.external_id}: {type(exc).__name__}: {exc}")
+        return
+
+    counters.processed += 1
+
+    # Дебаунс — ЕДИНСТВЕННЫЙ отказ, после которого сообщение обязано
+    # вернуться. Пациент дописывает мысль, и через 15 с его нужно
+    # обработать снова. Пометить такое разобранным — значит потерять
+    # обращение навсегда и молча: в inbox оно есть, в outbox его нет, и
+    # ни одной ошибки в логе. Все остальные skip окончательны (дубликат,
+    # перехват администратором, пауза ИИ) и помечаются.
+    if outcome.route == "skip" and outcome.kind == "debounce":
+        counters.processed -= 1
+        return
+
+    if dry_run:
+        _log(f"[dry-run] {row.chat_id}: {outcome.route} — {outcome.reason}")
+        store.mark_inbox_processed(row.external_id)
+        return
+
+    if outcome.route == "auto" and outcome.text:
+        store.queue_outbox(row.chat_id, outcome.text, kind="reply",
+                           send_after=outcome.send_at or hours.now(),
+                           chat_url=row.chat_url)
+        counters.auto += 1
+
+    elif outcome.route == "draft":
+        # Текст модели может отсутствовать (LLM недоступна) — тогда
+        # администратор отвечает сам, а черновик несёт причину и вопрос.
+        body = outcome.text or (
+            f"Модель недоступна ({outcome.llm_failure}). "
+            f"Вопрос пациента: {row.text}")
+        draft_id = store.queue_draft(row.chat_id, body,
+                                     kind=outcome.kind, reason=outcome.reason)
+        await _publish_draft(store, draft_id, row)
+        counters.drafts += 1
+
+    # route == "ignore" / "skip" — записей не требуют, роутер уже отписал
+    # в аудит; помечаем разобранным и идём дальше.
+
+    # Пометка ПОСЛЕ записи решения: обратный порядок теряет сообщение при
+    # падении между двумя операциями.
+    store.mark_inbox_processed(row.external_id)
+
+
 async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
     """Разобрать входящие. Один вызов LLM на сообщение, не больше."""
     counters = Counters()
 
     for row in store.pending_inbox(limit=INBOX_BATCH):
-        incoming = router.Incoming(
-            chat_id=row.chat_id,
-            external_id=row.external_id,
-            text=row.text,
-            at=row.harvested_at,
-            history=_history(store, row),
-        )
-
-        try:
-            outcome = await router.handle(incoming, store)
-        except Exception as exc:  # noqa: BLE001 - демон не имеет права упасть
-            # Сообщение НЕ помечается разобранным: следующая итерация попробует
-            # снова. Единственная альтернатива — потерять обращение молча.
-            counters.errors += 1
-            store.audit("router_error", chat_id=row.chat_id,
-                        payload={"external_id": row.external_id,
-                                 "error": type(exc).__name__})
-            _log(f"ОШИБКА роутера на {row.external_id}: {type(exc).__name__}: {exc}")
-            continue
-
-        counters.processed += 1
-
-        # Дебаунс — ЕДИНСТВЕННЫЙ отказ, после которого сообщение обязано
-        # вернуться. Пациент дописывает мысль, и через 15 с его нужно
-        # обработать снова. Пометить такое разобранным — значит потерять
-        # обращение навсегда и молча: в inbox оно есть, в outbox его нет, и
-        # ни одной ошибки в логе. Все остальные skip окончательны (дубликат,
-        # перехват администратором, пауза ИИ) и помечаются.
-        if outcome.route == "skip" and outcome.kind == "debounce":
-            counters.processed -= 1
-            continue
-
-        if dry_run:
-            _log(f"[dry-run] {row.chat_id}: {outcome.route} — {outcome.reason}")
-            store.mark_inbox_processed(row.external_id)
-            continue
-
-        if outcome.route == "auto" and outcome.text:
-            store.queue_outbox(row.chat_id, outcome.text, kind="reply",
-                               send_after=outcome.send_at or hours.now(),
-                               chat_url=row.chat_url)
-            counters.auto += 1
-
-        elif outcome.route == "draft":
-            # Текст модели может отсутствовать (LLM недоступна) — тогда
-            # администратор отвечает сам, а черновик несёт причину и вопрос.
-            body = outcome.text or (
-                f"Модель недоступна ({outcome.llm_failure}). "
-                f"Вопрос пациента: {row.text}")
-            draft_id = store.queue_draft(row.chat_id, body,
-                                         kind=outcome.kind, reason=outcome.reason)
-            await _publish_draft(store, draft_id, row)
-            counters.drafts += 1
-
-        # route == "ignore" / "skip" — записей не требуют, роутер уже отписал
-        # в аудит; помечаем разобранным и идём дальше.
-
-        # Пометка ПОСЛЕ записи решения: обратный порядок теряет сообщение при
-        # падении между двумя операциями.
-        store.mark_inbox_processed(row.external_id)
+        await _process_inbox_row(store, row, counters, dry_run=dry_run)
 
     return counters
 

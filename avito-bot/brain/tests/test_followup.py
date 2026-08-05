@@ -74,9 +74,7 @@ CASES: list[tuple[str, DialogState, datetime, int | None]] = [
 ]
 
 
-def run() -> int:
-    failures: list[str] = []
-
+def _check_cases(failures: list[str]) -> None:
     for label, state, moment, want in CASES:
         got = followup.plan(state, moment)
         got_n = got.number if got else None
@@ -86,6 +84,8 @@ def run() -> int:
         print(f"  {'ок  ' if ok else 'ФЕЙЛ'} {label}"
               f"{'' if not got else '  [' + got.route.value + '] ' + got.reason}")
 
+
+def _check_routing(failures: list[str]) -> None:
     # Маршрутизация: по умолчанию оба дожима — черновик.
     first = followup.plan(st(), NOW)
     assert first is not None
@@ -115,6 +115,8 @@ def run() -> int:
           f"первый с промоушеном={promoted.route.value}, "
           f"второй при промоушене={promoted_second.route.value}")
 
+
+def _check_guard(failures: list[str]) -> None:
     # Вето не должно ругаться на текст дожимов.
     import guard  # noqa: E402
     for label, text in (("дожим 1", followup.FIRST_TEXT), ("дожим 2", followup.SECOND_TEXT)):
@@ -122,6 +124,14 @@ def run() -> int:
         if not verdict.ok:
             failures.append(f"{label} не проходит вето: {verdict.reason}")
         print(f"  {'ок  ' if verdict.ok else 'ФЕЙЛ'} {label} проходит вето")
+
+
+def run() -> int:
+    failures: list[str] = []
+
+    _check_cases(failures)
+    _check_routing(failures)
+    _check_guard(failures)
 
     total = len(CASES) + 6
     print(f"\nИТОГ: {total - len(failures)}/{total}")

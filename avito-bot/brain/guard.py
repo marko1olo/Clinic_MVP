@@ -104,7 +104,7 @@ _BARE = re.compile(r"\b(\d[\d\s]{2,})\b")
 
 
 def _to_rub(raw: str, unit: str) -> int:
-    value = float(raw.replace(" ", "").replace(",", "."))
+    value = float(re.sub(r"\s+", "", raw).replace(",", "."))
     if unit.startswith(("тыс", "т.р", "тр", "т р")):
         value *= 1000
     return int(round(value))
@@ -130,7 +130,7 @@ def money_amounts(text: str) -> list[int]:
         consumed = consumed.replace(match.group(0), "#" * len(match.group(0)), 1)
 
     for match in _BARE.finditer(consumed):
-        value = int(match.group(1).replace(" ", ""))
+        value = int(re.sub(r"\s+", "", match.group(1)))
         if value >= BARE_NUMBER_IS_MONEY_FROM:
             found.append(value)
 

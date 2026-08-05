@@ -141,8 +141,9 @@ export class RecallScheduler {
           `[RecallScheduler] Created ${tasksToInsert.length} recall tasks for admin.`,
         );
       }
-    } catch (e: any) {
-      console.warn("[RecallScheduler notice]:", e?.message || e);
+    } catch (e: unknown) {
+      const err = e as { message?: unknown } | null | undefined;
+      console.warn("[RecallScheduler notice]:", err?.message || e);
     }
   }
 }

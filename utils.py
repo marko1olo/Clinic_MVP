@@ -7,8 +7,8 @@ def ssh(client, cmd, desc="", timeout=60):
     stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
     out = stdout.read().decode('utf-8', errors='replace').strip()
     err = stderr.read().decode('utf-8', errors='replace').strip()
-    if out: sys.stdout.buffer.write((out + "\n").encode('utf-8', errors='replace'))
-    if err: sys.stdout.buffer.write(("STDERR: " + err + "\n").encode('utf-8', errors='replace'))
+    if out: sys.stdout.buffer.write(f"{out}\n".encode('utf-8', errors='replace'))
+    if err: sys.stdout.buffer.write(f"STDERR: {err}\n".encode('utf-8', errors='replace'))
     sys.stdout.flush()
     return out, err
 

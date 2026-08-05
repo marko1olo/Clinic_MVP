@@ -208,8 +208,7 @@ def check_phone(c: Checks, store: Store) -> None:
              "UPDATE dialogs SET phone_hash = ? WHERE chat_id = 'chat-B'", (RAW_PHONE,))
 
 
-def check_drafts(c: Checks, store: Store) -> int:
-    c.section("цикл черновика")
+def _check_draft_queue(c: Checks, store: Store) -> tuple[int, int]:
     first = store.queue_draft("chat-D", "Осмотр бесплатный, подберём время.",
                               kind="price", reason="рисковый маркер (price)")
     second = store.queue_draft("chat-D", "Ортодонт принимает по записи.",
@@ -225,7 +224,10 @@ def check_drafts(c: Checks, store: Store) -> int:
     pending = store.pending_drafts()
     c.eq("оба черновика в очереди", [d.id for d in pending], [first, second])
     c.eq("limit режет очередь", len(store.pending_drafts(limit=1)), 1)
+    return first, second
 
+
+def _check_draft_link(c: Checks, store: Store, first: int, second: int) -> None:
     store.link_draft_message(first, 5001)
     found = store.draft_by_tg_message(5001)
     c.ok("черновик находится по сообщению Telegram", found is not None)
@@ -242,6 +244,8 @@ def check_drafts(c: Checks, store: Store) -> int:
     c.raises("привязка к несуществующему черновику", LookupError,
              store.link_draft_message, 10 ** 6, 5003)
 
+
+def _check_draft_resolve(c: Checks, store: Store, first: int, second: int) -> None:
     resolved = store.resolve_draft(first, action="sent", by="admin")
     c.eq("статус после отправки", resolved.status, "sent")
     c.ok("время решения записано", resolved.resolved_at is not None)
@@ -267,6 +271,8 @@ def check_drafts(c: Checks, store: Store) -> int:
          "Ортодонт принимает по записи.")
     c.eq("очередь пуста", store.pending_drafts(), [])
 
+
+def _check_draft_errors(c: Checks, store: Store) -> None:
     third = store.queue_draft("chat-D", "Третий", kind="unknown", reason="не распознано")
     c.raises("правка без текста запрещена", ValueError,
              store.resolve_draft, third, action="edited")
@@ -283,6 +289,14 @@ def check_drafts(c: Checks, store: Store) -> int:
     store.resolve_draft(third, action="ignored")
     c.eq("игнор не оставляет текста для отправки", store.draft(third).final_text
          if store.draft(third) else "нет ряда", None)
+
+
+def check_drafts(c: Checks, store: Store) -> int:
+    c.section("цикл черновика")
+    first, second = _check_draft_queue(c, store)
+    _check_draft_link(c, store, first, second)
+    _check_draft_resolve(c, store, first, second)
+    _check_draft_errors(c, store)
     return first
 
 

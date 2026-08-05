@@ -331,8 +331,7 @@ export interface DomainStateHydrationReport {
  */
 function collect<T>(
 	rows: unknown[],
-	// biome-ignore lint/suspicious/noExplicitAny: zod-схемы из @dental/shared имеют разные дженерики
-	validator: { safeParse: (input: unknown) => { success: boolean; data?: any } },
+	validator: { safeParse: (input: unknown) => { success: boolean; data?: T } },
 	label: string,
 	report: DomainStateHydrationReport,
 ): T[] {

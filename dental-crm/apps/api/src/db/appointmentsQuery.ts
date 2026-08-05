@@ -1,4 +1,7 @@
 import { db } from "./client.js";
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbOrTx = typeof db | DbTransaction;
 import * as schema from "./schema.js";
 import { eq, and, ne, lt, gt, or, type SQL } from "drizzle-orm";
 import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput } from "@dental/shared";
@@ -29,7 +32,7 @@ function useInMemory() {
  * встречные вызовы могут заклиниться друг о друга.
  */
 async function lockAppointmentResources(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   resources: { chairId?: string | null; doctorUserId?: string | null; patientId?: string | null }
 ) {
@@ -71,7 +74,7 @@ async function lockAppointmentResources(
  * кресла на одно время, оба ответа 201.
  */
 async function assertNoResourceOverlap(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   candidate: {
     startsAt: Date;
@@ -151,11 +154,11 @@ async function assertNoResourceOverlap(
  * устаревший список на экране.
  */
 async function assertAppointmentResourcesBelongToOrganization(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   input: { patientId?: string | null | undefined; doctorUserId?: string | null | undefined; chairId?: string | null | undefined }
 ): Promise<void> {
-  const checks: { id: string; table: any; what: string; action: string }[] = [];
+  const checks: { id: string; table: typeof schema.patients | typeof schema.users | typeof schema.chairs; what: string; action: string }[] = [];
   if (input.patientId)
     checks.push({
       id: input.patientId,
@@ -190,7 +193,7 @@ async function assertAppointmentResourcesBelongToOrganization(
   }
 }
 
-export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput, tx?: any): Promise<Appointment> {
+export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput, tx?: DbOrTx): Promise<Appointment> {
   if (useInMemory()) {
     return createAppointmentInMemory(input);
   }
@@ -207,7 +210,7 @@ export async function createAppointmentInDb(organizationId: string, input: Creat
   const candidateStarts = new Date(startsAtMs);
   const candidateEnds = new Date(endsAtMs);
 
-  const insertChecked = async (executor: any) => {
+  const insertChecked = async (executor: DbOrTx) => {
     // Принадлежность проверяется ДО блокировки ресурсов: блокировать чужую
     // строку незачем, а отказ обязан прийти раньше любой записи.
     await assertAppointmentResourcesBelongToOrganization(executor, organizationId, input);

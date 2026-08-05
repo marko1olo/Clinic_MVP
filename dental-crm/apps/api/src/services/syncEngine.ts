@@ -81,8 +81,9 @@ export async function startSyncEngine(pgliteClient: PGlite) {
 					"[SyncEngine] ✅ Sync Engine initialized and connected to Global DB.",
 				);
 			},
-			onError: (err: any) => {
-				console.error("[SyncEngine] ❌ Sync error:", err.message || err);
+			onError: (e: unknown) => {
+				const err = e as { message?: unknown } | null | undefined;
+				console.error("[SyncEngine] ❌ Sync error:", err?.message || e);
 			},
 		});
 

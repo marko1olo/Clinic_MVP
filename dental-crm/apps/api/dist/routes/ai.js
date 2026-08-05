@@ -19,6 +19,14 @@ const visitNoteDraftValidationMessage = "Черновик приема не со
 const aiRecognitionPatientMissingMessage = "Пациент не найден. Выберите пациента из актуальной карты.";
 const aiRecognitionStudyMissingMessage = "Снимок не найден. Выберите снимок из карты пациента.";
 const aiRecognitionStudyPatientMismatchMessage = "Снимок привязан к другому пациенту. Проверьте карту перед созданием AI-черновика.";
+/**
+ * POST /api/ai/predict-no-show: тело раньше — bare cast
+ * `request.body as { patientId?: unknown } | null | undefined`.
+ * Zod safeParse после clinic-token AUTH → 400 с прежним RU текстом.
+ */
+const predictNoShowBodySchema = z.object({
+    patientId: z.unknown().optional(),
+});
 function sendAiRecognitionScopeError(reply, statusCode, message) {
     return reply.code(statusCode).send({
         error: "AiRecognitionScopeError",
@@ -251,8 +259,14 @@ export async function registerAiRoutes(app) {
                 message: "Требуется авторизация рабочего кабинета клиники."
             });
         }
-        const body = request.body;
-        const patientId = typeof body?.patientId === "string" ? body.patientId.trim() : "";
+        const parsedBody = predictNoShowBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Не указано, для какого пациента считать риск неявки."
+            });
+        }
+        const patientId = typeof parsedBody.data.patientId === "string" ? parsedBody.data.patientId.trim() : "";
         if (!patientId) {
             return reply.code(400).send({
                 error: "ValidationError",

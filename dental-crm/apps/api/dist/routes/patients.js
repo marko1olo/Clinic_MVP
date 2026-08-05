@@ -1,4 +1,5 @@
 import { createPatientSchema, patientSchema, updatePatientAdministrativeProfileSchema, updatePatientSchema } from "@dental/shared";
+import { z } from "zod";
 const patientCreateValidationMessage = "Пациент не создан: заполните ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientUpdateValidationMessage = "Пациент не обновлен: проверьте ФИО, дату рождения, контакты и обязательные поля карты.";
 const patientAdministrativeValidationMessage = "Административный профиль не сохранен: проверьте документы, согласия, страховку и данные представителя.";
@@ -21,6 +22,32 @@ const patientNameOnlyDuplicateMessage = "Карта с таким ФИО уже 
  * видел «сбой чтения» там, где на самом деле не выбрана карта.
  */
 const PATIENT_ID_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Тела рекламаций / задач / чёрного списка раньше читались bare cast'ом
+ * `request.body as { … } | null | undefined`. Null body не ронял (optional chaining),
+ * но цель кампании — единый Zod-gate: не-object / wrong-type → 400 с прежними RU
+ * текстами, AUTH (requireClinicOrganizationId) остаётся первым.
+ */
+const patientReclamationCreateBodySchema = z.object({
+    complicationDetails: z.unknown().optional(),
+    proposedAction: z.unknown().optional(),
+    doctorId: z.unknown().optional()
+});
+const patientReclamationStatusBodySchema = z.object({
+    status: z.unknown().optional()
+});
+const patientTaskTicketCreateBodySchema = z.object({
+    title: z.unknown().optional(),
+    description: z.unknown().optional(),
+    assignedToId: z.unknown().optional(),
+    priority: z.unknown().optional()
+});
+const patientTaskTicketStatusBodySchema = z.object({
+    status: z.unknown().optional()
+});
+const patientArchiveStatusBodySchema = z.object({
+    isBlacklisted: z.unknown().optional()
+});
 function parsePatientPayload(schema, value) {
     const parsed = schema.safeParse(value);
     if (!parsed.success)
@@ -479,8 +506,15 @@ export async function registerPatientRoutes(app) {
         if (!patientId || !PATIENT_ID_UUID_PATTERN.test(patientId.trim())) {
             return sendPatientRouteValidationError(reply);
         }
-        const body = request.body;
-        const details = typeof body?.complicationDetails === "string" ? body.complicationDetails.trim() : "";
+        const parsedBody = patientReclamationCreateBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Не описана суть жалобы или осложнения — без этого запись в карте бесполезна."
+            });
+        }
+        const body = parsedBody.data;
+        const details = typeof body.complicationDetails === "string" ? body.complicationDetails.trim() : "";
         if (!details) {
             // Сообщение называет то, что требуется от человека, а не имя поля запроса.
             return reply.code(400).send({
@@ -488,7 +522,7 @@ export async function registerPatientRoutes(app) {
                 message: "Не описана суть жалобы или осложнения — без этого запись в карте бесполезна."
             });
         }
-        const doctorId = typeof body?.doctorId === "string" && PATIENT_ID_UUID_PATTERN.test(body.doctorId.trim())
+        const doctorId = typeof body.doctorId === "string" && PATIENT_ID_UUID_PATTERN.test(body.doctorId.trim())
             ? body.doctorId.trim()
             : null;
         if (!doctorId) {
@@ -497,7 +531,7 @@ export async function registerPatientRoutes(app) {
                 message: "Не выбран врач — автор работы. Без него разобрать рекламацию будет не с кем."
             });
         }
-        const proposedAction = typeof body?.proposedAction === "string" && body.proposedAction.trim()
+        const proposedAction = typeof body.proposedAction === "string" && body.proposedAction.trim()
             ? body.proposedAction.trim()
             : null;
         try {
@@ -531,8 +565,15 @@ export async function registerPatientRoutes(app) {
             !PATIENT_ID_UUID_PATTERN.test(reclamationId.trim())) {
             return sendPatientRouteValidationError(reply);
         }
-        const body = request.body;
-        const status = body?.status === "resolved" ? "resolved" : body?.status === "under_review" ? "under_review" : null;
+        const parsedBody = patientReclamationStatusBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Не указано новое состояние инцидента: урегулирован или возвращён в работу."
+            });
+        }
+        const body = parsedBody.data;
+        const status = body.status === "resolved" ? "resolved" : body.status === "under_review" ? "under_review" : null;
         if (!status) {
             return reply.code(400).send({
                 error: "ValidationError",
@@ -642,8 +683,15 @@ export async function registerPatientRoutes(app) {
         if (!patientId || !PATIENT_ID_UUID_PATTERN.test(patientId.trim())) {
             return sendPatientRouteValidationError(reply);
         }
-        const body = request.body;
-        const title = typeof body?.title === "string" ? body.title.trim() : "";
+        const parsedBody = patientTaskTicketCreateBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Не указано, что нужно сделать — без названия задачи поручение никому ничего не говорит."
+            });
+        }
+        const body = parsedBody.data;
+        const title = typeof body.title === "string" ? body.title.trim() : "";
         if (!title) {
             // Сообщение называет то, что требуется от человека, а не имя поля запроса.
             return reply.code(400).send({
@@ -657,7 +705,7 @@ export async function registerPatientRoutes(app) {
          * поручение без ответственного не появится ни в чьём списке дел и будет
          * выглядеть созданным, оставаясь ничьим.
          */
-        const assignedToId = typeof body?.assignedToId === "string" && PATIENT_ID_UUID_PATTERN.test(body.assignedToId.trim())
+        const assignedToId = typeof body.assignedToId === "string" && PATIENT_ID_UUID_PATTERN.test(body.assignedToId.trim())
             ? body.assignedToId.trim()
             : null;
         if (!assignedToId) {
@@ -666,12 +714,12 @@ export async function registerPatientRoutes(app) {
                 message: "Не выбран ответственный сотрудник. Задача без исполнителя не попадёт ни в чей список дел."
             });
         }
-        const description = typeof body?.description === "string" && body.description.trim()
+        const description = typeof body.description === "string" && body.description.trim()
             ? body.description.trim()
             : null;
         // Важность экран отправляет всегда ('normal'), но на всякий случай не
         // доверяем: чужое значение не должно попасть в базу мимо смысла.
-        const priority = typeof body?.priority === "string" && body.priority.trim()
+        const priority = typeof body.priority === "string" && body.priority.trim()
             ? body.priority.trim()
             : "normal";
         try {
@@ -706,8 +754,15 @@ export async function registerPatientRoutes(app) {
             !PATIENT_ID_UUID_PATTERN.test(ticketId.trim())) {
             return sendPatientRouteValidationError(reply);
         }
-        const body = request.body;
-        const status = body?.status === "completed" ? "completed" : body?.status === "pending" ? "pending" : null;
+        const parsedBody = patientTaskTicketStatusBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Не указано новое состояние задачи: выполнена или возвращена в работу."
+            });
+        }
+        const body = parsedBody.data;
+        const status = body.status === "completed" ? "completed" : body.status === "pending" ? "pending" : null;
         if (!status) {
             return reply.code(400).send({
                 error: "ValidationError",
@@ -803,8 +858,8 @@ export async function registerPatientRoutes(app) {
         const { patientId } = request.params;
         if (!patientId)
             return sendPatientRouteValidationError(reply);
-        const body = request.body;
-        if (!body || typeof body.isBlacklisted !== "boolean") {
+        const parsedBody = patientArchiveStatusBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success || typeof parsedBody.data.isBlacklisted !== "boolean") {
             // БЫЛО: «isBlacklisted boolean is required» — имя поля запроса на экране
             // администратора вместо того, что от него требуется.
             return reply.code(400).send({
@@ -812,7 +867,7 @@ export async function registerPatientRoutes(app) {
                 message: "Не указано действие: запретить пациенту запись на приём или снять запрет."
             });
         }
-        const requestedBlacklisted = body.isBlacklisted;
+        const requestedBlacklisted = parsedBody.data.isBlacklisted;
         try {
             const { getPatientArchiveReasonsAndBlacklistsFromDb, setPatientArchiveStatusInDb } = await import("../db/patientArchiveReasonsAndBlacklistsQuery.js");
             const patient = await getPatientByIdFromDb(orgId, patientId);

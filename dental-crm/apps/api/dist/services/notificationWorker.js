@@ -1,7 +1,40 @@
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { outgoingNotifications, denteTelegramChatLinks, denteTelegramBotConfigs } from "../db/schema.js";
+import { outgoingNotifications, denteTelegramChatLinks, denteTelegramBotConfigs, } from "../db/schema.js";
 import { sendTelegramTextMessage } from "../telegramTransport.js";
+async function attemptTelegramDelivery(chatLink, botConfig, messageText) {
+    if (!chatLink || !chatLink.chatTransportRef) {
+        return {
+            deliveryStatus: "failed",
+            failureReason: "skipped: no telegram bot token configured or patient not linked",
+        };
+    }
+    // tokenSecretRef stores the key reference; in production this would be resolved
+    // from a secrets manager. Here we fall back to env var directly.
+    const token = process.env.DENTE_TELEGRAM_BOT_TOKEN ||
+        botConfig?.tokenSecretRef ||
+        undefined;
+    if (!token) {
+        return {
+            deliveryStatus: "failed",
+            failureReason: "skipped: no telegram bot token configured or patient not linked",
+        };
+    }
+    const res = await sendTelegramTextMessage({
+        botToken: token,
+        chatId: chatLink.chatTransportRef,
+        text: messageText,
+    });
+    if (res.ok) {
+        return { deliveryStatus: "sent", failureReason: "" };
+    }
+    else {
+        return {
+            deliveryStatus: "failed",
+            failureReason: `telegram_error: ${res.errorClass}`,
+        };
+    }
+}
 export async function scheduleNotification(input) {
     await db.insert(outgoingNotifications).values({
         organizationId: input.organizationId,
@@ -41,31 +74,12 @@ export async function processNotificationQueue() {
         const botConfigsMap = new Map(botConfigs.map((c) => [c.organizationId, c]));
         const chatLinksMap = new Map(chatLinks.map((l) => [l.subjectId, l]));
         for (const notif of pending) {
-            const messageText = String(notif.payload?.text ?? JSON.stringify(notif.payload));
-            let deliveryStatus = "failed";
-            let failureReason = "skipped: no telegram bot token configured or patient not linked";
+            const messageText = String(notif.payload?.text ??
+                JSON.stringify(notif.payload));
             // Try to find telegram link
             const chatLink = chatLinksMap.get(notif.patientId);
-            if (chatLink && chatLink.chatTransportRef) {
-                const botConfig = botConfigsMap.get(notif.organizationId);
-                // tokenSecretRef stores the key reference; in production this would be resolved
-                // from a secrets manager. Here we fall back to env var directly.
-                const token = process.env.DENTE_TELEGRAM_BOT_TOKEN || botConfig?.tokenSecretRef || undefined;
-                if (token) {
-                    const res = await sendTelegramTextMessage({
-                        botToken: token,
-                        chatId: chatLink.chatTransportRef,
-                        text: messageText,
-                    });
-                    if (res.ok) {
-                        deliveryStatus = "sent";
-                        failureReason = "";
-                    }
-                    else {
-                        failureReason = `telegram_error: ${res.errorClass}`;
-                    }
-                }
-            }
+            const botConfig = botConfigsMap.get(notif.organizationId);
+            const { deliveryStatus, failureReason } = await attemptTelegramDelivery(chatLink, botConfig, messageText);
             console.log(`\n${colors.gray}--- [OUTGOING MESSAGE GATEWAY] ---${colors.reset}`);
             console.log(`${colors.neonBlue}TO PATIENT:${colors.reset} ${notif.patientId}`);
             console.log(`${colors.neonGreen}TYPE:${colors.reset} ${notif.type}`);
@@ -76,7 +90,7 @@ export async function processNotificationQueue() {
                 .update(outgoingNotifications)
                 .set({
                 status: deliveryStatus,
-                sentAt: deliveryStatus === "sent" ? new Date() : null
+                sentAt: deliveryStatus === "sent" ? new Date() : null,
             })
                 .where(eq(outgoingNotifications.id, notif.id));
         }

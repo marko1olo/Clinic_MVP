@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { eq, and } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "../db/client.js";
 import { organizations, users, userInvitations, auditEvents } from "../db/schema.js";
 import { hashCredential, verifyCredential, signToken, verifyToken } from "../utils/cryptoHelper.js";
@@ -37,6 +38,198 @@ function configuredAdminSetupKey() {
 /** Постоянная задержка, чтобы неуспешный вход не выдавал существование учётки по таймингу. */
 async function authFailureDelay() {
     await new Promise((resolve) => setTimeout(resolve, 200));
+}
+/**
+ * SaaS-тела auth раньше разбирались как `(request.body as any)`.
+ * Схемы ниже повторяют прежние ручные проверки (длина пароля, форма PIN,
+ * обязательные поля) через safeParse — тот же узор, что parseSettingsPayload.
+ * Сообщения отказов сохранены дословно, чтобы клиент и существующие тесты
+ * не меняли контракт.
+ */
+const authPinSchema = z
+    .union([z.string(), z.number()])
+    .transform((value) => String(value))
+    .refine((value) => /^\d{4,12}$/.test(value), {
+    message: "PIN должен состоять из 4–12 цифр."
+});
+const registerBodySchema = z
+    .object({
+    clinicName: z.string().trim().min(1),
+    ownerName: z.string().trim().min(1),
+    email: z.string().trim().min(1),
+    password: z.string().min(1),
+    ownerPin: authPinSchema.optional()
+})
+    .superRefine((data, ctx) => {
+    if (data.password.length < 8) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["password"],
+            message: "Пароль должен быть не короче 8 символов."
+        });
+    }
+});
+const loginBodySchema = z.object({
+    email: z.string().trim().min(1),
+    password: z.string().min(1)
+});
+/**
+ * Кабинет клиники: POST /api/auth/clinic/login.
+ * Bare cast + email.toLowerCase() → 500 на number/object email.
+ * Сообщение пустого/битого тела сохранено дословно.
+ */
+const clinicLoginBodySchema = z.object({
+    email: z.string().min(1),
+    password: z.string().min(1)
+});
+/**
+ * PIN-разблокировка: POST /api/auth/staff/unlock.
+ * Bare cast; number pin допускается (как authPinSchema SaaS), object → 400.
+ */
+const staffUnlockBodySchema = z.object({
+    userId: z.string().min(1),
+    pinCode: z
+        .union([z.string(), z.number()])
+        .transform((value) => String(value))
+        .refine((value) => value.length > 0, { message: "required" })
+});
+const clinicLoginValidationMessage = "Введите логин и пароль клиники.";
+const staffUnlockValidationMessage = "Необходимо указать сотрудника и ввести PIN-код.";
+/**
+ * Admin set-password / set-pin: AUTH first (identity | ADMIN_SETUP_KEY), then body.
+ * adminKey is read from the raw object before full schema — credential, not form field.
+ * newPassword/newPin: string; pin number OK via union->String (same as unlock).
+ */
+const clinicSetPasswordBodySchema = z
+    .object({
+    organizationId: z.string().min(1).optional(),
+    newPassword: z.string().min(1),
+    adminKey: z
+        .union([z.string(), z.number()])
+        .transform((value) => String(value))
+        .optional()
+})
+    .superRefine((data, ctx) => {
+    if (data.newPassword.length < 8) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["newPassword"],
+            message: "Новый пароль должен быть не короче 8 символов."
+        });
+    }
+});
+const staffSetPinBodySchema = z.object({
+    userId: z.string().min(1),
+    newPin: z
+        .union([z.string(), z.number()])
+        .transform((value) => String(value))
+        .refine((value) => /^\d{4,12}$/.test(value), {
+        message: "PIN должен состоять из 4–12 цифр."
+    }),
+    adminKey: z
+        .union([z.string(), z.number()])
+        .transform((value) => String(value))
+        .optional()
+});
+/**
+ * First-run setup: public route; bare cast + destructure number email -> 500.
+ * Messages and if-order preserved (required -> password length -> PIN).
+ */
+const setupInitBodySchema = z
+    .object({
+    clinicName: z.string().min(1),
+    email: z.string().min(1),
+    password: z.string().min(1),
+    ownerName: z.string().min(1).optional(),
+    ownerPin: authPinSchema.optional()
+})
+    .superRefine((data, ctx) => {
+    if (data.password.length < 8) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["password"],
+            message: "Пароль должен быть не короче 8 символов."
+        });
+    }
+});
+/** Raw body -> plain object for AUTH-first (adminKey) without throw on null/number. */
+function authBodyRecord(value) {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+        return value;
+    }
+    return {};
+}
+function authAdminKeyFromRecord(record) {
+    const raw = record.adminKey;
+    if (typeof raw === "string")
+        return raw;
+    if (typeof raw === "number")
+        return String(raw);
+    return null;
+}
+const createInviteBodySchema = z.object({
+    email: z.string().trim().min(1),
+    role: z.string().min(1)
+});
+const acceptInviteBodySchema = z
+    .object({
+    token: z.string().trim().min(1),
+    fullName: z.string().trim().min(1),
+    password: z.string().min(1),
+    pinCode: authPinSchema
+})
+    .superRefine((data, ctx) => {
+    if (data.password.length < 8) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["password"],
+            message: "Пароль должен быть не короче 8 символов."
+        });
+    }
+});
+const updatePasswordBodySchema = z
+    .object({
+    oldPassword: z.string().min(1),
+    newPassword: z.string().min(1)
+})
+    .superRefine((data, ctx) => {
+    if (data.newPassword.length < 8) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["newPassword"],
+            message: "Новый пароль должен быть не короче 8 символов."
+        });
+    }
+});
+const updatePinBodySchema = z.object({
+    oldPin: z
+        .union([z.string(), z.number()])
+        .transform((value) => String(value))
+        .refine((value) => value.length > 0, { message: "required" }),
+    newPin: authPinSchema
+});
+/** Как parseSettingsPayload: null = тело не прошло схему. */
+function parseAuthPayload(schema, value) {
+    const parsed = schema.safeParse(value);
+    if (!parsed.success)
+        return null;
+    return parsed.data;
+}
+/**
+ * Сообщения SaaS-отказов идут в прежнем порядке ручных if-ов.
+ * Zod может вернуть несколько issues сразу — берём первую по старой цепочке.
+ */
+function authSchemaMessage(error, fallback, priority) {
+    const texts = error.issues.map((issue) => issue.message);
+    for (const rule of priority) {
+        const hit = typeof rule.match === "string"
+            ? texts.some((text) => text.includes(rule.match))
+            : texts.some((text) => rule.match.test(text));
+        if (hit)
+            return rule.message;
+    }
+    // Обязательные поля (min) без custom-текста → fallback «заполните / введите».
+    return fallback;
 }
 /*
  * ЗДЕСЬ СТОЯЛА `requireClinicToken`, И ОНА УДАЛЕНА, А НЕ СШИТА.
@@ -77,10 +270,11 @@ export async function registerAuthRoutes(app) {
             },
         },
     }, async (request, reply) => {
-        const { email, password } = request.body ?? {};
-        if (!email || !password) {
-            return reply.code(400).send({ error: "ValidationError", message: "Введите логин и пароль клиники." });
+        const input = parseAuthPayload(clinicLoginBodySchema, request.body);
+        if (!input) {
+            return reply.code(400).send({ error: "ValidationError", message: clinicLoginValidationMessage });
         }
+        const { email, password } = input;
         const loginId = email.toLowerCase().trim();
         const isDemoClinicLogin = demoLoginAllowed() && loginId === "clinic@example.com" && password === "dente2026";
         // Look up organization by login ID
@@ -146,10 +340,11 @@ export async function registerAuthRoutes(app) {
     });
     // ─── Staff PIN Unlock ─────────────────────────────────────────────────────────
     app.post("/api/auth/staff/unlock", async (request, reply) => {
-        const { userId, pinCode } = request.body ?? {};
-        if (!userId || !pinCode) {
-            return reply.code(400).send({ error: "ValidationError", message: "Необходимо указать сотрудника и ввести PIN-код." });
+        const input = parseAuthPayload(staffUnlockBodySchema, request.body);
+        if (!input) {
+            return reply.code(400).send({ error: "ValidationError", message: staffUnlockValidationMessage });
         }
+        const { userId, pinCode } = input;
         // Verify clinic token is present so we know the org context
         const clinicHeader = request.headers["x-dente-clinic-token"];
         const clinicToken = Array.isArray(clinicHeader) ? clinicHeader[0] : clinicHeader;
@@ -229,32 +424,31 @@ export async function registerAuthRoutes(app) {
     // либо настроенный ADMIN_SETUP_KEY (сравнение timing-safe). Без переменной
     // окружения ключевой путь недоступен вовсе.
     app.post("/api/auth/clinic/set-password", async (request, reply) => {
-        const body = request.body ?? {};
-        // СНАЧАЛА ПРАВА, ПОТОМ ТЕЛО.
-        // БЫЛО: длина нового пароля проверялась до проверки прав. Аноним отправлял
-        // {"newPassword":"1"} и по коду ответа читал политику паролей клиники
-        // (400 «не короче 8 символов»), а по имени поля — форму запроса на смену
-        // пароля. Разные ответы на разные тела превращали закрытый маршрут в
-        // справочник. Теперь тело не влияет на отказ: без прав ответ ровно один и
-        // тот же при любом содержимом, а вся работа по разбору тела выполняется
-        // только для того, кто имеет право её вызвать.
-        // adminKey читается из тела — это учётные данные, а не проверяемое поле.
+        // AUTH first on raw record (adminKey credential), then Zod body for authorized caller.
+        // Anonymous always gets the same 403 regardless of body shape (no policy oracle).
+        const rawBody = authBodyRecord(request.body);
         const identity = getRequestIdentity(request);
         const isOrgAdmin = !!identity.organizationId &&
             !!identity.userId &&
             ADMIN_ROLES.some((role) => role === (identity.role ?? "").toLowerCase());
         const setupKey = configuredAdminSetupKey();
-        const hasValidSetupKey = !!setupKey && timingSafeSecretEqual(body.adminKey ?? null, setupKey);
+        const hasValidSetupKey = !!setupKey && timingSafeSecretEqual(authAdminKeyFromRecord(rawBody), setupKey);
         if (!isOrgAdmin && !hasValidSetupKey) {
             await authFailureDelay();
             return reply.code(403).send({ error: "Forbidden", message: "Недостаточно прав для смены пароля клиники." });
         }
-        // Порядок проверок тела для авторизованного вызова сохранён дословно:
-        // сначала пароль, затем организация, затем запрет чужой организации.
-        if (!body.newPassword || String(body.newPassword).length < 8) {
-            return reply.code(400).send({ error: "ValidationError", message: "Новый пароль должен быть не короче 8 символов." });
+        const parsed = clinicSetPasswordBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            const message = authSchemaMessage(parsed.error, "Новый пароль должен быть не короче 8 символов.", [
+                {
+                    match: "Новый пароль должен быть не короче 8 символов.",
+                    message: "Новый пароль должен быть не короче 8 символов."
+                }
+            ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
-        // Администратор организации может менять пароль ТОЛЬКО своей организации.
+        const body = parsed.data;
+        // Org admin may only reset own org password; setup-key path needs organizationId.
         const targetOrganizationId = isOrgAdmin ? identity.organizationId : body.organizationId;
         if (!targetOrganizationId) {
             return reply.code(400).send({ error: "ValidationError", message: "Не указана организация." });
@@ -279,32 +473,34 @@ export async function registerAuthRoutes(app) {
     // СТАЛО: только владелец/админ своей организации (или настроенный ADMIN_SETUP_KEY),
     // и целевой сотрудник обязан принадлежать той же организации.
     app.post("/api/auth/staff/set-pin", async (request, reply) => {
-        const body = request.body ?? {};
-        // СНАЧАЛА ПРАВА, ПОТОМ ТЕЛО — по той же причине, что и в set-password.
-        // БЫЛО: аноним получал 400 «Не указан сотрудник.» на пустое тело и
-        // 400 «PIN должен состоять из 4–12 цифр.» на PIN неверной формы, то есть
-        // узнавал обязательные поля и политику PIN раньше, чем сервер выяснял, имеет
-        // ли он право менять PIN вообще. Теперь без прав возвращается один и тот же
-        // отказ независимо от тела, и по нему нельзя отличить «нет прав» от
-        // «тело неверной формы».
+        // AUTH first on raw record, then Zod body. Anonymous always same 403.
+        const rawBody = authBodyRecord(request.body);
         const identity = getRequestIdentity(request);
         const isOrgAdmin = !!identity.organizationId &&
             !!identity.userId &&
             ADMIN_ROLES.some((role) => role === (identity.role ?? "").toLowerCase());
         const setupKey = configuredAdminSetupKey();
-        const hasValidSetupKey = !!setupKey && timingSafeSecretEqual(body.adminKey ?? null, setupKey);
+        const hasValidSetupKey = !!setupKey && timingSafeSecretEqual(authAdminKeyFromRecord(rawBody), setupKey);
         if (!isOrgAdmin && !hasValidSetupKey) {
             await authFailureDelay();
             return reply.code(403).send({ error: "Forbidden", message: "Недостаточно прав для смены PIN сотрудника." });
         }
-        // Порядок проверок тела для авторизованного вызова сохранён дословно:
-        // сначала отсутствие сотрудника, затем форма PIN.
-        if (!body.userId) {
-            return reply.code(400).send({ error: "ValidationError", message: "Не указан сотрудник." });
+        const parsed = staffSetPinBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            // Old if-order: userId missing first, then PIN form.
+            // Union invalid_type on newPin has no custom text — map by path.
+            const userPathHit = parsed.error.issues.some((issue) => issue.path[0] === "userId");
+            const pinPathHit = parsed.error.issues.some((issue) => issue.path[0] === "newPin");
+            const message = userPathHit
+                ? "Не указан сотрудник."
+                : pinPathHit
+                    ? "PIN должен состоять из 4–12 цифр."
+                    : authSchemaMessage(parsed.error, "Не указан сотрудник.", [
+                        { match: "PIN должен состоять из 4–12 цифр.", message: "PIN должен состоять из 4–12 цифр." }
+                    ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
-        if (!body.newPin || !/^\d{4,12}$/.test(String(body.newPin))) {
-            return reply.code(400).send({ error: "ValidationError", message: "PIN должен состоять из 4–12 цифр." });
-        }
+        const body = parsed.data;
         if (isOrgAdmin) {
             const [target] = await db
                 .select({ id: users.id })
@@ -331,17 +527,31 @@ export async function registerAuthRoutes(app) {
     });
     // ─── Initial Clinic Setup (first-run seed credentials) ───────────────────────
     app.post("/api/auth/setup/init", async (request, reply) => {
-        const body = request.body ?? {};
-        const { clinicName, email, password, ownerName, ownerPin } = body;
-        if (!clinicName || !email || !password) {
-            return reply.code(400).send({ error: "ValidationError", message: "Укажите название клиники, логин и пароль." });
+        const parsed = setupInitBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            // Old if-order: required -> password length -> PIN form.
+            // ownerPin object fails union with invalid_type — map by path after priority.
+            let message = authSchemaMessage(parsed.error, "Укажите название клиники, логин и пароль.", [
+                {
+                    match: "Пароль должен быть не короче 8 символов.",
+                    message: "Пароль должен быть не короче 8 символов."
+                },
+                {
+                    match: "PIN должен состоять из 4–12 цифр.",
+                    message: "PIN должен состоять из 4–12 цифр."
+                }
+            ]);
+            const pinPathOnly = message === "Укажите название клиники, логин и пароль." &&
+                parsed.error.issues.some((issue) => issue.path[0] === "ownerPin") &&
+                !parsed.error.issues.some((issue) => issue.path[0] === "clinicName" ||
+                    issue.path[0] === "email" ||
+                    issue.path[0] === "password");
+            if (pinPathOnly) {
+                message = "PIN должен состоять из 4–12 цифр.";
+            }
+            return reply.code(400).send({ error: "ValidationError", message });
         }
-        if (String(password).length < 8) {
-            return reply.code(400).send({ error: "ValidationError", message: "Пароль должен быть не короче 8 символов." });
-        }
-        if (ownerPin !== undefined && !/^\d{4,12}$/.test(String(ownerPin))) {
-            return reply.code(400).send({ error: "ValidationError", message: "PIN должен состоять из 4–12 цифр." });
-        }
+        const { clinicName, email, password, ownerName, ownerPin } = parsed.data;
         const loginId = email.toLowerCase().trim();
         // Check if org with this loginId already exists
         const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
@@ -385,16 +595,15 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS Registration (New Clinic + Owner) ──────────────────────────────────
     app.post('/api/auth/register', async (request, reply) => {
-        const { clinicName, ownerName, email, password, ownerPin } = request.body ?? {};
-        if (!clinicName || !ownerName || !email || !password) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'Заполните все поля.' });
+        const parsed = registerBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            const message = authSchemaMessage(parsed.error, "Заполните все поля.", [
+                { match: "Пароль должен быть не короче 8 символов.", message: "Пароль должен быть не короче 8 символов." },
+                { match: "PIN должен состоять из 4–12 цифр.", message: "PIN должен состоять из 4–12 цифр." }
+            ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
-        if (String(password).length < 8) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'Пароль должен быть не короче 8 символов.' });
-        }
-        if (ownerPin !== undefined && !/^\d{4,12}$/.test(String(ownerPin))) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'PIN должен состоять из 4–12 цифр.' });
-        }
+        const { clinicName, ownerName, email, password, ownerPin } = parsed.data;
         const loginId = email.toLowerCase().trim();
         const [existingOrg] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
         if (existingOrg)
@@ -427,9 +636,11 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS User Login (Direct user login) ─────────────────────────────────────
     app.post('/api/auth/login', async (request, reply) => {
-        const { email, password } = request.body ?? {};
-        if (!email || !password)
-            return reply.code(400).send({ error: 'ValidationError', message: 'Введите email и пароль.' });
+        const parsed = loginBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            return reply.code(400).send({ error: "ValidationError", message: "Введите email и пароль." });
+        }
+        const { email, password } = parsed.data;
         const loginEmail = email.toLowerCase().trim();
         let user = null;
         try {
@@ -478,7 +689,6 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS Create Invite ──────────────────────────────────────────────────────
     app.post('/api/auth/invites/create', async (request, reply) => {
-        const { email, role } = request.body ?? {};
         const staffHeader = request.headers['x-dente-staff-token'];
         const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
         const staffPayload = staffToken ? verifyToken(staffToken, TOKEN_SECRET()) : null;
@@ -501,8 +711,12 @@ export async function registerAuthRoutes(app) {
         if (!staffPayload?.organizationId || !ADMIN_ROLES.some((allowed) => allowed === invitingRole)) {
             return reply.code(403).send({ error: 'Forbidden', message: 'Приглашать сотрудников может владелец клиники или администратор.' });
         }
-        if (!email || !role)
-            return reply.code(400).send({ error: 'ValidationError', message: 'Укажите email и роль.' });
+        // AUTH first, then body — same order as set-password/set-pin.
+        const parsedBody = createInviteBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({ error: "ValidationError", message: "Укажите email и роль." });
+        }
+        const { email, role } = parsedBody.data;
         /*
          * РОЛЬ ПРОВЕРЯЕТСЯ ПО СХЕМЕ, а не принимается как есть. Прежде значение из
          * тела запроса ложилось в user_invitations.role напрямую, а
@@ -536,15 +750,15 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS Accept Invite ──────────────────────────────────────────────────────
     app.post('/api/auth/invites/accept', async (request, reply) => {
-        const { token, fullName, password, pinCode } = request.body ?? {};
-        if (!token || !fullName || !password || !pinCode)
-            return reply.code(400).send({ error: 'ValidationError', message: 'Заполните все поля.' });
-        if (String(password).length < 8) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'Пароль должен быть не короче 8 символов.' });
+        const parsed = acceptInviteBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            const message = authSchemaMessage(parsed.error, "Заполните все поля.", [
+                { match: "Пароль должен быть не короче 8 символов.", message: "Пароль должен быть не короче 8 символов." },
+                { match: "PIN должен состоять из 4–12 цифр.", message: "PIN должен состоять из 4–12 цифр." }
+            ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
-        if (!/^\d{4,12}$/.test(String(pinCode))) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'PIN должен состоять из 4–12 цифр.' });
-        }
+        const { token, fullName, password, pinCode } = parsed.data;
         const [invite] = await db.select().from(userInvitations).where(and(eq(userInvitations.inviteToken, token), eq(userInvitations.status, 'pending'))).limit(1);
         if (!invite || new Date() > invite.expiresAt)
             return reply.code(400).send({ error: 'InvalidToken', message: 'Приглашение недействительно или истекло.' });
@@ -604,17 +818,20 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS User Profile: Update Password ───────────────────────────────────────
     app.post('/api/auth/user/update-password', async (request, reply) => {
-        const { oldPassword, newPassword } = request.body ?? {};
         const staffHeader = request.headers['x-dente-staff-token'];
         const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
         const payload = staffToken ? verifyToken(staffToken, TOKEN_SECRET()) : null;
+        // AUTH first, then body — same order as set-password.
         if (!payload?.userId)
             return reply.code(401).send({ error: 'AuthRequired', message: 'Требуется авторизация.' });
-        if (!oldPassword || !newPassword)
-            return reply.code(400).send({ error: 'ValidationError', message: 'Введите старый и новый пароль.' });
-        if (String(newPassword).length < 8) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'Новый пароль должен быть не короче 8 символов.' });
+        const parsed = updatePasswordBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            const message = authSchemaMessage(parsed.error, "Введите старый и новый пароль.", [
+                { match: "Новый пароль должен быть не короче 8 символов.", message: "Новый пароль должен быть не короче 8 символов." }
+            ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
+        const { oldPassword, newPassword } = parsed.data;
         const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
         if (!user || !user.passwordHash)
             return reply.code(401).send({ error: 'AuthError', message: 'Пользователь не найден или пароль не установлен.' });
@@ -627,17 +844,20 @@ export async function registerAuthRoutes(app) {
     });
     // ─── SaaS User Profile: Update PIN ───────────────────────────────────────────
     app.post('/api/auth/user/update-pin', async (request, reply) => {
-        const { oldPin, newPin } = request.body ?? {};
         const staffHeader = request.headers['x-dente-staff-token'];
         const staffToken = Array.isArray(staffHeader) ? staffHeader[0] : staffHeader;
         const payload = staffToken ? verifyToken(staffToken, TOKEN_SECRET()) : null;
+        // AUTH first, then body — same order as set-pin.
         if (!payload?.userId)
             return reply.code(401).send({ error: 'AuthRequired', message: 'Требуется авторизация.' });
-        if (!oldPin || !newPin)
-            return reply.code(400).send({ error: 'ValidationError', message: 'Введите старый и новый PIN-код.' });
-        if (!/^\d{4,12}$/.test(String(newPin))) {
-            return reply.code(400).send({ error: 'ValidationError', message: 'PIN должен состоять из 4–12 цифр.' });
+        const parsed = updatePinBodySchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+            const message = authSchemaMessage(parsed.error, "Введите старый и новый PIN-код.", [
+                { match: "PIN должен состоять из 4–12 цифр.", message: "PIN должен состоять из 4–12 цифр." }
+            ]);
+            return reply.code(400).send({ error: "ValidationError", message });
         }
+        const { oldPin, newPin } = parsed.data;
         const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
         if (!user || !user.pinCodeHash)
             return reply.code(401).send({ error: 'AuthError', message: 'Пользователь не найден или PIN не установлен.' });

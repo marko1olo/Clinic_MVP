@@ -14,9 +14,7 @@ import { eq, and } from "drizzle-orm";
 import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { requireClinicalReadAccess, requireClinicalMutationAccess } from "../accessGuard.js";
 import { requireOrganizationId } from "../security/identity.js";
-// ────────────────────────────────────────────────
 // Schemas
-// ────────────────────────────────────────────────
 const createXrayScanSchema = z.object({
     patientId: z.string().uuid(),
     visitId: z.string().uuid().optional(),
@@ -48,9 +46,7 @@ const xrayScanResponseSchema = z.object({
     // We do NOT return imageDataUri in list to keep payloads small
     hasImage: z.boolean(),
 });
-// ────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────
 /**
  * БЫЛО: организация бралась из request.session (никогда не заполняется) либо из
  * DEFAULT_ORGANIZATION_ID, иначе — жёстко зашитый UUID. В сочетании с запросами
@@ -80,11 +76,8 @@ function scanToResponse(scan, includeImage = false) {
         ...(includeImage ? { imageDataUri: scan.imageDataUri ?? null } : {}),
     };
 }
-// ────────────────────────────────────────────────
 // Route registration
-// ────────────────────────────────────────────────
 export async function registerXrayRoutes(app) {
-    // ── POST /api/xray/scans — upload scan ──────────────────────────────────
     app.post("/api/xray/scans", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "upload xray scan")))
             return;
@@ -123,7 +116,6 @@ export async function registerXrayRoutes(app) {
         }
         return reply.code(201).send(scanToResponse(inserted));
     });
-    // ── POST /api/xray/scans/:id/analyze — run AI analysis ─────────────────
     app.post("/api/xray/scans/:id/analyze", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "analyze xray scan")))
             return;
@@ -177,7 +169,6 @@ export async function registerXrayRoutes(app) {
             }
         });
     });
-    // ── GET /api/xray/scans — list scans for patient ────────────────────────
     app.get("/api/xray/scans", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "list xray scans")))
             return;
@@ -195,7 +186,6 @@ export async function registerXrayRoutes(app) {
             .orderBy(xrayScans.capturedAt);
         return scans.map((s) => scanToResponse(s, false));
     });
-    // ── GET /api/xray/scans/:id — single scan with full details + image ─────
     app.get("/api/xray/scans/:id", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "get xray scan")))
             return;
@@ -213,7 +203,6 @@ export async function registerXrayRoutes(app) {
         }
         return scanToResponse(scan, true); // Include image
     });
-    // ── DELETE /api/xray/scans/:id ───────────────────────────────────────────
     app.delete("/api/xray/scans/:id", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "delete xray scan")))
             return;
@@ -231,9 +220,7 @@ export async function registerXrayRoutes(app) {
         return reply.code(204).send();
     });
 }
-// ────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────
 /**
  * Extracts a short summary from the AI markdown report.
  * Uses the "Заключение:" section if present, otherwise first 2 sentences.

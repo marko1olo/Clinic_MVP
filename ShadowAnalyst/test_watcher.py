@@ -379,6 +379,45 @@ class TestWatcher(unittest.TestCase):
         self.assertEqual(mock_openai_class.call_count, 1)
         mock_openai_class.assert_called_with(api_key='gkey1', base_url='https://generativelanguage.googleapis.com/v1beta/openai/', timeout=30.0, max_retries=0)
 
+    @patch('ShadowAnalyst.watcher._try_model_with_keys')
+    def test__run_model_cascade_success(self, mock_try_model):
+        mock_try_model.side_effect = [
+            (None, "First model failed"),
+            ("Second model success", None)
+        ]
+
+        result_none, report = watcher._run_model_cascade("dummy_base64")
+
+        self.assertIsNone(result_none)
+        self.assertEqual(report, "Second model success")
+        self.assertEqual(mock_try_model.call_count, 2)
+
+        args_first_call = mock_try_model.call_args_list[0][0]
+        self.assertEqual(args_first_call[0], "gemini-3.5-flash")
+        self.assertEqual(args_first_call[1], "gemini")
+        self.assertEqual(args_first_call[2], "dummy_base64")
+
+        args_second_call = mock_try_model.call_args_list[1][0]
+        self.assertEqual(args_second_call[0], "gemini-3-flash-preview")
+        self.assertEqual(args_second_call[1], "gemini")
+        self.assertEqual(args_second_call[2], "dummy_base64")
+
+    @patch('ShadowAnalyst.watcher._try_model_with_keys')
+    def test__run_model_cascade_all_fail(self, mock_try_model):
+        mock_try_model.side_effect = [
+            (None, "Error 1"),
+            (None, "Error 2"),
+            (None, "Error 3"),
+            (None, "Error 4")
+        ]
+
+        result_none, report = watcher._run_model_cascade("dummy_base64")
+
+        self.assertIsNone(result_none)
+        self.assertIn("все ключи исчерпаны", report)
+        self.assertIn("Error 4", report)
+        self.assertEqual(mock_try_model.call_count, 4)
+
     @patch('ShadowAnalyst.watcher.prepare_image')
     @patch('ShadowAnalyst.watcher.OpenAI')
     def test_analyze_image_provider_cascade(self, mock_openai_class, mock_prepare_image):

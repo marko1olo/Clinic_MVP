@@ -10,6 +10,9 @@ import {
 
 import { isPatientBookingBlocked } from "./patientArchiveReasonsAndBlacklistsQuery.js";
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbOrTransaction = typeof db | DbTransaction;
+
 function useInMemory() {
   return process.env.DENTAL_STATE_PERSISTENCE === "off";
 }
@@ -29,7 +32,7 @@ function useInMemory() {
  * встречные вызовы могут заклиниться друг о друга.
  */
 async function lockAppointmentResources(
-  executor: any,
+  executor: DbOrTransaction,
   organizationId: string,
   resources: { chairId?: string | null; doctorUserId?: string | null; patientId?: string | null }
 ) {
@@ -71,7 +74,7 @@ async function lockAppointmentResources(
  * кресла на одно время, оба ответа 201.
  */
 async function assertNoResourceOverlap(
-  executor: any,
+  executor: DbOrTransaction,
   organizationId: string,
   candidate: {
     startsAt: Date;
@@ -151,7 +154,7 @@ async function assertNoResourceOverlap(
  * устаревший список на экране.
  */
 async function assertAppointmentResourcesBelongToOrganization(
-  executor: any,
+  executor: DbOrTransaction,
   organizationId: string,
   input: { patientId?: string | null | undefined; doctorUserId?: string | null | undefined; chairId?: string | null | undefined }
 ): Promise<void> {
@@ -207,7 +210,7 @@ export async function createAppointmentInDb(organizationId: string, input: Creat
   const candidateStarts = new Date(startsAtMs);
   const candidateEnds = new Date(endsAtMs);
 
-  const insertChecked = async (executor: any) => {
+  const insertChecked = async (executor: DbOrTransaction) => {
     // Принадлежность проверяется ДО блокировки ресурсов: блокировать чужую
     // строку незачем, а отказ обязан прийти раньше любой записи.
     await assertAppointmentResourcesBelongToOrganization(executor, organizationId, input);

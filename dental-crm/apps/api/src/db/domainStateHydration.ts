@@ -30,7 +30,7 @@ import { browserRenderableImageMimeType } from "../imaging/previewFormats.js";
  * тех же сведений.
  */
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, AnyColumn } from "drizzle-orm";
 import {
 	appointmentSchema,
 	chairSchema,
@@ -83,6 +83,7 @@ import {
 } from "../sampleData.js";
 import { staffAuthorityFlags } from "../security/permissions.js";
 import { db } from "./client.js";
+import { PgTable } from "drizzle-orm/pg-core";
 import {
 	projectServiceCatalogRows,
 	SERVICE_CATALOG_EMPTY_MESSAGE,
@@ -354,8 +355,7 @@ function collect<T>(
 }
 
 async function selectByOrganization<T>(
-	// biome-ignore lint/suspicious/noExplicitAny: drizzle-таблицы типизируются по-разному
-	table: any,
+	table: PgTable & { organizationId: AnyColumn },
 	organizationId: string,
 	label: string,
 	report: DomainStateHydrationReport,

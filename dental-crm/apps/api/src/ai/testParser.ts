@@ -32,7 +32,6 @@ for (const p of phrases) {
   console.log(`[Input]: "${p.text}"\n[Context]: ${p.context}`);
   const result = parseDictationLocally(p.text, p.context as any);
   if (result) {
-    console.log("[Status]: SUCCESS");
     console.log("[Parsed]:", JSON.stringify(result, null, 2));
     successCount++;
   } else {

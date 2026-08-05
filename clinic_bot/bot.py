@@ -118,9 +118,10 @@ async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, ro
     max_len = 4000
     report_chunks = [report_text[i:i+max_len] for i in range(0, len(report_text), max_len)]
 
+    input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
+
     async def _send_to_user(chat_id):
         try:
-            input_file = BufferedInputFile(photo_bytes, filename="xray.jpg")
             await bot.send_photo(chat_id, photo=input_file, caption=caption, parse_mode="Markdown")
             
             # Send the rest as text sequentially to preserve correct ordering

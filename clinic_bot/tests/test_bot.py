@@ -521,5 +521,57 @@ class TestStartMqtt(unittest.TestCase):
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
+
+class TestHandleReviewNeg(unittest.TestCase):
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_review_neg_with_all_fields(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/review/neg"
+        payload = {
+            "patient": "Jane Doe",
+            "text": "Terrible service!"
+        }
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_review_neg(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"⚠️ *Негативный отзыв*\n\n"
+            f"Пациент: Jane Doe\n"
+            f"Сообщение: _Terrible service!_\n\n"
+            f"Требует обратной связи!"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
+
+    @patch('bot.asyncio.run_coroutine_threadsafe')
+    @patch('bot.broadcast', new_callable=MagicMock)
+    def test_handle_review_neg_missing_fields(self, mock_broadcast, mock_run_coroutine_threadsafe):
+        # Setup
+        topic = "test/review/neg"
+        payload = {}
+        loop = MagicMock()
+        mock_coroutine = MagicMock()
+        mock_broadcast.return_value = mock_coroutine
+
+        # Execute
+        handle_review_neg(topic, payload, loop)
+
+        # Assert
+        expected_text = (
+            f"⚠️ *Негативный отзыв*\n\n"
+            f"Пациент: неизвестен\n"
+            f"Сообщение: __\n\n"
+            f"Требует обратной связи!"
+        )
+        mock_broadcast.assert_called_once_with(expected_text, role='admin')
+        mock_run_coroutine_threadsafe.assert_called_once_with(mock_coroutine, loop)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -28,6 +28,12 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 QUOTES_PATH = DATA / "patient-quotes.json"
 FACTS_PATH = DATA / "clinic-facts.json"
 
+with QUOTES_PATH.open(encoding="utf-8") as fh:
+    _QUOTES_DATA = json.load(fh)
+
+with FACTS_PATH.open(encoding="utf-8") as fh:
+    _FACTS_DATA = json.load(fh)
+
 MAX_REPLY_CHARS = 500
 MAX_QUESTIONS = 2
 BARE_NUMBER_IS_MONEY_FROM = 100
@@ -53,11 +59,8 @@ def allowed_amounts() -> frozenset[int]:
     может отменить разрешение для себя (например, 4-канальный пульпит —
     экстраполяция, её называть нельзя).
     """
-    with QUOTES_PATH.open(encoding="utf-8") as fh:
-        data = json.load(fh)
-
     values: set[int] = set()
-    for quote in data["quotes"]:
+    for quote in _QUOTES_DATA["quotes"]:
         if not quote.get("quote_allowed"):
             continue
         for key in ("price_rub", "min_rub", "max_rub"):
@@ -78,8 +81,7 @@ def allowed_amounts() -> frozenset[int]:
 
 @lru_cache(maxsize=1)
 def allowed_links() -> frozenset[str]:
-    with FACTS_PATH.open(encoding="utf-8") as fh:
-        ident = json.load(fh)["identity"]
+    ident = _FACTS_DATA["identity"]
     return frozenset({ident["site"], ident["vk"], ident["online_booking"]})
 
 

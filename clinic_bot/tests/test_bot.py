@@ -521,5 +521,19 @@ class TestStartMqtt(unittest.TestCase):
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
+class TestBroadcastPhotoException(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.bot.send_photo')
+    @patch('bot.db.get_users_by_role')
+    async def test_broadcast_photo_exception(self, mock_get_users, mock_send_photo):
+        from bot import broadcast_photo
+        mock_get_users.return_value = [123]
+        mock_send_photo.side_effect = Exception("Mocked exception")
+
+        with self.assertLogs('bot', level='ERROR') as cm:
+            await broadcast_photo(b"photo_bytes", "caption", "report", "doctor")
+
+        self.assertTrue(any("Failed to send photo to 123: Mocked exception" in msg for msg in cm.output))
+
+
 if __name__ == '__main__':
     unittest.main()

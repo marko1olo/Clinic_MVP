@@ -763,6 +763,49 @@ async function processRow(
 	return outcome.kind === "suppressed" ? "not_configured" : "failed";
 }
 
+function accumulateOutcome(
+	report: {
+		sent: number;
+		retried: number;
+		failed: number;
+		suppressed: number;
+		notConfigured: number;
+		deferred: number;
+	},
+	outcome: RowOutcome
+): void {
+	/*
+	 * Switch, а не цепочка if/else с «остальное — deferred». Прежняя
+	 * цепочка сваливала в `deferred` любой итог, которого не знала: добавь
+	 * новый — и он тихо посчитался бы отложенным. Здесь недостающая ветка
+	 * не компилируется.
+	 */
+	switch (outcome) {
+		case "sent":
+			report.sent += 1;
+			break;
+		case "retried":
+			report.retried += 1;
+			break;
+		case "failed":
+			report.failed += 1;
+			break;
+		case "suppressed":
+			report.suppressed += 1;
+			break;
+		case "not_configured":
+			report.notConfigured += 1;
+			break;
+		case "deferred":
+			report.deferred += 1;
+			break;
+		default: {
+			const unhandled: never = outcome;
+			throw new Error(`Неизвестный итог отправки: ${String(unhandled)}`);
+		}
+	}
+}
+
 /**
  * Один проход по очереди. Возвращает отчёт — вызывающий решает, логировать его
  * или показывать в интерфейсе.
@@ -820,36 +863,7 @@ export async function dispatchDueMessages(options: DispatchOptions = {}): Promis
 		for (const row of rows) {
 			try {
 				const outcome = await processRow(row, { credentials, settings, consents, sentToday, now });
-				/*
-				 * Switch, а не цепочка if/else с «остальное — deferred». Прежняя
-				 * цепочка сваливала в `deferred` любой итог, которого не знала: добавь
-				 * новый — и он тихо посчитался бы отложенным. Здесь недостающая ветка
-				 * не компилируется.
-				 */
-				switch (outcome) {
-					case "sent":
-						report.sent += 1;
-						break;
-					case "retried":
-						report.retried += 1;
-						break;
-					case "failed":
-						report.failed += 1;
-						break;
-					case "suppressed":
-						report.suppressed += 1;
-						break;
-					case "not_configured":
-						report.notConfigured += 1;
-						break;
-					case "deferred":
-						report.deferred += 1;
-						break;
-					default: {
-						const unhandled: never = outcome;
-						throw new Error(`Неизвестный итог отправки: ${String(unhandled)}`);
-					}
-				}
+					accumulateOutcome(report, outcome);
 			} catch (error) {
 				// Непредвиденный сбой не должен оставить строку захваченной
 				// навсегда: возвращаем её в очередь с записанной причиной.

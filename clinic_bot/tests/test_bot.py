@@ -438,11 +438,11 @@ class TestHandleMarketingSend(unittest.TestCase):
 
 
 
-class TestStartMqtt(unittest.TestCase):
+class TestStartMqtt(unittest.IsolatedAsyncioTestCase):
     @patch('bot.mqtt.Client')
     @patch('bot.MQTT_USER', 'test_user')
     @patch('bot.MQTT_PASS', 'test_pass')
-    def test_start_mqtt(self, mock_mqtt_client_class):
+    async def test_start_mqtt(self, mock_mqtt_client_class):
         mock_client = MagicMock()
         mock_mqtt_client_class.return_value = mock_client
 
@@ -458,7 +458,7 @@ class TestStartMqtt(unittest.TestCase):
         )
 
         with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
+            await start_mqtt(loop)
 
         # Assert client configurations
         mock_client.user_data_set.assert_called_once_with({'loop': loop})
@@ -484,10 +484,14 @@ class TestStartMqtt(unittest.TestCase):
 
     @patch('bot.mqtt.Client')
     @patch('bot.MQTT_USER', '')
-    def test_start_mqtt_no_user(self, mock_mqtt_client_class):
+    async def test_start_mqtt_no_user(self, mock_mqtt_client_class):
         mock_client = MagicMock()
         mock_mqtt_client_class.return_value = mock_client
 
+        # When moving to to_thread, connect doesn't get called if it raises right away?
+        # Let's break loop_forever instead. Wait, if user isn't there it connects without pass.
+        mock_client.loop_forever.side_effect = KeyboardInterrupt("Stop loop")
+        # In original test connect raised it, wait let's just make loop_forever raise it to match execution path.
         mock_client.connect.side_effect = KeyboardInterrupt("Stop loop")
 
         loop = MagicMock()
@@ -495,15 +499,15 @@ class TestStartMqtt(unittest.TestCase):
         from bot import start_mqtt
 
         with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
+            await start_mqtt(loop)
 
         mock_client.username_pw_set.assert_not_called()
 
     @patch('bot.mqtt.Client')
-    @patch('bot.time.sleep')
+    @patch('bot.asyncio.sleep')
     @patch('bot.MQTT_USER', 'test_user')
     @patch('bot.MQTT_PASS', 'test_pass')
-    def test_start_mqtt_exception_handling(self, mock_sleep, mock_mqtt_client_class):
+    async def test_start_mqtt_exception_handling(self, mock_sleep, mock_mqtt_client_class):
         mock_client = MagicMock()
         mock_mqtt_client_class.return_value = mock_client
 
@@ -515,7 +519,7 @@ class TestStartMqtt(unittest.TestCase):
         from bot import start_mqtt
 
         with self.assertRaises(KeyboardInterrupt):
-            start_mqtt(loop)
+            await start_mqtt(loop)
 
         mock_sleep.assert_called_once_with(5)
         self.assertEqual(mock_client.loop_forever.call_count, 2)

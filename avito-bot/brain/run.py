@@ -401,7 +401,7 @@ async def step_account(store: Store) -> Counters:
     # неизвестно, а дубликат в переписке выдаёт бота вернее любой формулировки.
     stuck = store.stuck_sending(STUCK_SENDING_SECONDS)
     if stuck:
-        ids = ", ".join(f"#{row.id}" for row in stuck[:5])
+        ids = "#" + ", #".join([str(row.id) for row in stuck[:5]])
         await panel.notify(
             f"Отправка зависла: {ids}. Отправщик взял строки и не вернулся — "
             f"неизвестно, увидел ли их пациент. Проверьте переписку в Авито "

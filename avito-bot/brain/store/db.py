@@ -692,6 +692,29 @@ class Store:
             "ORDER BY harvested_at, position, rowid LIMIT ?", (limit,))
         return [_inbox(row) for row in rows]
 
+    def chat_history_batch(self, chat_ids: list[str], limit: int = 40) -> dict[str, list[InboxRow]]:
+        if not chat_ids:
+            return {}
+
+        placeholders = ",".join("?" for _ in chat_ids)
+        query = f"""
+            SELECT * FROM (
+                SELECT *, rowid AS _rid,
+                       ROW_NUMBER() OVER (PARTITION BY chat_id ORDER BY position DESC, rowid DESC) as rn
+                FROM inbox
+                WHERE chat_id IN ({placeholders})
+            )
+            WHERE rn <= ?
+            ORDER BY chat_id, position, _rid
+        """
+        params = tuple(chat_ids) + (limit,)
+        rows = self._read(query, params)
+
+        result: dict[str, list[InboxRow]] = {chat_id: [] for chat_id in chat_ids}
+        for row in rows:
+            result[row["chat_id"]].append(_inbox(row))
+        return result
+
     def chat_history(self, chat_id: str, *, before_position: int | None = None,
                      limit: int = 40) -> list[InboxRow]:
         """История диалога для промпта, в порядке появления в переписке.

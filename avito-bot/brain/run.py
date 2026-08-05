@@ -122,16 +122,25 @@ class Counters:
 
 # --- шаг 1: входящие --------------------------------------------------------
 
-def _history(store: Store, row) -> tuple[Turn, ...]:
+def _history(store: Store, row, histories: dict[str, list] | None = None) -> tuple[Turn, ...]:
     """История диалога для промпта, обрезанная позицией разбираемого сообщения.
 
     Время каждой реплики — `harvested_at`, а не то, что показал Авито: строку
     «вчера» в datetime не превратить, а промпту нужен порядок, который позиция
     уже задаёт.
     """
+    if histories is None:
+        items = store.chat_history(row.chat_id, before_position=row.position)
+    else:
+        # Chat history is limited to 40 by default.
+        # When filtering from batch, we take up to 40 items *before* the position
+        # starting from the most recent ones backwards, then reverse back to chronological.
+        filtered = [item for item in histories.get(row.chat_id, []) if item.position < row.position]
+        items = filtered[-40:]
+
     return tuple(
         Turn(role=item.role, text=item.text, at=item.harvested_at)
-        for item in store.chat_history(row.chat_id, before_position=row.position)
+        for item in items
         if item.external_id != row.external_id
     )
 
@@ -140,13 +149,20 @@ async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
     """Разобрать входящие. Один вызов LLM на сообщение, не больше."""
     counters = Counters()
 
-    for row in store.pending_inbox(limit=INBOX_BATCH):
+    pending = store.pending_inbox(limit=INBOX_BATCH)
+    if not pending:
+        return counters
+
+    chat_ids = list({row.chat_id for row in pending})
+    histories = store.chat_history_batch(chat_ids, limit=40 + INBOX_BATCH)
+
+    for row in pending:
         incoming = router.Incoming(
             chat_id=row.chat_id,
             external_id=row.external_id,
             text=row.text,
             at=row.harvested_at,
-            history=_history(store, row),
+            history=_history(store, row, histories=histories),
         )
 
         try:

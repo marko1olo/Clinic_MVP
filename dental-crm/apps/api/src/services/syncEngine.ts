@@ -5,7 +5,7 @@ import { organizations } from "../db/schema.js";
 
 // This module replaces the old custom syncDaemon with ElectricSQL native sync engine.
 let isSyncing = false;
-let syncPlugin: any = null;
+let syncPlugin: { unsubscribe?: () => void } | null = null;
 
 export async function startSyncEngine(pgliteClient: PGlite) {
 	if (isSyncing) return;
@@ -81,14 +81,16 @@ export async function startSyncEngine(pgliteClient: PGlite) {
 					"[SyncEngine] ✅ Sync Engine initialized and connected to Global DB.",
 				);
 			},
-			onError: (err: any) => {
-				console.error("[SyncEngine] ❌ Sync error:", err.message || err);
+			onError: (e: unknown) => {
+				const err = e as { message?: unknown } | null | undefined;
+				console.error("[SyncEngine] ❌ Sync error:", err?.message || e);
 			},
 		});
 
 		isSyncing = true;
-	} catch (err: any) {
-		console.error("[SyncEngine] ❌ Failed to start sync engine:", err.message);
+	} catch (e: unknown) {
+		const err = e as { message?: unknown } | null | undefined;
+		console.error("[SyncEngine] ❌ Failed to start sync engine:", err?.message || e);
 	}
 }
 
@@ -98,8 +100,9 @@ export async function stopSyncEngine() {
 	if (syncPlugin && typeof syncPlugin.unsubscribe === "function") {
 		try {
 			syncPlugin.unsubscribe();
-		} catch (err: any) {
-			console.warn("[SyncEngine] Warning during unsubscribe:", err.message);
+		} catch (e: unknown) {
+			const err = e as { message?: unknown } | null | undefined;
+			console.warn("[SyncEngine] Warning during unsubscribe:", err?.message || e);
 		}
 		syncPlugin = null;
 	}

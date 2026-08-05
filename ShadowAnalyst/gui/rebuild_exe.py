@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -16,9 +16,9 @@ for f in [
     r"C:\Clinic_MVP\ShadowAnalyst\gui\dist\ShadowAnalyst.exe",
     r"C:\Clinic_MVP\ShadowAnalyst.exe",
 ]:
-    if os.path.exists(f):
+    if Path(f).exists():
         try:
-            os.remove(f)
+            Path(f).unlink()
             print(f"  Deleted: {f}")
         except Exception as e:
             print(f"  Could not delete {f}: {e}")
@@ -28,7 +28,7 @@ for d in [
     r"C:\Clinic_MVP\ShadowAnalyst\gui\build",
     r"C:\Clinic_MVP\ShadowAnalyst\gui\dist",
 ]:
-    if os.path.exists(d):
+    if Path(d).exists():
         shutil.rmtree(d, ignore_errors=True)
         print(f"  Removed: {d}")
 
@@ -46,7 +46,7 @@ if result.returncode == 0:
     src = r"C:\Clinic_MVP\ShadowAnalyst\gui\dist\ShadowAnalyst.exe"
     dst = r"C:\Clinic_MVP\ShadowAnalyst.exe"
     shutil.copy2(src, dst)
-    size_mb = round(os.path.getsize(dst) / (1024 * 1024), 1)
+    size_mb = round(Path(dst).stat().st_size / (1024 * 1024), 1)
     print(f"  Done! {dst}  --  {size_mb} MB")
 else:
     print(f"\n[ERROR] Build failed with code {result.returncode}")

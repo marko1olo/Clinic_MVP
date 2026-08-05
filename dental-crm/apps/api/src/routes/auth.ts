@@ -18,16 +18,6 @@ import { staffRoleSchema } from "@dental/shared";
  */
 export const TOKEN_SECRET = () => authTokenSecret();
 
-/**
- * Демо-вход (clinic@example.com / doctor@clinic.com) — это бэкдор в исходниках.
- * Теперь он выключен по умолчанию и включается только явным флагом в dev.
- */
-function demoLoginAllowed(): boolean {
-  // Вне production демо-вход работает без всякой настройки .env.
-  // Отключить явно: DENTE_ALLOW_DEMO_LOGIN=0. В production — никогда.
-  if (process.env.NODE_ENV === "production") return false;
-  return process.env.DENTE_ALLOW_DEMO_LOGIN !== "0";
-}
 
 /**
  * Ключ первичной настройки для смены чужих учётных данных.
@@ -332,9 +322,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const loginId = email.toLowerCase().trim();
 
-    const isDemoClinicLogin =
-      demoLoginAllowed() && loginId === "clinic@example.com" && password === "dente2026";
-
     // Look up organization by login ID
     //
     // БЫЛО: ошибка базы гасилась дважды (.catch(() => []) и внешний try/catch),
@@ -342,40 +329,27 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     // или пароль». Недоступная база выглядела как неправильный пароль: сотрудники
     // перебирали пароли, а авария в логах отличалась от обычной опечатки только
     // строкой AUTH_DB_ERROR. Отказ инфраструктуры должен отвечать 500.
-    //
-    // Демо-вход сохраняет прежнее поведение: он не обращается к базе и остаётся
-    // доступен, если таблиц ещё нет (свежая установка до миграций).
     let org;
     try {
       const result = await db.select().from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
       org = result[0];
     } catch (dbErr) {
       console.error("[AUTH_DB_ERROR]", dbErr);
-      if (!isDemoClinicLogin) {
-        return reply.code(500).send({
-          error: "AuthUnavailable",
-          message: "Вход временно недоступен: нет связи с базой данных. Повторите попытку позже."
-        });
-      }
+      return reply.code(500).send({
+        error: "AuthUnavailable",
+        message: "Вход временно недоступен: нет связи с базой данных. Повторите попытку позже."
+      });
     }
 
     if (!org) {
-      if (isDemoClinicLogin) {
-        org = {
-          id: "00000000-0000-0000-0000-000000000001",
-          name: "Демо Клиника DENTE",
-          passwordHash: null
-        };
-      } else {
-        await authFailureDelay();
-        return reply.code(401).send({ error: "AuthError", message: "Неверный логин или пароль клиники." });
-      }
+      await authFailureDelay();
+      return reply.code(401).send({ error: "AuthError", message: "Неверный логин или пароль клиники." });
     }
 
     // FAIL CLOSED: организация без пароля больше не пускает с любым паролем.
     // Раньше отсутствие passwordHash означало "подойдёт что угодно".
     const storedHash = org.passwordHash;
-    const isMatch = storedHash ? await verifyCredential(password, storedHash) : isDemoClinicLogin;
+    const isMatch = storedHash ? await verifyCredential(password, storedHash) : false;
 
     if (!isMatch) {
       await authFailureDelay();
@@ -783,30 +757,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       console.warn("[AUTH_USER_DB_WARN]", e);
     }
 
-    // БЫЛО: жёстко зашитые doctor@clinic.com / admin@clinic.ru пускали в систему
-    // без пароля, а строка `user.passwordHash ? verify(...) : true` означала,
-    // что ЛЮБОЙ пользователь без хеша пароля входит с любым паролем.
-    const isDemoUserLogin =
-      demoLoginAllowed() && (loginEmail === 'doctor@clinic.com' || loginEmail === 'admin@clinic.ru');
-
     if (!user) {
-      if (isDemoUserLogin) {
-        user = {
-          id: '00000000-0000-0000-0000-000000000002',
-          organizationId: '00000000-0000-0000-0000-000000000001',
-          fullName: 'Доктор И.И. Иванов',
-          role: 'doctor',
-          email: loginEmail,
-          passwordHash: null
-        };
-      } else {
-        await authFailureDelay();
-        return reply.code(401).send({ error: 'AuthError', message: 'Неверный email или пароль.' });
-      }
+      await authFailureDelay();
+      return reply.code(401).send({ error: 'AuthError', message: 'Неверный email или пароль.' });
     }
 
-    // FAIL CLOSED: нет хеша пароля — вход запрещён (кроме явного демо-режима).
-    const isMatch = user.passwordHash ? await verifyCredential(password, user.passwordHash) : isDemoUserLogin;
+    // FAIL CLOSED: нет хеша пароля — вход запрещён.
+    const isMatch = user.passwordHash ? await verifyCredential(password, user.passwordHash) : false;
     if (!isMatch) {
       await authFailureDelay();
       return reply.code(401).send({ error: 'AuthError', message: 'Неверный email или пароль.' });

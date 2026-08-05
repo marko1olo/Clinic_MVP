@@ -22,7 +22,7 @@ class TestHandleAlertAdmin(unittest.TestCase):
         # Avoid AsyncMock warnings for coroutines that are never awaited
         mock_broadcast.return_value = 'mock_coroutine'
 
-        handle_alert_admin('test/topic', payload, loop)
+        handle_alert_admin('clinic/alerts/admin', payload, loop)
 
         mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\nTest alert payload", role='admin')
         mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)
@@ -35,7 +35,7 @@ class TestHandleAlertAdmin(unittest.TestCase):
 
         mock_broadcast.return_value = 'mock_coroutine'
 
-        handle_alert_admin('test/topic', payload, loop)
+        handle_alert_admin('clinic/alerts/admin', payload, loop)
 
         mock_broadcast.assert_called_once_with("🚨 *АЛЕРТ*\n\n{'key': 'value'}", role='admin')
         mock_run_coroutine_threadsafe.assert_called_once_with('mock_coroutine', loop)

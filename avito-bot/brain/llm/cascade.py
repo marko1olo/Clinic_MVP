@@ -19,7 +19,6 @@ stomchat зашиты `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` и
 `qwen/qwen3.6-27b`, которых у провайдеров нет вовсе, и каскад из четырёх
 моделей фактически состоял из одной живой.
 """
-from __future__ import annotations
 
 import asyncio
 import json

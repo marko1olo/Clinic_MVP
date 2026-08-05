@@ -10,6 +10,9 @@ import {
 
 import { isPatientBookingBlocked } from "./patientArchiveReasonsAndBlacklistsQuery.js";
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbOrTx = typeof db | DbTransaction;
+
 function useInMemory() {
   return process.env.DENTAL_STATE_PERSISTENCE === "off";
 }
@@ -29,7 +32,7 @@ function useInMemory() {
  * встречные вызовы могут заклиниться друг о друга.
  */
 async function lockAppointmentResources(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   resources: { chairId?: string | null; doctorUserId?: string | null; patientId?: string | null }
 ) {
@@ -71,7 +74,7 @@ async function lockAppointmentResources(
  * кресла на одно время, оба ответа 201.
  */
 async function assertNoResourceOverlap(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   candidate: {
     startsAt: Date;
@@ -151,7 +154,7 @@ async function assertNoResourceOverlap(
  * устаревший список на экране.
  */
 async function assertAppointmentResourcesBelongToOrganization(
-  executor: any,
+  executor: DbOrTx,
   organizationId: string,
   input: { patientId?: string | null | undefined; doctorUserId?: string | null | undefined; chairId?: string | null | undefined }
 ): Promise<void> {
@@ -190,7 +193,7 @@ async function assertAppointmentResourcesBelongToOrganization(
   }
 }
 
-export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput, tx?: any): Promise<Appointment> {
+export async function createAppointmentInDb(organizationId: string, input: CreateAppointmentInput, tx?: DbOrTx): Promise<Appointment> {
   if (useInMemory()) {
     return createAppointmentInMemory(input);
   }
@@ -207,7 +210,7 @@ export async function createAppointmentInDb(organizationId: string, input: Creat
   const candidateStarts = new Date(startsAtMs);
   const candidateEnds = new Date(endsAtMs);
 
-  const insertChecked = async (executor: any) => {
+  const insertChecked = async (executor: DbOrTx) => {
     // Принадлежность проверяется ДО блокировки ресурсов: блокировать чужую
     // строку незачем, а отказ обязан прийти раньше любой записи.
     await assertAppointmentResourcesBelongToOrganization(executor, organizationId, input);

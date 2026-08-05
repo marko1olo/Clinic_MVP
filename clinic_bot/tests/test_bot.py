@@ -521,5 +521,33 @@ class TestStartMqtt(unittest.TestCase):
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
+
+class TestBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.bot.send_message')
+    @patch('bot.db.get_users_by_role')
+    @patch('bot.log.error')
+    async def test_broadcast_exception(self, mock_log_error, mock_get_users, mock_send_message):
+        from bot import broadcast
+        mock_get_users.return_value = [123, 456]
+
+        # Make the first send fail, the second succeed
+        async def side_effect(chat_id, *args, **kwargs):
+            if chat_id == 123:
+                raise Exception("Test exception")
+
+        mock_send_message.side_effect = side_effect
+
+        await broadcast("Test text", "admin")
+
+        # Verify get_users was called
+        mock_get_users.assert_called_once_with("admin")
+
+        # Verify send_message was called for both users
+        self.assertEqual(mock_send_message.call_count, 2)
+
+        # Verify log.error was called for the failed user
+        mock_log_error.assert_called_once()
+        self.assertIn("Failed to send to 123: Test exception", mock_log_error.call_args[0][0])
+
 if __name__ == '__main__':
     unittest.main()

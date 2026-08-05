@@ -163,38 +163,43 @@ def _hits(text: str, patterns: tuple[str, ...]) -> list[str]:
     return [p for p in patterns if re.search(p, text)]
 
 
-def classify(raw_text: str) -> Decision:
-    """Единственная точка принятия решения. Возвращает маршрут, а не ответ."""
-    text = normalize(raw_text)
-
+def _check_junk(text: str) -> Decision | None:
     if len(text) < MIN_MEANINGFUL_CHARS or any(re.search(p, text) for p in JUNK_PATTERNS):
         return Decision(Route.IGNORE, Kind.JUNK, "пусто или не про лечение")
+    return None
 
-    # Темы, по которым цены нет или она не утверждена, — всегда человеку,
-    # даже если пациент не спросил цену: ответ всё равно потребует оговорок.
+
+def _check_no_quote_topics(text: str) -> Decision | None:
     for topic, needles in _no_quote_topics():
         matched = [n.pattern for n in needles if n.search(text)]
         if matched:
             return Decision(Route.DRAFT, Kind.NO_QUOTE_TOPIC,
                             f"тема без утверждённой цены: {topic}",
                             topic=topic, matched=tuple(matched))
+    return None
 
+
+def _check_risks(text: str) -> Decision | None:
     risks = {name: _hits(text, pats) for name, pats in RISK_PATTERNS.items()}
     risks = {k: v for k, v in risks.items() if v}
 
-    if risks:
-        # Приоритет: медицина важнее цены, цена важнее записи.
-        for name, kind in (("medical", Kind.MEDICAL), ("price", Kind.PRICE),
-                           ("booking", Kind.BOOKING)):
-            if name in risks:
-                topic = None
-                if kind is Kind.PRICE:
-                    topic = next((key for key, needles, _ in _quotable_topics()
-                                  if any(n.search(text) for n in needles)), None)
-                return Decision(Route.DRAFT, kind,
-                                f"рисковый маркер ({name}) — решает человек",
-                                topic=topic, matched=tuple(risks[name]))
+    if not risks:
+        return None
 
+    for name, kind in (("medical", Kind.MEDICAL), ("price", Kind.PRICE),
+                       ("booking", Kind.BOOKING)):
+        if name in risks:
+            topic = None
+            if kind is Kind.PRICE:
+                topic = next((key for key, needles, _ in _quotable_topics()
+                              if any(n.search(text) for n in needles)), None)
+            return Decision(Route.DRAFT, kind,
+                            f"рисковый маркер ({name}) — решает человек",
+                            topic=topic, matched=tuple(risks[name]))
+    return None
+
+
+def _check_safe_facts(text: str, raw_text: str) -> Decision | None:
     safe_hits: list[str] = []
     safe_topic: str | None = None
     for topic, pats in SAFE_PATTERNS.items():
@@ -203,16 +208,41 @@ def classify(raw_text: str) -> Decision:
             safe_hits.extend(found)
             safe_topic = safe_topic or topic
 
-    if safe_hits and len(raw_text) <= MAX_AUTO_LENGTH:
+    if not safe_hits:
+        return None
+
+    if len(raw_text) <= MAX_AUTO_LENGTH:
         return Decision(Route.AUTO, Kind.SAFE_FACT,
                         f"белый список: {safe_topic}",
                         topic=safe_topic, matched=tuple(safe_hits))
 
-    if safe_hits:
-        return Decision(Route.DRAFT, Kind.SAFE_FACT,
-                        "белый список сработал, но сообщение слишком длинное "
-                        "для автоответа — вероятно, там ещё и жалоба",
-                        topic=safe_topic, matched=tuple(safe_hits))
+    return Decision(Route.DRAFT, Kind.SAFE_FACT,
+                    "белый список сработал, но сообщение слишком длинное "
+                    "для автоответа — вероятно, там ещё и жалоба",
+                    topic=safe_topic, matched=tuple(safe_hits))
+
+
+def classify(raw_text: str) -> Decision:
+    """Единственная точка принятия решения. Возвращает маршрут, а не ответ."""
+    text = normalize(raw_text)
+
+    decision = _check_junk(text)
+    if decision:
+        return decision
+
+    # Темы, по которым цены нет или она не утверждена, — всегда человеку,
+    # даже если пациент не спросил цену: ответ всё равно потребует оговорок.
+    decision = _check_no_quote_topics(text)
+    if decision:
+        return decision
+
+    decision = _check_risks(text)
+    if decision:
+        return decision
+
+    decision = _check_safe_facts(text, raw_text)
+    if decision:
+        return decision
 
     return Decision(Route.DRAFT, Kind.UNKNOWN,
                     "не распознано — по умолчанию человеку")

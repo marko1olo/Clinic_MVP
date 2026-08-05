@@ -8,7 +8,7 @@ from bot import on_mqtt_message, cmd_start, cmd_test, handle_alert_admin
 from bot import on_mqtt_message, cmd_start, handle_default
 from bot import on_mqtt_message, cmd_start, handle_review_neg
 from bot import on_mqtt_message, cmd_start, handle_xray_result
-from bot import on_mqtt_message, cmd_start, handle_marketing_send
+from bot import on_mqtt_message, cmd_start, handle_marketing_send, broadcast
 from aiogram.types import Message, Chat, User
 import base64
 
@@ -520,6 +520,23 @@ class TestStartMqtt(unittest.TestCase):
         mock_sleep.assert_called_once_with(5)
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
+
+
+class TestBroadcast(unittest.IsolatedAsyncioTestCase):
+    @patch('bot.db.get_users_by_role')
+    @patch('bot.bot')
+    async def test_broadcast_unknown_role(self, mock_bot, mock_get_users_by_role):
+        # mock db.get_users_by_role to return empty list
+        mock_get_users_by_role.return_value = []
+
+        # Call broadcast with an unknown role
+        await broadcast("Test text", role="unknown_role")
+
+        # Verify db function called with correct role
+        mock_get_users_by_role.assert_called_once_with("unknown_role")
+
+        # Verify bot.send_message was never called because users list is empty
+        mock_bot.send_message.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

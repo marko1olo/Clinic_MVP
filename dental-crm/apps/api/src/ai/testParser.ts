@@ -33,7 +33,6 @@ for (const p of phrases) {
   const result = parseDictationLocally(p.text, p.context as any);
   if (result) {
     console.log("[Status]: SUCCESS");
-    console.log("[Parsed]:", JSON.stringify(result, null, 2));
     successCount++;
   } else {
     console.log("[Status]: FAILED (Fallback to LLM)");

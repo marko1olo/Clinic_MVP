@@ -98,8 +98,9 @@ export async function stopSyncEngine() {
 	if (syncPlugin && typeof syncPlugin.unsubscribe === "function") {
 		try {
 			syncPlugin.unsubscribe();
-		} catch (err: any) {
-			console.warn("[SyncEngine] Warning during unsubscribe:", err.message);
+		} catch (e: unknown) {
+			const err = e as { message?: unknown } | null | undefined;
+			console.warn("[SyncEngine] Warning during unsubscribe:", err?.message);
 		}
 		syncPlugin = null;
 	}

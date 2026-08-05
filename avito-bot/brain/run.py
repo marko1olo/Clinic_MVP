@@ -129,9 +129,12 @@ def _history(store: Store, row) -> tuple[Turn, ...]:
     «вчера» в datetime не превратить, а промпту нужен порядок, который позиция
     уже задаёт.
     """
+    history_items = store.chat_history(
+        row.chat_id, before_position=row.position
+    )
     return tuple(
         Turn(role=item.role, text=item.text, at=item.harvested_at)
-        for item in store.chat_history(row.chat_id, before_position=row.position)
+        for item in history_items
         if item.external_id != row.external_id
     )
 

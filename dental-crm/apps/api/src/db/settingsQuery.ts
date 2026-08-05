@@ -368,7 +368,7 @@ export async function updateClinicProfileInDb(organizationId: string, input: Upd
 
   await db.update(schema.organizations).set(updateData).where(eq(schema.organizations.id, organizationId));
 
-  const clinicUpdateData: any = {};
+  const clinicUpdateData: Partial<typeof schema.clinics.$inferInsert> = {};
   if (input.clinicName !== undefined) clinicUpdateData.name = input.clinicName;
   if (input.phone !== undefined) clinicUpdateData.phone = input.phone;
   if (input.timezone !== undefined) clinicUpdateData.timezone = input.timezone;

@@ -4,6 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 import paho.mqtt.client as mqtt
+from mqtt_utils import create_mqtt_client
 
 import os
 
@@ -138,10 +139,8 @@ def on_message(client, userdata, msg):
 
 def setup_mqtt_client(app):
     """Configures and returns the MQTT client."""
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client = create_mqtt_client(MQTT_USER, MQTT_PASS)
     client.user_data_set({'app': app})
-    if MQTT_USER:
-        client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.on_connect = on_connect
     client.on_message = on_message
     return client

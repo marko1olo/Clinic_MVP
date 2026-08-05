@@ -25,9 +25,11 @@ import watcher
 class TestPublishResult(unittest.TestCase):
     def setUp(self):
         self.mock_client_instance = MagicMock()
-        self.mock_client_class = MagicMock(return_value=self.mock_client_instance)
-        paho_mqtt_client_mock.Client = self.mock_client_class
-        paho_mqtt_client_mock.CallbackAPIVersion = MagicMock()
+        self.patcher = patch('mqtt_utils.create_mqtt_client', return_value=self.mock_client_instance, create=True)
+        self.mock_create_mqtt_client = self.patcher.start()
+
+    def tearDown(self):
+        self.patcher.stop()
 
     @patch('builtins.print')
     def test_publish_result_happy_path(self, mock_print):

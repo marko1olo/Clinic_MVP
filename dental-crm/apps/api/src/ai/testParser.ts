@@ -42,5 +42,4 @@ for (const p of phrases) {
   console.log("--------------------------------------------------\n");
 }
 
-console.log(`TOTAL SUCCESS (Local Parsed): ${successCount}`);
 console.log(`TOTAL FAILED (LLM Fallback): ${failCount}`);

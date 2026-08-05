@@ -468,6 +468,7 @@ export async function registerWhatsappRoutes(
 						? (value.messages as unknown[])
 						: [];
 
+					const eventsToInsert = [];
 					for (const msg of messages) {
 						if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
 							continue;
@@ -484,14 +485,17 @@ export async function registerWhatsappRoutes(
 						const textBody =
 							typeof textObj?.body === "string" ? textObj.body : null;
 
-						await db.insert(messengerInboundEvents).values({
+						eventsToInsert.push({
 							organizationId: orgConfig.organizationId,
 							channel: "whatsapp",
 							externalChatId: fromId,
 							messageText: textBody,
-							eventKind: "message",
+							eventKind: "message" as const,
 							rawPayload: m as Record<string, unknown>,
 						});
+					}
+					if (eventsToInsert.length > 0) {
+						await db.insert(messengerInboundEvents).values(eventsToInsert);
 					}
 				}
 			}

@@ -1726,7 +1726,7 @@ export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
 export const visitExaminationPhotoLinks = pgTable("visit_examination_photo_links", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-  visitId: uuid("visit_id").notNull(),
+  visitId: text("visit_id").notNull(),
   patientId: uuid("patient_id"),
   photoUrl: text("photo_url").notNull(),
   caption: text("caption"),
@@ -2066,7 +2066,7 @@ export const clinicalAuditLogs = pgTable("clinical_audit_logs", {
   resourceType: text("resource_type"),
   entityType: text("entity_type"),
   resourceId: uuid("resource_id"),
-  entityId: uuid("entity_id"),
+  entityId: text("entity_id"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   meta: jsonb("meta"),
@@ -3067,3 +3067,92 @@ export const portalOtpCodes = pgTable("portal_otp_codes", {
     idxPortalOtpExpires: index("portal_otp_codes_expires_idx").on(table.expiresAt)
   };
 });
+import { relations } from 'drizzle-orm';
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+  clinics: many(clinics),
+  chairs: many(chairs),
+  patients: many(patients),
+  appointments: many(appointments)
+}));
+
+export const clinicsRelations = relations(clinics, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [clinics.organizationId],
+    references: [organizations.id]
+  }),
+  chairs: many(chairs)
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id]
+  }),
+  appointmentsAsDoctor: many(appointments, { relationName: 'doctorAppointments' }),
+  appointmentsAsAssistant: many(appointments, { relationName: 'assistantAppointments' })
+}));
+
+export const chairsRelations = relations(chairs, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [chairs.organizationId],
+    references: [organizations.id]
+  }),
+  clinic: one(clinics, {
+    fields: [chairs.clinicId],
+    references: [clinics.id]
+  }),
+  appointments: many(appointments)
+}));
+
+export const patientsRelations = relations(patients, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [patients.organizationId],
+    references: [organizations.id]
+  }),
+  appointments: many(appointments),
+  consents: many(patientConsents),
+  visits: many(visits)
+}));
+
+export const appointmentsRelations = relations(appointments, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [appointments.organizationId],
+    references: [organizations.id]
+  }),
+  patient: one(patients, {
+    fields: [appointments.patientId],
+    references: [patients.id]
+  }),
+  doctor: one(users, {
+    fields: [appointments.doctorUserId],
+    references: [users.id],
+    relationName: 'doctorAppointments'
+  }),
+  assistant: one(users, {
+    fields: [appointments.assistantUserId],
+    references: [users.id],
+    relationName: 'assistantAppointments'
+  }),
+  chair: one(chairs, {
+    fields: [appointments.chairId],
+    references: [chairs.id]
+  }),
+  visits: many(visits)
+}));
+
+export const visitsRelations = relations(visits, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [visits.organizationId],
+    references: [organizations.id]
+  }),
+  patient: one(patients, {
+    fields: [visits.patientId],
+    references: [patients.id]
+  }),
+  appointment: one(appointments, {
+    fields: [visits.appointmentId],
+    references: [appointments.id]
+  })
+}));

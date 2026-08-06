@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.js";
+import { withSuperuserBypass, withTenantCtx } from "../db/rls.js";
 import { organizations, users, userInvitations, auditEvents } from "../db/schema.js";
 import { hashCredential, verifyCredential, signToken, verifyToken } from "../utils/cryptoHelper.js";
 import { authTokenSecret } from "../security/authSecret.js";
@@ -353,11 +354,13 @@ export async function registerAuthRoutes(app) {
             return reply.code(401).send({ error: "ClinicAuthRequired", message: "Сначала выполните вход в кабинет клиники." });
         }
         const orgId = clinicPayload.organizationId;
-        const [user] = await db
-            .select()
-            .from(users)
-            .where(and(eq(users.id, userId), eq(users.organizationId, orgId), eq(users.isActive, true)))
-            .limit(1);
+        const [user] = await withTenantCtx(orgId, async (tx) => {
+            return tx
+                .select()
+                .from(users)
+                .where(and(eq(users.id, userId), eq(users.organizationId, orgId), eq(users.isActive, true)))
+                .limit(1);
+        });
         if (!user) {
             await authFailureDelay();
             // Единый ответ для "нет сотрудника" и "неверный PIN": иначе endpoint
@@ -512,7 +515,27 @@ export async function registerAuthRoutes(app) {
             }
         }
         const hash = await hashCredential(body.newPin);
-        await db.update(users).set({ pinCodeHash: hash }).where(eq(users.id, body.userId));
+        // Defense-in-depth: never UPDATE staff credentials by bare id.
+        // Org-admin path already SELECTed with org; setup-key path may lack identity.organizationId.
+        // Bind UPDATE to the target user's organizationId so a concurrent org move cannot widen the write.
+        const [pinTarget] = await db
+            .select({ id: users.id, organizationId: users.organizationId })
+            .from(users)
+            .where(identity.organizationId
+            ? and(eq(users.id, body.userId), eq(users.organizationId, identity.organizationId))
+            : eq(users.id, body.userId))
+            .limit(1);
+        if (!pinTarget) {
+            return reply.code(404).send({ error: "UserNotFound", message: "Сотрудник не найден в организации." });
+        }
+        const [pinUpdated] = await db
+            .update(users)
+            .set({ pinCodeHash: hash })
+            .where(and(eq(users.id, pinTarget.id), eq(users.organizationId, pinTarget.organizationId)))
+            .returning({ id: users.id });
+        if (!pinUpdated) {
+            return reply.code(404).send({ error: "UserNotFound", message: "Сотрудник не найден в организации." });
+        }
         if (identity.organizationId) {
             await db.insert(auditEvents).values({
                 organizationId: identity.organizationId,
@@ -608,7 +631,9 @@ export async function registerAuthRoutes(app) {
         const [existingOrg] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
         if (existingOrg)
             return reply.code(409).send({ error: 'Conflict', message: 'Организация с таким логином уже существует.' });
-        const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, loginId)).limit(1);
+        const [existingUser] = await withSuperuserBypass(async (tx) => {
+            return tx.select({ id: users.id }).from(users).where(eq(users.email, loginId)).limit(1);
+        });
         if (existingUser)
             return reply.code(409).send({ error: 'Conflict', message: 'Пользователь с таким email уже существует.' });
         // БЫЛО: PIN владельца всегда '0000' — предсказуемый вход в любую свежую клинику.

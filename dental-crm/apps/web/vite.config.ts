@@ -65,6 +65,10 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           const normalizedId = id.replaceAll("\\", "/");
+          // Виртуальный модуль Vite с хелпером __vitePreload. Без явного захвата он
+          // попадает в первый чанк, который его использовал (здесь — app-helpers,
+          // 120 862 Б), и точка входа тянет весь тот чанк ради одной привязки.
+          if (normalizedId.includes("vite/preload-helper")) return "vite-preload-helper";
           if (normalizedId.endsWith("/apps/web/src/AppBootState.tsx")) return "boot-state";
           if (normalizedId.endsWith("/apps/web/src/browserContinuity.ts")) return "browser-continuity";
           if (normalizedId.endsWith("/apps/web/src/workspacePreload.ts")) return "workspace-preload";
@@ -76,7 +80,12 @@ export default defineConfig({
           if (normalizedId.endsWith("/apps/web/src/rubAmountInput.ts")) return "rub-amount-input";
           if (normalizedId.endsWith("/apps/web/src/settingsStaticData.tsx")) return "settings-static-data";
           if (normalizedId.endsWith("/apps/web/src/imagingUiLabels.ts")) return "imaging-ui-labels";
-          if (normalizedId.endsWith("/apps/web/src/ctPlanningGeometry.ts")) return "ct-planning-geometry";
+          // Геометрия КТ-планирования живёт в utils/math/toothGeometry.ts: именно оттуда
+          // ctPlanningState.ts берёт buildCtPlanningGeometrySummary. Файл
+          // src/ctPlanningGeometry.ts — его мёртвый дубль, на него ссылаются только
+          // `import type`, поэтому в рантайм-графе его нет и правило на него не давало
+          // ни одного чанка. Правило переведено на живой модуль.
+          if (normalizedId.endsWith("/apps/web/src/utils/math/toothGeometry.ts")) return "ct-planning-geometry";
           if (normalizedId.endsWith("/apps/web/src/ctPlanningMeasurementPlan.ts")) return "ct-planning-measurement-plan";
           if (normalizedId.endsWith("/apps/web/src/ctPlanningMeasurementPanel.tsx")) return "ct-planning-measurement-panel";
           if (normalizedId.endsWith("/apps/web/src/ctPlanningWorkflowPlan.ts")) return "ct-planning-workflow-plan";
@@ -121,6 +130,20 @@ export default defineConfig({
           if (normalizedId.endsWith("/apps/web/src/store/visitStore.ts")) return "visit-store";
           if (normalizedId.endsWith("/apps/web/src/store/appStore.ts")) return "app-store";
           if (normalizedId.endsWith("/apps/web/src/store/uiStore.ts")) return "ui-store";
+          // Rollup's functional manualChunks добавляет в ручной чанк не только сам модуль,
+          // но и ВСЕ его ещё не занятые зависимости. Из-за этого правило
+          // components/settings/ ниже засасывало общие модули, которые к настройкам
+          // отношения не имеют, и точка входа получала статическое ребро на
+          // settings-components (через lib/publicPortalRoute.ts, который импортирует
+          // main.tsx). Каждый общий модуль ниже занят явно, чтобы правила-каталоги
+          // не могли его поглотить.
+          if (normalizedId.endsWith("/apps/web/src/components/EmptyState.tsx")) return "empty-state";
+          if (normalizedId.endsWith("/apps/web/src/lib/publicPortalRoute.ts")) return "public-portal-route";
+          if (normalizedId.endsWith("/apps/web/src/SmartParsePreview.tsx")) return "smart-parse-preview";
+          if (normalizedId.endsWith("/apps/web/src/PriceDictationBar.tsx")) return "price-dictation-bar";
+          if (normalizedId.endsWith("/apps/web/src/lib/authedApiFile.ts")) return "authed-api-file";
+          if (normalizedId.endsWith("/apps/web/src/components/PatientPortal.tsx")) return "patient-portal";
+          if (normalizedId.endsWith("/apps/web/src/components/workspace/WorkspaceFeaturesSelector.tsx")) return "features-selector";
           if (normalizedId.includes("/apps/web/src/components/settings/")) return "settings-components";
           if (normalizedId.includes("/apps/web/src/components/dicom/")) return "dicom-components";
           if (normalizedId.includes("/apps/web/src/components/imaging/")) return "imaging-components";
@@ -134,7 +157,18 @@ export default defineConfig({
           if (normalizedId.endsWith("/apps/web/src/documentLogic.ts")) return "document-logic";
           if (normalizedId.endsWith("/apps/web/src/documentValidators.ts")) return "document-validators";
           if (normalizedId.endsWith("/apps/web/src/useAppLogic.tsx")) return "app-logic";
+          // Те же грабли, что и выше, но для правила App.tsx -> workspace: оба модуля
+          // общие (PanelLoadFailure рендерят 19 панелей, useWebsocket зовут 5 мест),
+          // и без явного захвата они уезжали внутрь workspace, из-за чего ленивые
+          // маршруты получали статическое ребро на самый тяжёлый чанк.
+          if (normalizedId.endsWith("/apps/web/src/components/PanelLoadFailure.tsx")) return "panel-load-failure";
+          if (normalizedId.endsWith("/apps/web/src/hooks/useWebsocket.ts")) return "use-websocket";
           if (normalizedId.endsWith("/apps/web/src/App.tsx")) return "workspace";
+          // d3 объявляют сразу двое: recharts (через victory-vendor) в аналитике и
+          // @kitware/vtk.js в просмотрщике DICOM. Кто первым занял модуль, тот его и
+          // унёс — все 80 модулей d3 оказались внутри dicom-components (4 268 136 Б),
+          // и «Аналитика» получила статическое ребро на весь просмотрщик ради шкал.
+          if (normalizedId.includes("/node_modules/d3-")) return "d3-vendor";
           if (normalizedId.includes("/node_modules/react") || normalizedId.includes("/node_modules/react-dom")) return "react-vendor";
           if (normalizedId.includes("/node_modules/lucide-react")) return "icons";
           if (normalizedId.includes("/node_modules/zod")) return "schema-vendor";

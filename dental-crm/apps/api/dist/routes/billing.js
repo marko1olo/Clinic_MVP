@@ -424,6 +424,12 @@ export async function registerBillingRoutes(app) {
         if (!orgId)
             return;
         const input = parsedInput.data;
+        if (!input.clientMutationId) {
+            return reply.code(400).send({
+                error: "BillingValidationError",
+                message: "Ключ операции (clientMutationId) обязателен для предотвращения двойных списаний."
+            });
+        }
         const existingPayment = await findPaymentByClientMutationIdInDb(orgId, input.clientMutationId);
         if (existingPayment && existingPayment.patientId) {
             if (existingPayment.patientId !== input.patientId) {

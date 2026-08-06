@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { speechTranscriptionChunkSchema } from "@dental/shared";
 import { db } from "../db/client.js";
 import { aiJobs, patients, visits } from "../db/schema.js";
+import { withSuperuserBypass } from "../db/rls.js";
 // Локальная копия, как в polish.ts: хранилище расшифровок не должно тянуть за
 // собой пул ключей вместе с undici, socks и tls ради одного разбора числа.
 function numberFromEnv(name, fallback) {
@@ -167,6 +168,11 @@ function countSpeechQualities(chunks) {
     return counts;
 }
 function speechChunkMatchesScope(chunk, scope = {}) {
+    if (scope.organizationId !== undefined &&
+        scope.organizationId !== null &&
+        chunk.organizationId !== scope.organizationId) {
+        return false;
+    }
     if (scope.patientId !== undefined && chunk.patientId !== scope.patientId)
         return false;
     if (scope.visitId !== undefined && chunk.visitId !== scope.visitId)
@@ -281,6 +287,11 @@ function speechRecordingRecoveryFromChunks(recordingId, chunks) {
 export function listSpeechRecordingRecoveries(input = {}) {
     const grouped = new Map();
     for (const chunk of speechTranscriptionChunks) {
+        if (input.organizationId !== undefined &&
+            input.organizationId !== null &&
+            chunk.organizationId !== input.organizationId) {
+            continue;
+        }
         if (input.visitId && chunk.visitId !== input.visitId)
             continue;
         if (input.patientId && chunk.patientId !== input.patientId)
@@ -412,20 +423,20 @@ function undurableCachedChunkCount() {
 }
 async function resolveSpeechChunkOrganizationId(scope) {
     if (scope.visitId) {
-        const [visit] = await db
+        const [visit] = await withSuperuserBypass(async (tx) => db
             .select({ organizationId: visits.organizationId })
             .from(visits)
             .where(eq(visits.id, scope.visitId))
-            .limit(1);
+            .limit(1));
         if (visit?.organizationId)
             return visit.organizationId;
     }
     if (scope.patientId) {
-        const [patient] = await db
+        const [patient] = await withSuperuserBypass(async (tx) => db
             .select({ organizationId: patients.organizationId })
             .from(patients)
             .where(eq(patients.id, scope.patientId))
-            .limit(1);
+            .limit(1));
         if (patient?.organizationId)
             return patient.organizationId;
     }
@@ -527,11 +538,11 @@ function readDurableEnvelope(recordingId, rawEnvelope) {
  * (organization_id, input_storage_path) в ai_jobs нет, он требует миграции.
  */
 async function loadDurableRecordingEnvelope(recordingId, organizationId) {
-    const [row] = await db
+    const [row] = await withSuperuserBypass(async (tx) => db
         .select({ inputText: aiJobs.inputText })
         .from(aiJobs)
         .where(and(eq(aiJobs.organizationId, organizationId), eq(aiJobs.inputStoragePath, durableRecordingPath(recordingId))))
-        .limit(1);
+        .limit(1));
     if (!row)
         return { chunks: [], unreadableChunks: [] };
     const stored = readDurableEnvelope(recordingId, row.inputText);
@@ -690,18 +701,18 @@ async function persistSpeechRecording(trigger, organizationId) {
         confidence: confidence ?? unknownConfidenceColumnValue,
         updatedAt: new Date()
     };
-    const [updated] = await db
+    const [updated] = await withSuperuserBypass(async (tx) => db
         .update(aiJobs)
         .set(values)
         .where(and(eq(aiJobs.organizationId, organizationId), eq(aiJobs.inputStoragePath, storagePath)))
-        .returning({ id: aiJobs.id });
+        .returning({ id: aiJobs.id }));
     if (!updated) {
-        await db.insert(aiJobs).values({
+        await withSuperuserBypass(async (tx) => tx.insert(aiJobs).values({
             organizationId,
             kind: durableRecordingJobKind,
             inputStoragePath: storagePath,
             ...values
-        });
+        }));
     }
     for (const chunk of chunks) {
         durableChunkKeys.add(speechChunkKey(chunk.recordingId, chunk.chunkIndex));
@@ -812,7 +823,7 @@ async function restoreSpeechTranscriptionChunks() {
     const chunkBudget = maxRestoredChunkCount();
     const charBudget = maxRestoredTranscriptChars();
     const storagePathPattern = `${durableRecordingPathPrefix}%`;
-    const restored = await db.execute(sql `
+    const restored = await withSuperuserBypass(async (tx) => tx.execute(sql `
     SELECT input_text, input_storage_path
     FROM (
       SELECT
@@ -830,7 +841,7 @@ async function restoreSpeechTranscriptionChunks() {
     WHERE ranked.recording_rank <= ${perOrganizationLimit}
     ORDER BY ranked.recording_rank ASC, ranked.updated_at DESC
     LIMIT ${globalRecordingLimit}
-  `);
+  `));
     const cached = new Set(speechTranscriptionChunks.map((chunk) => speechChunkKey(chunk.recordingId, chunk.chunkIndex)));
     // Бюджет считается от всего горячего кэша, а не от прибавки восстановления:
     // потолок обязан описывать занятую память, а не размер одного прохода.

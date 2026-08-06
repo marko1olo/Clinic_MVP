@@ -175,7 +175,7 @@ export async function registerAiRoutes(app) {
                 seriesId: z.string().optional(),
                 organizationId: z.string(),
                 patientId: z.string(),
-                coordinates: z.record(z.any()).optional()
+                coordinates: z.record(z.number()).optional()
             }).optional()
         });
         const parsedInput = schema.safeParse(request.body);

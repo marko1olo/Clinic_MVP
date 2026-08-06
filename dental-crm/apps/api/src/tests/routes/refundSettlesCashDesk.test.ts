@@ -45,16 +45,19 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import { sql } from "drizzle-orm";
-import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { db, pool } from "../../db/client.js";
 import { registerBillingRoutes } from "../../routes/billing.js";
 import { registerDocumentRoutes } from "../../routes/documents.js";
 import { registerSettingsRoutes } from "../../routes/settings.js";
 import { authTokenSecret } from "../../security/authSecret.js";
-import { getRequestIdentity } from "../../security/identity.js";
 import { signToken } from "../../utils/cryptoHelper.js";
-import { fixtureUuid, purgeFixtureOrganizations } from "../support/fixtureOrganizations.js";
+import {
+	fixtureUuid,
+	purgeFixtureOrganizations,
+	withFixtureTenant,
+} from "../support/fixtureOrganizations.js";
+import { createTenantTestApp } from "../support/tenantTestApp.js";
 
 const NAMESPACE = "refundSettlesCashDesk";
 const ORGANIZATION_ID = fixtureUuid(NAMESPACE, 1);
@@ -90,19 +93,26 @@ type Injected = { statusCode: number; body: string; json: any };
  * вещи, и в квитанции они напечатаются по-разному.
  */
 async function revenueText(): Promise<string> {
-	const result = await db.execute<{ paid: string }>(sql`
-		select coalesce(sum(amount_rub), 0)::numeric(12,2)::text as paid
-		  from payments
-		 where organization_id = ${ORGANIZATION_ID}::uuid and status = 'paid'
-	`);
+	// Сверка идёт под тенант-контекстом клиники: под FORCE RLS запрос без
+	// `app.current_tenant` не падает, а возвращает НОЛЬ строк, и выручка вышла бы
+	// «0.00» независимо от того, что в кассе на самом деле.
+	const result = await withFixtureTenant(ORGANIZATION_ID, async () =>
+		db.execute<{ paid: string }>(sql`
+			select coalesce(sum(amount_rub), 0)::numeric(12,2)::text as paid
+			  from payments
+			 where organization_id = ${ORGANIZATION_ID}::uuid and status = 'paid'
+		`),
+	);
 	return (result.rows as { paid: string }[])[0]?.paid ?? "нет строки";
 }
 
 async function paymentStatus(paymentId: string): Promise<string> {
-	const result = await db.execute<{ status: string }>(sql`
-		select status::text as status from payments
-		 where id = ${paymentId}::uuid and organization_id = ${ORGANIZATION_ID}::uuid
-	`);
+	const result = await withFixtureTenant(ORGANIZATION_ID, async () =>
+		db.execute<{ status: string }>(sql`
+			select status::text as status from payments
+			 where id = ${paymentId}::uuid and organization_id = ${ORGANIZATION_ID}::uuid
+		`),
+	);
 	const row = (result.rows as { status: string }[])[0];
 	assert.ok(row, `платёж ${paymentId} не найден в базе — сверять нечего`);
 	return row.status;
@@ -241,29 +251,34 @@ describe("выданное заявление на возврат снимает
 		// Уборка следов прерванного прогона ДО посева: см. докстринг фикстуры.
 		await purgeFixtureOrganizations([ORGANIZATION_ID]);
 
-		await db.execute(sql`
-			insert into organizations (id, name)
-			values (${ORGANIZATION_ID}::uuid, ${"Сторож шва возврат → касса"})`);
-		await db.execute(sql`
-			insert into clinics (id, organization_id, name, timezone)
-			values (${CLINIC_ID}::uuid, ${ORGANIZATION_ID}::uuid, ${"Кабинет сторожа возврата"}, 'Europe/Moscow')`);
-		await db.execute(sql`
-			insert into users (id, organization_id, full_name, role, is_active)
-			values (${OWNER_ID}::uuid, ${ORGANIZATION_ID}::uuid, ${"Владелец сторожа возврата"}, 'owner', true)`);
-		/*
-		 * ДАТА РОЖДЕНИЯ И ТЕЛЕФОН В КАРТЕ ОБЯЗАТЕЛЬНЫ. Шапка документа печатает их, а
-		 * при пустом значении подставляет «не указана»/«не указан» — ровно те строки,
-		 * по которым сторож выдачи считает документ незаполненным и отвечает 409, не
-		 * называя поле.
-		 */
-		await db.execute(sql`
-			insert into patients (id, organization_id, full_name, birth_date, phone, status)
-			values (${PATIENT_FULL}::uuid, ${ORGANIZATION_ID}::uuid, ${"Пациент полного возврата"}, '1990-05-17', '+79000000021', 'active'),
-			       (${PATIENT_PARTIAL}::uuid, ${ORGANIZATION_ID}::uuid, ${"Пациент частичного возврата"}, '1988-02-03', '+79000000022', 'active')`);
-		await db.execute(sql`
-			insert into visits (id, organization_id, patient_id, status)
-			values (${VISIT_FULL}::uuid, ${ORGANIZATION_ID}::uuid, ${PATIENT_FULL}::uuid, 'draft'),
-			       (${VISIT_PARTIAL}::uuid, ${ORGANIZATION_ID}::uuid, ${PATIENT_PARTIAL}::uuid, 'draft')`);
+		// Весь сев — под контекстом своей клиники: в WITH CHECK тенант-таблиц стоит
+		// только `organization_id = current_tenant`, без дизъюнкта обхода, поэтому
+		// вставка без контекста (и вставка под обходом RLS) отвергается кодом 42501.
+		await withFixtureTenant(ORGANIZATION_ID, async () => {
+			await db.execute(sql`
+				insert into organizations (id, name)
+				values (${ORGANIZATION_ID}::uuid, ${"Сторож шва возврат → касса"})`);
+			await db.execute(sql`
+				insert into clinics (id, organization_id, name, timezone)
+				values (${CLINIC_ID}::uuid, ${ORGANIZATION_ID}::uuid, ${"Кабинет сторожа возврата"}, 'Europe/Moscow')`);
+			await db.execute(sql`
+				insert into users (id, organization_id, full_name, role, is_active)
+				values (${OWNER_ID}::uuid, ${ORGANIZATION_ID}::uuid, ${"Владелец сторожа возврата"}, 'owner', true)`);
+			/*
+			 * ДАТА РОЖДЕНИЯ И ТЕЛЕФОН В КАРТЕ ОБЯЗАТЕЛЬНЫ. Шапка документа печатает их, а
+			 * при пустом значении подставляет «не указана»/«не указан» — ровно те строки,
+			 * по которым сторож выдачи считает документ незаполненным и отвечает 409, не
+			 * называя поле.
+			 */
+			await db.execute(sql`
+				insert into patients (id, organization_id, full_name, birth_date, phone, status)
+				values (${PATIENT_FULL}::uuid, ${ORGANIZATION_ID}::uuid, ${"Пациент полного возврата"}, '1990-05-17', '+79000000021', 'active'),
+				       (${PATIENT_PARTIAL}::uuid, ${ORGANIZATION_ID}::uuid, ${"Пациент частичного возврата"}, '1988-02-03', '+79000000022', 'active')`);
+			await db.execute(sql`
+				insert into visits (id, organization_id, patient_id, status)
+				values (${VISIT_FULL}::uuid, ${ORGANIZATION_ID}::uuid, ${PATIENT_FULL}::uuid, 'draft'),
+				       (${VISIT_PARTIAL}::uuid, ${ORGANIZATION_ID}::uuid, ${PATIENT_PARTIAL}::uuid, 'draft')`);
+		});
 
 		const staffToken = signToken(
 			{ organizationId: ORGANIZATION_ID, userId: OWNER_ID, role: "owner" },
@@ -276,11 +291,7 @@ describe("выданное заявление на возврат снимает
 			"content-type": "application/json",
 		};
 
-		app = Fastify();
-		// Тот же хук, что в apps/api/src/server.ts: он наполняет request.user.
-		app.addHook("onRequest", async (request) => {
-			getRequestIdentity(request);
-		});
+		app = createTenantTestApp();
 		await registerSettingsRoutes(app);
 		await registerBillingRoutes(app);
 		await registerDocumentRoutes(app);
@@ -330,9 +341,14 @@ describe("выданное заявление на возврат снимает
 	after(async () => {
 		await app?.close();
 		await purgeFixtureOrganizations([ORGANIZATION_ID]);
-		const leftovers = await db.execute<{ n: number }>(sql`
-			select count(*)::int as n from payments where organization_id = ${ORGANIZATION_ID}::uuid
-		`);
+		// Счёт остатка — под тенант-контекстом: политика оставляет видимыми ровно
+		// строки этой клиники, поэтому уцелевший платёж был бы виден. Без контекста
+		// запрос вернул бы ноль в любом случае и подтвердил бы уборку, ничего не измерив.
+		const leftovers = await withFixtureTenant(ORGANIZATION_ID, async () =>
+			db.execute<{ n: number }>(sql`
+				select count(*)::int as n from payments where organization_id = ${ORGANIZATION_ID}::uuid
+			`),
+		);
 		assert.equal((leftovers.rows as { n: number }[])[0]?.n, 0, "сторож не убрал свои платежи из живой базы");
 		process.env = originalEnv;
 		await pool.end();
@@ -427,14 +443,18 @@ describe("выданное заявление на возврат снимает
 		 * а новый возврат по тому же чеку упирался бы в отказ «уже выполнен полный
 		 * возврат средств» — то есть чек стал бы невозвратным навсегда.
 		 */
-		const issuedRefund = await db.execute<{ id: string }>(sql`
-			select id::text as id from generated_documents
-			 where organization_id = ${ORGANIZATION_ID}::uuid
-			   and patient_id = ${PATIENT_FULL}::uuid
-			   and kind = 'payment_refund_correction_request'
-			   and status = 'issued'
-			 order by issued_at desc limit 1
-		`);
+		// Поиск выданного заявления — тоже под контекстом клиники: без него список
+		// документов пуст, и «аннулировать нечего» стало бы ложным выводом.
+		const issuedRefund = await withFixtureTenant(ORGANIZATION_ID, async () =>
+			db.execute<{ id: string }>(sql`
+				select id::text as id from generated_documents
+				 where organization_id = ${ORGANIZATION_ID}::uuid
+				   and patient_id = ${PATIENT_FULL}::uuid
+				   and kind = 'payment_refund_correction_request'
+				   and status = 'issued'
+				 order by issued_at desc limit 1
+			`),
+		);
 		const refundDocumentId = (issuedRefund.rows as { id: string }[])[0]?.id;
 		assert.ok(refundDocumentId, "выданного заявления на возврат нет — аннулировать нечего");
 

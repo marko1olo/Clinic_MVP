@@ -599,6 +599,30 @@ async function seedDemoDataForPreset(
 // ————————————————————————————————————————————————————————————————————————————
 // Route registration
 // ————————————————————————————————————————————————————————————————————————————
+/*
+ * ЗДЕСЬ СТОЯЛ workspaceFeatureFlagsSchema (z.object на 28 признаков) и четыре
+ * блока `schema: { body/params/response }`, где Zod-объекты передавались Fastify
+ * напрямую. Удалено 2026-08-05: Fastify ждёт в этих полях JSON Schema и отдаёт её
+ * в AJV и fast-json-stringify. Zod-объект туда не годится — у него есть метод
+ * `.required`, а JSON Schema требует массив, — и сборка сериализатора падала:
+ *
+ *   FastifyError FST_ERR_SCH_SERIALIZATION_BUILD: Failed building the
+ *   serialization schema for GET: /api/workspace/profile, due to error
+ *   schema is invalid: data/required must be array
+ *
+ * Падало это не на запросе, а на `ready()`, то есть ВЕСЬ Fastify-экземпляр не
+ * поднимался: любой тест и любой запуск сервера, доходящий до createDenteApiApp,
+ * умирал на первом же inject. Zod-провайдера типов (fastify-type-provider-zod,
+ * setValidatorCompiler/setSerializerCompiler) в проекте нет ни одного — искал по
+ * всему apps/api.
+ *
+ * Проверка тела при этом не потеряна: оба POST-обработчика ниже разбирают тело
+ * сами через workspaceProfileBodySchema.safeParse / workspacePresetBodySchema
+ * .safeParse и отвечают 400 ValidationError — именно так, как этого требует
+ * tests/routes/egiszVkBody.test.ts. Блоки schema дублировали эту проверку и
+ * только ломали загрузку.
+ */
+
 export async function workspaceProfileRoutes(fastify: FastifyInstance) {
   /*
    * GET /api/workspace/profile — какие модули включены у ЭТОЙ клиники.
@@ -730,7 +754,9 @@ export async function workspaceProfileRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Params: { name: string };
     Body?: { numberOfChairs?: number; hasPediatricMode?: boolean };
-  }>("/api/workspace/preset/:name", async (req, reply) => {
+  }>(
+    "/api/workspace/preset/:name",
+    async (req, reply) => {
     const organizationId = await resolveOrganizationId(req);
     if (!organizationId) return reply.code(401).send({ error: "Unauthorized" });
 

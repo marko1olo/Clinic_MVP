@@ -14,19 +14,19 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { FastifyInstance } from "fastify";
-import Fastify from "fastify";
 import { db } from "../../db/client.js";
 import { organizations, users } from "../../db/schema.js";
 import { inventoryRoutes } from "../../routes/inventory.js";
 import { telephonyRoutes } from "../../routes/telephony.js";
 import { authTokenSecret } from "../../security/authSecret.js";
-import { getRequestIdentity } from "../../security/identity.js";
 import { signToken } from "../../utils/cryptoHelper.js";
 import {
 	fixtureUuid,
 	isDatabaseUnavailable,
 	purgeFixtureOrganizations,
+	withFixtureTenant,
 } from "../support/fixtureOrganizations.js";
+import { createTenantTestApp } from "../support/tenantTestApp.js";
 
 const NAMESPACE = "inventoryTelephonyBody";
 const ORGANIZATION_ID = fixtureUuid(NAMESPACE, 1);
@@ -125,15 +125,22 @@ describe("склад + АТС — Zod body (null → 400, не 500)", () => {
 		}
 
 		if (databaseReady) {
-			await db.insert(organizations).values({
-				id: ORGANIZATION_ID,
-				name: "Клиника сторожа тела склада/АТС",
-			});
-			await db.insert(users).values({
-				id: STAFF_ID,
-				organizationId: ORGANIZATION_ID,
-				fullName: "Кладовщик сторожа тела",
-				role: "admin",
+			/*
+			 * Сев под тенант-контекстом: WITH CHECK у `users` требует
+			 * `organization_id = current_tenant` и дизъюнкта обхода не содержит,
+			 * поэтому вставка без контекста отвергается кодом 42501.
+			 */
+			await withFixtureTenant(ORGANIZATION_ID, async () => {
+				await db.insert(organizations).values({
+					id: ORGANIZATION_ID,
+					name: "Клиника сторожа тела склада/АТС",
+				});
+				await db.insert(users).values({
+					id: STAFF_ID,
+					organizationId: ORGANIZATION_ID,
+					fullName: "Кладовщик сторожа тела",
+					role: "admin",
+				});
 			});
 		}
 
@@ -146,10 +153,9 @@ describe("склад + АТС — Zod body (null → 400, не 500)", () => {
 			authTokenSecret(),
 		);
 
-		app = Fastify();
-		app.addHook("onRequest", async (request) => {
-			getRequestIdentity(request);
-		});
+		// Оба хука изоляции боевого server.ts: без обёртки `withTenantCtx` маршрут
+		// склада не видит ни одной строки своей же клиники.
+		app = createTenantTestApp();
 		await app.register(inventoryRoutes, { prefix: "/api/inventory" });
 		await app.register(telephonyRoutes, { prefix: "/api/telephony" });
 		await app.ready();

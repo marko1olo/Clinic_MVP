@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { organizations, patientArchiveReasonsAndBlacklists, patients } from "../../db/schema.js";
 import { isPatientBookingBlocked } from "../../db/patientArchiveReasonsAndBlacklistsQuery.js";
-import { fixtureUuid, purgeFixtureOrganizations } from "../support/fixtureOrganizations.js";
+import { fixtureUuid, purgeFixtureOrganizations, withFixtureTenant } from "../support/fixtureOrganizations.js";
 
 /**
  * ЧЁРНЫЙ СПИСОК ОБЯЗАН ОТВЕЧАТЬ В БЕЗОПАСНУЮ СТОРОНУ.
@@ -49,18 +49,25 @@ describe("чёрный список отвечает в безопасную с�
 		try {
 			// Уборка НА ВХОДЕ: прогон, убитый снаружи, до after не доходит.
 			await purgeFixtureOrganizations([ORG_ID]);
-			await db.insert(organizations).values({ id: ORG_ID, name: "Клиника чёрного списка" });
-			await db.insert(patients).values({
-				id: PATIENT_ID,
-				organizationId: ORG_ID,
-				fullName: PATIENT_NAME
-			});
-			await db.insert(patientArchiveReasonsAndBlacklists).values({
-				organizationId: ORG_ID,
-				patientId: PATIENT_ID,
-				patientName: PATIENT_NAME,
-				archiveReason: "Проверка безопасной стороны",
-				isBookingBlocked: true
+			/*
+			 * Сев под тенант-контекстом клиники: под FORCE RLS у тенант-таблиц в
+			 * WITH CHECK стоит только `organization_id = current_tenant`, поэтому
+			 * вставка без контекста отвергается кодом 42501.
+			 */
+			await withFixtureTenant(ORG_ID, async () => {
+				await db.insert(organizations).values({ id: ORG_ID, name: "Клиника чёрного списка" });
+				await db.insert(patients).values({
+					id: PATIENT_ID,
+					organizationId: ORG_ID,
+					fullName: PATIENT_NAME
+				});
+				await db.insert(patientArchiveReasonsAndBlacklists).values({
+					organizationId: ORG_ID,
+					patientId: PATIENT_ID,
+					patientName: PATIENT_NAME,
+					archiveReason: "Проверка безопасной стороны",
+					isBookingBlocked: true
+				});
 			});
 		} catch (error) {
 			if (!isMissingDatabase(error)) throw error;
@@ -100,16 +107,24 @@ describe("чёрный список отвечает в безопасную с�
 
 	test("внесённый в чёрный список пациент остаётся запрещённым", async (context) => {
 		if (!databaseAvailable) return context.skip("база недоступна");
-		assert.equal(await isPatientBookingBlocked(ORG_ID, PATIENT_ID), true);
+		// В бою эта проверка вызывается из createAppointmentInDb уже под
+		// `withTenantCtx`. Прямой вызов без контекста читал бы ноль строк и молча
+		// отвечал «не запрещён» — то самое, от чего файл и сторожит.
+		assert.equal(
+			await withFixtureTenant(ORG_ID, async () => isPatientBookingBlocked(ORG_ID, PATIENT_ID)),
+			true
+		);
 	});
 
 	test("пациент без запрета остаётся разрешённым", async (context) => {
 		if (!databaseAvailable) return context.skip("база недоступна");
-		await db
-			.delete(patientArchiveReasonsAndBlacklists)
-			.where(eq(patientArchiveReasonsAndBlacklists.organizationId, ORG_ID));
+		await withFixtureTenant(ORG_ID, async () => {
+			await db
+				.delete(patientArchiveReasonsAndBlacklists)
+				.where(eq(patientArchiveReasonsAndBlacklists.organizationId, ORG_ID));
+		});
 		assert.equal(
-			await isPatientBookingBlocked(ORG_ID, PATIENT_ID),
+			await withFixtureTenant(ORG_ID, async () => isPatientBookingBlocked(ORG_ID, PATIENT_ID)),
 			false,
 			"без строки запрета запись обязана остаться доступной — иначе клиника не сможет записать никого"
 		);

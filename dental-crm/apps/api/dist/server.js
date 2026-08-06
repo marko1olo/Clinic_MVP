@@ -293,6 +293,36 @@ export async function createDenteApiApp(options = {}) {
         // Один раз разбираем токены запроса и кладём результат в request.user,
         // чтобы маршруты не парсили заголовки самостоятельно и не расходились в логике.
         getRequestIdentity(request);
+        // Кешируем organizationId текущего запроса для удобного доступа в маршрутах
+        // через withTenantCtx (apps/api/src/db/rls.ts). Не делаем здесь вызова базы —
+        // withTenantCtx открывает транзакцию самостоятельно, чтобы set_config и
+        // последующий запрос попали на одно и то же pg-соединение из пула.
+        const _req = request;
+        const _identity = _req.user;
+        if (_identity?.organizationId) {
+            _req.tenantId = _identity.organizationId;
+        }
+    });
+    // Глобальная изоляция арендаторов: если у запроса есть tenantId (выставлен в onRequest выше),
+    // автоматически оборачиваем весь обработчик маршрута в withTenantCtx. Это даёт гарантию, что
+    // любые обращения к базе через прокси `db` внутри маршрута получат правильный RLS контекст,
+    // и нам не нужно вручную пробрасывать `tx` или писать `withTenantCtx` в сотнях ручек.
+    app.addHook("onRoute", (routeOptions) => {
+        const originalHandler = routeOptions.handler;
+        if (originalHandler) {
+            routeOptions.handler = async function (request, reply) {
+                const _req = request;
+                const tenantId = _req.tenantId;
+                if (typeof tenantId === "string" && tenantId.length > 0) {
+                    // Динамический импорт, чтобы избежать циклических зависимостей при старте
+                    const { withTenantCtx } = await import("./db/rls.js");
+                    return withTenantCtx(tenantId, async () => {
+                        return originalHandler.call(this, request, reply);
+                    });
+                }
+                return originalHandler.call(this, request, reply);
+            };
+        }
     });
     /* Несуществующий адрес отвечал штатным английским текстом Fastify с методом и
        путём внутри; фильтр клиента строку без русских букв отбрасывает целиком,

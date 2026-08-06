@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { sql } from "drizzle-orm";
-import Fastify, { type FastifyInstance } from "fastify";
+import { type FastifyInstance } from "fastify";
 import { db } from "../db/client.js";
 import { appointments, organizations, patients, treatmentPlans } from "../db/schema.js";
 import { registerAnalyticsRoutes } from "../routes/analytics.js";
@@ -10,7 +10,9 @@ import {
 	fixtureUuid,
 	isDatabaseUnavailable,
 	purgeFixtureOrganizations,
+	withFixtureTenant,
 } from "./support/fixtureOrganizations.js";
+import { createTenantTestApp } from "./support/tenantTestApp.js";
 
 /**
  * «ВОРОНКА ПЛАНОВ ЛЕЧЕНИЯ» НА ЖИВОМ ЭКРАНЕ АНАЛИТИКИ СЧИТАЛА ПРИЁМЫ.
@@ -152,10 +154,18 @@ async function liveEnumLabels(): Promise<string[]> {
 	return rows.rows.map((row) => row.enumlabel);
 }
 
-/** Число планов клиники — независимым запросом, а не константой этого файла. */
+/**
+ * Число планов клиники — независимым запросом, а не константой этого файла.
+ *
+ * Запрос идёт под тенант-контекстом: под принудительным RLS счёт без
+ * `app.current_tenant` вернул бы ноль и ошибки не дал бы, то есть «независимая»
+ * проверка молча сверяла бы воронку с нулём.
+ */
 async function countPlansInDatabase(organizationId: string): Promise<number> {
-	const rows = await db.execute<{ count: number }>(
-		sql`SELECT count(*)::int AS count FROM treatment_plans WHERE organization_id = ${organizationId}`,
+	const rows = await withFixtureTenant(organizationId, async () =>
+		db.execute<{ count: number }>(
+			sql`SELECT count(*)::int AS count FROM treatment_plans WHERE organization_id = ${organizationId}`,
+		),
 	);
 	return Number(rows.rows[0]?.count ?? 0);
 }
@@ -171,64 +181,74 @@ describe("воронка планов лечения на экране анал�
 		process.env.DENTE_DEV_ALLOW_HEADER_ORG = "1";
 		process.env.NODE_ENV = "development";
 
-		app = Fastify();
+		// Те же два хука, что боевой `server.ts` вешает на настоящее приложение:
+		// без них маршрут идёт в базу без `app.current_tenant`, читает НОЛЬ строк и
+		// отвечает пустой воронкой на только что засеянные планы.
+		app = createTenantTestApp();
 		await registerAnalyticsRoutes(app);
 
 		try {
 			// Уборка НА ВХОДЕ: прогон, убитый снаружи, до `after` не доходит и
 			// оставляет свои планы в живой базе — тогда числа перестают сходиться.
 			await purgeFixtureOrganizations([ORG_ID, OTHER_ORG_ID]);
-			await db.insert(organizations).values([
-				{ id: ORG_ID, name: "Клиника воронки планов маршрута" },
-				{ id: OTHER_ORG_ID, name: "Соседняя клиника воронки планов" },
-			]);
-			await db.insert(patients).values([
-				{ id: PATIENT_ID, organizationId: ORG_ID, fullName: "Сметин План Черновикович" },
-				{
+			// `app.current_tenant` хранит РОВНО одного арендатора, а `WITH CHECK`
+			// тенант-таблиц сверяет с ним `organization_id` и обхода не допускает:
+			// две клиники — два вызова, иначе вставка отвергается кодом 42501.
+			await withFixtureTenant(OTHER_ORG_ID, async () => {
+				await db.insert(organizations).values({ id: OTHER_ORG_ID, name: "Соседняя клиника воронки планов" });
+				await db.insert(patients).values({
 					id: OTHER_PATIENT_ID,
 					organizationId: OTHER_ORG_ID,
 					fullName: "Соседов Пациент Чужович",
-				},
-			]);
+				});
+			});
+			await withFixtureTenant(ORG_ID, async () => {
+				await db.insert(organizations).values({ id: ORG_ID, name: "Клиника воронки планов маршрута" });
+				await db.insert(patients).values({
+					id: PATIENT_ID,
+					organizationId: ORG_ID,
+					fullName: "Сметин План Черновикович",
+				});
 
-			type PlanStatus = (typeof treatmentPlans.status)["_"]["data"];
-			await db.insert(treatmentPlans).values([
-				...Object.entries(PLANS_BY_STATUS).flatMap(([status, count]) =>
-					Array.from({ length: count }, (_unused, index) => ({
+				type PlanStatus = (typeof treatmentPlans.status)["_"]["data"];
+				await db.insert(treatmentPlans).values([
+					...Object.entries(PLANS_BY_STATUS).flatMap(([status, count]) =>
+						Array.from({ length: count }, (_unused, index) => ({
+							organizationId: ORG_ID,
+							patientId: PATIENT_ID,
+							name: `План ${status} №${index + 1}`,
+							status: status as PlanStatus,
+						})),
+					),
+					{
+						organizationId: ORG_ID,
+						patientId: OTHER_PATIENT_ID,
+						name: "План с пациентом соседней клиники",
+						status: CROSS_TENANT_PLAN_STATUS as PlanStatus,
+					},
+					{
 						organizationId: ORG_ID,
 						patientId: PATIENT_ID,
-						name: `План ${status} №${index + 1}`,
-						status: status as PlanStatus,
-					})),
-				),
-				{
-					organizationId: ORG_ID,
-					patientId: OTHER_PATIENT_ID,
-					name: "План с пациентом соседней клиники",
-					status: CROSS_TENANT_PLAN_STATUS as PlanStatus,
-				},
-				{
-					organizationId: ORG_ID,
-					patientId: PATIENT_ID,
-					name: "План годичной давности",
-					status: OLD_PLAN_STATUS as PlanStatus,
-					createdAt: oldPlanCreatedAt,
-				},
-			]);
+						name: "План годичной давности",
+						status: OLD_PLAN_STATUS as PlanStatus,
+						createdAt: oldPlanCreatedAt,
+					},
+				]);
 
-			type AppointmentStatus = (typeof appointments.status)["_"]["data"];
-			const startsAt = new Date();
-			await db.insert(appointments).values(
-				Object.entries(APPOINTMENTS_BY_STATUS).flatMap(([status, count]) =>
-					Array.from({ length: count }, () => ({
-						organizationId: ORG_ID,
-						patientId: PATIENT_ID,
-						status: status as AppointmentStatus,
-						startsAt,
-						endsAt: new Date(startsAt.getTime() + 30 * 60_000),
-					})),
-				),
-			);
+				type AppointmentStatus = (typeof appointments.status)["_"]["data"];
+				const startsAt = new Date();
+				await db.insert(appointments).values(
+					Object.entries(APPOINTMENTS_BY_STATUS).flatMap(([status, count]) =>
+						Array.from({ length: count }, () => ({
+							organizationId: ORG_ID,
+							patientId: PATIENT_ID,
+							status: status as AppointmentStatus,
+							startsAt,
+							endsAt: new Date(startsAt.getTime() + 30 * 60_000),
+						})),
+					),
+				);
+			});
 		} catch (error) {
 			if (!isDatabaseUnavailable(error)) throw error;
 			databaseAvailable = false;

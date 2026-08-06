@@ -16,7 +16,6 @@ import { buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, 
  * бы продолжать отправку в чат, который клиника уже отключила.
  */
 import { buildDenteTelegramChatLinkList, countActiveDenteTelegramChatLinks, revokeDenteTelegramChatLink, upsertDenteTelegramChatLink } from "../telegram/chatLinks.js";
-import { hydrateDomainStateFromDb } from "../db/domainStateHydration.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../text/repairMojibake.js";
 import { answerTelegramCallbackQuery, sendTelegramPhotoMessage, sendTelegramTextMessage } from "../telegramTransport.js";
 const telegramSecretHeader = "x-telegram-bot-api-secret-token";
@@ -1118,15 +1117,6 @@ function resolveTelegramOutboxRuntimeScopeFromQuery(query) {
  * и в итоге отключает адрес. Поэтому сбой только пишется в журнал.
  */
 async function hydrateTelegramDomainState(request, organizationId) {
-    try {
-        const report = await hydrateDomainStateFromDb(organizationId);
-        for (const warning of report.warnings) {
-            request.log.warn({ organizationId }, `[Telegram] ${warning}`);
-        }
-    }
-    catch (error) {
-        request.log.error({ err: error, organizationId }, "[Telegram] Не удалось загрузить данные клиники из базы");
-    }
 }
 /**
  * Переносит только что созданную связку чата в таблицу `dente_telegram_chat_links`.

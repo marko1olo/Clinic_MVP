@@ -56,7 +56,6 @@ import {
 	type DocumentPayload,
 	type DocumentSourceStatus,
 	type DocumentVoidReasonCode,
-	dashboardSchema,
 	documentAmountSource,
 	documentFactoryGroups,
 	documentKindMetadata,
@@ -873,6 +872,7 @@ import {
 	ActionIcon,
 	type AppView,
 	appViews,
+	getFallbackAppView,
 	getFilteredAppViews,
 	viewLabels,
 	WorkspaceSidebar,
@@ -1959,7 +1959,7 @@ export function useAppLogic(): any {
 		setClinicProfileSaveState,
 		clinicProfileDirty,
 		setClinicProfileDirty,
-		currentView,
+		currentView: requestedWorkspaceView,
 		setCurrentView,
 		settingsTab,
 		setSettingsTab,
@@ -2162,6 +2162,53 @@ export function useAppLogic(): any {
 		uiPreferencesSyncError,
 		setUiPreferencesSyncError,
 	} = useAppStore();
+
+	/**
+	 * ОХРАННИК МАРШРУТА ПО РОЛИ. Считается ПРИ РЕНДЕРЕ, а не в useEffect.
+	 *
+	 * ЧТО БЫЛО СЛОМАНО. Проверка прав целиком жила в useEffect (он остался ниже,
+	 * но занят теперь только адресом). Эффекты выполняются ПОСЛЕ коммита, значит
+	 * запрещённый роли раздел успевал СМОНТИРОВАТЬСЯ полностью: отрабатывали его
+	 * собственные эффекты, уходили сетевые запросы за клиническими данными, и лишь
+	 * следующим проходом раздел сменялся «Сменой». Редирект убирал раздел с экрана,
+	 * но не отменял того, что тот уже успел сделать: администратор, открывший
+	 * ссылку #visit, отправлял запросы данных приёма — раздела, которого нет в его
+	 * getFilteredAppViews. Ровно тот случай, про который документация React
+	 * («You Might Not Need an Effect») говорит прямо: значение, выводимое из уже
+	 * имеющегося состояния, считают при рендере, а не досылают эффектом, иначе
+	 * первый проход уходит на экран со старым значением.
+	 *
+	 * ЧТО ИМЕННО ПОМЕНЯЛОСЬ. `currentView` ниже по файлу и во всём возвращаемом
+	 * объекте — уже ПРОВЕРЕННОЕ значение, поэтому запрещённый раздел не попадает
+	 * даже в первый коммит и монтировать нечего. Запрошенное значение осталось
+	 * доступным как `requestedWorkspaceView` и нужно только для правки адреса.
+	 *
+	 * ПРО ЗАПАСНОЙ РАЗДЕЛ. Здесь стояла КОНСТАНТА «shift», и она была дефектом,
+	 * а не настройкой. У ролей «Администратор» и «Управляющий» getFilteredAppViews
+	 * «shift» НЕ содержит — ни разу за всю историю функции (заведена коммитом
+	 * 4867a6afc уже без него, пять последующих правок его этим ролям не
+	 * добавляли). То есть охранник, поставленный СОБЛЮДАТЬ список, сам отправлял
+	 * две роли в раздел вне списка: «Смена» им показывалась, при том что её пункта
+	 * нет в боковом меню (getVisibleRailViews считается от того же списка) — уйдя
+	 * с неё, вернуться было уже нечем.
+	 *
+	 * Теперь запасной раздел берётся из списка САМОЙ роли (getFallbackAppView,
+	 * рядом со списком, чтобы они не разъехались). Прав это не прибавляет никому:
+	 * для врача, ассистента и владельца «shift» и так стоит в их списке первым,
+	 * поэтому у них ничего не меняется; администратор и управляющий вместо чужой
+	 * «Смены» получают первый СВОЙ раздел — «Записи». Обратный вариант (выдать
+	 * двум ролям «shift») — продуктовое решение, а не починка, и здесь не
+	 * принимается.
+	 */
+	const allowedWorkspaceViews = useMemo(
+		() => getFilteredAppViews(selectedWorkspaceRole),
+		[selectedWorkspaceRole],
+	);
+	const currentView: AppView = allowedWorkspaceViews.includes(
+		requestedWorkspaceView,
+	)
+		? requestedWorkspaceView
+		: getFallbackAppView(selectedWorkspaceRole);
 	const {
 		onboardingDismissed,
 		setOnboardingDismissed,
@@ -4372,12 +4419,18 @@ export function useAppLogic(): any {
 	}, []);
 
 	useEffect(() => {
-		const allowedViews = getFilteredAppViews(selectedWorkspaceRole);
-		if (!allowedViews.includes(currentView)) {
-			setCurrentView("shift");
-			window.location.hash = "shift";
-		}
-	}, [selectedWorkspaceRole, currentView]);
+		/*
+		 * Здесь БОЛЬШЕ НЕ ОХРАННИК — решение о том, что рисовать, принято выше при
+		 * рендере, и запрещённый раздел уже не смонтирован. Остаётся привести к
+		 * этому решению хранилище и адрес: иначе в строке браузера висел бы #visit
+		 * при открытой «Смене», и следующая перезагрузка снова целилась бы в
+		 * закрытый роли раздел. Проверка на равенство обязательна: без неё
+		 * setCurrentView() на каждом проходе перезапускал бы этот же эффект.
+		 */
+		if (requestedWorkspaceView === currentView) return;
+		setCurrentView(currentView);
+		window.location.hash = currentView;
+	}, [requestedWorkspaceView, currentView, setCurrentView]);
 
 	useEffect(() => scheduleIdleWorkspacePreload(currentView), [currentView]);
 

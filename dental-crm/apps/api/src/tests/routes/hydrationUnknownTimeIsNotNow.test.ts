@@ -56,15 +56,15 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq, sql } from "drizzle-orm";
-import Fastify, { type FastifyInstance } from "fastify";
+import { type FastifyInstance } from "fastify";
 import { denteAdminSecretHeader } from "../../accessGuard.js";
 import { db, pool } from "../../db/client.js";
 import { appointments, organizations, patients } from "../../db/schema.js";
 import { registerDashboardRoutes } from "../../routes/dashboard.js";
 import { authTokenSecret, clinicalAdminSecret } from "../../security/authSecret.js";
-import { getRequestIdentity } from "../../security/identity.js";
 import { signToken } from "../../utils/cryptoHelper.js";
-import { fixtureUuid, purgeFixtureOrganizations } from "../support/fixtureOrganizations.js";
+import { fixtureUuid, purgeFixtureOrganizations, withFixtureTenant } from "../support/fixtureOrganizations.js";
+import { createTenantTestApp } from "../support/tenantTestApp.js";
 
 const NAMESPACE = "hydrationUnknownTimeIsNotNow";
 const ORGANIZATION_ID = fixtureUuid(NAMESPACE, 1);
@@ -143,53 +143,58 @@ before(async () => {
 	// не доходит, и его строки следующий прогон читает как данные клиники.
 	await purgeFixtureOrganizations(FIXTURE_ORGANIZATION_IDS);
 
-	await db.insert(organizations).values({
-		id: ORGANIZATION_ID,
-		name: "Сторож нечитаемого времени",
-	});
-	await db.insert(patients).values([
-		{ id: PATIENT_OK_ID, organizationId: ORGANIZATION_ID, fullName: "Читаемов Пациент Временович" },
-		{ id: PATIENT_BROKEN_ID, organizationId: ORGANIZATION_ID, fullName: "Нечитаемов Пациент Временович" },
-	]);
-	await db.insert(appointments).values([
-		{
-			id: APPOINTMENT_OK_ID,
-			organizationId: ORGANIZATION_ID,
-			patientId: PATIENT_OK_ID,
-			status: "planned",
-			startsAt: new Date(OK_STARTS_AT),
-			endsAt: new Date(OK_ENDS_AT),
-			reason: "контроль пломбы 36",
-		},
-		{
-			id: APPOINTMENT_BROKEN_ID,
-			organizationId: ORGANIZATION_ID,
-			patientId: PATIENT_OK_ID,
-			status: "planned",
-			startsAt: new Date(OK_STARTS_AT),
-			endsAt: new Date(OK_ENDS_AT),
-			reason: "снятие швов",
-		},
-	]);
-
 	/*
-	 * Нечитаемое время ставится ОТДЕЛЬНЫМ SQL, а не через drizzle: `infinity` в JS
-	 * Date не существует, поэтому передать его слоем ORM нечем — и именно поэтому
-	 * собственные записывающие пути приложения такую строку не создают. Порча
-	 * приходит из восстановления дампа чужой системы и из правок SQL руками.
+	 * Весь сев — под тенант-контекстом клиники. Под принудительным RLS INSERT без
+	 * него отвергается кодом 42501, а UPDATE тихо трогает ноль строк: порча времени
+	 * не встала бы, и сторож охранял бы пустое место, оставаясь зелёным.
 	 */
-	await db.execute(sql`
-		update appointments set starts_at = 'infinity', ends_at = 'infinity'
-		 where id = ${APPOINTMENT_BROKEN_ID}::uuid`);
-	await db.execute(sql`
-		update patients set created_at = 'infinity'
-		 where id = ${PATIENT_BROKEN_ID}::uuid`);
+	await withFixtureTenant(ORGANIZATION_ID, async () => {
+		await db.insert(organizations).values({
+			id: ORGANIZATION_ID,
+			name: "Сторож нечитаемого времени",
+		});
+		await db.insert(patients).values([
+			{ id: PATIENT_OK_ID, organizationId: ORGANIZATION_ID, fullName: "Читаемов Пациент Временович" },
+			{ id: PATIENT_BROKEN_ID, organizationId: ORGANIZATION_ID, fullName: "Нечитаемов Пациент Временович" },
+		]);
+		await db.insert(appointments).values([
+			{
+				id: APPOINTMENT_OK_ID,
+				organizationId: ORGANIZATION_ID,
+				patientId: PATIENT_OK_ID,
+				status: "planned",
+				startsAt: new Date(OK_STARTS_AT),
+				endsAt: new Date(OK_ENDS_AT),
+				reason: "контроль пломбы 36",
+			},
+			{
+				id: APPOINTMENT_BROKEN_ID,
+				organizationId: ORGANIZATION_ID,
+				patientId: PATIENT_OK_ID,
+				status: "planned",
+				startsAt: new Date(OK_STARTS_AT),
+				endsAt: new Date(OK_ENDS_AT),
+				reason: "снятие швов",
+			},
+		]);
 
-	app = Fastify();
-	// Тот же хук, что в apps/api/src/server.ts: он наполняет личность запроса.
-	app.addHook("onRequest", async (request) => {
-		getRequestIdentity(request);
+		/*
+		 * Нечитаемое время ставится ОТДЕЛЬНЫМ SQL, а не через drizzle: `infinity` в JS
+		 * Date не существует, поэтому передать его слоем ORM нечем — и именно поэтому
+		 * собственные записывающие пути приложения такую строку не создают. Порча
+		 * приходит из восстановления дампа чужой системы и из правок SQL руками.
+		 */
+		await db.execute(sql`
+			update appointments set starts_at = 'infinity', ends_at = 'infinity'
+			 where id = ${APPOINTMENT_BROKEN_ID}::uuid`);
+		await db.execute(sql`
+			update patients set created_at = 'infinity'
+			 where id = ${PATIENT_BROKEN_ID}::uuid`);
 	});
+
+	// Оба хука изоляции боевого server.ts: он наполняет личность запроса и
+	// оборачивает обработчик в `withTenantCtx`, без которого сводка читает ноль строк.
+	app = createTenantTestApp();
 	await registerDashboardRoutes(app);
 	await app.ready();
 });
@@ -197,12 +202,16 @@ before(async () => {
 after(async () => {
 	await app?.close();
 	await purgeFixtureOrganizations(FIXTURE_ORGANIZATION_IDS);
-	const leftovers = await db.execute<{ rows_left: number }>(sql`
-		select (
-			(select count(*) from organizations where id = ${ORGANIZATION_ID}::uuid)
-			+ (select count(*) from appointments where organization_id = ${ORGANIZATION_ID}::uuid)
-			+ (select count(*) from patients where organization_id = ${ORGANIZATION_ID}::uuid)
-		)::int as rows_left`);
+	// Пересчёт остатка — под тенант-контекстом: без него политика прячет от счёта
+	// любые уцелевшие строки, и проверка «мусора не осталось» стала бы тождеством.
+	const leftovers = await withFixtureTenant(ORGANIZATION_ID, async () =>
+		db.execute<{ rows_left: number }>(sql`
+			select (
+				(select count(*) from organizations where id = ${ORGANIZATION_ID}::uuid)
+				+ (select count(*) from appointments where organization_id = ${ORGANIZATION_ID}::uuid)
+				+ (select count(*) from patients where organization_id = ${ORGANIZATION_ID}::uuid)
+			)::int as rows_left`),
+	);
 	assert.equal(
 		leftovers.rows[0]?.rows_left,
 		0,
@@ -213,14 +222,18 @@ after(async () => {
 
 describe("GET /api/dashboard: время строки берётся из базы, а не из часов сервера", () => {
 	it("посев проверен: в базе есть и читаемое, и нечитаемое время", async () => {
-		const seeded = await db.execute<{ broken_appointments: number; broken_patients: number; ok_appointments: number }>(sql`
-			select
-				(select count(*)::int from appointments
-				  where organization_id = ${ORGANIZATION_ID}::uuid and starts_at = 'infinity') as broken_appointments,
-				(select count(*)::int from patients
-				  where organization_id = ${ORGANIZATION_ID}::uuid and created_at = 'infinity') as broken_patients,
-				(select count(*)::int from appointments
-				  where organization_id = ${ORGANIZATION_ID}::uuid and starts_at = ${OK_STARTS_AT}) as ok_appointments`);
+		// Счёт посеянного — под тенант-контекстом: без него все три числа равны нулю
+		// не потому, что сев не удался, а потому, что политика скрыла строки.
+		const seeded = await withFixtureTenant(ORGANIZATION_ID, async () =>
+			db.execute<{ broken_appointments: number; broken_patients: number; ok_appointments: number }>(sql`
+				select
+					(select count(*)::int from appointments
+					  where organization_id = ${ORGANIZATION_ID}::uuid and starts_at = 'infinity') as broken_appointments,
+					(select count(*)::int from patients
+					  where organization_id = ${ORGANIZATION_ID}::uuid and created_at = 'infinity') as broken_patients,
+					(select count(*)::int from appointments
+					  where organization_id = ${ORGANIZATION_ID}::uuid and starts_at = ${OK_STARTS_AT}) as ok_appointments`),
+		);
 		const row = seeded.rows[0];
 		assert.equal(row?.broken_appointments, 1, "Приём с нечитаемым временем не посеян — проверка была бы ни о чём.");
 		assert.equal(row?.broken_patients, 1, "Пациент с нечитаемым временем не посеян.");
@@ -334,10 +347,12 @@ describe("GET /api/dashboard: время строки берётся из баз
 		 * ему поставил DEFAULT now() при посеве, и записывать это значение в тест
 		 * значило бы сверять код с самим собой.
 		 */
-		const stored = await db
-			.select({ createdAt: patients.createdAt, updatedAt: patients.updatedAt })
-			.from(patients)
-			.where(eq(patients.id, PATIENT_OK_ID));
+		const stored = await withFixtureTenant(ORGANIZATION_ID, async () =>
+			db
+				.select({ createdAt: patients.createdAt, updatedAt: patients.updatedAt })
+				.from(patients)
+				.where(eq(patients.id, PATIENT_OK_ID)),
+		);
 		assert.equal(
 			okPatient.createdAt,
 			stored[0]?.createdAt?.toISOString(),

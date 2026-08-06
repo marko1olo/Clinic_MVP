@@ -6,7 +6,7 @@ import { db } from "../db/client.js";
 import { patients, visits } from "../db/schema.js";
 import { SpeechChunkPayloadError, buildSpeechRecordingStrategy, getSpeechGatewayHealthReport, getSpeechGatewayStatus, getSpeechProviderRuntimeStatuses, speechJsonBodyLimitBytes, transcribeSpeechChunk } from "../speech/gateway.js";
 import { polishSpeechTranscript } from "../speech/polish.js";
-import { requireClinicalMutationAccess, requireClinicalMutationContext, requireClinicalReadAccess } from "../accessGuard.js";
+import { requireClinicalMutationAccess, requireClinicalMutationContext, requireClinicalReadAccess, requireClinicalReadContext } from "../accessGuard.js";
 const speechStrategyValidationMessage = "Стратегия записи не рассчитана: проверьте длительность, режим сети, приватность, специальность и источник диктовки.";
 const speechChunkValidationMessage = "Фрагмент диктовки не принят: передайте запись, номер фрагмента, аудио или локальную расшифровку и клинический контекст.";
 const speechChunkAudioRejectedMessage = "Аудиофрагмент не принят: запись повреждена. Повторите запись или сохраните текстовый черновик.";
@@ -49,10 +49,9 @@ function sendSpeechChunkRejection(reply, statusCode, reason, message) {
  * сохраняемого фрагмента ПО присланным patientId/visitId, поэтому без этой проверки
  * фрагмент диктовки ложится в карту той клиники, чей UUID назвал клиент.
  *
- * null допускается только там, где обработчик действительно не знает организацию —
- * сейчас это read-эндпоинты диктовки, у которых стоит лишь булевый гейт
- * requireClinicalReadAccess. Их арендатор не проверяется, это отдельный дефект,
- * см. .agents/archon/packets/S1-speech-unauthenticated/handoff.md.
+ * null больше не используется обработчиками маршрутов. Параметр оставлен nullable
+ * только для внутренних/тестовых вызовов; production read/write пути передают
+ * organizationId из requireClinicalReadContext / requireClinicalMutationContext.
  */
 async function validateSpeechClinicalScope(input, options) {
     const requestedPatientId = normalizeScopeId(input.patientId);
@@ -120,16 +119,19 @@ async function handleSpeechRecordingStrategy(request, reply) {
     return speechRecordingStrategySchema.parse(buildSpeechRecordingStrategy(input));
 }
 async function handleSpeechChunks(request, reply) {
-    if (!(await requireClinicalReadAccess(request, reply, "speech chunks")))
+    const context = await requireClinicalReadContext(request, reply, "speech chunks");
+    if (!context)
         return;
     const query = request.query;
     const recordingId = query.recordingId?.trim();
     if (!recordingId)
         return [];
-    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: null, requirePatientOrVisit: true });
+    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: context.organizationId, requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
-    const scope = {};
+    const scope = {
+        organizationId: context.organizationId
+    };
     if (scopeValidation.visitId)
         scope.visitId = scopeValidation.visitId;
     if (scopeValidation.patientId)
@@ -137,13 +139,14 @@ async function handleSpeechChunks(request, reply) {
     return z.array(speechTranscriptionChunkSchema).parse(listSpeechTranscriptionChunks(recordingId, scope));
 }
 async function handleSpeechRecordingsRecovery(request, reply) {
-    if (!(await requireClinicalReadAccess(request, reply, "speech recording recovery")))
+    const context = await requireClinicalReadContext(request, reply, "speech recording recovery");
+    if (!context)
         return;
     const query = request.query;
-    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: null, requirePatientOrVisit: true });
+    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: context.organizationId, requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
-    const filters = {};
+    const filters = { organizationId: context.organizationId };
     if (scopeValidation.visitId)
         filters.visitId = scopeValidation.visitId;
     if (scopeValidation.patientId)
@@ -153,14 +156,17 @@ async function handleSpeechRecordingsRecovery(request, reply) {
     return speechRecordingRecoveryListSchema.parse(listSpeechRecordingRecoveries(filters));
 }
 async function handleSpeechRecordingAssemble(request, reply) {
-    if (!(await requireClinicalReadAccess(request, reply, "speech recording assemble")))
+    const context = await requireClinicalReadContext(request, reply, "speech recording assemble");
+    if (!context)
         return;
     const params = request.params;
     const query = request.query;
-    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: null, requirePatientOrVisit: true });
+    const scopeValidation = await validateSpeechClinicalScope({ patientId: query.patientId, visitId: query.visitId }, { organizationId: context.organizationId, requirePatientOrVisit: true });
     if (!scopeValidation.ok)
         return sendSpeechScopeValidationError(reply, scopeValidation);
-    const scope = {};
+    const scope = {
+        organizationId: context.organizationId
+    };
     if (scopeValidation.visitId)
         scope.visitId = scopeValidation.visitId;
     if (scopeValidation.patientId)

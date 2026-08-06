@@ -77,7 +77,6 @@ import {
 } from "lucide-react";
 import {
   buildRuleBasedVisitDraftFromTranscript,
-  dashboardSchema,
   documentAmountSource,
   documentFactoryGroups,
   documentKindMetadata,
@@ -414,13 +413,19 @@ const InventoryView = lazy(() => import("./components/InventoryView").then((modu
 const ScannerView = lazy(() => import("./ScannerView").then((module) => ({ default: module.ScannerView })));
 const LeadsKanbanView = lazy(() => import("./components/leads/LeadsKanbanView").then((module) => ({ default: module.LeadsKanbanView })));
 /*
- * Панели вставлены сюда, а не в AppRouter.tsx: тот файл никто не импортировал —
+ * Панель вставлена сюда, а не в AppRouter.tsx: тот файл никто не импортировал —
  * это был мёртвый код, и панели, добавленные в него, не отрисовывались вообще.
  * Выяснилось только на снимке живого экрана. Файл удалён.
+ *
+ * DayConfirmationsPanel отсюда убрана. Коммит 3f7dbcd6b («mount DayConfirmations,
+ * FreedSlots, Messengers and Rules panels into main schedule and settings
+ * routers», 2026-07-31) смонтировал её в ScheduleView рядом с FreedSlotsPanel и
+ * ScheduleClipboardPanel, но здешний монтаж от 2026-07-27 не снял. Панель держит
+ * собственное состояние и сама ходит в API из useEffect, поэтому на экране
+ * расписания жили два экземпляра: два запроса дневных подтверждений и два
+ * несинхронных набора отметок «обзвонил». Оставлен более поздний монтаж,
+ * согласованный с соседними панелями смены.
  */
-const DayConfirmationsPanel = lazy(() =>
-  import("./components/schedule/DayConfirmationsPanel").then((module) => ({ default: module.DayConfirmationsPanel })),
-);
 const ManagerReportsPanel = lazy(() =>
   import("./components/reports/ManagerReportsPanel").then((module) => ({ default: module.ManagerReportsPanel })),
 );
@@ -3723,34 +3728,85 @@ export function App() {
         ) : null}
 
         {currentView === "shift" ? (
-        <ShiftView
-          visibleRecommendedActions={visibleRecommendedActions}
-          recommendedActionPriorityLabels={recommendedActionPriorityLabels}
-          staffRoleLabels={staffRoleLabels}
-          dashboard={dashboard}
-          activeQueueRole={activeQueueRole}
-          setError={setError}
-          mostLoadedResource={mostLoadedResource}
-          setSelectedPatientId={setSelectedPatientId}
-        />
+        /*
+          Граница и Suspense здесь появились последними из всех разделов, и это
+          было не украшение. `ShiftView` объявлен через `lazy()` (строка 399),
+          но своего `Suspense` не имел: при подвешивании React поднимался до
+          ближайшего сверху — а он стоит в AppShell.tsx вокруг ВСЕГО рабочего
+          места. То есть на стартовом разделе, который открывается по умолчанию
+          и куда сбрасывает охранник маршрута, вместо панели гасился весь экран
+          вместе с боковым меню и шапкой. Границы ошибок над «Сменой» не было
+          вовсе: сбой рендера или недогруженный чанк снимал рабочее место целиком
+          и оставлял человека с кнопкой перезагрузки на пустой странице.
+        */
+        <WorkspaceRouteErrorBoundary view="shift" label={viewLabels.shift} panelClassName="panel shift-panel" panelId="shift">
+          <Suspense
+            fallback={
+              <div className="panel shift-panel" id="shift" aria-busy="true">
+                <div className="panel-heading">
+                  <h2>{viewLabels.shift}</h2>
+                  <span className="status-pill status-planned">загрузка</span>
+                </div>
+              </div>
+            }
+          >
+            <ShiftView
+              visibleRecommendedActions={visibleRecommendedActions}
+              recommendedActionPriorityLabels={recommendedActionPriorityLabels}
+              staffRoleLabels={staffRoleLabels}
+              dashboard={dashboard}
+              activeQueueRole={activeQueueRole}
+              setError={setError}
+              mostLoadedResource={mostLoadedResource}
+              setSelectedPatientId={setSelectedPatientId}
+            />
+          </Suspense>
+        </WorkspaceRouteErrorBoundary>
         ) : null}
 
         {["shift", "patients"].includes(currentView) ? (
-          <PatientCockpit
-            /*
-              На «Смене» карточка показывает пациента открытого приёма, а не
-              `activePatient`: тот при отсутствии приёма подставляет первого
-              пациента списка, и на экран попадал случайный человек с красной
-              пометкой «СРОЧНО». Без приёма карточка честно говорит «Пациент
-              не выбран». В разделе «Пациенты» выбор из списка остаётся.
-            */
-            activePatient={currentView === "shift" ? activeVisitPatient : activePatient}
-            activePatientInsight={activePatientInsight}
-            dashboard={dashboard}
-            activeCommunicationTasks={activeCommunicationTasks}
-            activeImagingStudies={activeImagingStudies}
-            activeUsableDocuments={activeUsableDocuments}
-          />
+          /*
+            Карточка приходит из того же ленивого модуля, что и «Смена»
+            (ShiftView.tsx, строка 400), поэтому у неё те же две дыры — и своя
+            граница, а не общая со «Сменой»: сбой карточки пациента не должен
+            уносить сводку смены, и наоборот. `view` подставляется настоящий, а
+            не постоянный «shift»: по его смене граница сама снимает отказ
+            (componentDidUpdate в workspaceRouteErrorBoundary.tsx), то есть
+            переход «Смена» ↔ «Пациенты» служит бесплатным повтором.
+          */
+          <WorkspaceRouteErrorBoundary
+            view={currentView === "patients" ? "patients" : "shift"}
+            label="Карточка пациента"
+            panelClassName="patient-cockpit"
+            panelId="patient-cockpit"
+          >
+            <Suspense
+              fallback={
+                <section className="patient-cockpit dnt-cockpit" aria-label="Карточка пациента" aria-busy="true">
+                  <div className="panel-heading">
+                    <h2>Карточка пациента</h2>
+                    <span className="status-pill status-planned">загрузка</span>
+                  </div>
+                </section>
+              }
+            >
+              <PatientCockpit
+                /*
+                  На «Смене» карточка показывает пациента открытого приёма, а не
+                  `activePatient`: тот при отсутствии приёма подставляет первого
+                  пациента списка, и на экран попадал случайный человек с красной
+                  пометкой «СРОЧНО». Без приёма карточка честно говорит «Пациент
+                  не выбран». В разделе «Пациенты» выбор из списка остаётся.
+                */
+                activePatient={currentView === "shift" ? activeVisitPatient : activePatient}
+                activePatientInsight={activePatientInsight}
+                dashboard={dashboard}
+                activeCommunicationTasks={activeCommunicationTasks}
+                activeImagingStudies={activeImagingStudies}
+                activeUsableDocuments={activeUsableDocuments}
+              />
+            </Suspense>
+          </WorkspaceRouteErrorBoundary>
         ) : null}
 
         {currentView === "imaging" ? (
@@ -3980,13 +4036,12 @@ export function App() {
               />
             </Suspense>
             {/*
-              Утренний обзвон. Подтверждение приёма по ссылке уже работает, но
-              без этого списка администратор не видит результата и обзванивает
-              всех подряд: половину звонков зря, половину нужных пропуская.
+              Утренний обзвон живёт в ScheduleView: кнопка «Подтверждения» рядом
+              с «Освободившиеся окна» и «Буфер». Второй, всегда открытый
+              экземпляр стоял здесь и давал дублирующий запрос к API дневных
+              подтверждений; убран, чтобы отметки «обзвонил» не расходились
+              между двумя копиями списка.
             */}
-            <Suspense fallback={null}>
-              <DayConfirmationsPanel />
-            </Suspense>
           </WorkspaceRouteErrorBoundary>
           ) : null}
 

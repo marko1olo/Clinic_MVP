@@ -57,6 +57,11 @@ interface ApiErrorDetails {
   [key: string]: string | number | boolean | string[] | null;
 }
 
+/** Тело единого конверта ошибки — то, что уходит клиенту как значение. */
+interface ApiErrorEnvelope {
+  error: { code: string; message: string; details: ApiErrorDetails };
+}
+
 /**
  * Читает заголовок с именем файла, допуская кириллицу.
  *
@@ -83,15 +88,31 @@ function decodeHeaderText(value: string | string[] | undefined): string | undefi
   }
 }
 
-/** Единый конверт ошибки. */
+/**
+ * Единый конверт ошибки.
+ *
+ * СТАВИТ КОД И ВОЗВРАЩАЕТ ТЕЛО, А НЕ ЗОВЁТ `send`. Прежняя форма
+ * (`return reply.code(N).send(...)`) отдавала вызывающему сам `reply`, а он
+ * thenable: `Reply.prototype.then` (fastify/lib/reply.js:466) разрешается по
+ * `eos(reply.raw)` — то есть когда ответ уже ушёл клиенту. Обработчик,
+ * написавший `return fail(...)`, тем самым возвращал промис, который ждёт конца
+ * отправки, а обёртка withTenantCtx из server.ts (хук onRoute) ждёт его, чтобы
+ * зафиксировать транзакцию. COMMIT уходил ПОСЛЕ ответа.
+ *
+ * Возврат значения снимает это целиком: fastify зовёт `reply.send(payload)` уже
+ * после разрешения промиса обработчика (lib/wrap-thenable.js:14), то есть после
+ * COMMIT. Код, выставленный `reply.code()`, при этом сохраняется — он живёт на
+ * объекте ответа, а не в аргументах `send`.
+ */
 function fail(
   reply: FastifyReply,
   httpStatus: number,
   code: string,
   message: string,
   details: ApiErrorDetails = {}
-): FastifyReply {
-  return reply.code(httpStatus).send({ error: { code, message, details } });
+): ApiErrorEnvelope {
+  reply.code(httpStatus);
+  return { error: { code, message, details } };
 }
 
 /**
@@ -149,7 +170,7 @@ function failSchemaRefusal(
   issues: ReadonlyArray<SchemaIssueLike>,
   headline: string,
   retryAction: string
-): FastifyReply {
+): ApiErrorEnvelope {
   return fail(reply, 400, "ValidationError", schemaRefusalMessage({
     issues,
     fieldLabels: migrationRunFieldLabels,
@@ -161,7 +182,7 @@ function failSchemaRefusal(
 }
 
 /** Переводит отказ фазы в ответ API с сохранением машинного кода. */
-function failFromPhaseError(reply: FastifyReply, error: unknown): FastifyReply {
+function failFromPhaseError(reply: FastifyReply, error: unknown): ApiErrorEnvelope {
   if (error instanceof MigrationPhaseError) {
     const httpStatus = error.code === "RunNotFound" ? 404 : error.code === "UploadExpired" ? 410 : 422;
     return fail(reply, httpStatus, error.code, error.message);
@@ -355,7 +376,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
         encodingConfidence: shape.encodingConfidence
       });
 
-      return reply.code(201).send({
+      reply.code(201);
+      return {
         runId: run.id,
         sourceName: run.sourceName,
         fileName: stored.fileName,
@@ -379,7 +401,7 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
             ? null
             : { runId: previous[0].id, uploadedAt: previous[0].createdAt.toISOString() },
         nextStep: "POST /api/migration/:runId/map"
-      });
+      };
     }
   );
 
@@ -404,7 +426,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
         mappingOverrides: parsed.data.mappingOverrides
       });
 
-      return reply.code(200).send({
+      reply.code(200);
+      return {
         runId: request.params.runId,
         mapping: result.mapping,
         profile: result.analyze.profile,
@@ -413,7 +436,7 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
         qualityFindings: result.analyze.qualityFindings,
         llm: { calls: result.llmCalls, rejectedSuggestions: result.llmRejected },
         nextStep: "POST /api/migration/:runId/execute"
-      });
+      };
     } catch (error) {
       return failFromPhaseError(reply, error);
     }
@@ -439,12 +462,13 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
         mappingOverrides: []
       });
       const counts = await countStagingByStatus(request.params.runId);
-      return reply.code(200).send({
+      reply.code(200);
+      return {
         runId: request.params.runId,
         sourceRows: result.sourceRows,
         staging: counts,
         nextStep: "POST /api/migration/:runId/execute"
-      });
+      };
     } catch (error) {
       return failFromPhaseError(reply, error);
     }
@@ -501,7 +525,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
     }
 
     const queuedRun = await findRun(request.params.runId, context.organizationId);
-    return reply.code(202).send({
+    reply.code(202);
+    return {
       accepted: true,
       runId: request.params.runId,
       status: queuedRun?.status ?? "queued",
@@ -511,7 +536,7 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
         : "Выполнение принято. Загрузка идёт в фоне.",
       poll: `GET /api/migration/${request.params.runId}`,
       worker: migrationWorkerStatus()
-    });
+    };
   });
 
   /** Состояние прогона для опроса клиентом. */
@@ -524,7 +549,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
       return fail(reply, 404, "RunNotFound", "Прогон переноса не найден в этой организации.");
     }
     const staging = await countStagingByStatus(run.id);
-    return reply.code(200).send({ run: runStatusPayload(run), staging, mapping: run.mappingJson });
+    reply.code(200);
+    return { run: runStatusPayload(run), staging, mapping: run.mappingJson };
   });
 
   /** Акт сверки: то, что передаётся клинике как доказательство переноса. */
@@ -556,7 +582,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
 
     const quarantinePreview = await listQuarantine(context.organizationId, run.id, 50);
 
-    return reply.code(200).send({
+    reply.code(200);
+    return {
       runId: run.id,
       generatedAt: reconciliation.generatedAt.toISOString(),
       balanced: reconciliation.balanced,
@@ -569,7 +596,7 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
       },
       run: runStatusPayload(run),
       quarantinePreview
-    });
+    };
   });
 
   /** Акт сверки в CSV с BOM: без него русский Excel показывает вопросительные знаки. */
@@ -606,6 +633,13 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
 
     reply.header("Content-Type", "text/csv; charset=utf-8");
     reply.header("Content-Disposition", `attachment; filename="reconciliation-${run.id.slice(0, 8)}.csv"`);
+    /*
+     * ЗДЕСЬ `reply.send` ОСТАЁТСЯ, И ЭТО НЕ ПРОПУСК. Тело ответа — не JSON, а
+     * строка CSV с BOM, отданная под собственным Content-Type и
+     * Content-Disposition; форму отправки такого тела трогать незачем. Записи в
+     * базу этот маршрут не делает вовсе — читает уже сформированную сверку,
+     * поэтому откладывать здесь нечего.
+     */
     return reply.send(`﻿${csv}`);
   });
 
@@ -613,7 +647,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
   app.get("/api/migration/worker/status", async (request, reply) => {
     const context = await requireClinicalReadContext(request, reply, "migration worker status");
     if (!context) return;
-    return reply.code(200).send({ worker: migrationWorkerStatus() });
+    reply.code(200);
+    return { worker: migrationWorkerStatus() };
   });
 
   /**
@@ -647,7 +682,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
       });
       const summary = summarizeDiscovery(result);
 
-      return reply.code(200).send({
+      reply.code(200);
+      return {
         roots: result.roots,
         summary,
         /**
@@ -691,7 +727,7 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
           truncated: result.truncated
         },
         warnings: result.warnings
-      });
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Поиск не выполнен.";
       return fail(reply, 500, "DiscoveryFailed", message);
@@ -716,7 +752,8 @@ export async function registerMigrationRunRoutes(app: FastifyInstance) {
 
     try {
       const metadata = await readDicomMetadata(parsed.data.filePath);
-      return reply.code(200).send({ filePath: parsed.data.filePath, metadata });
+      reply.code(200);
+      return { filePath: parsed.data.filePath, metadata };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Снимок не разобран.";
       return fail(reply, 422, "DicomRejected", message, { filePath: parsed.data.filePath });

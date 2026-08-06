@@ -96,6 +96,26 @@ const documentTitles = {
     patient_intake_questionnaire: "Анкета о здоровье"
 };
 export async function createGeneratedDocumentInDb(organizationId, input) {
+    // Ownership assert: patient (and optional visit) must belong to caller org.
+    // Route-layer checks exist, but the query helper is callable from anywhere.
+    const [ownedPatient] = await db
+        .select({ id: schema.patients.id })
+        .from(schema.patients)
+        .where(and(eq(schema.patients.organizationId, organizationId), eq(schema.patients.id, input.patientId)))
+        .limit(1);
+    if (!ownedPatient) {
+        throw new Error("document create: patient does not belong to organization");
+    }
+    if (input.visitId) {
+        const [ownedVisit] = await db
+            .select({ id: schema.visits.id })
+            .from(schema.visits)
+            .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, input.visitId), eq(schema.visits.patientId, input.patientId)))
+            .limit(1);
+        if (!ownedVisit) {
+            throw new Error("document create: visit does not belong to organization/patient");
+        }
+    }
     const title = input.title?.trim() || documentTitles[input.kind] || "Документ";
     const [record] = await db
         .insert(schema.generatedDocuments)

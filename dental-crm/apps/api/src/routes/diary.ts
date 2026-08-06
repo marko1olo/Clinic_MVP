@@ -1,6 +1,13 @@
 import crypto from "crypto";
 import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+
+declare module "fastify" {
+	interface FastifyRequest {
+		user?: { id: string; [key: string]: any };
+	}
+}
+
 import { z } from "zod";
 import {
 	requireClinicalMutationAccess,
@@ -1098,7 +1105,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 			});
 		}
 		const data = parsedUpsert.data;
-		const userContext = (req as any).user;
+		const userContext = req.user;
 		const userId: string | null = userContext?.id ?? null;
 		const role: string = userContext?.role ?? "assistant";
 
@@ -1499,7 +1506,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 			typeof parsedLockBody.data.pkcs7Signature === "string"
 				? parsedLockBody.data.pkcs7Signature
 				: undefined;
-		const userContext = (req as any).user;
+		const userContext = req.user;
 		const userId: string | null = userContext?.id ?? null;
 		const role: string = userContext?.role ?? "assistant";
 
@@ -1899,7 +1906,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 				message: "Тело запроса ревизии дневника должно быть JSON-объектом.",
 			});
 		}
-		const userContext = (req as any).user;
+		const userContext = req.user;
 		const userId: string | null = userContext?.id ?? null;
 		const role: string = userContext?.role ?? "assistant";
 

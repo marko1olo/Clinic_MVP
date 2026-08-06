@@ -13,6 +13,7 @@ import {
 	fixtureUuid,
 	isDatabaseUnavailable,
 	purgeFixtureOrganizations,
+	withFixtureTenant,
 } from "./support/fixtureOrganizations.js";
 
 /**
@@ -88,21 +89,30 @@ async function liveEnumLabels(): Promise<string[]> {
 	return rows.rows.map((row) => row.enumlabel);
 }
 
-/** Последний снимок клиники: воронка планов лечения так, как её записал воркер. */
+/**
+ * Последний снимок клиники: воронка планов лечения так, как её записал воркер.
+ *
+ * Чтение идёт под тенант-контекстом: `bi_analytics_snapshots` — тенант-таблица
+ * под принудительным RLS, и запрос без `app.current_tenant` вернул бы ноль строк
+ * без ошибки, то есть отчёт «снимок не записан» был бы о самом чтении, а не о
+ * воркере.
+ */
 async function readSnapshot(organizationId: string): Promise<{
 	planFunnel: { status?: string; name: string; value: number }[];
 	cohortLtv: Record<string, unknown>[];
 }> {
-	const snapshot = await db.execute<{
-		plan_funnel_json: { status?: string; name: string; value: number }[];
-		cohort_ltv_json: Record<string, unknown>[];
-	}>(sql`
-		SELECT plan_funnel_json, cohort_ltv_json
-		FROM bi_analytics_snapshots
-		WHERE organization_id = ${organizationId}
-		ORDER BY snapshot_date DESC
-		LIMIT 1
-	`);
+	const snapshot = await withFixtureTenant(organizationId, async () =>
+		db.execute<{
+			plan_funnel_json: { status?: string; name: string; value: number }[];
+			cohort_ltv_json: Record<string, unknown>[];
+		}>(sql`
+			SELECT plan_funnel_json, cohort_ltv_json
+			FROM bi_analytics_snapshots
+			WHERE organization_id = ${organizationId}
+			ORDER BY snapshot_date DESC
+			LIMIT 1
+		`),
+	);
 	assert.equal(
 		snapshot.rows.length,
 		1,
@@ -123,30 +133,36 @@ describe("воронка планов лечения совпадает с пе�
 			// оставляет свои планы в живой базе — иначе к посеянным пяти статусам
 			// добавятся вчерашние и числа перестанут сходиться.
 			await purgeFixtureOrganizations([ORG_ID, EMPTY_ORG_ID]);
-			await db.insert(organizations).values([
-				{ id: ORG_ID, name: "Клиника воронки планов" },
-				{ id: EMPTY_ORG_ID, name: "Клиника без данных" },
-			]);
-			await db.insert(patients).values({
-				id: PATIENT_ID,
-				organizationId: ORG_ID,
-				fullName: "Сметин Планович Отказов",
+			// Дальше — сев под тенант-контекстом. `app.current_tenant` хранит РОВНО
+			// одного арендатора, а `WITH CHECK` тенант-таблиц сверяет с ним
+			// `organization_id` и обхода не допускает: две клиники — два вызова, иначе
+			// вторая вставка отвергается кодом 42501.
+			await withFixtureTenant(ORG_ID, async () => {
+				await db.insert(organizations).values({ id: ORG_ID, name: "Клиника воронки планов" });
+				await db.insert(patients).values({
+					id: PATIENT_ID,
+					organizationId: ORG_ID,
+					fullName: "Сметин Планович Отказов",
+				});
+				await db.insert(treatmentPlans).values(
+					Object.entries(SEEDED).flatMap(([status, count]) =>
+						Array.from({ length: count }, (_unused, index) => ({
+							organizationId: ORG_ID,
+							patientId: PATIENT_ID,
+							name: `План ${status} №${index + 1}`,
+							status: status as (typeof treatmentPlans.status)["_"]["data"],
+						})),
+					),
+				);
+				await db.insert(payments).values({
+					organizationId: ORG_ID,
+					patientId: PATIENT_ID,
+					amountRub: REVENUE_RUB,
+					status: "paid",
+				});
 			});
-			await db.insert(treatmentPlans).values(
-				Object.entries(SEEDED).flatMap(([status, count]) =>
-					Array.from({ length: count }, (_unused, index) => ({
-						organizationId: ORG_ID,
-						patientId: PATIENT_ID,
-						name: `План ${status} №${index + 1}`,
-						status: status as (typeof treatmentPlans.status)["_"]["data"],
-					})),
-				),
-			);
-			await db.insert(payments).values({
-				organizationId: ORG_ID,
-				patientId: PATIENT_ID,
-				amountRub: REVENUE_RUB,
-				status: "paid",
+			await withFixtureTenant(EMPTY_ORG_ID, async () => {
+				await db.insert(organizations).values({ id: EMPTY_ORG_ID, name: "Клиника без данных" });
 			});
 		} catch (error) {
 			if (!isDatabaseUnavailable(error)) throw error;

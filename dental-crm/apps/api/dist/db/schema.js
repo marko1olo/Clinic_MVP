@@ -1,4 +1,5 @@
-import { boolean, date, foreignKey, integer, jsonb, numeric, real, pgEnum, pgTable, text, timestamp, unique, index, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, foreignKey, integer, jsonb, numeric, real, pgEnum, pgTable, text, timestamp, unique, index, uniqueIndex, uuid, varchar, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 export const patientStatus = pgEnum("patient_status", ["active", "archived"]);
 export const appointmentStatus = pgEnum("appointment_status", [
     "planned",
@@ -431,7 +432,8 @@ export const appointments = pgTable("appointments", {
     comment: text("comment")
 }, (table) => {
     return {
-        idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt)
+        idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt),
+        timeOrderCheck: check("appointments_time_order_check", sql `${table.startsAt} < ${table.endsAt}`)
     };
 });
 export const visits = pgTable("visits", {
@@ -601,7 +603,8 @@ export const payments = pgTable("payments", {
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => {
     return {
-        idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt)
+        idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt),
+        paymentsOrgClientMutationUnique: unique("payments_org_client_mutation_unique").on(table.organizationId, table.clientMutationId)
     };
 });
 export const generatedDocuments = pgTable("generated_documents", {
@@ -1549,7 +1552,7 @@ export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
      * previousDiagnosisTooth в теле, но insert в visit_diary_revisions их не
      * писал. Причина правки и прежний зуб пропадали из forensic-истории 043/у.
      */
-    previousDiagnosisTooth: text("previous_diagnosis_tooth"),
+    previousDiagnosisTooth: varchar("previous_diagnosis_tooth", { length: 10 }),
     /*
      * Forensic 043/у (миграция 0149).
      * БЫЛО: revise принимал complications/comorbidities и писал их в visit_diaries,
@@ -1676,6 +1679,11 @@ export const inventoryItems = pgTable("inventory_items", {
     expirationDate: date("expiration_date", { mode: "string" }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => {
+    return {
+        stockCheck: check("inventory_items_stock_quantity_check", sql `CAST(${table.stockQuantity} AS NUMERIC) >= 0`),
+        currentQtyCheck: check("inventory_items_current_qty_check", sql `CAST(${table.currentQty} AS NUMERIC) >= 0`)
+    };
 });
 // inventory transactions (stock movements)
 export const inventoryTransactions = pgTable("inventory_transactions", {
@@ -2823,3 +2831,85 @@ export const portalOtpCodes = pgTable("portal_otp_codes", {
         idxPortalOtpExpires: index("portal_otp_codes_expires_idx").on(table.expiresAt)
     };
 });
+import { relations } from 'drizzle-orm';
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+    users: many(users),
+    clinics: many(clinics),
+    chairs: many(chairs),
+    patients: many(patients),
+    appointments: many(appointments)
+}));
+export const clinicsRelations = relations(clinics, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [clinics.organizationId],
+        references: [organizations.id]
+    }),
+    chairs: many(chairs)
+}));
+export const usersRelations = relations(users, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [users.organizationId],
+        references: [organizations.id]
+    }),
+    appointmentsAsDoctor: many(appointments, { relationName: 'doctorAppointments' }),
+    appointmentsAsAssistant: many(appointments, { relationName: 'assistantAppointments' })
+}));
+export const chairsRelations = relations(chairs, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [chairs.organizationId],
+        references: [organizations.id]
+    }),
+    clinic: one(clinics, {
+        fields: [chairs.clinicId],
+        references: [clinics.id]
+    }),
+    appointments: many(appointments)
+}));
+export const patientsRelations = relations(patients, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [patients.organizationId],
+        references: [organizations.id]
+    }),
+    appointments: many(appointments),
+    consents: many(patientConsents),
+    visits: many(visits)
+}));
+export const appointmentsRelations = relations(appointments, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [appointments.organizationId],
+        references: [organizations.id]
+    }),
+    patient: one(patients, {
+        fields: [appointments.patientId],
+        references: [patients.id]
+    }),
+    doctor: one(users, {
+        fields: [appointments.doctorUserId],
+        references: [users.id],
+        relationName: 'doctorAppointments'
+    }),
+    assistant: one(users, {
+        fields: [appointments.assistantUserId],
+        references: [users.id],
+        relationName: 'assistantAppointments'
+    }),
+    chair: one(chairs, {
+        fields: [appointments.chairId],
+        references: [chairs.id]
+    }),
+    visits: many(visits)
+}));
+export const visitsRelations = relations(visits, ({ one }) => ({
+    organization: one(organizations, {
+        fields: [visits.organizationId],
+        references: [organizations.id]
+    }),
+    patient: one(patients, {
+        fields: [visits.patientId],
+        references: [patients.id]
+    }),
+    appointment: one(appointments, {
+        fields: [visits.appointmentId],
+        references: [appointments.id]
+    })
+}));

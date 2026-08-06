@@ -5,20 +5,19 @@ import { createContext, useContext } from "react";
 // Define the shape of our global AppLogic context
 // This will incrementally absorb properties from useAppLogic.tsx
 export type AppLogicContextType = {
-  dashboard: Dashboard | null;
-  activeAppointment: any;
-  activePatient: any;
-  auth: any;
-  clinicSettings: any;
-  denteClinicalReadHeaders: any;
-  fetchDashboard: any;
-  loadDashboard: any;
-  odontogramUseSurfaces: any;
-  updateNewAppointmentDraft: any;
-  visitSafetyCards: any;
-  [key: string]: any;
+	dashboard: Dashboard | null;
+	activeAppointment: any;
+	activePatient: any;
+	auth: any;
+	clinicSettings: any;
+	denteClinicalReadHeaders: any;
+	fetchDashboard: any;
+	loadDashboard: any;
+	odontogramUseSurfaces: any;
+	updateNewAppointmentDraft: any;
+	visitSafetyCards: any;
+	[key: string]: any;
 };
-
 
 const AppLogicContext = createContext<AppLogicContextType | null>(null);
 

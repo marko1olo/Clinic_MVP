@@ -1,5 +1,22 @@
-import { dentalPricelistAnalysisResponseSchema, dentalPricelistItemSchema, kopecksToNumericString, parseKopecks, sumKopecks } from "@dental/shared";
-import { fetchWithProviderTimeout, getProviderKeyPoolSummary, keyRetryLimit, providerHttpError, recordProviderKeyFailure, recordProviderKeySuccess, sanitizeProviderErrorMessage, selectProviderKey, shouldTryNextProviderKey } from "../speech/keyPool.js";
+import {
+	dentalPricelistAnalysisResponseSchema,
+	dentalPricelistItemSchema,
+	kopecksToNumericString,
+	parseKopecks,
+	sumKopecks,
+} from "@dental/shared";
+import {
+	fetchWithProviderTimeout,
+	getProviderKeyPoolSummary,
+	keyRetryLimit,
+	providerHttpError,
+	recordProviderKeyFailure,
+	recordProviderKeySuccess,
+	sanitizeProviderErrorMessage,
+	selectProviderKey,
+	shouldTryNextProviderKey,
+} from "../speech/keyPool.js";
+
 /*
  * Версия промпта — v2: в системный промпт добавлено перечисление допустимых
  * значений crownType (их не было, при четырёх перечисленных соседях). Номер
@@ -20,235 +37,570 @@ const groqProviderId = "groq_whisper";
  */
 const maxServiceDurationMinutes = 600;
 const categoryRules = [
-    {
-        value: "consultation",
-        specialty: "universal",
-        treatmentKind: "consultation",
-        patterns: [/консульт/i, /осмотр/i, /план\s+леч/i, /прием/i]
-    },
-    {
-        value: "imaging",
-        specialty: "radiologist",
-        treatmentKind: "imaging",
-        patterns: [/кт\b/i, /cbct/i, /оптг/i, /ортопан/i, /трг/i, /rvg/i, /рентген/i, /сним/i, /фото\s*протокол/i, /скан/i, /3shape/i, /medit/i, /sirona/i]
-    },
-    {
-        value: "hygiene",
-        specialty: "hygienist",
-        treatmentKind: "hygiene",
-        patterns: [/гигиен/i, /air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i, /налет/i, /камн/i, /фтор/i, /реминерал/i, /отбел/i, /zoom/i, /beyond/i, /opalescence/i, /white/i]
-    },
-    {
-        value: "orthodontics",
-        specialty: "orthodontist",
-        treatmentKind: "orthodontics",
-        patterns: [/брекет/i, /элайнер/i, /капп/i, /ретейн/i, /ортодонт/i, /damon/i, /ormco/i, /invisalign/i]
-    },
-    {
-        value: "periodontology",
-        specialty: "periodontist",
-        treatmentKind: "periodontology",
-        patterns: [/пародонт/i, /кюрет/i, /шинир/i, /лоскут/i, /пародонтальн/i, /гингив/i]
-    },
-    {
-        value: "surgery",
-        specialty: "implantologist",
-        treatmentKind: "implantology",
-        patterns: [/имплант/i, /аба[тд]мент/i, /формировател/i, /синус/i, /костн/i, /мембран/i, /straumann/i, /nobel/i, /osstem/i, /dentium/i, /megagen/i]
-    },
-    {
-        value: "surgery",
-        specialty: "surgeon",
-        treatmentKind: "surgery",
-        patterns: [/удален/i, /экстракц/i, /восьмер/i, /резекц/i, /цист/i, /уздеч/i, /шв/i, /prf/i]
-    },
-    {
-        value: "prosthetics",
-        specialty: "orthopedist",
-        treatmentKind: "prosthetics",
-        patterns: [/корон/i, /винир/i, /вкладк/i, /накладк/i, /мост/i, /протез/i, /керамик/i, /циркон/i, /zircon/i, /e\.?\s*max/i]
-    },
-    {
-        value: "therapy",
-        specialty: "pediatric",
-        treatmentKind: "pediatric",
-        patterns: [/детск/i, /молочн/i, /герметизац/i, /фиссур/i, /sealant/i, /пульпотом/i, /серебрен/i]
-    },
-    {
-        value: "therapy",
-        specialty: "therapist",
-        treatmentKind: "therapy",
-        patterns: [/кариес/i, /пульпит/i, /периодонт/i, /канал/i, /эндод/i, /пломб/i, /реставрац/i, /герметизац/i, /фиссур/i, /коффер/i, /анестез/i]
-    },
-    {
-        value: "documents",
-        specialty: "universal",
-        treatmentKind: "document",
-        patterns: [/справк/i, /договор/i, /акт\b/i, /вычет/i, /соглас/i]
-    }
+	{
+		value: "consultation",
+		specialty: "universal",
+		treatmentKind: "consultation",
+		patterns: [/консульт/i, /осмотр/i, /план\s+леч/i, /прием/i],
+	},
+	{
+		value: "imaging",
+		specialty: "radiologist",
+		treatmentKind: "imaging",
+		patterns: [
+			/кт\b/i,
+			/cbct/i,
+			/оптг/i,
+			/ортопан/i,
+			/трг/i,
+			/rvg/i,
+			/рентген/i,
+			/сним/i,
+			/фото\s*протокол/i,
+			/скан/i,
+			/3shape/i,
+			/medit/i,
+			/sirona/i,
+		],
+	},
+	{
+		value: "hygiene",
+		specialty: "hygienist",
+		treatmentKind: "hygiene",
+		patterns: [
+			/гигиен/i,
+			/air\s*flow/i,
+			/airflow/i,
+			/ems\b/i,
+			/ультразв/i,
+			/скейл/i,
+			/налет/i,
+			/камн/i,
+			/фтор/i,
+			/реминерал/i,
+			/отбел/i,
+			/zoom/i,
+			/beyond/i,
+			/opalescence/i,
+			/white/i,
+		],
+	},
+	{
+		value: "orthodontics",
+		specialty: "orthodontist",
+		treatmentKind: "orthodontics",
+		patterns: [
+			/брекет/i,
+			/элайнер/i,
+			/капп/i,
+			/ретейн/i,
+			/ортодонт/i,
+			/damon/i,
+			/ormco/i,
+			/invisalign/i,
+		],
+	},
+	{
+		value: "periodontology",
+		specialty: "periodontist",
+		treatmentKind: "periodontology",
+		patterns: [
+			/пародонт/i,
+			/кюрет/i,
+			/шинир/i,
+			/лоскут/i,
+			/пародонтальн/i,
+			/гингив/i,
+		],
+	},
+	{
+		value: "surgery",
+		specialty: "implantologist",
+		treatmentKind: "implantology",
+		patterns: [
+			/имплант/i,
+			/аба[тд]мент/i,
+			/формировател/i,
+			/синус/i,
+			/костн/i,
+			/мембран/i,
+			/straumann/i,
+			/nobel/i,
+			/osstem/i,
+			/dentium/i,
+			/megagen/i,
+		],
+	},
+	{
+		value: "surgery",
+		specialty: "surgeon",
+		treatmentKind: "surgery",
+		patterns: [
+			/удален/i,
+			/экстракц/i,
+			/восьмер/i,
+			/резекц/i,
+			/цист/i,
+			/уздеч/i,
+			/шв/i,
+			/prf/i,
+		],
+	},
+	{
+		value: "prosthetics",
+		specialty: "orthopedist",
+		treatmentKind: "prosthetics",
+		patterns: [
+			/корон/i,
+			/винир/i,
+			/вкладк/i,
+			/накладк/i,
+			/мост/i,
+			/протез/i,
+			/керамик/i,
+			/циркон/i,
+			/zircon/i,
+			/e\.?\s*max/i,
+		],
+	},
+	{
+		value: "therapy",
+		specialty: "pediatric",
+		treatmentKind: "pediatric",
+		patterns: [
+			/детск/i,
+			/молочн/i,
+			/герметизац/i,
+			/фиссур/i,
+			/sealant/i,
+			/пульпотом/i,
+			/серебрен/i,
+		],
+	},
+	{
+		value: "therapy",
+		specialty: "therapist",
+		treatmentKind: "therapy",
+		patterns: [
+			/кариес/i,
+			/пульпит/i,
+			/периодонт/i,
+			/канал/i,
+			/эндод/i,
+			/пломб/i,
+			/реставрац/i,
+			/герметизац/i,
+			/фиссур/i,
+			/коффер/i,
+			/анестез/i,
+		],
+	},
+	{
+		value: "documents",
+		specialty: "universal",
+		treatmentKind: "document",
+		patterns: [/справк/i, /договор/i, /акт\b/i, /вычет/i, /соглас/i],
+	},
 ];
 const materialRules = [
-    { value: "zirconia", label: "zirconia", patterns: [/циркон/i, /zircon/i, /zro/i, /multi\s*layer/i, /katana/i, /prettau/i, /bruxzir/i, /aidite/i, /cercon/i, /zircad/i, /lava/i] },
-    { value: "lithium_disilicate", label: "e.max", patterns: [/e\.?\s*max/i, /emax/i, /lithium/i, /disilicate/i, /дисиликат/i] },
-    { value: "metal_ceramic", label: "metal ceramic", patterns: [/металлокерами/i, /металл[о-]?\s*керами/i, /pfm\b/i] },
-    { value: "ceramic", label: "ceramic", patterns: [/керамик/i, /фарфор/i, /noritake/i, /vita/i, /ivoclar/i] },
-    { value: "pmma", label: "pmma", patterns: [/pmma/i, /времен/i, /пластмасс/i, /акрил/i] },
-    { value: "glass_ionomer", label: "glass ionomer", patterns: [/стеклоиономер/i, /\bсиц\b/i, /glass\s*ionomer/i, /fuji/i, /ketac/i] },
-    { value: "sealant", label: "sealant", patterns: [/герметизац/i, /фиссур/i, /sealant/i] },
-    { value: "whitening", label: "whitening", patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i, /amazing\s*white/i] },
-    { value: "other", label: "hygiene system", patterns: [/air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i] },
-    { value: "composite", label: "composite", patterns: [/композит/i, /фотополимер/i, /светов/i, /filtek/i, /estelite/i, /gradia/i, /sdr\b/i, /tokuyama/i, /omnichroma/i, /charisma/i, /tetric/i, /venus/i, /esthet[-\s]?x/i, /dentsply/i, /kerr/i, /voco/i, /kulzer/i] },
-    { value: "implant_system", label: "implant", patterns: [/straumann/i, /nobel/i, /osstem/i, /dentium/i, /megagen/i, /anyridge/i, /astra/i, /biohorizons/i, /mis\b/i, /alpha[-\s]?bio/i, /neodent/i, /ankylos/i, /zimmer/i, /biomet/i, /bredent/i, /impro/i, /sgs\b/i, /имплант/i] },
-    { value: "abutment", label: "abutment", patterns: [/аба[тд]мент/i, /abutment/i, /формировател/i] },
-    { value: "bone_graft", label: "bone graft", patterns: [/костн/i, /остео/i, /bone/i, /графт/i, /bio[-\s]?oss/i, /cerabone/i, /geistlich/i, /botiss/i, /osteo\s*biol/i, /symbios/i] },
-    { value: "membrane", label: "membrane", patterns: [/мембран/i, /membrane/i, /bio[-\s]?gide/i, /jason/i, /collagen/i, /collprotect/i] },
-    { value: "aligner", label: "aligner", patterns: [/элайнер/i, /aligner/i, /invisalign/i, /star\s*smile/i, /flexi/i] },
-    { value: "bracket", label: "bracket", patterns: [/брекет/i, /damon/i, /ormco/i, /3m\b/i, /сапфир/i, /керамическ.*брек/i, /металл.*брек/i] },
-    { value: "fluoride", label: "fluoride", patterns: [/фтор/i, /fluor/i, /реминерал/i] },
-    { value: "anesthetic", label: "anesthetic", patterns: [/анестез/i, /артикаин/i, /ультракаин/i, /убистезин/i, /septanest/i, /ultracain/i, /ubistesin/i] },
-    { value: "imaging", label: "imaging", patterns: [/кт\b/i, /cbct/i, /оптг/i, /rvg/i, /трг/i, /рентген/i, /vatech/i, /carestream/i, /planmeca/i] },
-    { value: "lab", label: "lab", patterns: [/лаборатор/i, /техник/i, /слепок/i, /оттиск/i, /скан/i, /3shape/i, /medit/i, /sirona/i, /exocad/i] },
-    { value: "metal", label: "metal", patterns: [/кобальт/i, /хром/i, /cobalt/i, /chrome/i, /co[-\s]?cr/i, /бюгель/i] },
-    { value: "titanium", label: "titanium", patterns: [/титан/i, /titan/i] }
+	{
+		value: "zirconia",
+		label: "zirconia",
+		patterns: [
+			/циркон/i,
+			/zircon/i,
+			/zro/i,
+			/multi\s*layer/i,
+			/katana/i,
+			/prettau/i,
+			/bruxzir/i,
+			/aidite/i,
+			/cercon/i,
+			/zircad/i,
+			/lava/i,
+		],
+	},
+	{
+		value: "lithium_disilicate",
+		label: "e.max",
+		patterns: [/e\.?\s*max/i, /emax/i, /lithium/i, /disilicate/i, /дисиликат/i],
+	},
+	{
+		value: "metal_ceramic",
+		label: "metal ceramic",
+		patterns: [/металлокерами/i, /металл[о-]?\s*керами/i, /pfm\b/i],
+	},
+	{
+		value: "ceramic",
+		label: "ceramic",
+		patterns: [/керамик/i, /фарфор/i, /noritake/i, /vita/i, /ivoclar/i],
+	},
+	{
+		value: "pmma",
+		label: "pmma",
+		patterns: [/pmma/i, /времен/i, /пластмасс/i, /акрил/i],
+	},
+	{
+		value: "glass_ionomer",
+		label: "glass ionomer",
+		patterns: [
+			/стеклоиономер/i,
+			/\bсиц\b/i,
+			/glass\s*ionomer/i,
+			/fuji/i,
+			/ketac/i,
+		],
+	},
+	{
+		value: "sealant",
+		label: "sealant",
+		patterns: [/герметизац/i, /фиссур/i, /sealant/i],
+	},
+	{
+		value: "whitening",
+		label: "whitening",
+		patterns: [
+			/отбел/i,
+			/zoom/i,
+			/beyond/i,
+			/opalescence/i,
+			/amazing\s*white/i,
+		],
+	},
+	{
+		value: "other",
+		label: "hygiene system",
+		patterns: [/air\s*flow/i, /airflow/i, /ems\b/i, /ультразв/i, /скейл/i],
+	},
+	{
+		value: "composite",
+		label: "composite",
+		patterns: [
+			/композит/i,
+			/фотополимер/i,
+			/светов/i,
+			/filtek/i,
+			/estelite/i,
+			/gradia/i,
+			/sdr\b/i,
+			/tokuyama/i,
+			/omnichroma/i,
+			/charisma/i,
+			/tetric/i,
+			/venus/i,
+			/esthet[-\s]?x/i,
+			/dentsply/i,
+			/kerr/i,
+			/voco/i,
+			/kulzer/i,
+		],
+	},
+	{
+		value: "implant_system",
+		label: "implant",
+		patterns: [
+			/straumann/i,
+			/nobel/i,
+			/osstem/i,
+			/dentium/i,
+			/megagen/i,
+			/anyridge/i,
+			/astra/i,
+			/biohorizons/i,
+			/mis\b/i,
+			/alpha[-\s]?bio/i,
+			/neodent/i,
+			/ankylos/i,
+			/zimmer/i,
+			/biomet/i,
+			/bredent/i,
+			/impro/i,
+			/sgs\b/i,
+			/имплант/i,
+		],
+	},
+	{
+		value: "abutment",
+		label: "abutment",
+		patterns: [/аба[тд]мент/i, /abutment/i, /формировател/i],
+	},
+	{
+		value: "bone_graft",
+		label: "bone graft",
+		patterns: [
+			/костн/i,
+			/остео/i,
+			/bone/i,
+			/графт/i,
+			/bio[-\s]?oss/i,
+			/cerabone/i,
+			/geistlich/i,
+			/botiss/i,
+			/osteo\s*biol/i,
+			/symbios/i,
+		],
+	},
+	{
+		value: "membrane",
+		label: "membrane",
+		patterns: [
+			/мембран/i,
+			/membrane/i,
+			/bio[-\s]?gide/i,
+			/jason/i,
+			/collagen/i,
+			/collprotect/i,
+		],
+	},
+	{
+		value: "aligner",
+		label: "aligner",
+		patterns: [
+			/элайнер/i,
+			/aligner/i,
+			/invisalign/i,
+			/star\s*smile/i,
+			/flexi/i,
+		],
+	},
+	{
+		value: "bracket",
+		label: "bracket",
+		patterns: [
+			/брекет/i,
+			/damon/i,
+			/ormco/i,
+			/3m\b/i,
+			/сапфир/i,
+			/керамическ.*брек/i,
+			/металл.*брек/i,
+		],
+	},
+	{
+		value: "fluoride",
+		label: "fluoride",
+		patterns: [/фтор/i, /fluor/i, /реминерал/i],
+	},
+	{
+		value: "anesthetic",
+		label: "anesthetic",
+		patterns: [
+			/анестез/i,
+			/артикаин/i,
+			/ультракаин/i,
+			/убистезин/i,
+			/septanest/i,
+			/ultracain/i,
+			/ubistesin/i,
+		],
+	},
+	{
+		value: "imaging",
+		label: "imaging",
+		patterns: [
+			/кт\b/i,
+			/cbct/i,
+			/оптг/i,
+			/rvg/i,
+			/трг/i,
+			/рентген/i,
+			/vatech/i,
+			/carestream/i,
+			/planmeca/i,
+		],
+	},
+	{
+		value: "lab",
+		label: "lab",
+		patterns: [
+			/лаборатор/i,
+			/техник/i,
+			/слепок/i,
+			/оттиск/i,
+			/скан/i,
+			/3shape/i,
+			/medit/i,
+			/sirona/i,
+			/exocad/i,
+		],
+	},
+	{
+		value: "metal",
+		label: "metal",
+		patterns: [
+			/кобальт/i,
+			/хром/i,
+			/cobalt/i,
+			/chrome/i,
+			/co[-\s]?cr/i,
+			/бюгель/i,
+		],
+	},
+	{ value: "titanium", label: "titanium", patterns: [/титан/i, /titan/i] },
 ];
 const restorationRules = [
-    { value: "surgical_guide", patterns: [/хирургическ.*шаблон/i, /surgical\s*guide/i, /навигац.*шаблон/i] },
-    { value: "implant", patterns: [/имплантац/i, /установк.*имплан/i, /implant\s*placement/i] },
-    { value: "implant_crown", patterns: [/корон.*имплан/i, /implant.*crown/i] },
-    { value: "temporary_crown", patterns: [/времен.*корон/i, /temporary.*crown/i] },
-    { value: "crown", patterns: [/корон/i, /crown/i] },
-    { value: "bridge", patterns: [/мост/i, /bridge/i] },
-    { value: "veneer", patterns: [/винир/i, /veneer/i] },
-    { value: "inlay", patterns: [/вкладк/i, /inlay/i] },
-    { value: "onlay", patterns: [/накладк/i, /onlay/i] },
-    { value: "overlay", patterns: [/overlay/i] },
-    { value: "post_core", patterns: [/культев/i, /штифт/i, /post/i, /core/i] },
-    { value: "denture", patterns: [/протез/i, /denture/i] },
-    { value: "ortho_appliance", patterns: [/брекет/i, /элайнер/i, /ретейн/i, /капп/i] },
-    { value: "sealant", patterns: [/герметизац/i, /фиссур/i, /sealant/i] },
-    { value: "whitening", patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i] },
-    { value: "direct_restoration", patterns: [/реставрац/i] },
-    { value: "filling", patterns: [/пломб/i, /filling/i] }
+	{
+		value: "surgical_guide",
+		patterns: [/хирургическ.*шаблон/i, /surgical\s*guide/i, /навигац.*шаблон/i],
+	},
+	{
+		value: "implant",
+		patterns: [/имплантац/i, /установк.*имплан/i, /implant\s*placement/i],
+	},
+	{ value: "implant_crown", patterns: [/корон.*имплан/i, /implant.*crown/i] },
+	{
+		value: "temporary_crown",
+		patterns: [/времен.*корон/i, /temporary.*crown/i],
+	},
+	{ value: "crown", patterns: [/корон/i, /crown/i] },
+	{ value: "bridge", patterns: [/мост/i, /bridge/i] },
+	{ value: "veneer", patterns: [/винир/i, /veneer/i] },
+	{ value: "inlay", patterns: [/вкладк/i, /inlay/i] },
+	{ value: "onlay", patterns: [/накладк/i, /onlay/i] },
+	{ value: "overlay", patterns: [/overlay/i] },
+	{ value: "post_core", patterns: [/культев/i, /штифт/i, /post/i, /core/i] },
+	{ value: "denture", patterns: [/протез/i, /denture/i] },
+	{
+		value: "ortho_appliance",
+		patterns: [/брекет/i, /элайнер/i, /ретейн/i, /капп/i],
+	},
+	{ value: "sealant", patterns: [/герметизац/i, /фиссур/i, /sealant/i] },
+	{
+		value: "whitening",
+		patterns: [/отбел/i, /zoom/i, /beyond/i, /opalescence/i],
+	},
+	{ value: "direct_restoration", patterns: [/реставрац/i] },
+	{ value: "filling", patterns: [/пломб/i, /filling/i] },
 ];
 const brandRules = [
-    "Straumann",
-    "Nobel",
-    "Osstem",
-    "Dentium",
-    "Megagen",
-    "AnyRidge",
-    "Astra",
-    "BioHorizons",
-    "MIS",
-    "Alpha-Bio",
-    "Neodent",
-    "Ankylos",
-    "Zimmer Biomet",
-    "Bredent",
-    "Impro",
-    "SGS",
-    "Geistlich",
-    "Bio-Oss",
-    "Bio-Gide",
-    "Cerabone",
-    "botiss",
-    "OsteoBiol",
-    "Jason",
-    "Symbios",
-    "Damon",
-    "Ormco",
-    "3M",
-    "American Orthodontics",
-    "Forestadent",
-    "Invisalign",
-    "Star Smile",
-    "FlexiLigner",
-    "Filtek",
-    "Estelite",
-    "Tokuyama",
-    "Omnichroma",
-    "Gradia",
-    "Fuji",
-    "Ketac",
-    "Charisma",
-    "Tetric",
-    "Venus",
-    "Esthet-X",
-    "Dentsply",
-    "Kerr",
-    "Voco",
-    "Kulzer",
-    "IPS e.max",
-    "E.max",
-    "Ivoclar",
-    "Katana",
-    "Prettau",
-    "BruxZir",
-    "Aidite",
-    "Cercon",
-    "ZirCAD",
-    "Lava",
-    "Noritake",
-    "Vita",
-    "Zoom",
-    "Beyond",
-    "Opalescence",
-    "Amazing White",
-    "Philips",
-    "EMS",
-    "Air Flow",
-    "Vector",
-    "Ultracain",
-    "Ubistesin",
-    "Septanest",
-    "3Shape",
-    "Medit",
-    "Sirona",
-    "Planmeca",
-    "Vatech",
-    "Carestream",
-    "KaVo",
-    "NSK",
-    "W&H"
+	"Straumann",
+	"Nobel",
+	"Osstem",
+	"Dentium",
+	"Megagen",
+	"AnyRidge",
+	"Astra",
+	"BioHorizons",
+	"MIS",
+	"Alpha-Bio",
+	"Neodent",
+	"Ankylos",
+	"Zimmer Biomet",
+	"Bredent",
+	"Impro",
+	"SGS",
+	"Geistlich",
+	"Bio-Oss",
+	"Bio-Gide",
+	"Cerabone",
+	"botiss",
+	"OsteoBiol",
+	"Jason",
+	"Symbios",
+	"Damon",
+	"Ormco",
+	"3M",
+	"American Orthodontics",
+	"Forestadent",
+	"Invisalign",
+	"Star Smile",
+	"FlexiLigner",
+	"Filtek",
+	"Estelite",
+	"Tokuyama",
+	"Omnichroma",
+	"Gradia",
+	"Fuji",
+	"Ketac",
+	"Charisma",
+	"Tetric",
+	"Venus",
+	"Esthet-X",
+	"Dentsply",
+	"Kerr",
+	"Voco",
+	"Kulzer",
+	"IPS e.max",
+	"E.max",
+	"Ivoclar",
+	"Katana",
+	"Prettau",
+	"BruxZir",
+	"Aidite",
+	"Cercon",
+	"ZirCAD",
+	"Lava",
+	"Noritake",
+	"Vita",
+	"Zoom",
+	"Beyond",
+	"Opalescence",
+	"Amazing White",
+	"Philips",
+	"EMS",
+	"Air Flow",
+	"Vector",
+	"Ultracain",
+	"Ubistesin",
+	"Septanest",
+	"3Shape",
+	"Medit",
+	"Sirona",
+	"Planmeca",
+	"Vatech",
+	"Carestream",
+	"KaVo",
+	"NSK",
+	"W&H",
 ];
 function normalizeText(value) {
-    return value
-        .normalize("NFKC")
-        .replace(/[‐‑‒–—]/g, "-")
-        .replace(/\s+/g, " ")
-        .trim();
+	return value
+		.normalize("NFKC")
+		.replace(/[‐‑‒–—]/g, "-")
+		.replace(/\s+/g, " ")
+		.trim();
 }
 function normalizeKey(value) {
-    return normalizeText(value)
-        .toLowerCase()
-        .replace(/ё/g, "е")
-        .replace(/[^a-zа-я0-9]+/gi, " ")
-        .trim();
+	return normalizeText(value)
+		.toLowerCase()
+		.replace(/ё/g, "е")
+		.replace(/[^a-zа-я0-9]+/gi, " ")
+		.trim();
 }
 function matchesAny(line, patterns) {
-    return patterns.some((pattern) => pattern.test(line));
+	return patterns.some((pattern) => pattern.test(line));
 }
 function classifyLine(line, preferredSpecialty) {
-    const rule = categoryRules.find((candidate) => matchesAny(line, candidate.patterns));
-    if (rule) {
-        return {
-            category: rule.value,
-            specialty: preferredSpecialty !== "universal" && rule.value !== "imaging" ? preferredSpecialty : rule.specialty,
-            treatmentKind: rule.treatmentKind
-        };
-    }
-    return {
-        category: "other",
-        specialty: preferredSpecialty,
-        treatmentKind: "unclassified"
-    };
+	const rule = categoryRules.find((candidate) =>
+		matchesAny(line, candidate.patterns),
+	);
+	if (rule) {
+		return {
+			category: rule.value,
+			specialty:
+				preferredSpecialty !== "universal" && rule.value !== "imaging"
+					? preferredSpecialty
+					: rule.specialty,
+			treatmentKind: rule.treatmentKind,
+		};
+	}
+	return {
+		category: "other",
+		specialty: preferredSpecialty,
+		treatmentKind: "unclassified",
+	};
 }
 function firstRuleValue(line, rules, fallback) {
-    return rules.find((candidate) => matchesAny(line, candidate.patterns))?.value ?? fallback;
+	return (
+		rules.find((candidate) => matchesAny(line, candidate.patterns))?.value ??
+		fallback
+	);
 }
 function detectBrand(line) {
-    const normalized = normalizeKey(line);
-    return brandRules.find((brand) => normalized.includes(normalizeKey(brand))) ?? null;
+	const normalized = normalizeKey(line);
+	return (
+		brandRules.find((brand) => normalized.includes(normalizeKey(brand))) ?? null
+	);
 }
 /*
  * ТИП КОРОНКИ. «Многослойный цирконий» ТРЕБУЕТ, ЧТОБЫ МАТЕРИАЛ И БЫЛ ЦИРКОНИЕМ.
@@ -278,64 +630,48 @@ function detectBrand(line) {
  * определить, не угадывай.
  */
 function detectCrownType(line, materialKind) {
-    if (!/корон|crown/i.test(line))
-        return null;
-    if (materialKind === "zirconia" && /multi\s*layer|мульти/i.test(line))
-        return "zirconia multilayer";
-    if (materialKind === "zirconia")
-        return "zirconia";
-    if (materialKind === "lithium_disilicate")
-        return "lithium disilicate";
-    if (materialKind === "metal_ceramic")
-        return "metal ceramic";
-    if (materialKind === "pmma")
-        return "temporary PMMA";
-    if (materialKind === "ceramic")
-        return "ceramic";
-    return "crown";
+	if (!/корон|crown/i.test(line)) return null;
+	if (materialKind === "zirconia" && /multi\s*layer|мульти/i.test(line))
+		return "zirconia multilayer";
+	if (materialKind === "zirconia") return "zirconia";
+	if (materialKind === "lithium_disilicate") return "lithium disilicate";
+	if (materialKind === "metal_ceramic") return "metal ceramic";
+	if (materialKind === "pmma") return "temporary PMMA";
+	if (materialKind === "ceramic") return "ceramic";
+	return "crown";
 }
 function detectUnit(line) {
-    if (/челюст|jaw/i.test(line))
-        return "jaw";
-    if (/канал/i.test(line))
-        return "canal";
-    if (/сегмент/i.test(line))
-        return "segment";
-    if (/этап/i.test(line))
-        return "stage";
-    if (/зуб|tooth/i.test(line))
-        return "tooth";
-    if (/имплант/i.test(line))
-        return "implant";
-    if (/аба[тд]мент|abutment/i.test(line))
-        return "abutment";
-    if (/прием|визит/i.test(line))
-        return "visit";
-    return "service";
+	if (/челюст|jaw/i.test(line)) return "jaw";
+	if (/канал/i.test(line)) return "canal";
+	if (/сегмент/i.test(line)) return "segment";
+	if (/этап/i.test(line)) return "stage";
+	if (/зуб|tooth/i.test(line)) return "tooth";
+	if (/имплант/i.test(line)) return "implant";
+	if (/аба[тд]мент|abutment/i.test(line)) return "abutment";
+	if (/прием|визит/i.test(line)) return "visit";
+	return "service";
 }
 function detectToothScope(line) {
-    const allOn = line.match(/\ball[-\s]?on[-\s]?(4|6)\b/i);
-    if (allOn)
-        return `all-on-${allOn[1]}`;
-    const toothRange = line.match(/\b([1-4][1-8])\s*[-,]\s*([1-4][1-8])\b/);
-    if (toothRange)
-        return `${toothRange[1]}-${toothRange[2]}`;
-    const tooth = line.match(/\b(?:зуб\s*)?([1-4][1-8])\b/);
-    return tooth?.[1] ?? null;
+	const allOn = line.match(/\ball[-\s]?on[-\s]?(4|6)\b/i);
+	if (allOn) return `all-on-${allOn[1]}`;
+	const toothRange = line.match(/\b([1-4][1-8])\s*[-,]\s*([1-4][1-8])\b/);
+	if (toothRange) return `${toothRange[1]}-${toothRange[2]}`;
+	const tooth = line.match(/\b(?:зуб\s*)?([1-4][1-8])\b/);
+	return tooth?.[1] ?? null;
 }
 function classifyMaterial(line) {
-    const materialKind = /аба[тд]мент|abutment|формировател/i.test(line)
-        ? "abutment"
-        : firstRuleValue(line, materialRules, "unknown");
-    const restorationType = firstRuleValue(line, restorationRules, "none");
-    return {
-        materialKind,
-        restorationType,
-        crownType: detectCrownType(line, materialKind),
-        brand: detectBrand(line),
-        unit: detectUnit(line),
-        toothScope: detectToothScope(line)
-    };
+	const materialKind = /аба[тд]мент|abutment|формировател/i.test(line)
+		? "abutment"
+		: firstRuleValue(line, materialRules, "unknown");
+	const restorationType = firstRuleValue(line, restorationRules, "none");
+	return {
+		materialKind,
+		restorationType,
+		crownType: detectCrownType(line, materialKind),
+		brand: detectBrand(line),
+		unit: detectUnit(line),
+		toothScope: detectToothScope(line),
+	};
 }
 /*
  * Цена строки прайса — вместе с копейками.
@@ -354,19 +690,19 @@ function classifyMaterial(line) {
  * прайсе нет, и обе записи в прайсах встречаются.
  */
 function parseMoney(value) {
-    if (!value)
-        return null;
-    const trimmed = value.trim();
-    const decimalMatch = /[.,](\d{1,2})$/.exec(trimmed);
-    // «1500,5» — это 50 копеек, а не 5: дополняем до двух знаков справа.
-    const kopecks = decimalMatch ? (decimalMatch[1] ?? "").padEnd(2, "0") : "00";
-    const rubles = (decimalMatch ? trimmed.slice(0, decimalMatch.index) : trimmed).replace(/[^\d]/g, "");
-    if (!rubles)
-        return null;
-    const price = Number(`${rubles}.${kopecks}`);
-    return Number.isFinite(price) && price >= 300 && price <= 2_000_000
-        ? Math.round(price * 100) / 100
-        : null;
+	if (!value) return null;
+	const trimmed = value.trim();
+	const decimalMatch = /[.,](\d{1,2})$/.exec(trimmed);
+	// «1500,5» — это 50 копеек, а не 5: дополняем до двух знаков справа.
+	const kopecks = decimalMatch ? (decimalMatch[1] ?? "").padEnd(2, "0") : "00";
+	const rubles = (
+		decimalMatch ? trimmed.slice(0, decimalMatch.index) : trimmed
+	).replace(/[^\d]/g, "");
+	if (!rubles) return null;
+	const price = Number(`${rubles}.${kopecks}`);
+	return Number.isFinite(price) && price >= 300 && price <= 2_000_000
+		? Math.round(price * 100) / 100
+		: null;
 }
 /*
  * Денежная сумма: разряды пробелом или точкой, копейки одной-двумя цифрами.
@@ -402,7 +738,8 @@ function parseMoney(value) {
  * четыре раза правивший эту же функцию, объявил её «уже верной» — вердикт
  * неверный, и стоил он 157-кратной переплаты в подписываемом документе.
  */
-const amountPattern = "\\d{1,3}(?:[\\s.]\\d{3})+(?:[.,]\\d{1,2})?(?!\\d)|\\d{3,7}(?:[.,]\\d{1,2})?";
+const amountPattern =
+	"\\d{1,3}(?:[\\s.]\\d{3})+(?:[.,]\\d{1,2})?(?!\\d)|\\d{3,7}(?:[.,]\\d{1,2})?";
 /*
  * ЧИСЛО, ПРИКЛЕЕННОЕ К БУКВЕ СЛЕВА, — ЭТО ХВОСТ КОДА МОДЕЛИ, А НЕ ЦЕНА.
  *
@@ -472,8 +809,11 @@ const currencyPattern = "(?:₽|руб\\.?|р\\.?)(?![А-Яа-яЁёA-Za-z])";
  * начинался бы на «от» внутри слова и «Оборот 12000-18000» давало название
  * «Обор».
  */
-const priceRegex = new RegExp(`(?:(?<![А-Яа-яЁёA-Za-z])от\\s*)?(?<low>${amountPattern})(?:\\s*${currencyPattern})?` +
-    `(?:\\s*(?<separator>-|/|до)\\s*(?<high>${amountPattern})(?:\\s*${currencyPattern})?)?`, "gdiu");
+const priceRegex = new RegExp(
+	`(?:(?<![А-Яа-яЁёA-Za-z])от\\s*)?(?<low>${amountPattern})(?:\\s*${currencyPattern})?` +
+		`(?:\\s*(?<separator>-|/|до)\\s*(?<high>${amountPattern})(?:\\s*${currencyPattern})?)?`,
+	"gdiu",
+);
 /*
  * Отрезки, ценой не являющиеся, гасятся ПРОБЕЛАМИ ТОЙ ЖЕ ДЛИНЫ, а не выкидываются.
  *
@@ -482,82 +822,86 @@ const priceRegex = new RegExp(`(?:(?<![А-Яа-яЁёA-Za-z])от\\s*)?(?<low>${
  * соседнего слова.
  */
 const notMoneyPatterns = [
-    // Код услуги по номенклатуре: A16.07.001.
-    /\b[A-ZА-Я]?\d{2}\.\d{2}\.\d{3}\b/giu,
-    // Дата: 01.01.2025. Датой в прайсе помечают редакцию, а не цену.
-    /\b\d{1,2}\.\d{1,2}\.\d{4}\b/giu,
-    /*
-     * НОМЕР ТЕЛЕФОНА ГАСИТСЯ ЦЕЛИКОМ, А НЕ ПЕРВОЙ СВОЕЙ ГРУППОЙ.
-     *
-     * Правило подписи ниже кончается на `\s*\d+` и гасит РОВНО ОДНУ группу цифр
-     * после слова: из «тел 8 999 123 45 67» оно стирало «тел 8», а «999 123 45 67»
-     * доходило до сканера цены. Там разряды с пробелом (`\d{1,3}(?:[\s.]\d{3})+`)
-     * читают «999 123» как деньги, кандидат стоит ОТДЕЛЬНО от букв и потому
-     * старше приклеенного, и телефон клиники продавался как услуга. Измерено на
-     * дереве до этой правки:
-     *   «Тел 8 999 123 45 67»            → услуга «Тел 8 45 67» за 999 123 ₽
-     *   «Запись 8 (999) 123-45-67»       → услуга «Запись 8 ( ) 123-45-67» за 999 ₽
-     *   «Осмотр1500 тел 8 999 123 45 67» → 999 123 ₽ вместо 1500 ₽ (в 666 раз выше)
-     * Предупреждения не было ни одного. Контактную строку клиника вставляет вместе
-     * с прайсом всегда — «Запись по телефону …» стоит в каждом втором прайсе, — и
-     * из середины номера при этом вырезался кусок как будто это цена, поэтому в
-     * каталоге оставалось «Тел 8 45 67». Цена в миллион рублей доезжает из прайса в
-     * план лечения и в подписываемый пациентом документ.
-     *
-     * ЭТО ПРАВИЛО ОБЯЗАНО СТОЯТЬ ВЫШЕ ПРАВИЛА ПОДПИСИ. Гашение идёт reduce'ом по
-     * порядку массива: сработай подпись первой, она съест «тел 8», префикс номера
-     * исчезнет, и телефон уже не опознать.
-     *
-     * ЦЕНУ ЭТА РЕГУЛЯРКА СЪЕСТЬ НЕ МОЖЕТ, и это структурная гарантия, а не расчёт
-     * на удачу: после «8» или «+7» она требует РОВНО 10 цифр в группировке
-     * 3-3-2-2, то есть одиннадцатизначное число. Цен такой длины не существует —
-     * «Имплантация 1 200 000» это семь цифр и первая группа в ней одна цифра, а не
-     * три, поэтому совпадения нет. Запрет цифры справа не даёт правилу оборваться
-     * на середине более длинной последовательности.
-     */
-    /(?:\+7|(?<!\d)8)\s*\(?\s*\d{3}\s*\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)/giu,
-    /*
-     * Число, ПОДПИСАННОЕ слева словом «это не деньги»: «кабинет 412», «каб. 3»,
-     * «этаж 2», «код 1024», «№ 7», «тел. 5551234».
-     *
-     * Номер кабинета — главный источник ложной цены в русском прайсе: он стоит в
-     * конце строки, состоит из трёх цифр и проходит нижнюю границу цены в 300 ₽,
-     * то есть от настоящей цены отличается ТОЛЬКО подписью слева. Измерено на
-     * дереве до правки: «Имплантация 45000 кабинет 412» давала 412 ₽ — в сто
-     * девять раз ниже написанного.
-     *
-     * Слева стоит запрет буквы через lookbehind, а не \b: в JavaScript \b
-     * определён через [A-Za-z0-9_], кириллица словным символом не считается, и без
-     * запрета «тел» нашлось бы внутри слова.
-     *
-     * «No» в списке — это ЗНАК НОМЕРА ПОСЛЕ NFKC. splitPricelistLines приводит
-     * строку через normalizeText, а NFKC раскладывает «№» (U+2116) в латинские
-     * «No», поэтому до сканера цены символ «№» не доходит никогда. Правило,
-     * знающее только «№», молча не срабатывало: «Осмотр 1500 № 412» осталось без
-     * цены. Измерено.
-     */
-    /(?<![А-Яа-яЁёA-Za-z])(?:кабинет|каб|офис|этаж|код|№|No|телефон|тел)\.?\s*(?:№|No)?\s*\d+/giu,
-    /*
-     * Число с ЕДИНИЦЕЙ ИЗМЕРЕНИЯ справа: «120 мин», «1000 дней», «500 мл»,
-     * «16 лет», «10 %». Единица измерения — не рубль, и такое число ценой не
-     * является ни в одном прайсе. Измерено до правки: «Коронка 15000 гарантия
-     * 1000 дней» оценивала коронку в 1000 ₽.
-     *
-     * Гашение идёт только в тексте, по которому ищется цена: длительность приёма
-     * читается из исходной строки (durationFromLine), и в названии услуги минуты
-     * остаются на месте.
-     *
-     * РАЗДЕЛИТЕЛЬ РАЗРЯДОВ ЗДЕСЬ НЕ ДОПУСКАЕТСЯ, И ЭТО НЕ УПУЩЕНИЕ. Первая версия
-     * правила разрешала пробел внутри числа (`\d+(?:[\s.,]\d+)*`), и жадный захват
-     * съедал ЦЕНУ, стоящую слева: в «Гигиена 3000 1 час» гасилось «3000 1 час»
-     * целиком, строка оставалась без цены вообще. Измерено на этой же строке.
-     * Длительность, объём и количество тысячами не пишут, а цена слева от них
-     * стоит постоянно.
-     */
-    /\d+(?:[.,]\d+)?\s*(?:мин(?:ут\w*)?|час(?:а|ов)?|дн(?:ей|я)|день|суток|недел\w*|месяц\w*|лет|года?|мл|мг|шт|ед|мм|см|%)(?![А-Яа-яЁёA-Za-z])/giu
+	// Код услуги по номенклатуре: A16.07.001.
+	/\b[A-ZА-Я]?\d{2}\.\d{2}\.\d{3}\b/giu,
+	// Дата: 01.01.2025. Датой в прайсе помечают редакцию, а не цену.
+	/\b\d{1,2}\.\d{1,2}\.\d{4}\b/giu,
+	/*
+	 * НОМЕР ТЕЛЕФОНА ГАСИТСЯ ЦЕЛИКОМ, А НЕ ПЕРВОЙ СВОЕЙ ГРУППОЙ.
+	 *
+	 * Правило подписи ниже кончается на `\s*\d+` и гасит РОВНО ОДНУ группу цифр
+	 * после слова: из «тел 8 999 123 45 67» оно стирало «тел 8», а «999 123 45 67»
+	 * доходило до сканера цены. Там разряды с пробелом (`\d{1,3}(?:[\s.]\d{3})+`)
+	 * читают «999 123» как деньги, кандидат стоит ОТДЕЛЬНО от букв и потому
+	 * старше приклеенного, и телефон клиники продавался как услуга. Измерено на
+	 * дереве до этой правки:
+	 *   «Тел 8 999 123 45 67»            → услуга «Тел 8 45 67» за 999 123 ₽
+	 *   «Запись 8 (999) 123-45-67»       → услуга «Запись 8 ( ) 123-45-67» за 999 ₽
+	 *   «Осмотр1500 тел 8 999 123 45 67» → 999 123 ₽ вместо 1500 ₽ (в 666 раз выше)
+	 * Предупреждения не было ни одного. Контактную строку клиника вставляет вместе
+	 * с прайсом всегда — «Запись по телефону …» стоит в каждом втором прайсе, — и
+	 * из середины номера при этом вырезался кусок как будто это цена, поэтому в
+	 * каталоге оставалось «Тел 8 45 67». Цена в миллион рублей доезжает из прайса в
+	 * план лечения и в подписываемый пациентом документ.
+	 *
+	 * ЭТО ПРАВИЛО ОБЯЗАНО СТОЯТЬ ВЫШЕ ПРАВИЛА ПОДПИСИ. Гашение идёт reduce'ом по
+	 * порядку массива: сработай подпись первой, она съест «тел 8», префикс номера
+	 * исчезнет, и телефон уже не опознать.
+	 *
+	 * ЦЕНУ ЭТА РЕГУЛЯРКА СЪЕСТЬ НЕ МОЖЕТ, и это структурная гарантия, а не расчёт
+	 * на удачу: после «8» или «+7» она требует РОВНО 10 цифр в группировке
+	 * 3-3-2-2, то есть одиннадцатизначное число. Цен такой длины не существует —
+	 * «Имплантация 1 200 000» это семь цифр и первая группа в ней одна цифра, а не
+	 * три, поэтому совпадения нет. Запрет цифры справа не даёт правилу оборваться
+	 * на середине более длинной последовательности.
+	 */
+	/(?:\+7|(?<!\d)8)\s*\(?\s*\d{3}\s*\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)/giu,
+	/*
+	 * Число, ПОДПИСАННОЕ слева словом «это не деньги»: «кабинет 412», «каб. 3»,
+	 * «этаж 2», «код 1024», «№ 7», «тел. 5551234».
+	 *
+	 * Номер кабинета — главный источник ложной цены в русском прайсе: он стоит в
+	 * конце строки, состоит из трёх цифр и проходит нижнюю границу цены в 300 ₽,
+	 * то есть от настоящей цены отличается ТОЛЬКО подписью слева. Измерено на
+	 * дереве до правки: «Имплантация 45000 кабинет 412» давала 412 ₽ — в сто
+	 * девять раз ниже написанного.
+	 *
+	 * Слева стоит запрет буквы через lookbehind, а не \b: в JavaScript \b
+	 * определён через [A-Za-z0-9_], кириллица словным символом не считается, и без
+	 * запрета «тел» нашлось бы внутри слова.
+	 *
+	 * «No» в списке — это ЗНАК НОМЕРА ПОСЛЕ NFKC. splitPricelistLines приводит
+	 * строку через normalizeText, а NFKC раскладывает «№» (U+2116) в латинские
+	 * «No», поэтому до сканера цены символ «№» не доходит никогда. Правило,
+	 * знающее только «№», молча не срабатывало: «Осмотр 1500 № 412» осталось без
+	 * цены. Измерено.
+	 */
+	/(?<![А-Яа-яЁёA-Za-z])(?:кабинет|каб|офис|этаж|код|№|No|телефон|тел)\.?\s*(?:№|No)?\s*\d+/giu,
+	/*
+	 * Число с ЕДИНИЦЕЙ ИЗМЕРЕНИЯ справа: «120 мин», «1000 дней», «500 мл»,
+	 * «16 лет», «10 %». Единица измерения — не рубль, и такое число ценой не
+	 * является ни в одном прайсе. Измерено до правки: «Коронка 15000 гарантия
+	 * 1000 дней» оценивала коронку в 1000 ₽.
+	 *
+	 * Гашение идёт только в тексте, по которому ищется цена: длительность приёма
+	 * читается из исходной строки (durationFromLine), и в названии услуги минуты
+	 * остаются на месте.
+	 *
+	 * РАЗДЕЛИТЕЛЬ РАЗРЯДОВ ЗДЕСЬ НЕ ДОПУСКАЕТСЯ, И ЭТО НЕ УПУЩЕНИЕ. Первая версия
+	 * правила разрешала пробел внутри числа (`\d+(?:[\s.,]\d+)*`), и жадный захват
+	 * съедал ЦЕНУ, стоящую слева: в «Гигиена 3000 1 час» гасилось «3000 1 час»
+	 * целиком, строка оставалась без цены вообще. Измерено на этой же строке.
+	 * Длительность, объём и количество тысячами не пишут, а цена слева от них
+	 * стоит постоянно.
+	 */
+	/\d+(?:[.,]\d+)?\s*(?:мин(?:ут\w*)?|час(?:а|ов)?|дн(?:ей|я)|день|суток|недел\w*|месяц\w*|лет|года?|мл|мг|шт|ед|мм|см|%)(?![А-Яа-яЁёA-Za-z])/giu,
 ];
 function blankNotMoney(line) {
-    return notMoneyPatterns.reduce((text, pattern) => text.replace(pattern, (fragment) => " ".repeat(fragment.length)), line);
+	return notMoneyPatterns.reduce(
+		(text, pattern) =>
+			text.replace(pattern, (fragment) => " ".repeat(fragment.length)),
+		line,
+	);
 }
 /*
  * ЗНАК РУБЛЯ РЯДОМ С ЧИСЛОМ — ПОДПИСЬ ЧЕЛОВЕКА «ЭТО ЦЕНА УСЛУГИ».
@@ -590,7 +934,8 @@ function blankNotMoney(line) {
  * два списка разъезжаются молча, и этот файл на таком уже терял цену — см.
  * историю currencyPattern и stripPriceFromTitle.
  */
-const priceMarkSpellings = "(?:₽|руб(?:л[а-яё]+)?\\.?|р\\.?)(?![А-Яа-яЁёA-Za-z])";
+const priceMarkSpellings =
+	"(?:₽|руб(?:л[а-яё]+)?\\.?|р\\.?)(?![А-Яа-яЁёA-Za-z])";
 const explicitPriceMarkRegex = new RegExp(`\\d\\s*${priceMarkSpellings}`, "iu");
 /*
  * ПОДПИСАНО ЛИ ДЕНЬГАМИ ИМЕННО ЭТО ЧИСЛО, а не какое-то другое в той же строке.
@@ -620,13 +965,16 @@ const explicitPriceMarkRegex = new RegExp(`\\d\\s*${priceMarkSpellings}`, "iu");
  * стоять знак. Буква между числом и знаком разрывает связь — именно этим
  * «2025, скидка 100 руб» отличается от «2025 рублей».
  */
-const ownPriceMarkRegex = new RegExp(`^\\d[\\d\\s.,]*?\\s*${priceMarkSpellings}`, "iu");
+const ownPriceMarkRegex = new RegExp(
+	`^\\d[\\d\\s.,]*?\\s*${priceMarkSpellings}`,
+	"iu",
+);
 /** Подписано ли деньгами число, начинающееся в scanText на позиции start. */
 function numberCarriesPriceMark(scanText, start) {
-    return ownPriceMarkRegex.test(scanText.slice(start));
+	return ownPriceMarkRegex.test(scanText.slice(start));
 }
 function hasExplicitPriceMark(line) {
-    return explicitPriceMarkRegex.test(blankNotMoney(line));
+	return explicitPriceMarkRegex.test(blankNotMoney(line));
 }
 /**
  * Четырёхзначный год: 1900–2099.
@@ -638,7 +986,7 @@ function hasExplicitPriceMark(line) {
  * price_not_found, выдуманная цена не видна никак и доезжает до плана лечения.
  */
 function looksLikeYear(value) {
-    return /^(?:19|20)\d{2}$/.test(value.trim());
+	return /^(?:19|20)\d{2}$/.test(value.trim());
 }
 /*
  * СТРОКА НАЗЫВАЕТ САМ ДОКУМЕНТ, А НЕ УСЛУГУ: «Прайс-лист 2025», «Редакция 2024»,
@@ -664,17 +1012,17 @@ function looksLikeYear(value) {
  * пойманная услуга исчезает молча.
  */
 const documentEditionPatterns = [
-    /прайс/i,
-    /редакц/i,
-    /верси[яи]/i,
-    /действ(?:ител|у)/i,
-    /утвержд/i,
-    /тариф/i,
-    // Только документный контекст: «с изменениями», «изменения от 2025», «изменение № 3».
-    // Голое /изменени/ съедало услугу «Изменение формы зуба» — см. комментарий выше.
-    /с\s+изменени/i,
-    /изменени\w*\s*(?:от\b|№|no\b)/i,
-    /приказ/i
+	/прайс/i,
+	/редакц/i,
+	/верси[яи]/i,
+	/действ(?:ител|у)/i,
+	/утвержд/i,
+	/тариф/i,
+	// Только документный контекст: «с изменениями», «изменения от 2025», «изменение № 3».
+	// Голое /изменени/ съедало услугу «Изменение формы зуба» — см. комментарий выше.
+	/с\s+изменени/i,
+	/изменени\w*\s*(?:от\b|№|no\b)/i,
+	/приказ/i,
 ];
 /*
  * ОКНО ГОДА РЕДАКЦИИ: сколько лет назад и вперёд от СЕГОДНЯШНЕГО года может
@@ -689,7 +1037,7 @@ const editionYearsBack = 6;
 const editionYearsAhead = 1;
 /** Единственное место разбора прайса, где читаются часы машины. */
 function calendarFromClock() {
-    return { currentYear: new Date().getFullYear() };
+	return { currentYear: new Date().getFullYear() };
 }
 /**
  * Четырёхзначное число в строке — это ГОД ДОКУМЕНТА, а не цена услуги.
@@ -719,12 +1067,13 @@ function calendarFromClock() {
  * стоячий закон этого файла: не можешь определить цену — откажись, а не угадывай.
  */
 function looksLikeEditionYear(line, yearText, calendar) {
-    if (!looksLikeYear(yearText))
-        return false;
-    if (matchesAny(line, documentEditionPatterns))
-        return true;
-    const year = Number(yearText);
-    return year >= calendar.currentYear - editionYearsBack && year <= calendar.currentYear + editionYearsAhead;
+	if (!looksLikeYear(yearText)) return false;
+	if (matchesAny(line, documentEditionPatterns)) return true;
+	const year = Number(yearText);
+	return (
+		year >= calendar.currentYear - editionYearsBack &&
+		year <= calendar.currentYear + editionYearsAhead
+	);
 }
 /**
  * ЧИСЛО, СТОЯЩЕЕ В scanText НА ПОЗИЦИИ start, — ГОД ДОКУМЕНТА, А НЕ ЦЕНА УСЛУГИ.
@@ -742,211 +1091,237 @@ function looksLikeEditionYear(line, yearText, calendar) {
  * стояла только в durationFromLine, гейт строк прайса не применялся к записям
  * модели вовсе.
  */
-function editionYearInsteadOfPrice(line, scanText, start, numberText, calendar) {
-    return !numberCarriesPriceMark(scanText, start) && looksLikeEditionYear(line, numberText, calendar);
+function editionYearInsteadOfPrice(
+	line,
+	scanText,
+	start,
+	numberText,
+	calendar,
+) {
+	return (
+		!numberCarriesPriceMark(scanText, start) &&
+		looksLikeEditionYear(line, numberText, calendar)
+	);
 }
 function collectPriceCandidates(line, calendar) {
-    const scanText = blankNotMoney(line);
-    const candidates = [];
-    for (const match of scanText.matchAll(priceRegex)) {
-        const groups = match.groups ?? {};
-        const matchSpan = match.indices?.[0];
-        const matchText = match[0] ?? "";
-        if (!matchSpan || !matchText)
-            continue;
-        const lowGroupText = groups.low ?? "";
-        const low = parseMoney(lowGroupText);
-        if (low === null)
-            continue;
-        /*
-         * Приклеенность считается у НИЖНЕЙ ГРАНИЦЫ, а не у начала совпадения:
-         * совпадение может начинаться с «от», и тогда слева от него стоит пробел или
-         * начало строки, а буква — вплотную к самой цифре («от12000»).
-         *
-         * indexOf по тексту совпадения даёт точную позицию нижней границы: левее неё
-         * в совпадении может стоять только «от» с пробелами, а цифр там нет ни одной.
-         */
-        const lowStart = matchSpan[0] + matchText.indexOf(lowGroupText);
-        const glued = gluedToWordPattern.test(scanText.slice(0, lowStart));
-        const hasCurrency = /(?:₽|руб|р)\.?$/iu.test(matchText.trimEnd());
-        /*
-         * Номер документа ценой не считается ЦЕЛИКОМ, включая левую часть: признать
-         * ценой только «5678» значило бы и назначить услуге цену 5678 ₽, и вырезать
-         * это число из названия, оставив «Лицензия /2024».
-         */
-        if (groups.separator === "/" && groups.high && !hasCurrency && looksLikeYear(groups.high))
-            continue;
-        const high = groups.high ? parseMoney(groups.high) : null;
-        if (high === null) {
-            /*
-             * Верхняя граница не деньги — значит диапазона нет, и ценой остаётся
-             * нижняя граница со своим знаком рубля. «Седация 5000/120 мин» теряет
-             * только «5000»: 120 не прошло нижнюю границу цены в 300 ₽ и остаётся в
-             * названии как минуты.
-             */
-            const lowEnd = matchText.search(/\s*(?:-|\/|до)\s*\d/u);
-            /*
-             * ЗНАК РУБЛЯ ИЩЕТСЯ У ОСТАВЛЕННОЙ ЦЕНЫ, А НЕ У ВСЕГО СОВПАДЕНИЯ.
-             *
-             * `hasCurrency` выше смотрит на конец ВСЕГО совпадения. В этой ветке
-             * совпадение заходит ЗА знак рубля и проглатывает разделитель вместе с
-             * отброшенным числом, поэтому «5000 руб/120» кончается цифрой, знак рубля
-             * не находится и цена объявляется неявной. А для неявных цен extractPrice
-             * берёт ПОСЛЕДНЕЕ число строки — и услугу оценивает номер кабинета:
-             * «Седация 5000 руб/120 мин кабинет 412» давала 412 ₽ вместо 5000 ₽.
-             * Занижение в двенадцать раз в цене, которая уходит в прайс клиники, затем
-             * в план лечения и в документ, подписываемый пациентом.
-             *
-             * Отрезок до `lowEnd` — ровно та часть, которую мы оставляем ценой, поэтому
-             * вопрос «есть ли знак рубля» задаётся именно ей.
-             */
-            const lowText = lowEnd > 0 ? matchText.slice(0, lowEnd) : matchText;
-            const lowHasCurrency = /(?:₽|руб|р)\.?$/iu.test(lowText.trimEnd());
-            /*
-             * ГОД ДОКУМЕНТА БЕЗ ЗНАКА РУБЛЯ ЦЕНОЙ УСЛУГИ НЕ СТАНОВИТСЯ.
-             *
-             * looksLikeYear в этом файле стоял ровно в ОДНОМ месте — на верхней границе
-             * пары через косую черту («Лицензия 5678/2024»), — а одиночный год через
-             * него не проходил вовсе. Измерено зондом scratch/probe-year-as-price.ts
-             * (истинный код выхода 0) на дереве до правки:
-             *   «Прайс-лист 2025»     услуга «Прайс-лист» за 2025 ₽   [category_uncertain]
-             *   «Прайс 2025 в рублях» услуга «Прайс в рублях» за 2025 ₽ [category_uncertain]
-             *   «Редакция 2024»       услуга «Редакция» за 2024 ₽      [category_uncertain]
-             *   «Отбеливание 2025»    услуга «Отбеливание» за 2025 ₽   ПРЕДУПРЕЖДЕНИЙ НЕТ
-             * Худшая строка — последняя, и хуже она КАЧЕСТВЕННО. «Прайс-лист» и
-             * «Редакция» ни в одно правило categoryRules не попадают, поэтому у них хотя
-             * бы стоит category_uncertain. А «отбел» в правилах hygiene есть: категория
-             * опознана — предупреждения о ней нет, цена формально прочитана —
-             * price_not_found нет тем более. Не остаётся НИ ОДНОГО признака, и заголовок
-             * раздела прайса с годом уезжает в каталог услуг ценой 2025 ₽, оттуда в план
-             * лечения, в счёт и в документ, который подписывает пациент.
-             *
-             * Знак рубля здесь — та же подпись человека «это цена», и владелец этого
-             * признака в файле уже есть: hasExplicitPriceMark, тот же, которым снимает
-             * себя гейт строк. Второго не появляется.
-             *
-             * СПРАШИВАТЬ ЗДЕСЬ lowHasCurrency БЫЛО НЕВЕРНО, И ЭТО ИЗМЕРЕНО, А НЕ
-             * ВЫВЕДЕНО. Первая версия этой проверки смотрела на lowHasCurrency —
-             * признак кандидата, построенный из currencyPattern, — и «Консультация 2025
-             * рублей» ТЕРЯЛА цену 2025 ₽ (проверка упала на этой строке). Причина в том,
-             * что currencyPattern отдаёт ГРАНИЦЫ ОТРЕЗКА и потому обязан запрещать букву
-             * справа: иначе из названия услуги вырезалось бы «руб» из «рублей». Полного
-             * написания он не знает никогда. hasExplicitPriceMark отрезок не отдаёт и
-             * знает все написания — «290 руб», «290 рублей», «290 ₽», — поэтому именно он
-             * отвечает на вопрос «подписал ли человек это число деньгами».
-             *
-             * ПРИЗНАК БЕРЁТСЯ ПО ЭТОМУ ЧИСЛУ, А НЕ ПО СТРОКЕ, И ЭТО ИСПРАВЛЕНИЕ.
-             *
-             * Здесь стоял признак по СТРОКЕ с объяснением: «если знак рубля подписывает
-             * ДРУГОЕ число, то у того числа стоит explicit, и extractPrice выбирает из
-             * явных кандидатов, а не из года». Допущение неверно, когда другое число НЕ
-             * СТАЛО КАНДИДАТОМ ВООБЩЕ. Замер (ревьюер NN1, механизм доразобран ведущим):
-             *   «Прайс-лист 2025, скидка 100 руб»  →  2025 ₽
-             * «скидка 100 руб» кандидатом не является — 100 ₽ ниже окна в 300 ₽, и
-             * parseMoney отдаёт null, — но её знак рубля отключал отказ от года для
-             * ДРУГОГО числа, и годом оценивалась услуга в строке, называющей документ.
-             *
-             * numberCarriesPriceMark спрашивает про отрезок, начинающийся на этом числе,
-             * и знает все написания («2025 рублей» тоже), поэтому законная цена не
-             * теряется, а чужая подпись больше не действует.
-             */
-            if (editionYearInsteadOfPrice(line, scanText, lowStart, lowGroupText, calendar))
-                continue;
-            /*
-             * Разделитель в отрезок цены НЕ включается, и висеть в названии его
-             * оставляет не эта ветка: он снимается на срезе, в stripPriceFromTitle.
-             * Здесь его границу знать нельзя — гашение не-денег (notMoneyPatterns)
-             * стирает отброшенное число ещё до сканера, разделитель остаётся вне
-             * совпадения, и «5000 руб/120 мин» приходит сюда как «5000 руб».
-             */
-            candidates.push({
-                priceRub: low,
-                priceMaxRub: null,
-                explicit: lowHasCurrency,
-                glued,
-                start: matchSpan[0],
-                end: lowEnd > 0 ? matchSpan[0] + lowEnd : matchSpan[1]
-            });
-            continue;
-        }
-        /*
-         * Пара сортируется, а не отбрасывается.
-         *
-         * БЫЛО: верхняя граница ниже нижней просто зачёркивалась (priceMaxRub: null),
-         * и пара СХЛОПЫВАЛАСЬ в оставшееся первое число. «Консультация 1000/500 руб»
-         * — «1000 первичная / 500 повторная» — давала одну цену 1000 ₽: каждая
-         * консультация в прайсе стоила вдвое дороже написанного, молча, и 500 ₽
-         * исчезали. Прежний коммит утверждал, что проверка priceMaxRub >= priceRub
-         * делает исход безопасным; она делала его дороже для пациента.
-         *
-         * Два числа в строке прайса — это либо диапазон, либо две опции («первичная
-         * / повторная»). В обоих случаях меньшее — нижняя граница, большее —
-         * верхняя, и порядок записи на это не влияет.
-         */
-        candidates.push({
-            priceRub: Math.min(low, high),
-            priceMaxRub: Math.max(low, high) > Math.min(low, high) ? Math.max(low, high) : null,
-            explicit: true,
-            glued,
-            start: matchSpan[0],
-            end: matchSpan[1]
-        });
-    }
-    return candidates;
+	const scanText = blankNotMoney(line);
+	const candidates = [];
+	for (const match of scanText.matchAll(priceRegex)) {
+		const groups = match.groups ?? {};
+		const matchSpan = match.indices?.[0];
+		const matchText = match[0] ?? "";
+		if (!matchSpan || !matchText) continue;
+		const lowGroupText = groups.low ?? "";
+		const low = parseMoney(lowGroupText);
+		if (low === null) continue;
+		/*
+		 * Приклеенность считается у НИЖНЕЙ ГРАНИЦЫ, а не у начала совпадения:
+		 * совпадение может начинаться с «от», и тогда слева от него стоит пробел или
+		 * начало строки, а буква — вплотную к самой цифре («от12000»).
+		 *
+		 * indexOf по тексту совпадения даёт точную позицию нижней границы: левее неё
+		 * в совпадении может стоять только «от» с пробелами, а цифр там нет ни одной.
+		 */
+		const lowStart = matchSpan[0] + matchText.indexOf(lowGroupText);
+		const glued = gluedToWordPattern.test(scanText.slice(0, lowStart));
+		const hasCurrency = /(?:₽|руб|р)\.?$/iu.test(matchText.trimEnd());
+		/*
+		 * Номер документа ценой не считается ЦЕЛИКОМ, включая левую часть: признать
+		 * ценой только «5678» значило бы и назначить услуге цену 5678 ₽, и вырезать
+		 * это число из названия, оставив «Лицензия /2024».
+		 */
+		if (
+			groups.separator === "/" &&
+			groups.high &&
+			!hasCurrency &&
+			looksLikeYear(groups.high)
+		)
+			continue;
+		const high = groups.high ? parseMoney(groups.high) : null;
+		if (high === null) {
+			/*
+			 * Верхняя граница не деньги — значит диапазона нет, и ценой остаётся
+			 * нижняя граница со своим знаком рубля. «Седация 5000/120 мин» теряет
+			 * только «5000»: 120 не прошло нижнюю границу цены в 300 ₽ и остаётся в
+			 * названии как минуты.
+			 */
+			const lowEnd = matchText.search(/\s*(?:-|\/|до)\s*\d/u);
+			/*
+			 * ЗНАК РУБЛЯ ИЩЕТСЯ У ОСТАВЛЕННОЙ ЦЕНЫ, А НЕ У ВСЕГО СОВПАДЕНИЯ.
+			 *
+			 * `hasCurrency` выше смотрит на конец ВСЕГО совпадения. В этой ветке
+			 * совпадение заходит ЗА знак рубля и проглатывает разделитель вместе с
+			 * отброшенным числом, поэтому «5000 руб/120» кончается цифрой, знак рубля
+			 * не находится и цена объявляется неявной. А для неявных цен extractPrice
+			 * берёт ПОСЛЕДНЕЕ число строки — и услугу оценивает номер кабинета:
+			 * «Седация 5000 руб/120 мин кабинет 412» давала 412 ₽ вместо 5000 ₽.
+			 * Занижение в двенадцать раз в цене, которая уходит в прайс клиники, затем
+			 * в план лечения и в документ, подписываемый пациентом.
+			 *
+			 * Отрезок до `lowEnd` — ровно та часть, которую мы оставляем ценой, поэтому
+			 * вопрос «есть ли знак рубля» задаётся именно ей.
+			 */
+			const lowText = lowEnd > 0 ? matchText.slice(0, lowEnd) : matchText;
+			const lowHasCurrency = /(?:₽|руб|р)\.?$/iu.test(lowText.trimEnd());
+			/*
+			 * ГОД ДОКУМЕНТА БЕЗ ЗНАКА РУБЛЯ ЦЕНОЙ УСЛУГИ НЕ СТАНОВИТСЯ.
+			 *
+			 * looksLikeYear в этом файле стоял ровно в ОДНОМ месте — на верхней границе
+			 * пары через косую черту («Лицензия 5678/2024»), — а одиночный год через
+			 * него не проходил вовсе. Измерено зондом scratch/probe-year-as-price.ts
+			 * (истинный код выхода 0) на дереве до правки:
+			 *   «Прайс-лист 2025»     услуга «Прайс-лист» за 2025 ₽   [category_uncertain]
+			 *   «Прайс 2025 в рублях» услуга «Прайс в рублях» за 2025 ₽ [category_uncertain]
+			 *   «Редакция 2024»       услуга «Редакция» за 2024 ₽      [category_uncertain]
+			 *   «Отбеливание 2025»    услуга «Отбеливание» за 2025 ₽   ПРЕДУПРЕЖДЕНИЙ НЕТ
+			 * Худшая строка — последняя, и хуже она КАЧЕСТВЕННО. «Прайс-лист» и
+			 * «Редакция» ни в одно правило categoryRules не попадают, поэтому у них хотя
+			 * бы стоит category_uncertain. А «отбел» в правилах hygiene есть: категория
+			 * опознана — предупреждения о ней нет, цена формально прочитана —
+			 * price_not_found нет тем более. Не остаётся НИ ОДНОГО признака, и заголовок
+			 * раздела прайса с годом уезжает в каталог услуг ценой 2025 ₽, оттуда в план
+			 * лечения, в счёт и в документ, который подписывает пациент.
+			 *
+			 * Знак рубля здесь — та же подпись человека «это цена», и владелец этого
+			 * признака в файле уже есть: hasExplicitPriceMark, тот же, которым снимает
+			 * себя гейт строк. Второго не появляется.
+			 *
+			 * СПРАШИВАТЬ ЗДЕСЬ lowHasCurrency БЫЛО НЕВЕРНО, И ЭТО ИЗМЕРЕНО, А НЕ
+			 * ВЫВЕДЕНО. Первая версия этой проверки смотрела на lowHasCurrency —
+			 * признак кандидата, построенный из currencyPattern, — и «Консультация 2025
+			 * рублей» ТЕРЯЛА цену 2025 ₽ (проверка упала на этой строке). Причина в том,
+			 * что currencyPattern отдаёт ГРАНИЦЫ ОТРЕЗКА и потому обязан запрещать букву
+			 * справа: иначе из названия услуги вырезалось бы «руб» из «рублей». Полного
+			 * написания он не знает никогда. hasExplicitPriceMark отрезок не отдаёт и
+			 * знает все написания — «290 руб», «290 рублей», «290 ₽», — поэтому именно он
+			 * отвечает на вопрос «подписал ли человек это число деньгами».
+			 *
+			 * ПРИЗНАК БЕРЁТСЯ ПО ЭТОМУ ЧИСЛУ, А НЕ ПО СТРОКЕ, И ЭТО ИСПРАВЛЕНИЕ.
+			 *
+			 * Здесь стоял признак по СТРОКЕ с объяснением: «если знак рубля подписывает
+			 * ДРУГОЕ число, то у того числа стоит explicit, и extractPrice выбирает из
+			 * явных кандидатов, а не из года». Допущение неверно, когда другое число НЕ
+			 * СТАЛО КАНДИДАТОМ ВООБЩЕ. Замер (ревьюер NN1, механизм доразобран ведущим):
+			 *   «Прайс-лист 2025, скидка 100 руб»  →  2025 ₽
+			 * «скидка 100 руб» кандидатом не является — 100 ₽ ниже окна в 300 ₽, и
+			 * parseMoney отдаёт null, — но её знак рубля отключал отказ от года для
+			 * ДРУГОГО числа, и годом оценивалась услуга в строке, называющей документ.
+			 *
+			 * numberCarriesPriceMark спрашивает про отрезок, начинающийся на этом числе,
+			 * и знает все написания («2025 рублей» тоже), поэтому законная цена не
+			 * теряется, а чужая подпись больше не действует.
+			 */
+			if (
+				editionYearInsteadOfPrice(
+					line,
+					scanText,
+					lowStart,
+					lowGroupText,
+					calendar,
+				)
+			)
+				continue;
+			/*
+			 * Разделитель в отрезок цены НЕ включается, и висеть в названии его
+			 * оставляет не эта ветка: он снимается на срезе, в stripPriceFromTitle.
+			 * Здесь его границу знать нельзя — гашение не-денег (notMoneyPatterns)
+			 * стирает отброшенное число ещё до сканера, разделитель остаётся вне
+			 * совпадения, и «5000 руб/120 мин» приходит сюда как «5000 руб».
+			 */
+			candidates.push({
+				priceRub: low,
+				priceMaxRub: null,
+				explicit: lowHasCurrency,
+				glued,
+				start: matchSpan[0],
+				end: lowEnd > 0 ? matchSpan[0] + lowEnd : matchSpan[1],
+			});
+			continue;
+		}
+		/*
+		 * Пара сортируется, а не отбрасывается.
+		 *
+		 * БЫЛО: верхняя граница ниже нижней просто зачёркивалась (priceMaxRub: null),
+		 * и пара СХЛОПЫВАЛАСЬ в оставшееся первое число. «Консультация 1000/500 руб»
+		 * — «1000 первичная / 500 повторная» — давала одну цену 1000 ₽: каждая
+		 * консультация в прайсе стоила вдвое дороже написанного, молча, и 500 ₽
+		 * исчезали. Прежний коммит утверждал, что проверка priceMaxRub >= priceRub
+		 * делает исход безопасным; она делала его дороже для пациента.
+		 *
+		 * Два числа в строке прайса — это либо диапазон, либо две опции («первичная
+		 * / повторная»). В обоих случаях меньшее — нижняя граница, большее —
+		 * верхняя, и порядок записи на это не влияет.
+		 */
+		candidates.push({
+			priceRub: Math.min(low, high),
+			priceMaxRub:
+				Math.max(low, high) > Math.min(low, high) ? Math.max(low, high) : null,
+			explicit: true,
+			glued,
+			start: matchSpan[0],
+			end: matchSpan[1],
+		});
+	}
+	return candidates;
 }
 function extractPrice(line, calendar) {
-    const candidates = collectPriceCandidates(line, calendar);
-    const explicit = candidates.filter((candidate) => candidate.explicit);
-    const withCurrency = explicit.length ? explicit : candidates;
-    /*
-     * ПРИКЛЕЕННОЕ К БУКВЕ ЧИСЛО ВЫБРАСЫВАЕТСЯ ТОЛЬКО ПРИ НАЛИЧИИ ОТДЕЛЬНО
-     * СТОЯЩЕГО.
-     *
-     * «Пломба Filtek Z550 3500» даёт двух кандидатов: «550» из кода модели и
-     * настоящие «3500». Раньше они расходились, строка объявлялась неоднозначной и
-     * цену не получала вовсе. Хвост кода модели ценой не бывает никогда, а число,
-     * стоящее отдельно, бывает всегда, поэтому выбор между ними структурный, а не
-     * позиционный — угадывать позицию этот файл отказывается (см. ниже).
-     *
-     * ОТКАТА К ПУСТОМУ НАБОРУ ЗДЕСЬ НЕТ, И ЭТО НЕ ЗАПАС ПРОЧНОСТИ, А ЕДИНСТВЕННЫЙ
-     * СПОСОБ НЕ СЛОМАТЬ ТРИ РАБОЧИЕ ФОРМЫ. «Осмотр1500» (цена вплотную к названию)
-     * и «от12000 до 18000» / «от 12000 до18000» (предлог вплотную к границе
-     * диапазона) состоят из ОДНОГО приклеенного кандидата, и жёсткий запрет унёс бы
-     * их цену. Измерено на этих строках: сегодня они дают 1500 ₽ и 12000–18000 ₽.
-     */
-    const detached = withCurrency.filter((candidate) => !candidate.glued);
-    const pool = detached.length ? detached : withCurrency;
-    /*
-     * БЕЗ ЗНАКА РУБЛЯ НЕОДНОЗНАЧНАЯ СТРОКА ОСТАЁТСЯ БЕЗ ЦЕНЫ.
-     *
-     * БЫЛО: ценой назначалось ПОСЛЕДНЕЕ число строки. В русском прайсе последнее
-     * число — чаще номер кабинета, срок гарантии, длительность или количество,
-     * чем цена, и измерено это было прямо на дереве: «Седация 5000/120 мин
-     * кабинет 412» давала 412 ₽ вместо 5000 ₽, «Имплантация 45000 кабинет 412» —
-     * те же 412 ₽. Подписанные числа теперь гасятся ещё в сканере
-     * (notMoneyPatterns), но остаток — несколько чисел без знака рубля и без
-     * подписи — не различим НИЧЕМ: «Пломба 3500 4000» это и две опции, и две
-     * колонки таблицы, и цена с числом рядом.
-     *
-     * Выбор здесь тот же, что для номера документа «5678/2024» выше: выдумать
-     * цену или отказаться от неё. Отказ виден клинике как предупреждение
-     * price_not_found и стоит одной проверенной руками строки; выдуманная цена не
-     * видна никак и доезжает из прайса в план лечения, а оттуда в документ,
-     * который подписывает пациент. Позиционного правила, которое делает такую
-     * строку деньгами, не существует, поэтому правила и нет.
-     *
-     * Знак рубля неоднозначность снимает: у явных цен последняя остаётся
-     * выбранной (проверено на «Осмотр 500 руб, повторный осмотр 300 руб»).
-     */
-    const ambiguous = !explicit.length && new Set(pool.map((candidate) => `${candidate.priceRub}/${candidate.priceMaxRub ?? "-"}`)).size > 1;
-    const selected = ambiguous ? undefined : pool.at(-1);
-    if (!selected)
-        return { priceRub: null, priceMaxRub: null, pricedSpan: null };
-    return {
-        priceRub: selected.priceRub,
-        priceMaxRub: selected.priceMaxRub,
-        pricedSpan: { start: selected.start, end: selected.end }
-    };
+	const candidates = collectPriceCandidates(line, calendar);
+	const explicit = candidates.filter((candidate) => candidate.explicit);
+	const withCurrency = explicit.length ? explicit : candidates;
+	/*
+	 * ПРИКЛЕЕННОЕ К БУКВЕ ЧИСЛО ВЫБРАСЫВАЕТСЯ ТОЛЬКО ПРИ НАЛИЧИИ ОТДЕЛЬНО
+	 * СТОЯЩЕГО.
+	 *
+	 * «Пломба Filtek Z550 3500» даёт двух кандидатов: «550» из кода модели и
+	 * настоящие «3500». Раньше они расходились, строка объявлялась неоднозначной и
+	 * цену не получала вовсе. Хвост кода модели ценой не бывает никогда, а число,
+	 * стоящее отдельно, бывает всегда, поэтому выбор между ними структурный, а не
+	 * позиционный — угадывать позицию этот файл отказывается (см. ниже).
+	 *
+	 * ОТКАТА К ПУСТОМУ НАБОРУ ЗДЕСЬ НЕТ, И ЭТО НЕ ЗАПАС ПРОЧНОСТИ, А ЕДИНСТВЕННЫЙ
+	 * СПОСОБ НЕ СЛОМАТЬ ТРИ РАБОЧИЕ ФОРМЫ. «Осмотр1500» (цена вплотную к названию)
+	 * и «от12000 до 18000» / «от 12000 до18000» (предлог вплотную к границе
+	 * диапазона) состоят из ОДНОГО приклеенного кандидата, и жёсткий запрет унёс бы
+	 * их цену. Измерено на этих строках: сегодня они дают 1500 ₽ и 12000–18000 ₽.
+	 */
+	const detached = withCurrency.filter((candidate) => !candidate.glued);
+	const pool = detached.length ? detached : withCurrency;
+	/*
+	 * БЕЗ ЗНАКА РУБЛЯ НЕОДНОЗНАЧНАЯ СТРОКА ОСТАЁТСЯ БЕЗ ЦЕНЫ.
+	 *
+	 * БЫЛО: ценой назначалось ПОСЛЕДНЕЕ число строки. В русском прайсе последнее
+	 * число — чаще номер кабинета, срок гарантии, длительность или количество,
+	 * чем цена, и измерено это было прямо на дереве: «Седация 5000/120 мин
+	 * кабинет 412» давала 412 ₽ вместо 5000 ₽, «Имплантация 45000 кабинет 412» —
+	 * те же 412 ₽. Подписанные числа теперь гасятся ещё в сканере
+	 * (notMoneyPatterns), но остаток — несколько чисел без знака рубля и без
+	 * подписи — не различим НИЧЕМ: «Пломба 3500 4000» это и две опции, и две
+	 * колонки таблицы, и цена с числом рядом.
+	 *
+	 * Выбор здесь тот же, что для номера документа «5678/2024» выше: выдумать
+	 * цену или отказаться от неё. Отказ виден клинике как предупреждение
+	 * price_not_found и стоит одной проверенной руками строки; выдуманная цена не
+	 * видна никак и доезжает из прайса в план лечения, а оттуда в документ,
+	 * который подписывает пациент. Позиционного правила, которое делает такую
+	 * строку деньгами, не существует, поэтому правила и нет.
+	 *
+	 * Знак рубля неоднозначность снимает: у явных цен последняя остаётся
+	 * выбранной (проверено на «Осмотр 500 руб, повторный осмотр 300 руб»).
+	 */
+	const ambiguous =
+		!explicit.length &&
+		new Set(
+			pool.map(
+				(candidate) => `${candidate.priceRub}/${candidate.priceMaxRub ?? "-"}`,
+			),
+		).size > 1;
+	const selected = ambiguous ? undefined : pool.at(-1);
+	if (!selected) return { priceRub: null, priceMaxRub: null, pricedSpan: null };
+	return {
+		priceRub: selected.priceRub,
+		priceMaxRub: selected.priceMaxRub,
+		pricedSpan: { start: selected.start, end: selected.end },
+	};
 }
 /**
  * Название услуги без цены.
@@ -972,31 +1347,35 @@ function extractPrice(line, calendar) {
  * являются никогда, но и в названии услуги не нужны.
  */
 function stripPriceFromTitle(line, pricedSpan) {
-    /*
-     * РАЗДЕЛИТЕЛЬ, ОСТАВШИЙСЯ НА СРЕЗЕ ЦЕНЫ, УХОДИТ ВМЕСТЕ С НЕЙ — но только если
-     * за ним стоит ЧИСЛО.
-     *
-     * БЫЛО: «Седация 5000 руб/120 мин кабинет 412» давала название «Седация /120
-     * мин кабинет 412», «Гигиена 3000/1 час» — «Гигиена /1 час». Тот же оборванный
-     * хвост, который этот файл уже убрал у диапазона («Отбеливание 12000-»), с
-     * другой стороны числа. Врач видит название в каталоге, пациент — в
-     * подписываемом документе, и висящая косая черта читается там как сбой
-     * программы.
-     *
-     * Условие «дальше цифра» — не косметика. Косая черта перед СЛОВОМ несёт смысл
-     * «за единицу» и остаётся: «Коронка 15000/зуб» даёт «Коронка /зуб», а не
-     * «Коронка зуб», где предлог потерян вместе с чертой. Перед числом же
-     * разделитель значил диапазон, вторая граница ценой не признана, и держать его
-     * не за что.
-     */
-    const withoutPrice = pricedSpan
-        ? `${line.slice(0, pricedSpan.start)} ${line.slice(pricedSpan.end).replace(/^\s*(?:-|\/|до)\s*(?=\d)/u, "")}`
-        : line;
-    return normalizeText(withoutPrice.replace(/\b[A-ZА-Я]?\d{2}\.\d{2}\.\d{3}\b/giu, " "))
-        // Разделитель колонок из таблицы (табуляция стала « ; ») не должен висеть
-        // на конце названия после того, как из него ушла цена.
-        .replace(/[\s;|]+$/u, "")
-        .trim();
+	/*
+	 * РАЗДЕЛИТЕЛЬ, ОСТАВШИЙСЯ НА СРЕЗЕ ЦЕНЫ, УХОДИТ ВМЕСТЕ С НЕЙ — но только если
+	 * за ним стоит ЧИСЛО.
+	 *
+	 * БЫЛО: «Седация 5000 руб/120 мин кабинет 412» давала название «Седация /120
+	 * мин кабинет 412», «Гигиена 3000/1 час» — «Гигиена /1 час». Тот же оборванный
+	 * хвост, который этот файл уже убрал у диапазона («Отбеливание 12000-»), с
+	 * другой стороны числа. Врач видит название в каталоге, пациент — в
+	 * подписываемом документе, и висящая косая черта читается там как сбой
+	 * программы.
+	 *
+	 * Условие «дальше цифра» — не косметика. Косая черта перед СЛОВОМ несёт смысл
+	 * «за единицу» и остаётся: «Коронка 15000/зуб» даёт «Коронка /зуб», а не
+	 * «Коронка зуб», где предлог потерян вместе с чертой. Перед числом же
+	 * разделитель значил диапазон, вторая граница ценой не признана, и держать его
+	 * не за что.
+	 */
+	const withoutPrice = pricedSpan
+		? `${line.slice(0, pricedSpan.start)} ${line.slice(pricedSpan.end).replace(/^\s*(?:-|\/|до)\s*(?=\d)/u, "")}`
+		: line;
+	return (
+		normalizeText(
+			withoutPrice.replace(/\b[A-ZА-Я]?\d{2}\.\d{2}\.\d{3}\b/giu, " "),
+		)
+			// Разделитель колонок из таблицы (табуляция стала « ; ») не должен висеть
+			// на конце названия после того, как из него ушла цена.
+			.replace(/[\s;|]+$/u, "")
+			.trim()
+	);
 }
 /**
  * Длительность приёма из строки прайса.
@@ -1014,196 +1393,236 @@ function stripPriceFromTitle(line, pricedSpan) {
  * см. currencyPattern и запрет буквы слева от «от» в priceRegex.
  */
 function durationFromLine(line) {
-    const match = line.match(/\b(\d{1,3})\s*(?:мин(?:ут\w*)?|minutes?)(?![А-Яа-яЁёA-Za-z])/iu);
-    if (!match)
-        return null;
-    const duration = Number(match[1]);
-    return Number.isFinite(duration) && duration > 0 && duration <= maxServiceDurationMinutes ? duration : null;
+	const match = line.match(
+		/\b(\d{1,3})\s*(?:мин(?:ут\w*)?|minutes?)(?![А-Яа-яЁёA-Za-z])/iu,
+	);
+	if (!match) return null;
+	const duration = Number(match[1]);
+	return Number.isFinite(duration) &&
+		duration > 0 &&
+		duration <= maxServiceDurationMinutes
+		? duration
+		: null;
 }
 function titleTokens(value) {
-    return new Set(normalizeKey(value)
-        .split(/\s+/)
-        .filter((token) => token.length >= 4));
+	return new Set(
+		normalizeKey(value)
+			.split(/\s+/)
+			.filter((token) => token.length >= 4),
+	);
 }
 function matchServiceId(item, catalog) {
-    const sourceTokens = titleTokens(item.title);
-    let best = null;
-    for (const service of catalog) {
-        let score = service.category === item.category ? 2 : 0;
-        if (service.specialty === item.specialty || service.specialty === "universal")
-            score += 1;
-        for (const token of titleTokens(service.title)) {
-            if (sourceTokens.has(token))
-                score += 1;
-        }
-        if (score > (best?.score ?? 0))
-            best = { service, score };
-    }
-    return best && best.score >= 3 ? best.service.id : null;
+	const sourceTokens = titleTokens(item.title);
+	let best = null;
+	for (const service of catalog) {
+		let score = service.category === item.category ? 2 : 0;
+		if (
+			service.specialty === item.specialty ||
+			service.specialty === "universal"
+		)
+			score += 1;
+		for (const token of titleTokens(service.title)) {
+			if (sourceTokens.has(token)) score += 1;
+		}
+		if (score > (best?.score ?? 0)) best = { service, score };
+	}
+	return best && best.score >= 3 ? best.service.id : null;
 }
 function buildWarnings(input) {
-    const warnings = [];
-    if (!input.priceRub)
-        warnings.push("price_not_found");
-    if (input.category === "other")
-        warnings.push("category_uncertain");
-    if (input.materialKind === "unknown" &&
-        ["prosthetics", "orthodontics", "surgery", "therapy"].includes(input.category)) {
-        warnings.push("material_uncertain");
-    }
-    if (input.restorationType === "unknown")
-        warnings.push("restoration_uncertain");
-    if (input.title.length < 4)
-        warnings.push("title_too_short");
-    if (input.sourceKind === "photo_ocr")
-        warnings.push("photo_ocr_requires_visual_review");
-    return warnings;
+	const warnings = [];
+	if (!input.priceRub) warnings.push("price_not_found");
+	if (input.category === "other") warnings.push("category_uncertain");
+	if (
+		input.materialKind === "unknown" &&
+		["prosthetics", "orthodontics", "surgery", "therapy"].includes(
+			input.category,
+		)
+	) {
+		warnings.push("material_uncertain");
+	}
+	if (input.restorationType === "unknown")
+		warnings.push("restoration_uncertain");
+	if (input.title.length < 4) warnings.push("title_too_short");
+	if (input.sourceKind === "photo_ocr")
+		warnings.push("photo_ocr_requires_visual_review");
+	return warnings;
 }
 function confidenceForItem(input) {
-    let confidence = 0.35;
-    if (input.priceRub !== null)
-        confidence += 0.2;
-    if (input.category !== "other")
-        confidence += 0.18;
-    if (input.materialKind !== "unknown")
-        confidence += 0.1;
-    if (input.restorationType !== "none" && input.restorationType !== "unknown")
-        confidence += 0.08;
-    if (input.brand)
-        confidence += 0.05;
-    if (input.title.length >= 8)
-        confidence += 0.04;
-    return Math.min(0.96, Number(confidence.toFixed(2)));
+	let confidence = 0.35;
+	if (input.priceRub !== null) confidence += 0.2;
+	if (input.category !== "other") confidence += 0.18;
+	if (input.materialKind !== "unknown") confidence += 0.1;
+	if (input.restorationType !== "none" && input.restorationType !== "unknown")
+		confidence += 0.08;
+	if (input.brand) confidence += 0.05;
+	if (input.title.length >= 8) confidence += 0.04;
+	return Math.min(0.96, Number(confidence.toFixed(2)));
 }
 function splitPricelistLines(rawText) {
-    return rawText
-        .split(/\r?\n/)
-        .map((line) => normalizeText(line.replace(/\t/g, " ; ")))
-        .filter((line) => line.length > 0)
-        .filter((line) => !/^(код|артикул|услуга|наименование|цена|стоимость)(\s|;|$)/i.test(line));
+	return rawText
+		.split(/\r?\n/)
+		.map((line) => normalizeText(line.replace(/\t/g, " ; ")))
+		.filter((line) => line.length > 0)
+		.filter(
+			(line) =>
+				!/^(код|артикул|услуга|наименование|цена|стоимость)(\s|;|$)/i.test(
+					line,
+				),
+		);
 }
 function buildItemFromLine(line, lineNumber, input, catalog, calendar) {
-    const classification = classifyLine(line, input.preferredSpecialty);
-    const material = classifyMaterial(line);
-    const price = extractPrice(line, calendar);
-    const title = stripPriceFromTitle(line, price.pricedSpan) || line;
-    const item = {
-        id: `price-${lineNumber}`,
-        sourceLine: lineNumber,
-        sourceText: line,
-        title,
-        normalizedTitle: normalizeKey(title),
-        category: classification.category,
-        specialty: classification.specialty,
-        treatmentKind: classification.treatmentKind,
-        materialKind: material.materialKind,
-        restorationType: material.restorationType,
-        crownType: material.crownType,
-        brand: material.brand,
-        toothScope: material.toothScope,
-        unit: material.unit,
-        priceRub: price.priceRub,
-        priceMaxRub: price.priceMaxRub,
-        durationMinutes: durationFromLine(line),
-        confidence: 0,
-        warnings: [],
-        matchedServiceId: null
-    };
-    item.warnings = buildWarnings({ ...item, sourceKind: input.sourceKind });
-    item.confidence = confidenceForItem(item);
-    item.matchedServiceId = matchServiceId(item, catalog);
-    return dentalPricelistItemSchema.parse(item);
+	const classification = classifyLine(line, input.preferredSpecialty);
+	const material = classifyMaterial(line);
+	const price = extractPrice(line, calendar);
+	const title = stripPriceFromTitle(line, price.pricedSpan) || line;
+	const item = {
+		id: `price-${lineNumber}`,
+		sourceLine: lineNumber,
+		sourceText: line,
+		title,
+		normalizedTitle: normalizeKey(title),
+		category: classification.category,
+		specialty: classification.specialty,
+		treatmentKind: classification.treatmentKind,
+		materialKind: material.materialKind,
+		restorationType: material.restorationType,
+		crownType: material.crownType,
+		brand: material.brand,
+		toothScope: material.toothScope,
+		unit: material.unit,
+		priceRub: price.priceRub,
+		priceMaxRub: price.priceMaxRub,
+		durationMinutes: durationFromLine(line),
+		confidence: 0,
+		warnings: [],
+		matchedServiceId: null,
+	};
+	item.warnings = buildWarnings({ ...item, sourceKind: input.sourceKind });
+	item.confidence = confidenceForItem(item);
+	item.matchedServiceId = matchServiceId(item, catalog);
+	return dentalPricelistItemSchema.parse(item);
 }
 function summarize(items) {
-    const grouped = new Map();
-    for (const item of items) {
-        const key = `${item.category}:${item.specialty}`;
-        grouped.set(key, [...(grouped.get(key) ?? []), item]);
-    }
-    return Array.from(grouped.values())
-        .map((group) => {
-        const prices = group.map((item) => item.priceRub).filter((price) => price !== null);
-        const materials = Array.from(new Set(group.map((item) => item.materialKind).filter((kind) => kind !== "unknown"))).sort();
-        const brands = Array.from(new Set(group.map((item) => item.brand).filter((brand) => Boolean(brand)))).sort();
-        return {
-            category: group[0]?.category ?? "other",
-            specialty: group[0]?.specialty ?? "universal",
-            count: group.length,
-            pricedCount: prices.length,
-            minPriceRub: prices.length ? Math.min(...prices) : null,
-            maxPriceRub: prices.length ? Math.max(...prices) : null,
-            // Среднее по копеечным ценам округляем до КОПЕЙКИ, а не до рубля: min и
-            // max в этой же сводке — дословные копии priceRub строки прайса, и
-            // среднее целым рублём выпадало из их диапазона на глазах у
-            // пользователя (min 1500,50 · max 1500,50 · среднее 1501).
-            //
-            // Складываются ЦЕЛЫЕ КОПЕЙКИ, а не рубли с плавающей точкой:
-            // 300.01 + 300.05 + 300.07 в double даёт 900.1299999999999 или 900.13 в
-            // зависимости от порядка слагаемых, и на длинном прайсе накопленная
-            // ошибка сдвигает среднее на копейку. Деление на количество — единственное
-            // место, где точность теряется по существу задачи, и остаток отбрасывается
-            // ровно один раз, в конце.
-            averagePriceRub: prices.length
-                ? Number(kopecksToNumericString(Math.round(sumKopecks(prices.map((price) => parseKopecks(price))) / prices.length)))
-                : null,
-            materialKinds: materials,
-            brands
-        };
-    })
-        .sort((left, right) => right.count - left.count);
+	const grouped = new Map();
+	for (const item of items) {
+		const key = `${item.category}:${item.specialty}`;
+		grouped.set(key, [...(grouped.get(key) ?? []), item]);
+	}
+	return Array.from(grouped.values())
+		.map((group) => {
+			const prices = group
+				.map((item) => item.priceRub)
+				.filter((price) => price !== null);
+			const materials = Array.from(
+				new Set(
+					group
+						.map((item) => item.materialKind)
+						.filter((kind) => kind !== "unknown"),
+				),
+			).sort();
+			const brands = Array.from(
+				new Set(
+					group.map((item) => item.brand).filter((brand) => Boolean(brand)),
+				),
+			).sort();
+			return {
+				category: group[0]?.category ?? "other",
+				specialty: group[0]?.specialty ?? "universal",
+				count: group.length,
+				pricedCount: prices.length,
+				minPriceRub: prices.length ? Math.min(...prices) : null,
+				maxPriceRub: prices.length ? Math.max(...prices) : null,
+				// Среднее по копеечным ценам округляем до КОПЕЙКИ, а не до рубля: min и
+				// max в этой же сводке — дословные копии priceRub строки прайса, и
+				// среднее целым рублём выпадало из их диапазона на глазах у
+				// пользователя (min 1500,50 · max 1500,50 · среднее 1501).
+				//
+				// Складываются ЦЕЛЫЕ КОПЕЙКИ, а не рубли с плавающей точкой:
+				// 300.01 + 300.05 + 300.07 в double даёт 900.1299999999999 или 900.13 в
+				// зависимости от порядка слагаемых, и на длинном прайсе накопленная
+				// ошибка сдвигает среднее на копейку. Деление на количество — единственное
+				// место, где точность теряется по существу задачи, и остаток отбрасывается
+				// ровно один раз, в конце.
+				averagePriceRub: prices.length
+					? Number(
+							kopecksToNumericString(
+								Math.round(
+									sumKopecks(prices.map((price) => parseKopecks(price))) /
+										prices.length,
+								),
+							),
+						)
+					: null,
+				materialKinds: materials,
+				brands,
+			};
+		})
+		.sort((left, right) => right.count - left.count);
 }
 function createVisionStatus(used, reason, modelName) {
-    const keyPool = getProviderKeyPoolSummary(groqProviderId);
-    return {
-        providerId: groqProviderId,
-        configured: keyPool.configuredKeyCount > 0,
-        used,
-        modelName,
-        maxImagesPerRequest: maxGroqImagesPerRequest,
-        reason
-    };
+	const keyPool = getProviderKeyPoolSummary(groqProviderId);
+	return {
+		providerId: groqProviderId,
+		configured: keyPool.configuredKeyCount > 0,
+		used,
+		modelName,
+		maxImagesPerRequest: maxGroqImagesPerRequest,
+		reason,
+	};
 }
 function decodeBase64ImagePayload(value) {
-    const cleaned = value.trim().replace(/^data:[^,]+,/i, "").replace(/\s+/g, "");
-    if (!cleaned || cleaned.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(cleaned))
-        return null;
-    const buffer = Buffer.from(cleaned, "base64");
-    return buffer.length >= 12 ? buffer : null;
+	const cleaned = value
+		.trim()
+		.replace(/^data:[^,]+,/i, "")
+		.replace(/\s+/g, "");
+	if (
+		!cleaned ||
+		cleaned.length % 4 === 1 ||
+		!/^[A-Za-z0-9+/]+={0,2}$/.test(cleaned)
+	)
+		return null;
+	const buffer = Buffer.from(cleaned, "base64");
+	return buffer.length >= 12 ? buffer : null;
 }
 function isExpectedImagePayload(request) {
-    if (!request.imageBase64)
-        return true;
-    const buffer = decodeBase64ImagePayload(request.imageBase64);
-    if (!buffer)
-        return false;
-    if (request.imageMimeType === "image/jpeg") {
-        return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-    }
-    if (request.imageMimeType === "image/png") {
-        return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-    }
-    if (request.imageMimeType === "image/webp") {
-        return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
-    }
-    return false;
+	if (!request.imageBase64) return true;
+	const buffer = decodeBase64ImagePayload(request.imageBase64);
+	if (!buffer) return false;
+	if (request.imageMimeType === "image/jpeg") {
+		return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+	}
+	if (request.imageMimeType === "image/png") {
+		return buffer
+			.subarray(0, 8)
+			.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+	}
+	if (request.imageMimeType === "image/webp") {
+		return (
+			buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+			buffer.subarray(8, 12).toString("ascii") === "WEBP"
+		);
+	}
+	return false;
 }
 function groqPricelistModelName() {
-    return (process.env.GROQ_PRICELIST_MODEL?.trim() ||
-        process.env.DENTAL_PRICELIST_GROQ_MODEL?.trim() ||
-        "meta-llama/llama-4-scout-17b-16e-instruct");
+	return (
+		process.env.GROQ_PRICELIST_MODEL?.trim() ||
+		process.env.DENTAL_PRICELIST_GROQ_MODEL?.trim() ||
+		"meta-llama/llama-4-scout-17b-16e-instruct"
+	);
 }
 function responseFromItems(input) {
-    return dentalPricelistAnalysisResponseSchema.parse({
-        sourceName: input.request.sourceName,
-        sourceKind: input.request.sourceKind,
-        parserMode: input.parserMode,
-        generatedAt: new Date().toISOString(),
-        items: input.items,
-        summary: summarize(input.items),
-        warnings: input.warnings,
-        aiVision: createVisionStatus(input.aiUsed, input.aiReason, input.modelName),
-        groqJsonPromptVersion: groqPromptVersion
-    });
+	return dentalPricelistAnalysisResponseSchema.parse({
+		sourceName: input.request.sourceName,
+		sourceKind: input.request.sourceKind,
+		parserMode: input.parserMode,
+		generatedAt: new Date().toISOString(),
+		items: input.items,
+		summary: summarize(input.items),
+		warnings: input.warnings,
+		aiVision: createVisionStatus(input.aiUsed, input.aiReason, input.modelName),
+		groqJsonPromptVersion: groqPromptVersion,
+	});
 }
 /**
  * Строка прайса — это услуга, а не адрес клиники, дата редакции или заголовок
@@ -1262,31 +1681,26 @@ function responseFromItems(input) {
  * пользуется сам отказ в collectPriceCandidates.
  */
 function refusedPriceLeavesServiceRow(sourceText) {
-    if (matchesAny(sourceText, documentEditionPatterns))
-        return false;
-    /*
-     * Год ищется в тексте БЕЗ подписанных не-денег (blankNotMoney), тем же взглядом,
-     * каким его видит сканер цены. Иначе «Гарантия 2025 дней», где 2025 погашен как
-     * величина с единицей измерения, считалось бы отказом от цены, которого не было,
-     * и мусорная строка вернулась бы в прайс услугой.
-     */
-    return /(?<!\d)(?:19|20)\d{2}(?!\d)/u.test(blankNotMoney(sourceText));
+	if (matchesAny(sourceText, documentEditionPatterns)) return false;
+	/*
+	 * Год ищется в тексте БЕЗ подписанных не-денег (blankNotMoney), тем же взглядом,
+	 * каким его видит сканер цены. Иначе «Гарантия 2025 дней», где 2025 погашен как
+	 * величина с единицей измерения, считалось бы отказом от цены, которого не было,
+	 * и мусорная строка вернулась бы в прайс услугой.
+	 */
+	return /(?<!\d)(?:19|20)\d{2}(?!\d)/u.test(blankNotMoney(sourceText));
 }
 function isPricelistServiceRow(item) {
-    if (!item.title.length)
-        return false;
-    if (item.priceRub !== null)
-        return true;
-    if (item.category !== "other")
-        return true;
-    if (hasExplicitPriceMark(item.sourceText))
-        return true;
-    return refusedPriceLeavesServiceRow(item.sourceText);
+	if (!item.title.length) return false;
+	if (item.priceRub !== null) return true;
+	if (item.category !== "other") return true;
+	if (hasExplicitPriceMark(item.sourceText)) return true;
+	return refusedPriceLeavesServiceRow(item.sourceText);
 }
 /** Формат предупреждения об отброшенных строках. Один владелец на оба режима. */
 const skippedRowsWarningPrefix = "pricelist_rows_skipped:";
 function skippedRowsWarnings(skippedRows) {
-    return skippedRows > 0 ? [`${skippedRowsWarningPrefix}${skippedRows}`] : [];
+	return skippedRows > 0 ? [`${skippedRowsWarningPrefix}${skippedRows}`] : [];
 }
 /**
  * ОДНО ПРАВИЛО СУЩЕСТВОВАНИЯ СТРОКИ ПРАЙСА НА ОБА РЕЖИМА РАЗБОРА.
@@ -1316,8 +1730,11 @@ function skippedRowsWarnings(skippedRows) {
  * шаге они выпали.
  */
 export function selectPricelistServiceRows(parsedRows, droppedBeforeGate = 0) {
-    const items = parsedRows.filter((item) => isPricelistServiceRow(item));
-    return { items, skippedRows: droppedBeforeGate + (parsedRows.length - items.length) };
+	const items = parsedRows.filter((item) => isPricelistServiceRow(item));
+	return {
+		items,
+		skippedRows: droppedBeforeGate + (parsedRows.length - items.length),
+	};
 }
 /*
  * Календарь здесь ОБЯЗАТЕЛЕН и стоит перед необязательными аргументами не по
@@ -1325,105 +1742,114 @@ export function selectPricelistServiceRows(parsedRows, droppedBeforeGate = 0) {
  * опору на дату прогона — ровно то, что правка убирает. Часы читает только вход
  * (analyzePricelist), и все четыре его вызова передают один и тот же календарь.
  */
-function analyzePricelistDeterministic(request, catalog, calendar, parserMode = "deterministic", extraWarnings = []) {
-    const lines = splitPricelistLines(request.rawText);
-    const parsedRows = lines.map((line, index) => buildItemFromLine(line, index + 1, request, catalog, calendar));
-    const selected = selectPricelistServiceRows(parsedRows);
-    const items = selected.items;
-    /*
-     * УДАЛЕНИЕ СТРОКИ ОБЯЗАНО БЫТЬ ВИДНО КЛИНИКЕ.
-     *
-     * Отказ от ЦЕНЫ виден всегда (price_not_found у позиции), а удаление ПОЗИЦИИ
-     * не было видно никак: измерено на тексте из четырёх строк — «Прайс-лист
-     * действителен с 01.01.2025», адрес, «Коронка 12 500 руб», «Цены указаны в
-     * рублях» — приходила одна позиция и warnings: [] , то есть три выброшенные
-     * строки не оставляли ни одного следа. Клиника загружает прайс и не узнаёт,
-     * что услуги в нём нет.
-     *
-     * Счётчик в предупреждении — минимум, который различим на экране: клиника
-     * видит, что строк было больше, и знает, сколько проверить руками.
-     */
-    const warnings = [...extraWarnings];
-    /*
-     * no_pricelist_rows_detected ЗНАЧИТ «НИ ОДНОЙ СТРОКИ НЕ ПРИШЛО», а не «все
-     * отброшены».
-     *
-     * БЫЛО: `if (!items.length)`, и одно предупреждение покрывало два разных
-     * события — пустой текст (или фото без OCR, где строк нет вовсе) и текст, из
-     * которого гейт выбросил всё. Различить их было нельзя, а действия у них
-     * противоположные: в первом случае прайс надо прислать, во втором — проверить
-     * строки, которые уже присланы.
-     */
-    if (!lines.length)
-        warnings.push("no_pricelist_rows_detected");
-    warnings.push(...skippedRowsWarnings(selected.skippedRows));
-    if (request.imageBase64 && !request.useServerAi)
-        warnings.push("image_supplied_but_server_ai_disabled");
-    return responseFromItems({
-        request,
-        items,
-        parserMode,
-        warnings,
-        aiUsed: false,
-        aiReason: request.useServerAi ? "Нейро-проверка не запускалась: локальный разбор уже дал безопасный черновик." : "Нейро-проверка выключена.",
-        modelName: null
-    });
+function analyzePricelistDeterministic(
+	request,
+	catalog,
+	calendar,
+	parserMode = "deterministic",
+	extraWarnings = [],
+) {
+	const lines = splitPricelistLines(request.rawText);
+	const parsedRows = lines.map((line, index) =>
+		buildItemFromLine(line, index + 1, request, catalog, calendar),
+	);
+	const selected = selectPricelistServiceRows(parsedRows);
+	const items = selected.items;
+	/*
+	 * УДАЛЕНИЕ СТРОКИ ОБЯЗАНО БЫТЬ ВИДНО КЛИНИКЕ.
+	 *
+	 * Отказ от ЦЕНЫ виден всегда (price_not_found у позиции), а удаление ПОЗИЦИИ
+	 * не было видно никак: измерено на тексте из четырёх строк — «Прайс-лист
+	 * действителен с 01.01.2025», адрес, «Коронка 12 500 руб», «Цены указаны в
+	 * рублях» — приходила одна позиция и warnings: [] , то есть три выброшенные
+	 * строки не оставляли ни одного следа. Клиника загружает прайс и не узнаёт,
+	 * что услуги в нём нет.
+	 *
+	 * Счётчик в предупреждении — минимум, который различим на экране: клиника
+	 * видит, что строк было больше, и знает, сколько проверить руками.
+	 */
+	const warnings = [...extraWarnings];
+	/*
+	 * no_pricelist_rows_detected ЗНАЧИТ «НИ ОДНОЙ СТРОКИ НЕ ПРИШЛО», а не «все
+	 * отброшены».
+	 *
+	 * БЫЛО: `if (!items.length)`, и одно предупреждение покрывало два разных
+	 * события — пустой текст (или фото без OCR, где строк нет вовсе) и текст, из
+	 * которого гейт выбросил всё. Различить их было нельзя, а действия у них
+	 * противоположные: в первом случае прайс надо прислать, во втором — проверить
+	 * строки, которые уже присланы.
+	 */
+	if (!lines.length) warnings.push("no_pricelist_rows_detected");
+	warnings.push(...skippedRowsWarnings(selected.skippedRows));
+	if (request.imageBase64 && !request.useServerAi)
+		warnings.push("image_supplied_but_server_ai_disabled");
+	return responseFromItems({
+		request,
+		items,
+		parserMode,
+		warnings,
+		aiUsed: false,
+		aiReason: request.useServerAi
+			? "Нейро-проверка не запускалась: локальный разбор уже дал безопасный черновик."
+			: "Нейро-проверка выключена.",
+		modelName: null,
+	});
 }
 function groqSystemPrompt() {
-    return [
-        "You extract dental clinic price lists into strict JSON.",
-        "Do not invent services, materials, prices, brands, tooth numbers, durations, or clinical meaning.",
-        "If a price is absent, use null. If a material/brand/crown type is uncertain, use unknown or null.",
-        "Classify dental services for Russian dental clinics: therapy, prosthetics, surgery, implantology, orthodontics, periodontology, hygiene, imaging, documents, consultation.",
-        "Return only JSON with keys items and warnings.",
-        "Each item must contain: sourceLine, sourceText, title, normalizedTitle, category, specialty, treatmentKind, materialKind, restorationType, crownType, brand, toothScope, unit, priceRub, priceMaxRub, durationMinutes, confidence, warnings.",
-        "Allowed category values: consultation, therapy, surgery, prosthetics, orthodontics, periodontology, hygiene, imaging, documents, other.",
-        "Allowed specialty values: therapist, orthopedist, surgeon, orthodontist, periodontist, hygienist, pediatric, implantologist, radiologist, universal.",
-        "Allowed materialKind values: composite, glass_ionomer, sealant, ceramic, zirconia, lithium_disilicate, metal_ceramic, pmma, metal, titanium, implant_system, abutment, bone_graft, membrane, aligner, bracket, fluoride, whitening, anesthetic, imaging, lab, other, unknown.",
-        "Allowed restorationType values: filling, direct_restoration, inlay, onlay, overlay, veneer, crown, bridge, implant_crown, temporary_crown, post_core, denture, ortho_appliance, sealant, whitening, implant, surgical_guide, none, unknown.",
-        "Allowed crownType values: zirconia multilayer, zirconia, lithium disilicate, metal ceramic, temporary PMMA, ceramic, crown. If the crown type is uncertain, use null for crownType: never the word unknown and never free text.",
-        /*
-         * Правило бренда — ПАРА к правилу crownType выше, и оно про другое.
-         * Перечислить бренды нельзя: список открыт, «Straumann» и «Filtek Z550» —
-         * законные значения, которые клиника обязана видеть латиницей как есть.
-         * Запрещается ровно служебное слово вместо «не знаю»; ту же строку подпирает
-         * brandFromModel на границе разбора.
-         */
-        "The brand field must be the manufacturer or product name exactly as printed in the price list, for example Straumann, Filtek Z550, Bio-Gide. If no brand is named in the row, use null for brand: never the word unknown, never n/a, never a dash."
-    ].join(" ");
+	return [
+		"You extract dental clinic price lists into strict JSON.",
+		"Do not invent services, materials, prices, brands, tooth numbers, durations, or clinical meaning.",
+		"If a price is absent, use null. If a material/brand/crown type is uncertain, use unknown or null.",
+		"Classify dental services for Russian dental clinics: therapy, prosthetics, surgery, implantology, orthodontics, periodontology, hygiene, imaging, documents, consultation.",
+		"Return only JSON with keys items and warnings.",
+		"Each item must contain: sourceLine, sourceText, title, normalizedTitle, category, specialty, treatmentKind, materialKind, restorationType, crownType, brand, toothScope, unit, priceRub, priceMaxRub, durationMinutes, confidence, warnings.",
+		"Allowed category values: consultation, therapy, surgery, prosthetics, orthodontics, periodontology, hygiene, imaging, documents, other.",
+		"Allowed specialty values: therapist, orthopedist, surgeon, orthodontist, periodontist, hygienist, pediatric, implantologist, radiologist, universal.",
+		"Allowed materialKind values: composite, glass_ionomer, sealant, ceramic, zirconia, lithium_disilicate, metal_ceramic, pmma, metal, titanium, implant_system, abutment, bone_graft, membrane, aligner, bracket, fluoride, whitening, anesthetic, imaging, lab, other, unknown.",
+		"Allowed restorationType values: filling, direct_restoration, inlay, onlay, overlay, veneer, crown, bridge, implant_crown, temporary_crown, post_core, denture, ortho_appliance, sealant, whitening, implant, surgical_guide, none, unknown.",
+		"Allowed crownType values: zirconia multilayer, zirconia, lithium disilicate, metal ceramic, temporary PMMA, ceramic, crown. If the crown type is uncertain, use null for crownType: never the word unknown and never free text.",
+		/*
+		 * Правило бренда — ПАРА к правилу crownType выше, и оно про другое.
+		 * Перечислить бренды нельзя: список открыт, «Straumann» и «Filtek Z550» —
+		 * законные значения, которые клиника обязана видеть латиницей как есть.
+		 * Запрещается ровно служебное слово вместо «не знаю»; ту же строку подпирает
+		 * brandFromModel на границе разбора.
+		 */
+		"The brand field must be the manufacturer or product name exactly as printed in the price list, for example Straumann, Filtek Z550, Bio-Gide. If no brand is named in the row, use null for brand: never the word unknown, never n/a, never a dash.",
+	].join(" ");
 }
 function groqUserPrompt(request) {
-    return [
-        `Prompt version: ${groqPromptVersion}.`,
-        `Source kind: ${request.sourceKind}. Preferred specialty: ${request.preferredSpecialty}.`,
-        "Parse the price list text/OCR/photo. Preserve original visible wording in sourceText. Return JSON only.",
-        request.rawText ? `Text:\n${request.rawText.slice(0, 60_000)}` : "No OCR text was supplied; use the attached image only."
-    ].join("\n\n");
+	return [
+		`Prompt version: ${groqPromptVersion}.`,
+		`Source kind: ${request.sourceKind}. Preferred specialty: ${request.preferredSpecialty}.`,
+		"Parse the price list text/OCR/photo. Preserve original visible wording in sourceText. Return JSON only.",
+		request.rawText
+			? `Text:\n${request.rawText.slice(0, 60_000)}`
+			: "No OCR text was supplied; use the attached image only.",
+	].join("\n\n");
 }
 function contentToString(content) {
-    if (typeof content === "string")
-        return content;
-    if (Array.isArray(content)) {
-        return content.map((part) => (typeof part.text === "string" ? part.text : "")).join("\n");
-    }
-    return "";
+	if (typeof content === "string") return content;
+	if (Array.isArray(content)) {
+		return content
+			.map((part) => (typeof part.text === "string" ? part.text : ""))
+			.join("\n");
+	}
+	return "";
 }
 export function safeParseJsonObject(value) {
-    const trimmed = value.trim();
-    if (!trimmed)
-        return {};
-    try {
-        return JSON.parse(trimmed);
-    }
-    catch {
-        const objectMatch = trimmed.match(/\{[\s\S]*\}/);
-        if (!objectMatch)
-            return {};
-        return JSON.parse(objectMatch[0]);
-    }
+	const trimmed = value.trim();
+	if (!trimmed) return {};
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		const objectMatch = trimmed.match(/\{[\s\S]*\}/);
+		if (!objectMatch) return {};
+		return JSON.parse(objectMatch[0]);
+	}
 }
 function asString(value, fallback = "") {
-    return typeof value === "string" ? value : fallback;
+	return typeof value === "string" ? value : fallback;
 }
 /*
  * ЧТЕНИЕ ЧИСЕЛ ИЗ ОТВЕТА МОДЕЛИ. Их ровно два вида, и правила у них разные.
@@ -1449,25 +1875,24 @@ function asString(value, fallback = "") {
  */
 /** Денежное значение из ответа модели в целых копейках. Без плавающей точки. */
 function readMoneyKopecksOrNull(value) {
-    if (typeof value === "number") {
-        if (!Number.isFinite(value) || value < 0)
-            return null;
-        const kopecks = parseKopecks(value);
-        return Number.isSafeInteger(kopecks) ? kopecks : null;
-    }
-    if (typeof value !== "string")
-        return null;
-    /*
-     * Формат проверяется здесь, арифметика — только в parseKopecks: второго
-     * владельца денежного инварианта в проекте быть не должно. Модель по промпту
-     * отдаёт число, но JSON от языковой модели регулярно приносит строку
-     * «1500.50» или «1500,50», и терять из-за этого цену нельзя.
-     */
-    const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(value.trim());
-    if (!match)
-        return null;
-    const kopecks = parseKopecks(`${match[1]}.${(match[2] ?? "").padEnd(2, "0")}`);
-    return Number.isSafeInteger(kopecks) ? kopecks : null;
+	if (typeof value === "number") {
+		if (!Number.isFinite(value) || value < 0) return null;
+		const kopecks = parseKopecks(value);
+		return Number.isSafeInteger(kopecks) ? kopecks : null;
+	}
+	if (typeof value !== "string") return null;
+	/*
+	 * Формат проверяется здесь, арифметика — только в parseKopecks: второго
+	 * владельца денежного инварианта в проекте быть не должно. Модель по промпту
+	 * отдаёт число, но JSON от языковой модели регулярно приносит строку
+	 * «1500.50» или «1500,50», и терять из-за этого цену нельзя.
+	 */
+	const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(value.trim());
+	if (!match) return null;
+	const kopecks = parseKopecks(
+		`${match[1]}.${(match[2] ?? "").padEnd(2, "0")}`,
+	);
+	return Number.isSafeInteger(kopecks) ? kopecks : null;
 }
 /**
  * Цена из ответа модели — рубли с копейками, как объявлено в контракте.
@@ -1479,10 +1904,9 @@ function readMoneyKopecksOrNull(value) {
  * детерминированной цене, а не встать в каталог услуг ценой без предупреждения.
  */
 function readMoneyRubOrNull(value) {
-    const kopecks = readMoneyKopecksOrNull(value);
-    if (kopecks === null || kopecks === 0)
-        return null;
-    return Number(kopecksToNumericString(kopecks));
+	const kopecks = readMoneyKopecksOrNull(value);
+	if (kopecks === null || kopecks === 0) return null;
+	return Number(kopecksToNumericString(kopecks));
 }
 /**
  * ЦЕНА ИЗ ОТВЕТА МОДЕЛИ — ЭТО ГОД ДОКУМЕНТА, А НЕ ЦЕНА УСЛУГИ.
@@ -1515,58 +1939,69 @@ function readMoneyRubOrNull(value) {
  * подписи по погашенному числу.
  */
 function priceIsDocumentYear(sourceText, priceRub, calendar) {
-    /*
-     * ГОД СПРАШИВАЕТСЯ ПО ЦЕЛОЙ ЧАСТИ, А НЕ ПО СТРОКОВОМУ ВИДУ ЧИСЛА.
-     *
-     * БЫЛО: `String(priceRub)`, а `looksLikeYear` — это `/^(?:19|20)\d{2}$/`.
-     * Дробное число этому образцу не подходит НИКОГДА, поэтому весь отказ от года
-     * выключался одной десятой копейки. Замер ревьюера пакета PP4, перемерен
-     * ведущим прямым вызовом `itemFromGroq` (календарь передан явно):
-     *
-     *   «Отбеливание 2025» + модель priceRub 2025    → null      правило работает
-     *   «Отбеливание 2025» + модель priceRub 2025.5  → 2025.5    ПРАВИЛО ВЫКЛЮЧЕНО
-     *   «Прайс-лист 2025»  + модель priceRub 2025.5  → 2025.5
-     *
-     * То есть заголовок раздела прайса встаёт услугой за 2025,50 ₽ — ровно тот
-     * дефект, против которого написан весь отказ от года, только через дробь.
-     * Дробные рубли здесь не экзотика: под копейки в этом файле отдельный набор
-     * `groqPricelistKopecks.test.ts` и отдельный коммит, то есть модель именно такие
-     * значения и присылает.
-     *
-     * `2025.0` дырой не был и не является: `String(2025.0) === "2025"`. Дыра ровно в
-     * непустой дробной части, поэтому лечится отбрасыванием этой части — и целая
-     * часть же используется дальше для поиска числа в строке, иначе «2025.5» не
-     * нашлось бы в тексте «Отбеливание 2025» вовсе.
-     */
-    const numberText = String(Math.trunc(priceRub));
-    if (!looksLikeYear(numberText))
-        return false;
-    const scanText = blankNotMoney(sourceText);
-    const occurrences = Array.from(scanText.matchAll(new RegExp(`(?<!\\d)${numberText}(?!\\d)`, "gu")))
-        .map((match) => match.index)
-        .filter((index) => index !== undefined);
-    return occurrences.length
-        ? occurrences.every((start) => editionYearInsteadOfPrice(sourceText, scanText, start, numberText, calendar))
-        : looksLikeEditionYear(sourceText, numberText, calendar);
+	/*
+	 * ГОД СПРАШИВАЕТСЯ ПО ЦЕЛОЙ ЧАСТИ, А НЕ ПО СТРОКОВОМУ ВИДУ ЧИСЛА.
+	 *
+	 * БЫЛО: `String(priceRub)`, а `looksLikeYear` — это `/^(?:19|20)\d{2}$/`.
+	 * Дробное число этому образцу не подходит НИКОГДА, поэтому весь отказ от года
+	 * выключался одной десятой копейки. Замер ревьюера пакета PP4, перемерен
+	 * ведущим прямым вызовом `itemFromGroq` (календарь передан явно):
+	 *
+	 *   «Отбеливание 2025» + модель priceRub 2025    → null      правило работает
+	 *   «Отбеливание 2025» + модель priceRub 2025.5  → 2025.5    ПРАВИЛО ВЫКЛЮЧЕНО
+	 *   «Прайс-лист 2025»  + модель priceRub 2025.5  → 2025.5
+	 *
+	 * То есть заголовок раздела прайса встаёт услугой за 2025,50 ₽ — ровно тот
+	 * дефект, против которого написан весь отказ от года, только через дробь.
+	 * Дробные рубли здесь не экзотика: под копейки в этом файле отдельный набор
+	 * `groqPricelistKopecks.test.ts` и отдельный коммит, то есть модель именно такие
+	 * значения и присылает.
+	 *
+	 * `2025.0` дырой не был и не является: `String(2025.0) === "2025"`. Дыра ровно в
+	 * непустой дробной части, поэтому лечится отбрасыванием этой части — и целая
+	 * часть же используется дальше для поиска числа в строке, иначе «2025.5» не
+	 * нашлось бы в тексте «Отбеливание 2025» вовсе.
+	 */
+	const numberText = String(Math.trunc(priceRub));
+	if (!looksLikeYear(numberText)) return false;
+	const scanText = blankNotMoney(sourceText);
+	const occurrences = Array.from(
+		scanText.matchAll(new RegExp(`(?<!\\d)${numberText}(?!\\d)`, "gu")),
+	)
+		.map((match) => match.index)
+		.filter((index) => index !== undefined);
+	return occurrences.length
+		? occurrences.every((start) =>
+				editionYearInsteadOfPrice(
+					sourceText,
+					scanText,
+					start,
+					numberText,
+					calendar,
+				),
+			)
+		: looksLikeEditionYear(sourceText, numberText, calendar);
 }
 /** Цена из ответа модели, если это цена, и НЕИЗВЕСТНО (null), если это год документа. */
 function moneyUnlessDocumentYear(value, sourceText, calendar) {
-    return value !== null && priceIsDocumentYear(sourceText, value, calendar) ? null : value;
+	return value !== null && priceIsDocumentYear(sourceText, value, calendar)
+		? null
+		: value;
 }
 /**
  * Счётное значение из ответа модели: целое, не меньше единицы, не больше
  * `maxValue`. Ноль и отрицательное — не счёт, а отсутствие значения.
  */
 function readIntegerCountOrNull(value, maxValue) {
-    const raw = typeof value === "number"
-        ? value
-        : typeof value === "string" && /^\d+(?:[.,]\d+)?$/.test(value.trim())
-            ? Number(value.trim().replace(",", "."))
-            : null;
-    if (raw === null || !Number.isFinite(raw))
-        return null;
-    const rounded = Math.round(raw);
-    return rounded >= 1 && rounded <= maxValue ? rounded : null;
+	const raw =
+		typeof value === "number"
+			? value
+			: typeof value === "string" && /^\d+(?:[.,]\d+)?$/.test(value.trim())
+				? Number(value.trim().replace(",", "."))
+				: null;
+	if (raw === null || !Number.isFinite(raw)) return null;
+	const rounded = Math.round(raw);
+	return rounded >= 1 && rounded <= maxValue ? rounded : null;
 }
 /*
  * ПРЕДУПРЕЖДЕНИЯ ОТ МОДЕЛИ ПРОХОДЯТ БЕЛЫЙ СПИСОК, А НЕ ЕДУТ НА ЭКРАН КАК ЕСТЬ.
@@ -1617,44 +2052,52 @@ function readIntegerCountOrNull(value, maxValue) {
  * Детерминированная ветка чиста по построению: `detectBrand` выбирает только из
  * `brandRules`, то есть из закрытого списка, и «unknown» вернуть не может.
  */
-const modelBrandSentinels = new Set(["unknown", "unknown brand", "n/a", "na", "none", "null", "-", "—"]);
+const modelBrandSentinels = new Set([
+	"unknown",
+	"unknown brand",
+	"n/a",
+	"na",
+	"none",
+	"null",
+	"-",
+	"—",
+]);
 function brandFromModel(raw, fallbackBrand) {
-    if (raw === null)
-        return null;
-    const candidate = asString(raw, fallbackBrand ?? "").trim();
-    if (!candidate)
-        return fallbackBrand;
-    /*
-     * ЗАГЛУШКА ОТ МОДЕЛИ УСТУПАЕТ НАХОДКЕ ДЕТЕРМИНИРОВАННОГО РАЗБОРА, А НЕ ОБНУЛЯЕТ ЕЁ.
-     *
-     * `fallbackBrand` приходит из `detectBrand`, то есть из ЗАКРЫТОГО списка
-     * `brandRules`, и служебного слова содержать не может. Если модель написала
-     * «unknown», а в строке прайса стоит «Straumann» и разбор его нашёл, — верным
-     * ответом является «Straumann», а не пустота. Обнулять здесь значило бы
-     * выбросить измеренное в пользу незнания модели.
-     */
-    return modelBrandSentinels.has(candidate.toLowerCase()) ? fallbackBrand : candidate;
+	if (raw === null) return null;
+	const candidate = asString(raw, fallbackBrand ?? "").trim();
+	if (!candidate) return fallbackBrand;
+	/*
+	 * ЗАГЛУШКА ОТ МОДЕЛИ УСТУПАЕТ НАХОДКЕ ДЕТЕРМИНИРОВАННОГО РАЗБОРА, А НЕ ОБНУЛЯЕТ ЕЁ.
+	 *
+	 * `fallbackBrand` приходит из `detectBrand`, то есть из ЗАКРЫТОГО списка
+	 * `brandRules`, и служебного слова содержать не может. Если модель написала
+	 * «unknown», а в строке прайса стоит «Straumann» и разбор его нашёл, — верным
+	 * ответом является «Straumann», а не пустота. Обнулять здесь значило бы
+	 * выбросить измеренное в пользу незнания модели.
+	 */
+	return modelBrandSentinels.has(candidate.toLowerCase())
+		? fallbackBrand
+		: candidate;
 }
 const modelWarningAllowList = new Set([
-    "price_not_found",
-    "category_uncertain",
-    "material_uncertain",
-    "restoration_uncertain",
-    "title_too_short",
-    "photo_ocr_requires_visual_review"
+	"price_not_found",
+	"category_uncertain",
+	"material_uncertain",
+	"restoration_uncertain",
+	"title_too_short",
+	"photo_ocr_requires_visual_review",
 ]);
 function asWarnings(value) {
-    if (!Array.isArray(value))
-        return [];
-    const raw = value
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter(Boolean)
-        .slice(0, 8);
-    const known = raw.filter((warning) => modelWarningAllowList.has(warning));
-    const droppedUnknown = known.length < raw.length;
-    return droppedUnknown && !known.includes("material_uncertain")
-        ? [...known, "material_uncertain"]
-        : known;
+	if (!Array.isArray(value)) return [];
+	const raw = value
+		.map((item) => (typeof item === "string" ? item.trim() : ""))
+		.filter(Boolean)
+		.slice(0, 8);
+	const known = raw.filter((warning) => modelWarningAllowList.has(warning));
+	const droppedUnknown = known.length < raw.length;
+	return droppedUnknown && !known.includes("material_uncertain")
+		? [...known, "material_uncertain"]
+		: known;
 }
 /**
  * Одна позиция прайса из JSON-ответа модели.
@@ -1680,81 +2123,126 @@ function asWarnings(value) {
  * `analyzePricelist` с `useServerAi: true`, а не сборкой последовательности из
  * вынутых функций: собранная в тесте композиция проверяет сама себя.
  */
-export function itemFromGroq(raw, index, request, catalog, calendar = calendarFromClock()) {
-    if (!raw || typeof raw !== "object")
-        return null;
-    const record = raw;
-    const sourceText = normalizeText(asString(record.sourceText, asString(record.title)));
-    if (!sourceText)
-        return null;
-    const fallback = buildItemFromLine(sourceText, index + 1, request, catalog, calendar);
-    /*
-     * ОТКАЗ ОТ ГОДА РЕДАКЦИИ ДЕЙСТВУЕТ И ЗДЕСЬ, А НЕ ТОЛЬКО В ДЕТЕРМИНИРОВАННОЙ
-     * ВЕТКЕ. Раньше стояло `readMoneyRubOrNull(record.priceRub) ?? fallback.priceRub`,
-     * и число модели проверок на год не проходило ВООБЩЕ: детерминированный разбор от
-     * года уже отказывался, а запись модели с priceRub 2025 по строке «Прайс-лист
-     * 2025» вставала в каталог услугой за 2025 ₽ — и оттуда в план лечения, в счёт и в
-     * документ, который подписывает пациент.
-     *
-     * Отказ уводит цену в ОТКАТ ПО ТОЙ ЖЕ СТРОКЕ, а не в null: `?? fallback` ниже
-     * читает ту же строку детерминированным разбором. Поэтому «Гигиена от 2025 до 2500
-     * руб» цену не теряет — там пара границ, а не одиночный год, — и решает в итоге
-     * одно правило на оба режима, а не два разных представления о годе.
-     *
-     * ВЕРХНЯЯ ГРАНИЦА ПРОВЕРЯЕТСЯ ТЕМ ЖЕ ПРАВИЛОМ, И ЦЕНА ЭТОЙ ОШИБКИ ИЗМЕРЕНА, А НЕ
-     * ВЫВЕДЕНА. Здесь стояло «иначе получился бы выдуманный диапазон 12 500-2025 ₽» —
-     * это неверно и мягче, чем правда. Мутация этой строки к прежнему виду (проверка
-     * снята только с priceMaxRub) роняет набор с «2025 !== 12500»: запись «Коронка
-     * 12 500 руб (прайс 2025)» с priceMaxRub 2025 от модели даёт убывающую пару,
-     * свёртка ниже её СОРТИРУЕТ, и коронка встаёт в каталог за 2025 ₽, а написанные
-     * 12 500 ₽ уезжают в верхнюю границу. То есть год подменяет саму цену, занижая её
-     * в 6,2 раза, а не приписывает услуге лишний диапазон.
-     */
-    const priceRubFromModel = moneyUnlessDocumentYear(readMoneyRubOrNull(record.priceRub), sourceText, calendar) ?? fallback.priceRub;
-    const priceMaxRubFromModel = moneyUnlessDocumentYear(readMoneyRubOrNull(record.priceMaxRub), sourceText, calendar) ?? fallback.priceMaxRub;
-    /*
-     * Убывающая пара СОРТИРУЕТСЯ, а не схлопывается в первое число.
-     *
-     * БЫЛО: верхняя граница ниже нижней просто обнулялась, а ценой оставалась
-     * нижняя ПОЗИЦИЯ пары — на убывающей паре это бо́льшее из двух чисел. Модель,
-     * прочитавшая «Консультация 1000/500» как priceRub 1000 и priceMaxRub 500,
-     * ставила в каталог консультацию за 1000 ₽, и 500 ₽ исчезали: услуга дорожала
-     * вдвое, молча. Проверка «max < min» безопасности не давала — она делала исход
-     * дороже для пациента.
-     *
-     * Тот же дефект убран из детерминированного разбора (collectPriceCandidates),
-     * а нейро-ветка осталась с ним, и две ветки на одном прайсе давали РАЗНЫЕ
-     * цены. Два числа — это либо диапазон, либо две опции; в обоих случаях меньшее
-     * есть нижняя граница, и порядок в ответе модели на это не влияет.
-     */
-    const descendingPair = priceRubFromModel !== null && priceMaxRubFromModel !== null && priceMaxRubFromModel < priceRubFromModel;
-    const priceRub = descendingPair ? priceMaxRubFromModel : priceRubFromModel;
-    const priceMaxRub = descendingPair ? priceRubFromModel : priceMaxRubFromModel;
-    const item = {
-        ...fallback,
-        id: `price-ai-${index + 1}`,
-        sourceLine: Math.max(1, Math.round(Number(record.sourceLine) || index + 1)),
-        sourceText,
-        title: normalizeText(asString(record.title, fallback.title)) || fallback.title,
-        normalizedTitle: normalizeKey(asString(record.normalizedTitle, asString(record.title, fallback.title))),
-        category: asString(record.category, fallback.category),
-        specialty: asString(record.specialty, fallback.specialty),
-        treatmentKind: asString(record.treatmentKind, fallback.treatmentKind),
-        materialKind: asString(record.materialKind, fallback.materialKind),
-        restorationType: asString(record.restorationType, fallback.restorationType),
-        crownType: record.crownType === null ? null : asString(record.crownType, fallback.crownType ?? "") || null,
-        brand: brandFromModel(record.brand, fallback.brand),
-        toothScope: record.toothScope === null ? null : asString(record.toothScope, fallback.toothScope ?? "") || null,
-        unit: asString(record.unit, fallback.unit),
-        priceRub,
-        priceMaxRub,
-        durationMinutes: readIntegerCountOrNull(record.durationMinutes, maxServiceDurationMinutes) ?? fallback.durationMinutes,
-        confidence: Math.min(0.98, Math.max(0.1, Number(record.confidence) || fallback.confidence)),
-        warnings: Array.from(new Set([...fallback.warnings, ...asWarnings(record.warnings)])),
-        matchedServiceId: null
-    };
-    item.matchedServiceId = matchServiceId(item, catalog);
-    return dentalPricelistItemSchema.safeParse(item).success ? dentalPricelistItemSchema.parse(item) : fallback;
+export function itemFromGroq(
+	raw,
+	index,
+	request,
+	catalog,
+	calendar = calendarFromClock(),
+) {
+	if (!raw || typeof raw !== "object") return null;
+	const record = raw;
+	const sourceText = normalizeText(
+		asString(record.sourceText, asString(record.title)),
+	);
+	if (!sourceText) return null;
+	const fallback = buildItemFromLine(
+		sourceText,
+		index + 1,
+		request,
+		catalog,
+		calendar,
+	);
+	/*
+	 * ОТКАЗ ОТ ГОДА РЕДАКЦИИ ДЕЙСТВУЕТ И ЗДЕСЬ, А НЕ ТОЛЬКО В ДЕТЕРМИНИРОВАННОЙ
+	 * ВЕТКЕ. Раньше стояло `readMoneyRubOrNull(record.priceRub) ?? fallback.priceRub`,
+	 * и число модели проверок на год не проходило ВООБЩЕ: детерминированный разбор от
+	 * года уже отказывался, а запись модели с priceRub 2025 по строке «Прайс-лист
+	 * 2025» вставала в каталог услугой за 2025 ₽ — и оттуда в план лечения, в счёт и в
+	 * документ, который подписывает пациент.
+	 *
+	 * Отказ уводит цену в ОТКАТ ПО ТОЙ ЖЕ СТРОКЕ, а не в null: `?? fallback` ниже
+	 * читает ту же строку детерминированным разбором. Поэтому «Гигиена от 2025 до 2500
+	 * руб» цену не теряет — там пара границ, а не одиночный год, — и решает в итоге
+	 * одно правило на оба режима, а не два разных представления о годе.
+	 *
+	 * ВЕРХНЯЯ ГРАНИЦА ПРОВЕРЯЕТСЯ ТЕМ ЖЕ ПРАВИЛОМ, И ЦЕНА ЭТОЙ ОШИБКИ ИЗМЕРЕНА, А НЕ
+	 * ВЫВЕДЕНА. Здесь стояло «иначе получился бы выдуманный диапазон 12 500-2025 ₽» —
+	 * это неверно и мягче, чем правда. Мутация этой строки к прежнему виду (проверка
+	 * снята только с priceMaxRub) роняет набор с «2025 !== 12500»: запись «Коронка
+	 * 12 500 руб (прайс 2025)» с priceMaxRub 2025 от модели даёт убывающую пару,
+	 * свёртка ниже её СОРТИРУЕТ, и коронка встаёт в каталог за 2025 ₽, а написанные
+	 * 12 500 ₽ уезжают в верхнюю границу. То есть год подменяет саму цену, занижая её
+	 * в 6,2 раза, а не приписывает услуге лишний диапазон.
+	 */
+	const priceRubFromModel =
+		moneyUnlessDocumentYear(
+			readMoneyRubOrNull(record.priceRub),
+			sourceText,
+			calendar,
+		) ?? fallback.priceRub;
+	const priceMaxRubFromModel =
+		moneyUnlessDocumentYear(
+			readMoneyRubOrNull(record.priceMaxRub),
+			sourceText,
+			calendar,
+		) ?? fallback.priceMaxRub;
+	/*
+	 * Убывающая пара СОРТИРУЕТСЯ, а не схлопывается в первое число.
+	 *
+	 * БЫЛО: верхняя граница ниже нижней просто обнулялась, а ценой оставалась
+	 * нижняя ПОЗИЦИЯ пары — на убывающей паре это бо́льшее из двух чисел. Модель,
+	 * прочитавшая «Консультация 1000/500» как priceRub 1000 и priceMaxRub 500,
+	 * ставила в каталог консультацию за 1000 ₽, и 500 ₽ исчезали: услуга дорожала
+	 * вдвое, молча. Проверка «max < min» безопасности не давала — она делала исход
+	 * дороже для пациента.
+	 *
+	 * Тот же дефект убран из детерминированного разбора (collectPriceCandidates),
+	 * а нейро-ветка осталась с ним, и две ветки на одном прайсе давали РАЗНЫЕ
+	 * цены. Два числа — это либо диапазон, либо две опции; в обоих случаях меньшее
+	 * есть нижняя граница, и порядок в ответе модели на это не влияет.
+	 */
+	const descendingPair =
+		priceRubFromModel !== null &&
+		priceMaxRubFromModel !== null &&
+		priceMaxRubFromModel < priceRubFromModel;
+	const priceRub = descendingPair ? priceMaxRubFromModel : priceRubFromModel;
+	const priceMaxRub = descendingPair ? priceRubFromModel : priceMaxRubFromModel;
+	const item = {
+		...fallback,
+		id: `price-ai-${index + 1}`,
+		sourceLine: Math.max(1, Math.round(Number(record.sourceLine) || index + 1)),
+		sourceText,
+		title:
+			normalizeText(asString(record.title, fallback.title)) || fallback.title,
+		normalizedTitle: normalizeKey(
+			asString(record.normalizedTitle, asString(record.title, fallback.title)),
+		),
+		category: asString(record.category, fallback.category),
+		specialty: asString(record.specialty, fallback.specialty),
+		treatmentKind: asString(record.treatmentKind, fallback.treatmentKind),
+		materialKind: asString(record.materialKind, fallback.materialKind),
+		restorationType: asString(record.restorationType, fallback.restorationType),
+		crownType:
+			record.crownType === null
+				? null
+				: asString(record.crownType, fallback.crownType ?? "") || null,
+		brand: brandFromModel(record.brand, fallback.brand),
+		toothScope:
+			record.toothScope === null
+				? null
+				: asString(record.toothScope, fallback.toothScope ?? "") || null,
+		unit: asString(record.unit, fallback.unit),
+		priceRub,
+		priceMaxRub,
+		durationMinutes:
+			readIntegerCountOrNull(
+				record.durationMinutes,
+				maxServiceDurationMinutes,
+			) ?? fallback.durationMinutes,
+		confidence: Math.min(
+			0.98,
+			Math.max(0.1, Number(record.confidence) || fallback.confidence),
+		),
+		warnings: Array.from(
+			new Set([...fallback.warnings, ...asWarnings(record.warnings)]),
+		),
+		matchedServiceId: null,
+	};
+	item.matchedServiceId = matchServiceId(item, catalog);
+	return dentalPricelistItemSchema.safeParse(item).success
+		? dentalPricelistItemSchema.parse(item)
+		: fallback;
 }
 /**
  * Позиции прайса из массива записей ответа модели — вместе с числом ЗАПИСЕЙ,
@@ -1780,75 +2268,97 @@ export function itemFromGroq(raw, index, request, catalog, calendar = calendarFr
  * (сколько отброшено, что стало с полями). А то, что боевая ветка их ЗОВЁТ,
  * проверяется только вызовом `analyzePricelist` с `useServerAi: true`.
  */
-export function pricelistItemsFromGroqRows(rows, request, catalog, calendar = calendarFromClock()) {
-    const items = rows
-        .map((row, index) => itemFromGroq(row, index, request, catalog, calendar))
-        .filter((item) => Boolean(item));
-    return { items, droppedRows: rows.length - items.length };
+export function pricelistItemsFromGroqRows(
+	rows,
+	request,
+	catalog,
+	calendar = calendarFromClock(),
+) {
+	const items = rows
+		.map((row, index) => itemFromGroq(row, index, request, catalog, calendar))
+		.filter((item) => Boolean(item));
+	return { items, droppedRows: rows.length - items.length };
 }
 async function callGroqPricelist(request, catalog, calendar) {
-    const modelName = groqPricelistModelName();
-    const tried = new Set();
-    const maxAttempts = keyRetryLimit(groqProviderId);
-    let lastError = null;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const key = selectProviderKey(groqProviderId, tried);
-        if (!key)
-            break;
-        tried.add(key.fingerprint);
-        try {
-            const content = [{ type: "text", text: groqUserPrompt(request) }];
-            if (request.imageBase64) {
-                content.push({
-                    type: "image_url",
-                    image_url: {
-                        url: `data:${request.imageMimeType};base64,${request.imageBase64}`
-                    }
-                });
-            }
-            const response = await fetchWithProviderTimeout("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${key.value}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    model: modelName,
-                    temperature: 0,
-                    response_format: { type: "json_object" },
-                    messages: [
-                        { role: "system", content: groqSystemPrompt() },
-                        { role: "user", content }
-                    ]
-                })
-            });
-            const payload = (await response.json().catch(() => ({})));
-            if (!response.ok) {
-                throw providerHttpError(response.status, response.statusText, payload.error?.message);
-            }
-            const contentText = contentToString(payload.choices?.[0]?.message?.content);
-            const parsed = safeParseJsonObject(contentText);
-            const rows = Array.isArray(parsed.items) ? parsed.items : [];
-            const parsedRows = pricelistItemsFromGroqRows(rows, request, catalog, calendar);
-            /*
-             * Отброшены ВСЕ записи — это видимый исход и без счётчика: исключение уводит
-             * ветку в откат на детерминированный разбор с предупреждением groq_failed:.
-             * Считать здесь нечего, чинить надо было частичную потерю.
-             */
-            if (!parsedRows.items.length) {
-                throw new Error("Groq returned JSON without pricelist items.");
-            }
-            recordProviderKeySuccess(groqProviderId, key);
-            return parsedRows;
-        }
-        catch (error) {
-            lastError = error;
-            recordProviderKeyFailure(groqProviderId, key, error);
-            if (!shouldTryNextProviderKey(error))
-                break;
-        }
-    }
-    throw new Error(sanitizeProviderErrorMessage(lastError instanceof Error ? lastError.message : "Groq pricelist extraction failed."));
+	const modelName = groqPricelistModelName();
+	const tried = new Set();
+	const maxAttempts = keyRetryLimit(groqProviderId);
+	let lastError = null;
+	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+		const key = selectProviderKey(groqProviderId, tried);
+		if (!key) break;
+		tried.add(key.fingerprint);
+		try {
+			const content = [{ type: "text", text: groqUserPrompt(request) }];
+			if (request.imageBase64) {
+				content.push({
+					type: "image_url",
+					image_url: {
+						url: `data:${request.imageMimeType};base64,${request.imageBase64}`,
+					},
+				});
+			}
+			const response = await fetchWithProviderTimeout(
+				"https://api.groq.com/openai/v1/chat/completions",
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${key.value}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						model: modelName,
+						temperature: 0,
+						response_format: { type: "json_object" },
+						messages: [
+							{ role: "system", content: groqSystemPrompt() },
+							{ role: "user", content },
+						],
+					}),
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw providerHttpError(
+					response.status,
+					response.statusText,
+					payload.error?.message,
+				);
+			}
+			const contentText = contentToString(
+				payload.choices?.[0]?.message?.content,
+			);
+			const parsed = safeParseJsonObject(contentText);
+			const rows = Array.isArray(parsed.items) ? parsed.items : [];
+			const parsedRows = pricelistItemsFromGroqRows(
+				rows,
+				request,
+				catalog,
+				calendar,
+			);
+			/*
+			 * Отброшены ВСЕ записи — это видимый исход и без счётчика: исключение уводит
+			 * ветку в откат на детерминированный разбор с предупреждением groq_failed:.
+			 * Считать здесь нечего, чинить надо было частичную потерю.
+			 */
+			if (!parsedRows.items.length) {
+				throw new Error("Groq returned JSON without pricelist items.");
+			}
+			recordProviderKeySuccess(groqProviderId, key);
+			return parsedRows;
+		} catch (error) {
+			lastError = error;
+			recordProviderKeyFailure(groqProviderId, key, error);
+			if (!shouldTryNextProviderKey(error)) break;
+		}
+	}
+	throw new Error(
+		sanitizeProviderErrorMessage(
+			lastError instanceof Error
+				? lastError.message
+				: "Groq pricelist extraction failed.",
+		),
+	);
 }
 /**
  * Разбор прайса целиком.
@@ -1865,52 +2375,72 @@ async function callGroqPricelist(request, catalog, calendar) {
  * Клиентский контракт (DentalPricelistAnalysisRequest) года не содержит намеренно —
  * иначе окном года редакции управлял бы браузер, а не сервер.
  */
-export async function analyzePricelist(request, catalog, calendar = calendarFromClock()) {
-    const keyPool = getProviderKeyPoolSummary(groqProviderId);
-    const modelName = groqPricelistModelName();
-    if (!request.useServerAi) {
-        return analyzePricelistDeterministic(request, catalog, calendar);
-    }
-    if (request.imageBase64 && !isExpectedImagePayload(request)) {
-        return analyzePricelistDeterministic(request, catalog, calendar, "deterministic_groq_fallback", [
-            "image_payload_invalid",
-            "groq_skipped_invalid_image_payload"
-        ]);
-    }
-    if (!keyPool.configuredKeyCount) {
-        return analyzePricelistDeterministic(request, catalog, calendar, "deterministic_groq_fallback", [
-            "groq_key_pool_empty"
-        ]);
-    }
-    try {
-        const parsedRows = await callGroqPricelist(request, catalog, calendar);
-        /*
-         * ГЕЙТ СТРОК И СЧЁТЧИК СТОЯТ И ЗДЕСЬ. Раньше эта ветка звала responseFromItems
-         * напрямую: запись модели «Прайс-лист действителен с 01.01.2025» становилась
-         * услугой каталога, а записи, из которых позиция не собралась, исчезали молча.
-         *
-         * no_pricelist_rows_detected здесь не появляется намеренно: оно значит «строк
-         * не пришло вовсе», а записи модели пришли — просто ни одна не оказалась
-         * услугой. Различие между пустым и отброшенным прайсом одинаково в обеих
-         * ветках.
-         */
-        const selected = selectPricelistServiceRows(parsedRows.items, parsedRows.droppedRows);
-        return responseFromItems({
-            request,
-            items: selected.items,
-            parserMode: "groq_json",
-            warnings: [
-                ...(request.imageBase64 ? ["photo_ocr_requires_visual_review"] : []),
-                ...skippedRowsWarnings(selected.skippedRows)
-            ],
-            aiUsed: true,
-            aiReason: "Серверная нейро-проверка разобрала текст или фото; результат проверен схемой перед показом.",
-            modelName
-        });
-    }
-    catch (error) {
-        return analyzePricelistDeterministic(request, catalog, calendar, "deterministic_groq_fallback", [
-            `groq_failed:${sanitizeProviderErrorMessage(error instanceof Error ? error.message : "unknown")}`
-        ]);
-    }
+export async function analyzePricelist(
+	request,
+	catalog,
+	calendar = calendarFromClock(),
+) {
+	const keyPool = getProviderKeyPoolSummary(groqProviderId);
+	const modelName = groqPricelistModelName();
+	if (!request.useServerAi) {
+		return analyzePricelistDeterministic(request, catalog, calendar);
+	}
+	if (request.imageBase64 && !isExpectedImagePayload(request)) {
+		return analyzePricelistDeterministic(
+			request,
+			catalog,
+			calendar,
+			"deterministic_groq_fallback",
+			["image_payload_invalid", "groq_skipped_invalid_image_payload"],
+		);
+	}
+	if (!keyPool.configuredKeyCount) {
+		return analyzePricelistDeterministic(
+			request,
+			catalog,
+			calendar,
+			"deterministic_groq_fallback",
+			["groq_key_pool_empty"],
+		);
+	}
+	try {
+		const parsedRows = await callGroqPricelist(request, catalog, calendar);
+		/*
+		 * ГЕЙТ СТРОК И СЧЁТЧИК СТОЯТ И ЗДЕСЬ. Раньше эта ветка звала responseFromItems
+		 * напрямую: запись модели «Прайс-лист действителен с 01.01.2025» становилась
+		 * услугой каталога, а записи, из которых позиция не собралась, исчезали молча.
+		 *
+		 * no_pricelist_rows_detected здесь не появляется намеренно: оно значит «строк
+		 * не пришло вовсе», а записи модели пришли — просто ни одна не оказалась
+		 * услугой. Различие между пустым и отброшенным прайсом одинаково в обеих
+		 * ветках.
+		 */
+		const selected = selectPricelistServiceRows(
+			parsedRows.items,
+			parsedRows.droppedRows,
+		);
+		return responseFromItems({
+			request,
+			items: selected.items,
+			parserMode: "groq_json",
+			warnings: [
+				...(request.imageBase64 ? ["photo_ocr_requires_visual_review"] : []),
+				...skippedRowsWarnings(selected.skippedRows),
+			],
+			aiUsed: true,
+			aiReason:
+				"Серверная нейро-проверка разобрала текст или фото; результат проверен схемой перед показом.",
+			modelName,
+		});
+	} catch (error) {
+		return analyzePricelistDeterministic(
+			request,
+			catalog,
+			calendar,
+			"deterministic_groq_fallback",
+			[
+				`groq_failed:${sanitizeProviderErrorMessage(error instanceof Error ? error.message : "unknown")}`,
+			],
+		);
+	}
 }

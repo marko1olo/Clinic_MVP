@@ -24,46 +24,47 @@ import { clinicalAuditLogs } from "./db/schema.js";
  * потерянное событие обязано оставаться восстановимым.
  */
 export async function writeClinicalAuditLog(input) {
-    try {
-        await db.insert(clinicalAuditLogs).values({
-            organizationId: input.organizationId,
-            userId: input.userId ?? null,
-            patientId: input.patientId ?? null,
-            action: input.action,
-            entityType: input.entityType,
-            entityId: input.entityId,
-            ipAddress: input.ipAddress ?? null,
-            userAgent: input.userAgent ?? null,
-        });
-    }
-    catch (err) {
-        // Never propagate — audit failure must not crash the clinical flow,
-        // но событие обязано пережить отказ в читаемом виде.
-        console.error(`[ClinicalAudit] ОТКАЗ ЗАПИСИ журнала доступа к медданным. ` +
-            `Событие подлежит ручному внесению: ${JSON.stringify({
-                organizationId: input.organizationId,
-                userId: input.userId ?? null,
-                patientId: input.patientId ?? null,
-                action: input.action,
-                entityType: input.entityType,
-                entityId: input.entityId,
-                ipAddress: input.ipAddress ?? null,
-                userAgent: input.userAgent ?? null,
-                occurredAt: new Date().toISOString(),
-            })}. Причина отказа:`, err);
-    }
+	try {
+		await db.insert(clinicalAuditLogs).values({
+			organizationId: input.organizationId,
+			userId: input.userId ?? null,
+			patientId: input.patientId ?? null,
+			action: input.action,
+			entityType: input.entityType,
+			entityId: input.entityId,
+			ipAddress: input.ipAddress ?? null,
+			userAgent: input.userAgent ?? null,
+		});
+	} catch (err) {
+		// Never propagate — audit failure must not crash the clinical flow,
+		// но событие обязано пережить отказ в читаемом виде.
+		console.error(
+			`[ClinicalAudit] ОТКАЗ ЗАПИСИ журнала доступа к медданным. ` +
+				`Событие подлежит ручному внесению: ${JSON.stringify({
+					organizationId: input.organizationId,
+					userId: input.userId ?? null,
+					patientId: input.patientId ?? null,
+					action: input.action,
+					entityType: input.entityType,
+					entityId: input.entityId,
+					ipAddress: input.ipAddress ?? null,
+					userAgent: input.userAgent ?? null,
+					occurredAt: new Date().toISOString(),
+				})}. Причина отказа:`,
+			err,
+		);
+	}
 }
 /**
  * Convenience wrapper: extracts IP and UserAgent from the Fastify request automatically.
  */
 export async function auditFromRequest(request, payload) {
-    const ip = request.headers["x-forwarded-for"]
-        ?.split(",")[0]
-        ?.trim() ??
-        request.ip ??
-        null;
-    const ua = request.headers["user-agent"] ?? null;
-    await writeClinicalAuditLog({ ...payload, ipAddress: ip, userAgent: ua });
+	const ip =
+		request.headers["x-forwarded-for"]?.split(",")[0]?.trim() ??
+		request.ip ??
+		null;
+	const ua = request.headers["user-agent"] ?? null;
+	await writeClinicalAuditLog({ ...payload, ipAddress: ip, userAgent: ua });
 }
 /*
  * ЗДЕСЬ СТОЯЛА `assertTenantMatch`, И ОНА УДАЛЕНА.

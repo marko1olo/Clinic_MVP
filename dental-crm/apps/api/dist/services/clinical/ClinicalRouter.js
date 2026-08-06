@@ -1,4 +1,7 @@
-import { getClinicalTasksFromDb, insertClinicalTaskInDb, } from "../../db/clinicalTasksQuery.js";
+import {
+	getClinicalTasksFromDb,
+	insertClinicalTaskInDb,
+} from "../../db/clinicalTasksQuery.js";
 /**
  * Маршрутизация пациента между клиническими этапами.
  *
@@ -17,7 +20,7 @@ import { getClinicalTasksFromDb, insertClinicalTaskInDb, } from "../../db/clinic
  */
 export const CLINICAL_PHASE_CODES = ["PHASE_1_THERAPY", "PHASE_2_SURGERY"];
 export function isClinicalPhaseCode(value) {
-    return typeof value === "string" && CLINICAL_PHASE_CODES.includes(value);
+	return typeof value === "string" && CLINICAL_PHASE_CODES.includes(value);
 }
 /**
  * Тексты русские, как и все остальные сообщения этого API
@@ -27,18 +30,18 @@ export function isClinicalPhaseCode(value) {
  * а не заявка на то, что перевод работает.
  */
 const PHASE_HANDOFFS = {
-    PHASE_1_THERAPY: {
-        taskType: "prosthetics_handoff",
-        title: "Этап II: передача в ортопедию",
-        completedStage: "Терапевтический этап завершён",
-        nextStep: "Требуется осмотр ортопедом перед протезированием.",
-    },
-    PHASE_2_SURGERY: {
-        taskType: "prosthetics_handoff",
-        title: "Этап II: передача в ортопедию после хирургии",
-        completedStage: "Хирургический этап завершён",
-        nextStep: "Протезирование — после заживления.",
-    },
+	PHASE_1_THERAPY: {
+		taskType: "prosthetics_handoff",
+		title: "Этап II: передача в ортопедию",
+		completedStage: "Терапевтический этап завершён",
+		nextStep: "Требуется осмотр ортопедом перед протезированием.",
+	},
+	PHASE_2_SURGERY: {
+		taskType: "prosthetics_handoff",
+		title: "Этап II: передача в ортопедию после хирургии",
+		completedStage: "Хирургический этап завершён",
+		nextStep: "Протезирование — после заживления.",
+	},
 };
 /**
  * Собирает описание из тех частей, которые реально известны.
@@ -49,44 +52,55 @@ const PHASE_HANDOFFS = {
  * выглядящие как потерянные данные.
  */
 function buildHandoffDescription(spec, toothCodes, notes) {
-    const teeth = toothCodes.map((code) => code.trim()).filter((code) => code !== "");
-    const sentences = [
-        teeth.length > 0 ? `${spec.completedStage} по зубам: ${teeth.join(", ")}.` : `${spec.completedStage}.`,
-    ];
-    const trimmedNotes = notes.trim();
-    if (trimmedNotes !== "") {
-        sentences.push(trimmedNotes.endsWith(".") ? `Комментарий: ${trimmedNotes}` : `Комментарий: ${trimmedNotes}.`);
-    }
-    sentences.push(spec.nextStep);
-    return sentences.join(" ");
+	const teeth = toothCodes
+		.map((code) => code.trim())
+		.filter((code) => code !== "");
+	const sentences = [
+		teeth.length > 0
+			? `${spec.completedStage} по зубам: ${teeth.join(", ")}.`
+			: `${spec.completedStage}.`,
+	];
+	const trimmedNotes = notes.trim();
+	if (trimmedNotes !== "") {
+		sentences.push(
+			trimmedNotes.endsWith(".")
+				? `Комментарий: ${trimmedNotes}`
+				: `Комментарий: ${trimmedNotes}.`,
+		);
+	}
+	sentences.push(spec.nextStep);
+	return sentences.join(" ");
 }
 export class ClinicalRouter {
-    /**
-     * Фиксирует завершение клинического этапа и СОХРАНЯЕТ задачу для следующего
-     * этапа. Возвращает сохранённую строку `clinical_tasks` — с настоящим id и
-     * created_at из базы, а не сгенерированными в памяти.
-     *
-     * Возвращает null, если для указанного этапа передача не предусмотрена:
-     * это не ошибка, а «дальше по этому этапу никого звать не надо».
-     *
-     * Бросает ClinicalTaskOwnershipError, если пациент, план лечения или врач
-     * принадлежат другой клинике.
-     */
-    async handlePhaseCompletion(organizationId, input) {
-        if (!isClinicalPhaseCode(input.completedPhaseCode))
-            return null;
-        const spec = PHASE_HANDOFFS[input.completedPhaseCode];
-        return await insertClinicalTaskInDb(organizationId, {
-            patientId: input.patientId,
-            taskType: spec.taskType,
-            title: spec.title,
-            description: buildHandoffDescription(spec, input.toothCodes ?? [], input.notes ?? ""),
-            treatmentPlanId: input.treatmentPlanId ?? null,
-            assignedDoctorId: input.assignedDoctorId ?? null,
-        });
-    }
-    /** Задачи клиники; при указанном пациенте — только его. Это и есть то, что видит следующий врач. */
-    async listTasks(organizationId, patientId) {
-        return await getClinicalTasksFromDb(organizationId, patientId);
-    }
+	/**
+	 * Фиксирует завершение клинического этапа и СОХРАНЯЕТ задачу для следующего
+	 * этапа. Возвращает сохранённую строку `clinical_tasks` — с настоящим id и
+	 * created_at из базы, а не сгенерированными в памяти.
+	 *
+	 * Возвращает null, если для указанного этапа передача не предусмотрена:
+	 * это не ошибка, а «дальше по этому этапу никого звать не надо».
+	 *
+	 * Бросает ClinicalTaskOwnershipError, если пациент, план лечения или врач
+	 * принадлежат другой клинике.
+	 */
+	async handlePhaseCompletion(organizationId, input) {
+		if (!isClinicalPhaseCode(input.completedPhaseCode)) return null;
+		const spec = PHASE_HANDOFFS[input.completedPhaseCode];
+		return await insertClinicalTaskInDb(organizationId, {
+			patientId: input.patientId,
+			taskType: spec.taskType,
+			title: spec.title,
+			description: buildHandoffDescription(
+				spec,
+				input.toothCodes ?? [],
+				input.notes ?? "",
+			),
+			treatmentPlanId: input.treatmentPlanId ?? null,
+			assignedDoctorId: input.assignedDoctorId ?? null,
+		});
+	}
+	/** Задачи клиники; при указанном пациенте — только его. Это и есть то, что видит следующий врач. */
+	async listTasks(organizationId, patientId) {
+		return await getClinicalTasksFromDb(organizationId, patientId);
+	}
 }

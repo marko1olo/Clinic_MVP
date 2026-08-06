@@ -1,9 +1,10 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import { AsyncLocalStorage } from "node:async_hooks";
-import * as schema from "./schema.js";
 import { loadAdditionalServerEnv } from "../env/loadServerEnv.js";
 import { registerMoneyTypeParsers } from "./moneyTypeParsers.js";
+import * as schema from "./schema.js";
+
 /**
  * Раньше здесь стоял голый `import "dotenv/config"`, который читает .env только
  * из текущего каталога. При запуске из apps/api это apps/api/.env, где
@@ -22,11 +23,13 @@ loadAdditionalServerEnv();
  * не стартовать вовсе и сразу сказать, чего не хватает.
  */
 function requireDatabaseUrl() {
-    const url = process.env.DATABASE_URL;
-    if (!url || url.trim() === "") {
-        throw new Error("DATABASE_URL не задан. Укажите строку подключения к PostgreSQL в .env — тот же адрес использует npm run db:migrate.");
-    }
-    return url;
+	const url = process.env.DATABASE_URL;
+	if (!url || url.trim() === "") {
+		throw new Error(
+			"DATABASE_URL не задан. Укажите строку подключения к PostgreSQL в .env — тот же адрес использует npm run db:migrate.",
+		);
+	}
+	return url;
 }
 /*
  * Разбор денежных типов включается до создания пула. Без него numeric-колонки
@@ -38,11 +41,11 @@ export const pool = new pg.Pool({ connectionString: requireDatabaseUrl() });
 export const dbRaw = drizzle(pool, { schema });
 export const transactionStorage = new AsyncLocalStorage();
 export const db = new Proxy(dbRaw, {
-    get(target, prop, receiver) {
-        const tx = transactionStorage.getStore();
-        if (tx) {
-            return Reflect.get(tx, prop, tx);
-        }
-        return Reflect.get(target, prop, receiver);
-    }
+	get(target, prop, receiver) {
+		const tx = transactionStorage.getStore();
+		if (tx) {
+			return Reflect.get(tx, prop, tx);
+		}
+		return Reflect.get(target, prop, receiver);
+	},
 });

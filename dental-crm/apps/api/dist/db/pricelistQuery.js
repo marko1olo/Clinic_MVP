@@ -31,24 +31,26 @@
  * отклоняется целиком и попадает в список rejected — с кодом, названием и
  * человеческой причиной, чтобы администратор понял, что именно поправить.
  */
-import { and, eq } from "drizzle-orm";
+
 import { serviceCatalogItemSchema } from "@dental/shared";
-import { db } from "./client.js";
-import * as schema from "./schema.js";
+import { and, eq } from "drizzle-orm";
 /*
  * Перевод слов разборщика в слова человека — ОДИН на весь сервер, рядом с домом
  * текстов отказа по кабинету клиники (utils/clinicSessionRefusal.ts).
  */
 import { schemaIssueWords } from "../utils/schemaRefusalWords.js";
+import { db } from "./client.js";
+import * as schema from "./schema.js";
 /**
  * Текст для пустого прайса. Живёт здесь, а не у каждого вызывающего, чтобы на
  * всех поверхностях звучала одна и та же фраза.
  */
-export const SERVICE_CATALOG_EMPTY_MESSAGE = "Прайс-лист пуст: в справочнике услуг клиники нет ни одной позиции. " +
-    "Заполните прайс в настройках — иначе договор, счёт и чек не смогут посчитать сумму, " +
-    "а справка для налогового вычета уйдёт с нулём.";
+export const SERVICE_CATALOG_EMPTY_MESSAGE =
+	"Прайс-лист пуст: в справочнике услуг клиники нет ни одной позиции. " +
+	"Заполните прайс в настройках — иначе договор, счёт и чек не смогут посчитать сумму, " +
+	"а справка для налогового вычета уйдёт с нулём.";
 function useInMemory() {
-    return process.env.DENTAL_STATE_PERSISTENCE === "off";
+	return process.env.DENTAL_STATE_PERSISTENCE === "off";
 }
 /**
  * Числовое значение денежной колонки.
@@ -59,12 +61,12 @@ function useInMemory() {
  * подставить 0 значило бы объявить услугу бесплатной.
  */
 function readMoneyRub(value) {
-    const parsed = typeof value === "number" ? value : Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+	const parsed = typeof value === "number" ? value : Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
 }
 function readDurationMinutes(value) {
-    const parsed = typeof value === "number" ? value : Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+	const parsed = typeof value === "number" ? value : Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
 }
 /**
  * Русские подписи полей услуги: ключ контракта → подпись из настроек прайса.
@@ -75,17 +77,17 @@ function readDurationMinutes(value) {
  * клиента о латинском слове из шести и более знаков.
  */
 const serviceCatalogFieldLabels = {
-    id: "опознавательный номер услуги",
-    organizationId: "клиника услуги",
-    code: "код услуги",
-    title: "название услуги",
-    aliases: "синонимы названия",
-    category: "раздел прайса",
-    specialty: "специальность врача",
-    basePriceRub: "цена услуги",
-    durationMinutes: "длительность услуги в минутах",
-    taxDeductible: "признак налогового вычета",
-    active: "признак «услуга в работе»"
+	id: "опознавательный номер услуги",
+	organizationId: "клиника услуги",
+	code: "код услуги",
+	title: "название услуги",
+	aliases: "синонимы названия",
+	category: "раздел прайса",
+	specialty: "специальность врача",
+	basePriceRub: "цена услуги",
+	durationMinutes: "длительность услуги в минутах",
+	taxDeductible: "признак налогового вычета",
+	active: "признак «услуга в работе»",
 };
 /**
  * Причина отклонения строки прайса — словами администратора клиники.
@@ -109,17 +111,17 @@ const serviceCatalogFieldLabels = {
  * общего дома, своего списка латинских слов тут нет.
  */
 function firstIssueMessage(issues) {
-    const issue = issues[0];
-    if (!issue)
-        return "строка не соответствует контракту услуги, поэтому исправьте её в настройках прайса";
-    /*
-     * Строчная буква и отсутствие точки на конце — не небрежность: причина
-     * встраивается в СЕРЕДИНУ чужой фразы у обоих вызывающих
-     * («…услуга «Х» не принята — <причина>. Пока строка не исправлена…»), и
-     * готовое предложение с заглавной буквы и точкой дало бы там две точки подряд.
-     */
-    const words = schemaIssueWords(issue, serviceCatalogFieldLabels);
-    return `${words.cause} — ${words.action}`;
+	const issue = issues[0];
+	if (!issue)
+		return "строка не соответствует контракту услуги, поэтому исправьте её в настройках прайса";
+	/*
+	 * Строчная буква и отсутствие точки на конце — не небрежность: причина
+	 * встраивается в СЕРЕДИНУ чужой фразы у обоих вызывающих
+	 * («…услуга «Х» не принята — <причина>. Пока строка не исправлена…»), и
+	 * готовое предложение с заглавной буквы и точкой дало бы там две точки подряд.
+	 */
+	const words = schemaIssueWords(issue, serviceCatalogFieldLabels);
+	return `${words.cause} — ${words.action}`;
 }
 /**
  * Единая проекция строк прайса. Вызывается и путём экранов
@@ -127,76 +129,77 @@ function firstIssueMessage(issues) {
  * getServiceCatalogForOrganization), и анализом прайса (routes/pricelist.ts).
  */
 export function projectServiceCatalogRows(rows) {
-    const items = [];
-    const rejected = [];
-    for (const row of rows) {
-        const basePriceRub = readMoneyRub(row.basePriceRub);
-        if (basePriceRub === null) {
-            rejected.push({
-                code: row.code,
-                title: row.title,
-                reason: "цена в базе не читается как число, поэтому услугу нельзя посчитать ни в счёте, ни в договоре"
-            });
-            continue;
-        }
-        const durationMinutes = readDurationMinutes(row.durationMinutes);
-        if (durationMinutes === null) {
-            rejected.push({
-                code: row.code,
-                title: row.title,
-                reason: "длительность в базе не читается как число, поэтому услугу нельзя поставить в расписание"
-            });
-            continue;
-        }
-        const parsed = serviceCatalogItemSchema.safeParse({
-            id: row.id,
-            organizationId: row.organizationId,
-            code: row.code,
-            title: row.title,
-            /*
-             * Синонимов у услуги в таблице нет — колонки под них не существует.
-             * Пустой массив здесь не заглушка, а честное «синонимы не заведены»:
-             * контракт объявляет aliases обязательным полем со значением по умолчанию.
-             */
-            aliases: [],
-            category: row.category,
-            specialty: row.specialty,
-            basePriceRub,
-            durationMinutes,
-            taxDeductible: row.taxDeductible,
-            active: row.isActive
-        });
-        if (!parsed.success) {
-            rejected.push({
-                code: row.code,
-                title: row.title,
-                reason: firstIssueMessage(parsed.error.issues)
-            });
-            continue;
-        }
-        items.push(parsed.data);
-    }
-    return { items, rejected };
+	const items = [];
+	const rejected = [];
+	for (const row of rows) {
+		const basePriceRub = readMoneyRub(row.basePriceRub);
+		if (basePriceRub === null) {
+			rejected.push({
+				code: row.code,
+				title: row.title,
+				reason:
+					"цена в базе не читается как число, поэтому услугу нельзя посчитать ни в счёте, ни в договоре",
+			});
+			continue;
+		}
+		const durationMinutes = readDurationMinutes(row.durationMinutes);
+		if (durationMinutes === null) {
+			rejected.push({
+				code: row.code,
+				title: row.title,
+				reason:
+					"длительность в базе не читается как число, поэтому услугу нельзя поставить в расписание",
+			});
+			continue;
+		}
+		const parsed = serviceCatalogItemSchema.safeParse({
+			id: row.id,
+			organizationId: row.organizationId,
+			code: row.code,
+			title: row.title,
+			/*
+			 * Синонимов у услуги в таблице нет — колонки под них не существует.
+			 * Пустой массив здесь не заглушка, а честное «синонимы не заведены»:
+			 * контракт объявляет aliases обязательным полем со значением по умолчанию.
+			 */
+			aliases: [],
+			category: row.category,
+			specialty: row.specialty,
+			basePriceRub,
+			durationMinutes,
+			taxDeductible: row.taxDeductible,
+			active: row.isActive,
+		});
+		if (!parsed.success) {
+			rejected.push({
+				code: row.code,
+				title: row.title,
+				reason: firstIssueMessage(parsed.error.issues),
+			});
+			continue;
+		}
+		items.push(parsed.data);
+	}
+	return { items, rejected };
 }
 export async function getDefaultOrganizationId() {
-    if (useInMemory()) {
-        return "00000000-0000-0000-0000-000000000001";
-    }
-    try {
-        const [org] = await db.select().from(schema.organizations).limit(1);
-        return org?.id || "00000000-0000-0000-0000-000000000001";
-    }
-    catch {
-        return "00000000-0000-0000-0000-000000000001";
-    }
+	if (useInMemory()) {
+		return "00000000-0000-0000-0000-000000000001";
+	}
+	try {
+		const [org] = await db.select().from(schema.organizations).limit(1);
+		return org?.id || "00000000-0000-0000-0000-000000000001";
+	} catch {
+		return "00000000-0000-0000-0000-000000000001";
+	}
 }
 /** Прайс организации для документов и анализа прайса. */
 export async function getServiceCatalogForOrganization(organizationId) {
-    const rows = await db
-        .select()
-        .from(schema.serviceCatalogItems)
-        .where(eq(schema.serviceCatalogItems.organizationId, organizationId));
-    return projectServiceCatalogRows(rows).items;
+	const rows = await db
+		.select()
+		.from(schema.serviceCatalogItems)
+		.where(eq(schema.serviceCatalogItems.organizationId, organizationId));
+	return projectServiceCatalogRows(rows).items;
 }
 /**
  * Отказ хранилища. Отдельный класс, чтобы маршрут ответил 503 «писать некуда», а
@@ -204,18 +207,20 @@ export async function getServiceCatalogForOrganization(organizationId) {
  * оператора, и посылать его искать опечатку было бы ложью.
  */
 export class ServiceCatalogStorageDisabledError extends Error {
-    constructor() {
-        super("Прайс не изменён: хранение состояния отключено (DENTAL_STATE_PERSISTENCE=off), " +
-            "поэтому услуги существуют только в памяти процесса и записать их некуда.");
-        this.name = "ServiceCatalogStorageDisabledError";
-    }
+	constructor() {
+		super(
+			"Прайс не изменён: хранение состояния отключено (DENTAL_STATE_PERSISTENCE=off), " +
+				"поэтому услуги существуют только в памяти процесса и записать их некуда.",
+		);
+		this.name = "ServiceCatalogStorageDisabledError";
+	}
 }
 /** Услуга не найдена в этой клинике. Текст разбирает маршрут. */
 export class ServiceCatalogItemNotFoundError extends Error {
-    constructor() {
-        super("Услуга не найдена.");
-        this.name = "ServiceCatalogItemNotFoundError";
-    }
+	constructor() {
+		super("Услуга не найдена.");
+		this.name = "ServiceCatalogItemNotFoundError";
+	}
 }
 /**
  * Единственная услуга по идентификатору, обязательно в пределах своей клиники.
@@ -223,12 +228,17 @@ export class ServiceCatalogItemNotFoundError extends Error {
  * прямой ссылке правился бы прайс чужой клиники.
  */
 async function selectOwnedRow(organizationId, serviceId) {
-    const [row] = await db
-        .select()
-        .from(schema.serviceCatalogItems)
-        .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)))
-        .limit(1);
-    return row ?? null;
+	const [row] = await db
+		.select()
+		.from(schema.serviceCatalogItems)
+		.where(
+			and(
+				eq(schema.serviceCatalogItems.id, serviceId),
+				eq(schema.serviceCatalogItems.organizationId, organizationId),
+			),
+		)
+		.limit(1);
+	return row ?? null;
 }
 /**
  * Строка прайса → доменная услуга ТОЙ ЖЕ проекцией, что и чтение.
@@ -237,12 +247,15 @@ async function selectOwnedRow(organizationId, serviceId) {
  * не «сохранено»: услуга, которой не будет на экране, — это не успех.
  */
 function projectSingleRow(row) {
-    const projection = projectServiceCatalogRows([row]);
-    const item = projection.items[0];
-    if (item)
-        return item;
-    const reason = projection.rejected[0]?.reason ?? "строка не соответствует контракту услуги";
-    throw new Error(`Услуга сохранена в базу, но не проходит контракт прайса: ${reason}`);
+	const projection = projectServiceCatalogRows([row]);
+	const item = projection.items[0];
+	if (item) return item;
+	const reason =
+		projection.rejected[0]?.reason ??
+		"строка не соответствует контракту услуги";
+	throw new Error(
+		`Услуга сохранена в базу, но не проходит контракт прайса: ${reason}`,
+	);
 }
 /**
  * Обе денежные колонки заполняются одним значением.
@@ -256,64 +269,64 @@ function projectSingleRow(row) {
  * схемы, и он назван здесь, а не разведён двумя разными смыслами.
  */
 function moneyColumns(basePriceRub) {
-    return { basePriceRub, priceRub: basePriceRub };
+	return { basePriceRub, priceRub: basePriceRub };
 }
 /** Новая услуга прайса. */
 export async function createServiceCatalogItemInDb(organizationId, input) {
-    if (useInMemory())
-        throw new ServiceCatalogStorageDisabledError();
-    const [row] = await db
-        .insert(schema.serviceCatalogItems)
-        .values({
-        organizationId,
-        code: input.code,
-        title: input.title,
-        category: input.category,
-        specialty: input.specialty,
-        ...moneyColumns(input.basePriceRub),
-        durationMinutes: input.durationMinutes,
-        taxDeductible: input.taxDeductible,
-        isActive: input.active
-    })
-        .returning();
-    if (!row)
-        throw new Error("Услуга не создана: база не вернула ни одной строки.");
-    return projectSingleRow(row);
+	if (useInMemory()) throw new ServiceCatalogStorageDisabledError();
+	const [row] = await db
+		.insert(schema.serviceCatalogItems)
+		.values({
+			organizationId,
+			code: input.code,
+			title: input.title,
+			category: input.category,
+			specialty: input.specialty,
+			...moneyColumns(input.basePriceRub),
+			durationMinutes: input.durationMinutes,
+			taxDeductible: input.taxDeductible,
+			isActive: input.active,
+		})
+		.returning();
+	if (!row)
+		throw new Error("Услуга не создана: база не вернула ни одной строки.");
+	return projectSingleRow(row);
 }
 /** Правка услуги. Меняются только переданные поля. */
-export async function updateServiceCatalogItemInDb(organizationId, serviceId, patch) {
-    if (useInMemory())
-        throw new ServiceCatalogStorageDisabledError();
-    // Существование проверяется ДО обновления: drizzle на несовпавшем условии
-    // вернёт пустой массив, и «не найдено» стало бы неотличимо от «не изменилось».
-    const existing = await selectOwnedRow(organizationId, serviceId);
-    if (!existing)
-        throw new ServiceCatalogItemNotFoundError();
-    const updates = {};
-    if (patch.code !== undefined)
-        updates.code = patch.code;
-    if (patch.title !== undefined)
-        updates.title = patch.title;
-    if (patch.category !== undefined)
-        updates.category = patch.category;
-    if (patch.specialty !== undefined)
-        updates.specialty = patch.specialty;
-    if (patch.basePriceRub !== undefined)
-        Object.assign(updates, moneyColumns(patch.basePriceRub));
-    if (patch.durationMinutes !== undefined)
-        updates.durationMinutes = patch.durationMinutes;
-    if (patch.taxDeductible !== undefined)
-        updates.taxDeductible = patch.taxDeductible;
-    if (patch.active !== undefined)
-        updates.isActive = patch.active;
-    const [row] = await db
-        .update(schema.serviceCatalogItems)
-        .set(updates)
-        .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)))
-        .returning();
-    if (!row)
-        throw new ServiceCatalogItemNotFoundError();
-    return projectSingleRow(row);
+export async function updateServiceCatalogItemInDb(
+	organizationId,
+	serviceId,
+	patch,
+) {
+	if (useInMemory()) throw new ServiceCatalogStorageDisabledError();
+	// Существование проверяется ДО обновления: drizzle на несовпавшем условии
+	// вернёт пустой массив, и «не найдено» стало бы неотличимо от «не изменилось».
+	const existing = await selectOwnedRow(organizationId, serviceId);
+	if (!existing) throw new ServiceCatalogItemNotFoundError();
+	const updates = {};
+	if (patch.code !== undefined) updates.code = patch.code;
+	if (patch.title !== undefined) updates.title = patch.title;
+	if (patch.category !== undefined) updates.category = patch.category;
+	if (patch.specialty !== undefined) updates.specialty = patch.specialty;
+	if (patch.basePriceRub !== undefined)
+		Object.assign(updates, moneyColumns(patch.basePriceRub));
+	if (patch.durationMinutes !== undefined)
+		updates.durationMinutes = patch.durationMinutes;
+	if (patch.taxDeductible !== undefined)
+		updates.taxDeductible = patch.taxDeductible;
+	if (patch.active !== undefined) updates.isActive = patch.active;
+	const [row] = await db
+		.update(schema.serviceCatalogItems)
+		.set(updates)
+		.where(
+			and(
+				eq(schema.serviceCatalogItems.id, serviceId),
+				eq(schema.serviceCatalogItems.organizationId, organizationId),
+			),
+		)
+		.returning();
+	if (!row) throw new ServiceCatalogItemNotFoundError();
+	return projectSingleRow(row);
 }
 /**
  * Отключение услуги — НЕ физическое удаление.
@@ -326,18 +339,23 @@ export async function updateServiceCatalogItemInDb(organizationId, serviceId, pa
  * (SettingsPricesTab.tsx:200). Тот же приём уже принят в настройках для
  * сотрудников и кресел.
  */
-export async function deactivateServiceCatalogItemInDb(organizationId, serviceId) {
-    if (useInMemory())
-        throw new ServiceCatalogStorageDisabledError();
-    const existing = await selectOwnedRow(organizationId, serviceId);
-    if (!existing)
-        throw new ServiceCatalogItemNotFoundError();
-    const [row] = await db
-        .update(schema.serviceCatalogItems)
-        .set({ isActive: false })
-        .where(and(eq(schema.serviceCatalogItems.id, serviceId), eq(schema.serviceCatalogItems.organizationId, organizationId)))
-        .returning();
-    if (!row)
-        throw new ServiceCatalogItemNotFoundError();
-    return projectSingleRow(row);
+export async function deactivateServiceCatalogItemInDb(
+	organizationId,
+	serviceId,
+) {
+	if (useInMemory()) throw new ServiceCatalogStorageDisabledError();
+	const existing = await selectOwnedRow(organizationId, serviceId);
+	if (!existing) throw new ServiceCatalogItemNotFoundError();
+	const [row] = await db
+		.update(schema.serviceCatalogItems)
+		.set({ isActive: false })
+		.where(
+			and(
+				eq(schema.serviceCatalogItems.id, serviceId),
+				eq(schema.serviceCatalogItems.organizationId, organizationId),
+			),
+		)
+		.returning();
+	if (!row) throw new ServiceCatalogItemNotFoundError();
+	return projectSingleRow(row);
 }

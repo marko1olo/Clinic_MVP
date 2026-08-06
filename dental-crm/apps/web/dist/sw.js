@@ -1,1 +1,226 @@
-if(!self.define){let s,l={};const e=(e,n)=>(e=new URL(e+".js",n).href,l[e]||new Promise(l=>{if("document"in self){const s=document.createElement("script");s.src=e,s.onload=l,document.head.appendChild(s)}else s=e,importScripts(e),l()}).then(()=>{let s=l[e];if(!s)throw new Error(`Module ${e} didn’t register its module`);return s}));self.define=(n,i)=>{const r=s||("document"in self?document.currentScript.src:"")||location.href;if(l[r])return;let t={};const a=s=>e(s,r),u={module:{uri:r},exports:t,require:a};l[r]=Promise.all(n.map(s=>u[s]||a(s))).then(s=>(i(...s),t))}}define(["./workbox-9c191d2f"],function(s){"use strict";self.skipWaiting(),s.clientsClaim(),s.precacheAndRoute([{url:"registerSW.js",revision:"1872c500de691dce40960bb85481de07"},{url:"index.html",revision:"bafd9ff226b222ab651b634f03ed7541"},{url:"assets/workspace-_II3i48b.js",revision:null},{url:"assets/workspace-ui-labels-CkwvyuHR.js",revision:null},{url:"assets/workspace-static-options-DM8L3oPP.js",revision:null},{url:"assets/workspace-shell-QLvUEjPh.css",revision:null},{url:"assets/workspace-shell-EdcoBQSz.js",revision:null},{url:"assets/workspace-route-boundary-CzyV-anx.js",revision:null},{url:"assets/workspace-preload-D05L5dp2.js",revision:null},{url:"assets/workspace-continuity-DQiQ_RTm.js",revision:null},{url:"assets/voice-assistant-ui-8PrESAPi.js",revision:null},{url:"assets/vite-preload-helper-ckwbz45p.js",revision:null},{url:"assets/VisitView-D8R1mTBo.css",revision:null},{url:"assets/VisitView-C084i_Gl.js",revision:null},{url:"assets/visit-store-DpYMSkj3.js",revision:null},{url:"assets/visit-specialty-data-iCzH3fe9.js",revision:null},{url:"assets/visit-dictation-data-BiIr8y7V.js",revision:null},{url:"assets/use-websocket-CI3icIWn.js",revision:null},{url:"assets/SmartMicrophoneButton-CSVwJf1l.js",revision:null},{url:"assets/smart-parse-preview-L-qhALuQ.js",revision:null},{url:"assets/ShiftView-UP0AJdTE.js",revision:null},{url:"assets/SettingsView-BWOj2RMP.js",revision:null},{url:"assets/settings-store-BT6aFQbh.js",revision:null},{url:"assets/settings-static-data-DukDyN9L.js",revision:null},{url:"assets/settings-components-CciN-wWt.css",revision:null},{url:"assets/settings-components-C35R9lnZ.js",revision:null},{url:"assets/schema-vendor-narhQPCi.js",revision:null},{url:"assets/ScheduleView-BGD9i5jZ.js",revision:null},{url:"assets/schedule-store-DcsWQR0_.js",revision:null},{url:"assets/ScannerView-Q55GPxt0.js",revision:null},{url:"assets/ScannerView-C3756Pj2.css",revision:null},{url:"assets/rub-amount-input-By-8RP2k.js",revision:null},{url:"assets/RecallListPanel-BoLvTM6Z.js",revision:null},{url:"assets/react-vendor-BYFVS9HM.js",revision:null},{url:"assets/public-portal-route-BWRStS3h.js",revision:null},{url:"assets/pricelist-ui-meta-B8lf9vP4.js",revision:null},{url:"assets/price-dictation-bar-BogOY-Rl.js",revision:null},{url:"assets/post-visit-care-data-BGBUop_B.js",revision:null},{url:"assets/PatientsView-C_CAFxBy.css",revision:null},{url:"assets/PatientsView-CN40tSvN.js",revision:null},{url:"assets/PatientAvatar-DjMAdvzB.js",revision:null},{url:"assets/patient-store-B6pTG7dw.js",revision:null},{url:"assets/patient-portal-lkvEcTI_.js",revision:null},{url:"assets/patient-portal-DqR-gVCe.css",revision:null},{url:"assets/panel-load-failure-DUSssGAx.js",revision:null},{url:"assets/openjphjs-C-BUUy4a.wasm",revision:null},{url:"assets/openjpegwasm_decode-B3gWTHpv.wasm",revision:null},{url:"assets/omnibar-tb6U4Url.js",revision:null},{url:"assets/OdontogramModule-sjwtknN2.js",revision:null},{url:"assets/OdontogramModule-CaGpRK3C.css",revision:null},{url:"assets/mprWorker-BW7-IUZX.js",revision:null},{url:"assets/mpr-control-math-BRB9ebL9.js",revision:null},{url:"assets/mpr-clinical-status-C8WfcKDO.js",revision:null},{url:"assets/motion-preference-c9NVf79y.js",revision:null},{url:"assets/MarketingView-CCnTNIJD.js",revision:null},{url:"assets/MarketingView-7GvvmAJG.css",revision:null},{url:"assets/ManagerReportsPanel-CmPlNzGv.js",revision:null},{url:"assets/lossless-D6F35_Z-.js",revision:null},{url:"assets/libjpegturbowasm_decode-daqMmuVl.wasm",revision:null},{url:"assets/LeadsKanbanView-hDCTzHOm.js",revision:null},{url:"assets/jpeg-B-x1txLf.js",revision:null},{url:"assets/InventoryView-BhaSNCxZ.js",revision:null},{url:"assets/inputSanitation-DgOqnvV6.js",revision:null},{url:"assets/index-z8xepBBv.js",revision:null},{url:"assets/index-BjKhGDY2.css",revision:null},{url:"assets/ImagingView-CCgSTNzg.js",revision:null},{url:"assets/imaging-ui-labels-BNQ9i906.js",revision:null},{url:"assets/imaging-store-CTyqhFd4.js",revision:null},{url:"assets/imaging-components-Bk4T0XzA.js",revision:null},{url:"assets/imaging-comparison-CCjpTVaW.js",revision:null},{url:"assets/icons-Dp0wVgrn.js",revision:null},{url:"assets/global-toast-BAW9NBcj.js",revision:null},{url:"assets/FreedSlotsPanel-C5A9KSHj.js",revision:null},{url:"assets/FinanceView-D4qTIuUf.css",revision:null},{url:"assets/FinanceView-B8ECXTUc.js",revision:null},{url:"assets/features-selector-CbVHCTge.js",revision:null},{url:"assets/empty-state-Ok6WBh1J.js",revision:null},{url:"assets/egiszAvailability-B-Vao2RK.js",revision:null},{url:"assets/DocumentsView-Ej19ys7b.js",revision:null},{url:"assets/document-validators-DOTfH5EQ.js",revision:null},{url:"assets/document-store-DSzt8gb5.js",revision:null},{url:"assets/document-logic-NHwygODw.js",revision:null},{url:"assets/dictation-hints-Bx2KmKkL.js",revision:null},{url:"assets/dicom-components-CjhtmCHe.js",revision:null},{url:"assets/dental-shared-DnqgVa7A.js",revision:null},{url:"assets/decodeImageFrameWorker-DGreTEC-.js",revision:null},{url:"assets/d3-vendor-BFFrGAVG.js",revision:null},{url:"assets/ct-planning-workflow-plan-F_cDTVOy.js",revision:null},{url:"assets/ct-planning-workflow-panel-CMc01iO0.js",revision:null},{url:"assets/ct-planning-viewer-restore-DPAiUNTc.js",revision:null},{url:"assets/ct-planning-viewer-bridge-launch-B5lz6hCJ.js",revision:null},{url:"assets/ct-planning-viewer-bridge-handoff-BgfMnVeh.js",revision:null},{url:"assets/ct-planning-viewer-bridge-audit-6KhVgByF.js",revision:null},{url:"assets/ct-planning-validation-panel-A0crz4iJ.js",revision:null},{url:"assets/ct-planning-validation-CmWCMNoJ.js",revision:null},{url:"assets/ct-planning-tools-DY-cpT1J.js",revision:null},{url:"assets/ct-planning-state-Dn5nb0FB.js",revision:null},{url:"assets/ct-planning-reconstruction-Z7arQhs1.js",revision:null},{url:"assets/ct-planning-reconstruction-panel-DGNeDHAu.js",revision:null},{url:"assets/ct-planning-measurement-plan-DTO0IPg4.js",revision:null},{url:"assets/ct-planning-measurement-panel-Aui-faxv.js",revision:null},{url:"assets/ct-planning-implant-model-panel-CJJH3Y-o.js",revision:null},{url:"assets/ct-planning-implant-model-DEE6s53P.js",revision:null},{url:"assets/ct-planning-implant-fit-panel-BQ1okXtA.js",revision:null},{url:"assets/ct-planning-implant-fit-CRgdcVcn.js",revision:null},{url:"assets/ct-planning-geometry-BuTYYjMV.js",revision:null},{url:"assets/ct-planning-export-vbzx49fx.js",revision:null},{url:"assets/ct-planning-export-scenario-summary-DlNLDyie.js",revision:null},{url:"assets/ct-planning-export-scenario-panel-BnmnEcU8.js",revision:null},{url:"assets/ct-planning-export-panel-DVPQ_tZH.js",revision:null},{url:"assets/ct-planning-catalog-BebjQWKC.js",revision:null},{url:"assets/ct-planning-artifact-panel-DAHmaAVO.js",revision:null},{url:"assets/ct-planning-artifact-commands-D47O6TPV.js",revision:null},{url:"assets/cryptoPro-PQ6Y-dWG.js",revision:null},{url:"assets/computeWorker-BJxw3QMw.js",revision:null},{url:"assets/CommunicationsView-CikUrtfZ.js",revision:null},{url:"assets/communication-task-data-Ceb4C-Yk.js",revision:null},{url:"assets/ClinicalAiPersonalizePanel-BZxfS1OO.js",revision:null},{url:"assets/clinical-rules-DeY5kfl6.js",revision:null},{url:"assets/charlswasm_decode-484ovEoR.wasm",revision:null},{url:"assets/browser-continuity-CQQeu_2a.js",revision:null},{url:"assets/boot-state-DPhVZ6SF.js",revision:null},{url:"assets/authed-api-file-D2JXvKvg.js",revision:null},{url:"assets/app-store-Hd2ZUJ0g.js",revision:null},{url:"assets/app-logic-3eHsEj_E.js",revision:null},{url:"assets/app-helpers-qcwCx4go.js",revision:null},{url:"assets/analyticsDoctorMetrics-BYniDjLB.js",revision:null},{url:"assets/AnalyticsDashboardView-Dwl_hk56.js",revision:null},{url:"assets/AnalyticsDashboardView-DDTrQG3n.css",revision:null},{url:"manifest.webmanifest",revision:"985b3b9491979ba75de51abee7aae20d"}],{}),s.cleanupOutdatedCaches(),s.registerRoute(new s.NavigationRoute(s.createHandlerBoundToURL("index.html")))});
+if (!self.define) {
+	let s,
+		l = {};
+	const e = (e, n) => (
+		(e = new URL(e + ".js", n).href),
+		l[e] ||
+			new Promise((l) => {
+				if ("document" in self) {
+					const s = document.createElement("script");
+					(s.src = e), (s.onload = l), document.head.appendChild(s);
+				} else (s = e), importScripts(e), l();
+			}).then(() => {
+				const s = l[e];
+				if (!s) throw new Error(`Module ${e} didn’t register its module`);
+				return s;
+			})
+	);
+	self.define = (n, i) => {
+		const r =
+			s ||
+			("document" in self ? document.currentScript.src : "") ||
+			location.href;
+		if (l[r]) return;
+		const t = {};
+		const a = (s) => e(s, r),
+			u = { module: { uri: r }, exports: t, require: a };
+		l[r] = Promise.all(n.map((s) => u[s] || a(s))).then((s) => (i(...s), t));
+	};
+}
+define(["./workbox-9c191d2f"], (s) => {
+	self.skipWaiting(),
+		s.clientsClaim(),
+		s.precacheAndRoute(
+			[
+				{ url: "registerSW.js", revision: "1872c500de691dce40960bb85481de07" },
+				{ url: "index.html", revision: "bafd9ff226b222ab651b634f03ed7541" },
+				{ url: "assets/workspace-_II3i48b.js", revision: null },
+				{ url: "assets/workspace-ui-labels-CkwvyuHR.js", revision: null },
+				{ url: "assets/workspace-static-options-DM8L3oPP.js", revision: null },
+				{ url: "assets/workspace-shell-QLvUEjPh.css", revision: null },
+				{ url: "assets/workspace-shell-EdcoBQSz.js", revision: null },
+				{ url: "assets/workspace-route-boundary-CzyV-anx.js", revision: null },
+				{ url: "assets/workspace-preload-D05L5dp2.js", revision: null },
+				{ url: "assets/workspace-continuity-DQiQ_RTm.js", revision: null },
+				{ url: "assets/voice-assistant-ui-8PrESAPi.js", revision: null },
+				{ url: "assets/vite-preload-helper-ckwbz45p.js", revision: null },
+				{ url: "assets/VisitView-D8R1mTBo.css", revision: null },
+				{ url: "assets/VisitView-C084i_Gl.js", revision: null },
+				{ url: "assets/visit-store-DpYMSkj3.js", revision: null },
+				{ url: "assets/visit-specialty-data-iCzH3fe9.js", revision: null },
+				{ url: "assets/visit-dictation-data-BiIr8y7V.js", revision: null },
+				{ url: "assets/use-websocket-CI3icIWn.js", revision: null },
+				{ url: "assets/SmartMicrophoneButton-CSVwJf1l.js", revision: null },
+				{ url: "assets/smart-parse-preview-L-qhALuQ.js", revision: null },
+				{ url: "assets/ShiftView-UP0AJdTE.js", revision: null },
+				{ url: "assets/SettingsView-BWOj2RMP.js", revision: null },
+				{ url: "assets/settings-store-BT6aFQbh.js", revision: null },
+				{ url: "assets/settings-static-data-DukDyN9L.js", revision: null },
+				{ url: "assets/settings-components-CciN-wWt.css", revision: null },
+				{ url: "assets/settings-components-C35R9lnZ.js", revision: null },
+				{ url: "assets/schema-vendor-narhQPCi.js", revision: null },
+				{ url: "assets/ScheduleView-BGD9i5jZ.js", revision: null },
+				{ url: "assets/schedule-store-DcsWQR0_.js", revision: null },
+				{ url: "assets/ScannerView-Q55GPxt0.js", revision: null },
+				{ url: "assets/ScannerView-C3756Pj2.css", revision: null },
+				{ url: "assets/rub-amount-input-By-8RP2k.js", revision: null },
+				{ url: "assets/RecallListPanel-BoLvTM6Z.js", revision: null },
+				{ url: "assets/react-vendor-BYFVS9HM.js", revision: null },
+				{ url: "assets/public-portal-route-BWRStS3h.js", revision: null },
+				{ url: "assets/pricelist-ui-meta-B8lf9vP4.js", revision: null },
+				{ url: "assets/price-dictation-bar-BogOY-Rl.js", revision: null },
+				{ url: "assets/post-visit-care-data-BGBUop_B.js", revision: null },
+				{ url: "assets/PatientsView-C_CAFxBy.css", revision: null },
+				{ url: "assets/PatientsView-CN40tSvN.js", revision: null },
+				{ url: "assets/PatientAvatar-DjMAdvzB.js", revision: null },
+				{ url: "assets/patient-store-B6pTG7dw.js", revision: null },
+				{ url: "assets/patient-portal-lkvEcTI_.js", revision: null },
+				{ url: "assets/patient-portal-DqR-gVCe.css", revision: null },
+				{ url: "assets/panel-load-failure-DUSssGAx.js", revision: null },
+				{ url: "assets/openjphjs-C-BUUy4a.wasm", revision: null },
+				{ url: "assets/openjpegwasm_decode-B3gWTHpv.wasm", revision: null },
+				{ url: "assets/omnibar-tb6U4Url.js", revision: null },
+				{ url: "assets/OdontogramModule-sjwtknN2.js", revision: null },
+				{ url: "assets/OdontogramModule-CaGpRK3C.css", revision: null },
+				{ url: "assets/mprWorker-BW7-IUZX.js", revision: null },
+				{ url: "assets/mpr-control-math-BRB9ebL9.js", revision: null },
+				{ url: "assets/mpr-clinical-status-C8WfcKDO.js", revision: null },
+				{ url: "assets/motion-preference-c9NVf79y.js", revision: null },
+				{ url: "assets/MarketingView-CCnTNIJD.js", revision: null },
+				{ url: "assets/MarketingView-7GvvmAJG.css", revision: null },
+				{ url: "assets/ManagerReportsPanel-CmPlNzGv.js", revision: null },
+				{ url: "assets/lossless-D6F35_Z-.js", revision: null },
+				{ url: "assets/libjpegturbowasm_decode-daqMmuVl.wasm", revision: null },
+				{ url: "assets/LeadsKanbanView-hDCTzHOm.js", revision: null },
+				{ url: "assets/jpeg-B-x1txLf.js", revision: null },
+				{ url: "assets/InventoryView-BhaSNCxZ.js", revision: null },
+				{ url: "assets/inputSanitation-DgOqnvV6.js", revision: null },
+				{ url: "assets/index-z8xepBBv.js", revision: null },
+				{ url: "assets/index-BjKhGDY2.css", revision: null },
+				{ url: "assets/ImagingView-CCgSTNzg.js", revision: null },
+				{ url: "assets/imaging-ui-labels-BNQ9i906.js", revision: null },
+				{ url: "assets/imaging-store-CTyqhFd4.js", revision: null },
+				{ url: "assets/imaging-components-Bk4T0XzA.js", revision: null },
+				{ url: "assets/imaging-comparison-CCjpTVaW.js", revision: null },
+				{ url: "assets/icons-Dp0wVgrn.js", revision: null },
+				{ url: "assets/global-toast-BAW9NBcj.js", revision: null },
+				{ url: "assets/FreedSlotsPanel-C5A9KSHj.js", revision: null },
+				{ url: "assets/FinanceView-D4qTIuUf.css", revision: null },
+				{ url: "assets/FinanceView-B8ECXTUc.js", revision: null },
+				{ url: "assets/features-selector-CbVHCTge.js", revision: null },
+				{ url: "assets/empty-state-Ok6WBh1J.js", revision: null },
+				{ url: "assets/egiszAvailability-B-Vao2RK.js", revision: null },
+				{ url: "assets/DocumentsView-Ej19ys7b.js", revision: null },
+				{ url: "assets/document-validators-DOTfH5EQ.js", revision: null },
+				{ url: "assets/document-store-DSzt8gb5.js", revision: null },
+				{ url: "assets/document-logic-NHwygODw.js", revision: null },
+				{ url: "assets/dictation-hints-Bx2KmKkL.js", revision: null },
+				{ url: "assets/dicom-components-CjhtmCHe.js", revision: null },
+				{ url: "assets/dental-shared-DnqgVa7A.js", revision: null },
+				{ url: "assets/decodeImageFrameWorker-DGreTEC-.js", revision: null },
+				{ url: "assets/d3-vendor-BFFrGAVG.js", revision: null },
+				{ url: "assets/ct-planning-workflow-plan-F_cDTVOy.js", revision: null },
+				{
+					url: "assets/ct-planning-workflow-panel-CMc01iO0.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-viewer-restore-DPAiUNTc.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-viewer-bridge-launch-B5lz6hCJ.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-viewer-bridge-handoff-BgfMnVeh.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-viewer-bridge-audit-6KhVgByF.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-validation-panel-A0crz4iJ.js",
+					revision: null,
+				},
+				{ url: "assets/ct-planning-validation-CmWCMNoJ.js", revision: null },
+				{ url: "assets/ct-planning-tools-DY-cpT1J.js", revision: null },
+				{ url: "assets/ct-planning-state-Dn5nb0FB.js", revision: null },
+				{
+					url: "assets/ct-planning-reconstruction-Z7arQhs1.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-reconstruction-panel-DGNeDHAu.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-measurement-plan-DTO0IPg4.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-measurement-panel-Aui-faxv.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-implant-model-panel-CJJH3Y-o.js",
+					revision: null,
+				},
+				{ url: "assets/ct-planning-implant-model-DEE6s53P.js", revision: null },
+				{
+					url: "assets/ct-planning-implant-fit-panel-BQ1okXtA.js",
+					revision: null,
+				},
+				{ url: "assets/ct-planning-implant-fit-CRgdcVcn.js", revision: null },
+				{ url: "assets/ct-planning-geometry-BuTYYjMV.js", revision: null },
+				{ url: "assets/ct-planning-export-vbzx49fx.js", revision: null },
+				{
+					url: "assets/ct-planning-export-scenario-summary-DlNLDyie.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-export-scenario-panel-BnmnEcU8.js",
+					revision: null,
+				},
+				{ url: "assets/ct-planning-export-panel-DVPQ_tZH.js", revision: null },
+				{ url: "assets/ct-planning-catalog-BebjQWKC.js", revision: null },
+				{
+					url: "assets/ct-planning-artifact-panel-DAHmaAVO.js",
+					revision: null,
+				},
+				{
+					url: "assets/ct-planning-artifact-commands-D47O6TPV.js",
+					revision: null,
+				},
+				{ url: "assets/cryptoPro-PQ6Y-dWG.js", revision: null },
+				{ url: "assets/computeWorker-BJxw3QMw.js", revision: null },
+				{ url: "assets/CommunicationsView-CikUrtfZ.js", revision: null },
+				{ url: "assets/communication-task-data-Ceb4C-Yk.js", revision: null },
+				{
+					url: "assets/ClinicalAiPersonalizePanel-BZxfS1OO.js",
+					revision: null,
+				},
+				{ url: "assets/clinical-rules-DeY5kfl6.js", revision: null },
+				{ url: "assets/charlswasm_decode-484ovEoR.wasm", revision: null },
+				{ url: "assets/browser-continuity-CQQeu_2a.js", revision: null },
+				{ url: "assets/boot-state-DPhVZ6SF.js", revision: null },
+				{ url: "assets/authed-api-file-D2JXvKvg.js", revision: null },
+				{ url: "assets/app-store-Hd2ZUJ0g.js", revision: null },
+				{ url: "assets/app-logic-3eHsEj_E.js", revision: null },
+				{ url: "assets/app-helpers-qcwCx4go.js", revision: null },
+				{ url: "assets/analyticsDoctorMetrics-BYniDjLB.js", revision: null },
+				{ url: "assets/AnalyticsDashboardView-Dwl_hk56.js", revision: null },
+				{ url: "assets/AnalyticsDashboardView-DDTrQG3n.css", revision: null },
+				{
+					url: "manifest.webmanifest",
+					revision: "985b3b9491979ba75de51abee7aae20d",
+				},
+			],
+			{},
+		),
+		s.cleanupOutdatedCaches(),
+		s.registerRoute(
+			new s.NavigationRoute(s.createHandlerBoundToURL("index.html")),
+		);
+});

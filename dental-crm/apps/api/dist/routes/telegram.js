@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import { namedDevelopmentModeActive, unguardedBypassAllowed } from "../accessGuard.js";
 import { createDenteTelegramLinkCodeSchema, denteTelegramBotStatusSchema, denteTelegramChatLinkPublicSchema, denteTelegramChatLinkStatusSchema, denteTelegramLinkCodeStatusSchema, denteTelegramMessagePreviewRequestSchema, denteTelegramOutboxDeliveryStatusSchema, denteTelegramOutboxSendDueResponseSchema, denteTelegramOutboxSendRequestSchema, denteTelegramOutboxSendResponseSchema, denteTelegramSubjectTypeSchema, denteTelegramTemplateKindSchema, denteTelegramWebhookResponseSchema, denteTelegramWebhookUpdateSchema, updateDenteTelegramBotSettingsSchema } from "@dental/shared";
 import { buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, buildDenteTelegramOutbox, claimDenteTelegramOutboxDeliveryReceipt, claimDenteTelegramWebhookUpdate, consumeDenteTelegramLinkCode, createDenteTelegramContactRequest, createDenteTelegramCareRequest, createDenteTelegramDocumentRequest, createDenteTelegramLinkCode, denteTelegramOutboxDeliveryReceipts, denteTelegramVisualCardUrlFor, extractDenteTelegramLinkCode, findDenteTelegramOutboxDeliveryReceipt, getDenteTelegramBotSettings, handleDenteTelegramAppointmentCallback, hasDenteTelegramWebhookUpdate, listDenteTelegramLinkCodes, listDenteTelegramWebhookEvents, prepareDenteTelegramOutboxDelivery, recordDenteTelegramWebhookEvent, recordDenteTelegramOutboxDelivery, renderDenteTelegramMessagePreview, revokeDenteTelegramChatLink as revokeLegacyInMemoryTelegramChatLink, safeDenteTelegramPublicHttpsUrl, updateDenteTelegramBotSettings } from "../sampleData.js";
 /**
@@ -16,6 +17,7 @@ import { buildDenteTelegramLinkCodeList, buildDenteTelegramLinkedScheduleReply, 
  * бы продолжать отправку в чат, который клиника уже отключила.
  */
 import { buildDenteTelegramChatLinkList, countActiveDenteTelegramChatLinks, revokeDenteTelegramChatLink, upsertDenteTelegramChatLink } from "../telegram/chatLinks.js";
+import { withTenantCtx } from "../db/rls.js";
 import { repairMojibakeDeep, repairMojibakeText } from "../text/repairMojibake.js";
 import { answerTelegramCallbackQuery, sendTelegramPhotoMessage, sendTelegramTextMessage } from "../telegramTransport.js";
 const telegramSecretHeader = "x-telegram-bot-api-secret-token";
@@ -1154,8 +1156,40 @@ async function persistTelegramChatLinkToDatabase(request, runtime, chatLink) {
 function configuredTelegramAdminSecret() {
     return process.env.DENTE_TELEGRAM_ADMIN_SECRET?.trim() || null;
 }
+/**
+ * Послабление для разработки на всей панели управления Telegram — 14 маршрутов,
+ * подключённых через `preHandler: requireTelegramControlPlaneAccess`
+ * (пересчитано 2026-08-06; цифра гниёт — пересчитывай, прежде чем ссылаться):
+ * работает ТОЛЬКО при явно названном режиме разработки и ТОЛЬКО при явно
+ * выставленном флаге.
+ *
+ * ПОЧЕМУ ЗДЕСЬ ОБЩИЙ ПРЕДИКАТ, А НЕ ПРЕЖНЕЕ `NODE_ENV !== "production"`.
+ * Прежнее условие истинно, когда NODE_ENV НЕ ЗАДАН ВОВСЕ, а незаданный NODE_ENV —
+ * типовое состояние настоящего сервера: `apps/api/package.json` объявляет
+ * `"start": "node dist/server.js"` и режим не задаёт. Значит у заказчика,
+ * поднявшего сервер этой командой, «мы не в production» было ИСТИНОЙ, и от
+ * чтения списка привязанных чатов пациентов, отзыва привязок, правки токена бота
+ * и ручной отправки сообщений без секрета администратора защищало только то, что
+ * второй флаг где-то не выставлен. Замерено на этом дереве до правки: пустой
+ * NODE_ENV + DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE=1 →
+ * GET /api/telegram/feature-plan отвечал 200 вместо 503.
+ *
+ * `accessGuard.ts` разбирает эту инверсию подробно и НАЗЫВАЕТ ЭТОТ ФАЙЛ как одну
+ * из четырёх копий, которую должен переписать владелец. Пятой копии условия
+ * безопасности здесь не будет: одно условие в одном месте — единственный способ
+ * не оставить следующую инверсию незамеченной.
+ *
+ * Смысл послабления не изменился: `development`/`test` плюс
+ * `DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE=1`. Закрылся ровно один случай —
+ * пустой или незнакомый NODE_ENV («staging», «prod», опечатка) больше не
+ * считается разработкой.
+ *
+ * ВЕРНУТЬ «КАК БЫЛО» — значит снова открыть переписку клиники с пациентами на
+ * боевом сервере. Если нужно работать без секрета локально, задайте
+ * NODE_ENV=development, а не возвращайте отрицание.
+ */
 function isExplicitlyUnguardedControlPlaneAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE === "1";
+    return unguardedBypassAllowed("DENTE_TELEGRAM_ALLOW_UNGUARDED_CONTROL_PLANE");
 }
 async function requireTelegramControlPlaneAccess(request, reply) {
     const adminSecret = configuredTelegramAdminSecret();
@@ -1989,7 +2023,32 @@ async function handleWebhook(request, reply) {
     const settings = runtime.settings;
     const expectedSecret = runtime.webhookSecret;
     const providedSecret = stringFromUnknown(request.headers[telegramSecretHeader]) ?? null;
-    if (!expectedSecret && process.env.NODE_ENV === "production") {
+    // Webhook — единственный маршрут Telegram, открытый в интернет без охраны
+    // (`registerTelegramWebhookRoutes`, отдельно от панели управления). Секрет
+    // `x-telegram-bot-api-secret-token` — ЕДИНСТВЕННОЕ доказательство, что update
+    // пришёл от Telegram, а не от постороннего: без него кто угодно может прислать
+    // фальшивое сообщение от имени пациента, израсходовать код привязки чата и
+    // привязать СВОЙ чат к чужой карте — то есть начать получать напоминания о
+    // приёмах чужого человека.
+    //
+    // БЫЛО: `!expectedSecret && process.env.NODE_ENV === "production"` — требование
+    // секрета включалось ТОЛЬКО в явном production. Тот же промах, что в остальных
+    // четырёх местах, но с обратной стороны: `apps/api/package.json` объявляет
+    // `"start": "node dist/server.js"` и NODE_ENV не задаёт, поэтому у заказчика
+    // условие ЛОЖНО, проверка молчала, и незаданный DENTE_TELEGRAM_WEBHOOK_SECRET
+    // не вызывал ни отказа, ни жалобы: `expectedSecret` пуст → сравнение ниже
+    // пропускается целиком → update принимался от кого угодно.
+    //
+    // СТАЛО: отсутствие секрета допустимо только в НАЗВАННОМ режиме разработки
+    // (`development`/`test`). Пустой или незнакомый NODE_ENV теперь трактуется как
+    // бой и требует секрет. Разработку это не ломает: локальный прогон и тесты
+    // задают NODE_ENV=development/test, а `telegramChatLinkPersists.test.ts` вдобавок
+    // выставляет DENTE_TELEGRAM_WEBHOOK_SECRET.
+    //
+    // ВЕРНУТЬ «КАК БЫЛО» — значит снова принимать анонимные update у заказчика.
+    // Правильный способ поднять webhook в бою — задать DENTE_TELEGRAM_WEBHOOK_SECRET
+    // и тот же секрет отдать Telegram при setWebhook.
+    if (!expectedSecret && !namedDevelopmentModeActive()) {
         return reply.code(503).send({
             ok: false,
             error: "TelegramWebhookSecretRequired"
@@ -2005,215 +2064,217 @@ async function handleWebhook(request, reply) {
     // расписанию клиники. Без этой загрузки пациент получал бы ответ по
     // демонстрационным данным. Загрузка идёт ПОСЛЕ проверки секрета, чтобы
     // посторонний запрос не мог заставить сервер читать базу.
-    await hydrateTelegramDomainState(request, runtime.organizationId);
-    if (settings.mode === "disabled") {
-        return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
-            ok: true,
-            duplicate: false,
-            action: "ignored_telegram_disabled",
-            suggestedReply: null,
-            warnings: ["Telegram отключен в настройках клиники; update не обработан, код привязки не использован."],
-            event: null
-        }));
-    }
-    const parsedUpdate = parseTelegramRouteBody(denteTelegramWebhookUpdateSchema, request.body);
-    if (!parsedUpdate.ok) {
-        return reply.code(400).send({
-            ok: false,
-            error: "TelegramWebhookValidationFailed",
-            message: parsedUpdate.message
+    return withTenantCtx(runtime.organizationId, async () => {
+        await hydrateTelegramDomainState(request, runtime.organizationId);
+        if (settings.mode === "disabled") {
+            return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
+                ok: true,
+                duplicate: false,
+                action: "ignored_telegram_disabled",
+                suggestedReply: null,
+                warnings: ["Telegram отключен в настройках клиники; update не обработан, код привязки не использован."],
+                event: null
+            }));
+        }
+        const parsedUpdate = parseTelegramRouteBody(denteTelegramWebhookUpdateSchema, request.body);
+        if (!parsedUpdate.ok) {
+            return reply.code(400).send({
+                ok: false,
+                error: "TelegramWebhookValidationFailed",
+                message: parsedUpdate.message
+            });
+        }
+        const update = parsedUpdate.value;
+        if (hasDenteTelegramWebhookUpdate(update.update_id, runtime.organizationId, runtime.botConfigId)) {
+            return denteTelegramWebhookResponseSchema.parse({
+                ok: true,
+                duplicate: true,
+                action: "ignored_duplicate_update",
+                suggestedReply: null,
+                warnings: [],
+                event: null
+            });
+        }
+        const updateKind = detectUpdateKind(update);
+        const callbackData = extractCallbackData(update);
+        const callbackAction = extractSafeCallbackAction(update);
+        const callbackQueryId = extractCallbackQueryId(update);
+        const command = extractCommand(update) ??
+            (callbackData?.startsWith("d1.") ? "/callback:appointment" : callbackAction ? `/callback:${callbackAction.replace("dente:", "")}` : null);
+        const chatInfo = extractChatInfo(update);
+        const chatId = chatInfo?.id ?? null;
+        const chatType = chatInfo?.type ?? null;
+        const messageText = extractMessageText(update);
+        const suppressPublicChatReply = Boolean(chatType && chatType !== "private");
+        const chatHash = chatFingerprint(chatId, runtime.organizationId);
+        const webhookClaim = claimDenteTelegramWebhookUpdate({
+            updateId: update.update_id,
+            organizationId: runtime.organizationId,
+            botConfigId: runtime.botConfigId,
+            chatFingerprint: chatHash,
+            updateKind,
+            command
         });
-    }
-    const update = parsedUpdate.value;
-    if (hasDenteTelegramWebhookUpdate(update.update_id, runtime.organizationId, runtime.botConfigId)) {
-        return denteTelegramWebhookResponseSchema.parse({
-            ok: true,
-            duplicate: true,
-            action: "ignored_duplicate_update",
-            suggestedReply: null,
-            warnings: [],
-            event: null
-        });
-    }
-    const updateKind = detectUpdateKind(update);
-    const callbackData = extractCallbackData(update);
-    const callbackAction = extractSafeCallbackAction(update);
-    const callbackQueryId = extractCallbackQueryId(update);
-    const command = extractCommand(update) ??
-        (callbackData?.startsWith("d1.") ? "/callback:appointment" : callbackAction ? `/callback:${callbackAction.replace("dente:", "")}` : null);
-    const chatInfo = extractChatInfo(update);
-    const chatId = chatInfo?.id ?? null;
-    const chatType = chatInfo?.type ?? null;
-    const messageText = extractMessageText(update);
-    const suppressPublicChatReply = Boolean(chatType && chatType !== "private");
-    const chatHash = chatFingerprint(chatId, runtime.organizationId);
-    const webhookClaim = claimDenteTelegramWebhookUpdate({
-        updateId: update.update_id,
-        organizationId: runtime.organizationId,
-        botConfigId: runtime.botConfigId,
-        chatFingerprint: chatHash,
-        updateKind,
-        command
-    });
-    if (!webhookClaim.claimed) {
-        return denteTelegramWebhookResponseSchema.parse({
-            ok: true,
-            duplicate: true,
-            action: "ignored_duplicate_update",
-            suggestedReply: null,
-            warnings: [],
-            event: null
-        });
-    }
-    const appointmentCallbackResult = handleDenteTelegramAppointmentCallback({
-        callbackData,
-        chatFingerprint: chatHash,
-        organizationId: runtime.organizationId,
-        clinicId: runtime.clinicId,
-        botConfigId: runtime.botConfigId
-    });
-    const linkCode = appointmentCallbackResult.handled ? null : extractDenteTelegramLinkCode(messageText);
-    const linkCodeRejectedByChatType = Boolean(linkCode && chatType !== "private");
-    const linkCodeRejectedByRateLimit = Boolean(linkCode && !linkCodeRejectedByChatType && telegramLinkCodeRateLimitExceeded(chatHash, runtime.organizationId, runtime.botConfigId));
-    const linkResult = linkCode && !linkCodeRejectedByChatType && !linkCodeRejectedByRateLimit
-        ? consumeDenteTelegramLinkCode(linkCode, chatHash, chatId, {
+        if (!webhookClaim.claimed) {
+            return denteTelegramWebhookResponseSchema.parse({
+                ok: true,
+                duplicate: true,
+                action: "ignored_duplicate_update",
+                suggestedReply: null,
+                warnings: [],
+                event: null
+            });
+        }
+        const appointmentCallbackResult = handleDenteTelegramAppointmentCallback({
+            callbackData,
+            chatFingerprint: chatHash,
             organizationId: runtime.organizationId,
             clinicId: runtime.clinicId,
             botConfigId: runtime.botConfigId
-        })
-        : null;
-    if (linkResult?.ok === true && linkResult.chatLink) {
-        await persistTelegramChatLinkToDatabase(request, runtime, linkResult.chatLink);
-    }
-    const warnings = [
-        ...webhookClaim.event.warnings,
-        ...appointmentCallbackResult.warnings,
-        ...(expectedSecret ? [] : ["Webhook secret не настроен; update принимается только для локальной разработки."])
-    ];
-    if (linkCodeRejectedByChatType) {
-        warnings.push("Одноразовый код Telegram можно использовать только в личном чате с ботом; привязка в группах и каналах заблокирована.");
-    }
-    if (linkCodeRejectedByRateLimit) {
-        warnings.push("Слишком много неверных кодов Telegram-привязки за короткое время; прием кодов для этого чата временно ограничен.");
-    }
-    if (updateKind === "voice" && !settings.allowVoiceIntake) {
-        warnings.push("Голосовой ввод отключен; аудио из Telegram не должно попадать в медицинскую запись по умолчанию.");
-    }
-    if (updateKind === "photo" || updateKind === "document") {
-        warnings.push("Передача файлов Telegram не принимается для меддокументов и снимков в безопасной политике по умолчанию.");
-    }
-    if (linkResult && !linkResult.ok) {
-        if (linkResult.reason === "chat_encryption_key_missing") {
-            warnings.push("Защищенная связка Telegram-чата не настроена; одноразовый код Telegram не был использован.");
+        });
+        const linkCode = appointmentCallbackResult.handled ? null : extractDenteTelegramLinkCode(messageText);
+        const linkCodeRejectedByChatType = Boolean(linkCode && chatType !== "private");
+        const linkCodeRejectedByRateLimit = Boolean(linkCode && !linkCodeRejectedByChatType && telegramLinkCodeRateLimitExceeded(chatHash, runtime.organizationId, runtime.botConfigId));
+        const linkResult = linkCode && !linkCodeRejectedByChatType && !linkCodeRejectedByRateLimit
+            ? consumeDenteTelegramLinkCode(linkCode, chatHash, chatId, {
+                organizationId: runtime.organizationId,
+                clinicId: runtime.clinicId,
+                botConfigId: runtime.botConfigId
+            })
+            : null;
+        if (linkResult?.ok === true && linkResult.chatLink) {
+            await persistTelegramChatLinkToDatabase(request, runtime, linkResult.chatLink);
         }
-        else if (linkResult.reason === "missing_chat_transport" || linkResult.reason === "chat_encryption_failed") {
-            warnings.push("Чат Telegram не удалось сохранить в защищенной связке; одноразовый код Telegram не был использован.");
+        const warnings = [
+            ...webhookClaim.event.warnings,
+            ...appointmentCallbackResult.warnings,
+            ...(expectedSecret ? [] : ["Webhook secret не настроен; update принимается только для локальной разработки."])
+        ];
+        if (linkCodeRejectedByChatType) {
+            warnings.push("Одноразовый код Telegram можно использовать только в личном чате с ботом; привязка в группах и каналах заблокирована.");
         }
-        else {
-            warnings.push("Одноразовый код Telegram неверный, истек, уже использован или отозван.");
+        if (linkCodeRejectedByRateLimit) {
+            warnings.push("Слишком много неверных кодов Telegram-привязки за короткое время; прием кодов для этого чата временно ограничен.");
         }
-    }
-    const action = appointmentCallbackResult.handled
-        ? appointmentCallbackResult.action
-        : linkCodeRejectedByChatType
-            ? "rejected_non_private_telegram_link_chat"
-            : linkCodeRejectedByRateLimit
-                ? "rate_limited_telegram_link_code"
-                : suppressPublicChatReply
-                    ? "rejected_non_private_telegram_chat"
-                    : linkResult?.ok === true
-                        ? `linked_${linkResult.subjectType}_telegram_chat`
-                        : linkResult
-                            ? "rejected_telegram_link_code"
-                            : updateKind === "unsupported"
-                                ? "ignored_unsupported_update"
-                                : "queued_safe_triage";
-    const suggestedReply = appointmentCallbackResult.handled
-        ? {
-            text: appointmentCallbackResult.suggestedReply,
-            replyMarkup: safeCommandKeyboard(settings, "appointment_callback"),
-            photoUrl: patientMenuCardPhoto(settings, "appointment")
+        if (updateKind === "voice" && !settings.allowVoiceIntake) {
+            warnings.push("Голосовой ввод отключен; аудио из Telegram не должно попадать в медицинскую запись по умолчанию.");
         }
-        : linkCodeRejectedByRateLimit
-            ? {
-                text: null,
-                replyMarkup: null
+        if (updateKind === "photo" || updateKind === "document") {
+            warnings.push("Передача файлов Telegram не принимается для меддокументов и снимков в безопасной политике по умолчанию.");
+        }
+        if (linkResult && !linkResult.ok) {
+            if (linkResult.reason === "chat_encryption_key_missing") {
+                warnings.push("Защищенная связка Telegram-чата не настроена; одноразовый код Telegram не был использован.");
             }
-            : linkCodeRejectedByChatType || suppressPublicChatReply
+            else if (linkResult.reason === "missing_chat_transport" || linkResult.reason === "chat_encryption_failed") {
+                warnings.push("Чат Telegram не удалось сохранить в защищенной связке; одноразовый код Telegram не был использован.");
+            }
+            else {
+                warnings.push("Одноразовый код Telegram неверный, истек, уже использован или отозван.");
+            }
+        }
+        const action = appointmentCallbackResult.handled
+            ? appointmentCallbackResult.action
+            : linkCodeRejectedByChatType
+                ? "rejected_non_private_telegram_link_chat"
+                : linkCodeRejectedByRateLimit
+                    ? "rate_limited_telegram_link_code"
+                    : suppressPublicChatReply
+                        ? "rejected_non_private_telegram_chat"
+                        : linkResult?.ok === true
+                            ? `linked_${linkResult.subjectType}_telegram_chat`
+                            : linkResult
+                                ? "rejected_telegram_link_code"
+                                : updateKind === "unsupported"
+                                    ? "ignored_unsupported_update"
+                                    : "queued_safe_triage";
+        const suggestedReply = appointmentCallbackResult.handled
+            ? {
+                text: appointmentCallbackResult.suggestedReply,
+                replyMarkup: safeCommandKeyboard(settings, "appointment_callback"),
+                photoUrl: patientMenuCardPhoto(settings, "appointment")
+            }
+            : linkCodeRejectedByRateLimit
                 ? {
-                    text: linkCodeRejectedByChatType
-                        ? "Код DENTE не принят в публичном чате. Откройте личный чат с ботом и попросите клинику показать QR подключения или отправьте одноразовый код там."
-                        : "DENTE отвечает только в личном чате с ботом. Откройте личный чат, чтобы подключить уведомления клиники.",
-                    replyMarkup: safeCommandKeyboard(settings, "rejected"),
-                    photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+                    text: null,
+                    replyMarkup: null
                 }
-                : linkResult?.ok === true
+                : linkCodeRejectedByChatType || suppressPublicChatReply
                     ? {
-                        text: "Привязка DENTE завершена. Telegram будет получать только безопасные уведомления клиники. Медицинские документы остаются в защищенном портале.",
-                        replyMarkup: safeCommandKeyboard(settings, "linked"),
+                        text: linkCodeRejectedByChatType
+                            ? "Код DENTE не принят в публичном чате. Откройте личный чат с ботом и попросите клинику показать QR подключения или отправьте одноразовый код там."
+                            : "DENTE отвечает только в личном чате с ботом. Откройте личный чат, чтобы подключить уведомления клиники.",
+                        replyMarkup: safeCommandKeyboard(settings, "rejected"),
                         photoUrl: patientMenuCardPhoto(settings, "mainMenu")
                     }
-                    : linkResult
+                    : linkResult?.ok === true
                         ? {
-                            text: linkResult.reason === "chat_encryption_key_missing" ||
-                                linkResult.reason === "missing_chat_transport" ||
-                                linkResult.reason === "chat_encryption_failed"
-                                ? "DENTE временно не может безопасно привязать Telegram. Попросите клинику проверить настройки бота и повторить код после исправления."
-                                : "Код DENTE не принят. Попросите клинику показать новый QR подключения или выдать новый одноразовый код.",
-                            replyMarkup: safeCommandKeyboard(settings, "rejected"),
+                            text: "Привязка DENTE завершена. Telegram будет получать только безопасные уведомления клиники. Медицинские документы остаются в защищенном портале.",
+                            replyMarkup: safeCommandKeyboard(settings, "linked"),
                             photoUrl: patientMenuCardPhoto(settings, "mainMenu")
                         }
-                        : suggestedReplyFor(command, callbackAction, settings, chatHash, updateKind, messageText, {
-                            organizationId: runtime.organizationId,
-                            clinicId: runtime.clinicId,
-                            botConfigId: runtime.botConfigId
-                        });
-    const botToken = runtime.botToken;
-    if (callbackQueryId && botToken) {
-        const callbackAnswer = await answerTelegramCallbackQuery({
-            botToken,
-            callbackQueryId,
-            text: appointmentCallbackResult.handled ? appointmentCallbackResult.callbackAnswerText : "DENTE: безопасный ответ отправлен.",
-            timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
+                        : linkResult
+                            ? {
+                                text: linkResult.reason === "chat_encryption_key_missing" ||
+                                    linkResult.reason === "missing_chat_transport" ||
+                                    linkResult.reason === "chat_encryption_failed"
+                                    ? "DENTE временно не может безопасно привязать Telegram. Попросите клинику проверить настройки бота и повторить код после исправления."
+                                    : "Код DENTE не принят. Попросите клинику показать новый QR подключения или выдать новый одноразовый код.",
+                                replyMarkup: safeCommandKeyboard(settings, "rejected"),
+                                photoUrl: patientMenuCardPhoto(settings, "mainMenu")
+                            }
+                            : suggestedReplyFor(command, callbackAction, settings, chatHash, updateKind, messageText, {
+                                organizationId: runtime.organizationId,
+                                clinicId: runtime.clinicId,
+                                botConfigId: runtime.botConfigId
+                            });
+        const botToken = runtime.botToken;
+        if (callbackQueryId && botToken) {
+            const callbackAnswer = await answerTelegramCallbackQuery({
+                botToken,
+                callbackQueryId,
+                text: appointmentCallbackResult.handled ? appointmentCallbackResult.callbackAnswerText : "DENTE: безопасный ответ отправлен.",
+                timeoutMs: Math.min(configuredSendTimeoutMs(), 5000)
+            });
+            if (!callbackAnswer.ok)
+                warnings.push(telegramCallbackTransportFailureWarning(callbackAnswer));
+        }
+        const replyWarning = suppressPublicChatReply ? null : await sendWebhookSuggestedReply(chatId, suggestedReply, runtime.botToken);
+        if (suppressPublicChatReply) {
+            warnings.push("Ответ Telegram не отправлен в группу или канал: DENTE отвечает только в личном чате.");
+        }
+        if (replyWarning)
+            warnings.push(replyWarning);
+        const event = recordDenteTelegramWebhookEvent({
+            updateId: update.update_id,
+            organizationId: runtime.organizationId,
+            botConfigId: runtime.botConfigId,
+            chatFingerprint: chatHash,
+            updateKind,
+            command,
+            status: (appointmentCallbackResult.handled && !appointmentCallbackResult.ok) ||
+                linkCodeRejectedByChatType ||
+                linkCodeRejectedByRateLimit ||
+                suppressPublicChatReply ||
+                (linkResult ? !linkResult.ok : false)
+                ? "rejected"
+                : updateKind === "unsupported"
+                    ? "ignored"
+                    : "processed",
+            action,
+            warnings
         });
-        if (!callbackAnswer.ok)
-            warnings.push(telegramCallbackTransportFailureWarning(callbackAnswer));
-    }
-    const replyWarning = suppressPublicChatReply ? null : await sendWebhookSuggestedReply(chatId, suggestedReply, runtime.botToken);
-    if (suppressPublicChatReply) {
-        warnings.push("Ответ Telegram не отправлен в группу или канал: DENTE отвечает только в личном чате.");
-    }
-    if (replyWarning)
-        warnings.push(replyWarning);
-    const event = recordDenteTelegramWebhookEvent({
-        updateId: update.update_id,
-        organizationId: runtime.organizationId,
-        botConfigId: runtime.botConfigId,
-        chatFingerprint: chatHash,
-        updateKind,
-        command,
-        status: (appointmentCallbackResult.handled && !appointmentCallbackResult.ok) ||
-            linkCodeRejectedByChatType ||
-            linkCodeRejectedByRateLimit ||
-            suppressPublicChatReply ||
-            (linkResult ? !linkResult.ok : false)
-            ? "rejected"
-            : updateKind === "unsupported"
-                ? "ignored"
-                : "processed",
-        action,
-        warnings
+        return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
+            ok: true,
+            duplicate: false,
+            action: event.action,
+            suggestedReply: readableTelegramText(suggestedReply.text),
+            suggestedReplyMarkup: readableTelegramPayload(suggestedReply.replyMarkup),
+            suggestedPhotoUrl: suggestedReply.photoUrl?.trim() || null,
+            warnings,
+            event
+        }));
     });
-    return denteTelegramWebhookResponseSchema.parse(readableTelegramPayload({
-        ok: true,
-        duplicate: false,
-        action: event.action,
-        suggestedReply: readableTelegramText(suggestedReply.text),
-        suggestedReplyMarkup: readableTelegramPayload(suggestedReply.replyMarkup),
-        suggestedPhotoUrl: suggestedReply.photoUrl?.trim() || null,
-        warnings,
-        event
-    }));
 }
 export async function registerTelegramWebhookRoutes(app) {
     const options = { bodyLimit: 256 * 1024 };

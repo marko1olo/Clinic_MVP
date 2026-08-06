@@ -1,11 +1,12 @@
 import crypto from "crypto";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { withSuperuserBypass, withTenantCtx } from "../db/rls.js";
 import { organizations, users, userInvitations, auditEvents } from "../db/schema.js";
 import { hashCredential, verifyCredential, signToken, verifyToken } from "../utils/cryptoHelper.js";
 import { authTokenSecret } from "../security/authSecret.js";
+import { unguardedBypassAllowed } from "../accessGuard.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
 import { resetRateLimit } from "../security/rateLimit.js";
 import { ADMIN_ROLES, getRequestIdentity } from "../security/identity.js";
@@ -17,15 +18,55 @@ import { staffRoleSchema } from "@dental/shared";
  */
 export const TOKEN_SECRET = () => authTokenSecret();
 /**
- * Демо-вход (clinic@example.com / doctor@clinic.com) — это бэкдор в исходниках.
- * Теперь он выключен по умолчанию и включается только явным флагом в dev.
+ * Демо-вход (clinic@example.com / doctor@clinic.com) — это бэкдор в исходниках:
+ * пара логинов, зашитых в этот файл, пускает в систему БЕЗ обращения к базе и
+ * БЕЗ проверки пароля. `/api/auth/login` выдаёт по ним подписанные clinicToken и
+ * staffToken с ролью doctor на организацию 00000000-0000-0000-0000-000000000001
+ * — тот самый идентификатор, который ставит сидер (`scripts/seedAuth.ts`,
+ * `scripts/migrateStateToDb.ts`), то есть на настоящую клинику заказчика.
+ *
+ * ЧТО БЫЛО И ПОЧЕМУ ЭТО ДЫРА, А НЕ ТЕОРИЯ.
+ * Стояло:
+ *     if (process.env.NODE_ENV === "production") return false;
+ *     return process.env.DENTE_ALLOW_DEMO_LOGIN !== "0";
+ * Два независимых дефекта в двух строках.
+ *   1. ОТСУТСТВИЕ ПЕРЕМЕННОЙ ВКЛЮЧАЛО БЭКДОР. `!== "0"` истинно, когда
+ *      переменной нет вовсе. Небезопасное поведение было поведением по
+ *      умолчанию: чтобы закрыть вход, требовалось знать имя переменной и
+ *      выставить её — а чтобы открыть, не требовалось ничего.
+ *   2. NODE_ENV НЕ ПРИЗНАК БОЯ. `apps/api/package.json` объявляет
+ *      `"start": "node dist/server.js"` и режим не задаёт. У заказчика,
+ *      поднявшего сервер этой командой, NODE_ENV пуст, первая строка не
+ *      срабатывает, и обе защиты промахиваются мимо ровно того случая, ради
+ *      которого написаны.
+ * Замерено на этом дереве до правки: пустой NODE_ENV, переменная не задана,
+ * POST /api/auth/login {"email":"doctor@clinic.com","password":<заведомо
+ * неверный>} → 200 с clinicToken и staffToken, роль doctor. Комментарий над
+ * функцией при этом уже утверждал, что вход «выключен по умолчанию»: описание
+ * разошлось с кодом, и читатель получал ложное спокойствие.
+ *
+ * ЧТО СТАЛО. Тот же механизм, что у остальных послаблений репозитория
+ * (`accessGuard.unguardedBypassAllowed`, уже применён в routes/schedule.ts,
+ * routes/settings.ts, routes/imaging.ts, routes/telegram.ts): бэкдор открыт,
+ * только если ОДНОВРЕМЕННО названный режим разработки (`development`/`test`)
+ * И `DENTE_ALLOW_DEMO_LOGIN=1`. Незаданная переменная, пустой или незнакомый
+ * NODE_ENV («staging», «prod», опечатка) не открывают ничего. Направление
+ * отказа выбрано осознанно: ошибка в настройке теперь закрывает вход, а не
+ * открывает его.
+ *
+ * ЗАЩЁЛКА С ДВУХ СТОРОН. `server.ts:136-150` отказывает серверу в старте, если
+ * при NODE_ENV=production выставлен `DENTE_ALLOW_DEMO_LOGIN=1`. Раньше эта
+ * проверка была бесполезна против типового случая — она ловит значение "1",
+ * а бэкдор открывался ПУСТОТОЙ. Теперь единственный способ его включить это и
+ * есть "1", то есть та самая величина, на которую production-проверка ругается.
+ *
+ * ВЕРНУТЬ «КАК БЫЛО» — значит вернуть вход без учётных данных в медицинскую
+ * систему у заказчика. Разработчику нужен демо-вход: задайте
+ * `DENTE_ALLOW_DEMO_LOGIN=1` (это уже делает `apply-dev-env.ps1`), а не
+ * возвращайте `!== "0"`.
  */
 function demoLoginAllowed() {
-    // Вне production демо-вход работает без всякой настройки .env.
-    // Отключить явно: DENTE_ALLOW_DEMO_LOGIN=0. В production — никогда.
-    if (process.env.NODE_ENV === "production")
-        return false;
-    return process.env.DENTE_ALLOW_DEMO_LOGIN !== "0";
+    return unguardedBypassAllowed("DENTE_ALLOW_DEMO_LOGIN");
 }
 /**
  * Ключ первичной настройки для смены чужих учётных данных.
@@ -232,35 +273,44 @@ function authSchemaMessage(error, fallback, priority) {
     // Обязательные поля (min) без custom-текста → fallback «заполните / введите».
     return fallback;
 }
-/*
- * ЗДЕСЬ СТОЯЛА `requireClinicToken`, И ОНА УДАЛЕНА, А НЕ СШИТА.
+/**
+ * Выполняет одно чтение «до арендатора» под обходом и заодно проверяет, что
+ * обход в этой транзакции действительно действовал.
  *
- * Она выглядела как общий middleware проверки токена кабинета — с текстами
- * отказов 401 «Необходима авторизация рабочего кабинета клиники» и «Сессия
- * истекла». Ни один маршрут её не вызывал: единственным вхождением имени в
- * `apps/api/src` было само объявление, остальные упоминания — заметки о ней же.
- * Ровно та форма, в которой в этом дереве уже стояла НАСТОЯЩАЯ дыра:
- * `requireScheduleMutationAccess` была так же объявлена, снабжена отказами и не
- * вызывалась, и любой с токеном кабинета писал в сетку приёмов мимо гейта
- * администратора (закрыто 1f4614ea2).
- *
- * ПОЧЕМУ УДАЛЕНА, А НЕ ПОДКЛЮЧЕНА. Сшивать нечего: её единственным действием
- * после проверки подписи была запись `request.clinicOrganizationId`, которую во
- * всём дереве не читал НИКТО — ни один маршрут, ни один сервис (проверено
- * поиском: одна запись, ноль чтений). Проверку подписи токена кабинета делает
- * `security/identity.ts` (`getRequestIdentity` + `requireOrganizationId`) и делает
- * строже: с кэшем разбора на объекте запроса, с меткой `verified` и с отказом
- * непроверенной организации на запись.
- *
- * И ПОДКЛЮЧИТЬ ЕЁ ОБЩИМ MIDDLEWARE БЫЛО НЕЛЬЗЯ: она принимает только
- * `x-dente-clinic-token`, поэтому на маршрутах отчётов и выплат, которые ходят по
- * `x-dente-staff-token`, отвечала бы 401 на верных запросах.
- *
- * Цена бездействия была не нулевой: инженер, проверяющий «есть ли охрана токена
- * кабинета», находил имя поиском и получал ложное спокойствие. Пустое место
- * честнее мёртвой охраны — оно отправляет читателя в identity.ts, где проверка
- * действительно живёт.
+ * Лишний запрос делается ТОЛЬКО когда строка не найдена, то есть на неуспешном
+ * пути, где и без того стоит `authFailureDelay` в 200 мс. Успешный вход платит
+ * ровно один round-trip, как и раньше.
  */
+async function readUnderBypass(read) {
+    return withSuperuserBypass(async (tx) => {
+        const rows = await read(tx);
+        if (rows.length > 0) {
+            return { row: rows[0], bypassActive: true };
+        }
+        const probe = await tx.execute(sql `SELECT current_setting('app.superuser_bypass', true) AS flag`);
+        const flag = probe.rows?.[0]?.flag ?? null;
+        return { row: undefined, bypassActive: flag === "on" };
+    });
+}
+/**
+ * Ответ на «строку скрыла политика, а не её отсутствие».
+ *
+ * ДИАГНОСТИЧЕСКАЯ ЧЕСТНОСТЬ. Отвечать 401 «Неверный логин или пароль» на отказ
+ * политики нельзя: это не ошибка пользователя, и оператор клиники будет
+ * перебирать пароли вместо того, чтобы позвать администратора. Но и наружу
+ * подробности отдавать нельзя — устройство защиты чужому знать незачем.
+ * Поэтому разделение то же, что у `publicApiErrorMessage` (server.ts): всё
+ * техническое уходит в журнал сервера, клиенту — обобщённый текст.
+ */
+function replyPreTenantPolicyFailure(request, reply, operation) {
+    request.log.error({ operation, setting: "app.superuser_bypass", url: request.url }, "[AUTH_RLS_BYPASS_INACTIVE] Запрос «до арендатора» выполнен без действующего обхода RLS: " +
+        "пустой результат объясняется политикой защиты строк, а не отсутствием записи. " +
+        "Ответ пользователю обобщён намеренно.");
+    return reply.code(500).send({
+        error: "AuthUnavailable",
+        message: "Сервер не смог выполнить проверку доступа. Повторите попытку позже и сообщите администратору клиники."
+    });
+}
 export async function registerAuthRoutes(app) {
     // ─── Clinic Workspace Login ───────────────────────────────────────────────────
     app.post("/api/auth/clinic/login", {
@@ -286,12 +336,21 @@ export async function registerAuthRoutes(app) {
         // перебирали пароли, а авария в логах отличалась от обычной опечатки только
         // строкой AUTH_DB_ERROR. Отказ инфраструктуры должен отвечать 500.
         //
+        // ОПЕРАЦИЯ «ДО АРЕНДАТОРА». Организация ищется по логину, то есть до
+        // запроса арендатор неизвестен, а политика `organizations` под FORCE RLS
+        // отдаёт таким запросам ноль строк (замер: 0 строк без контекста, 1 строка
+        // под обходом). Обход накрывает РОВНО этот SELECT: всё остальное в
+        // маршруте, включая запись аудита ниже, идёт под контекстом арендатора.
+        //
         // Демо-вход сохраняет прежнее поведение: он не обращается к базе и остаётся
         // доступен, если таблиц ещё нет (свежая установка до миграций).
         let org;
         try {
-            const result = await db.select().from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
-            org = result[0];
+            const lookup = await readUnderBypass((tx) => tx.select().from(organizations).where(eq(organizations.loginId, loginId)).limit(1));
+            if (!lookup.row && !lookup.bypassActive && !isDemoClinicLogin) {
+                return replyPreTenantPolicyFailure(request, reply, "clinic-login:lookup-organization");
+            }
+            org = lookup.row;
         }
         catch (dbErr) {
             console.error("[AUTH_DB_ERROR]", dbErr);
@@ -326,12 +385,19 @@ export async function registerAuthRoutes(app) {
         resetRateLimit(request);
         const token = signToken({ organizationId: org.id, clinicName: org.name }, TOKEN_SECRET(), 60 * 60 * 24 // 24h clinic session
         );
-        await db.insert(auditEvents).values({
-            organizationId: org.id,
-            entityType: "organization",
-            entityId: org.id,
-            action: "clinic_login_success",
-            reason: `Открыт рабочий кабинет: ${org.name}`
+        // Запись аудита идёт УЖЕ ПОД АРЕНДАТОРОМ, а не под обходом: в `WITH CHECK`
+        // политики audit_events дизъюнкта обхода нет, и вставка под одним лишь
+        // `app.superuser_bypass` отвергается кодом 42501 (проверено). Арендатор к
+        // этому моменту известен — это org.id, поэтому контекст даёт и права на
+        // запись, и границу: чужую организацию сюда записать нельзя.
+        await withTenantCtx(org.id, async (tx) => {
+            await tx.insert(auditEvents).values({
+                organizationId: org.id,
+                entityType: "organization",
+                entityId: org.id,
+                action: "clinic_login_success",
+                reason: `Открыт рабочий кабинет: ${org.name}`
+            });
         });
         return reply.send({
             ok: true,
@@ -460,15 +526,40 @@ export async function registerAuthRoutes(app) {
             return reply.code(403).send({ error: "Forbidden", message: "Нельзя менять пароль чужой организации." });
         }
         const hash = await hashCredential(body.newPassword);
-        await db.update(organizations).set({ passwordHash: hash }).where(eq(organizations.id, targetOrganizationId));
-        await db.insert(auditEvents).values({
-            organizationId: targetOrganizationId,
-            actorUserId: identity.userId ?? null,
-            entityType: "organization",
-            entityId: targetOrganizationId,
-            action: "clinic_password_reset",
-            reason: isOrgAdmin ? "Смена пароля клиники администратором" : "Смена пароля клиники ключом установки"
+        // ПУТЬ ADMIN_SETUP_KEY НЕ НЕСЁТ ТОКЕНА, значит арендатора у запроса нет и
+        // глобальная обёртка server.ts его не выставляет. Замер: без контекста
+        // `UPDATE organizations` затрагивает 0 строк и ошибки не даёт, а следующая
+        // за ним запись аудита падает с 42501 — то есть маршрут либо молча не
+        // менял пароль, либо отвечал 500 без причины.
+        //
+        // Контекст выставляется по ЯВНО названной организации. Это не обход:
+        // политика сверяет `id = current_tenant`, поэтому под этим контекстом можно
+        // изменить ровно ту организацию, которая названа, и никакую другую.
+        // Проверка «не чужая организация» для админа сделана выше и не ослаблена.
+        const passwordUpdated = await withTenantCtx(targetOrganizationId, async (tx) => {
+            const changed = await tx
+                .update(organizations)
+                .set({ passwordHash: hash })
+                .where(eq(organizations.id, targetOrganizationId))
+                .returning({ id: organizations.id });
+            if (!changed.length)
+                return false;
+            await tx.insert(auditEvents).values({
+                organizationId: targetOrganizationId,
+                actorUserId: identity.userId ?? null,
+                entityType: "organization",
+                entityId: targetOrganizationId,
+                action: "clinic_password_reset",
+                reason: isOrgAdmin ? "Смена пароля клиники администратором" : "Смена пароля клиники ключом установки"
+            });
+            return true;
         });
+        // БЫЛО: ответ «Пароль клиники обновлён.» отправлялся независимо от того,
+        // изменилась ли хоть одна строка. Ноль изменённых строк — это ненайденная
+        // организация, и говорить об успехе тут нельзя.
+        if (!passwordUpdated) {
+            return reply.code(404).send({ error: "OrganizationNotFound", message: "Организация не найдена." });
+        }
         return reply.send({ ok: true, message: "Пароль клиники обновлён." });
     });
     // ─── Admin: Set Staff PIN ─────────────────────────────────────────────────────
@@ -518,33 +609,47 @@ export async function registerAuthRoutes(app) {
         // Defense-in-depth: never UPDATE staff credentials by bare id.
         // Org-admin path already SELECTed with org; setup-key path may lack identity.organizationId.
         // Bind UPDATE to the target user's organizationId so a concurrent org move cannot widen the write.
-        const [pinTarget] = await db
-            .select({ id: users.id, organizationId: users.organizationId })
-            .from(users)
-            .where(identity.organizationId
-            ? and(eq(users.id, body.userId), eq(users.organizationId, identity.organizationId))
-            : eq(users.id, body.userId))
-            .limit(1);
-        if (!pinTarget) {
+        //
+        // ПУТЬ ADMIN_SETUP_KEY — операция «до арендатора»: токена нет, значит нет и
+        // контекста, а без контекста поиск сотрудника отдавал ноль строк и маршрут
+        // отвечал «Сотрудник не найден» на существующего сотрудника. Обход накрывает
+        // РОВНО одно чтение одной колонки — организации целевого сотрудника. Сама
+        // запись идёт уже под контекстом этой организации: в `WITH CHECK` политики
+        // users обхода нет, и под одним лишь обходом UPDATE отвергается (42501).
+        let targetOrganizationId = identity.organizationId ?? null;
+        if (!targetOrganizationId) {
+            const owner = await readUnderBypass((tx) => tx.select({ organizationId: users.organizationId }).from(users).where(eq(users.id, body.userId)).limit(1));
+            if (!owner.row && !owner.bypassActive) {
+                return replyPreTenantPolicyFailure(request, reply, "staff-set-pin:lookup-user-organization");
+            }
+            targetOrganizationId = owner.row?.organizationId ?? null;
+        }
+        if (!targetOrganizationId) {
             return reply.code(404).send({ error: "UserNotFound", message: "Сотрудник не найден в организации." });
         }
-        const [pinUpdated] = await db
-            .update(users)
-            .set({ pinCodeHash: hash })
-            .where(and(eq(users.id, pinTarget.id), eq(users.organizationId, pinTarget.organizationId)))
-            .returning({ id: users.id });
+        const pinOrganizationId = targetOrganizationId;
+        const pinUpdated = await withTenantCtx(pinOrganizationId, async (tx) => {
+            const changed = await tx
+                .update(users)
+                .set({ pinCodeHash: hash })
+                .where(and(eq(users.id, body.userId), eq(users.organizationId, pinOrganizationId)))
+                .returning({ id: users.id });
+            if (!changed.length)
+                return false;
+            if (identity.organizationId) {
+                await tx.insert(auditEvents).values({
+                    organizationId: identity.organizationId,
+                    actorUserId: identity.userId ?? null,
+                    entityType: "user",
+                    entityId: body.userId,
+                    action: "staff_pin_reset",
+                    reason: "Смена PIN-кода сотрудника"
+                });
+            }
+            return true;
+        });
         if (!pinUpdated) {
             return reply.code(404).send({ error: "UserNotFound", message: "Сотрудник не найден в организации." });
-        }
-        if (identity.organizationId) {
-            await db.insert(auditEvents).values({
-                organizationId: identity.organizationId,
-                actorUserId: identity.userId ?? null,
-                entityType: "user",
-                entityId: body.userId,
-                action: "staff_pin_reset",
-                reason: "Смена PIN-кода сотрудника"
-            });
         }
         return reply.send({ ok: true, message: "PIN сотрудника обновлён." });
     });
@@ -577,35 +682,62 @@ export async function registerAuthRoutes(app) {
         const { clinicName, email, password, ownerName, ownerPin } = parsed.data;
         const loginId = email.toLowerCase().trim();
         // Check if org with this loginId already exists
-        const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
-        if (existing) {
+        //
+        // ОПЕРАЦИЯ «ДО АРЕНДАТОРА»: организации ещё нет, называть арендатора нечем.
+        // Без обхода запрос отдавал ноль строк ВСЕГДА, поэтому дубль логина не
+        // ловился вовсе и упирался бы в уникальный индекс позже. Обход накрывает
+        // ровно этот SELECT одной колонки.
+        const duplicate = await readUnderBypass((tx) => tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1));
+        if (!duplicate.row && !duplicate.bypassActive) {
+            return replyPreTenantPolicyFailure(request, reply, "setup-init:check-duplicate-login");
+        }
+        if (duplicate.row) {
             return reply.code(409).send({ error: "Conflict", message: "Организация с таким логином уже существует." });
         }
         const passwordHash = await hashCredential(password);
-        const [org] = await db
-            .insert(organizations)
-            .values({ name: clinicName, loginId, passwordHash, email })
-            .returning();
-        if (!org) {
-            return reply.code(500).send({ error: "InternalError", message: "Не удалось создать организацию." });
-        }
-        // Create owner user if specified.
+        // Хеши считаются ДО транзакции: hashCredential — это pbkdf2, и держать на
+        // нём соединение из пула нельзя (пул на 10 соединений, см. db/client.ts).
+        //
         // БЫЛО: без ownerPin автоматически ставился PIN "0000" — предсказуемый вход
         // владельца в каждой новой клинике. СТАЛО: генерируется случайный PIN и
         // возвращается один раз в ответе, чтобы владелец сразу его сменил.
-        let owner = null;
         let generatedOwnerPin = null;
+        let ownerPinHash = null;
         if (ownerName) {
             if (!ownerPin) {
                 generatedOwnerPin = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
             }
-            const pinHash = await hashCredential(ownerPin ?? generatedOwnerPin);
-            const [ownerUser] = await db
-                .insert(users)
-                .values({ organizationId: org.id, fullName: ownerName, role: "owner", pinCodeHash: pinHash, isActive: true })
-                .returning();
-            owner = ownerUser;
+            ownerPinHash = await hashCredential(ownerPin ?? generatedOwnerPin);
         }
+        // ИДЕНТИФИКАТОР КЛИНИКИ ГЕНЕРИРУЕТСЯ ДО ВСТАВКИ, и им же выставляется
+        // контекст арендатора. Курицы и яйца здесь нет: `app.current_tenant` —
+        // обычный строковый параметр, он ничем не связан с содержимым таблицы, а
+        // политика organizations сверяет `id = current_tenant`. Под таким контекстом
+        // создаётся ровно названная строка (замер: с чужим id — 42501), тогда как
+        // под обходом запись в organizations не ограничена ничем. Владелец создаётся
+        // в ТОЙ ЖЕ транзакции: в WITH CHECK политики users обхода нет, а половинчатой
+        // клиники без владельца существовать не должно.
+        const organizationId = crypto.randomUUID();
+        const created = await withTenantCtx(organizationId, async (tx) => {
+            const [organization] = await tx
+                .insert(organizations)
+                .values({ id: organizationId, name: clinicName, loginId, passwordHash, email })
+                .returning();
+            if (!organization)
+                return { organization: null, owner: null };
+            if (!ownerName || !ownerPinHash)
+                return { organization, owner: null };
+            const [ownerUser] = await tx
+                .insert(users)
+                .values({ organizationId, fullName: ownerName, role: "owner", pinCodeHash: ownerPinHash, isActive: true })
+                .returning({ id: users.id });
+            return { organization, owner: ownerUser ?? null };
+        });
+        const org = created.organization;
+        if (!org) {
+            return reply.code(500).send({ error: "InternalError", message: "Не удалось создать организацию." });
+        }
+        const owner = created.owner;
         const token = signToken({ organizationId: org.id, clinicName: org.name }, TOKEN_SECRET(), 60 * 60 * 24);
         return reply.code(201).send({
             ok: true,
@@ -628,30 +760,53 @@ export async function registerAuthRoutes(app) {
         }
         const { clinicName, ownerName, email, password, ownerPin } = parsed.data;
         const loginId = email.toLowerCase().trim();
-        const [existingOrg] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1);
-        if (existingOrg)
+        // Обе проверки дублей — операции «до арендатора»: организации ещё нет.
+        // Проверка организации без обхода отдавала ноль строк всегда; соседняя
+        // проверка пользователя обход уже использовала.
+        const duplicateOrg = await readUnderBypass((tx) => tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.loginId, loginId)).limit(1));
+        if (!duplicateOrg.row && !duplicateOrg.bypassActive) {
+            return replyPreTenantPolicyFailure(request, reply, "register:check-duplicate-login");
+        }
+        if (duplicateOrg.row)
             return reply.code(409).send({ error: 'Conflict', message: 'Организация с таким логином уже существует.' });
-        const [existingUser] = await withSuperuserBypass(async (tx) => {
-            return tx.select({ id: users.id }).from(users).where(eq(users.email, loginId)).limit(1);
-        });
-        if (existingUser)
+        const duplicateUser = await readUnderBypass((tx) => tx.select({ id: users.id }).from(users).where(eq(users.email, loginId)).limit(1));
+        if (!duplicateUser.row && !duplicateUser.bypassActive) {
+            return replyPreTenantPolicyFailure(request, reply, "register:check-duplicate-user");
+        }
+        if (duplicateUser.row)
             return reply.code(409).send({ error: 'Conflict', message: 'Пользователь с таким email уже существует.' });
         // БЫЛО: PIN владельца всегда '0000' — предсказуемый вход в любую свежую клинику.
+        // Хеши считаются до транзакции: pbkdf2 не должен держать соединение пула.
         const passwordHash = await hashCredential(password);
         const generatedOwnerPin = ownerPin ? null : String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
         const pinCodeHash = await hashCredential(ownerPin ?? generatedOwnerPin);
-        const [org] = await db.insert(organizations).values({ name: clinicName, loginId, passwordHash, email: loginId }).returning();
+        // Идентификатор клиники известен до вставки, поэтому обход здесь не нужен:
+        // контекст арендатора разрешает создать ровно эту строку и никакую другую.
+        // Клиника и владелец создаются одной транзакцией — раньше сбой между двумя
+        // вставками оставлял организацию без владельца, войти в которую нечем.
+        const organizationId = crypto.randomUUID();
+        const created = await withTenantCtx(organizationId, async (tx) => {
+            const [organization] = await tx
+                .insert(organizations)
+                .values({ id: organizationId, name: clinicName, loginId, passwordHash, email: loginId })
+                .returning();
+            if (!organization)
+                return { organization: null, owner: null };
+            const [ownerUser] = await tx.insert(users).values({
+                organizationId,
+                fullName: ownerName,
+                role: 'owner',
+                email: loginId,
+                passwordHash,
+                pinCodeHash,
+                isActive: true
+            }).returning();
+            return { organization, owner: ownerUser ?? null };
+        });
+        const org = created.organization;
         if (!org)
             return reply.code(500).send({ error: 'InternalError', message: 'Не удалось создать организацию.' });
-        const [user] = await db.insert(users).values({
-            organizationId: org.id,
-            fullName: ownerName,
-            role: 'owner',
-            email: loginId,
-            passwordHash,
-            pinCodeHash,
-            isActive: true
-        }).returning();
+        const user = created.owner;
         if (!user)
             return reply.code(500).send({ error: 'InternalError', message: 'Не удалось создать профиль владельца.' });
         resetRateLimit(request);
@@ -667,10 +822,16 @@ export async function registerAuthRoutes(app) {
         }
         const { email, password } = parsed.data;
         const loginEmail = email.toLowerCase().trim();
+        const isDemoUserLogin = demoLoginAllowed() && (loginEmail === 'doctor@clinic.com' || loginEmail === 'admin@clinic.ru');
         let user = null;
         try {
-            const [u] = await db.select().from(users).where(and(eq(users.email, loginEmail), eq(users.isActive, true))).limit(1);
-            user = u;
+            // Вход по email — операция «до арендатора»: организация станет известна
+            // только из найденной строки. Обход накрывает ровно этот SELECT.
+            const lookup = await readUnderBypass((tx) => tx.select().from(users).where(and(eq(users.email, loginEmail), eq(users.isActive, true))).limit(1));
+            if (!lookup.row && !lookup.bypassActive && !isDemoUserLogin) {
+                return replyPreTenantPolicyFailure(request, reply, "user-login:lookup-user");
+            }
+            user = lookup.row ?? null;
         }
         catch (e) {
             console.warn("[AUTH_USER_DB_WARN]", e);
@@ -678,7 +839,6 @@ export async function registerAuthRoutes(app) {
         // БЫЛО: жёстко зашитые doctor@clinic.com / admin@clinic.ru пускали в систему
         // без пароля, а строка `user.passwordHash ? verify(...) : true` означала,
         // что ЛЮБОЙ пользователь без хеша пароля входит с любым паролем.
-        const isDemoUserLogin = demoLoginAllowed() && (loginEmail === 'doctor@clinic.com' || loginEmail === 'admin@clinic.ru');
         if (!user) {
             if (isDemoUserLogin) {
                 user = {
@@ -702,12 +862,15 @@ export async function registerAuthRoutes(app) {
             return reply.code(401).send({ error: 'AuthError', message: 'Неверный email или пароль.' });
         }
         resetRateLimit(request);
-        const [userOrg] = await db
+        // Арендатор здесь УЖЕ известен — он записан в найденной учётке, поэтому
+        // название клиники читается под контекстом, а не под обходом. Без контекста
+        // (как было) запрос молча отдавал ноль строк, и в токен кабинета уезжало
+        // слово «Клиника» вместо настоящего названия.
+        const [userOrg] = await withTenantCtx(user.organizationId, async (tx) => tx
             .select({ name: organizations.name })
             .from(organizations)
             .where(eq(organizations.id, user.organizationId))
-            .limit(1)
-            .catch(() => []);
+            .limit(1)).catch(() => []);
         const clinicToken = signToken({ organizationId: user.organizationId, clinicName: userOrg?.name ?? 'Клиника' }, TOKEN_SECRET(), 60 * 60 * 24 * 7);
         const staffToken = signToken({ userId: user.id, fullName: user.fullName, role: user.role, organizationId: user.organizationId }, TOKEN_SECRET(), 60 * 60 * 24 * 7);
         return reply.send({ ok: true, clinicToken, staffToken, user: { id: user.id, fullName: user.fullName, role: user.role, email: user.email } });
@@ -784,37 +947,60 @@ export async function registerAuthRoutes(app) {
             return reply.code(400).send({ error: "ValidationError", message });
         }
         const { token, fullName, password, pinCode } = parsed.data;
-        const [invite] = await db.select().from(userInvitations).where(and(eq(userInvitations.inviteToken, token), eq(userInvitations.status, 'pending'))).limit(1);
+        // ОПЕРАЦИЯ «ДО АРЕНДАТОРА». Приглашение опознаётся по одноразовой ссылке,
+        // и никакого токена клиники у приглашённого ещё нет: организация станет
+        // известна только из найденной строки. Замер: без контекста этот SELECT
+        // отдаёт ноль строк, под обходом — строку. Обход накрывает ровно его.
+        const inviteLookup = await readUnderBypass((tx) => tx.select().from(userInvitations).where(and(eq(userInvitations.inviteToken, token), eq(userInvitations.status, 'pending'))).limit(1));
+        if (!inviteLookup.row && !inviteLookup.bypassActive) {
+            return replyPreTenantPolicyFailure(request, reply, "invite-accept:lookup-invitation");
+        }
+        const invite = inviteLookup.row;
         if (!invite || new Date() > invite.expiresAt)
             return reply.code(400).send({ error: 'InvalidToken', message: 'Приглашение недействительно или истекло.' });
-        // Приглашение одноразовое: помечаем принятым ДО создания пользователя, чтобы
-        // параллельные запросы с одной ссылкой не создали несколько учётных записей.
-        const claimed = await db
-            .update(userInvitations)
-            .set({ status: 'accepted' })
-            .where(and(eq(userInvitations.id, invite.id), eq(userInvitations.status, 'pending')))
-            .returning({ id: userInvitations.id });
-        if (!claimed.length) {
-            return reply.code(400).send({ error: 'InvalidToken', message: 'Приглашение уже использовано.' });
-        }
+        // Хеши считаются до транзакции: pbkdf2 не должен держать соединение пула.
         const passwordHash = await hashCredential(password);
         const pinCodeHash = await hashCredential(pinCode);
-        const [user] = await db.insert(users).values({
-            organizationId: invite.organizationId,
-            fullName,
-            role: invite.role,
-            email: invite.email,
-            passwordHash,
-            pinCodeHash,
-            isActive: true
-        }).returning();
+        // Дальше арендатор известен (invite.organizationId), и всё идёт под ним, а
+        // НЕ под обходом: в WITH CHECK политик user_invitations и users обхода нет,
+        // UPDATE под одним лишь обходом отвергается кодом 42501 (проверено).
+        // Без контекста было хуже: UPDATE затрагивал ноль строк и приглашённый
+        // получал «Приглашение уже использовано» на живое приглашение.
+        const accepted = await withTenantCtx(invite.organizationId, async (tx) => {
+            // Приглашение одноразовое: помечаем принятым ДО создания пользователя, чтобы
+            // параллельные запросы с одной ссылкой не создали несколько учётных записей.
+            const claimed = await tx
+                .update(userInvitations)
+                .set({ status: 'accepted' })
+                .where(and(eq(userInvitations.id, invite.id), eq(userInvitations.status, 'pending')))
+                .returning({ id: userInvitations.id });
+            if (!claimed.length)
+                return { claimed: false, user: null, clinicName: null };
+            const [createdUser] = await tx.insert(users).values({
+                organizationId: invite.organizationId,
+                fullName,
+                role: invite.role,
+                email: invite.email,
+                passwordHash,
+                pinCodeHash,
+                isActive: true
+            }).returning();
+            if (!createdUser) {
+                // Откатываем пометку, чтобы приглашение не сгорело из-за сбоя вставки.
+                await tx.update(userInvitations).set({ status: 'pending' }).where(eq(userInvitations.id, invite.id));
+                return { claimed: true, user: null, clinicName: null };
+            }
+            const [org] = await tx.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, createdUser.organizationId)).limit(1);
+            return { claimed: true, user: createdUser, clinicName: org?.name ?? null };
+        });
+        if (!accepted.claimed) {
+            return reply.code(400).send({ error: 'InvalidToken', message: 'Приглашение уже использовано.' });
+        }
+        const user = accepted.user;
         if (!user) {
-            // Откатываем пометку, чтобы приглашение не сгорело из-за сбоя вставки.
-            await db.update(userInvitations).set({ status: 'pending' }).where(eq(userInvitations.id, invite.id));
             return reply.code(500).send({ error: 'InternalError', message: 'Не удалось создать пользователя.' });
         }
-        const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, user.organizationId)).limit(1);
-        const clinicToken = signToken({ organizationId: user.organizationId, clinicName: org?.name ?? 'Clinic' }, TOKEN_SECRET(), 60 * 60 * 24 * 7);
+        const clinicToken = signToken({ organizationId: user.organizationId, clinicName: accepted.clinicName ?? 'Clinic' }, TOKEN_SECRET(), 60 * 60 * 24 * 7);
         const staffToken = signToken({ userId: user.id, fullName: user.fullName, role: user.role, organizationId: user.organizationId }, TOKEN_SECRET(), 60 * 60 * 24 * 7);
         return reply.send({ ok: true, clinicToken, staffToken, user: { id: user.id, fullName: user.fullName, role: user.role, email: user.email } });
     });

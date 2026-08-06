@@ -5,6 +5,7 @@ import dicomParser from "dicom-parser";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { requireClinicalReadAccess } from "../accessGuard.js";
 import { db } from "../db/client.js";
+import { withTenantCtx } from "../db/rls.js";
 import * as schema from "../db/schema.js";
 import { requireOrganizationId } from "../security/identity.js";
 /**
@@ -238,45 +239,93 @@ async function resolveInstanceFilePath(organizationId, studyUid, seriesUid, inst
     return null;
 }
 export async function registerDicomwebRoutes(app) {
-    app.get("/api/dicomweb/studies/:studyUid/series/:seriesUid/instances/:instanceUid", async (request, reply) => {
+    app.get("/api/dicomweb/studies/:studyUid/series/:seriesUid/instances/:instanceUid", 
+    /*
+     * ТРАНЗАКЦИЯ НЕ ДЕРЖИТСЯ НА ВРЕМЯ ПЕРЕДАЧИ СНИМКА.
+     *
+     * Тело ответа — поток файла DICOM. Один кадр это мегабайты, том КЛКТ —
+     * сотни мегабайт и тысячи объектов, и время передачи задаёт клиент.
+     * Автоматическая обёртка server.ts держала бы транзакцию и соединение из
+     * пула (их 10) всё это время: десяти одновременных выгрузок хватало, чтобы
+     * API перестал получать соединения вовсе, а бэкенды висели
+     * `idle in transaction` и держали VACUUM. Развёрнутое объяснение механизма —
+     * в server.ts у хука onRoute.
+     *
+     * Флаг снимает только автоматику. Обе проверки, которые смотрят в базу —
+     * существование организации и разрешение трёх UID в конкретный файл — идут
+     * ниже внутри одного явного withTenantCtx и заканчиваются ДО первого байта
+     * тела. Обхода RLS здесь нет и быть не может: без контекста арендатора
+     * политики закрыты, и маршрут вернул бы 403/404, а не чужой снимок.
+     */
+    { config: { tenantTxSelfManaged: true } }, async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "dicom instance read")))
             return;
         const organizationId = requireOrganizationId(request, reply);
         if (!organizationId)
             return;
+        const studyUid = normalizeUid(request.params.studyUid);
+        const seriesUid = normalizeUid(request.params.seriesUid);
+        const instanceUid = normalizeUid(request.params.instanceUid);
+        // Идентификатор организации не в формате UUID отсекается ДО открытия
+        // транзакции: соединение из пула на заведомо неверного арендатора не
+        // тратится, и в базу такой запрос не уходит вовсе. Тот же ответ дал бы
+        // organizationExists ниже — он тоже начинается с проверки формы.
+        if (!UUID_SHAPE.test(organizationId)) {
+            request.log.warn({ organizationId }, "[dicomweb] Идентификатор организации не в формате UUID — снимок не выдан");
+            return reply.code(403).send({
+                error: "OrganizationUnknown",
+                message: "Снимок не выдан: организация из токена не существует."
+            });
+        }
         // Организация обязана существовать. Проверка стоит до разбора адреса:
         // неизвестному арендатору не сообщается даже то, правильно ли он составил
         // запрос. Отказ по причине недоступной базы отделён от отказа по причине
         // отсутствующей организации — иначе авария хранилища выглядела бы как
-        // проверенный вывод «такой клиники нет».
-        let organizationKnown;
-        try {
-            organizationKnown = await organizationExists(organizationId);
-        }
-        catch (lookupError) {
-            request.log.error({ err: lookupError, organizationId }, "[dicomweb] Не удалось проверить организацию запроса — снимок не выдан");
+        // проверенный вывод «такой клиники нет». Различие сохранено и внутри
+        // транзакции: сбой проверки организации даёт 503 ниже, а сбой разрешения
+        // UID по-прежнему уходит в общий обработчик ошибок как 500.
+        //
+        // Оба обращения к базе выполняются в одной транзакции арендатора и
+        // закрывают её до того, как начнётся передача файла.
+        const resolution = await withTenantCtx(organizationId, async () => {
+            let organizationKnown;
+            try {
+                organizationKnown = await organizationExists(organizationId);
+            }
+            catch (lookupError) {
+                return { organizationCheckFailed: true, lookupError, organizationKnown: false, filePath: null };
+            }
+            if (!organizationKnown || !studyUid || !seriesUid || !instanceUid) {
+                return { organizationCheckFailed: false, lookupError: null, organizationKnown, filePath: null };
+            }
+            return {
+                organizationCheckFailed: false,
+                lookupError: null,
+                organizationKnown,
+                filePath: await resolveInstanceFilePath(organizationId, studyUid, seriesUid, instanceUid)
+            };
+        });
+        if (resolution.organizationCheckFailed) {
+            request.log.error({ err: resolution.lookupError, organizationId }, "[dicomweb] Не удалось проверить организацию запроса — снимок не выдан");
             return reply.code(503).send({
                 error: "OrganizationCheckUnavailable",
                 message: "Снимок не выдан: не удалось проверить организацию запроса. Повторите позже — выдача без проверки клиники запрещена."
             });
         }
-        if (!organizationKnown) {
+        if (!resolution.organizationKnown) {
             request.log.warn({ organizationId }, "[dicomweb] Токен подписан, но организации с таким идентификатором нет — снимок не выдан");
             return reply.code(403).send({
                 error: "OrganizationUnknown",
                 message: "Снимок не выдан: организация из токена не существует."
             });
         }
-        const studyUid = normalizeUid(request.params.studyUid);
-        const seriesUid = normalizeUid(request.params.seriesUid);
-        const instanceUid = normalizeUid(request.params.instanceUid);
         if (!studyUid || !seriesUid || !instanceUid) {
             return reply.code(400).send({
                 error: "DicomInstanceUidMissing",
                 message: "Снимок не выдан: в адресе должны быть указаны UID исследования, серии и объекта."
             });
         }
-        const filePath = await resolveInstanceFilePath(organizationId, studyUid, seriesUid, instanceUid);
+        const filePath = resolution.filePath;
         if (!filePath) {
             request.log.warn({ organizationId, studyUid, seriesUid, instanceUid }, "[dicomweb] Запрошенный DICOM-объект не найден в этой клинике — байты не выданы");
             return reply.code(404).send({

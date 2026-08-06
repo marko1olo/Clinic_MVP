@@ -1,4 +1,5 @@
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
+import { unguardedBypassAllowed } from "../accessGuard.js";
 import { getRequestIdentity } from "../security/identity.js";
 import { db } from "../db/client.js";
 import * as schema from "../db/schema.js";
@@ -319,74 +320,108 @@ function settingsDomainMessage(error) {
 function hasActiveScheduleConflict(message) {
     return message.includes("активная запись") || message.includes("активные записи");
 }
+/**
+ * ФОРМА ОТВЕТА В ЭТОМ ФАЙЛЕ: КОД СТАВИМ, ЗНАЧЕНИЕ ВОЗВРАЩАЕМ.
+ *
+ * `return reply.code(N).send(x)` возвращает из обработчика сам `reply`, а он
+ * thenable: `Reply.prototype.then` (fastify/lib/reply.js:466) разрешается по
+ * `eos(reply.raw)` — когда ответ уже ушёл клиенту. server.ts (хук onRoute)
+ * оборачивает КАЖДЫЙ обработчик в withTenantCtx, то есть в транзакцию, и ждёт
+ * разрешения его промиса, чтобы зафиксировать её: COMMIT уходил ПОСЛЕ ответа.
+ * Замерено поллером pg_stat_activity на живом сервере — дельта «коммит минус
+ * заголовки» положительная во всех прогонах. При отказе на самом COMMIT клиент
+ * уже держит 2xx, и fastify может только записать ошибку в журнал
+ * (lib/wrap-thenable.js:63): «сохранено» на экране при нуле строк в базе.
+ *
+ * Здесь это видно на POST /api/settings/staff/:staffId/credentials —
+ * SettingsStaffTab.tsx сразу после него перечитывает GET /api/dashboard.
+ *
+ * Возврат значения снимает это: fastify зовёт `reply.send(payload)` уже после
+ * разрешения промиса (lib/wrap-thenable.js:14), то есть после COMMIT.
+ *
+ * НЕ ПЕРЕВЕДЕНО: три отказа внутри `requireSettingsAccess`. Эта функция
+ * возвращает `string | null` (организацию либо «ответ уже отправлен»), поэтому
+ * вернуть из неё тело ответа нельзя, не переписав контракт всех её вызовов.
+ * Записи до этих отказов не происходит: это барьер доступа, он стоит первой
+ * строкой каждого обработчика.
+ */
 // Экспортируется ради теста settings.test.ts: он импортирует эту функцию, а она
 // была объявлена без export, и весь файл теста падал при загрузке с
 // «does not provide an export named 'clinicProfileMutationRejection'».
 export function clinicProfileMutationRejection(reply, error) {
     const message = settingsDomainMessage(error);
     if (message.includes("часовой пояс")) {
-        return reply.code(409).send({
+        reply.code(409);
+        return {
             error: "ClinicProfileMutationRejected",
             reason: "clinic_time_zone_invalid",
             message: clinicProfileTimezoneMessage
-        });
+        };
     }
     if (hasActiveScheduleConflict(message)) {
-        return reply.code(409).send({
+        reply.code(409);
+        return {
             error: "ClinicProfileMutationRejected",
             reason: "active_schedule_conflict",
             message: clinicProfileScheduleConflictMessage
-        });
+        };
     }
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: "ClinicProfileMutationRejected",
         reason: "clinic_profile_rejected",
         message: clinicProfileMutationRejectedMessage
-    });
+    };
 }
 function staffWorkingHoursRejection(reply, error) {
     const message = settingsDomainMessage(error);
     if (message === "Сотрудник не найден.") {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: "StaffScheduleNotFound",
             reason: "staff_not_found",
             message: staffWorkingHoursNotFoundMessage
-        });
+        };
     }
     if (hasActiveScheduleConflict(message)) {
-        return reply.code(409).send({
+        reply.code(409);
+        return {
             error: "StaffScheduleRejected",
             reason: "active_schedule_conflict",
             message: staffWorkingHoursConflictMessage
-        });
+        };
     }
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: "StaffScheduleRejected",
         reason: "schedule_rejected",
         message: staffWorkingHoursRejectedMessage
-    });
+    };
 }
 function chairWorkingHoursRejection(reply, error) {
     const message = settingsDomainMessage(error);
     if (message === "Кресло не найдено.") {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: "ChairScheduleNotFound",
             reason: "chair_not_found",
             message: chairWorkingHoursNotFoundMessage
-        });
+        };
     }
     if (hasActiveScheduleConflict(message)) {
-        return reply.code(409).send({
+        reply.code(409);
+        return {
             error: "ChairScheduleRejected",
             reason: "active_schedule_conflict",
             message: chairWorkingHoursConflictMessage
-        });
+        };
     }
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: "ChairScheduleRejected",
         reason: "schedule_rejected",
         message: chairWorkingHoursRejectedMessage
-    });
+    };
 }
 /**
  * Отказы для карточек сотрудника и кресла. Отдельные тексты на правку и на
@@ -396,17 +431,19 @@ function chairWorkingHoursRejection(reply, error) {
 function staffMutationRejection(reply, error, notFoundMessage, rejectedMessage, errorCode) {
     const message = settingsDomainMessage(error);
     if (message === "Сотрудник не найден.") {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: `${errorCode}NotFound`,
             reason: "staff_not_found",
             message: notFoundMessage
-        });
+        };
     }
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: `${errorCode}Rejected`,
         reason: "staff_mutation_rejected",
         message: rejectedMessage
-    });
+    };
 }
 /**
  * Отказы прайса. Три исхода разведены сознательно: «писать некуда» — это отказ
@@ -416,27 +453,30 @@ function staffMutationRejection(reply, error, notFoundMessage, rejectedMessage, 
  */
 function serviceCatalogMutationRejection(reply, error, notFoundMessage, rejectedMessage, errorCode) {
     if (error instanceof ServiceCatalogStorageDisabledError) {
-        return reply.code(503).send({
+        reply.code(503);
+        return {
             error: "ServiceCatalogStorageUnavailable",
             reason: "state_persistence_off",
             message: error.message
-        });
+        };
     }
     if (error instanceof ServiceCatalogItemNotFoundError) {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: `${errorCode}NotFound`,
             reason: "service_not_found",
             message: notFoundMessage
-        });
+        };
     }
     // Причина уходит в журнал целиком: без записи отказ по прайсу неотличим от
     // опечатки оператора, а разбирать его было бы нечем.
     console.error("[настройки] прайс не изменён:", error);
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: `${errorCode}Rejected`,
         reason: "service_mutation_rejected",
         message: rejectedMessage
-    });
+    };
 }
 /**
  * Отказы шаблонов протоколов. Три исхода разведены по той же причине, что у
@@ -445,25 +485,28 @@ function serviceCatalogMutationRejection(reply, error, notFoundMessage, rejected
  */
 function protocolTemplateMutationRejection(reply, error, notFoundMessage, rejectedMessage, errorCode) {
     if (error instanceof ProtocolTemplateStorageDisabledError) {
-        return reply.code(503).send({
+        reply.code(503);
+        return {
             error: "ProtocolTemplateStorageUnavailable",
             reason: "state_persistence_off",
             message: error.message
-        });
+        };
     }
     if (error instanceof ProtocolTemplateNotFoundError) {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: `${errorCode}NotFound`,
             reason: "protocol_template_not_found",
             message: notFoundMessage
-        });
+        };
     }
     console.error("[настройки] шаблон протокола не изменён:", error);
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: `${errorCode}Rejected`,
         reason: "protocol_template_mutation_rejected",
         message: rejectedMessage
-    });
+    };
 }
 /**
  * Отказы по персональным полномочиям. Четыре исхода разведены, потому что
@@ -473,18 +516,20 @@ function protocolTemplateMutationRejection(reply, error, notFoundMessage, reject
  */
 function staffAuthorityMutationRejection(reply, error) {
     if (error instanceof StaffAuthorityStorageDisabledError) {
-        return reply.code(503).send({
+        reply.code(503);
+        return {
             error: "StaffAuthorityStorageUnavailable",
             reason: "state_persistence_off",
             message: error.message
-        });
+        };
     }
     if (error instanceof StaffAuthorityStaffNotFoundError) {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: "StaffAuthorityNotFound",
             reason: "staff_not_found",
             message: staffAuthorityNotFoundMessage
-        });
+        };
     }
     if (error instanceof StaffAuthorityRevocationUnsupportedError) {
         /*
@@ -499,44 +544,91 @@ function staffAuthorityMutationRejection(reply, error) {
          * их в прежнее положение, а не перечитывать всю карточку.
          */
         const titles = error.flags.map((flag) => staffAuthorityFlagTitles[flag]).join(", ");
-        return reply.code(409).send({
+        reply.code(409);
+        return {
             error: "StaffAuthorityRevocationUnsupported",
             reason: "role_grants_authority",
             flags: error.flags,
             message: `Полномочия не сохранены: сотруднику это даёт его роль в клинике (${titles}), ` +
                 "поэтому отдельной галочкой снять их нельзя — измените роль в карточке сотрудника."
-        });
+        };
     }
     // Причина уходит в журнал целиком: наружу идёт текст для человека, но без
     // записи здесь отказ по полномочиям был бы неотличим от опечатки в запросе.
     console.error("[настройки] полномочия сотрудника не сохранены:", error);
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: "StaffAuthorityRejected",
         reason: "staff_authority_rejected",
         message: staffAuthorityRejectedMessage
-    });
+    };
 }
 function chairMutationRejection(reply, error, notFoundMessage, rejectedMessage, errorCode) {
     const message = settingsDomainMessage(error);
     if (message === "Кресло не найдено.") {
-        return reply.code(404).send({
+        reply.code(404);
+        return {
             error: `${errorCode}NotFound`,
             reason: "chair_not_found",
             message: notFoundMessage
-        });
+        };
     }
-    return reply.code(409).send({
+    reply.code(409);
+    return {
         error: `${errorCode}Rejected`,
         reason: "chair_mutation_rejected",
         message: rejectedMessage
-    });
+    };
 }
 function configuredSettingsAdminSecret() {
     return process.env.DENTE_SETTINGS_ADMIN_SECRET?.trim() || null;
 }
+/**
+ * Послабление для разработки на всех 23 обработчиках настроек клиники, каждый
+ * из которых начинается с `await requireSettingsAccess(request, reply)`
+ * (пересчитано 2026-08-06; цифра гниёт — пересчитывай, прежде чем ссылаться):
+ * работает ТОЛЬКО при явно названном режиме разработки и ТОЛЬКО при явно
+ * выставленном флаге.
+ *
+ * ПОЧЕМУ ЗДЕСЬ ОБЩИЙ ПРЕДИКАТ, А НЕ ПРЕЖНЕЕ `NODE_ENV !== "production"`.
+ * Прежнее условие истинно, когда NODE_ENV НЕ ЗАДАН ВОВСЕ, а незаданный NODE_ENV —
+ * типовое состояние настоящего сервера: `apps/api/package.json` объявляет
+ * `"start": "node dist/server.js"` и режим не задаёт. Значит у заказчика,
+ * поднявшего сервер этой командой, «мы не в production» было ИСТИНОЙ, и от
+ * правки прайс-листа, состава сотрудников, их полномочий и учётных данных без
+ * секрета администратора защищало только то, что второй флаг где-то не
+ * выставлен. Замерено на этом дереве до правки: пустой NODE_ENV +
+ * DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS=1 → охрана снята, маршрут доходил до
+ * разбора тела (400 по существу вместо 503).
+ *
+ * `accessGuard.ts` разбирает эту инверсию подробно и НАЗЫВАЕТ ЭТОТ ФАЙЛ как одну
+ * из четырёх копий, которую должен переписать владелец. Пятой копии условия
+ * безопасности здесь не будет: одно условие в одном месте — единственный способ
+ * не оставить следующую инверсию незамеченной.
+ *
+ * Смысл послабления не изменился: `development`/`test` плюс
+ * `DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS=1`. Закрылся ровно один случай —
+ * пустой или незнакомый NODE_ENV («staging», «prod», опечатка) больше не
+ * считается разработкой.
+ *
+ * ВЕРНУТЬ «КАК БЫЛО» — значит снова открыть настройки клиники на боевом
+ * сервере. Если нужно работать без секрета локально, задайте
+ * NODE_ENV=development, а не возвращайте отрицание.
+ */
 function settingsUnguardedMutationsAllowed() {
-    return process.env.NODE_ENV !== "production" && process.env.DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS === "1";
+    return unguardedBypassAllowed("DENTE_SETTINGS_ALLOW_UNGUARDED_MUTATIONS");
 }
+/**
+ * Барьер доступа к настройкам: секрет администратора клиники плюс организация
+ * запроса, либо `null` — значит ответ уже отправлен и обработчику остаётся выйти.
+ *
+ * ЧЕТЫРЕ `reply.send` НИЖЕ ОСТАЮТСЯ И ЭТО НЕ ПРОПУСК. Контракт функции —
+ * `Promise<string | null>`: вернуть отсюда тело ответа нельзя, не переписав
+ * форму вызова во всех двадцати с лишним обработчиках файла. Отложенного COMMIT
+ * на этих ветках не возникает по существу: барьер стоит ПЕРВОЙ строкой каждого
+ * обработчика, до него не выполнено ни одного запроса на запись, и откладывать
+ * фиксацию нечего.
+ */
 async function requireSettingsAccess(request, reply) {
     const adminSecret = configuredSettingsAdminSecret();
     let hasAccess = false;
@@ -626,7 +718,8 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(uiPreferencesInputSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: uiPreferencesValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: uiPreferencesValidationMessage };
         }
         const updated = { ...input, version: 1, savedAt: stampedUiPreferencesSavedAt(input.savedAt) };
         let outcome;
@@ -639,23 +732,25 @@ export async function registerSettingsRoutes(app) {
             // администратору вместо того, чтобы обновить страницу и повторить правку.
             if (error instanceof UiPreferencesConcurrentSaveError) {
                 console.error("[настройки] настройки рабочего места не сохранены:", error);
-                return reply.code(409).send({
+                reply.code(409);
+                return {
                     error: "UiPreferencesConcurrentSave",
                     reason: "concurrent_ui_preferences_save",
                     message: uiPreferencesConcurrentSaveMessage
-                });
+                };
             }
             throw error;
         }
         if (!outcome.applied) {
             // Действующее значение приложено к отказу: клиенту не нужен второй запрос,
             // чтобы показать человеку, чем именно перебита его копия.
-            return reply.code(409).send({
+            reply.code(409);
+            return {
                 error: "UiPreferencesStaleSave",
                 reason: "stale_ui_preferences_copy",
                 message: uiPreferencesStaleSaveMessage,
                 preferences: uiPreferencesSchema.parse(outcome.stored)
-            });
+            };
         }
         return uiPreferencesSchema.parse(outcome.stored);
     });
@@ -665,7 +760,8 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(updateClinicModeSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: clinicModeValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: clinicModeValidationMessage };
         }
         await updateClinicModeInDb(orgId, input.mode);
         const settings = await getClinicSettingsFromDb(orgId);
@@ -677,7 +773,8 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(updateClinicProfileSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "ClinicProfileValidationFailed", message: clinicProfileValidationMessage });
+            reply.code(400);
+            return { error: "ClinicProfileValidationFailed", message: clinicProfileValidationMessage };
         }
         try {
             await updateClinicProfileInDb(orgId, input);
@@ -694,14 +791,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createStaffMemberSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffCreateValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffCreateValidationMessage };
         }
         await createStaffMemberInDb(orgId, input);
         const settings = await getClinicSettingsFromDb(orgId);
         // Find the newly created staff to return (for simplicity, we just return the full staff member object from settings list)
         // Actually, createStaffMemberSchema expects the created object, but frontend might just refetch. We'll return the last one matching.
         const created = settings.staff.find(s => s.fullName === input.fullName);
-        return reply.code(201).send(staffMemberSchema.parse(created));
+        reply.code(201);
+        return staffMemberSchema.parse(created);
     });
     app.post("/api/settings/staff/:staffId/credentials", async (request, reply) => {
         const orgId = await requireSettingsAccess(request, reply);
@@ -709,21 +808,24 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({ error: "SettingsRouteValidationError", message: "ID сотрудника обязателен." });
+            reply.code(400);
+            return { error: "SettingsRouteValidationError", message: "ID сотрудника обязателен." };
         }
         const input = parseSettingsPayload(updateStaffCredentialsSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: staffCredentialsValidationMessage
-            });
+            };
         }
         const { email, password, pinCode } = input;
         if (!email && !password && !pinCode) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: staffCredentialsEmptyUpdateMessage
-            });
+            };
         }
         const updates = {};
         if (email)
@@ -734,10 +836,20 @@ export async function registerSettingsRoutes(app) {
             updates.pinCodeHash = await hashCredential(pinCode);
         try {
             await updateStaffCredentialsInDb(orgId, params.staffId, updates);
-            return reply.code(200).send({ ok: true });
+            /*
+             * ИМЕННО ЭТОТ ОТВЕТ ЧИТАЕТСЯ СРАЗУ. SettingsStaffTab.tsx после успеха
+             * перечитывает GET /api/dashboard. Пока здесь стоял
+             * `return reply.code(200).send({ ok: true })`, подтверждение уходило
+             * администратору ДО фиксации транзакции: сводка могла прийти со старыми
+             * доступами, а отказ на самом COMMIT оставил бы «сохранено» на экране при
+             * несменённом пароле сотрудника.
+             */
+            reply.code(200);
+            return { ok: true };
         }
         catch (err) {
-            return reply.code(500).send({ error: "InternalError", message: "Не удалось обновить доступы." });
+            reply.code(500);
+            return { error: "InternalError", message: "Не удалось обновить доступы." };
         }
     });
     app.put("/api/settings/staff/:staffId/working-hours", async (request, reply) => {
@@ -746,14 +858,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: staffWorkingHoursRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateStaffWorkingHoursSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffWorkingHoursValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffWorkingHoursValidationMessage };
         }
         try {
             await updateStaffWorkingHoursInDb(orgId, params.staffId, input);
@@ -783,20 +897,23 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: staffProfileRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateStaffMemberProfileSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffProfileValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffProfileValidationMessage };
         }
         // Пустое тело и тело из одних неизвестных полей неотличимы после разбора:
         // схема отбрасывает лишние ключи. Молча отвечать 200 на запрос, который
         // ничего не меняет, нельзя — оператор решит, что правка сохранена.
         if (Object.keys(input).length === 0) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffProfileEmptyUpdateMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffProfileEmptyUpdateMessage };
         }
         try {
             await updateStaffMemberProfileInDb(orgId, params.staffId, input);
@@ -822,10 +939,11 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: staffDeactivateRouteValidationMessage
-            });
+            };
         }
         try {
             await deactivateStaffMemberInDb(orgId, params.staffId);
@@ -869,14 +987,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: doctorCommissionRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateDoctorCommissionSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: doctorCommissionValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: doctorCommissionValidationMessage };
         }
         try {
             const saved = await setDoctorCommissionRateInDb(orgId, params.staffId, input.commissionPct);
@@ -888,11 +1008,12 @@ export async function registerSettingsRoutes(app) {
             // значило бы послать владельца искать опечатку там, где её нет.
             const message = settingsDomainMessage(error);
             if (message.includes("DENTAL_STATE_PERSISTENCE")) {
-                return reply.code(503).send({
+                reply.code(503);
+                return {
                     error: "DoctorCommissionStorageUnavailable",
                     reason: "state_persistence_off",
                     message
-                });
+                };
             }
             // Причина уходит в журнал сервера целиком: наружу идёт текст для
             // оператора, но без записи здесь отказ по ставке был бы неотличим от
@@ -960,37 +1081,42 @@ export async function registerSettingsRoutes(app) {
         if (!orgId)
             return;
         if (!getRequestIdentity(request).verified) {
-            return reply.code(401).send({
+            reply.code(401);
+            return {
                 error: "VerifiedOrganizationRequired",
                 message: staffAuthorityUnverifiedMessage
-            });
+            };
         }
         const granter = await requirePermission(request, reply, "settings.write");
         if (!granter)
             return;
         const params = request.params;
         if (!params.staffId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: staffAuthorityRouteValidationMessage
-            });
+            };
         }
         if (params.staffId === granter.userId) {
-            return reply.code(403).send({
+            reply.code(403);
+            return {
                 error: "StaffAuthoritySelfGrantRejected",
                 reason: "self_grant",
                 message: staffAuthoritySelfMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateStaffAuthorityGrantsSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffAuthorityValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffAuthorityValidationMessage };
         }
         // Тело из одних неизвестных полей после разбора неотличимо от пустого: схема
         // отбрасывает лишние ключи. Ответить 200 на запрос, который ничего не менял,
         // значило бы повторить исходный дефект — теперь с подтверждением на экране.
         if (Object.keys(input).length === 0) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: staffAuthorityEmptyUpdateMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: staffAuthorityEmptyUpdateMessage };
         }
         try {
             /*
@@ -1015,12 +1141,14 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createChairSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairCreateValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: chairCreateValidationMessage };
         }
         await createChairInDb(orgId, input);
         const settings = await getClinicSettingsFromDb(orgId);
         const created = settings.chairs.find(c => c.name === input.name);
-        return reply.code(201).send(chairSchema.parse(created));
+        reply.code(201);
+        return chairSchema.parse(created);
     });
     app.put("/api/settings/chairs/:chairId/working-hours", async (request, reply) => {
         const orgId = await requireSettingsAccess(request, reply);
@@ -1028,14 +1156,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.chairId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: chairWorkingHoursRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateChairWorkingHoursSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairWorkingHoursValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: chairWorkingHoursValidationMessage };
         }
         try {
             await updateChairWorkingHoursInDb(orgId, params.chairId, input);
@@ -1061,17 +1191,20 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.chairId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: chairProfileRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateChairProfileSchema, request.body);
         if (!input) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairProfileValidationMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: chairProfileValidationMessage };
         }
         if (Object.keys(input).length === 0) {
-            return reply.code(400).send({ error: "SettingsValidationError", message: chairProfileEmptyUpdateMessage });
+            reply.code(400);
+            return { error: "SettingsValidationError", message: chairProfileEmptyUpdateMessage };
         }
         try {
             await updateChairProfileInDb(orgId, params.chairId, input);
@@ -1098,10 +1231,11 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.chairId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: chairDeactivateRouteValidationMessage
-            });
+            };
         }
         try {
             await deactivateChairInDb(orgId, params.chairId);
@@ -1140,14 +1274,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createServiceCatalogItemSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: serviceCatalogCreateValidationMessage
-            });
+            };
         }
         try {
             const created = await createServiceCatalogItemInDb(orgId, input);
-            return reply.code(201).send(created);
+            reply.code(201);
+            return created;
         }
         catch (error) {
             return serviceCatalogMutationRejection(reply, error, serviceCatalogCreateNotFoundMessage, serviceCatalogCreateValidationMessage, "ServiceCatalogCreate");
@@ -1159,26 +1295,29 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.serviceId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: serviceCatalogRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateServiceCatalogItemSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: serviceCatalogUpdateValidationMessage
-            });
+            };
         }
         // Тело из одних неизвестных полей после разбора неотличимо от пустого: схема
         // отбрасывает лишние ключи. Ответить 200 на запрос, который ничего не меняет,
         // нельзя — оператор решит, что новая цена сохранена.
         if (Object.keys(input).length === 0) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: serviceCatalogEmptyUpdateMessage
-            });
+            };
         }
         try {
             const updated = await updateServiceCatalogItemInDb(orgId, params.serviceId, input);
@@ -1200,10 +1339,11 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.serviceId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: serviceCatalogRouteValidationMessage
-            });
+            };
         }
         try {
             const deactivated = await deactivateServiceCatalogItemInDb(orgId, params.serviceId);
@@ -1234,14 +1374,16 @@ export async function registerSettingsRoutes(app) {
             return;
         const input = parseSettingsPayload(createProtocolTemplateSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: protocolTemplateCreateValidationMessage
-            });
+            };
         }
         try {
             const created = await createProtocolTemplateInDb(orgId, input);
-            return reply.code(201).send(created);
+            reply.code(201);
+            return created;
         }
         catch (error) {
             return protocolTemplateMutationRejection(reply, error, protocolTemplateCreateNotFoundMessage, protocolTemplateCreateValidationMessage, "ProtocolTemplateCreate");
@@ -1253,26 +1395,29 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.templateId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: protocolTemplateRouteValidationMessage
-            });
+            };
         }
         const input = parseSettingsPayload(updateProtocolTemplateSchema, request.body);
         if (!input) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: protocolTemplateUpdateValidationMessage
-            });
+            };
         }
         // Тело из одних неизвестных полей после разбора неотличимо от пустого. Ответ
         // 200 на запрос, который ничего не меняет, означал бы, что администратор
         // считает шаблон исправленным, а на приёме подставится прежний.
         if (Object.keys(input).length === 0) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsValidationError",
                 message: protocolTemplateEmptyUpdateMessage
-            });
+            };
         }
         try {
             const updated = await updateProtocolTemplateInDb(orgId, params.templateId, input);
@@ -1294,10 +1439,11 @@ export async function registerSettingsRoutes(app) {
             return;
         const params = request.params;
         if (!params.templateId) {
-            return reply.code(400).send({
+            reply.code(400);
+            return {
                 error: "SettingsRouteValidationError",
                 message: protocolTemplateRouteValidationMessage
-            });
+            };
         }
         try {
             const deleted = await deleteProtocolTemplateInDb(orgId, params.templateId);

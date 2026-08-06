@@ -54,41 +54,38 @@ import { auditEvents, organizations } from "./db/schema.js";
  *    `routes/billing.ts` и `db/billingQuery.ts` вне этой зоны правки.
  */
 export async function recordAuditEvent(input) {
-	let orgId = input.organizationId?.trim();
-	if (!orgId) {
-		const [org] = await db.select().from(organizations).limit(1);
-		orgId = org?.id;
-	}
-	if (!orgId) {
-		const message =
-			"Событие журнала аудита НЕ записано: клиника не определена ни из аргумента, " +
-			"ни из контекста арендатора (RLS fail-closed, см. db/rls.ts). " +
-			`Потерянное событие: ${describeAuditEvent(input)}`;
-		console.error(`[audit] ${message}`);
-		throw new Error(message);
-	}
-	try {
-		await db.insert(auditEvents).values({
-			organizationId: orgId,
-			actorUserId: input.actorUserId ?? null,
-			entityType: input.entityType,
-			entityId: input.entityId,
-			action: input.action,
-			reason: input.reason,
-		});
-	} catch (error) {
-		// Аварийный канал: событие целиком уходит в лог одной строкой, чтобы его
-		// можно было восстановить, даже если база отвергла запись. Проброс
-		// обязателен — молчаливое проглатывание здесь и было исходным дефектом.
-		console.error(
-			`[audit] ОТКАЗ ЗАПИСИ ЖУРНАЛА. Событие: ${describeAuditEvent({
-				...input,
-				organizationId: orgId,
-			})}. Операция вызывающего должна быть отменена. Причина отказа:`,
-			error,
-		);
-		throw error;
-	}
+    let orgId = input.organizationId?.trim();
+    if (!orgId) {
+        const [org] = await db.select().from(organizations).limit(1);
+        orgId = org?.id;
+    }
+    if (!orgId) {
+        const message = "Событие журнала аудита НЕ записано: клиника не определена ни из аргумента, " +
+            "ни из контекста арендатора (RLS fail-closed, см. db/rls.ts). " +
+            `Потерянное событие: ${describeAuditEvent(input)}`;
+        console.error(`[audit] ${message}`);
+        throw new Error(message);
+    }
+    try {
+        await db.insert(auditEvents).values({
+            organizationId: orgId,
+            actorUserId: input.actorUserId ?? null,
+            entityType: input.entityType,
+            entityId: input.entityId,
+            action: input.action,
+            reason: input.reason,
+        });
+    }
+    catch (error) {
+        // Аварийный канал: событие целиком уходит в лог одной строкой, чтобы его
+        // можно было восстановить, даже если база отвергла запись. Проброс
+        // обязателен — молчаливое проглатывание здесь и было исходным дефектом.
+        console.error(`[audit] ОТКАЗ ЗАПИСИ ЖУРНАЛА. Событие: ${describeAuditEvent({
+            ...input,
+            organizationId: orgId,
+        })}. Операция вызывающего должна быть отменена. Причина отказа:`, error);
+        throw error;
+    }
 }
 /**
  * Одна строка со всеми полями события — формат аварийного канала.
@@ -96,14 +93,14 @@ export async function recordAuditEvent(input) {
  * — дать возможность восстановить событие, а не воспроизвести текст дословно.
  */
 function describeAuditEvent(input) {
-	const reason = input.reason ?? null;
-	return JSON.stringify({
-		organizationId: input.organizationId?.trim() || null,
-		actorUserId: input.actorUserId ?? null,
-		entityType: input.entityType,
-		entityId: input.entityId,
-		action: input.action,
-		reason: reason && reason.length > 500 ? `${reason.slice(0, 500)}…` : reason,
-		occurredAt: new Date().toISOString(),
-	});
+    const reason = input.reason ?? null;
+    return JSON.stringify({
+        organizationId: input.organizationId?.trim() || null,
+        actorUserId: input.actorUserId ?? null,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        action: input.action,
+        reason: reason && reason.length > 500 ? `${reason.slice(0, 500)}…` : reason,
+        occurredAt: new Date().toISOString(),
+    });
 }

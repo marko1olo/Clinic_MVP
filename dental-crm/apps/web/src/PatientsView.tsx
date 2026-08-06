@@ -326,6 +326,29 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 						placeholder="Поиск пациента: ФИО или телефон"
 					/>
 				</div>
+				<div
+					className="patients-filters"
+					style={{ display: "flex", gap: "8px", alignItems: "center" }}
+				>
+					<button
+						type="button"
+						className={`secondary-button ${showLostPatientsOnly ? "active" : ""}`}
+						onClick={toggleLostPatients}
+						disabled={isLoadingLost}
+						title="Показать пациентов без будущих приемов, открытых задач и записей в листе ожидания"
+						style={{
+							backgroundColor: showLostPatientsOnly ? "var(--teal)" : undefined,
+							color: showLostPatientsOnly ? "white" : undefined,
+							borderColor: showLostPatientsOnly ? "var(--teal)" : undefined,
+						}}
+					>
+						{isLoadingLost
+							? "Загрузка..."
+							: showLostPatientsOnly
+								? "Показаны потерянные"
+								: "Потерянные"}
+					</button>
+				</div>
 				<div className="smart-create-group">
 					{/*
             ТЕЛЕФОН И ДАТА РОЖДЕНИЯ СТОЯЛИ ЗДЕСЬ ЖЕ, НО ПОД `display: none`, И
@@ -537,7 +560,7 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 			>
 				{/* Left Column: Patient List */}
 				<div className="patient-list">
-					{filteredPatients.map((patient) => {
+					{displayPatients.map((patient) => {
 						const insight = patientInsightById.get(patient.id);
 						const patientIsSelected = selectedPatient?.id === patient.id;
 						/*
@@ -601,7 +624,8 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 									{insight &&
 									(riskDistinguishes ||
 										nextActionDistinguishes ||
-										insight.balanceDueRub) ? (
+										insight.balanceDueRub ||
+										patient.status === "archived") ? (
 										/*
                       Классы у плашек явные, а не «первый ребёнок / не первый».
                       Позиционные селекторы в main.css при скрытии метки риска
@@ -610,6 +634,11 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
                       порядка отрисовки не зависит.
                     */
 										<div className="patient-row-meta">
+											{patient.status === "archived" ? (
+												<span className="patient-risk-label" style={{ backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' }}>
+													Черный список / Архив
+												</span>
+											) : null}
 											{riskDistinguishes ? (
 												<span className="patient-risk-label">
 													{patientInsightRiskLabels[insight.riskLevel]}
@@ -626,7 +655,15 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 												</span>
 											) : null}
 										</div>
-									) : null}
+									) : (
+										patient.status === "archived" ? (
+											<div className="patient-row-meta">
+												<span className="patient-risk-label" style={{ backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' }}>
+													Черный список / Архив
+												</span>
+											</div>
+										) : null
+									)}
 								</div>
 								<button
 									aria-label={`Открыть карточку пациента: ${patient.fullName}`}
@@ -649,7 +686,7 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 							</article>
 						);
 					})}
-					{filteredPatients.length === 0 ? (
+					{displayPatients.length === 0 ? (
 						/* Класс patient-empty-state вернулся на общий компонент намеренно:
                в мобильной вёрстке (styles/dente-redesign.css) на него навешаны
                правила с !important на токенах темы, а гейт

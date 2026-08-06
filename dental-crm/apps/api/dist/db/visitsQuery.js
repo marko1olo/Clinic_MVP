@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { visitCloseChecklistFactsFor } from "../sampleData.js";
+import { visitCloseChecklistFactsFor, } from "../sampleData.js";
 import { buildVisitCloseChecklist } from "../visitCloseChecklist.js";
 import { recordAuditEventInDb } from "./auditQuery.js";
 import { db } from "./client.js";
@@ -20,121 +20,109 @@ import { projectVisitRow } from "./visitsProjection.js";
  */
 export const VISIT_DRAFT_ACCEPTED_AUDIT_ACTION = "visit_draft_accepted";
 function hashTranscript(value) {
-	return createHash("sha256").update(value).digest("hex").slice(0, 16);
+    return createHash("sha256").update(value).digest("hex").slice(0, 16);
 }
 export async function getVisitDraftAutosaveFromDb(organizationId, visitId) {
-	const [visit] = await db
-		.select()
-		.from(schema.visits)
-		.where(
-			and(
-				eq(schema.visits.id, visitId),
-				eq(schema.visits.organizationId, organizationId),
-			),
-		)
-		.limit(1);
-	if (!visit) return { outcome: "visit_absent" };
-	if (visit.status !== "draft") {
-		return {
-			outcome: "no_draft",
-			visitId: visit.id,
-			status: visit.status,
-			signedAt: visit.signedAt ? visit.signedAt.toISOString() : null,
-		};
-	}
-	if (visit.draftAutosave) {
-		return { outcome: "draft", serverDraft: visit.draftAutosave };
-	}
-	// Черновик есть, автосохранения по нему ещё не было: заготовка собирается из
-	// полей САМОГО приёма, поэтому это не выдуманные данные, а то, что в строке.
-	return {
-		outcome: "draft",
-		serverDraft: {
-			visitId: visit.id,
-			patientId: visit.patientId,
-			selectedSpecialty: "therapist", // default fallback
-			transcript: visit.transcript || "",
-			draft: {
-				warnings: [],
-				complaint: visit.complaint || "",
-				anamnesis: visit.anamnesis || "",
-				objectiveStatus: visit.objectiveStatus || "",
-				diagnosis: visit.diagnosis || "",
-				treatmentPlan: visit.treatmentPlan || "",
-			},
-			baseRevision: visit.revision,
-			clientDraftId: null,
-			clientSavedAt: null,
-			serverSavedAt: visit.updatedAt.toISOString(),
-			transcriptHash: "",
-		},
-	};
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.id, visitId), eq(schema.visits.organizationId, organizationId)))
+        .limit(1);
+    if (!visit)
+        return { outcome: "visit_absent" };
+    if (visit.status !== "draft") {
+        return {
+            outcome: "no_draft",
+            visitId: visit.id,
+            status: visit.status,
+            signedAt: visit.signedAt ? visit.signedAt.toISOString() : null,
+        };
+    }
+    if (visit.draftAutosave) {
+        return {
+            outcome: "draft",
+            serverDraft: visit.draftAutosave,
+        };
+    }
+    // Черновик есть, автосохранения по нему ещё не было: заготовка собирается из
+    // полей САМОГО приёма, поэтому это не выдуманные данные, а то, что в строке.
+    return {
+        outcome: "draft",
+        serverDraft: {
+            visitId: visit.id,
+            patientId: visit.patientId,
+            selectedSpecialty: "therapist", // default fallback
+            transcript: visit.transcript || "",
+            draft: {
+                warnings: [],
+                complaint: visit.complaint || "",
+                anamnesis: visit.anamnesis || "",
+                objectiveStatus: visit.objectiveStatus || "",
+                diagnosis: visit.diagnosis || "",
+                treatmentPlan: visit.treatmentPlan || "",
+            },
+            baseRevision: visit.revision,
+            clientDraftId: null,
+            clientSavedAt: null,
+            serverSavedAt: visit.updatedAt.toISOString(),
+            transcriptHash: "",
+        },
+    };
 }
 export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
-	const [visit] = await db
-		.select()
-		.from(schema.visits)
-		.where(
-			and(
-				eq(schema.visits.id, input.visitId),
-				eq(schema.visits.organizationId, organizationId),
-			),
-		)
-		.limit(1);
-	if (!visit) throw new Error("Визит не найден");
-	if (visit.status !== "draft")
-		throw new Error("Прием уже закрыт или аннулирован");
-	const serverDraft = {
-		visitId: input.visitId,
-		patientId: input.patientId,
-		selectedSpecialty: input.selectedSpecialty,
-		transcript: input.transcript,
-		draft: input.draft,
-		baseRevision: input.baseRevision ?? null,
-		clientDraftId: input.clientDraftId?.trim() || null,
-		clientSavedAt: input.clientSavedAt ?? null,
-		serverSavedAt: new Date().toISOString(),
-		transcriptHash: hashTranscript(
-			[
-				input.transcript,
-				input.draft.complaint,
-				input.draft.anamnesis,
-				input.draft.objectiveStatus,
-				input.draft.diagnosis,
-				input.draft.treatmentPlan,
-			]
-				.filter(Boolean)
-				.join("|"),
-		),
-	};
-	/*
-	 * БЫЛО: `.where(eq(schema.visits.id, input.visitId))` без organizationId и без
-	 * проверки RETURNING. SELECT выше уже фильтрует по клинике, но между SELECT и
-	 * UPDATE строка теоретически может сменить владельца/исчезнуть; важнее —
-	 * UPDATE без org нарушает тот же инвариант, что ужесточили у patients
-	 * (PUT чужой клиники по одному uuid). А без RETURNING autosave отвечал 200 с
-	 * «сохранённым» черновиком, хотя в базе 0 строк изменилось: врач диктовал
-	 * дальше, а после перезагрузки дневник был пуст.
-	 * СТАЛО: organizationId в WHERE + пустой RETURNING → throw (маршрут честный).
-	 */
-	const [saved] = await db
-		.update(schema.visits)
-		.set({
-			draftAutosave: serverDraft,
-			transcript: input.transcript,
-			updatedAt: new Date(),
-		})
-		.where(
-			and(
-				eq(schema.visits.organizationId, organizationId),
-				eq(schema.visits.id, input.visitId),
-			),
-		)
-		.returning({ id: schema.visits.id });
-	if (!saved) {
-		throw new Error("Визит не найден");
-	}
-	return serverDraft;
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId)))
+        .limit(1);
+    if (!visit)
+        throw new Error("Визит не найден");
+    if (visit.status !== "draft")
+        throw new Error("Прием уже закрыт или аннулирован");
+    const serverDraft = {
+        visitId: input.visitId,
+        patientId: input.patientId,
+        selectedSpecialty: input.selectedSpecialty,
+        transcript: input.transcript,
+        draft: input.draft,
+        baseRevision: input.baseRevision ?? null,
+        clientDraftId: input.clientDraftId?.trim() || null,
+        clientSavedAt: input.clientSavedAt ?? null,
+        serverSavedAt: new Date().toISOString(),
+        transcriptHash: hashTranscript([
+            input.transcript,
+            input.draft.complaint,
+            input.draft.anamnesis,
+            input.draft.objectiveStatus,
+            input.draft.diagnosis,
+            input.draft.treatmentPlan,
+        ]
+            .filter(Boolean)
+            .join("|")),
+    };
+    /*
+     * БЫЛО: `.where(eq(schema.visits.id, input.visitId))` без organizationId и без
+     * проверки RETURNING. SELECT выше уже фильтрует по клинике, но между SELECT и
+     * UPDATE строка теоретически может сменить владельца/исчезнуть; важнее —
+     * UPDATE без org нарушает тот же инвариант, что ужесточили у patients
+     * (PUT чужой клиники по одному uuid). А без RETURNING autosave отвечал 200 с
+     * «сохранённым» черновиком, хотя в базе 0 строк изменилось: врач диктовал
+     * дальше, а после перезагрузки дневник был пуст.
+     * СТАЛО: organizationId в WHERE + пустой RETURNING → throw (маршрут честный).
+     */
+    const [saved] = await db
+        .update(schema.visits)
+        .set({
+        draftAutosave: serverDraft,
+        transcript: input.transcript,
+        updatedAt: new Date(),
+    })
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, input.visitId)))
+        .returning({ id: schema.visits.id });
+    if (!saved) {
+        throw new Error("Визит не найден");
+    }
+    return serverDraft;
 }
 /**
  * ПРИЁМ ПОДПИСАН, А ОТВЕТ СОБРАТЬ НЕ УДАЛОСЬ.
@@ -150,16 +138,16 @@ export async function upsertVisitDraftAutosaveInDb(organizationId, input) {
  * обязан назвать состояние честно.
  */
 export class VisitSignedResponseIncompleteError extends Error {
-	acceptedVisitId;
-	newRevision;
-	constructor(acceptedVisitId, newRevision, cause) {
-		super("Прием подписан, но ответ по контракту собрать не удалось.", {
-			cause,
-		});
-		this.name = "VisitSignedResponseIncompleteError";
-		this.acceptedVisitId = acceptedVisitId;
-		this.newRevision = newRevision;
-	}
+    acceptedVisitId;
+    newRevision;
+    constructor(acceptedVisitId, newRevision, cause) {
+        super("Прием подписан, но ответ по контракту собрать не удалось.", {
+            cause,
+        });
+        this.name = "VisitSignedResponseIncompleteError";
+        this.acceptedVisitId = acceptedVisitId;
+        this.newRevision = newRevision;
+    }
 }
 /**
  * Подписать карту приёма и отдать ПОЛНЫЙ ответ по контракту
@@ -201,131 +189,107 @@ export class VisitSignedResponseIncompleteError extends Error {
  * приёмам»). Кто и когда закрыл дневник, восстановить было нечем.
  */
 export async function acceptVisitDraftInDb(organizationId, input) {
-	const [visit] = await db
-		.select()
-		.from(schema.visits)
-		.where(
-			and(
-				eq(schema.visits.id, input.visitId),
-				eq(schema.visits.organizationId, organizationId),
-			),
-		)
-		.limit(1);
-	if (!visit) throw new Error("Визит не найден");
-	if (visit.status !== "draft")
-		throw new Error("Прием уже закрыт или аннулирован");
-	const previousRevision = visit.revision;
-	const newRevision = previousRevision + 1;
-	const savedAt = new Date();
-	/*
-	 * БЫЛО: UPDATE только по visitId. SELECT уже с org, но запись подписи —
-	 * юридически значимое действие: условие области обязано быть на самом UPDATE
-	 * (тот же класс, что patientsQuery updatePatientInDb после live cross-tenant PUT).
-	 * СТАЛО: organizationId + id в WHERE.
-	 */
-	const [signedRow] = await db
-		.update(schema.visits)
-		.set({
-			status: "signed",
-			revision: newRevision,
-			complaint: input.draft.complaint,
-			anamnesis: input.draft.anamnesis,
-			objectiveStatus: input.draft.objectiveStatus,
-			diagnosis: input.draft.diagnosis,
-			treatmentPlan: input.draft.treatmentPlan,
-			doctorSummary: input.doctorSummary,
-			signedAt: savedAt,
-			updatedAt: savedAt,
-		})
-		.where(
-			and(
-				eq(schema.visits.organizationId, organizationId),
-				eq(schema.visits.id, input.visitId),
-			),
-		)
-		.returning();
-	// До этой строки приём ещё черновик: пустой RETURNING значит, что подписания не
-	// случилось, и обычный доменный отказ здесь правдив.
-	if (!signedRow) throw new Error("Прием не подписан");
-	const signedVisit = projectVisitRow(signedRow);
-	const saveReceipt = buildVisitSaveReceipt(
-		input,
-		signedVisit,
-		previousRevision,
-	);
-	/*
-	 * Журнал пишется ДО сборки ответа. Карточка закрытия ниже может не собраться
-	 * (VisitSignedResponseIncompleteError, HTTP 500 на уже подписанный приём) — но
-	 * приём при этом ПОДПИСАН, и именно в таком прогоне след в журнале нужен
-	 * больше всего: врач не увидел подтверждения и будет разбираться, что
-	 * произошло.
-	 */
-	await recordVisitDraftAcceptedAuditEvent(
-		organizationId,
-		signedVisit,
-		input,
-		previousRevision,
-		saveReceipt.warning,
-	);
-	try {
-		/*
-		 * Строки денег читаются ИЗ БАЗЫ, а не из inMemoryDomainState.
-		 *
-		 * БЫЛО, замерено 2026-07-29: visitCloseChecklistFactsFor(signedVisit) БЕЗ второго
-		 * аргумента → функция брала дефолт `state = inMemoryDomainState` → расчёт billing
-		 * читал коллекции treatmentPlanItems и payments из демо-данных в памяти. Тест сеял
-		 * реальные позиции и оплаты в PostgreSQL, но они не попадали в расчёт — карточка
-		 * закрытия показывала остаток по клинике из демо-состояния вместо остатка по
-		 * ЭТОМУ приёму из базы. Замер: 10 приёмов клиники, все получали одну строку
-		 * «Остаток по плану 51 400 ₽», включая приём, оплаченный полностью.
-		 *
-		 * СТАЛО: срез клиники берётся у `hydrateDomainStateFromDb` — того же модуля, что
-		 * питает сводку. Расчёту billing нужны только `treatmentPlanItems` и `payments`,
-		 * и соблазн прочитать эти две таблицы здесь напрямую велик. Так и было сделано
-		 * сначала, и это оказалось неверно: сырая строка базы НЕ РАВНА доменной записи.
-		 * Замерено компилятором 2026-08-06 — четыре расхождения на двух таблицах:
-		 *   `quantity`   в базе `numeric` → драйвер отдаёт СТРОКУ, домен ждёт число;
-		 *   `createdAt`  в базе `Date`    → домен ждёт ISO-строку;
-		 *   `serviceId`  в базе nullable  → домен требует строку;
-		 *   `snapshotServiceName` в строке отсутствует вовсе (в базе это `title`).
-		 * Первая версия правки скрывала всё это `as unknown as TreatmentChargeRow[]`, то
-		 * есть отдавала расчёту денег строку там, где он ждёт число. Копировать проекцию
-		 * сюда тоже нельзя: две копии преобразования `numeric`→число разойдутся, и
-		 * разойдутся молча, в расчёте ДЕНЕГ. Поэтому здесь один вызов гидратации, у
-		 * которой проекция уже есть и проверяется схемой (`collect(...)`).
-		 *
-		 * ЦЕНА НАЗВАНА ЧЕСТНО: гидратация читает ~15 таблиц вместо двух нужных. Если
-		 * подписание приёма станет узким местом, правильное лечение — `hydrateBillingSlice()`
-		 * в самом модуле гидратации, рядом с существующей проекцией. НЕ копия здесь.
-		 *
-		 * ПОЧЕМУ СРЕЗ ПО КЛИНИКЕ, А НЕ ПО ПРИЁМУ. buildVisitLedger принимает
-		 * ОТФИЛЬТРОВАННЫЕ коллекции: он сам ищет строки с visit_id = signedVisit.id. Если
-		 * сузить до одного приёма, расчёт не увидит позиции БЕЗ приёма
-		 * (treatment_items.visit_id = null), которые входят в сальдо пациента, но не в
-		 * сальдо приёма. Эта разница важна для переплаты: если пациент переплатил по
-		 * приёму, а по клинике у него долг из-за позиций без приёма, карточка обязана
-		 * показать переплату ПО ПРИЁМУ, а не молчать из-за другой позиции.
-		 *
-		 * Транзакция здесь та же, что записала приём: `db` — Proxy над
-		 * `transactionStorage`, поэтому гидратация видит только что вставленные строки.
-		 */
-		const { state: clinicState } =
-			await hydrateDomainStateFromDb(organizationId);
-		const visitCloseChecklist = buildVisitCloseChecklist(
-			visitCloseChecklistFactsFor(signedVisit, clinicState),
-		);
-		return {
-			visit: signedVisit,
-			visitCloseChecklist,
-			saveReceipt,
-		};
-	} catch (error) {
-		throw new VisitSignedResponseIncompleteError(
-			signedVisit.id,
-			signedVisit.revision,
-			error,
-		);
-	}
+    const [visit] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.id, input.visitId), eq(schema.visits.organizationId, organizationId)))
+        .limit(1);
+    if (!visit)
+        throw new Error("Визит не найден");
+    if (visit.status !== "draft")
+        throw new Error("Прием уже закрыт или аннулирован");
+    const previousRevision = visit.revision;
+    const newRevision = previousRevision + 1;
+    const savedAt = new Date();
+    /*
+     * БЫЛО: UPDATE только по visitId. SELECT уже с org, но запись подписи —
+     * юридически значимое действие: условие области обязано быть на самом UPDATE
+     * (тот же класс, что patientsQuery updatePatientInDb после live cross-tenant PUT).
+     * СТАЛО: organizationId + id в WHERE.
+     */
+    const [signedRow] = await db
+        .update(schema.visits)
+        .set({
+        status: "signed",
+        revision: newRevision,
+        complaint: input.draft.complaint,
+        anamnesis: input.draft.anamnesis,
+        objectiveStatus: input.draft.objectiveStatus,
+        diagnosis: input.draft.diagnosis,
+        treatmentPlan: input.draft.treatmentPlan,
+        doctorSummary: input.doctorSummary,
+        signedAt: savedAt,
+        updatedAt: savedAt,
+    })
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, input.visitId)))
+        .returning();
+    // До этой строки приём ещё черновик: пустой RETURNING значит, что подписания не
+    // случилось, и обычный доменный отказ здесь правдив.
+    if (!signedRow)
+        throw new Error("Прием не подписан");
+    const signedVisit = projectVisitRow(signedRow);
+    const saveReceipt = buildVisitSaveReceipt(input, signedVisit, previousRevision);
+    /*
+     * Журнал пишется ДО сборки ответа. Карточка закрытия ниже может не собраться
+     * (VisitSignedResponseIncompleteError, HTTP 500 на уже подписанный приём) — но
+     * приём при этом ПОДПИСАН, и именно в таком прогоне след в журнале нужен
+     * больше всего: врач не увидел подтверждения и будет разбираться, что
+     * произошло.
+     */
+    await recordVisitDraftAcceptedAuditEvent(organizationId, signedVisit, input, previousRevision, saveReceipt.warning);
+    try {
+        /*
+         * Строки денег читаются ИЗ БАЗЫ, а не из inMemoryDomainState.
+         *
+         * БЫЛО, замерено 2026-07-29: visitCloseChecklistFactsFor(signedVisit) БЕЗ второго
+         * аргумента → функция брала дефолт `state = inMemoryDomainState` → расчёт billing
+         * читал коллекции treatmentPlanItems и payments из демо-данных в памяти. Тест сеял
+         * реальные позиции и оплаты в PostgreSQL, но они не попадали в расчёт — карточка
+         * закрытия показывала остаток по клинике из демо-состояния вместо остатка по
+         * ЭТОМУ приёму из базы. Замер: 10 приёмов клиники, все получали одну строку
+         * «Остаток по плану 51 400 ₽», включая приём, оплаченный полностью.
+         *
+         * СТАЛО: срез клиники берётся у `hydrateDomainStateFromDb` — того же модуля, что
+         * питает сводку. Расчёту billing нужны только `treatmentPlanItems` и `payments`,
+         * и соблазн прочитать эти две таблицы здесь напрямую велик. Так и было сделано
+         * сначала, и это оказалось неверно: сырая строка базы НЕ РАВНА доменной записи.
+         * Замерено компилятором 2026-08-06 — четыре расхождения на двух таблицах:
+         *   `quantity`   в базе `numeric` → драйвер отдаёт СТРОКУ, домен ждёт число;
+         *   `createdAt`  в базе `Date`    → домен ждёт ISO-строку;
+         *   `serviceId`  в базе nullable  → домен требует строку;
+         *   `snapshotServiceName` в строке отсутствует вовсе (в базе это `title`).
+         * Первая версия правки скрывала всё это `as unknown as TreatmentChargeRow[]`, то
+         * есть отдавала расчёту денег строку там, где он ждёт число. Копировать проекцию
+         * сюда тоже нельзя: две копии преобразования `numeric`→число разойдутся, и
+         * разойдутся молча, в расчёте ДЕНЕГ. Поэтому здесь один вызов гидратации, у
+         * которой проекция уже есть и проверяется схемой (`collect(...)`).
+         *
+         * ЦЕНА НАЗВАНА ЧЕСТНО: гидратация читает ~15 таблиц вместо двух нужных. Если
+         * подписание приёма станет узким местом, правильное лечение — `hydrateBillingSlice()`
+         * в самом модуле гидратации, рядом с существующей проекцией. НЕ копия здесь.
+         *
+         * ПОЧЕМУ СРЕЗ ПО КЛИНИКЕ, А НЕ ПО ПРИЁМУ. buildVisitLedger принимает
+         * ОТФИЛЬТРОВАННЫЕ коллекции: он сам ищет строки с visit_id = signedVisit.id. Если
+         * сузить до одного приёма, расчёт не увидит позиции БЕЗ приёма
+         * (treatment_items.visit_id = null), которые входят в сальдо пациента, но не в
+         * сальдо приёма. Эта разница важна для переплаты: если пациент переплатил по
+         * приёму, а по клинике у него долг из-за позиций без приёма, карточка обязана
+         * показать переплату ПО ПРИЁМУ, а не молчать из-за другой позиции.
+         *
+         * Транзакция здесь та же, что записала приём: `db` — Proxy над
+         * `transactionStorage`, поэтому гидратация видит только что вставленные строки.
+         */
+        const { state: clinicState } = await hydrateDomainStateFromDb(organizationId);
+        const visitCloseChecklist = buildVisitCloseChecklist(visitCloseChecklistFactsFor(signedVisit, clinicState));
+        return {
+            visit: signedVisit,
+            visitCloseChecklist,
+            saveReceipt,
+        };
+    }
+    catch (error) {
+        throw new VisitSignedResponseIncompleteError(signedVisit.id, signedVisit.revision, error);
+    }
 }
 /**
  * Событие подписания приёма в `audit_events`. Никогда не отказывает наружу.
@@ -362,46 +326,37 @@ export async function acceptVisitDraftInDb(organizationId, input) {
  * честнее выдуманного; чинится передачей `getRequestIdentity(request).userId` из
  * маршрута — это правка routes/visits.ts, отдельный владелец.
  */
-async function recordVisitDraftAcceptedAuditEvent(
-	organizationId,
-	signedVisit,
-	input,
-	previousRevision,
-	conflictWarning,
-) {
-	const clientMutationId = input.clientMutationId?.trim() || null;
-	/*
-	 * Полезная нагрузка повторяет путь без базы (sampleData.ts:11899): переход
-	 * ревизии, клиентская операция, предупреждение о конфликте. Первая фраза
-	 * НАМЕРЕННО другая — там она обещает, что «подпись приема остается отдельным
-	 * действием», и для пути без базы это правда (статус визита он не меняет), а
-	 * здесь тем же действием ставится status = 'signed' и signed_at. Скопировать
-	 * чужую фразу значило бы записать в юридический журнал неверный смысл.
-	 */
-	const reason = [
-		"Врач подписал карту приёма: дневник закрыт, статус приёма draft -> signed.",
-		`Ревизия ${previousRevision} -> ${signedVisit.revision}.`,
-		clientMutationId ? `Клиентская операция ${clientMutationId}.` : null,
-		conflictWarning,
-		"Сотрудник в событии не указан: маршрут подписания не передаёт его в слой доступа.",
-	]
-		.filter(Boolean)
-		.join(" ");
-	await recordAuditEventInDb(organizationId, {
-		entityType: "visit",
-		entityId: signedVisit.id,
-		action: VISIT_DRAFT_ACCEPTED_AUDIT_ACTION,
-		actorUserId: null,
-		reason,
-	}).catch((error) => {
-		console.error(
-			`[visitsQuery] Приём ${signedVisit.id} ПОДПИСАН (клиника ${organizationId}, ревизия ` +
-				`${previousRevision} -> ${signedVisit.revision}), но событие ${VISIT_DRAFT_ACCEPTED_AUDIT_ACTION} ` +
-				"не записано в audit_events: юридического следа закрытия дневника за этот приём нет. " +
-				"Подписание отменять нельзя, событие восстанавливается по этой строке. Причина отказа:",
-			error,
-		);
-	});
+async function recordVisitDraftAcceptedAuditEvent(organizationId, signedVisit, input, previousRevision, conflictWarning) {
+    const clientMutationId = input.clientMutationId?.trim() || null;
+    /*
+     * Полезная нагрузка повторяет путь без базы (sampleData.ts:11899): переход
+     * ревизии, клиентская операция, предупреждение о конфликте. Первая фраза
+     * НАМЕРЕННО другая — там она обещает, что «подпись приема остается отдельным
+     * действием», и для пути без базы это правда (статус визита он не меняет), а
+     * здесь тем же действием ставится status = 'signed' и signed_at. Скопировать
+     * чужую фразу значило бы записать в юридический журнал неверный смысл.
+     */
+    const reason = [
+        "Врач подписал карту приёма: дневник закрыт, статус приёма draft -> signed.",
+        `Ревизия ${previousRevision} -> ${signedVisit.revision}.`,
+        clientMutationId ? `Клиентская операция ${clientMutationId}.` : null,
+        conflictWarning,
+        "Сотрудник в событии не указан: маршрут подписания не передаёт его в слой доступа.",
+    ]
+        .filter(Boolean)
+        .join(" ");
+    await recordAuditEventInDb(organizationId, {
+        entityType: "visit",
+        entityId: signedVisit.id,
+        action: VISIT_DRAFT_ACCEPTED_AUDIT_ACTION,
+        actorUserId: null,
+        reason,
+    }).catch((error) => {
+        console.error(`[visitsQuery] Приём ${signedVisit.id} ПОДПИСАН (клиника ${organizationId}, ревизия ` +
+            `${previousRevision} -> ${signedVisit.revision}), но событие ${VISIT_DRAFT_ACCEPTED_AUDIT_ACTION} ` +
+            "не записано в audit_events: юридического следа закрытия дневника за этот приём нет. " +
+            "Подписание отменять нельзя, событие восстанавливается по этой строке. Причина отказа:", error);
+    });
 }
 /**
  * Квитанция сохранения — по фактически сохранённой строке приёма.
@@ -425,33 +380,27 @@ async function recordVisitDraftAcceptedAuditEvent(
  * в `visits` + миграция (.sql + журнал + снимок) + проверка в этой функции.
  */
 function buildVisitSaveReceipt(input, signedVisit, previousRevision) {
-	const baseRevision = input.baseRevision ?? null;
-	const conflictWarning =
-		baseRevision !== null && baseRevision < previousRevision
-			? `На сервере уже была ревизия ${previousRevision}, сохранение пришло с ревизии ${baseRevision}. ` +
-				"Правки врача приняты и подписаны; сверьте запись, если приём правили с двух рабочих мест."
-			: null;
-	return {
-		visitId: signedVisit.id,
-		clientMutationId: input.clientMutationId?.trim() || null,
-		status: conflictWarning ? "conflict_accepted" : "accepted",
-		serverRevision: signedVisit.revision,
-		savedAt: signedVisit.updatedAt,
-		warning: conflictWarning,
-	};
+    const baseRevision = input.baseRevision ?? null;
+    const conflictWarning = baseRevision !== null && baseRevision < previousRevision
+        ? `На сервере уже была ревизия ${previousRevision}, сохранение пришло с ревизии ${baseRevision}. ` +
+            "Правки врача приняты и подписаны; сверьте запись, если приём правили с двух рабочих мест."
+        : null;
+    return {
+        visitId: signedVisit.id,
+        clientMutationId: input.clientMutationId?.trim() || null,
+        status: conflictWarning ? "conflict_accepted" : "accepted",
+        serverRevision: signedVisit.revision,
+        savedAt: signedVisit.updatedAt,
+        warning: conflictWarning,
+    };
 }
 export async function getVisitByIdInDb(organizationId, id) {
-	const [res] = await db
-		.select()
-		.from(schema.visits)
-		.where(
-			and(
-				eq(schema.visits.organizationId, organizationId),
-				eq(schema.visits.id, id),
-			),
-		)
-		.limit(1);
-	return res || null;
+    const [res] = await db
+        .select()
+        .from(schema.visits)
+        .where(and(eq(schema.visits.organizationId, organizationId), eq(schema.visits.id, id)))
+        .limit(1);
+    return res || null;
 }
 /**
  * ЗАЧЕМ ЭТА ФУНКЦИЯ СУЩЕСТВУЕТ.
@@ -482,83 +431,71 @@ export async function getVisitByIdInDb(organizationId, id) {
  * блокируется `for update`: два кресла, нажавшие одновременно, выстраиваются в
  * очередь, и второй вызов видит визит первого.
  */
-export async function openVisitForAppointmentInDb(
-	organizationId,
-	appointmentId,
-) {
-	return db.transaction(async (tx) => {
-		const [appointment] = await tx
-			.select({
-				id: schema.appointments.id,
-				patientId: schema.appointments.patientId,
-				status: schema.appointments.status,
-			})
-			.from(schema.appointments)
-			.where(
-				and(
-					eq(schema.appointments.id, appointmentId),
-					eq(schema.appointments.organizationId, organizationId),
-				),
-			)
-			.for("update")
-			.limit(1);
-		if (!appointment) throw new Error("Запись не найдена");
-		if (!appointment.patientId) throw new Error("У записи нет пациента");
-		// Отменённый приём и неявку лечить нечем: открытый по ним визит стал бы
-		// носителем ЭМК и денег по приёму, которого не было.
-		if (
-			appointment.status === "cancelled" ||
-			appointment.status === "no_show"
-		) {
-			throw new Error("Запись отменена");
-		}
-		const [existing] = await tx
-			.select()
-			.from(schema.visits)
-			.where(
-				and(
-					eq(schema.visits.appointmentId, appointmentId),
-					eq(schema.visits.organizationId, organizationId),
-				),
-			)
-			.orderBy(schema.visits.createdAt)
-			.limit(1);
-		if (existing) {
-			return {
-				visit: {
-					id: existing.id,
-					organizationId: existing.organizationId,
-					patientId: existing.patientId,
-					appointmentId: existing.appointmentId,
-					status: existing.status,
-					createdAt: existing.createdAt.toISOString(),
-					updatedAt: existing.updatedAt.toISOString(),
-				},
-				created: false,
-			};
-		}
-		const [created] = await tx
-			.insert(schema.visits)
-			.values({
-				organizationId,
-				patientId: appointment.patientId,
-				appointmentId,
-				status: "draft",
-				revision: 1,
-			})
-			.returning();
-		if (!created) throw new Error("Прием не открыт");
-		return {
-			visit: {
-				id: created.id,
-				organizationId: created.organizationId,
-				patientId: created.patientId,
-				appointmentId: created.appointmentId,
-				status: created.status,
-				createdAt: created.createdAt.toISOString(),
-				updatedAt: created.updatedAt.toISOString(),
-			},
-			created: true,
-		};
-	});
+export async function openVisitForAppointmentInDb(organizationId, appointmentId) {
+    return db.transaction(async (tx) => {
+        const [appointment] = await tx
+            .select({
+            id: schema.appointments.id,
+            patientId: schema.appointments.patientId,
+            status: schema.appointments.status,
+        })
+            .from(schema.appointments)
+            .where(and(eq(schema.appointments.id, appointmentId), eq(schema.appointments.organizationId, organizationId)))
+            .for("update")
+            .limit(1);
+        if (!appointment)
+            throw new Error("Запись не найдена");
+        if (!appointment.patientId)
+            throw new Error("У записи нет пациента");
+        // Отменённый приём и неявку лечить нечем: открытый по ним визит стал бы
+        // носителем ЭМК и денег по приёму, которого не было.
+        if (appointment.status === "cancelled" ||
+            appointment.status === "no_show") {
+            throw new Error("Запись отменена");
+        }
+        const [existing] = await tx
+            .select()
+            .from(schema.visits)
+            .where(and(eq(schema.visits.appointmentId, appointmentId), eq(schema.visits.organizationId, organizationId)))
+            .orderBy(schema.visits.createdAt)
+            .limit(1);
+        if (existing) {
+            return {
+                visit: {
+                    id: existing.id,
+                    organizationId: existing.organizationId,
+                    patientId: existing.patientId,
+                    appointmentId: existing.appointmentId,
+                    status: existing.status,
+                    createdAt: existing.createdAt.toISOString(),
+                    updatedAt: existing.updatedAt.toISOString(),
+                },
+                created: false,
+            };
+        }
+        const [created] = await tx
+            .insert(schema.visits)
+            .values({
+            organizationId,
+            patientId: appointment.patientId,
+            appointmentId,
+            status: "draft",
+            revision: 1,
+        })
+            .returning();
+        if (!created)
+            throw new Error("Прием не открыт");
+        return {
+            visit: {
+                id: created.id,
+                organizationId: created.organizationId,
+                patientId: created.patientId,
+                appointmentId: created.appointmentId,
+                status: created.status,
+                createdAt: created.createdAt.toISOString(),
+                updatedAt: created.updatedAt.toISOString(),
+            },
+            created: true,
+        };
+    });
 }

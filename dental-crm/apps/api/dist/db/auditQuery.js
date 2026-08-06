@@ -20,53 +20,48 @@ import { auditEvents } from "./schema.js";
  * "Failed to insert audit event" опирается `auditQuery.test.ts:96`.
  */
 export async function recordAuditEventInDb(organizationId, input) {
-	const emergencyRecord = () =>
-		JSON.stringify({
-			organizationId,
-			actorUserId: input.actorUserId ?? null,
-			entityType: input.entityType,
-			entityId: input.entityId,
-			action: input.action,
-			reason: input.reason ?? null,
-			occurredAt: new Date().toISOString(),
-		});
-	let event;
-	try {
-		[event] = await db
-			.insert(auditEvents)
-			.values({
-				id: randomUUID(),
-				organizationId,
-				actorUserId: input.actorUserId ?? null,
-				entityType: input.entityType,
-				entityId: input.entityId,
-				action: input.action,
-				reason: input.reason ?? null,
-			})
-			.returning();
-	} catch (error) {
-		console.error(
-			`[auditQuery] ОТКАЗ ЗАПИСИ в audit_events. Событие подлежит ручному ` +
-				`внесению: ${emergencyRecord()}. Причина отказа:`,
-			error,
-		);
-		throw error;
-	}
-	if (!event) {
-		console.error(
-			`[auditQuery] ОТКАЗ ЗАПИСИ в audit_events: вставка не вернула строку. ` +
-				`Событие подлежит ручному внесению: ${emergencyRecord()}`,
-		);
-		throw new Error("Failed to insert audit event");
-	}
-	return {
-		id: event.id,
-		organizationId: event.organizationId,
-		actorUserId: event.actorUserId,
-		entityType: event.entityType,
-		entityId: event.entityId,
-		action: event.action,
-		reason: event.reason,
-		createdAt: event.createdAt.toISOString(),
-	};
+    const emergencyRecord = () => JSON.stringify({
+        organizationId,
+        actorUserId: input.actorUserId ?? null,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        action: input.action,
+        reason: input.reason ?? null,
+        occurredAt: new Date().toISOString(),
+    });
+    let event;
+    try {
+        [event] = await db
+            .insert(auditEvents)
+            .values({
+            id: randomUUID(),
+            organizationId,
+            actorUserId: input.actorUserId ?? null,
+            entityType: input.entityType,
+            entityId: input.entityId,
+            action: input.action,
+            reason: input.reason ?? null,
+        })
+            .returning();
+    }
+    catch (error) {
+        console.error(`[auditQuery] ОТКАЗ ЗАПИСИ в audit_events. Событие подлежит ручному ` +
+            `внесению: ${emergencyRecord()}. Причина отказа:`, error);
+        throw error;
+    }
+    if (!event) {
+        console.error(`[auditQuery] ОТКАЗ ЗАПИСИ в audit_events: вставка не вернула строку. ` +
+            `Событие подлежит ручному внесению: ${emergencyRecord()}`);
+        throw new Error("Failed to insert audit event");
+    }
+    return {
+        id: event.id,
+        organizationId: event.organizationId,
+        actorUserId: event.actorUserId,
+        entityType: event.entityType,
+        entityId: event.entityId,
+        action: event.action,
+        reason: event.reason,
+        createdAt: event.createdAt.toISOString(),
+    };
 }

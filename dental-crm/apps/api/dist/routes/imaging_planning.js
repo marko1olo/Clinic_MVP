@@ -5,7 +5,6 @@ import { db } from "../db/client.js";
 import { patientCtPlannings, patients } from "../db/schema.js";
 import { getRequestIdentity } from "../security/identity.js";
 import { clinicSessionMissingMessage } from "../utils/clinicSessionRefusal.js";
-
 /**
  * РАЗМЕТКА ПЛАНИРОВАНИЯ ИМПЛАНТАЦИИ: ХРАНЕНИЕ.
  *
@@ -65,40 +64,30 @@ import { clinicSessionMissingMessage } from "../utils/clinicSessionRefusal.js";
  * ровно в одном месте на клиенте, в `ctPlanningLoadUrl`.
  */
 const savePlanningSchema = z.object({
-	patientId: z.string().uuid(),
-	studyInstanceUid: z.string().min(1),
-	splinePointsJson: z.string().optional(),
-	nervePointsJson: z.string().optional(),
-	implantsJson: z.string().optional(),
+    patientId: z.string().uuid(),
+    studyInstanceUid: z.string().min(1),
+    splinePointsJson: z.string().optional(),
+    nervePointsJson: z.string().optional(),
+    implantsJson: z.string().optional(),
 });
 const loadPlanningQuerySchema = z.object({
-	studyUid: z.string().min(1),
-	patientId: z.string().uuid(),
+    studyUid: z.string().min(1),
+    patientId: z.string().uuid(),
 });
-const CLINIC_UNKNOWN_SAVE_MESSAGE = clinicSessionMissingMessage(
-	"разметка планирования имплантации сохраняется только из кабинета, обведённая дуга остаётся на экране",
-);
-const CLINIC_UNKNOWN_LOAD_MESSAGE = clinicSessionMissingMessage(
-	"сохранённая разметка планирования имплантации открывается только из кабинета",
-);
-const PATIENT_NOT_FOUND_SAVE_MESSAGE =
-	"Разметка не сохранена — карточки этого пациента в вашей клинике нет. " +
-	"Откройте снимок из карточки пациента и повторите действие, обведённая дуга остаётся на экране.";
-const PATIENT_NOT_FOUND_LOAD_MESSAGE =
-	"Сохранённую разметку открыть нельзя — карточки этого пациента в вашей клинике нет. " +
-	"Откройте снимок из карточки пациента.";
-const BAD_SAVE_BODY_MESSAGE =
-	"Разметка не сохранена — запрос пришёл без пациента или без номера исследования. " +
-	"Откройте снимок заново из карточки пациента и повторите действие.";
-const BAD_LOAD_QUERY_MESSAGE =
-	"Сохранённую разметку открыть нельзя — запрос пришёл без пациента или без номера исследования. " +
-	"Откройте снимок заново из карточки пациента.";
-const SAVE_FAILED_MESSAGE =
-	"Разметка не сохранена — сервер не смог записать её в базу. " +
-	"Повторите через минуту, обведённая дуга остаётся на экране.";
-const LOAD_FAILED_MESSAGE =
-	"Сохранённую разметку прочитать не удалось — сервер ответил ошибкой. " +
-	"Откройте снимок заново через минуту.";
+const CLINIC_UNKNOWN_SAVE_MESSAGE = clinicSessionMissingMessage("разметка планирования имплантации сохраняется только из кабинета, обведённая дуга остаётся на экране");
+const CLINIC_UNKNOWN_LOAD_MESSAGE = clinicSessionMissingMessage("сохранённая разметка планирования имплантации открывается только из кабинета");
+const PATIENT_NOT_FOUND_SAVE_MESSAGE = "Разметка не сохранена — карточки этого пациента в вашей клинике нет. " +
+    "Откройте снимок из карточки пациента и повторите действие, обведённая дуга остаётся на экране.";
+const PATIENT_NOT_FOUND_LOAD_MESSAGE = "Сохранённую разметку открыть нельзя — карточки этого пациента в вашей клинике нет. " +
+    "Откройте снимок из карточки пациента.";
+const BAD_SAVE_BODY_MESSAGE = "Разметка не сохранена — запрос пришёл без пациента или без номера исследования. " +
+    "Откройте снимок заново из карточки пациента и повторите действие.";
+const BAD_LOAD_QUERY_MESSAGE = "Сохранённую разметку открыть нельзя — запрос пришёл без пациента или без номера исследования. " +
+    "Откройте снимок заново из карточки пациента.";
+const SAVE_FAILED_MESSAGE = "Разметка не сохранена — сервер не смог записать её в базу. " +
+    "Повторите через минуту, обведённая дуга остаётся на экране.";
+const LOAD_FAILED_MESSAGE = "Сохранённую разметку прочитать не удалось — сервер ответил ошибкой. " +
+    "Откройте снимок заново через минуту.";
 /**
  * Значение для трёх текстовых колонок разметки.
  *
@@ -108,7 +97,7 @@ const LOAD_FAILED_MESSAGE =
  * колонки всегда, даже когда клиент прислал не все.
  */
 function markupText(json) {
-	return json ?? "[]";
+    return json ?? "[]";
 }
 /**
  * Поля строки разметки для ответа клиенту. Три колонки разметки читаются как
@@ -117,181 +106,151 @@ function markupText(json) {
  * которое здесь стояло, больше ничего не исправляет.
  */
 const planningSelection = {
-	id: patientCtPlannings.id,
-	patientId: patientCtPlannings.patientId,
-	studyInstanceUid: patientCtPlannings.studyInstanceUid,
-	splinePointsJson: patientCtPlannings.splinePointsJson,
-	nervePointsJson: patientCtPlannings.nervePointsJson,
-	implantsJson: patientCtPlannings.implantsJson,
-	updatedAt: patientCtPlannings.updatedAt,
-	createdAt: patientCtPlannings.createdAt,
+    id: patientCtPlannings.id,
+    patientId: patientCtPlannings.patientId,
+    studyInstanceUid: patientCtPlannings.studyInstanceUid,
+    splinePointsJson: patientCtPlannings.splinePointsJson,
+    nervePointsJson: patientCtPlannings.nervePointsJson,
+    implantsJson: patientCtPlannings.implantsJson,
+    updatedAt: patientCtPlannings.updatedAt,
+    createdAt: patientCtPlannings.createdAt,
 };
 export async function registerImagingPlanningRoutes(app) {
-	// POST /api/imaging/planning/save
-	app.post("/api/imaging/planning/save", async (request, reply) => {
-		try {
-			if (!getRequestIdentity(request).organizationId) {
-				return reply.status(401).send({
-					error: "AuthRequired",
-					message: CLINIC_UNKNOWN_SAVE_MESSAGE,
-				});
-			}
-			const orgId = await requireResolvedOrganizationId(
-				request,
-				reply,
-				"save ct planning",
-			);
-			if (!orgId) return;
-			const parsed = savePlanningSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.status(400).send({
-					error: "InvalidPlanningPayload",
-					message: BAD_SAVE_BODY_MESSAGE,
-				});
-			}
-			const {
-				patientId,
-				studyInstanceUid,
-				splinePointsJson,
-				nervePointsJson,
-				implantsJson,
-			} = parsed.data;
-			// Verify patient belongs to organization
-			const [patient] = await db
-				.select({ id: patients.id })
-				.from(patients)
-				.where(
-					and(eq(patients.id, patientId), eq(patients.organizationId, orgId)),
-				)
-				.limit(1);
-			if (!patient) {
-				return reply.status(404).send({
-					error: "Patient not found",
-					message: PATIENT_NOT_FOUND_SAVE_MESSAGE,
-				});
-			}
-			// Check if planning already exists
-			const [existing] = await db
-				.select({ id: patientCtPlannings.id })
-				.from(patientCtPlannings)
-				.where(
-					and(
-						eq(patientCtPlannings.organizationId, orgId),
-						eq(patientCtPlannings.patientId, patientId),
-						eq(patientCtPlannings.studyInstanceUid, studyInstanceUid),
-					),
-				)
-				.limit(1);
-			if (existing) {
-				// БЫЛО: UPDATE только по id после SELECT с org — TOCTOU/IDOR-класс:
-				// чужая клиника с угаданным id могла бы переписать разметку, а 0-row
-				// update всё равно отдавал success:true (врач думал, что дуга сохранена).
-				// СТАЛО: organizationId в WHERE + RETURNING; пустой результат — 500, не успех.
-				const [updated] = await db
-					.update(patientCtPlannings)
-					.set({
-						splinePointsJson: markupText(splinePointsJson),
-						nervePointsJson: markupText(nervePointsJson),
-						implantsJson: markupText(implantsJson),
-						updatedAt: new Date(),
-					})
-					.where(
-						and(
-							eq(patientCtPlannings.id, existing.id),
-							eq(patientCtPlannings.organizationId, orgId),
-						),
-					)
-					.returning({ id: patientCtPlannings.id });
-				if (!updated) {
-					return reply.status(500).send({
-						error: "Internal server error",
-						message: SAVE_FAILED_MESSAGE,
-					});
-				}
-			} else {
-				const [inserted] = await db
-					.insert(patientCtPlannings)
-					.values({
-						organizationId: orgId,
-						patientId,
-						studyInstanceUid,
-						splinePointsJson: markupText(splinePointsJson),
-						nervePointsJson: markupText(nervePointsJson),
-						implantsJson: markupText(implantsJson),
-					})
-					.returning({ id: patientCtPlannings.id });
-				if (!inserted) {
-					return reply.status(500).send({
-						error: "Internal server error",
-						message: SAVE_FAILED_MESSAGE,
-					});
-				}
-			}
-			return reply.status(200).send({ success: true });
-		} catch (err) {
-			request.log.error(err);
-			return reply
-				.status(500)
-				.send({ error: "Internal server error", message: SAVE_FAILED_MESSAGE });
-		}
-	});
-	// GET /api/imaging/planning/load
-	app.get("/api/imaging/planning/load", async (request, reply) => {
-		try {
-			if (!getRequestIdentity(request).organizationId) {
-				return reply.status(401).send({
-					error: "AuthRequired",
-					message: CLINIC_UNKNOWN_LOAD_MESSAGE,
-				});
-			}
-			const orgId = await requireResolvedOrganizationId(
-				request,
-				reply,
-				"load ct planning",
-			);
-			if (!orgId) return;
-			const parsed = loadPlanningQuerySchema.safeParse(request.query);
-			if (!parsed.success) {
-				return reply.status(400).send({
-					error: "InvalidPlanningQuery",
-					message: BAD_LOAD_QUERY_MESSAGE,
-				});
-			}
-			const { studyUid, patientId } = parsed.data;
-			// Verify patient belongs to organization
-			const [patient] = await db
-				.select({ id: patients.id })
-				.from(patients)
-				.where(
-					and(eq(patients.id, patientId), eq(patients.organizationId, orgId)),
-				)
-				.limit(1);
-			if (!patient) {
-				return reply.status(404).send({
-					error: "Patient not found",
-					message: PATIENT_NOT_FOUND_LOAD_MESSAGE,
-				});
-			}
-			const [planning] = await db
-				.select(planningSelection)
-				.from(patientCtPlannings)
-				.where(
-					and(
-						eq(patientCtPlannings.organizationId, orgId),
-						eq(patientCtPlannings.patientId, patientId),
-						eq(patientCtPlannings.studyInstanceUid, studyUid),
-					),
-				)
-				.limit(1);
-			if (planning) {
-				return reply.send({ success: true, planning });
-			}
-			return reply.send({ success: true, planning: null });
-		} catch (err) {
-			request.log.error(err);
-			return reply
-				.status(500)
-				.send({ error: "Internal server error", message: LOAD_FAILED_MESSAGE });
-		}
-	});
+    // POST /api/imaging/planning/save
+    app.post("/api/imaging/planning/save", async (request, reply) => {
+        try {
+            if (!getRequestIdentity(request).organizationId) {
+                return reply.status(401).send({
+                    error: "AuthRequired",
+                    message: CLINIC_UNKNOWN_SAVE_MESSAGE,
+                });
+            }
+            const orgId = await requireResolvedOrganizationId(request, reply, "save ct planning");
+            if (!orgId)
+                return;
+            const parsed = savePlanningSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.status(400).send({
+                    error: "InvalidPlanningPayload",
+                    message: BAD_SAVE_BODY_MESSAGE,
+                });
+            }
+            const { patientId, studyInstanceUid, splinePointsJson, nervePointsJson, implantsJson, } = parsed.data;
+            // Verify patient belongs to organization
+            const [patient] = await db
+                .select({ id: patients.id })
+                .from(patients)
+                .where(and(eq(patients.id, patientId), eq(patients.organizationId, orgId)))
+                .limit(1);
+            if (!patient) {
+                return reply.status(404).send({
+                    error: "Patient not found",
+                    message: PATIENT_NOT_FOUND_SAVE_MESSAGE,
+                });
+            }
+            // Check if planning already exists
+            const [existing] = await db
+                .select({ id: patientCtPlannings.id })
+                .from(patientCtPlannings)
+                .where(and(eq(patientCtPlannings.organizationId, orgId), eq(patientCtPlannings.patientId, patientId), eq(patientCtPlannings.studyInstanceUid, studyInstanceUid)))
+                .limit(1);
+            if (existing) {
+                // БЫЛО: UPDATE только по id после SELECT с org — TOCTOU/IDOR-класс:
+                // чужая клиника с угаданным id могла бы переписать разметку, а 0-row
+                // update всё равно отдавал success:true (врач думал, что дуга сохранена).
+                // СТАЛО: organizationId в WHERE + RETURNING; пустой результат — 500, не успех.
+                const [updated] = await db
+                    .update(patientCtPlannings)
+                    .set({
+                    splinePointsJson: markupText(splinePointsJson),
+                    nervePointsJson: markupText(nervePointsJson),
+                    implantsJson: markupText(implantsJson),
+                    updatedAt: new Date(),
+                })
+                    .where(and(eq(patientCtPlannings.id, existing.id), eq(patientCtPlannings.organizationId, orgId)))
+                    .returning({ id: patientCtPlannings.id });
+                if (!updated) {
+                    return reply.status(500).send({
+                        error: "Internal server error",
+                        message: SAVE_FAILED_MESSAGE,
+                    });
+                }
+            }
+            else {
+                const [inserted] = await db
+                    .insert(patientCtPlannings)
+                    .values({
+                    organizationId: orgId,
+                    patientId,
+                    studyInstanceUid,
+                    splinePointsJson: markupText(splinePointsJson),
+                    nervePointsJson: markupText(nervePointsJson),
+                    implantsJson: markupText(implantsJson),
+                })
+                    .returning({ id: patientCtPlannings.id });
+                if (!inserted) {
+                    return reply.status(500).send({
+                        error: "Internal server error",
+                        message: SAVE_FAILED_MESSAGE,
+                    });
+                }
+            }
+            return reply.status(200).send({ success: true });
+        }
+        catch (err) {
+            request.log.error(err);
+            return reply
+                .status(500)
+                .send({ error: "Internal server error", message: SAVE_FAILED_MESSAGE });
+        }
+    });
+    // GET /api/imaging/planning/load
+    app.get("/api/imaging/planning/load", async (request, reply) => {
+        try {
+            if (!getRequestIdentity(request).organizationId) {
+                return reply.status(401).send({
+                    error: "AuthRequired",
+                    message: CLINIC_UNKNOWN_LOAD_MESSAGE,
+                });
+            }
+            const orgId = await requireResolvedOrganizationId(request, reply, "load ct planning");
+            if (!orgId)
+                return;
+            const parsed = loadPlanningQuerySchema.safeParse(request.query);
+            if (!parsed.success) {
+                return reply.status(400).send({
+                    error: "InvalidPlanningQuery",
+                    message: BAD_LOAD_QUERY_MESSAGE,
+                });
+            }
+            const { studyUid, patientId } = parsed.data;
+            // Verify patient belongs to organization
+            const [patient] = await db
+                .select({ id: patients.id })
+                .from(patients)
+                .where(and(eq(patients.id, patientId), eq(patients.organizationId, orgId)))
+                .limit(1);
+            if (!patient) {
+                return reply.status(404).send({
+                    error: "Patient not found",
+                    message: PATIENT_NOT_FOUND_LOAD_MESSAGE,
+                });
+            }
+            const [planning] = await db
+                .select(planningSelection)
+                .from(patientCtPlannings)
+                .where(and(eq(patientCtPlannings.organizationId, orgId), eq(patientCtPlannings.patientId, patientId), eq(patientCtPlannings.studyInstanceUid, studyUid)))
+                .limit(1);
+            if (planning) {
+                return reply.send({ success: true, planning });
+            }
+            return reply.send({ success: true, planning: null });
+        }
+        catch (err) {
+            request.log.error(err);
+            return reply
+                .status(500)
+                .send({ error: "Internal server error", message: LOAD_FAILED_MESSAGE });
+        }
+    });
 }

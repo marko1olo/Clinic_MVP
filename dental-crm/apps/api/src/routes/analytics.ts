@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import {
 	requireClinicalReadAccess,
@@ -7,8 +7,10 @@ import {
 import { db } from "../db/client.js";
 import {
 	appointments,
+	appointmentWaitlists,
 	chairs,
 	patients,
+	patientTaskTickets,
 	payments,
 	treatmentPlans,
 	users,
@@ -441,4 +443,6 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 			});
 		}
 	});
+
+
 }

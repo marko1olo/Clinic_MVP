@@ -1,16 +1,13 @@
 import "dotenv/config";
 import { authTokenSecret, clinicalAdminSecret } from "./security/authSecret.js";
-import {
-	getRequestIdentity,
-	requireOrganizationId as requireVerifiedOrganizationId,
-} from "./security/identity.js";
+import { getRequestIdentity, requireOrganizationId as requireVerifiedOrganizationId, } from "./security/identity.js";
 import { timingSafeSecretEqual } from "./utils/timingSafeSecretEqual.js";
 export const denteAdminSecretHeader = "x-dente-admin-secret";
 export function configuredClinicalAccessSecret() {
-	return clinicalAdminSecret();
+    return clinicalAdminSecret();
 }
 export function configuredClinicalMutationSecret() {
-	return configuredClinicalAccessSecret();
+    return configuredClinicalAccessSecret();
 }
 /**
  * Режимы, в которых вообще допустимо обсуждать обход охраны клинических данных.
@@ -47,8 +44,8 @@ const namedDevelopmentModes = new Set(["development", "test"]);
  * проникает незамеченной: правку внесут в одну, а остальные останутся открытыми.
  */
 export function namedDevelopmentModeActive() {
-	const mode = process.env.NODE_ENV?.trim().toLowerCase();
-	return mode !== undefined && namedDevelopmentModes.has(mode);
+    const mode = process.env.NODE_ENV?.trim().toLowerCase();
+    return mode !== undefined && namedDevelopmentModes.has(mode);
 }
 /**
  * unguardedBypassAllowed — единственная законная форма проверки «разрешено ли
@@ -62,91 +59,69 @@ export function namedDevelopmentModeActive() {
  * данные, только закрыть — направление отказа выбрано осознанно.
  */
 export function unguardedBypassAllowed(flagEnvironmentVariable) {
-	return (
-		namedDevelopmentModeActive() && process.env[flagEnvironmentVariable] === "1"
-	);
+    return (namedDevelopmentModeActive() && process.env[flagEnvironmentVariable] === "1");
 }
 function clinicalMutationsUnguardedAllowed() {
-	return unguardedBypassAllowed("DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS");
+    return unguardedBypassAllowed("DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS");
 }
 function clinicalReadsUnguardedAllowed() {
-	return unguardedBypassAllowed("DENTE_CLINICAL_ALLOW_UNGUARDED_READS");
+    return unguardedBypassAllowed("DENTE_CLINICAL_ALLOW_UNGUARDED_READS");
 }
-export async function requireClinicalMutationAccess(
-	request,
-	reply,
-	protectedArea = "clinical mutation",
-) {
-	const adminSecret = configuredClinicalMutationSecret();
-	if (!adminSecret) {
-		if (clinicalMutationsUnguardedAllowed()) return true;
-		reply.code(503).send({
-			error: "ClinicalAdminSecretMissing",
-			message:
-				"На сервере не задан секрет администратора клиники для изменения защищенных данных.",
-			protectedArea,
-		});
-		return false;
-	}
-	const providedSecret = request.headers[denteAdminSecretHeader];
-	const normalizedProvidedSecret = Array.isArray(providedSecret)
-		? providedSecret[0]
-		: providedSecret;
-	if (
-		timingSafeSecretEqual(
-			typeof normalizedProvidedSecret === "string"
-				? normalizedProvidedSecret
-				: null,
-			adminSecret,
-		)
-	) {
-		return true;
-	}
-	reply.code(403).send({
-		error: "ClinicalAdminSecretRequired",
-		message:
-			"Нужен действующий секрет администратора клиники для изменения защищенных данных.",
-		protectedArea,
-	});
-	return false;
+export async function requireClinicalMutationAccess(request, reply, protectedArea = "clinical mutation") {
+    const adminSecret = configuredClinicalMutationSecret();
+    if (!adminSecret) {
+        if (clinicalMutationsUnguardedAllowed())
+            return true;
+        reply.code(503).send({
+            error: "ClinicalAdminSecretMissing",
+            message: "На сервере не задан секрет администратора клиники для изменения защищенных данных.",
+            protectedArea,
+        });
+        return false;
+    }
+    const providedSecret = request.headers[denteAdminSecretHeader];
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
+        return true;
+    }
+    reply.code(403).send({
+        error: "ClinicalAdminSecretRequired",
+        message: "Нужен действующий секрет администратора клиники для изменения защищенных данных.",
+        protectedArea,
+    });
+    return false;
 }
-export async function requireClinicalReadAccess(
-	request,
-	reply,
-	protectedArea = "clinical read",
-) {
-	const adminSecret = configuredClinicalAccessSecret();
-	if (!adminSecret) {
-		if (clinicalReadsUnguardedAllowed()) return true;
-		reply.code(503).send({
-			error: "ClinicalReadSecretMissing",
-			message:
-				"На сервере не задан секрет администратора клиники для просмотра защищенных данных.",
-			protectedArea,
-		});
-		return false;
-	}
-	const providedSecret = request.headers[denteAdminSecretHeader];
-	const normalizedProvidedSecret = Array.isArray(providedSecret)
-		? providedSecret[0]
-		: providedSecret;
-	if (
-		timingSafeSecretEqual(
-			typeof normalizedProvidedSecret === "string"
-				? normalizedProvidedSecret
-				: null,
-			adminSecret,
-		)
-	) {
-		return true;
-	}
-	reply.code(403).send({
-		error: "ClinicalReadSecretRequired",
-		message:
-			"Нужен действующий секрет администратора клиники для просмотра защищенных данных.",
-		protectedArea,
-	});
-	return false;
+export async function requireClinicalReadAccess(request, reply, protectedArea = "clinical read") {
+    const adminSecret = configuredClinicalAccessSecret();
+    if (!adminSecret) {
+        if (clinicalReadsUnguardedAllowed())
+            return true;
+        reply.code(503).send({
+            error: "ClinicalReadSecretMissing",
+            message: "На сервере не задан секрет администратора клиники для просмотра защищенных данных.",
+            protectedArea,
+        });
+        return false;
+    }
+    const providedSecret = request.headers[denteAdminSecretHeader];
+    const normalizedProvidedSecret = Array.isArray(providedSecret)
+        ? providedSecret[0]
+        : providedSecret;
+    if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
+        ? normalizedProvidedSecret
+        : null, adminSecret)) {
+        return true;
+    }
+    reply.code(403).send({
+        error: "ClinicalReadSecretRequired",
+        message: "Нужен действующий секрет администратора клиники для просмотра защищенных данных.",
+        protectedArea,
+    });
+    return false;
 }
 /**
  * Определяет организацию запроса.
@@ -159,43 +134,35 @@ export async function requireClinicalReadAccess(
  * DENTE_DEV_ALLOW_HEADER_ORG=1 (см. security/identity.ts).
  */
 export async function resolveOrganizationId(request) {
-	return getRequestIdentity(request).organizationId;
+    return getRequestIdentity(request).organizationId;
 }
 /**
  * Возвращает organizationId из проверенного токена либо отправляет 401.
  */
-export async function requireResolvedOrganizationId(
-	request,
-	reply,
-	_protectedArea,
-) {
-	return requireVerifiedOrganizationId(request, reply);
+export async function requireResolvedOrganizationId(request, reply, _protectedArea) {
+    return requireVerifiedOrganizationId(request, reply);
 }
 /**
  * requireResolvedStaffOrAdminOrganizationId — как requireResolvedOrganizationId,
  * но дополнительно требует авторизованного сотрудника (не только токен кабинета).
  */
-export async function requireResolvedStaffOrAdminOrganizationId(
-	request,
-	reply,
-	_protectedArea,
-) {
-	const identity = getRequestIdentity(request);
-	if (!identity.organizationId) {
-		reply.code(401).send({
-			error: "AuthRequired",
-			message: "Требуется авторизация рабочего кабинета клиники.",
-		});
-		return null;
-	}
-	if (!identity.userId) {
-		reply.code(401).send({
-			error: "StaffAuthRequired",
-			message: "Требуется вход сотрудника.",
-		});
-		return null;
-	}
-	return identity.organizationId;
+export async function requireResolvedStaffOrAdminOrganizationId(request, reply, _protectedArea) {
+    const identity = getRequestIdentity(request);
+    if (!identity.organizationId) {
+        reply.code(401).send({
+            error: "AuthRequired",
+            message: "Требуется авторизация рабочего кабинета клиники.",
+        });
+        return null;
+    }
+    if (!identity.userId) {
+        reply.code(401).send({
+            error: "StaffAuthRequired",
+            message: "Требуется вход сотрудника.",
+        });
+        return null;
+    }
+    return identity.organizationId;
 }
 /**
  * Контекст защищённого обработчика: и гейт пройден, и арендатор определён.
@@ -211,27 +178,21 @@ export async function requireResolvedStaffOrAdminOrganizationId(
  * идентификатор, либо null (ответ клиенту уже отправлен). Перепутать нечего:
  * возвращается ровно то, что нужно обработчику.
  */
-export async function requireClinicalReadContext(
-	request,
-	reply,
-	protectedArea = "clinical read",
-) {
-	if (!(await requireClinicalReadAccess(request, reply, protectedArea)))
-		return null;
-	const organizationId = await requireVerifiedOrganizationId(request, reply);
-	if (!organizationId) return null;
-	return { organizationId };
+export async function requireClinicalReadContext(request, reply, protectedArea = "clinical read") {
+    if (!(await requireClinicalReadAccess(request, reply, protectedArea)))
+        return null;
+    const organizationId = await requireVerifiedOrganizationId(request, reply);
+    if (!organizationId)
+        return null;
+    return { organizationId };
 }
-export async function requireClinicalMutationContext(
-	request,
-	reply,
-	protectedArea = "clinical mutation",
-) {
-	if (!(await requireClinicalMutationAccess(request, reply, protectedArea)))
-		return null;
-	const organizationId = await requireVerifiedOrganizationId(request, reply);
-	if (!organizationId) return null;
-	return { organizationId };
+export async function requireClinicalMutationContext(request, reply, protectedArea = "clinical mutation") {
+    if (!(await requireClinicalMutationAccess(request, reply, protectedArea)))
+        return null;
+    const organizationId = await requireVerifiedOrganizationId(request, reply);
+    if (!organizationId)
+        return null;
+    return { organizationId };
 }
 /**
  * requireNonDoctorAccess — allows any authenticated non-doctor (admin, staff)
@@ -253,23 +214,18 @@ export async function requireClinicalMutationContext(
  * администратора клиники, поэтому текст просит обратиться, а не гарантирует
  * успех.
  */
-export async function requireNonDoctorAccess(
-	request,
-	reply,
-	protectedArea = "non-doctor mutation",
-) {
-	const identity = getRequestIdentity(request);
-	if (identity.role === "doctor") {
-		reply.code(403).send({
-			error: "DoctorsNotAllowed",
-			protectedArea,
-			message:
-				"Врачам это действие в программе клиники закрыто. " +
-				"Попросите администратора ресепшена, управляющего или владельца клиники выполнить его.",
-		});
-		return false;
-	}
-	return requireClinicalMutationAccess(request, reply, protectedArea);
+export async function requireNonDoctorAccess(request, reply, protectedArea = "non-doctor mutation") {
+    const identity = getRequestIdentity(request);
+    if (identity.role === "doctor") {
+        reply.code(403).send({
+            error: "DoctorsNotAllowed",
+            protectedArea,
+            message: "Врачам это действие в программе клиники закрыто. " +
+                "Попросите администратора ресепшена, управляющего или владельца клиники выполнить его.",
+        });
+        return false;
+    }
+    return requireClinicalMutationAccess(request, reply, protectedArea);
 }
 /**
  * Секрет подписи токенов. Делегирует в единственный источник истины
@@ -278,5 +234,5 @@ export async function requireNonDoctorAccess(
  * подделать токен любой клиники.
  */
 export function requireAuthTokenSecret() {
-	return authTokenSecret();
+    return authTokenSecret();
 }

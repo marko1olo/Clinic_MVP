@@ -54,7 +54,6 @@ import { pool } from "../db/client.js";
 import { withTenantCtx } from "../db/rls.js";
 import * as schema from "../db/schema.js";
 import { hashCredential } from "../utils/cryptoHelper.js";
-
 /**
  * Арендатор рабочей клиники. Значение статично НАМЕРЕННО: повторный запуск
  * обязан обновлять ту же организацию, а не заводить новую. Это идентификатор, а
@@ -80,20 +79,20 @@ const CREDENTIAL_OVERWRITE_ENV_VALUE = "YES";
  * на каждом запуске и безусловный отказ при NODE_ENV=production.
  */
 const credentialDefaults = {
-	CLINIC_LOGIN: "clinic@example.com",
-	CLINIC_PASSWORD: "dente2026",
-	ADMIN_PIN: "0000",
-	STAFF_PIN: "1234",
+    CLINIC_LOGIN: "clinic@example.com",
+    CLINIC_PASSWORD: "dente2026",
+    ADMIN_PIN: "0000",
+    STAFF_PIN: "1234",
 };
 /**
  * Отказ по защите. Отдельный класс нужен, чтобы верхний уровень напечатал
  * объяснение вместо стека вызовов: стек здесь не несёт информации.
  */
 class SeedRefusedError extends Error {
-	constructor(message) {
-		super(message);
-		this.name = "SeedRefusedError";
-	}
+    constructor(message) {
+        super(message);
+        this.name = "SeedRefusedError";
+    }
 }
 /**
  * Четыре сотрудника рабочей клиники. Идентификаторы совпадают с
@@ -102,38 +101,38 @@ class SeedRefusedError extends Error {
  * поэтому менять их нельзя: на них ссылаются чужие проверки.
  */
 const WORKING_STAFF = [
-	{
-		id: "e44d32ca-7777-4c00-a001-c88f01b92e21",
-		fullName: "Петров Иван Иванович",
-		role: "owner",
-		phone: "+7 927 555-55-55",
-		email: "owner@example.com",
-		isAdmin: true,
-	},
-	{
-		id: "8356141b-7cfa-4221-95f7-70f47e7344b1",
-		fullName: "Иванова Марина Сергеевна",
-		role: "doctor",
-		phone: "+7 927 111-22-33",
-		email: "doctor@example.com",
-		isAdmin: false,
-	},
-	{
-		id: "93bca14f-a11d-4088-9b48-cb7a0fd4c9ef",
-		fullName: "Кузнецова Анна",
-		role: "administrator",
-		phone: "+7 927 222-10-10",
-		email: "admin@example.com",
-		isAdmin: true,
-	},
-	{
-		id: "f365da0c-7094-4f80-b52d-59b7b1254791",
-		fullName: "Садыкова Эльмира",
-		role: "assistant",
-		phone: "+7 927 900-77-10",
-		email: null,
-		isAdmin: false,
-	},
+    {
+        id: "e44d32ca-7777-4c00-a001-c88f01b92e21",
+        fullName: "Петров Иван Иванович",
+        role: "owner",
+        phone: "+7 927 555-55-55",
+        email: "owner@example.com",
+        isAdmin: true,
+    },
+    {
+        id: "8356141b-7cfa-4221-95f7-70f47e7344b1",
+        fullName: "Иванова Марина Сергеевна",
+        role: "doctor",
+        phone: "+7 927 111-22-33",
+        email: "doctor@example.com",
+        isAdmin: false,
+    },
+    {
+        id: "93bca14f-a11d-4088-9b48-cb7a0fd4c9ef",
+        fullName: "Кузнецова Анна",
+        role: "administrator",
+        phone: "+7 927 222-10-10",
+        email: "admin@example.com",
+        isAdmin: true,
+    },
+    {
+        id: "f365da0c-7094-4f80-b52d-59b7b1254791",
+        fullName: "Садыкова Эльмира",
+        role: "assistant",
+        phone: "+7 927 900-77-10",
+        email: null,
+        isAdmin: false,
+    },
 ];
 /**
  * `NODE_ENV=production` распознаётся здесь как ЗАПРЕТ, а не как разрешение,
@@ -142,29 +141,28 @@ const WORKING_STAFF = [
  * несёт подсчёт существующих строк ниже, он от NODE_ENV не зависит.
  */
 function productionModeActive() {
-	return process.env.NODE_ENV?.trim().toLowerCase() === "production";
+    return process.env.NODE_ENV?.trim().toLowerCase() === "production";
 }
 function credentialOverwriteAuthorized() {
-	return (
-		process.env[CREDENTIAL_OVERWRITE_ENV_NAME] ===
-		CREDENTIAL_OVERWRITE_ENV_VALUE
-	);
+    return (process.env[CREDENTIAL_OVERWRITE_ENV_NAME] ===
+        CREDENTIAL_OVERWRITE_ENV_VALUE);
 }
 function resolveCredentials() {
-	const defaulted = [];
-	const read = (name) => {
-		const provided = process.env[name];
-		if (provided !== undefined && provided.trim() !== "") return provided;
-		defaulted.push(name);
-		return credentialDefaults[name];
-	};
-	return {
-		clinicLogin: read("CLINIC_LOGIN"),
-		clinicPassword: read("CLINIC_PASSWORD"),
-		adminPin: read("ADMIN_PIN"),
-		staffPin: read("STAFF_PIN"),
-		defaulted,
-	};
+    const defaulted = [];
+    const read = (name) => {
+        const provided = process.env[name];
+        if (provided !== undefined && provided.trim() !== "")
+            return provided;
+        defaulted.push(name);
+        return credentialDefaults[name];
+    };
+    return {
+        clinicLogin: read("CLINIC_LOGIN"),
+        clinicPassword: read("CLINIC_PASSWORD"),
+        adminPin: read("ADMIN_PIN"),
+        staffPin: read("STAFF_PIN"),
+        defaulted,
+    };
 }
 /**
  * Печатает, что именно будет записано. Значение показывается ТОЛЬКО когда оно
@@ -173,41 +171,32 @@ function resolveCredentials() {
  * пароль и оба PIN-кода открытым текстом в конце каждого запуска.
  */
 function reportCredentials(credentials) {
-	const shown = (name, value) =>
-		credentials.defaulted.includes(name) ? value : "(задан окружением)";
-	console.log(
-		`   логин клиники:  ${shown("CLINIC_LOGIN", credentials.clinicLogin)}`,
-	);
-	console.log(
-		`   пароль клиники: ${shown("CLINIC_PASSWORD", "(значение по умолчанию из репозитория)")}`,
-	);
-	console.log(`   PIN админов:    ${shown("ADMIN_PIN", credentials.adminPin)}`);
-	console.log(`   PIN персонала:  ${shown("STAFF_PIN", credentials.staffPin)}`);
-	if (credentials.defaulted.length === 0) {
-		console.log("Учётные данные: все четыре заданы окружением.");
-		return;
-	}
-	const names = credentials.defaulted.join(", ");
-	if (productionModeActive()) {
-		throw new SeedRefusedError(
-			[
-				"ОТКАЗ: NODE_ENV=production, а учётные данные взяты по умолчанию.",
-				`Не заданы: ${names}.`,
-				"Значения по умолчанию опубликованы в этом репозитории и известны всем.",
-				"Задайте CLINIC_LOGIN, CLINIC_PASSWORD, ADMIN_PIN и STAFF_PIN в окружении.",
-			].join("\n"),
-		);
-	}
-	console.warn(
-		[
-			"",
-			"ВНИМАНИЕ: учётные данные взяты ПО УМОЛЧАНИЮ, они опубликованы в репозитории.",
-			`  Не заданы окружением: ${names}`,
-			"  Это допустимо только для разработки и демонстрации.",
-			"  Перед передачей клинике задайте их явно и смените после первого входа.",
-			"",
-		].join("\n"),
-	);
+    const shown = (name, value) => credentials.defaulted.includes(name) ? value : "(задан окружением)";
+    console.log(`   логин клиники:  ${shown("CLINIC_LOGIN", credentials.clinicLogin)}`);
+    console.log(`   пароль клиники: ${shown("CLINIC_PASSWORD", "(значение по умолчанию из репозитория)")}`);
+    console.log(`   PIN админов:    ${shown("ADMIN_PIN", credentials.adminPin)}`);
+    console.log(`   PIN персонала:  ${shown("STAFF_PIN", credentials.staffPin)}`);
+    if (credentials.defaulted.length === 0) {
+        console.log("Учётные данные: все четыре заданы окружением.");
+        return;
+    }
+    const names = credentials.defaulted.join(", ");
+    if (productionModeActive()) {
+        throw new SeedRefusedError([
+            "ОТКАЗ: NODE_ENV=production, а учётные данные взяты по умолчанию.",
+            `Не заданы: ${names}.`,
+            "Значения по умолчанию опубликованы в этом репозитории и известны всем.",
+            "Задайте CLINIC_LOGIN, CLINIC_PASSWORD, ADMIN_PIN и STAFF_PIN в окружении.",
+        ].join("\n"));
+    }
+    console.warn([
+        "",
+        "ВНИМАНИЕ: учётные данные взяты ПО УМОЛЧАНИЮ, они опубликованы в репозитории.",
+        `  Не заданы окружением: ${names}`,
+        "  Это допустимо только для разработки и демонстрации.",
+        "  Перед передачей клинике задайте их явно и смените после первого входа.",
+        "",
+    ].join("\n"));
 }
 /**
  * Решает, разрешена ли перезапись, и печатает масштаб ДО решения.
@@ -223,175 +212,149 @@ function reportCredentials(credentials) {
  *     безусловный: смена учётных данных боевой клиники — не работа сидера.
  */
 function authorizeOverwrite(organizationExists, existingStaffCount) {
-	if (!organizationExists && existingStaffCount === 0) {
-		console.log(
-			`Арендатор ${WORKING_ORG_ID} пуст: организация и сотрудники создаются заново.`,
-		);
-		return;
-	}
-	console.log("Запуск ПЕРЕПИШЕТ существующие учётные данные:");
-	console.log(
-		`   организация:  ${organizationExists ? "1 строка" : "нет, будет создана"}`,
-	);
-	console.log(
-		`   сотрудники:   ${existingStaffCount} из ${WORKING_STAFF.length} уже в базе`,
-	);
-	if (productionModeActive()) {
-		throw new SeedRefusedError(
-			[
-				"ОТКАЗ: NODE_ENV=production, а учётные данные этой клиники уже существуют.",
-				"Смена пароля клиники и PIN-кодов персонала в боевой базе не выполняется",
-				"этим скриптом ни при каких флагах — для этого есть маршруты приложения.",
-			].join("\n"),
-		);
-	}
-	if (!credentialOverwriteAuthorized()) {
-		throw new SeedRefusedError(
-			[
-				"ОТКАЗ: запуск переписал бы пароль входа клиники и PIN-коды персонала.",
-				`Чтобы разрешить это осознанно, задайте ${CREDENTIAL_OVERWRITE_ENV_NAME}="${CREDENTIAL_OVERWRITE_ENV_VALUE}".`,
-				"Ничего не изменено, транзакция откачена.",
-			].join("\n"),
-		);
-	}
-	console.log(
-		`Разрешено переменной ${CREDENTIAL_OVERWRITE_ENV_NAME}=${CREDENTIAL_OVERWRITE_ENV_VALUE}. Перезаписываю...`,
-	);
+    if (!organizationExists && existingStaffCount === 0) {
+        console.log(`Арендатор ${WORKING_ORG_ID} пуст: организация и сотрудники создаются заново.`);
+        return;
+    }
+    console.log("Запуск ПЕРЕПИШЕТ существующие учётные данные:");
+    console.log(`   организация:  ${organizationExists ? "1 строка" : "нет, будет создана"}`);
+    console.log(`   сотрудники:   ${existingStaffCount} из ${WORKING_STAFF.length} уже в базе`);
+    if (productionModeActive()) {
+        throw new SeedRefusedError([
+            "ОТКАЗ: NODE_ENV=production, а учётные данные этой клиники уже существуют.",
+            "Смена пароля клиники и PIN-кодов персонала в боевой базе не выполняется",
+            "этим скриптом ни при каких флагах — для этого есть маршруты приложения.",
+        ].join("\n"));
+    }
+    if (!credentialOverwriteAuthorized()) {
+        throw new SeedRefusedError([
+            "ОТКАЗ: запуск переписал бы пароль входа клиники и PIN-коды персонала.",
+            `Чтобы разрешить это осознанно, задайте ${CREDENTIAL_OVERWRITE_ENV_NAME}="${CREDENTIAL_OVERWRITE_ENV_VALUE}".`,
+            "Ничего не изменено, транзакция откачена.",
+        ].join("\n"));
+    }
+    console.log(`Разрешено переменной ${CREDENTIAL_OVERWRITE_ENV_NAME}=${CREDENTIAL_OVERWRITE_ENV_VALUE}. Перезаписываю...`);
 }
 async function seedAuth() {
-	console.log("Учётные данные рабочей клиники — запись в базу.");
-	const credentials = resolveCredentials();
-	reportCredentials(credentials);
-	const passwordHash = await hashCredential(credentials.clinicPassword);
-	/*
-	 * hashCredential асинхронна (pbkdf2 в пуле потоков, см. utils/cryptoHelper.ts).
-	 * Без await в колонку уехал бы текст "[object Promise]", и войти в клинику
-	 * после посева не удалось бы ни с каким паролем. Соль своя у каждой строки,
-	 * поэтому хеши PIN-кодов считаются построчно, а не один раз на роль: два
-	 * сотрудника с одинаковым PIN не должны получать одинаковый хеш.
-	 */
-	const staffRows = await Promise.all(
-		WORKING_STAFF.map(async (staff) => ({
-			staff,
-			pinCodeHash: await hashCredential(
-				staff.isAdmin ? credentials.adminPin : credentials.staffPin,
-			),
-			/*
-			 * Владелец входит и как клиника (пароль организации), и как пользователь,
-			 * поэтому его строка получает тот же пароль. У остальных
-			 * `users.password_hash` остаётся пустым: вход по PIN-коду.
-			 */
-			passwordHash: staff.email === "owner@example.com" ? passwordHash : null,
-		})),
-	);
-	await withTenantCtx(WORKING_ORG_ID, async (tx) => {
-		const existingOrg = await tx
-			.select({ id: schema.organizations.id })
-			.from(schema.organizations)
-			.where(eq(schema.organizations.id, WORKING_ORG_ID))
-			.limit(1);
-		const existingStaff = await tx
-			.select({ id: schema.users.id })
-			.from(schema.users)
-			.where(eq(schema.users.organizationId, WORKING_ORG_ID));
-		const existingStaffIds = new Set(existingStaff.map((row) => row.id));
-		authorizeOverwrite(existingOrg.length > 0, existingStaff.length);
-		if (existingOrg.length > 0) {
-			/*
-			 * `returning` здесь не украшение. Прежняя версия печатала «Organization
-			 * updated» безусловно, поэтому под RLS сообщение об успехе появлялось бы
-			 * и после запроса, обновившего НОЛЬ строк. Количество затронутых строк
-			 * теперь измеряется, а не предполагается.
-			 */
-			const updated = await tx
-				.update(schema.organizations)
-				.set({ loginId: credentials.clinicLogin, passwordHash })
-				.where(eq(schema.organizations.id, WORKING_ORG_ID))
-				.returning({ id: schema.organizations.id });
-			console.log(
-				`Организация обновлена: ${updated.length} строк (${WORKING_ORG_NAME})`,
-			);
-		} else {
-			const inserted = await tx
-				.insert(schema.organizations)
-				.values({
-					id: WORKING_ORG_ID,
-					name: WORKING_ORG_NAME,
-					loginId: credentials.clinicLogin,
-					passwordHash,
-					inn: "631234567890",
-					ogrn: "318631300000000",
-					email: credentials.clinicLogin,
-				})
-				.returning({ id: schema.organizations.id });
-			console.log(
-				`Организация создана: ${inserted.length} строк (${WORKING_ORG_NAME})`,
-			);
-		}
-		for (const row of staffRows) {
-			if (existingStaffIds.has(row.staff.id)) {
-				/*
-				 * Обновление идёт по ПЕРВИЧНОМУ КЛЮЧУ. Прежний код выбирал строку по
-				 * `users.id`, а обновлял по паре (organization_id, full_name): при
-				 * двух полных тёзках в клинике он переписывал PIN-код обоим, а при
-				 * переименованном сотруднике — ни одному, продолжая печатать «updated».
-				 * Условие по организации оставлено: оно дублирует границу арендатора,
-				 * которую и так держит RLS, и стоит один индексный поиск.
-				 */
-				const updated = await tx
-					.update(schema.users)
-					.set({
-						pinCodeHash: row.pinCodeHash,
-						passwordHash: row.passwordHash,
-						isActive: true,
-					})
-					.where(
-						and(
-							eq(schema.users.id, row.staff.id),
-							eq(schema.users.organizationId, WORKING_ORG_ID),
-						),
-					)
-					.returning({ id: schema.users.id });
-				console.log(
-					`   ${row.staff.fullName} (${row.staff.role}): обновлено ${updated.length} строк`,
-				);
-			} else {
-				const inserted = await tx
-					.insert(schema.users)
-					.values({
-						id: row.staff.id,
-						organizationId: WORKING_ORG_ID,
-						fullName: row.staff.fullName,
-						role: row.staff.role,
-						phone: row.staff.phone,
-						email: row.staff.email,
-						pinCodeHash: row.pinCodeHash,
-						passwordHash: row.passwordHash,
-						isActive: true,
-					})
-					.returning({ id: schema.users.id });
-				console.log(
-					`   ${row.staff.fullName} (${row.staff.role}): создано ${inserted.length} строк`,
-				);
-			}
-		}
-	});
-	console.log("");
-	console.log("Готово. Вход клиники: POST /api/auth/clinic/login.");
-	console.log("Схему создаёт 'npm run db:migrate', её надо запускать первой.");
+    console.log("Учётные данные рабочей клиники — запись в базу.");
+    const credentials = resolveCredentials();
+    reportCredentials(credentials);
+    const passwordHash = await hashCredential(credentials.clinicPassword);
+    /*
+     * hashCredential асинхронна (pbkdf2 в пуле потоков, см. utils/cryptoHelper.ts).
+     * Без await в колонку уехал бы текст "[object Promise]", и войти в клинику
+     * после посева не удалось бы ни с каким паролем. Соль своя у каждой строки,
+     * поэтому хеши PIN-кодов считаются построчно, а не один раз на роль: два
+     * сотрудника с одинаковым PIN не должны получать одинаковый хеш.
+     */
+    const staffRows = await Promise.all(WORKING_STAFF.map(async (staff) => ({
+        staff,
+        pinCodeHash: await hashCredential(staff.isAdmin ? credentials.adminPin : credentials.staffPin),
+        /*
+         * Владелец входит и как клиника (пароль организации), и как пользователь,
+         * поэтому его строка получает тот же пароль. У остальных
+         * `users.password_hash` остаётся пустым: вход по PIN-коду.
+         */
+        passwordHash: staff.email === "owner@example.com" ? passwordHash : null,
+    })));
+    await withTenantCtx(WORKING_ORG_ID, async (tx) => {
+        const existingOrg = await tx
+            .select({ id: schema.organizations.id })
+            .from(schema.organizations)
+            .where(eq(schema.organizations.id, WORKING_ORG_ID))
+            .limit(1);
+        const existingStaff = await tx
+            .select({ id: schema.users.id })
+            .from(schema.users)
+            .where(eq(schema.users.organizationId, WORKING_ORG_ID));
+        const existingStaffIds = new Set(existingStaff.map((row) => row.id));
+        authorizeOverwrite(existingOrg.length > 0, existingStaff.length);
+        if (existingOrg.length > 0) {
+            /*
+             * `returning` здесь не украшение. Прежняя версия печатала «Organization
+             * updated» безусловно, поэтому под RLS сообщение об успехе появлялось бы
+             * и после запроса, обновившего НОЛЬ строк. Количество затронутых строк
+             * теперь измеряется, а не предполагается.
+             */
+            const updated = await tx
+                .update(schema.organizations)
+                .set({ loginId: credentials.clinicLogin, passwordHash })
+                .where(eq(schema.organizations.id, WORKING_ORG_ID))
+                .returning({ id: schema.organizations.id });
+            console.log(`Организация обновлена: ${updated.length} строк (${WORKING_ORG_NAME})`);
+        }
+        else {
+            const inserted = await tx
+                .insert(schema.organizations)
+                .values({
+                id: WORKING_ORG_ID,
+                name: WORKING_ORG_NAME,
+                loginId: credentials.clinicLogin,
+                passwordHash,
+                inn: "631234567890",
+                ogrn: "318631300000000",
+                email: credentials.clinicLogin,
+            })
+                .returning({ id: schema.organizations.id });
+            console.log(`Организация создана: ${inserted.length} строк (${WORKING_ORG_NAME})`);
+        }
+        for (const row of staffRows) {
+            if (existingStaffIds.has(row.staff.id)) {
+                /*
+                 * Обновление идёт по ПЕРВИЧНОМУ КЛЮЧУ. Прежний код выбирал строку по
+                 * `users.id`, а обновлял по паре (organization_id, full_name): при
+                 * двух полных тёзках в клинике он переписывал PIN-код обоим, а при
+                 * переименованном сотруднике — ни одному, продолжая печатать «updated».
+                 * Условие по организации оставлено: оно дублирует границу арендатора,
+                 * которую и так держит RLS, и стоит один индексный поиск.
+                 */
+                const updated = await tx
+                    .update(schema.users)
+                    .set({
+                    pinCodeHash: row.pinCodeHash,
+                    passwordHash: row.passwordHash,
+                    isActive: true,
+                })
+                    .where(and(eq(schema.users.id, row.staff.id), eq(schema.users.organizationId, WORKING_ORG_ID)))
+                    .returning({ id: schema.users.id });
+                console.log(`   ${row.staff.fullName} (${row.staff.role}): обновлено ${updated.length} строк`);
+            }
+            else {
+                const inserted = await tx
+                    .insert(schema.users)
+                    .values({
+                    id: row.staff.id,
+                    organizationId: WORKING_ORG_ID,
+                    fullName: row.staff.fullName,
+                    role: row.staff.role,
+                    phone: row.staff.phone,
+                    email: row.staff.email,
+                    pinCodeHash: row.pinCodeHash,
+                    passwordHash: row.passwordHash,
+                    isActive: true,
+                })
+                    .returning({ id: schema.users.id });
+                console.log(`   ${row.staff.fullName} (${row.staff.role}): создано ${inserted.length} строк`);
+            }
+        }
+    });
+    console.log("");
+    console.log("Готово. Вход клиники: POST /api/auth/clinic/login.");
+    console.log("Схему создаёт 'npm run db:migrate', её надо запускать первой.");
 }
 seedAuth()
-	.then(async () => {
-		await pool.end();
-		process.exit(0);
-	})
-	.catch(async (error) => {
-		if (error instanceof SeedRefusedError) {
-			console.error("");
-			console.error(error.message);
-		} else {
-			console.error("Ошибка посева учётных данных:", error);
-		}
-		await pool.end();
-		process.exit(1);
-	});
+    .then(async () => {
+    await pool.end();
+    process.exit(0);
+})
+    .catch(async (error) => {
+    if (error instanceof SeedRefusedError) {
+        console.error("");
+        console.error(error.message);
+    }
+    else {
+        console.error("Ошибка посева учётных данных:", error);
+    }
+    await pool.end();
+    process.exit(1);
+});

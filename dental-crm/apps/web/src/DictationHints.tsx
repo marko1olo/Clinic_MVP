@@ -1,5 +1,3 @@
-import React from "react";
-
 interface DictationHintsProps {
 	isVisible: boolean;
 	type: "schedule" | "patient" | "visit" | "prices" | "payment";

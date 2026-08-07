@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import {
 	AlertTriangle,
 	BrainCircuit,
@@ -37,7 +39,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 	// Кнопка «Рассчитать AI-риск» перезапускает тот же эффект, а не отдельную
 	// функцию: иначе ручной запрос остался бы без отмены и снова мог бы
 	// показать чужой прогноз.
-	const [reloadToken, setReloadToken] = useState(0);
+	const [_reloadToken, setReloadToken] = useState(0);
 	/*
 	 * БЫЛО: отказ сервера не сохранялся нигде. Ветка `if (res.ok)` без `else` и
 	 * `catch` с одним console.error оставляли riskData равным null, а на null
@@ -91,6 +93,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 					setFailure({ status: res.status });
 				}
 			} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 				if (cancelled || (e as Error)?.name === "AbortError") return;
 				console.error("Failed to fetch AI no-show risk", e);
 				setFailure({ status: null });
@@ -103,7 +106,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 			cancelled = true;
 			controller.abort();
 		};
-	}, [patientId, reloadToken]);
+	}, [patientId]);
 
 	if (!patientId) return null;
 
@@ -215,8 +218,8 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 								Факторы риска:
 							</span>
 							<ul className="mt-1 space-y-1 text-xs text-slate-600 dark:text-slate-400 pl-4 list-disc">
-								{riskData.factors.map((factor: string, idx: number) => (
-									<li key={idx}>{factor}</li>
+								{riskData.factors.map((factor: string) => (
+									<li key={factor}>{factor}</li>
 								))}
 							</ul>
 						</div>

@@ -2579,9 +2579,9 @@ function migrationCandidateFromWorkstationSignal(signal) {
         `${primaryProfile.label}: ${primaryProfile.reason}`,
         `${migrationWorkstationSignalChannelTitle(signal.channel)} похож на установленную старую CRM, снимки или базу`,
     ];
-    signal.profiles
-        .slice(1, 3)
-        .forEach((profile) => reasons.push(`${profile.label}: ${profile.reason}`));
+    signal.profiles.slice(1, 3).forEach((profile) => {
+        reasons.push(`${profile.label}: ${profile.reason}`);
+    });
     return {
         sourceRef,
         safeDisplayName: migrationProfileSafeAlias(primaryProfile.label, primaryProfile.kind, sourceRef),
@@ -3958,7 +3958,9 @@ async function inspectMigrationProbeFile(input) {
         try {
             const header = await readMigrationProbeHeader(input.filePath, input.readHeaderBytes);
             signals = migrationProbeFormatSignals(input.filePath, header, kind);
-            signals.forEach((signal) => input.formatSignals.add(signal));
+            signals.forEach((signal) => {
+                input.formatSignals.add(signal);
+            });
         }
         catch {
             input.warnings.add("Один файл-кандидат не удалось прочитать даже для заголовка; он учтен без сигнатуры.");
@@ -5236,7 +5238,9 @@ async function buildMigrationAutopilot(orgId, input) {
         includeWorkstationSignals: input.includeWorkstationSignals,
         maxWorkstationSignals: input.maxWorkstationSignals,
     });
-    discovery.warnings.forEach((warning) => warnings.add(warning));
+    discovery.warnings.forEach((warning) => {
+        warnings.add(warning);
+    });
     if (input.knownSources?.length) {
         warnings.add("Автопилот добавил браузерный список из явно выбранной папки/файлов; полный локальный путь и содержимое файлов в публичные сервисы не уходят.");
     }
@@ -5286,8 +5290,12 @@ async function buildMigrationAutopilot(orgId, input) {
                 maxSampleArtifacts: 10,
                 readHeaderBytes: 4096,
             });
-            probe.warnings.forEach((warning) => warnings.add(warning));
-            probe.privacyWarnings.forEach((warning) => privacyWarnings.add(warning));
+            probe.warnings.forEach((warning) => {
+                warnings.add(warning);
+            });
+            probe.privacyWarnings.forEach((warning) => {
+                privacyWarnings.add(warning);
+            });
         }
         catch {
             warnings.add(`Источник ${candidate.safeDisplayName} найден, но быстрая проверка не завершилась. Откройте план источника или выберите папку вручную.`);
@@ -5326,7 +5334,9 @@ async function buildMigrationAutopilot(orgId, input) {
         clinicLookupInputFromSmartImport(smartImportPreview?.clinicSuggestion ?? null);
     if (clinicLookupInput) {
         clinicLookup = await buildClinicPublicLookup(clinicLookupInput);
-        clinicLookup.warnings.forEach((warning) => warnings.add(warning));
+        clinicLookup.warnings.forEach((warning) => {
+            warnings.add(warning);
+        });
     }
     const sortedSources = sources.sort((left, right) => right.score - left.score ||
         right.candidate.confidence - left.candidate.confidence ||
@@ -6653,9 +6663,9 @@ async function inspectMigrationDiscoveryFolder(item, input, queue, candidates, w
         reasons.push("имя папки похоже на контейнер резервных копий, выгрузок или данных клиники");
     if (shouldUseFolderSource)
         reasons.push("DBF/FoxPro нужно переносить всей папкой, чтобы не потерять memo и index файлы");
-    profileMatches
-        .slice(0, 3)
-        .forEach((profile) => reasons.push(`${profile.label}: ${profile.reason}`));
+    profileMatches.slice(0, 3).forEach((profile) => {
+        reasons.push(`${profile.label}: ${profile.reason}`);
+    });
     if (!matchedFiles && hasGenericDataContainerHint) {
         folderWarnings.add("Папка похожа на контейнер старой клиники, но на этом уровне нет явных баз, таблиц или снимков: откройте план, увеличьте глубину или выберите вложенную папку с данными, выгрузкой или резервной копией.");
     }

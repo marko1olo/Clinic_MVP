@@ -1,15 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppLogicContext } from "./contexts/AppLogicContext";
 import {
-	DICTATION_PARSING_TITLE,
 	type DictationContext,
-	dictationComplexHint,
-	dictationEmptyHint,
 	dictationFailureText,
-	isDictationResultEmpty,
-	resolveDictationPhase,
 	serverParsesDictation,
 } from "./lib/panelStateText";
 
@@ -170,7 +165,7 @@ export function SmartParsePreview({
 
 	// Render logic depending on type
 	const renderSchedulePreview = (data: any) => {
-		if (data && data.isAiTask)
+		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
 					{data.isAiTask && (
@@ -270,7 +265,7 @@ export function SmartParsePreview({
 	};
 
 	const renderPricesPreview = (data: any) => {
-		if (data && data.isAiTask)
+		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
 					{data.isAiTask && (
@@ -288,7 +283,7 @@ export function SmartParsePreview({
 					)}
 				</div>
 			);
-		if (!data || !data.serviceName)
+		if (!data?.serviceName)
 			return (
 				<div className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
 					Название услуги не распознано. Скажите название и цену одной фразой —
@@ -326,7 +321,7 @@ export function SmartParsePreview({
 	};
 
 	const renderPatientPreview = (data: any) => {
-		if (data && data.isAiTask)
+		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
 					{data.isAiTask && (
@@ -384,7 +379,7 @@ export function SmartParsePreview({
 	};
 
 	const renderVisitPreview = (data: any) => {
-		if (data && data.isAiTask)
+		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
 					{data.isAiTask && (
@@ -419,9 +414,13 @@ export function SmartParsePreview({
 					<div className="mb-2">
 						<span className="text-slate-500 block mb-1">Зубы:</span>
 						<div className="flex flex-wrap gap-1">
-							{data.toothUpdates.map((t: any, i: number) => (
+							{data.toothUpdates.map((t: any, toothIndex: number) => (
 								<span
-									key={i}
+									key={
+										t.code
+											? `tooth-${t.code}`
+											: `tooth-${t.state || "update"}-${toothIndex}`
+									}
 									className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs border border-blue-100"
 								>
 									{t.code}: {t.state}
@@ -504,6 +503,7 @@ export function SmartParsePreview({
 					<div className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700/60 p-3 flex justify-between items-center">
 						<h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
 							<svg
+								aria-hidden="true"
 								className="w-4 h-4 text-emerald-500"
 								fill="none"
 								viewBox="0 0 24 24"
@@ -519,10 +519,12 @@ export function SmartParsePreview({
 							Результат распознавания
 						</h4>
 						<button
+							type="button"
 							onClick={onClose}
 							className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
 						>
 							<svg
+								aria-hidden="true"
 								className="w-4 h-4"
 								fill="none"
 								viewBox="0 0 24 24"
@@ -549,11 +551,13 @@ export function SmartParsePreview({
 
 					<div className="bg-slate-50 dark:bg-slate-800/80 p-3 border-t border-slate-100 dark:border-slate-700/60 flex gap-2">
 						<button
+							type="button"
 							onClick={() => onApply(internalData)}
 							disabled={isAiLoading}
 							className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-medium text-sm py-2 px-3 rounded-lg transition-colors flex justify-center items-center gap-1"
 						>
 							<svg
+								aria-hidden="true"
 								className="w-4 h-4"
 								fill="none"
 								viewBox="0 0 24 24"
@@ -569,11 +573,13 @@ export function SmartParsePreview({
 							Применить
 						</button>
 						<button
+							type="button"
 							onClick={handleAiParse}
 							disabled={isAiLoading}
 							className="flex-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/80 dark:hover:bg-purple-900 dark:text-purple-300 text-purple-700 font-medium text-sm py-2 px-3 rounded-lg transition-colors flex justify-center items-center gap-1"
 						>
 							<svg
+								aria-hidden="true"
 								className="w-4 h-4"
 								fill="none"
 								viewBox="0 0 24 24"
@@ -589,6 +595,7 @@ export function SmartParsePreview({
 							ИИ-Анализ
 						</button>
 						<button
+							type="button"
 							onClick={onManual}
 							disabled={isAiLoading}
 							className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-700 dark:text-slate-200 font-medium text-sm py-2 px-3 rounded-lg transition-colors"

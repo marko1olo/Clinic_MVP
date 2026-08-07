@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function VisitTimer({ createdAt }: { createdAt?: string | null }) {
 	const [elapsed, setElapsed] = useState("");
@@ -37,6 +37,7 @@ export function VisitTimer({ createdAt }: { createdAt?: string | null }) {
 
 	return (
 		<div
+			role="timer"
 			className="visit-timer"
 			style={{
 				display: "inline-flex",

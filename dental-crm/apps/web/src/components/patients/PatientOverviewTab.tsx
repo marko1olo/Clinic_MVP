@@ -1,15 +1,11 @@
-import { Dashboard } from "@dental/shared";
-import { motion } from "framer-motion";
-import { UserCheck } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { usePatientStore } from "../../store/patientStore";
-import { formatPhoneNumber } from "../../utils/inputSanitation";
 import { PatientDuplicateMergeQueuesWidget } from "../crm/PatientDuplicateMergeQueuesWidget";
+import { LabOrdersPanel } from "../LabOrdersPanel";
 import { PatientJourneyTimeline } from "../PatientJourneyTimeline";
-import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
 import { OrthodonticProgressWidget } from "./OrthodonticProgressWidget";
 import { PatientArchiveAndBlacklistWidget } from "./PatientArchiveAndBlacklistWidget";
 import { PatientCommunicationTimelineWidget } from "./PatientCommunicationTimelineWidget";
@@ -23,6 +19,9 @@ import { PatientTaskTicketsWidget } from "./PatientTaskTicketsWidget";
 type TextFieldChangeEvent = React.ChangeEvent<
 	HTMLInputElement | HTMLTextAreaElement
 >;
+
+import { actionFailureToast } from "../../lib/panelStateText";
+import { showToast } from "../GlobalToast";
 
 export function PatientOverviewTab() {
 	const appLogic = useAppLogicContext();
@@ -38,15 +37,15 @@ export function PatientOverviewTab() {
 	const dashboard = appLogic.dashboard;
 	const { savePatientCore, updatePatientCoreDraft, selectedPatient } = appLogic;
 
-	const patientCoreReadyToSave =
+	const _patientCoreReadyToSave =
 		(patientCoreDraft?.fullName ?? "").trim().length > 0 && patientCoreDirty;
-	const patientCoreSaveGuidance =
+	const _patientCoreSaveGuidance =
 		patientCoreSaveState === "error"
 			? "Ошибка сохранения"
 			: patientCoreSaveState === "saved"
 				? "Сохранено"
 				: null;
-	const patientCoreSaveGuidanceId = "patientCoreSaveGuidanceId";
+	const _patientCoreSaveGuidanceId = "patientCoreSaveGuidanceId";
 	const [familyData, setFamilyData] = useState<any>(null);
 	/*
 	 * БЫЛО: любой неудачный ответ приравнивался к «семьи нет» — `if (!res.ok)
@@ -89,11 +88,18 @@ export function PatientOverviewTab() {
 		const headers = appLogic?.auth
 			? appLogic.auth.denteClinicalReadHeaders()
 			: {};
-		fetch(`/api/finance/family/patient/${requestedPatientId}`, { headers })
+			fetch(`/api/finance/family/patient/${requestedPatientId}`, { headers })
 			.then(async (res) => {
 				if (selectedPatientIdRef.current !== requestedPatientId) return;
 				if (res.ok) {
-					const data = await res.json().catch(() => null);
+					const data = await res.json().catch((err: any) => {
+						console.error(err);
+						showToast(
+							actionFailureToast("Ошибка чтения ответа", (err as { status?: number })?.status ?? null),
+							"error"
+						);
+						return null;
+					});
 					setFamilyData(data ?? null);
 					// Ответ 200 без тела — тоже не прочитанные данные, а не «нет семьи».
 					setFamilyLoadFailure(data ? null : { status: res.status });
@@ -104,7 +110,12 @@ export function PatientOverviewTab() {
 					res.status === 404 ? null : { status: res.status },
 				);
 			})
-			.catch(() => {
+			.catch((err: any) => {
+				console.error(err);
+				showToast(
+					actionFailureToast("Ошибка загрузки семьи", (err as { status?: number })?.status ?? null),
+					"error"
+				);
 				if (selectedPatientIdRef.current !== requestedPatientId) return;
 				setFamilyData(null);
 				setFamilyLoadFailure({ status: null });
@@ -185,6 +196,10 @@ export function PatientOverviewTab() {
 
 					{selectedPatientId && workspaceFlags.hasOrthodontics && (
 						<OrthodonticProgressWidget patientId={selectedPatientId} />
+					)}
+
+					{selectedPatientId && (
+						<LabOrdersPanel patientId={selectedPatientId} />
 					)}
 
 					{selectedPatientId && workspaceFlags.hasReclamations && (

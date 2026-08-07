@@ -4,10 +4,10 @@ import {
 	percentageOfKopecks,
 	splitKopecks,
 } from "@dental/shared";
-import { Bot, CreditCard, Mic, UserRound } from "lucide-react";
+import { Bot, CreditCard, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { money } from "./AppHelpers";
-import { showToast } from "./components/GlobalToast";
+import { SberbankTerminalPaymentModal } from "./components/finance/SberbankTerminalPaymentModal";
 import { rubAmountForInput } from "./components/payments/cashDeskAmounts";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { DictationHints } from "./DictationHints";
@@ -15,7 +15,6 @@ import { AiOrchestrator } from "./lib/aiOrchestrator";
 import { textToNumbers } from "./lib/stringUtils";
 import {
 	normalizeRubAmountInput,
-	rubAmountInputMissingStep,
 	validateRubAmountInput,
 } from "./rubAmountInput";
 import { SmartParsePreview } from "./SmartParsePreview";
@@ -59,6 +58,7 @@ type PaymentCaptureProps = {
 		identityDocument?: string | null;
 		taxpayerInn?: string | null;
 	};
+	patientId?: string | null;
 	payerBirthDate: string;
 	payerFullName: string;
 	payerIdentityDocument: string;
@@ -385,6 +385,7 @@ function TaxPayerDetails({
 						</div>
 					</div>
 					<div
+						role="toolbar"
 						className="quick-chips-row"
 						style={{ marginBottom: "20px" }}
 						aria-label="Код медицинской услуги для налогового вычета"
@@ -520,7 +521,7 @@ function InstallmentCalculator({
 							max="24"
 							step="1"
 							value={months}
-							onChange={(e) => setMonths(parseInt(e.target.value))}
+							onChange={(e) => setMonths(parseInt(e.target.value, 10))}
 							style={{ width: "100%" }}
 						/>
 						<div
@@ -563,7 +564,9 @@ function InstallmentCalculator({
 							max="80"
 							step="10"
 							value={downPaymentPercent}
-							onChange={(e) => setDownPaymentPercent(parseInt(e.target.value))}
+							onChange={(e) =>
+								setDownPaymentPercent(parseInt(e.target.value, 10))
+							}
 							style={{ width: "100%" }}
 						/>
 						<div
@@ -711,6 +714,7 @@ export function PaymentCapture({
 	patientContextMessage,
 	patientContextReady,
 	patientDefaults,
+	patientId,
 	payerBirthDate,
 	payerFullName,
 	payerIdentityDocument,
@@ -732,6 +736,7 @@ export function PaymentCapture({
 	);
 	const [smartParsedData, setSmartParsedData] = useState<any>(null);
 	const [showHints, setShowHints] = useState(false);
+	const [isSberbankModalOpen, setIsSberbankModalOpen] = useState(false);
 
 	const handleSmartDictation = (text: string) => {
 		if (!text.trim()) return;
@@ -745,7 +750,7 @@ export function PaymentCapture({
 
 			setSmartParsedData({
 				isAiTask: false,
-				text: "Успешно распознано: " + text,
+				text: `Успешно распознано: ${text}`,
 				parsed,
 			});
 			setShowSmartPreview(true);
@@ -989,7 +994,7 @@ export function PaymentCapture({
 					onChange={(event) => onAmountChange(event.target.value)}
 					placeholder=" "
 				/>
-				<label>Сумма к оплате (₽)</label>
+				<label htmlFor="payment-amount-input">Сумма к оплате (₽)</label>
 				{remainingDebt !== undefined && (
 					<div
 						className="quick-chips-row"
@@ -1030,6 +1035,7 @@ export function PaymentCapture({
 				)}
 			</div>
 			<div
+				role="toolbar"
 				className="quick-chips-row"
 				style={{ marginBottom: "20px" }}
 				aria-label="Способ оплаты"
@@ -1113,18 +1119,41 @@ export function PaymentCapture({
 				Каждая оплата добавляет новую строку в историю. Ошибку закрывайте
 				возвратом или коррекцией, не повторной записью.
 			</p>
-			<button
-				className="primary-button"
-				type="button"
-				onClick={onSubmit}
-				aria-busy={isSaving || undefined}
-				aria-describedby={!paymentReadyToSubmit ? paymentMissingId : undefined}
-				disabled={isSaving || !paymentReadyToSubmit}
-			>
-				{/* Было «Записываэ»: опечатка на кнопке кассы, видна каждому кассиру. */}
-				<CreditCard aria-hidden="true" />{" "}
-				{isSaving ? "Записываю" : "Принять оплату"}
-			</button>
+			<div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+				<button
+					className="primary-button"
+					type="button"
+					onClick={onSubmit}
+					aria-busy={isSaving || undefined}
+					aria-describedby={
+						!paymentReadyToSubmit ? paymentMissingId : undefined
+					}
+					disabled={isSaving || !paymentReadyToSubmit}
+				>
+					<CreditCard aria-hidden="true" />{" "}
+					{isSaving ? "Записываю" : "Принять оплату"}
+				</button>
+				<button
+					className="secondary-button"
+					type="button"
+					onClick={() => setIsSberbankModalOpen(true)}
+					aria-describedby={
+						!paymentReadyToSubmit ? paymentMissingId : undefined
+					}
+					disabled={isSaving || !paymentReadyToSubmit || !patientId}
+				>
+					<CreditCard aria-hidden="true" /> Оплатить картой (Терминал Сбербанк)
+				</button>
+			</div>
+			{patientId && (
+				<SberbankTerminalPaymentModal
+					isOpen={isSberbankModalOpen}
+					patientId={patientId}
+					amountInRubles={Number(normalizeRubAmountInput(amount) ?? 0)}
+					onClose={() => setIsSberbankModalOpen(false)}
+					onSuccess={() => onSubmit()}
+				/>
+			)}
 		</div>
 	);
 }

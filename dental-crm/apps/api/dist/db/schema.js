@@ -373,7 +373,9 @@ export const clinics = pgTable("clinics", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("clinics_organization_id_idx").on(t.organizationId),
+}));
 export const users = pgTable("users", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -427,10 +429,15 @@ export const users = pgTable("users", {
     specialties: jsonb("specialties"),
     uiPreferences: jsonb("ui_preferences"),
     workingHours: jsonb("working_hours"),
+    currentSessionId: text("current_session_id"),
+    yandexCalendarId: text("yandex_calendar_id"),
+    yandexCalendarToken: jsonb("yandex_calendar_token"),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("users_organization_id_idx").on(t.organizationId),
+}));
 export const userInvitations = pgTable("user_invitations", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -444,7 +451,9 @@ export const userInvitations = pgTable("user_invitations", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("user_invitations_organization_id_idx").on(t.organizationId),
+}));
 export const chairs = pgTable("chairs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -458,7 +467,10 @@ export const chairs = pgTable("chairs", {
     equipment: text("equipment"),
     specializations: text("specializations"),
     workingHours: jsonb("working_hours"),
-});
+}, (t) => ({
+    organizationIdIdx: index("chairs_organization_id_idx").on(t.organizationId),
+    clinicIdIdx: index("chairs_clinic_id_idx").on(t.clinicId),
+}));
 export const patients = pgTable("patients", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -506,7 +518,11 @@ export const patientConsents = pgTable("patient_consents", {
     grantedAt: timestamp("granted_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     documentId: uuid("document_id"),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_consents_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("patient_consents_patient_id_idx").on(t.patientId),
+    documentIdIdx: index("patient_consents_document_id_idx").on(t.documentId),
+}));
 export const appointments = pgTable("appointments", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -524,6 +540,10 @@ export const appointments = pgTable("appointments", {
 }, (table) => {
     return {
         idxAppointmentsOrgTime: index("idx_appointments_org_time").on(table.organizationId, table.startsAt, table.endsAt),
+        patientIdIdx: index("appointments_patient_id_idx").on(table.patientId),
+        doctorUserIdIdx: index("appointments_doctor_user_id_idx").on(table.doctorUserId),
+        assistantUserIdIdx: index("appointments_assistant_user_id_idx").on(table.assistantUserId),
+        chairIdIdx: index("appointments_chair_id_idx").on(table.chairId),
         timeOrderCheck: check("appointments_time_order_check", sql `${table.startsAt} < ${table.endsAt}`),
     };
 });
@@ -537,6 +557,7 @@ export const visits = pgTable("visits", {
         .references(() => patients.id),
     appointmentId: uuid("appointment_id").references(() => appointments.id),
     status: visitStatus("status").notNull().default("draft"),
+    qualityControlStatus: text("quality_control_status").default("pending"),
     revision: integer("revision").notNull().default(1),
     complaint: text("complaint"),
     anamnesis: text("anamnesis"),
@@ -556,6 +577,9 @@ export const visits = pgTable("visits", {
 }, (table) => {
     return {
         visitPatientOrganizationUnique: unique("visits_id_patient_organization_unique").on(table.id, table.patientId, table.organizationId),
+        organizationIdIdx: index("visits_organization_id_idx").on(table.organizationId),
+        patientIdIdx: index("visits_patient_id_idx").on(table.patientId),
+        appointmentIdIdx: index("visits_appointment_id_idx").on(table.appointmentId),
     };
 });
 export const serviceCatalogItems = pgTable("service_catalog_items", {
@@ -590,7 +614,9 @@ export const serviceCatalogItems = pgTable("service_catalog_items", {
     taxDeductible: boolean("tax_deductible").notNull().default(true),
     taxDeductionCode: text("tax_deduction_code"),
     isActive: boolean("is_active").notNull().default(true),
-});
+}, (t) => ({
+    organizationIdIdx: index("service_catalog_items_organization_id_idx").on(t.organizationId),
+}));
 export const treatmentItems = pgTable("treatment_items", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -653,7 +679,14 @@ export const treatmentItems = pgTable("treatment_items", {
      */
     isSynced: boolean("is_synced").notNull().default(false),
     version: integer("version").notNull().default(1),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_items_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("treatment_items_patient_id_idx").on(t.patientId),
+    visitIdIdx: index("treatment_items_visit_id_idx").on(t.visitId),
+    serviceIdIdx: index("treatment_items_service_id_idx").on(t.serviceId),
+    plannedDoctorUserIdIdx: index("treatment_items_planned_doctor_user_id_idx").on(t.plannedDoctorUserId),
+    plannedChairIdIdx: index("treatment_items_planned_chair_id_idx").on(t.plannedChairId),
+}));
 export const treatmentScenarios = pgTable("treatment_scenarios", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -682,7 +715,9 @@ export const treatmentScenarios = pgTable("treatment_scenarios", {
     phasesJson: text("phases_json").notNull().default("[]"),
     prosJson: text("pros_json").notNull().default("[]"),
     tradeoffsJson: text("tradeoffs_json").notNull().default("[]"),
-    clinicalWarningsJson: text("clinical_warnings_json").notNull().default("[]"),
+    clinicalWarningsJson: text("clinical_warnings_json")
+        .notNull()
+        .default("[]"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
@@ -690,7 +725,10 @@ export const treatmentScenarios = pgTable("treatment_scenarios", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_scenarios_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("treatment_scenarios_patient_id_idx").on(t.patientId),
+}));
 export const clinicalRules = pgTable("clinical_rules", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -829,6 +867,8 @@ export const generatedDocuments = pgTable("generated_documents", {
             foreignColumns: [visits.id, visits.patientId, visits.organizationId],
             name: "generated_documents_visit_patient_organization_fk",
         }),
+        issuedByUserIdIdx: index("generated_documents_issued_by_idx").on(table.issuedByUserId),
+        voidedByUserIdIdx: index("generated_documents_voided_by_idx").on(table.voidedByUserId),
     };
 });
 export const communicationTemplates = pgTable("communication_templates", {
@@ -844,7 +884,10 @@ export const communicationTemplates = pgTable("communication_templates", {
     body: text("body").notNull(),
     variablesJson: text("variables_json").notNull().default("[]"),
     isActive: boolean("is_active").notNull().default(true),
-});
+}, (t) => ({
+    organizationIdIdx: index("communication_templates_organization_id_idx").on(t.organizationId),
+    clinicIdIdx: index("communication_templates_clinic_id_idx").on(t.clinicId),
+}));
 export const communicationTasks = pgTable("communication_tasks", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -871,7 +914,14 @@ export const communicationTasks = pgTable("communication_tasks", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("communication_tasks_organization_id_idx").on(t.organizationId),
+    clinicIdIdx: index("communication_tasks_clinic_id_idx").on(t.clinicId),
+    patientIdIdx: index("communication_tasks_patient_id_idx").on(t.patientId),
+    appointmentIdIdx: index("communication_tasks_appointment_id_idx").on(t.appointmentId),
+    visitIdIdx: index("communication_tasks_visit_id_idx").on(t.visitId),
+    documentIdIdx: index("communication_tasks_document_id_idx").on(t.documentId),
+}));
 export const communicationEvents = pgTable("communication_events", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -888,10 +938,19 @@ export const communicationEvents = pgTable("communication_events", {
     direction: communicationDirection("direction").notNull(),
     status: communicationStatus("status").notNull(),
     message: text("message").notNull(),
+    recordingUrl: text("recording_url"),
+    durationSeconds: integer("duration_seconds"),
+    audioFormat: text("audio_format").default("audio/mpeg"),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("communication_events_organization_id_idx").on(t.organizationId),
+    clinicIdIdx: index("communication_events_clinic_id_idx").on(t.clinicId),
+    taskIdIdx: index("communication_events_task_id_idx").on(t.taskId),
+    patientIdIdx: index("communication_events_patient_id_idx").on(t.patientId),
+    actorUserIdIdx: index("communication_events_actor_user_id_idx").on(t.actorUserId),
+}));
 export const denteTelegramBotConfigs = pgTable("dente_telegram_bot_configs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -1048,7 +1107,11 @@ export const attachments = pgTable("attachments", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("attachments_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("attachments_patient_id_idx").on(t.patientId),
+    visitIdIdx: index("attachments_visit_id_idx").on(t.visitId),
+}));
 export const imagingStudies = pgTable("imaging_studies", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -1072,7 +1135,11 @@ export const imagingStudies = pgTable("imaging_studies", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("imaging_studies_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("imaging_studies_patient_id_idx").on(t.patientId),
+    visitIdIdx: index("imaging_studies_visit_id_idx").on(t.visitId),
+}));
 export const importBatches = pgTable("import_batches", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -1088,7 +1155,9 @@ export const importBatches = pgTable("import_batches", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("import_batches_organization_id_idx").on(t.organizationId),
+}));
 export const auditEvents = pgTable("audit_events", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -1288,7 +1357,12 @@ export const imagingViewerSessions = pgTable("imaging_viewer_sessions", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("imaging_viewer_sessions_organization_id_idx").on(t.organizationId),
+    studyIdIdx: index("imaging_viewer_sessions_study_id_idx").on(t.studyId),
+    patientIdIdx: index("imaging_viewer_sessions_patient_id_idx").on(t.patientId),
+    visitIdIdx: index("imaging_viewer_sessions_visit_id_idx").on(t.visitId),
+}));
 export const dicomWorkbenchBundles = pgTable("dicom_workbench_bundles", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -1318,7 +1392,10 @@ export const dicomWorkbenchBundles = pgTable("dicom_workbench_bundles", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("dicom_workbench_bundles_organization_id_idx").on(t.organizationId),
+    patientIdIdx: index("dicom_workbench_bundles_patient_id_idx").on(t.patientId),
+}));
 // =====================================================
 // WAVE 9 & WAVE 10 — COMPETITOR PARITY SCHEMA TABLES
 // =====================================================
@@ -1337,7 +1414,11 @@ export const recentPatientHistory = pgTable("recent_patient_history", {
     lastViewedAt: timestamp("last_viewed_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("recent_patient_history_organization_id_idx").on(t.organizationId),
+    userIdIdx: index("recent_patient_history_user_id_idx").on(t.userId),
+    patientIdIdx: index("recent_patient_history_patient_id_idx").on(t.patientId),
+}));
 // #47 — crm::конструктор_типов_задач_без_привязки_к_визиту
 export const customCrmTaskTypes = pgTable("custom_crm_task_types", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2713,6 +2794,34 @@ export const diagnocatAiFindings = pgTable("diagnocat_ai_findings", {
         .notNull()
         .defaultNow(),
 });
+export const diagnocatReports = pgTable("diagnocat_reports", {
+    id: uuid("id").primaryKey().default(sql `uuidv7()`),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id),
+    patientId: uuid("patient_id").notNull(),
+    reportUrl: text("report_url").notNull(),
+    odontogramData: jsonb("odontogram_data"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+}, (t) => ({
+    organizationIdIdx: index("diagnocat_reports_organization_id_idx").on(t.organizationId),
+}));
+export const sberbankTransactions = pgTable("sberbank_transactions", {
+    id: uuid("id").primaryKey().default(sql `uuidv7()`),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id),
+    orderId: text("order_id").notNull(),
+    amount: integer("amount").notNull(),
+    status: text("status").notNull(),
+    patientId: uuid("patient_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+});
 // egisz blank permissions (EGISZ REMD form access control)
 export const egiszBlankPermissions = pgTable("egisz_blank_permissions", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3074,6 +3183,7 @@ export const yandexCalendarSyncs = pgTable("yandex_calendar_syncs", {
         .references(() => organizations.id),
     doctorId: uuid("doctor_id").notNull(),
     yandexCalendarId: text("yandex_calendar_id"),
+    currentSessionId: uuid("current_session_id"),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     syncStatus: text("sync_status").notNull().default("pending"),
     errorMessage: text("error_message"),
@@ -3751,6 +3861,23 @@ export const portalOtpCodes = pgTable("portal_otp_codes", {
         idxPortalOtpExpires: index("portal_otp_codes_expires_idx").on(table.expiresAt),
     };
 });
+export const clinicWorkflows = pgTable("clinic_workflows", {
+    id: uuid("id").primaryKey().default(sql `uuidv7()`),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    trigger: varchar("trigger", { length: 255 }).notNull(),
+    active: boolean("active").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+}, (table) => [
+    index("clinic_workflows_org_idx").on(table.organizationId),
+]);
 import { relations } from "drizzle-orm";
 export const organizationsRelations = relations(organizations, ({ many }) => ({
     users: many(users),

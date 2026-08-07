@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import {
@@ -303,6 +305,40 @@ export function MigrationWizard() {
 	const resetError = useCallback(() => setError(null), []);
 
 	// -------------------------------------------------------------------
+	// Шаг 2: карта соответствия
+	// -------------------------------------------------------------------
+	async function runMapping(runId: string, useLlm: boolean) {
+		setBusy(true);
+		setError(null);
+		try {
+			const response = await fetch(`/api/migration/${runId}/map`, {
+				method: "POST",
+				headers: clinicalMutationHeaders({
+					"content-type": "application/json",
+				}),
+				body: JSON.stringify({ allowLlm: useLlm }),
+			});
+			const result = await readResponse<MapResponse>(response);
+			if (!result.ok) {
+				setError({ code: result.code, message: result.message });
+				return;
+			}
+			setMapping(result.data);
+		} catch (caught) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (caught as { status?: number })?.status ?? null), "error");
+			setError({
+				code: "NetworkError",
+				message:
+					caught instanceof Error
+						? caught.message
+						: "Сопоставление не выполнено.",
+			});
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	// -------------------------------------------------------------------
 	// Шаг 1: заливка файла
 	// -------------------------------------------------------------------
 	const handleFile = useCallback(
@@ -335,6 +371,7 @@ export function MigrationWizard() {
 				// Сразу строим карту: оператору нечего делать на пустом экране.
 				await runMapping(result.data.runId, allowLlm);
 			} catch (caught) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (caught as { status?: number })?.status ?? null), "error");
 				setError({
 					code: "NetworkError",
 					message:
@@ -345,43 +382,7 @@ export function MigrationWizard() {
 			}
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		},
-		[allowLlm, clinicalMutationHeaders],
-	);
-
-	// -------------------------------------------------------------------
-	// Шаг 2: карта соответствия
-	// -------------------------------------------------------------------
-	const runMapping = useCallback(
-		async (runId: string, useLlm: boolean) => {
-			setBusy(true);
-			setError(null);
-			try {
-				const response = await fetch(`/api/migration/${runId}/map`, {
-					method: "POST",
-					headers: clinicalMutationHeaders({
-						"content-type": "application/json",
-					}),
-					body: JSON.stringify({ allowLlm: useLlm }),
-				});
-				const result = await readResponse<MapResponse>(response);
-				if (!result.ok) {
-					setError({ code: result.code, message: result.message });
-					return;
-				}
-				setMapping(result.data);
-			} catch (caught) {
-				setError({
-					code: "NetworkError",
-					message:
-						caught instanceof Error
-							? caught.message
-							: "Сопоставление не выполнено.",
-				});
-			} finally {
-				setBusy(false);
-			}
-		},
-		[clinicalMutationHeaders],
+		[allowLlm, clinicalMutationHeaders, runMapping],
 	);
 
 	// -------------------------------------------------------------------
@@ -478,6 +479,7 @@ export function MigrationWizard() {
 					})();
 				}, 1000);
 			} catch (caught) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (caught as { status?: number })?.status ?? null), "error");
 				setError({
 					code: "NetworkError",
 					message:
@@ -685,7 +687,8 @@ function SourcePanel(props: {
 
 	return (
 		<div className="mw-panel">
-			<div
+			<section
+				aria-label="Зона загрузки файла"
 				className={`mw-drop ${dragging ? "is-dragging" : ""}`}
 				onDragOver={(event) => {
 					event.preventDefault();
@@ -725,7 +728,7 @@ function SourcePanel(props: {
 						event.target.value = "";
 					}}
 				/>
-			</div>
+			</section>
 
 			<label className="mw-toggle">
 				<input
@@ -838,47 +841,39 @@ function MappingPanel(props: {
 						)}
 					</div>
 
-					<div
-						className="mw-mapping-table"
-						role="table"
-						aria-label="Соответствие колонок"
-					>
-						<div className="mw-mapping-row mw-mapping-head" role="row">
-							<span role="columnheader">Колонка источника</span>
-							<span role="columnheader">Поле карточки</span>
-							<span role="columnheader">Решение</span>
-							<span role="columnheader">Форма значений</span>
-						</div>
-						{mapping.mapping.columns.map((column) => (
-							<div
-								className="mw-mapping-row"
-								role="row"
-								key={column.sourceColumn}
-							>
-								<span className="mw-col-source" role="cell">
-									{column.sourceColumn}
-								</span>
-								<span className="mw-col-target" role="cell">
-									{column.targetField}
-								</span>
-								<span role="cell">
-									<span
-										className={`mw-badge mw-badge-${column.decidedBy}`}
-										title={column.rationale}
-									>
-										{DECISION_TITLES[column.decidedBy]}
-									</span>
-									<span className="mw-confidence">
-										{Math.round(column.confidence * 100)}%
-									</span>
-								</span>
-								{/* Маски, а не значения: настоящие ФИО и телефоны на экран не выводятся. */}
-								<span className="mw-col-shapes" role="cell">
-									{column.sampleValues.join("  ")}
-								</span>
-							</div>
-						))}
-					</div>
+					<table className="mw-mapping-table" aria-label="Соответствие колонок">
+						<thead>
+							<tr className="mw-mapping-row mw-mapping-head">
+								<th scope="col">Колонка источника</th>
+								<th scope="col">Поле карточки</th>
+								<th scope="col">Решение</th>
+								<th scope="col">Форма значений</th>
+							</tr>
+						</thead>
+						<tbody>
+							{mapping.mapping.columns.map((column) => (
+								<tr className="mw-mapping-row" key={column.sourceColumn}>
+									<td className="mw-col-source">{column.sourceColumn}</td>
+									<td className="mw-col-target">{column.targetField}</td>
+									<td>
+										<span
+											className={`mw-badge mw-badge-${column.decidedBy}`}
+											title={column.rationale}
+										>
+											{DECISION_TITLES[column.decidedBy]}
+										</span>
+										<span className="mw-confidence">
+											{Math.round(column.confidence * 100)}%
+										</span>
+									</td>
+									{/* Маски, а не значения: настоящие ФИО и телефоны на экран не выводятся. */}
+									<td className="mw-col-shapes">
+										{column.sampleValues.join("  ")}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 
 					{mapping.mapping.unmappedColumns.length > 0 && (
 						<div className="mw-alert mw-alert-warn">
@@ -900,9 +895,9 @@ function MappingPanel(props: {
 								)}
 							</summary>
 							<ul>
-								{mapping.qualityFindings.slice(0, 20).map((finding, index) => (
+								{mapping.qualityFindings.slice(0, 20).map((finding) => (
 									<li
-										key={index}
+										key={`finding-${finding.severity}-${finding.message}`}
 										className={`mw-finding mw-finding-${finding.severity}`}
 									>
 										{finding.message}
@@ -1181,6 +1176,7 @@ function ReconciliationActDownloadButton(props: { runId: string }) {
 							`акт-сверки-${props.runId}.csv`,
 						);
 					} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 						setFailure(
 							error instanceof Error ? error.message : AUTHED_API_FILE_FAILURE,
 						);
@@ -1300,8 +1296,8 @@ function DiscoveryPanel(props: {
 				</section>
 			)}
 
-			{discovery.warnings.map((warning, index) => (
-				<p className="mw-discovery-warning" key={index}>
+			{discovery.warnings.map((warning) => (
+				<p className="mw-discovery-warning" key={warning}>
 					{warning}
 				</p>
 			))}

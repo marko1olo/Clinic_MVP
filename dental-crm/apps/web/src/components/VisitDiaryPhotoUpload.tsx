@@ -1,3 +1,4 @@
+import { actionFailureToast } from "../lib/panelStateText";
 import { Camera, Paperclip, Search } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -62,7 +63,7 @@ export function VisitDiaryPhotoUpload({
 	const [loadState, setLoadState] = useState<AttachmentsLoadState>({
 		phase: "loading",
 	});
-	const [reloadToken, setReloadToken] = useState(0);
+	const [_reloadToken, setReloadToken] = useState(0);
 	/* Объектные адреса снимков по идентификатору вложения.
 	   ЧТО БЫЛО ПЛОХО ДЛЯ КЛИНИКИ: адрес сервера подставлялся прямо в <img src>,
 	   а такой запрос посылает браузер без единого заголовка — подмена fetch из
@@ -142,6 +143,7 @@ export function VisitDiaryPhotoUpload({
 					files.length === 0 ? { phase: "empty" } : { phase: "ready" },
 				);
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				if (cancelled) return;
 				// abort при смене приёма — не failed
 				if (error instanceof DOMException && error.name === "AbortError") {
@@ -163,7 +165,7 @@ export function VisitDiaryPhotoUpload({
 			}
 			createdPhotoObjectUrls.current = new Map();
 		};
-	}, [visitId, reloadToken]);
+	}, [visitId]);
 
 	/* Снимки забираются через fetch по тому же адресу, который отдал сервер в
 	   поле url (apps/api/src/routes/files.ts:137,185), и только потом попадают в
@@ -236,7 +238,7 @@ export function VisitDiaryPhotoUpload({
 		return () => {
 			onPrintPhotosChange?.([]);
 		};
-	}, [visitId, onPrintPhotosChange]);
+	}, [onPrintPhotosChange]);
 	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -424,15 +426,19 @@ export function VisitDiaryPhotoUpload({
 
 	return (
 		<div className="space-y-1.5 lg:col-span-2">
-			<label className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center justify-between">
+			<div className="text-xs tracking-widest uppercase text-zinc-400 font-semibold flex items-center justify-between">
 				<span className="flex items-center gap-1.5">
 					<Camera className="w-3 h-3 text-rose-400" /> Вложения (Фотографии)
 				</span>
 				{!isLocked && diaryId && (
-					<label className="cursor-pointer text-xs flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg transition-colors border border-zinc-700">
+					<label
+						htmlFor="visit-diary-photo-upload"
+						className="cursor-pointer text-xs flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg transition-colors border border-zinc-700"
+					>
 						<Paperclip className="w-3 h-3" />
 						{isUploading ? "Сжатие..." : "Прикрепить фото"}
 						<input
+							id="visit-diary-photo-upload"
 							type="file"
 							accept="image/*"
 							className="hidden"
@@ -441,7 +447,7 @@ export function VisitDiaryPhotoUpload({
 						/>
 					</label>
 				)}
-			</label>
+			</div>
 			{attachments.length > 0 ? (
 				<div className="flex gap-3 overflow-x-auto pb-2">
 					{attachments.map((att) => {

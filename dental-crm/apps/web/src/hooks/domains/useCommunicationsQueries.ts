@@ -23,8 +23,20 @@ export function useCommunicationsQueries() {
 		fetch("/api/communications/variables", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
+	const getChatQuota = async () =>
+		fetch("/api/chat/quota", {
+			headers: auth?.denteClinicalReadHeaders(),
+		});
+	const sendChatSms = async (payload: any) =>
+		fetch("/api/chat/sms/send", {
+			method: "POST",
+			headers: auth?.denteClinicalMutationHeaders({
+				"content-type": "application/json",
+			}),
+			body: JSON.stringify(payload),
+		});
 
-	const previewTemplate = async (templateId: string | null, payload: any) =>
+	const previewTemplate = async (_templateId: string | null, payload: any) =>
 		fetch("/api/communications/templates/preview", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
@@ -137,6 +149,8 @@ export function useCommunicationsQueries() {
 		getOutbox,
 		getSettings,
 		getVariables,
+		getChatQuota,
+		sendChatSms,
 		previewTemplate,
 		updateTemplate,
 		createTemplate,

@@ -8,7 +8,7 @@ import { getVisitByIdInDb } from "../../db/visitsQuery.js";
 import { paidAmountRubForDocument, paymentReceiptSelectionErrorForDocument, paymentRefundCorrectionSelectionErrorForDocument, plannedAmountRubForDocument, taxPaymentSelectionErrorForDocument, validateDocumentCreation, } from "../../documents/guards.js";
 import { requireOrganizationId } from "../../security/identity.js";
 import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
-import { apiError, documentCreateValidationMessageForRequest, } from "../documents.js";
+import { apiError, documentCreateValidationMessageForRequest, } from "./shared.js";
 export async function register(app) {
     app.post("/api/documents", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document create")))

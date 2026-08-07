@@ -1,5 +1,6 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import cornerstoneDICOMImageLoader from "@cornerstonejs/dicom-image-loader";
-import dicomParser from "dicom-parser";
 import * as fflate from "fflate";
 import type React from "react";
 import { useCallback, useState } from "react";
@@ -47,6 +48,7 @@ export function DicomArchiveUploader({
 						cornerstoneDICOMImageLoader.wadouri.fileManager.add(file);
 					resolve(imageId);
 				} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 					console.error("Failed to parse file", file.name, e);
 					resolve(null);
 				}
@@ -153,7 +155,7 @@ export function DicomArchiveUploader({
 							for (let i = 0; i < entries.length; i++) {
 								const nestedFiles = await traverseFileTree(
 									entries[i],
-									path + item.name + "/",
+									`${path + item.name}/`,
 								);
 								files.push(...nestedFiles);
 							}
@@ -170,7 +172,7 @@ export function DicomArchiveUploader({
 	};
 
 	const onDrop = useCallback(
-		async (e: React.DragEvent<HTMLDivElement>) => {
+		async (e: React.DragEvent<HTMLElement>) => {
 			e.preventDefault();
 			setIsDragging(false);
 
@@ -229,6 +231,7 @@ export function DicomArchiveUploader({
 					}
 				}
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				console.error("[DicomArchiveUploader] Ошибка обработки:", error);
 				setStatus(
 					"Не удалось прочитать файлы: архив повреждён, зашифрован или не содержит DICOM. Попробуйте другой архив или распакуйте его вручную.",
@@ -237,11 +240,13 @@ export function DicomArchiveUploader({
 				setLoading(false);
 			}
 		},
-		[loading, onImagesLoaded],
+		[loading, onImagesLoaded, traverseFileTree, processZip, processFile],
 	);
 
 	return (
-		<div
+		<button
+			type="button"
+			aria-label="Зона загрузки DICOM"
 			onDragOver={(e) => {
 				e.preventDefault();
 				setIsDragging(true);
@@ -249,7 +254,13 @@ export function DicomArchiveUploader({
 			onDragLeave={() => setIsDragging(false)}
 			onDrop={onDrop}
 			onClick={() => document.getElementById("dicom-folder-input")?.click()}
-			className={`w-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					document.getElementById("dicom-folder-input")?.click();
+				}
+			}}
+			className={`w-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-colors cursor-pointer bg-transparent ${
 				isDragging
 					? "border-teal-500 bg-teal-500/10"
 					: "border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900 hover:bg-slate-100 dark:hover:bg-neutral-800"
@@ -298,6 +309,6 @@ export function DicomArchiveUploader({
 				Локальная обработка в браузере. Данные не передаются на сторонние
 				сервера.
 			</div>
-		</div>
+		</button>
 	);
 }

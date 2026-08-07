@@ -121,9 +121,8 @@ export function AppointmentCard(props: AppointmentCardProps) {
 				<p style={{ display: "none" }}>{appointment.reason}</p>
 				<article
 					data-testid="appointment-card"
-					role="article"
 					aria-label={`Карточка приема: ${appointmentPatientName}, ${formatTime(appointment.startsAt)} - ${formatTime(appointment.endsAt)}`}
-					className={`appointment-card mode-fit-card glass-panel rounded-xl p-4 mb-3 shadow-sm ${readiness ? "readiness-" + readiness.state : ""}`}
+					className={`appointment-card mode-fit-card glass-panel rounded-xl p-4 mb-3 shadow-sm ${readiness ? `readiness-${readiness.state}` : ""}`}
 					style={{
 						display: "flex",
 						flexDirection: "column",
@@ -166,7 +165,8 @@ export function AppointmentCard(props: AppointmentCardProps) {
 							}}
 						>
 							{appointmentSuggestions.map((suggestion) => (
-								<span
+								<button
+									type="button"
 									key={suggestion.id}
 									className={`chip chip-suggestion priority-${suggestion.priority} cursor-pointer px-2 py-0.5 rounded border text-xs font-semibold ${
 										suggestion.priority === "urgent"
@@ -177,10 +177,17 @@ export function AppointmentCard(props: AppointmentCardProps) {
 										e.stopPropagation();
 										openScheduleSuggestion(suggestion.section);
 									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.stopPropagation();
+											e.preventDefault();
+											openScheduleSuggestion(suggestion.section);
+										}
+									}}
 									title={suggestion.detail}
 								>
 									⚠️ {suggestion.title}
-								</span>
+								</button>
 							))}
 							<span className="chip chip-reason">
 								{appointment.reason || "Причина не указана"}
@@ -294,7 +301,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
 					</div>
 
 					{appointmentEditing ? (
-						<div
+						<section
 							className="appointment-editor form-span-2"
 							id={appointmentEditorId}
 							aria-label={`Редактирование записи: ${appointmentPatientName}`}
@@ -756,7 +763,7 @@ export function AppointmentCard(props: AppointmentCardProps) {
 									Сохранить запись
 								</button>
 							</div>
-						</div>
+						</section>
 					) : null}
 				</article>
 			</div>

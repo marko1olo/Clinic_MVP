@@ -152,6 +152,7 @@ export function SettingsProtocolsTab() {
 			 * текст исключения браузера («Failed to fetch»).
 			 */
 			console.error(err);
+			showToast(actionFailureToast("Шаблон не сохранён", (err as { status?: number })?.status ?? null), "error");
 			setError(`Шаблон не сохранён: ${NO_RESPONSE_CAUSE}.`);
 		} finally {
 			setLoading(false);
@@ -180,7 +181,7 @@ export function SettingsProtocolsTab() {
 		} catch (err: any) {
 			// БЫЛО: `err.message` — английский текст исключения браузера.
 			console.error(err);
-			showToast(`Шаблон не удалён: ${NO_RESPONSE_CAUSE}.`, "error");
+			showToast(actionFailureToast("Шаблон не удалён", (err as { status?: number })?.status ?? null), "error");
 			setLoading(false);
 		}
 	};
@@ -312,6 +313,7 @@ export function SettingsProtocolsTab() {
 
 				<div style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
 					<button
+						type="button"
 						className="primary-button"
 						onClick={handleSave}
 						disabled={loading}
@@ -319,6 +321,7 @@ export function SettingsProtocolsTab() {
 						{loading ? "Сохранение..." : "Сохранить"}
 					</button>
 					<button
+						type="button"
 						className="secondary-button"
 						onClick={handleCancel}
 						disabled={loading}
@@ -354,7 +357,11 @@ export function SettingsProtocolsTab() {
 						</p>
 					</div>
 				</div>
-				<button className="primary-button" onClick={handleCreateNew}>
+				<button
+					type="button"
+					className="primary-button"
+					onClick={handleCreateNew}
+				>
 					<Plus size={16} /> Добавить шаблон
 				</button>
 			</div>
@@ -403,22 +410,22 @@ export function SettingsProtocolsTab() {
 									{template.visitReason} · {template.defaultDurationMinutes} мин
 								</p>
 							</div>
-							<div
+							<section
 								className="protocol-token-row"
 								aria-label="Документы протокола"
 							>
 								{template.requiredDocuments.map((kind) => (
 									<span key={kind}>{documentLabels[kind]}</span>
 								))}
-							</div>
-							<div
+							</section>
+							<section
 								className="protocol-token-row protocol-token-row-soft"
 								aria-label="Снимки протокола"
 							>
 								{template.suggestedImaging.map((kind) => (
 									<span key={kind}>{imagingKindLabels[kind]}</span>
 								))}
-							</div>
+							</section>
 							<ul>
 								{template.safetyWarnings.slice(0, 2).map((warning) => (
 									<li key={warning}>{warning}</li>

@@ -7,8 +7,6 @@ import {
 	ShieldAlert,
 	Stethoscope,
 	Trash2,
-	User,
-	UserX,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -47,6 +45,8 @@ export function PatientReclamationsWidget({
 }) {
 	const { dashboard, auth } = useAppLogicContext();
 	const [isAdding, setIsAdding] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
 
 	const getReadHeaders = () => (auth ? auth.denteClinicalReadHeaders() : {});
 	const getMutationHeaders = (extra?: Record<string, string>) =>
@@ -119,7 +119,9 @@ export function PatientReclamationsWidget({
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!newComplicationDetails || !doctorId) return;
+		if (isSubmitting) return;
+		if (!newComplicationDetails.trim() || !doctorId) return;
+		setIsSubmitting(true);
 		try {
 			const res = await fetch(`/api/patients/${patientId}/reclamations`, {
 				method: "POST",
@@ -127,7 +129,7 @@ export function PatientReclamationsWidget({
 					"Content-Type": "application/json",
 				}),
 				body: JSON.stringify({
-					complicationDetails: newComplicationDetails,
+					complicationDetails: newComplicationDetails.trim(),
 					proposedAction: newProposedAction,
 					doctorId,
 				}),
@@ -153,6 +155,8 @@ export function PatientReclamationsWidget({
 				`${actionFailureToast("Рекламация не зафиксирована", null)} Введённый текст остался в форме.`,
 				"error",
 			);
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -205,12 +209,14 @@ export function PatientReclamationsWidget({
 	};
 
 	const handleDelete = async (recId: string) => {
+		if (deletingId === recId) return;
 		if (
 			!confirm(
 				"Вы действительно хотите полностью удалить запись об этом инциденте? Это действие нельзя отменить.",
 			)
 		)
 			return;
+		setDeletingId(recId);
 		try {
 			const res = await fetch(
 				`/api/patients/${patientId}/reclamations/${recId}`,
@@ -236,6 +242,8 @@ export function PatientReclamationsWidget({
 				`${actionFailureToast("Рекламация не удалена", null)} Запись осталась в карте.`,
 				"error",
 			);
+		} finally {
+			setDeletingId(null);
 		}
 	};
 
@@ -424,6 +432,7 @@ export function PatientReclamationsWidget({
 							<div className="grid grid-cols-1 gap-4">
 								<div className="smart-field">
 									<select
+										id="reclamation-doctor-select"
 										value={doctorId}
 										onChange={(e) => setDoctorId(e.target.value)}
 										required
@@ -438,32 +447,43 @@ export function PatientReclamationsWidget({
 											</option>
 										))}
 									</select>
-									<label className="text-xs text-rose-700 dark:text-rose-400 font-medium">
+									<label
+										htmlFor="reclamation-doctor-select"
+										className="text-xs text-rose-700 dark:text-rose-400 font-medium"
+									>
 										Врач (автор работы)
 									</label>
 								</div>
 
 								<div className="smart-field">
 									<textarea
+										id="reclamation-details"
 										value={newComplicationDetails}
 										onChange={(e) => setNewComplicationDetails(e.target.value)}
 										placeholder=" "
 										required
 										className="w-full p-3 rounded-lg min-h-[80px] bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 text-slate-900 dark:text-white outline-none resize-y"
 									/>
-									<label className="text-xs text-rose-700 dark:text-rose-400 font-medium">
+									<label
+										htmlFor="reclamation-details"
+										className="text-xs text-rose-700 dark:text-rose-400 font-medium"
+									>
 										Суть жалобы или осложнения
 									</label>
 								</div>
 
 								<div className="smart-field">
 									<textarea
+										id="reclamation-proposed-action"
 										value={newProposedAction}
 										onChange={(e) => setNewProposedAction(e.target.value)}
 										placeholder=" "
 										className="w-full p-3 rounded-lg min-h-[60px] bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 text-slate-900 dark:text-white outline-none resize-y"
 									/>
-									<label className="text-xs text-rose-700 dark:text-rose-400 font-medium">
+									<label
+										htmlFor="reclamation-proposed-action"
+										className="text-xs text-rose-700 dark:text-rose-400 font-medium"
+									>
 										Предложенное решение (гарантия, возврат, переделка)
 									</label>
 								</div>
@@ -479,9 +499,11 @@ export function PatientReclamationsWidget({
 								</button>
 								<button
 									type="submit"
-									className="primary-button bg-rose-600 hover:bg-rose-700 text-white border-0 px-4 py-2 rounded-lg font-semibold cursor-pointer"
+									disabled={isSubmitting}
+									aria-busy={isSubmitting}
+									className="primary-button bg-rose-600 hover:bg-rose-700 text-white border-0 px-4 py-2 rounded-lg font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 								>
-									Зафиксировать в карту
+									{isSubmitting ? "Фиксация..." : "Зафиксировать в карту"}
 								</button>
 							</div>
 						</motion.form>
@@ -525,6 +547,7 @@ export function PatientReclamationsWidget({
 											</div>
 											<div className="flex gap-2">
 												<button
+													type="button"
 													onClick={() => handleToggleStatus(rec.id, rec.status)}
 													className={`border-0 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${
 														isUnderReview
@@ -546,8 +569,11 @@ export function PatientReclamationsWidget({
 													)}
 												</button>
 												<button
+													type="button"
+													disabled={deletingId === rec.id}
+													aria-busy={deletingId === rec.id}
 													onClick={() => handleDelete(rec.id)}
-													className="bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 p-1.5 rounded-md cursor-pointer transition-colors"
+													className="bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 p-1.5 rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 													title="Удалить безвозвратно"
 												>
 													<Trash2 size={16} />

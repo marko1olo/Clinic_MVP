@@ -1,7 +1,7 @@
+import { actionFailureToast } from "../lib/panelStateText";
 import type {
 	SpeechChunkUploadInput,
 	SpeechGatewayStatus,
-	SpeechTranscriptionResponse,
 	SpeechTranscriptionSource,
 } from "@dental/shared";
 import { useCallback, useRef, useState } from "react";
@@ -44,7 +44,9 @@ export function useShortDictation(
 
 	const cleanupStream = useCallback(() => {
 		if (streamRef.current) {
-			streamRef.current.getTracks().forEach((track) => track.stop());
+			streamRef.current.getTracks().forEach((track) => {
+				track.stop();
+			});
 			streamRef.current = null;
 		}
 	}, []);
@@ -75,7 +77,7 @@ export function useShortDictation(
 
 		recognition.onerror = (e: any) => {
 			if (e.error !== "no-speech") {
-				showToast("Ошибка распознавания: " + e.error, "error");
+				showToast(`Ошибка распознавания: ${e.error}`, "error");
 			}
 			setIsRecording(false);
 		};
@@ -107,7 +109,7 @@ export function useShortDictation(
 					context === "visit" || context === "patient" ? "visit" : "document";
 
 				const input: SpeechChunkUploadInput = {
-					recordingId: "short_" + Date.now(),
+					recordingId: `short_${Date.now()}`,
 					chunkIndex: 0,
 					mimeType: audioBlob.type || "audio/webm",
 					audioBase64,
@@ -175,7 +177,7 @@ export function useShortDictation(
 				setIsProcessing(false);
 			}
 		},
-		[context, dashboard, onResult],
+		[context, dashboard, onResult, clinicalAdminSecretSession.trim],
 	);
 
 	const toggleRecording = useCallback(async () => {
@@ -227,6 +229,7 @@ export function useShortDictation(
 				}
 			}, 10000);
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			console.error("Microphone access denied or error:", err);
 			startBrowserNative();
 		}

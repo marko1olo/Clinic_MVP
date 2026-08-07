@@ -12,6 +12,7 @@ import "./env/assertEnvOnBoot.js";
 import net from "node:net";
 import { pathToFileURL } from "node:url";
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import Fastify from "fastify";
 import { ZodError } from "zod";
 import { loadAdditionalServerEnv } from "./env/loadServerEnv.js";
@@ -21,8 +22,11 @@ import { registerAnalyticsRoutes } from "./routes/analytics.js";
 import { registerAuditRoutes } from "./routes/audit.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerBillingRoutes } from "./routes/billing.js";
+import { registerSberbankRoutes } from "./routes/sberbank.js";
+import { registerClinicWorkflowRoutes } from "./routes/clinicWorkflows.js";
 import { registerClinicalRoutes } from "./routes/clinical.js";
 import { registerCommunicationReceiptRoutes } from "./routes/communicationReceipts.js";
+import { registerChatRoutes } from "./routes/chat.js";
 import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerCommunicationOutboxRoutes } from "./routes/communicationsOutbox.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
@@ -58,6 +62,7 @@ import { registerPublicAppointmentActionRoutes } from "./routes/publicAppointmen
 import { registerPublicBookingRoutes } from "./routes/publicBooking.js";
 import { registerReportRoutes } from "./routes/reports.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
+import { registerYandexCalendarRoutes } from "./routes/yandexCalendar.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSpeechRoutes } from "./routes/speech.js";
@@ -75,6 +80,8 @@ import { registerWebsocketRoutes } from "./routes/websocket.js";
 import { registerWhatsappRoutes } from "./routes/whatsapp.js";
 import { workspaceProfileRoutes } from "./routes/workspaceProfile.js";
 import { registerXrayRoutes } from "./routes/xray.js";
+import { registerFlexbeRoutes } from "./routes/integrations/flexbe.js";
+import { registerDiagnocatRoutes } from "./routes/integrations/diagnocat.js";
 import { authTokenSecret } from "./security/authSecret.js";
 import { getRequestIdentity } from "./security/identity.js";
 import { registerRateLimiting, } from "./security/rateLimit.js";
@@ -152,8 +159,8 @@ function assertSecurityConfiguration() {
             ? "демо-фикстуры ЕГИСЗ"
             : null,
     ].filter(Boolean);
-    console.warn(`[security] Режим разработки. Активные послабления: ${активные.join(", ")}. ` +
-        "В production все они выключены автоматически.");
+    process.stderr.write(`[security] Режим разработки. Активные послабления: ${активные.join(", ")}. ` +
+        "В production все они выключены автоматически.\n");
 }
 assertSecurityConfiguration();
 async function checkProxyPortDirectly(proxyUrlString) {
@@ -184,7 +191,7 @@ async function checkProxyPortDirectly(proxyUrlString) {
 export async function setupProxyAndTunnels() {
     // 1. Проверяем наличие SSH-ключа. Если есть, пробуем поднять туннель на порту 1080
     const hasTunnel = await ensureSshTunnel().catch((err) => {
-        console.warn("[Proxy Boot] SSH SOCKS5 tunnel autostart failed:", err);
+        process.stderr.write(`[Proxy Boot] SSH SOCKS5 tunnel autostart failed: ${err}\n`);
         return false;
     });
     if (hasTunnel) {
@@ -200,7 +207,7 @@ export async function setupProxyAndTunnels() {
         if (proxyUrl) {
             const isOnline = await checkProxyPortDirectly(proxyUrl);
             if (!isOnline) {
-                console.warn(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.`);
+                process.stderr.write(`[Proxy Boot] Configured proxy ${proxyUrl} is offline. Disabling proxy env variables to force clean direct connections.\n`);
                 delete process.env.HTTPS_PROXY;
                 delete process.env.HTTP_PROXY;
                 delete process.env.PROXY_URL;
@@ -323,6 +330,9 @@ export async function createDenteApiApp(options = {}) {
             "x-ratelimit-remaining",
         ],
         maxAge: 600,
+    });
+    await app.register(helmet, {
+        contentSecurityPolicy: false,
     });
     // Ограничение частоты запросов для аутентификации и публичных маршрутов.
     // Раньше в routes/auth.ts стоял config.rateLimit, но плагин @fastify/rate-limit
@@ -452,7 +462,9 @@ export async function createDenteApiApp(options = {}) {
     }));
     await registerAiRoutes(app);
     await registerBillingRoutes(app);
+    await registerSberbankRoutes(app);
     await registerClinicalRoutes(app);
+    await registerChatRoutes(app);
     await registerCommunicationRoutes(app);
     await registerDashboardRoutes(app);
     await registerDocumentRoutes(app);
@@ -506,8 +518,10 @@ export async function createDenteApiApp(options = {}) {
     await registerScheduleRoutes(app);
     await registerSettingsRoutes(app);
     await registerSpeechRoutes(app);
-    await registerSmartImportRoutes(app);
-    await registerSystemRoutes(app);
+    void registerSmartImportRoutes(app);
+    void registerYandexCalendarRoutes(app);
+    await registerClinicWorkflowRoutes(app);
+    void registerSystemRoutes(app);
     // Живые обновления. Раньше плагин не регистрировался вовсе, поэтому
     // /api/ws/schedule отвечал 404, а все wsBroker.broadcast* были пустышками.
     await registerWebsocketRoutes(app);
@@ -516,10 +530,12 @@ export async function createDenteApiApp(options = {}) {
     await registerVisitRoutes(app);
     await registerDicomwebRoutes(app);
     await registerXrayRoutes(app);
+    await registerDiagnocatRoutes(app);
     await registerAuthRoutes(app);
     await registerAnalyticsRoutes(app);
     await registerAuditRoutes(app);
     await workspaceProfileRoutes(app);
+    await registerFlexbeRoutes(app);
     // Вторая партия ранее незарегистрированных модулей.
     //
     // Префиксы восстановлены по адресам, которые уже вызывает фронтенд:
@@ -611,35 +627,64 @@ export async function createDenteApiApp(options = {}) {
             stopMigrationWorker();
         });
     }
-    app.addHook("onClose", async () => {
-        const { pool } = await import("./db/client.js");
-        if (pool)
-            await pool.end();
-    });
+    /*
+     * ЗДЕСЬ НЕТ ЗАКРЫТИЯ ПУЛА — И ЭТО НАМЕРЕННО.
+     *
+     * БЫЛО: хук onClose закрывал модульный синглтон-пул из db/client.ts. Фабрика
+     * пул не создавала, а закрывала: приложение гасило чужой ресурс. Прогон,
+     * строящий по приложению на проверку (tests/contract-breach-proofs.test.ts),
+     * получал 13 листовых падений «Called end on pool more than once» — первый
+     * app.close() побеждал, остальные падали, и падение приписывалось маршрутам,
+     * а не сносу пула. Образец из @fastify/postgres: переданный извне пул плагин
+     * не закрывает, хук вешается только на пул, созданный самим плагином.
+     *
+     * Закрытие — одно на процесс, у владельца: gracefulShutdown по SIGINT/SIGTERM
+     * в startDenteApiServer, а в автоматических прогонах
+     * tests/support/poolTeardown.ts (подключён --import в npm test -w @dental/api).
+     * Выход процесса снятие хука не ломает: db/client.ts:69 держит
+     * allowExitOnIdle: isAutomatedRun(), поэтому в тестах и скриптах простаивающий
+     * пул event loop не пинит.
+     */
     return app;
 }
 export async function startDenteApiServer() {
     await setupProxyAndTunnels().catch((err) => {
-        console.error("[Proxy Boot] Failed to run proxy/tunnel diagnostics:", err);
+        process.stderr.write(`[Proxy Boot] Failed to run proxy/tunnel diagnostics: ${err}\n`);
     });
     const app = await createDenteApiApp();
-    const host = process.env.API_HOST ?? "127.0.0.1";
+    process.on("uncaughtException", (err) => {
+        app.log.fatal(err, "Uncaught Exception detected. Shutting down...");
+        process.exit(1);
+    });
+    process.on("unhandledRejection", (reason, promise) => {
+        app.log.fatal({ reason, promise }, "Unhandled Rejection detected. Shutting down...");
+        process.exit(1);
+    });
+    const host = process.env.API_HOST ?? "0.0.0.0";
     const port = Number(process.env.API_PORT ?? 4100);
     try {
         await app.listen({ host, port });
         const gracefulShutdown = async (signal) => {
             app.log.info(`[Shutdown] Received ${signal}, closing HTTP server and draining database pool...`);
+            const forceKillTimeout = setTimeout(() => {
+                app.log.error(`[Shutdown] Force killing process after 10s timeout. Pending connections or workers hung.`);
+                process.exit(1);
+            }, 10000);
             try {
                 stopBackupDaemon();
                 await app.close();
-                const { pool } = await import("./db/client.js");
-                if (pool)
-                    await pool.end();
+                // Единственное закрытие пула на процесс: владелец — процесс, не
+                // приложение. endPool идемпотентен, повторный вызов дожидается
+                // первого вместо отказа pg.
+                const { endPool } = await import("./db/client.js");
+                await endPool();
                 app.log.info("[Shutdown] Dente API server closed cleanly.");
+                clearTimeout(forceKillTimeout);
                 process.exit(0);
             }
             catch (err) {
                 app.log.error(err, "[Shutdown] Error during server shutdown:");
+                clearTimeout(forceKillTimeout);
                 process.exit(1);
             }
         };

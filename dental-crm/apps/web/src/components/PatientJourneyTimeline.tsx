@@ -150,7 +150,13 @@ export const PatientJourneyTimeline: React.FC<{
 		return () => {
 			setEvents([]);
 		};
-	}, [patientId, dashboard?.appointments]);
+	}, [
+		patientId,
+		dashboard?.appointments,
+		dashboard?.payments,
+		dashboard?.patientInsights,
+		dashboard?.clinicSettings?.staff,
+	]);
 
 	// Real Zeigarnik Effect Progress Calculation
 	const planItems =
@@ -286,6 +292,7 @@ export const PatientJourneyTimeline: React.FC<{
 								) : null}
 								{evt.actionUrl && (
 									<button
+										type="button"
 										className="timeline-action-btn"
 										onClick={() => {
 											window.location.hash = evt.actionUrl ?? "";

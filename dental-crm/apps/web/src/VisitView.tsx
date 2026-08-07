@@ -1,15 +1,4 @@
-// ShieldCheck убран из импорта вместе с дублирующей панелью ЭМК: он рисовался
-// только в её блоке .ai-draft, а тот теперь живёт в components/visit/VisitEmkTab.tsx.
-import {
-	AlertTriangle,
-	Bot,
-	Check,
-	CheckCircle2,
-	ClipboardCheck,
-	Mic,
-	Sparkles,
-} from "lucide-react";
-import React, { Suspense, useState } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { countLabel } from "./AppHelpers";
 import { EmptyState } from "./components/EmptyState";
@@ -25,7 +14,6 @@ import { VisitSpecialtyFocus } from "./components/visit/VisitSpecialtyFocus";
 import { VisitTimer } from "./components/visit/VisitTimer";
 import { DictationHints } from "./DictationHints";
 import { AiOrchestrator } from "./lib/aiOrchestrator";
-import { parseVisitDictationLocal } from "./lib/smartVisitParser";
 import { SmartParsePreview } from "./SmartParsePreview";
 import { useVisitStore } from "./store/visitStore";
 import { getToothConfig, getToothPath } from "./utils/toothGeometry";
@@ -288,7 +276,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 	const [showSmartPreview, setShowSmartPreview] = useState(false);
 	const [smartParsedData, setSmartParsedData] = useState<any>(null);
 
-	const visitAiDiagnosesByCode = useVisitStore(
+	const _visitAiDiagnosesByCode = useVisitStore(
 		(state) => state.visitAiDiagnosesByCode,
 	);
 	const [activeQuadrant, setActiveQuadrant] = React.useState<number | null>(
@@ -356,7 +344,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [selectedToothForMenu]);
+	}, [selectedToothForMenu, closeClinicalModal]);
 
 	const handleSelectDiagnosis = (
 		state: string,
@@ -431,8 +419,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 			const sectionTitle =
 				(viewLabels as Record<string, string>)[section] ?? section;
 			const ownerTitle =
-				(staffRoleLabels && staffRoleLabels[task?.ownerRole]) ||
-				"другой сотрудник";
+				staffRoleLabels?.[task?.ownerRole] || "другой сотрудник";
 			showToast(
 				`Шаг закрывают в разделе «${sectionTitle}», а он открыт другой роли: ${ownerTitle}. Приём остаётся открытым — попросите закрыть шаг с того рабочего места.`,
 				"info",
@@ -559,7 +546,9 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 						<div>
 							<p className="eyebrow">Пациент сейчас</p>
 							<h3>{activePatient.fullName}</h3>
-							<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+							<div
+								style={{ display: "flex", alignItems: "center", gap: "8px" }}
+							>
 								<p style={{ margin: 0 }}>
 									{activeAppointment?.reason ?? "прием"} ·{" "}
 									{activePatient.phone ?? "телефон не указан"}
@@ -820,7 +809,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 									{safeVisitPrimaryAction.label}
 								</button>
 							</div>
-							<div
+							<section
 								className="visit-progress-strip"
 								data-testid="visit-progress-strip"
 								aria-label="Прогресс приема"
@@ -837,7 +826,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 										</div>
 									</article>
 								))}
-							</div>
+							</section>
 						</section>
 					</div>
 				</details>
@@ -972,6 +961,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 						</div>
 					</div>
 					<div
+						role="toolbar"
 						className="dictation-quick-row"
 						aria-label="Быстрые фразы для диктовки"
 					>
@@ -982,9 +972,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 							<button
 								type="button"
 								key={phrase.label}
-								onClick={() =>
-									appendToTranscript && appendToTranscript(phrase.text)
-								}
+								onClick={() => appendToTranscript?.(phrase.text)}
 							>
 								{phrase.label}
 							</button>
@@ -1108,9 +1096,9 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 							onApply={(data: any) => {
 								if (data) {
 									if (data.toothUpdates) {
-										data.toothUpdates.forEach((t: any) =>
-											setToothState(t.code, t.state),
-										);
+										data.toothUpdates.forEach((t: any) => {
+											setToothState(t.code, t.state);
+										});
 									}
 									if (data.emkUpdates) {
 										Object.entries(data.emkUpdates).forEach(([k, v]) => {
@@ -1308,7 +1296,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 
 				<VisiographAnalyzer />
 
-				<div className="tooth-map" aria-label="Зубная карта">
+				<section className="tooth-map" aria-label="Зубная карта">
 					{/*
                 НЕ УДАЛЯТЬ: это не забытая кнопка, а зацепка для дымовых прогонов.
                 scripts/smoke-visit-live-workflow.mjs и
@@ -1451,11 +1439,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 					</p>
 
 					{/* Панель выбора квадранта (Focus Mode) */}
-					<div
-						className="tooth-quadrant-nav"
-						role="navigation"
-						aria-label="Фокус на квадрант"
-					>
+					<nav className="tooth-quadrant-nav" aria-label="Фокус на квадрант">
 						<button
 							type="button"
 							className={`quadrant-nav-btn ${activeQuadrant === null ? "active" : ""}`}
@@ -1502,7 +1486,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 						>
 							Низ справа
 						</button>
-					</div>
+					</nav>
 
 					{/* Зубная схема с квадрантами */}
 					<div
@@ -1561,6 +1545,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 														}}
 													>
 														<svg
+															aria-hidden="true"
 															width={cfg.width}
 															height={cfg.height}
 															viewBox={`0 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
@@ -1714,6 +1699,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 														}}
 													>
 														<svg
+															aria-hidden="true"
 															width={cfg.width}
 															height={cfg.height}
 															viewBox={`0 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
@@ -1880,6 +1866,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 														}}
 													>
 														<svg
+															aria-hidden="true"
 															width={cfg.width}
 															height={cfg.height}
 															viewBox={`0 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
@@ -2034,6 +2021,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 														}}
 													>
 														<svg
+															aria-hidden="true"
 															width={cfg.width}
 															height={cfg.height}
 															viewBox={`0 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
@@ -2173,7 +2161,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 							</div>
 						)}
 					</div>
-				</div>
+				</section>
 
 				{/*
               ЗДЕСЬ СТОЯЛА ВТОРАЯ ПАНЕЛЬ ЭМК — ПОЛНЫЙ ДУБЛЬ ТОЙ, ЧТО ВО ВКЛАДКЕ.
@@ -2250,10 +2238,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 								<p>
 									{selectedProtocolTemplate.defaultDurationMinutes} мин · снимки{" "}
 									{(selectedProtocolTemplate.suggestedImaging || [])
-										.map(
-											(kind: any) =>
-												(imagingKindLabels && imagingKindLabels[kind]) || kind,
-										)
+										.map((kind: any) => imagingKindLabels?.[kind] || kind)
 										.join(", ")}
 								</p>
 							</div>
@@ -2268,10 +2253,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 										key={template.id}
 										type="button"
 										aria-pressed={selectedProtocolTemplate.id === template.id}
-										onClick={() =>
-											setSelectedProtocolId &&
-											setSelectedProtocolId(template.id)
-										}
+										onClick={() => setSelectedProtocolId?.(template.id)}
 									>
 										{template.visitReason}
 									</button>
@@ -2400,7 +2382,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 				) : null}
 
 				{visitCloseChecklist ? (
-					<div
+					<section
 						className="close-checklist"
 						aria-label="Предупреждения перед закрытием приема"
 					>
@@ -2436,14 +2418,14 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 										<strong>{task.title}</strong>
 										<p>{task.detail}</p>
 										<small>
-											{(staffRoleLabels && staffRoleLabels[task.ownerRole]) ||
+											{staffRoleLabels?.[task.ownerRole] ||
 												"исполнитель не указан"}{" "}
 											· {task.actionLabel}
 										</small>
 									</div>
 								</button>
 							))}
-					</div>
+					</section>
 				) : null}
 			</div>
 
@@ -2496,6 +2478,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 
 					const toothSvg = (
 						<svg
+							aria-hidden="true"
 							width={cfg.width}
 							height={cfg.height}
 							viewBox={`0 0 ${cfg.viewWidth} ${cfg.viewHeight}`}
@@ -2568,7 +2551,14 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 
 					return createPortal(
 						<>
-							<div className="_ccm-overlay" onClick={closeClinicalModal} />
+							<button
+								type="button"
+								className="_ccm-overlay"
+								onClick={closeClinicalModal}
+								onKeyDown={(e) =>
+									(e.key === "Enter" || e.key === " ") && closeClinicalModal()
+								}
+							/>
 							<div
 								className="_ccm-content"
 								role="dialog"
@@ -2877,8 +2867,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 												data-color="violet"
 												onClick={() => {
 													if (
-														visitWarnings &&
-														visitWarnings.some((w: any) =>
+														visitWarnings?.some((w: any) =>
 															/бисфосф|bisph/i.test(w.title + w.detail),
 														)
 													) {

@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 /**
  * Пульт отправки сообщений: шлюзы, журнал, шаблоны, правила рассылки.
  *
@@ -225,7 +227,7 @@ async function readJson<T>(response: Response): Promise<T> {
 export function MessageDeliveryConsole() {
 	const commQueries = useCommunicationsQueries();
 	const appLogic = useAppLogicContext();
-	const auth = appLogic?.auth;
+	const _auth = appLogic?.auth;
 
 	const [gateways, setGateways] = useState<GatewayStatus | null>(null);
 	const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -248,6 +250,10 @@ export function MessageDeliveryConsole() {
 	const [variableCatalog, setVariableCatalog] = useState<TemplateVariable[]>(
 		[],
 	);
+	const [uisQuota, setUisQuota] = useState<{
+		remaining: number;
+		smsQuotaLimit: number;
+	} | null>(null);
 
 	/*
 	 * Разовая постановка в очередь (POST /api/communications/outbox).
@@ -282,12 +288,14 @@ export function MessageDeliveryConsole() {
 				outboxResponse,
 				settingsResponse,
 				variablesResponse,
+				quotaResponse,
 			] = await Promise.all([
 				commQueries.getGatewayStatus(),
 				commQueries.getTemplates(),
 				commQueries.getOutbox(query),
 				commQueries.getSettings(),
 				commQueries.getVariables(),
+				commQueries.getChatQuota(),
 			]);
 
 			const gatewayData = await readJson<GatewayStatus>(gatewayResponse);
@@ -304,6 +312,10 @@ export function MessageDeliveryConsole() {
 			const variablesData = await readJson<{ variables: TemplateVariable[] }>(
 				variablesResponse,
 			);
+			const quotaData = await readJson<{
+				remaining: number;
+				smsQuotaLimit: number;
+			}>(quotaResponse);
 
 			setGateways(gatewayData);
 			setTemplates(templateData.templates);
@@ -321,7 +333,9 @@ export function MessageDeliveryConsole() {
 						)
 					: [],
 			);
+			setUisQuota(quotaData);
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			// Пустой экран без объяснения — это то, от чего здесь уходим.
 			setLoadError(error instanceof Error ? error.message : String(error));
 		}
@@ -351,6 +365,7 @@ export function MessageDeliveryConsole() {
 					setPreview(await readJson<PreviewResult>(response));
 					setPreviewError(null);
 				} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 					setPreview(null);
 					setPreviewError(
 						error instanceof Error ? error.message : String(error),
@@ -427,6 +442,7 @@ export function MessageDeliveryConsole() {
 			resetDraft();
 			await loadAll();
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			// Черновик специально НЕ очищается: набранный текст должен остаться на
 			// экране, чтобы человек исправил его и отправил снова, а не набирал заново.
 			setNotice(
@@ -457,6 +473,7 @@ export function MessageDeliveryConsole() {
 			});
 			await loadAll();
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			setNotice(
 				failNotice(
 					error,
@@ -479,6 +496,7 @@ export function MessageDeliveryConsole() {
 			setNotice(describeDispatchReport(data.report));
 			await loadAll();
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			setNotice(
 				failNotice(
 					error,
@@ -499,6 +517,7 @@ export function MessageDeliveryConsole() {
 			setNotice(describeReminderReport(data.report));
 			await loadAll();
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			setNotice(
 				failNotice(
 					error,
@@ -521,6 +540,7 @@ export function MessageDeliveryConsole() {
 			setSettings(data.settings);
 			setNotice({ kind: "done", text: "Правила рассылки сохранены." });
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			// Отдельно сказано, что на экране осталось прежнее правило: иначе человек
 			// уходит с экрана в уверенности, что тихие часы или предел уже изменены.
 			setNotice(
@@ -586,6 +606,7 @@ export function MessageDeliveryConsole() {
 			setEnqueueSubject("");
 			await loadAll();
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			setNotice(
 				failNotice(
 					error,
@@ -790,6 +811,18 @@ export function MessageDeliveryConsole() {
 								: gateways.channels.sms.balanceError
 									? `Остаток не получен: ${gateways.channels.sms.balanceError}`
 									: ""}
+							{uisQuota && (
+								<span
+									className={
+										uisQuota.remaining <= 0
+											? "text-[var(--bad-fg,#b42318)] font-bold ml-2"
+											: "ml-2"
+									}
+								>
+									Лимит UIS SMS: {uisQuota.smsQuotaLimit - uisQuota.remaining}/
+									{uisQuota.smsQuotaLimit}
+								</span>
+							)}
 						</p>
 					) : null}
 				</>
@@ -797,11 +830,11 @@ export function MessageDeliveryConsole() {
 
 			{/* ── Журнал ────────────────────────────────────────────────────── */}
 			<h3 className="ops-section-title">Журнал отправки</h3>
-			<div
+			<fieldset
 				className="quick-chips-row"
-				role="group"
-				aria-label="Фильтр по состоянию"
+				style={{ border: 0, padding: 0, margin: 0 }}
 			>
+				<legend className="sr-only">Фильтр по состоянию</legend>
 				<button
 					type="button"
 					className={`quick-chip ${statusFilter === "" ? "selected" : ""}`}
@@ -822,7 +855,7 @@ export function MessageDeliveryConsole() {
 						{summary[code] ? ` · ${summary[code]}` : ""}
 					</button>
 				))}
-			</div>
+			</fieldset>
 
 			{outbox.length === 0 ? (
 				<p className="ops-empty">Сообщений с такими условиями нет.</p>
@@ -1044,10 +1077,15 @@ export function MessageDeliveryConsole() {
 						<textarea
 							id="enqueue-body"
 							data-testid="outbox-enqueue-body"
-							rows={3}
 							value={enqueueBody}
 							onChange={(event) => setEnqueueBody(event.target.value)}
-							placeholder="Здравствуйте! Напоминаем о визите завтра в 10:00."
+							placeholder="Текст сообщения..."
+							rows={4}
+							disabled={
+								enqueueChannel === "sms" &&
+								uisQuota !== null &&
+								uisQuota.remaining <= 0
+							}
 						/>
 					</span>
 				)}
@@ -1172,6 +1210,7 @@ export function MessageDeliveryConsole() {
 				*/}
 				{variableCatalog.length > 0 ? (
 					<div
+						role="toolbar"
 						className="ops-variable-catalog"
 						data-testid="comm-template-variables"
 						aria-label="Подстановки для шаблона"

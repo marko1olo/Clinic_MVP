@@ -1,5 +1,5 @@
 import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema, } from "@dental/shared";
-import { unguardedBypassAllowed, requireResolvedOrganizationId as requireOrganizationContext } from "../accessGuard.js";
+import { unguardedBypassAllowed, requireResolvedOrganizationId as requireOrganizationContext, } from "../accessGuard.js";
 import { repairMojibakeText } from "../text/repairMojibake.js";
 import { clinicSessionMissingMessage, clinicSessionRejectedMessage, } from "../utils/clinicSessionRefusal.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
@@ -716,21 +716,24 @@ export async function registerScheduleRoutes(app) {
         const endsAt = new Date(startsMs + durationMinutes * 60_000).toISOString();
         const startsAt = new Date(startsMs).toISOString();
         try {
-            const created = await createAppointmentInDb(orgId, {
-                patientId: original.patientId,
-                doctorUserId,
-                assistantUserId: original.assistantUserId ?? null,
-                chairId,
-                status: "planned",
-                startsAt,
-                endsAt,
-                reason: original.reason ?? undefined,
-                comment: original.comment ?? undefined,
+            const created = await db.transaction(async (tx) => {
+                const newAppt = await createAppointmentInDb(orgId, {
+                    patientId: original.patientId,
+                    doctorUserId,
+                    assistantUserId: original.assistantUserId ?? null,
+                    chairId,
+                    status: "planned",
+                    startsAt,
+                    endsAt,
+                    reason: original.reason ?? undefined,
+                    comment: original.comment ?? undefined,
+                });
+                await tx
+                    .update(scheduleClipboardItems)
+                    .set({ clipboardStatus: "pasted" })
+                    .where(and(eq(scheduleClipboardItems.id, clipItem.id), eq(scheduleClipboardItems.organizationId, orgId)));
+                return newAppt;
             });
-            await db
-                .update(scheduleClipboardItems)
-                .set({ clipboardStatus: "pasted" })
-                .where(and(eq(scheduleClipboardItems.id, clipItem.id), eq(scheduleClipboardItems.organizationId, orgId)));
             const dashboard = await getDashboardFromDb(orgId);
             wsBroker.broadcastToOrganization(orgId, {
                 type: "APPOINTMENT_CREATED",

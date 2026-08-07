@@ -1,4 +1,5 @@
-import { Calendar, FlaskConical, Link, Plus, Trash2 } from "lucide-react";
+import { actionFailureToast } from "../../lib/panelStateText";
+import { Calendar, FlaskConical, Link, Trash2 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { denteAdminSecretRequestHeaders, money } from "../../AppHelpers";
@@ -79,6 +80,8 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		повторить; честная пустота — с указанием, откуда здесь берутся наряды.
 	*/
 	const [loadError, setLoadError] = useState<string | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
 
 	// Form state for new ZTL order
 	const [toothFdi, setToothFdi] = useState("");
@@ -137,6 +140,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				setLoadError(loadFailureText(res.status));
 			}
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			console.error("Failed to load lab orders", e);
 			if (shownPatientIdRef.current !== requestedPatientId) return;
 			setLoadError(
@@ -185,7 +189,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		if (patientId) {
 			void fetchOrders();
 		}
-	}, [patientId]);
+	}, [patientId, fetchOrders]);
 
 	// A technician changing an order from the guest portal broadcasts over WS
 	// into the app store; refetch so the clinic view reflects it live instead of
@@ -194,10 +198,11 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 		if (patientId && liveStatus) {
 			fetchOrders();
 		}
-	}, [liveStatus]);
+	}, [liveStatus, patientId, fetchOrders]);
 
 	const handleCreateOrder = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (isCreating) return;
 		/*
 			ЦЕНА РАБОТЫ СЧИТАЛАСЬ ЦЕЛЫМИ РУБЛЯМИ И МОЛЧА ТЕРЯЛАСЬ.
 
@@ -222,6 +227,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 			);
 			return;
 		}
+		setIsCreating(true);
 		try {
 			const res = await fetch("/api/clinical/lab-orders", {
 				method: "POST",
@@ -254,13 +260,17 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				const err = await res.json().catch(() => ({}));
 				showToast(err.message || "Ошибка создания заказа ЗТЛ", "error");
 			}
-		} catch (e) {
+		} catch (_e) {
 			showToast("Системная ошибка", "error");
+		} finally {
+			setIsCreating(false);
 		}
 	};
 
 	const handleDeleteOrder = async (id: string) => {
+		if (deletingId === id) return;
 		if (!window.confirm("Удалить заказ зуботехнической лаборатории?")) return;
+		setDeletingId(id);
 		try {
 			const res = await fetch(`/api/clinical/lab-orders/${id}`, {
 				method: "DELETE",
@@ -272,8 +282,10 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 			} else {
 				showToast("Ошибка удаления", "error");
 			}
-		} catch (e) {
+		} catch (_e) {
 			showToast("Системная ошибка", "error");
+		} finally {
+			setDeletingId(null);
 		}
 	};
 
@@ -299,7 +311,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				const err = await res.json().catch(() => ({}));
 				showToast(err.message || "Ошибка обновления статуса", "error");
 			}
-		} catch (e) {
+		} catch (_e) {
 			setOrders(previous);
 			showToast("Системная ошибка", "error");
 		}
@@ -364,8 +376,11 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Зуб (FDI)</label>
+						<label htmlFor="lab-order-tooth" className="text-xs text-slate-400">
+							Зуб (FDI)
+						</label>
 						<input
+							id="lab-order-tooth"
 							type="text"
 							placeholder="Напр. 16, 24"
 							value={toothFdi}
@@ -375,8 +390,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Материал</label>
+						<label
+							htmlFor="lab-order-material"
+							className="text-xs text-slate-400"
+						>
+							Материал
+						</label>
 						<select
+							id="lab-order-material"
 							value={material}
 							onChange={(e) => setMaterial(e.target.value)}
 							className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
@@ -390,8 +411,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Цвет (Vita)</label>
+						<label
+							htmlFor="lab-order-color-vita"
+							className="text-xs text-slate-400"
+						>
+							Цвет (Vita)
+						</label>
 						<select
+							id="lab-order-color-vita"
 							value={colorVita}
 							onChange={(e) => setColorVita(e.target.value)}
 							className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
@@ -421,7 +448,9 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Стоимость, ₽</label>
+						<label htmlFor="lab-order-price" className="text-xs text-slate-400">
+							Стоимость, ₽
+						</label>
 						{/*
 							Было type="number". Такое поле в русском браузере не принимает
 							запятую: «12500,50» стирается в пустоту прямо под рукой, и наряд
@@ -430,6 +459,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 							normalizeRubAmountInput при отправке.
 						*/}
 						<input
+							id="lab-order-price"
 							type="text"
 							inputMode="decimal"
 							placeholder="например 12500"
@@ -442,8 +472,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Лечащий врач</label>
+						<label
+							htmlFor="lab-order-doctor"
+							className="text-xs text-slate-400"
+						>
+							Лечащий врач
+						</label>
 						<select
+							id="lab-order-doctor"
 							value={doctorId}
 							onChange={(e) => setDoctorId(e.target.value)}
 							className="w-full bg-[#1e293b] border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
@@ -458,8 +494,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">Срок готовности</label>
+						<label
+							htmlFor="lab-order-due-date"
+							className="text-xs text-slate-400"
+						>
+							Срок готовности
+						</label>
 						<input
+							id="lab-order-due-date"
 							type="datetime-local"
 							value={dueDate}
 							onChange={(e) => setDueDate(e.target.value)}
@@ -468,10 +510,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 					</div>
 
 					<div className="space-y-1">
-						<label className="text-xs text-slate-400">
+						<label
+							htmlFor="lab-order-clinical-notes"
+							className="text-xs text-slate-400"
+						>
 							Клиническое примечание
 						</label>
 						<input
+							id="lab-order-clinical-notes"
 							type="text"
 							placeholder="Опишите особенности прикуса, уступы..."
 							value={clinicalNotes}
@@ -483,9 +529,11 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 				<button
 					type="submit"
-					className="w-full py-2 bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-[#1e293b] font-bold rounded-lg text-xs transition-colors shadow-md shadow-teal-500/10"
+					disabled={isCreating}
+					aria-busy={isCreating}
+					className="w-full py-2 bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-[#1e293b] font-bold rounded-lg text-xs transition-colors shadow-md shadow-teal-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					Создать наряд ЗТЛ
+					{isCreating ? "Создание..." : "Создать наряд ЗТЛ"}
 				</button>
 			</form>
 
@@ -638,6 +686,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 										)}
 									</select>
 									<button
+										type="button"
 										onClick={() => copyPortalLink(order.secureToken)}
 										className="py-1 px-2.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 rounded-lg font-semibold transition-colors flex items-center gap-1"
 									>
@@ -651,8 +700,11 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 										Ссылка технику
 									</button>
 									<button
+										type="button"
+										disabled={deletingId === order.id}
+										aria-busy={deletingId === order.id}
 										onClick={() => handleDeleteOrder(order.id)}
-										className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors"
+										className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										<Trash2 className="w-3.5 h-3.5" />
 									</button>

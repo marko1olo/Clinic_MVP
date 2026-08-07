@@ -7,16 +7,13 @@ import type {
 import {
 	Activity,
 	Library,
-	Plus,
 	Power,
 	PowerOff,
 	Settings,
 	ShieldCheck,
-	Stethoscope,
 	Trash2,
 } from "lucide-react";
 import "./SettingsRulesTab.css";
-import type React from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { useSettingsDerivations } from "../../useSettingsDerivations";
@@ -29,7 +26,7 @@ import { CLINICAL_RULES_GATE } from "./settingsModuleGate";
  * Не возвращай импорт, не прочитав тот комментарий.
  */
 
-const clinicalRuleOwnerRoles: StaffRole[] = [
+const _clinicalRuleOwnerRoles: StaffRole[] = [
 	"doctor",
 	"assistant",
 	"administrator",
@@ -101,7 +98,7 @@ export function SettingsRulesTab() {
 		ServiceCategory,
 		string
 	>;
-	const typedServiceCategories = Object.keys(
+	const _typedServiceCategories = Object.keys(
 		typedServiceCategoryLabels,
 	) as ServiceCategory[];
 
@@ -263,9 +260,10 @@ export function SettingsRulesTab() {
 
 				<div className="rules-builder-grid">
 					<div className="rules-builder-group full-width">
-						<label>
+						<label htmlFor="new-rule-title-input">
 							Название правила
 							<input
+								id="new-rule-title-input"
 								className="rules-builder-input"
 								placeholder="Например: Обязательный снимок КТ перед имплантацией"
 								value={newRuleTitle}
@@ -275,7 +273,7 @@ export function SettingsRulesTab() {
 					</div>
 
 					<div className="rules-builder-group">
-						<label>
+						<div>
 							Действие правила
 							<div className="rules-chip-group">
 								{typedClinicalRuleActions.map((action) => (
@@ -289,11 +287,11 @@ export function SettingsRulesTab() {
 									</button>
 								))}
 							</div>
-						</label>
+						</div>
 					</div>
 
 					<div className="rules-builder-group">
-						<label>
+						<div>
 							Уровень строгости
 							<div className="rules-chip-group">
 								{typedClinicalRuleSeverities.map((severity) => (
@@ -307,7 +305,7 @@ export function SettingsRulesTab() {
 									</button>
 								))}
 							</div>
-						</label>
+						</div>
 					</div>
 
 					<div className="rules-builder-group full-width rules-service-grid">
@@ -414,9 +412,10 @@ export function SettingsRulesTab() {
 					</div>
 
 					<div className="rules-builder-group">
-						<label>
+						<label htmlFor="new-rule-warning-text">
 							Предупреждение для врача (внутреннее)
 							<textarea
+								id="new-rule-warning-text"
 								className="rules-builder-textarea"
 								value={newRuleWarningText}
 								onChange={(e) => setNewRuleWarningText(e.target.value)}
@@ -442,9 +441,10 @@ export function SettingsRulesTab() {
 					</div>
 
 					<div className="rules-builder-group">
-						<label>
+						<label htmlFor="new-rule-patient-text">
 							Объяснение для пациента (в плане лечения)
 							<textarea
+								id="new-rule-patient-text"
 								className="rules-builder-textarea"
 								value={newRulePatientText}
 								onChange={(e) => setNewRulePatientText(e.target.value)}

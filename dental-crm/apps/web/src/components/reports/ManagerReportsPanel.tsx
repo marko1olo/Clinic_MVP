@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 /**
  * Отчёты руководителю: выручка, врачи, кресла, потери, дебиторка.
  *
@@ -206,7 +208,14 @@ function formatHours(minutes: number): string {
 }
 
 async function readJson<T>(response: Response): Promise<T> {
-	const payload = (await response.json().catch(() => null)) as unknown;
+	const payload = (await response.json().catch((err: any) => {
+		console.error(err);
+		showToast(
+			actionFailureToast("Ошибка чтения ответа", (err as { status?: number })?.status ?? null),
+			"error"
+		);
+		return null;
+	})) as unknown;
 	if (!response.ok) {
 		const message =
 			payload &&
@@ -581,6 +590,7 @@ export function ManagerReportsPanel({
 			setDebtors(sliceOf(debtorsResult));
 			setScheduleLoad(sliceOf(scheduleResult));
 		} catch (loadError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (loadError as { status?: number })?.status ?? null), "error");
 			/*
 			 * Сюда попадает только сбой ДО запросов — сборка заголовков:
 			 * `localStorage` в приватном режиме браузера бросает исключение

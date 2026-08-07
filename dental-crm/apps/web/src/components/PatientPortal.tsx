@@ -1,3 +1,4 @@
+import { showToast } from "./GlobalToast";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { countLabel, money } from "../AppHelpers";
@@ -58,9 +59,10 @@ const OTP_LENGTH = 4;
 
 interface OTPInputProps {
 	onComplete: (code: string) => void;
+	disabled?: boolean;
 }
 
-const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
+const OTPInput: React.FC<OTPInputProps> = ({ onComplete, disabled }) => {
 	const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
 	const refs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -87,7 +89,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 				});
 			}
 		},
-		[],
+		[focus],
 	);
 
 	const handleChange = useCallback(
@@ -112,7 +114,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 			// за одним внешним адресом четвёртый пациент получал 429 на
 			// правильный код с первой попытки. Отправку оставляем только в эффекте.
 		},
-		[],
+		[focus],
 	);
 
 	const handlePaste = useCallback(
@@ -136,7 +138,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 			focus(nextFocus);
 			// onComplete не вызываем: заполненные цифры подхватит эффект ниже.
 		},
-		[],
+		[focus],
 	);
 
 	// Единственная точка отправки кода. Ref защищает от повторной отправки того же
@@ -156,25 +158,28 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete }) => {
 
 	return (
 		<div className="otp-wrap">
-			{digits.map((d, i) => (
-				<input
-					key={i}
-					ref={(el) => {
-						refs.current[i] = el;
-					}}
-					className={`otp-cell ${d ? "otp-cell--filled" : ""}`}
-					type="text"
-					inputMode="numeric"
-					maxLength={1}
-					value={d}
-					onChange={(e) => handleChange(e, i)}
-					onKeyDown={(e) => handleKeyDown(e, i)}
-					onPaste={(e) => handlePaste(e, i)}
-					onFocus={(e) => e.target.select()}
-					autoComplete="one-time-code"
-					aria-label={`Цифра ${i + 1} из ${OTP_LENGTH}`}
-				/>
-			))}
+			{digits
+				.map((digit, index) => ({ id: `otp-slot-${index}`, index, digit }))
+				.map((slot) => (
+					<input
+						key={slot.id}
+						ref={(el) => {
+							refs.current[slot.index] = el;
+						}}
+						className={`otp-cell ${slot.digit ? "otp-cell--filled" : ""}`}
+						type="text"
+						inputMode="numeric"
+						maxLength={1}
+						value={slot.digit}
+						disabled={disabled}
+						onChange={(e) => handleChange(e, slot.index)}
+						onKeyDown={(e) => handleKeyDown(e, slot.index)}
+						onPaste={(e) => handlePaste(e, slot.index)}
+						onFocus={(e) => e.target.select()}
+						autoComplete="one-time-code"
+						aria-label={`Цифра ${slot.index + 1} из ${OTP_LENGTH}`}
+					/>
+				))}
 		</div>
 	);
 };
@@ -226,6 +231,7 @@ export const PatientPortal: React.FC = () => {
 			setIsAuthenticated(false);
 			setSessionError(actionFailureToast("Кабинет не открылся", res.status));
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			// Текст исключения английский, наружу не идёт.
 			console.error("[portal] не удалось прочитать кабинет пациента:", e);
 			setIsAuthenticated(false);
@@ -243,13 +249,13 @@ export const PatientPortal: React.FC = () => {
 			return;
 		}
 		void fetchPatientData(token);
-	}, []);
+	}, [fetchPatientData]);
 
 	useEffect(() => {
 		const token = safeLocalStorageGetItem(PATIENT_TOKEN_KEY);
 		if (token) fetchPatientData(token);
 		phoneRef.current?.focus();
-	}, []);
+	}, [fetchPatientData]);
 
 	const plans: any[] = Array.isArray(patientData?.plans)
 		? patientData.plans
@@ -315,6 +321,7 @@ export const PatientPortal: React.FC = () => {
 	}, [viewingDoc]);
 
 	const [isSendingOtp, setIsSendingOtp] = useState(false);
+	const [isVerifying, setIsVerifying] = useState(false);
 	const [otpSendError, setOtpSendError] = useState<string | null>(null);
 
 	const handleSendOtp = useCallback(async () => {
@@ -353,6 +360,8 @@ export const PatientPortal: React.FC = () => {
 
 	const handleOTPComplete = useCallback(
 		async (code: string) => {
+			if (isVerifying) return;
+			setIsVerifying(true);
 			try {
 				const res = await fetch("/api/portal/auth/verify-otp", {
 					method: "POST",
@@ -367,11 +376,14 @@ export const PatientPortal: React.FC = () => {
 				} else {
 					setOtpError(data.error || "Неверный код. Попробуйте ещё раз.");
 				}
-			} catch (e) {
+			} catch (_e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (_e as { status?: number })?.status ?? null), "error");
 				setOtpError("Ошибка соединения.");
+			} finally {
+				setIsVerifying(false);
 			}
 		},
-		[phone],
+		[phone, fetchPatientData, isVerifying],
 	);
 
 	if (!isAuthenticated) {
@@ -420,6 +432,7 @@ export const PatientPortal: React.FC = () => {
 							    проглатывается: раньше при сбое он ждал СМС, которого не было. */}
 							{otpSendError && <p className="auth-error">{otpSendError}</p>}
 							<button
+								type="button"
 								onClick={handleSendOtp}
 								className="auth-primary-btn"
 								disabled={isSendingOtp}
@@ -433,9 +446,10 @@ export const PatientPortal: React.FC = () => {
 								Код отправлен на <strong>{phone}</strong>
 							</p>
 							<p className="auth-sublabel">Введите 4-значный код</p>
-							<OTPInput onComplete={handleOTPComplete} />
+							<OTPInput onComplete={handleOTPComplete} disabled={isVerifying} />
 							{otpError && <p className="auth-error">{otpError}</p>}
 							<button
+								type="button"
 								onClick={() => {
 									setStep("phone");
 									setOtpError("");
@@ -456,6 +470,7 @@ export const PatientPortal: React.FC = () => {
 			<header className="portal-header">
 				<h2>Мой кабинет пациента</h2>
 				<button
+					type="button"
 					className="logout-btn"
 					onClick={() => setIsAuthenticated(false)}
 				>
@@ -576,6 +591,7 @@ export const PatientPortal: React.FC = () => {
 						<div key={doc.id} className="doc-item">
 							<span>📄 {doc.title}</span>
 							<button
+								type="button"
 								className="btn-download"
 								onClick={() => setViewingDoc({ id: doc.id, title: doc.title })}
 							>
@@ -587,10 +603,23 @@ export const PatientPortal: React.FC = () => {
 			</div>
 
 			{viewingDoc && (
-				<div className="doc-overlay" onClick={() => setViewingDoc(null)}>
+				<button
+					type="button"
+					className="doc-overlay"
+					onClick={(e) => {
+						if (e.target === e.currentTarget) setViewingDoc(null);
+					}}
+					onKeyDown={(e) => {
+						if (
+							e.target === e.currentTarget &&
+							(e.key === "Enter" || e.key === " ")
+						) {
+							setViewingDoc(null);
+						}
+					}}
+				>
 					<div
 						className="doc-overlay-content"
-						onClick={(e) => e.stopPropagation()}
 						style={{
 							width: "90%",
 							maxWidth: "900px",
@@ -613,6 +642,7 @@ export const PatientPortal: React.FC = () => {
 								{viewingDoc.title}
 							</h3>
 							<button
+								type="button"
 								className="doc-close-btn"
 								onClick={() => setViewingDoc(null)}
 								style={{
@@ -657,7 +687,7 @@ export const PatientPortal: React.FC = () => {
 							)}
 						</div>
 					</div>
-				</div>
+				</button>
 			)}
 		</div>
 	);

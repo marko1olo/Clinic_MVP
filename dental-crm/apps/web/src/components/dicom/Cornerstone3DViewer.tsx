@@ -1,11 +1,9 @@
 import * as cornerstone from "@cornerstonejs/core";
 import cornerstoneDICOMImageLoader from "@cornerstonejs/dicom-image-loader";
 import * as cornerstoneTools from "@cornerstonejs/tools";
-import dicomParser from "dicom-parser";
-import { mat4, vec3 } from "gl-matrix";
-import React, { useEffect, useRef, useState } from "react";
+import { vec3 } from "gl-matrix";
+import { useEffect, useRef, useState } from "react";
 import {
-	calculateImplantBoneDensity,
 	distancePointToSpline,
 	mat3ToMat4Direction,
 	type Point2D,
@@ -628,7 +626,7 @@ export function Cornerstone3DViewer({
 			}
 			void saveMarkupNow(true);
 		};
-	}, [isInitialized]);
+	}, [isInitialized, scheduleMarkupSave, saveMarkupNow]);
 
 	/** Отказ от построения: окно развёртки не открываем, причину показываем. */
 	const refusePanorex = (reason: PanoramicIssue) => {
@@ -878,6 +876,7 @@ export function Cornerstone3DViewer({
 					}}
 				>
 					<button
+						type="button"
 						style={{
 							padding: "8px 16px",
 							borderRadius: "8px",
@@ -900,6 +899,7 @@ export function Cornerstone3DViewer({
 						MPR (Oblique)
 					</button>
 					<button
+						type="button"
 						style={{
 							padding: "8px 16px",
 							borderRadius: "8px",
@@ -922,6 +922,7 @@ export function Cornerstone3DViewer({
 						Дуга (Spline)
 					</button>
 					<button
+						type="button"
 						style={{
 							padding: "8px 16px",
 							borderRadius: "8px",
@@ -944,6 +945,7 @@ export function Cornerstone3DViewer({
 						Probe (HU)
 					</button>
 					<button
+						type="button"
 						style={{
 							padding: "8px 16px",
 							borderRadius: "8px",
@@ -1005,6 +1007,7 @@ export function Cornerstone3DViewer({
 					}}
 				>
 					<button
+						type="button"
 						style={{
 							padding: "6px 12px",
 							borderRadius: "8px",
@@ -1023,6 +1026,7 @@ export function Cornerstone3DViewer({
 						MIP
 					</button>
 					<button
+						type="button"
 						style={{
 							padding: "6px 12px",
 							borderRadius: "8px",
@@ -1044,6 +1048,7 @@ export function Cornerstone3DViewer({
 				</div>
 
 				<button
+					type="button"
 					style={{
 						marginLeft: "8px",
 						background: "linear-gradient(to right, #2563eb, #4f46e5)",
@@ -1067,6 +1072,7 @@ export function Cornerstone3DViewer({
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
+						aria-hidden="true"
 					>
 						<path
 							strokeLinecap="round"
@@ -1183,8 +1189,9 @@ export function Cornerstone3DViewer({
 					>
 						AXIAL
 					</div>
-					<div
+					<section
 						ref={axialRef}
+						aria-label="Просмотр Аксиальный"
 						style={{ width: "100%", height: "100%" }}
 						onContextMenu={(e) => e.preventDefault()}
 					/>
@@ -1208,8 +1215,9 @@ export function Cornerstone3DViewer({
 					>
 						SAGITTAL
 					</div>
-					<div
+					<section
 						ref={sagittalRef}
+						aria-label="Просмотр Сагиттальный"
 						style={{ width: "100%", height: "100%" }}
 						onContextMenu={(e) => e.preventDefault()}
 					/>
@@ -1233,8 +1241,9 @@ export function Cornerstone3DViewer({
 					>
 						CORONAL
 					</div>
-					<div
+					<section
 						ref={coronalRef}
+						aria-label="Просмотр Корональный"
 						style={{ width: "100%", height: "100%" }}
 						onContextMenu={(e) => e.preventDefault()}
 					/>
@@ -1300,6 +1309,7 @@ export function Cornerstone3DViewer({
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
+									aria-hidden="true"
 								>
 									<path
 										strokeLinecap="round"

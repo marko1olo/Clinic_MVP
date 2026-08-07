@@ -473,11 +473,19 @@ export async function registerAuthRoutes(app) {
                 .send({ error: "AuthError", message: "Неверный PIN-код." });
         }
         resetRateLimit(request);
+        const sessionId = crypto.randomUUID();
+        await withTenantCtx(orgId, async (tx) => {
+            await tx
+                .update(users)
+                .set({ currentSessionId: sessionId })
+                .where(and(eq(users.id, user.id), eq(users.organizationId, orgId)));
+        });
         const staffToken = signToken({
             userId: user.id,
             fullName: user.fullName,
             role: user.role,
             organizationId: orgId,
+            sessionId,
         }, TOKEN_SECRET(), 60 * 60 * 8);
         await db.insert(auditEvents).values({
             organizationId: orgId,
@@ -1278,6 +1286,8 @@ export async function registerAuthRoutes(app) {
             email: users.email,
             organizationId: users.organizationId,
             isActive: users.isActive,
+            yandexCalendarId: users.yandexCalendarId,
+            yandexCalendarToken: users.yandexCalendarToken,
         })
             .from(users)
             .where(and(eq(users.id, payload.userId), eq(users.isActive, true)))

@@ -1,8 +1,12 @@
+import { showToast } from "../../components/GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import type {
 	Appointment,
+	Dashboard,
 	ScheduleWarning,
 	StaffWorkingHours,
 } from "@dental/shared";
+import { useRef } from "react";
 import {
 	type AppointmentScheduleDraft,
 	appointmentCreateInputFromDraft,
@@ -72,6 +76,7 @@ export function useScheduleLogic({
 	loadDashboard,
 	selectedSpecialty,
 }: any) {
+	const appointmentMutationIdRef = useRef<string | null>(null);
 	const scheduleStore = useScheduleStore();
 	const { setScheduleAdminSecretDemand } = useSettingsStore();
 	const {
@@ -530,6 +535,7 @@ export function useScheduleLogic({
 			await loadDashboard();
 			return true;
 		} catch (scheduleSaveError) {
+			showToast(actionFailureToast("Расписание сотрудника не сохранено", (scheduleSaveError as { status?: number })?.status ?? null), "error");
 			setStaffScheduleSaveStates((current: any) => ({
 				...current,
 				[staffId]: "error",
@@ -599,6 +605,7 @@ export function useScheduleLogic({
 			await loadDashboard();
 			return true;
 		} catch (scheduleSaveError) {
+			showToast(actionFailureToast("Расписание кресла не сохранено", (scheduleSaveError as { status?: number })?.status ?? null), "error");
 			setChairScheduleSaveStates((current) => ({
 				...current,
 				[chairId]: "error",
@@ -675,12 +682,22 @@ export function useScheduleLogic({
 			[appointmentId]: null,
 		}));
 		try {
+			if (!appointmentMutationIdRef.current) {
+				appointmentMutationIdRef.current =
+					typeof crypto !== "undefined" && "randomUUID" in crypto
+						? crypto.randomUUID()
+						: `appointment-${Date.now()}`;
+			}
+			const mutationId = appointmentMutationIdRef.current;
 			const response = await fetch(`/api/appointments/${appointmentId}`, {
 				method: "PATCH",
 				headers: auth.scheduleMutationHeaders({
 					"Content-Type": "application/json",
 				}),
-				body: JSON.stringify(appointmentUpdateInputFromDraft(draft)),
+				body: JSON.stringify({
+					...appointmentUpdateInputFromDraft(draft),
+					clientMutationId: mutationId,
+				}),
 			});
 			if (!response.ok) {
 				setScheduleAdminSecretDemand(
@@ -690,9 +707,10 @@ export function useScheduleLogic({
 					await responseErrorMessage(response, "Запись не сохранена"),
 				);
 			}
+			appointmentMutationIdRef.current = null;
 			setScheduleAdminSecretDemand("");
 			const payload = await response.json();
-			const nextDashboard = payload as any;
+			const nextDashboard = payload as Dashboard;
 			setDashboard(nextDashboard);
 			const savedAppointment = nextDashboard.appointments?.find(
 				(appointment) => appointment.id === appointmentId,
@@ -724,6 +742,7 @@ export function useScheduleLogic({
 			setError(null);
 			return true;
 		} catch (saveError) {
+			showToast(actionFailureToast("Запись не сохранена", (saveError as { status?: number })?.status ?? null), "error");
 			const message = operatorWorkflowFailureMessage(
 				"Запись не сохранена",
 				saveError,
@@ -781,14 +800,22 @@ export function useScheduleLogic({
 			(dashboard?.appointments ?? []).map((appointment) => appointment.id),
 		);
 		try {
+			if (!appointmentMutationIdRef.current) {
+				appointmentMutationIdRef.current =
+					typeof crypto !== "undefined" && "randomUUID" in crypto
+						? crypto.randomUUID()
+						: `appointment-${Date.now()}`;
+			}
+			const mutationId = appointmentMutationIdRef.current;
 			const response = await fetch("/api/appointments", {
 				method: "POST",
 				headers: auth.scheduleMutationHeaders({
 					"Content-Type": "application/json",
 				}),
-				body: JSON.stringify(
-					appointmentCreateInputFromDraft(newAppointmentDraft),
-				),
+				body: JSON.stringify({
+					...appointmentCreateInputFromDraft(newAppointmentDraft),
+					clientMutationId: mutationId,
+				}),
 			});
 			if (!response.ok) {
 				setScheduleAdminSecretDemand(
@@ -798,9 +825,10 @@ export function useScheduleLogic({
 					await responseErrorMessage(response, "Запись не создана"),
 				);
 			}
+			appointmentMutationIdRef.current = null;
 			setScheduleAdminSecretDemand("");
 			const payload = await response.json();
-			const nextDashboard = payload as any;
+			const nextDashboard = payload as Dashboard;
 			const createdAppointment =
 				nextDashboard.appointments?.find(
 					(appointment) => !previousIds.has(appointment.id),
@@ -838,6 +866,7 @@ export function useScheduleLogic({
 			setError(null);
 			return true;
 		} catch (createError) {
+			showToast(actionFailureToast("Запись не создана", (createError as { status?: number })?.status ?? null), "error");
 			const message = operatorWorkflowFailureMessage(
 				"Запись не создана",
 				createError,

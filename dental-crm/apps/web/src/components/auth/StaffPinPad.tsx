@@ -1,5 +1,5 @@
 import { Delete, Lock, LogOut, UserCheck } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
 	actionFailureToast,
 	NO_RESPONSE_CAUSE,
@@ -204,6 +204,7 @@ export function StaffPinPad({
 			try {
 				safeLocalStorageSetItem(DENTE_STAFF_TOKEN_KEY, staffToken);
 			} catch (storageError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (storageError as { status?: number })?.status ?? null), "error");
 				/*
 				 * Запись в localStorage запрещена (приватный режим, переполненное
 				 * хранилище). PIN при этом верен, и говорить «нет связи» было бы ложью.
@@ -381,10 +382,10 @@ export function StaffPinPad({
 
 					{/* Dots */}
 					<div className={`auth-pin-dots ${errorShake ? "animate-shake" : ""}`}>
-						{[0, 1, 2, 3].map((idx) => (
+						{[0, 1, 2, 3].map((slot) => (
 							<div
-								key={idx}
-								className={`auth-pin-dot ${pin.length > idx ? "filled" : ""}`}
+								key={`pin-dot-slot-${slot}`}
+								className={`auth-pin-dot ${pin.length > slot ? "filled" : ""}`}
 							/>
 						))}
 					</div>

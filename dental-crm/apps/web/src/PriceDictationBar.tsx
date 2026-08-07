@@ -1,5 +1,5 @@
-import { Check, Mic } from "lucide-react";
-import React, { useState } from "react";
+import { Check } from "lucide-react";
+import { useState } from "react";
 import { SmartMicrophoneButton } from "./components/SmartMicrophoneButton";
 import { DictationHints } from "./DictationHints";
 import { AiOrchestrator } from "./lib/aiOrchestrator";
@@ -14,7 +14,7 @@ interface PriceDictationBarProps {
 }
 
 export function PriceDictationBar({ onPriceParsed }: PriceDictationBarProps) {
-	const [isDictating, setIsDictating] = useState(false);
+	const [isDictating, _setIsDictating] = useState(false);
 	const [inputText, setInputText] = useState("");
 	const [showHints, setShowHints] = useState(false);
 	const [showPreview, setShowPreview] = useState(false);
@@ -38,12 +38,7 @@ export function PriceDictationBar({ onPriceParsed }: PriceDictationBarProps) {
 	};
 
 	const handleApply = (data: any) => {
-		if (
-			data &&
-			data.serviceName &&
-			data.price !== null &&
-			data.price !== undefined
-		) {
+		if (data?.serviceName && data.price !== null && data.price !== undefined) {
 			onPriceParsed(data.serviceName, data.price, data.category);
 		}
 		setShowPreview(false);
@@ -82,6 +77,7 @@ export function PriceDictationBar({ onPriceParsed }: PriceDictationBarProps) {
 
 				{inputText.length > 0 && !isDictating && (
 					<button
+						type="button"
 						onClick={() => handleParse(inputText)}
 						className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 shadow-sm"
 					>

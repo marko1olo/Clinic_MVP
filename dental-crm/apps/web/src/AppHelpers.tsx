@@ -1,97 +1,43 @@
+import { showToast } from "./components/GlobalToast";
+import { actionFailureToast } from "./lib/panelStateText";
 import {
 	type AcceptVisitDraftResponse,
 	type AiJobKind,
-	type AiRecognitionJob,
-	type AiRecognitionJobResponse,
 	type AiRecognitionTarget,
 	type Appointment,
 	buildRuleBasedVisitDraftFromTranscript,
 	type ClinicalToothRow,
-	type ClinicMode,
 	type ClinicProfile,
-	type ClinicPublicLookupResponse,
-	type CommunicationTaskOutcome,
 	type CreateAppointmentInput,
 	type Dashboard,
-	type DentalPricelistAnalysisResponse,
 	type DentalSpecialty,
 	type DenteTelegramBotMode,
-	type DenteTelegramBotStatus,
-	type DenteTelegramChatLinkListResponse,
-	type DenteTelegramChatLinkPublic,
 	type DenteTelegramFeature,
-	type DenteTelegramLinkCodeCreated,
-	type DenteTelegramLinkCodeListResponse,
 	type DenteTelegramLinkCodePublic,
 	type DenteTelegramMessagePreview,
 	type DenteTelegramOutboxResponse,
-	type DenteTelegramOutboxSendDueResponse,
-	type DenteTelegramOutboxSendResponse,
-	type DenteTelegramPostVisitCheckupDelayHoursByTopic,
 	type DenteTelegramPrivacyMode,
 	type DenteTelegramVisualCardKey,
 	type DenteTelegramVisualCardUrls,
-	type DicomFirstFramePreviewResponse,
-	type DicomFolderSeriesPreviewResponse,
-	type DicomFolderWorkupPath,
-	type DicomFolderWorkupPlanResponse,
-	type DicomLocalFolderDiscoveryResponse,
-	type DicomRenderCachePlanResponse,
 	type DicomSeriesPreviewGroup,
-	type DicomSeriesPreviewResponse,
-	type DicomViewerLaunchManifestResponse,
 	type DicomViewerToolStateBundleResponse,
 	type DicomViewerWorkbenchManifestResponse,
-	type DicomWebConnectorCheckResponse,
-	type DicomWorkbenchBundle,
-	type DicomWorkbenchBundleListResponse,
-	type DicomWorkbenchBundleResponse,
 	type DicomWorkstationClientFacts,
-	type DicomWorkstationReadinessResponse,
-	type DocumentAuditFacts,
-	type DocumentChainSummary,
 	type DocumentIngestionResponse,
 	type DocumentIngestionTarget,
 	type DocumentIssueSignatureMode,
-	type DocumentPayload,
-	type DocumentSourceStatus,
 	type DocumentVoidReasonCode,
-	documentAmountSource,
-	documentFactoryGroups,
 	documentKindMetadata,
-	documentSourceStatusLabels,
 	type GeneratedDocument,
-	type ImagingFolderScanResponse,
-	type ImagingImportCommitResponse,
-	type ImagingImportPreviewResponse,
 	type ImagingSourceKind,
 	type ImagingStudyKind,
 	type ImagingViewerAnnotation,
 	type ImagingViewerImplantPlan,
-	type ImagingViewerSessionResponse,
 	type ImagingViewerSessionState,
-	type ImagingViewerTool,
 	type ImagingViewerWindowPreset,
-	type ImportCommitResponse,
-	type ImportIntakeResponse,
-	type ImportPreviewResponse,
 	type ImportSourceKind,
 	type InstallmentPaymentStatus,
-	type IntegrationCapability,
-	type IntegrationCategory,
-	type IntegrationPresetStatus,
-	type IssueDocumentInput,
-	type LocalBridgeReadinessResponse,
-	type LocalBridgeStatus,
-	type LocalBridgeUsePath,
-	type LocalBridgeUsePlansResponse,
-	type LocalImagingOrganizerResponse,
-	type MigrationAutopilotResponse,
 	type MigrationLocalSourceDiscoveryResponse,
-	type MigrationLocalSourceProbeResponse,
-	type MigrationLocalSourceWorkupResponse,
-	normalizeDentalSpeechTranscript,
-	type OutpatientMedicalCard025uPayload,
 	type Patient,
 	type PatientAdministrativeProfile,
 	type PatientIntakePregnancyStatus,
@@ -100,23 +46,11 @@ import {
 	type PostVisitCareTopic,
 	type PricelistSourceKind,
 	type ProcedureSpecificConsentProcedure,
-	type ProtocolTemplate,
-	type ResourceLoad,
-	type ScheduleWarning,
-	type SmartImportCommitResponse,
 	type SmartImportMode,
-	type SmartImportPreviewResponse,
 	type SpeechChunkUploadInput,
-	type SpeechGatewayHealthReport,
 	type SpeechGatewayStatus,
-	type SpeechProvider,
 	type SpeechProviderConnector,
-	type SpeechProviderRuntimeStatus,
-	type SpeechRecordingAssembly,
-	type SpeechRecordingRecoveryList,
-	type SpeechRecordingStrategy,
 	type SpeechTranscriptionResponse,
-	type SpeechTranscriptPolishResponse,
 	type StaffRole,
 	type StaffWorkingHours,
 	type TaxDeductionApplicationDeliveryChannel,
@@ -128,126 +62,18 @@ import {
 	type UpdateClinicProfileInput,
 	type UpdatePatientAdministrativeProfileInput,
 	type UpdatePatientInput,
-	type VisitDraftAutosaveResponse,
 	type VisitNoteDraft,
-	type VoidDocumentInput,
 	type XrayCbctReferralPregnancyStatus,
 	type XrayCbctReferralPriority,
 	type XrayCbctReferralStudyType,
 } from "@dental/shared";
+import { type CSSProperties, lazy } from "react";
+import type { CtImplantLibraryItem } from "./ctPlanningTools";
 import {
-	AlertTriangle,
-	ArrowRight,
-	Bot,
-	Building2,
-	CalendarDays,
-	Check,
-	CheckCircle2,
-	ClipboardCheck,
-	ClipboardList,
-	Copy,
-	CreditCard,
-	Database,
-	Download,
-	ExternalLink,
-	FileCheck2,
-	FileText,
-	FlipHorizontal,
-	Gauge,
-	History,
-	Image as ImageIcon,
-	MessageSquare,
-	Mic,
-	Phone,
-	Plus,
-	ReceiptText,
-	RefreshCw,
-	RotateCcw,
-	RotateCw,
-	Search,
-	Send,
-	ShieldCheck,
-	Sparkles,
-	UploadCloud,
-	UserCheck,
-	Users,
-	ZoomIn,
-	ZoomOut,
-} from "lucide-react";
-import {
-	type CSSProperties,
-	type KeyboardEvent,
-	lazy,
-	Suspense,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import { AppLoadingState, AppUnlockState } from "./AppBootState";
-import {
-	type BrowserContinuityStatus,
-	browserContinuityRegistrationLabels,
-	formatByteSize,
-	formatMegabytes,
-	inspectBrowserContinuity,
-} from "./browserContinuity";
-import { ClinicalRulePanel } from "./ClinicalRulePanel";
-import {
-	communicationDocumentTaskActionLabels,
-	telegramCareRequestTaskCareTopics,
-	telegramCareRequestWorkflowCareTopics,
-	telegramDocumentRequestTaskDocumentKinds,
-	telegramDocumentRequestWorkflowDocumentKinds,
-} from "./communicationTaskData";
-import type { CtPlanningArtifactCommand } from "./ctPlanningArtifactCommands";
-import {
-	type CtImplantLibraryItem,
-	type CtPlanningQuickAction,
-	CtPlanningToolsPanel,
-	findCtPlanningQuickActionForArtifactCommand,
-} from "./ctPlanningTools";
-import {
-	type ImagingStudyRow,
-	imagingCaptureDistanceMs,
-	imagingComparisonReason,
-	imagingComparisonScore,
-} from "./imagingComparison";
-import {
-	dicomDiagnosticPixelPolicyLabels,
-	dicomExecutionLaneLabels,
-	dicomGpuClassLabels,
-	dicomLabel,
-	dicomQualityModeLabels,
-	dicomReadinessCheckLabels,
-	dicomRenderMemoryBudgetClassLabels,
-	dicomRuntimeTierLabels,
-	dicomSeriesViewerLabels,
-	dicomTextureStrategyLabels,
-	dicomViewerLaunchModeLabels,
-	dicomWebStatusLabels,
 	imagingKindLabels,
-	imagingSourceDetails,
 	imagingSourceLabels,
-	imagingViewerToolLabels,
-	localImagingModelRoleLabels,
-	localImagingOrganizerActionLabels,
-	type MprClinicalPreset,
 	type MprProjection,
 	type MprWindowPreset,
-	mprAxisPresetDeg,
-	mprCacheModeLabels,
-	mprClinicalPresets,
-	mprLoadStrategyLabels,
-	mprProjectionLabels,
-	mprProjectionOrientationLabels,
-	mprResourceTierLabels,
-	mprSeriesRequiredProjectionLabel,
-	mprSlabPresetMm,
-	mprToolLabels,
-	mprUnavailableProjectionLabel,
-	mprWindowPresetLabels,
-	policyAuditEventLabels,
 } from "./imagingUiLabels";
 import { denteAdminSecretRequestHeaders } from "./lib/denteRequestHeaders";
 import {
@@ -256,163 +82,94 @@ import {
 	safeLocalStorageRemoveItem,
 	safeLocalStorageSetItem,
 } from "./lib/safeLocalStorage";
-import { motionSafeScrollIntoView } from "./motionPreference";
 import {
-	buildMprClinicalChecklist,
-	buildMprOperatorSummary,
-	buildMprWorkbenchSummary,
-	describeMprClinicalPresetProjectionFallback,
-	findNearestMprClinicalPreset,
-	mprClinicalNextAction,
-	resolveMprClinicalPresetProjection,
-} from "./mprClinicalStatus";
-import {
-	buildMprAxisGuidance,
 	clampMprAxisDeg,
 	clampMprSlabMm,
 	clampMprSliceIndex,
-	formatMprAxisAngleBadge,
-	formatMprAxisDirectionLabel,
-	formatMprAxisRangeValue,
-	formatMprAxisVisualizerLabel,
-	formatMprSlabBadge,
-	formatMprSlabRangeValue,
-	formatMprSliceBadge,
-	formatMprSliceRangeValue,
-	formatSignedMprStep,
-	mprAxisBounds,
-	mprAxisNudgeDeg,
-	mprProjectionCompassLabels,
-	mprSlabBounds,
-	mprSlabNudgeMm,
-	mprSliceFraction,
-	mprSliceIndexFromFraction,
-	mprSliceNudgeSteps,
-	mprSlicePresetFractions,
-	resolveMprKeyboardAdjustment,
 } from "./mprControlMath";
-import { postVisitCarePresets } from "./postVisitCareData";
+import { pricelistSourceKindLabels } from "./pricelistUiMeta";
+import type { AppView } from "./workspaceShell";
 import {
-	dentalMaterialKindLabels,
-	dentalRestorationTypeLabels,
-	pricelistRecognitionBrandGroups,
-	pricelistRecognitionServiceGroups,
-	pricelistSourceKindLabels,
-} from "./pricelistUiMeta";
-import {
-	normalizeRubAmountInput,
-	validateRubAmountInput,
-} from "./rubAmountInput";
-import {
-	imagingConnectorCards,
-	imagingViewerCapabilities,
-	recognitionPresets,
-} from "./settingsStaticData";
-import { specialtyQuickPhraseLibrary } from "./visitDictationData";
-import {
-	inferDashboardVisitSpecialty,
-	inferSpecialtyFromText,
-	visitSpecialtyFocusOptions,
-} from "./visitSpecialtyData";
-import { WorkspaceContinuityStrip } from "./workspaceContinuityStrip";
-import { WorkspaceRouteErrorBoundary } from "./workspaceRouteErrorBoundary";
-import {
-	ActionIcon,
-	type AppView,
-	appViews,
-	getFilteredAppViews,
-	viewLabels,
-	WorkspaceSidebar,
-	WorkspaceTopbar,
-} from "./workspaceShell";
-import {
-	defaultTelegramPostVisitCheckupDelayDrafts,
-	defaultTelegramPostVisitCheckupDelayHoursByTopic,
 	postVisitCareTopicOptions,
-	type TelegramPostVisitCheckupDelayDrafts,
-	type TelegramPostVisitCheckupDelayKey,
-	telegramFeatureHelp,
-	telegramFeatureLabels,
-	telegramFeatureOptions,
-	telegramPostVisitCheckupDelayFields,
 	telegramVisualCardFields,
 } from "./workspaceStaticOptions";
 
 export { imagingSourceLabels } from "./imagingUiLabels";
 export { pricelistSourceKindLabels } from "./pricelistUiMeta";
+export {
+	currentLocalDateTimeInputValue,
+	toDateTimeLocalValue,
+} from "./utils/dateUtils";
+export {
+	defaultClinicalToothRowsText,
+	defaultDicomFirstFrameViewerState,
+	defaultImagingViewerState,
+	emptyAppointmentScheduleDraft,
+	emptyPatientAdministrativeProfileDraft,
+	emptyPatientCoreDraft,
+	emptyTelegramVisualCardUrlDrafts,
+	emptyVisitNoteForm,
+} from "./utils/draftDefaults";
+export {
+	defaultUiPreferences,
+	loadUiPreferences,
+	saveUiPreferences,
+	type UiPreferences,
+	type UiPreferencesInput,
+	uiPreferencesStorageKey,
+} from "./utils/preferencesUtils";
+export {
+	type SettingsTab,
+	settingsTabFromHash,
+	settingsTabs,
+	viewFromHash,
+} from "./utils/routeUtils";
+
+import { toDateTimeLocalValue } from "./utils/dateUtils";
+import {
+	defaultUiPreferences,
+	type UiPreferences,
+	type UiPreferencesInput,
+	uiPreferencesStorageKey,
+} from "./utils/preferencesUtils";
 
 import {
 	appointmentLabels,
 	clinicalRuleActionLabels,
 	clinicalRuleSeverityLabels,
-	clinicalRuleSummaryForUi,
-	clinicModeLabels,
-	communicationChannelLabels,
-	communicationIntentLabels,
-	communicationPriorityLabels,
-	communicationStatusLabels,
-	completedActContractReferenceForUi,
-	dicomFolderWorkupPathLabels,
-	documentActionLabels,
-	documentLabels,
-	documentSourceStatusClassNames,
-	documentStatusLabels,
-	integrationCapabilityLabels,
-	integrationCategoryLabels,
-	integrationStatusLabels,
-	localBridgeStatusLabels,
-	localBridgeUsePathLabels,
-	moneyDocumentKinds,
-	paymentFiscalReceiptLabelForUi,
 	paymentMethodLabels,
-	paymentTaxYearForUi,
 	recognitionTargetLabels,
-	scenarioPriorityLabels,
-	scenarioStrategyLabels,
 	serviceCategoryLabels,
 	specialtyLabels,
-	speechProviderHealthLabels,
-	speechProviderModeLabels,
-	speechProviderSelectionLabels,
-	speechProviderStatusLabels,
-	speechRecordingPathLabels,
-	speechRecoveryStateLabels,
 	staffRoleLabels,
-	structuredPayloadDocumentKinds,
-	taxPaymentPayerKeyForUi,
-	taxPaymentSelectionDocumentKinds,
-	taxPaymentSelectionPayloadDocumentKinds,
-	treatmentStatusLabels,
-	warningSeverityLabels,
-	workloadStateLabels,
 } from "./workspaceUiLabels";
 
-const ImagingView = lazy(() =>
+const _ImagingView = lazy(() =>
 	import("./ImagingView").then((module) => ({ default: module.ImagingView })),
 );
-const VisitView = lazy(() =>
+const _VisitView = lazy(() =>
 	import("./VisitView").then((module) => ({ default: module.VisitView })),
 );
-const CommunicationsView = lazy(() =>
+const _CommunicationsView = lazy(() =>
 	import("./CommunicationsView").then((module) => ({
 		default: module.CommunicationsView,
 	})),
 );
-const DocumentsView = lazy(() =>
+const _DocumentsView = lazy(() =>
 	import("./DocumentsView").then((module) => ({
 		default: module.DocumentsView,
 	})),
 );
-const SettingsView = lazy(() =>
+const _SettingsView = lazy(() =>
 	import("./SettingsView").then((module) => ({ default: module.SettingsView })),
 );
-const ScheduleView = lazy(() =>
+const _ScheduleView = lazy(() =>
 	import("./ScheduleView").then((module) => ({ default: module.ScheduleView })),
 );
-const PatientsView = lazy(() =>
+const _PatientsView = lazy(() =>
 	import("./PatientsView").then((module) => ({ default: module.PatientsView })),
 );
-const MarketingView = lazy(() =>
+const _MarketingView = lazy(() =>
 	import("./MarketingView").then((module) => ({
 		default: module.MarketingView,
 	})),
@@ -469,32 +226,6 @@ export function viewerWindowPresetForStudy(
 	if (kind === "opg") return "perio";
 	return "endo";
 }
-
-export const defaultImagingViewerState: ImagingViewerState = {
-	rotationDeg: 0,
-	flipHorizontal: false,
-	inverted: false,
-	brightness: 1,
-	contrast: 1.08,
-	zoom: 1,
-	panX: 0,
-	panY: 0,
-	projection: "axial",
-	preset: "bone",
-};
-
-export const defaultDicomFirstFrameViewerState: ImagingViewerState = {
-	rotationDeg: 0,
-	flipHorizontal: false,
-	inverted: false,
-	brightness: 1,
-	contrast: 1,
-	zoom: 1,
-	panX: 0,
-	panY: 0,
-	projection: "axial",
-	preset: "bone",
-};
 
 export type ImagingViewerLocalDraft = {
 	state: ImagingViewerSessionState;
@@ -760,7 +491,6 @@ export const browserImagingScanYieldEveryUnits = 24;
 export const browserImagingScanYieldEveryMs = 20;
 export const browserImagingScanProgressEveryUnits = 12;
 export const browserImagingScanProgressEveryMs = 96;
-export const uiPreferencesStorageKey = "dental-crm:web-ui-preferences:v1";
 export const documentPaymentSelectionStorageKey =
 	"dental-crm:document-payment-selection:v1";
 export const documentPayloadDraftStorageKey =
@@ -885,12 +615,6 @@ export function browserGeneratedId(prefix: string): string {
 	return `${prefix}-${crypto.randomUUID()}`;
 }
 
-export function currentLocalDateTimeInputValue(): string {
-	const now = new Date();
-	const offsetMs = now.getTimezoneOffset() * 60_000;
-	return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
 export function normalizedDocumentIssueSignatureMode(
 	value: unknown,
 ): DocumentIssueSignatureMode {
@@ -1007,6 +731,7 @@ export function loadDocumentIssueSignatureDraft(
 			savedAt,
 		};
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.warn(error);
 		return fallback;
 	}
@@ -1031,6 +756,7 @@ export function saveDocumentIssueSignatureDraft(
 			} satisfies DocumentIssueSignatureDraft),
 		);
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.warn(error);
 		// Signature defaults are convenience only; the server still requires explicit attestation on issue.
 	}
@@ -1125,6 +851,7 @@ export function loadDocumentPaymentSelectionStore(
 		}
 		return { version: 1, selections };
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error("Failed to load signature draft", error);
 		// Document payment selection is local operator convenience; read failures are safe to ignore.
 		return emptyDocumentPaymentSelectionStore();
@@ -1166,6 +893,7 @@ export function saveDocumentPaymentSelection(
 			} satisfies DocumentPaymentSelectionStore),
 		);
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error("Failed to save payment selection", error);
 		// Document payment selection is local operator convenience; failed storage must not block document issue.
 	}
@@ -1656,6 +1384,7 @@ export function saveOutpatient025uDocumentDraft(
 			} satisfies DocumentPayloadDraftStore),
 		);
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error("Failed to save outpatient 025u document draft", error);
 		// Payload drafts are recovery data only; document issue still validates all facts server-side.
 	}
@@ -1704,6 +1433,7 @@ export function saveMedicalRecordExtractDocumentDraft(
 			} satisfies DocumentPayloadDraftStore),
 		);
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error(
 			"Failed to save medical record extract document draft",
 			error,
@@ -1744,6 +1474,7 @@ export function loadLocalImagingViewerDraft(
 		}
 		return parsed?.state && Array.isArray(parsed.annotations) ? parsed : null;
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.warn("Failed to load local imaging viewer draft", error);
 		return null;
 	}
@@ -1835,6 +1566,7 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(
 		}
 		return parsed;
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.warn(
 			"Failed to load local DICOM workbench draft from local storage:",
 			error,
@@ -1968,6 +1700,7 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
 		const state = normalizeMprWorkbenchState(parsed.state);
 		return state ? { ...parsed, state } : null;
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.warn(error);
 		return null;
 	}
@@ -2703,6 +2436,7 @@ export function saveBrowserPickedImagingFolderPreview(
 			JSON.stringify(preview),
 		);
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error(
 			"Failed to save browser picked imaging folder preview",
 			error,
@@ -2737,6 +2471,7 @@ export function loadBrowserPickedImagingFolderPreview(
 		}
 		return parsed;
 	} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 		console.error(
 			"Failed to remove browser picked imaging folder preview",
 			error,
@@ -3634,14 +3369,6 @@ export const speechQualityLabels: Record<
 	failed: "сбой",
 };
 
-export const emptyVisitNoteForm: VisitNoteForm = {
-	complaint: "",
-	anamnesis: "",
-	objectiveStatus: "",
-	diagnosis: "",
-	treatmentPlan: "",
-};
-
 export function visitNoteFormFromVisit(
 	visit: Dashboard["activeVisit"],
 ): VisitNoteForm {
@@ -3856,57 +3583,6 @@ export function telegramQrSvgToDataUrl(svg: string): string {
 	return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export type UiPreferences = {
-	version: 1;
-	uiLanguage: UiLanguage;
-	selectedWorkspaceRole: StaffRole;
-	selectedSpecialty: DentalSpecialty;
-	selectedProtocolId: string | null;
-	selectedPatientId: string | null;
-	scheduleDoctorFilterId: string | null;
-	scheduleAssistantFilterId: string | null;
-	scheduleChairFilterId: string | null;
-	scheduleDefaultDoctorUserId: string | null;
-	scheduleDefaultAssistantUserId: string | null;
-	scheduleDefaultChairId: string | null;
-	scheduleStatusFilter: Appointment["status"] | "all";
-	scheduleDateFilter: string;
-	paymentMethod: PaymentMethod;
-	taxDocumentYear: number;
-	selectedDocumentKind: GeneratedDocument["kind"];
-	taxApplicationForm: TaxDeductionApplicationForm;
-	taxApplicationDeliveryChannel: TaxDeductionApplicationDeliveryChannel;
-	paymentReceiptTaxSupportRequested: boolean;
-	documentIssueSignatureMode: DocumentIssueSignatureMode;
-	documentIssueStaffFullName: string;
-	documentIssueStaffRole: string;
-	procedureConsentProcedureType: ProcedureSpecificConsentProcedure;
-	postVisitCareTopic: PostVisitCareTopic;
-	pricelistSourceKind: PricelistSourceKind;
-	usePricelistAi: boolean;
-	odontogramUseSurfaces: boolean;
-	recognitionKind: AiJobKind;
-	recognitionTarget: AiRecognitionTarget;
-	importSourceKind: ImportSourceKind;
-	documentIngestionTarget: DocumentIngestionTarget;
-	imagingImportSourceKind: ImagingSourceKind;
-	smartImportMode: SmartImportMode;
-	imagingKindFilter: ImagingStudyKind | "all";
-	dicomWebEndpointUrl: string;
-	ohifBaseUrl: string;
-	telegramBotConfigId: string;
-	telegramLinkSubjectType: TelegramLinkSubjectType;
-	telegramLinkStaffId: string | null;
-	telegramOutboxStatusFilter: TelegramOutboxStatusFilter;
-	telegramOutboxTemplateFilter: TelegramOutboxTemplateFilter;
-	onboardingDismissed: boolean;
-	onboardingDismissedAt: string | null;
-	onboardingStep: OnboardingStep;
-	onboardingDraftMode: boolean;
-	savedAt: string;
-};
-
-export type UiPreferencesInput = Omit<UiPreferences, "version" | "savedAt">;
 export type TelegramOutboxStatusFilter =
 	| DenteTelegramOutboxResponse["items"][number]["deliveryStatus"]
 	| "all"
@@ -3933,18 +3609,6 @@ export const defaultUiLanguageOption: UiLanguageOption = {
 };
 
 export const uiLanguageOptions: UiLanguageOption[] = [defaultUiLanguageOption];
-
-export const emptyTelegramVisualCardUrlDrafts =
-	(): DenteTelegramVisualCardUrls => ({
-		mainMenu: null,
-		appointment: null,
-		documents: null,
-		tax: null,
-		billing: null,
-		care: null,
-		review: null,
-		staff: null,
-	});
 
 export const telegramPublicUrlSensitiveQueryKeys = new Set([
 	"patient",
@@ -4035,6 +3699,7 @@ export function normalizeTelegramPublicHttpsUrlDraft(
 			try {
 				return decodeURIComponent(segment).trim().toLowerCase();
 			} catch (scanError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (scanError as { status?: number })?.status ?? null), "error");
 				if (isBrowserMigrationScanAbortError(scanError)) throw scanError;
 				throw new Error(`${fieldLabel}: исправьте кодировку пути в ссылке.`);
 			}
@@ -4445,20 +4110,6 @@ export type AppointmentScheduleSaveState =
 	| "saved"
 	| "error";
 
-export function emptyAppointmentScheduleDraft(): AppointmentScheduleDraft {
-	return {
-		patientId: "",
-		doctorUserId: "",
-		assistantUserId: "",
-		chairId: "",
-		status: "planned",
-		startsAt: "",
-		endsAt: "",
-		reason: "",
-		comment: "",
-	};
-}
-
 export type MedicalDocumentReleaseChannel =
 	| "paper"
 	| "pdf"
@@ -4659,9 +4310,6 @@ export const installmentPaymentStatusAliases: Record<
 	cancelled: "cancelled",
 };
 
-export const defaultClinicalToothRowsText =
-	"36 | окклюзионная, дистальная | кариес | кариес дентина 36 зуба по осмотру и снимку | восстановление функции и профилактика осложнений | лечение кариеса и композитная реставрация | прогноз зависит от гигиены и контроля | десна без острого воспаления | | ";
-
 export function normalizeTaxApplicationRelationship(
 	value: string | null | undefined,
 ): TaxDeductionApplicationRelationship | null {
@@ -4779,56 +4427,6 @@ export const photoVideoMaterialOptions: Array<{
 	{ value: "scan", label: "Цифровые сканы" },
 	{ value: "other", label: "Иные материалы" },
 ];
-
-export const defaultUiPreferences: UiPreferences = {
-	version: 1,
-	uiLanguage: "ru",
-	selectedWorkspaceRole: "owner",
-	selectedSpecialty: "therapist",
-	selectedProtocolId: null,
-	selectedPatientId: null,
-	scheduleDoctorFilterId: null,
-	scheduleAssistantFilterId: null,
-	scheduleChairFilterId: null,
-	scheduleDefaultDoctorUserId: null,
-	scheduleDefaultAssistantUserId: null,
-	scheduleDefaultChairId: null,
-	scheduleStatusFilter: "all",
-	scheduleDateFilter: "",
-	paymentMethod: "card",
-	taxDocumentYear: new Date().getFullYear(),
-	selectedDocumentKind: "patient_intake_questionnaire",
-	taxApplicationForm: "knd_1151156",
-	taxApplicationDeliveryChannel: "paper",
-	paymentReceiptTaxSupportRequested: false,
-	documentIssueSignatureMode: "paper_signed",
-	documentIssueStaffFullName: "",
-	documentIssueStaffRole: "Врач/администратор",
-	procedureConsentProcedureType: "implantation_bone_graft",
-	postVisitCareTopic: "filling_restoration",
-	pricelistSourceKind: "spreadsheet_copy",
-	usePricelistAi: false,
-	odontogramUseSurfaces: false,
-	recognitionKind: "voice_transcription",
-	recognitionTarget: "visit_note",
-	importSourceKind: "csv_text",
-	documentIngestionTarget: "smart_import",
-	imagingImportSourceKind: "folder_watch",
-	smartImportMode: "auto",
-	imagingKindFilter: "all",
-	dicomWebEndpointUrl: "http://127.0.0.1:8042/dicom-web",
-	ohifBaseUrl: "http://127.0.0.1:3000",
-	telegramBotConfigId: "",
-	telegramLinkSubjectType: "patient",
-	telegramLinkStaffId: null,
-	telegramOutboxStatusFilter: "all",
-	telegramOutboxTemplateFilter: "all",
-	onboardingDismissed: false,
-	onboardingDismissedAt: null,
-	onboardingStep: "intro",
-	onboardingDraftMode: false,
-	savedAt: "",
-};
 
 export const aiJobKindPreferenceValues: readonly AiJobKind[] = [
 	"voice_transcription",
@@ -5533,19 +5131,6 @@ export function normalizeUiPreferencesPayload(
 	};
 }
 
-export function loadUiPreferences(): UiPreferences {
-	if (typeof window === "undefined") return defaultUiPreferences;
-	try {
-		const raw = safeLocalStorageGetItem(uiPreferencesStorageKey);
-		const preferences = raw
-			? (normalizeUiPreferencesPayload(JSON.parse(raw)) ?? defaultUiPreferences)
-			: defaultUiPreferences;
-		return mergeLocalOnboardingDismissal(preferences);
-	} catch {
-		return mergeLocalOnboardingDismissal(defaultUiPreferences);
-	}
-}
-
 export function withSavedUiPreferenceTimestamp(
 	preferences: UiPreferencesInput,
 ): UiPreferences {
@@ -5570,12 +5155,6 @@ export function persistUiPreferences(
 		// Preferences are convenience only. Clinical drafts use separate guarded storage.
 		return null;
 	}
-}
-
-export function saveUiPreferences(
-	preferences: UiPreferencesInput,
-): UiPreferences | null {
-	return persistUiPreferences(withSavedUiPreferenceTimestamp(preferences));
 }
 
 // Перенесено в ./lib/denteRequestHeaders (модуль без импортов) 2026-07-28. Эта функция была
@@ -6014,21 +5593,6 @@ export function timeZoneDateParts(
 	} catch {
 		return null;
 	}
-}
-
-export function toDateTimeLocalValue(
-	value: string,
-	timeZone?: string | null,
-): string {
-	if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
-	const zoned = timeZoneDateParts(value, timeZone);
-	if (zoned) return zoned;
-	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) return value.slice(0, 16);
-	const local = new Date(
-		parsed.getTime() - parsed.getTimezoneOffset() * 60_000,
-	);
-	return local.toISOString().slice(0, 16);
 }
 
 export function fromDateTimeLocalValue(
@@ -6480,16 +6044,6 @@ export function nullableClinicDraftValue(value: string): string | null {
 	return trimmed ? trimmed : null;
 }
 
-export function emptyPatientCoreDraft(): PatientCoreDraft {
-	return {
-		fullName: "",
-		birthDate: "",
-		phone: "",
-		email: "",
-		notes: "",
-	};
-}
-
 export function patientCoreDraftFromPatient(
 	patient: Patient | null,
 ): PatientCoreDraft {
@@ -6499,37 +6053,6 @@ export function patientCoreDraftFromPatient(
 		phone: patient?.phone ?? "",
 		email: patient?.email ?? "",
 		notes: patient?.notes ?? "",
-	};
-}
-
-export function emptyPatientAdministrativeProfileDraft(): PatientAdministrativeProfileDraft {
-	return {
-		identityDocument: "",
-		taxpayerInn: "",
-		registrationAddress: "",
-		residentialAddress: "",
-		insurancePolicyNumber: "",
-		snils: "",
-		legalRepresentativeFullName: "",
-		legalRepresentativeRelationship: "",
-		legalRepresentativeIdentityDocument: "",
-		legalRepresentativePhone: "",
-		preferredDocumentRecipient: "",
-		preferredAppointmentWeekdays: [],
-		preferredAppointmentStart: "",
-		preferredAppointmentEnd: "",
-		preferredAppointmentNote: "",
-		dataProcessingBasisNote: "",
-		orthodonticProgress: "",
-		/*
-		 * БЫЛО: loyaltyTier добавили в PatientAdministrativeProfile (shared Zod),
-		 * draft-тип вывел его через keyof, а empty/fromPatient/payload — нет.
-		 * tsc падал; UI PatientLoyaltyHeader слал tier мимо формы, а сохранение
-		 * админ-формы (buildPatientAdministrativeProfilePayload) не включало tier
-		 * и могло затереть его partial PUT'ом (см. patients route merge).
-		 * СТАЛО: draft/payload несут loyaltyTier; пустое = standard (базовый).
-		 */
-		loyaltyTier: "standard",
 	};
 }
 
@@ -7158,6 +6681,7 @@ export function openSpeechChunkDb(): Promise<IDBDatabase> {
 				assertSpeechChunkDbStores(db);
 				resolve(db);
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				db.close();
 				speechChunkDbPromise = null;
 				reject(
@@ -8357,37 +7881,6 @@ export const settingsTabGroups = [
 ] as const;
 export type SettingsTabGroup = (typeof settingsTabGroups)[number]["id"];
 
-export const settingsTabs = [
-	{ id: "profile", title: "Мой профиль", group: "account" },
-	{ id: "clinic", title: "Клиника", group: "main" },
-	{ id: "modules", title: "Модули", group: "main" },
-	{ id: "staff", title: "Сотрудники", group: "main" },
-	{ id: "access", title: "Доступы", group: "main" },
-	{ id: "telegram", title: "Мессенджеры", group: "main" },
-	{ id: "protocols", title: "Протоколы", group: "clinical" },
-	{ id: "rules", title: "Правила", group: "clinical" },
-	{ id: "prices", title: "Прайс", group: "clinical" },
-	{ id: "ai", title: "ИИ", group: "clinical" },
-	/*
-	 * «Склада» здесь больше нет намеренно.
-	 *
-	 * Экран был недоступен вовсе, и я открыл его вкладкой настроек — дешёвым
-	 * способом. Параллельно другой инженер сделал правильнее: склад стал разделом
-	 * рабочего места (#inventory) с правами по ролям, потому что приход и списание
-	 * материалов — ежедневная работа ассистента, а не настройка клиники.
-	 *
-	 * Две двери в одну комнату хуже одной: пользователь не понимает, какая из них
-	 * «настоящая», а правки начинают расходиться. Оставлен раздел, вкладка убрана.
-	 */
-	{ id: "insurance", title: "Страховые", group: "stock" },
-	{ id: "marketing", title: "Отзывы и NPS", group: "marketing" },
-	{ id: "bpmn", title: "Сценарии", group: "marketing" },
-	{ id: "sources", title: "Источники", group: "system" },
-	{ id: "reporting", title: "Отчёты", group: "system" },
-	{ id: "imports", title: "Импорт", group: "system" },
-	{ id: "audit", title: "Аудит", group: "system" },
-] as const;
-export type SettingsTab = (typeof settingsTabs)[number]["id"];
 export type AdminSecretSessionDomain =
 	| "clinical"
 	| "settings"
@@ -8426,23 +7919,6 @@ export const speechProviderConnectorLabels: Record<
 	local_planned: "локально",
 };
 
-export function viewFromHash(): AppView {
-	if (typeof window === "undefined") return "shift";
-	const telegramHandoffTarget = readDenteTelegramHandoffTarget();
-	if (telegramHandoffTarget) return telegramHandoffTarget.view;
-	const hash = window.location.hash.replace("#", "");
-	const view = hash.split("/")[0];
-	return appViews.includes(view as AppView) ? (view as AppView) : "shift";
-}
-
-export function settingsTabFromHash(): SettingsTab {
-	if (typeof window === "undefined") return "clinic";
-	const [, tab] = window.location.hash.replace("#", "").split("/");
-	return settingsTabs.some((item) => item.id === tab)
-		? (tab as SettingsTab)
-		: "clinic";
-}
-
 export const initialUiPreferences = {} as any;
 
 export const auth = {
@@ -8470,3 +7946,28 @@ export const auth = {
 		return headers;
 	},
 };
+
+export function confirmedDocumentLiteral(value: boolean, label: string): true {
+	if (!value) {
+		throw new Error(
+			`Не подтверждено обязательное условие документа: ${label}.`,
+		);
+	}
+	return true;
+}
+
+export function documentTextLines(value: string): string[] {
+	return value
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+}
+
+export function compactDocumentText(
+	...values: Array<string | null | undefined>
+): string {
+	return values
+		.map((value) => value?.trim() ?? "")
+		.filter(Boolean)
+		.join("\n");
+}

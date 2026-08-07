@@ -1,3 +1,5 @@
+import { showToast } from "../../components/GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, extname, join, posix, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -262,14 +264,13 @@ function lazyNamedTarget(
 	call: Node,
 ): { source: string; exported: string } | null {
 	const callee = call.callee as Node | undefined;
-	if (!callee || callee.type !== "MemberExpression") return null;
+	if (callee?.type !== "MemberExpression") return null;
 	const property = callee.property as Node | undefined;
-	if (!property || property.type !== "Identifier" || property.name !== "then")
-		return null;
+	if (property?.type !== "Identifier" || property.name !== "then") return null;
 	const inner = callee.object as Node | undefined;
-	if (!inner || inner.type !== "CallExpression") return null;
+	if (inner?.type !== "CallExpression") return null;
 	const innerCallee = inner.callee as Node | undefined;
-	if (!innerCallee || innerCallee.type !== "Import") return null;
+	if (innerCallee?.type !== "Import") return null;
 	const source = stringLiteralValue((inner.arguments as unknown[])?.[0]);
 	if (!source) return null;
 
@@ -692,6 +693,7 @@ export function componentReachability(): ReachabilityCensus {
 		try {
 			program = parseFile(file, source);
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			// Молча пропущенный файл — это дырка в переписи, а перепись с дыркой
 			// хуже отсутствующей: она выдаёт зелёный на непроверенном.
 			throw new Error(

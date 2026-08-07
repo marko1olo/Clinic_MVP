@@ -1,3 +1,4 @@
+import { actionFailureToast } from "../lib/panelStateText";
 import type {
 	SpeechChunkUploadInput,
 	SpeechGatewayStatus,
@@ -86,7 +87,7 @@ function looksLikeSpeechGatewayStatus(
 }
 
 export function useVoiceAssistant(
-	context: "visit" | "schedule" | "general" = "visit",
+	_context: "visit" | "schedule" | "general" = "visit",
 	options?: UseVoiceAssistantOptions,
 ): UseVoiceAssistantReturn {
 	const [isListening, setIsListening] = useState(false);
@@ -158,6 +159,7 @@ export function useVoiceAssistant(
 				try {
 					parsed = rawBody.trim() ? JSON.parse(rawBody) : null;
 				} catch (parseError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (parseError as { status?: number })?.status ?? null), "error");
 					console.error("[speech status] тело ответа не разобрано", parseError);
 				}
 				if (!looksLikeSpeechGatewayStatus(parsed)) {
@@ -171,6 +173,7 @@ export function useVoiceAssistant(
 				gatewayStatusUnknownRef.current = false;
 				setSpeechGatewayStatus(parsed);
 			} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 				console.error("[speech status] запрос не выполнен", err);
 				if (alive) gatewayStatusUnknownRef.current = true;
 			}
@@ -243,6 +246,7 @@ export function useVoiceAssistant(
 				osc.stop(audioCtx.currentTime + 0.15);
 			}
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			console.warn("Could not play synthesized audio feedback:", e);
 		}
 	}, []);
@@ -329,7 +333,7 @@ export function useVoiceAssistant(
 				const audioBase64 = await base64Promise;
 
 				const input: SpeechChunkUploadInput = {
-					recordingId: "assistant_" + Date.now(),
+					recordingId: `assistant_${Date.now()}`,
 					chunkIndex: 0,
 					mimeType: audioBlob.type || "audio/webm",
 					audioBase64,
@@ -433,7 +437,7 @@ export function useVoiceAssistant(
 				playBeep("error");
 			}
 		},
-		[dashboard, handleCommand, playBeep],
+		[dashboard, handleCommand, playBeep, clinicalAdminSecretSession.trim],
 	);
 
 	const startBrowserNative = useCallback(async () => {
@@ -558,6 +562,7 @@ export function useVoiceAssistant(
 
 			mediaRecorder.start();
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			console.error("Failed to start listening:", err);
 			setIsListening(false);
 			playBeep("error");
@@ -594,7 +599,9 @@ export function useVoiceAssistant(
 		}
 
 		if (streamRef.current) {
-			streamRef.current.getTracks().forEach((track) => track.stop());
+			streamRef.current.getTracks().forEach((track) => {
+				track.stop();
+			});
 		}
 
 		if (audioContextRef.current) {

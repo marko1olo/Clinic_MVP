@@ -4,7 +4,7 @@ import { getDocumentById, voidGeneratedDocumentInDb, } from "../../db/documentQu
 import { settleRefundedPaymentsForPatient } from "../../documents/refundSettlement.js";
 import { getRequestIdentity, requireOrganizationId, } from "../../security/identity.js";
 import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
-import { apiError, documentVoidValidationMessage, } from "../documents.js";
+import { apiError, documentVoidValidationMessage, } from "./shared.js";
 export async function register(app) {
     app.post("/api/documents/:id/void", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document void")))

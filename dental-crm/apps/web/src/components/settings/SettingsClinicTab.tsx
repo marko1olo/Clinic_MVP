@@ -8,17 +8,14 @@ import type {
 } from "@dental/shared";
 import {
 	CalendarDays,
-	CheckCircle2,
-	Copy,
 	ExternalLink,
 	KeyRound,
 	Plus,
-	RefreshCw,
 	Search,
 	ShieldCheck,
 } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent } from "react";
-import React, { useState } from "react";
+import type { ChangeEvent } from "react";
+import { useState } from "react";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { showToast } from "../GlobalToast";
 import {
@@ -525,7 +522,7 @@ export function SettingsClinicTab({
 				</div>
 			</div>
 
-			<div className="mode-grid" aria-label="Режим продукта">
+			<div role="toolbar" className="mode-grid" aria-label="Режим продукта">
 				{typedClinicModes.map((mode) => (
 					<button
 						className={`mode-card ${dashboard?.clinicSettings?.profile?.mode === mode ? "active" : ""}`}
@@ -686,9 +683,9 @@ export function SettingsClinicTab({
 							}
 						/>
 					</label>
-					<div
+					<fieldset
 						className="weekday-toggle-row form-span-2"
-						role="group"
+						style={{ border: "none", padding: 0, margin: 0 }}
 						aria-label="Рабочие дни клиники"
 					>
 						<span>Рабочие дни</span>
@@ -709,7 +706,7 @@ export function SettingsClinicTab({
 								{day.label}
 							</button>
 						))}
-					</div>
+					</fieldset>
 				</div>
 
 				{/* === ДЛЯ ДОКУМЕНТОВ — collapsible === */}
@@ -971,7 +968,7 @@ export function SettingsClinicTab({
 				</div>
 
 				{clinicPublicLookup ? (
-					<div
+					<section
 						className="clinic-public-lookup-result"
 						data-testid="clinic-public-lookup-result"
 						aria-label="Публичный поиск реквизитов клиники"
@@ -996,8 +993,12 @@ export function SettingsClinicTab({
 							<div className="clinic-public-suggestions">
 								{typedClinicPublicLookupSuggestions
 									.slice(0, 4)
-									.map((suggestion, index) => (
-										<article key={`${suggestion.source}-${index}`}>
+									.map((suggestion, index) => ({
+										suggestion,
+										suggestionId: `${suggestion.source}-${suggestion.confidence}-${index}`,
+									}))
+									.map(({ suggestion, suggestionId }) => (
+										<article key={suggestionId}>
 											<strong>
 												{clinicPublicLookupSuggestionSourceLabels[
 													suggestion.source
@@ -1061,7 +1062,7 @@ export function SettingsClinicTab({
 								{clinicPublicLookupWarningText(warning)}
 							</small>
 						))}
-					</div>
+					</section>
 				) : null}
 			</section>
 
@@ -1101,7 +1102,7 @@ export function SettingsClinicTab({
 							Введите ФИО сотрудника, затем выберите роль.
 						</p>
 					) : null}
-					<div className="role-picker" aria-label="Роль нового сотрудника">
+					<div role="toolbar" className="role-picker" aria-label="Роль нового сотрудника">
 						{staffCreationRoles.map((role) => (
 							<button
 								className={newStaffRole === role ? "active" : ""}
@@ -1116,6 +1117,7 @@ export function SettingsClinicTab({
 					</div>
 					{newStaffRole === "doctor" || newStaffRole === "assistant" ? (
 						<div
+							role="toolbar"
 							className="specialty-strip staff-specialty-picker"
 							aria-label="Специальность нового сотрудника"
 						>
@@ -1197,9 +1199,9 @@ export function SettingsClinicTab({
 												}
 											/>
 										</label>
-										<div
+										<fieldset
 											className="weekday-toggle-row staff-weekday-row"
-											role="group"
+											style={{ border: "none", padding: 0, margin: 0 }}
 											aria-label={`Рабочие дни: ${member.fullName}`}
 										>
 											{typedWeekdayOptions.map((day: any) => (
@@ -1221,7 +1223,7 @@ export function SettingsClinicTab({
 													{day.label}
 												</button>
 											))}
-										</div>
+										</fieldset>
 										<details className="settings-advanced-block schedule-advanced-block">
 											<summary className="settings-advanced-toggle">
 												<span className="settings-advanced-label">
@@ -1229,7 +1231,7 @@ export function SettingsClinicTab({
 												</span>
 												<span className="settings-advanced-chevron">▼</span>
 											</summary>
-											<div
+											<section
 												className="staff-day-hours"
 												aria-label={`Часы по дням: ${member.fullName}`}
 											>
@@ -1269,7 +1271,7 @@ export function SettingsClinicTab({
 															</div>
 														);
 													})}
-											</div>
+											</section>
 										</details>
 										<div className="staff-schedule-actions">
 											<span
@@ -1334,6 +1336,7 @@ export function SettingsClinicTab({
 						</p>
 					) : null}
 					<div
+						role="toolbar"
 						className="role-picker equipment-picker"
 						aria-label="Оборудование кресла"
 					>
@@ -1434,9 +1437,9 @@ export function SettingsClinicTab({
 												className="focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all"
 											/>
 										</label>
-										<div
+										<fieldset
 											className="weekday-toggle-row staff-weekday-row"
-											role="group"
+											style={{ border: "none", padding: 0, margin: 0 }}
 											aria-label={`Рабочие дни кресла: ${chair.name}`}
 										>
 											{typedWeekdayOptions.map((day: any) => (
@@ -1454,7 +1457,7 @@ export function SettingsClinicTab({
 													{day.label}
 												</button>
 											))}
-										</div>
+										</fieldset>
 										<details className="settings-advanced-block schedule-advanced-block">
 											<summary className="settings-advanced-toggle">
 												<span className="settings-advanced-label">
@@ -1462,7 +1465,7 @@ export function SettingsClinicTab({
 												</span>
 												<span className="settings-advanced-chevron">▼</span>
 											</summary>
-											<div
+											<section
 												className="staff-day-hours"
 												aria-label={`Часы по дням кресла: ${chair.name}`}
 											>
@@ -1502,7 +1505,7 @@ export function SettingsClinicTab({
 															</div>
 														);
 													})}
-											</div>
+											</section>
 										</details>
 										<div className="staff-schedule-actions">
 											<span

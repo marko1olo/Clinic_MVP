@@ -37,72 +37,90 @@ const recentPatientViewBodySchema = z.object({
 });
 export async function registerClinicalRoutes(app) {
     app.post("/api/clinical/rules/evaluate", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "clinical rule evaluate")))
-            return;
-        const input = parseClinicalPayload(clinicalRuleEvaluationInputSchema, request.body);
-        if (!input) {
-            return reply.code(400).send({
-                error: "ClinicalRuleValidationError",
-                message: clinicalRuleEvaluationValidationMessage,
-            });
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "clinical rule evaluate")))
+                return;
+            const input = parseClinicalPayload(clinicalRuleEvaluationInputSchema, request.body);
+            if (!input) {
+                return reply.code(400).send({
+                    error: "ClinicalRuleValidationError",
+                    message: clinicalRuleEvaluationValidationMessage,
+                });
+            }
+            // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»
+            // без учёта того, кто прислал запрос. Клиника Б проверяла противопоказания
+            // по НАБОРУ ПРАВИЛ КЛИНИКИ А: её собственное правило «аллергия на артикаин —
+            // блокирующее» в выборку не попадало, blocker не находился, и укол
+            // с противопоказанием проходил проверку.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const evaluation = await evaluateClinicalRulesInDb(orgId, input);
+            const blockingRule = evaluation.evaluations.find((e) => !e.resolved && e.severity === "blocker");
+            if (blockingRule && input.enforceBlockers) {
+                return reply.code(400).send({
+                    code: "ClinicalRuleBlocker",
+                    error: "ClinicalRuleBlocker",
+                    message: `Клиническое противопоказание: ${blockingRule.message}`,
+                    ruleId: blockingRule.ruleId,
+                    evaluation: blockingRule,
+                });
+            }
+            return clinicalRuleEvaluationResponseSchema.parse(evaluation);
         }
-        // БЫЛО: getDefaultOrganizationId() — «первая строка таблицы organizations»
-        // без учёта того, кто прислал запрос. Клиника Б проверяла противопоказания
-        // по НАБОРУ ПРАВИЛ КЛИНИКИ А: её собственное правило «аллергия на артикаин —
-        // блокирующее» в выборку не попадало, blocker не находился, и укол
-        // с противопоказанием проходил проверку.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const evaluation = await evaluateClinicalRulesInDb(orgId, input);
-        const blockingRule = evaluation.evaluations.find((e) => !e.resolved && e.severity === "blocker");
-        if (blockingRule && input.enforceBlockers) {
-            return reply.code(400).send({
-                code: "ClinicalRuleBlocker",
-                error: "ClinicalRuleBlocker",
-                message: `Клиническое противопоказание: ${blockingRule.message}`,
-                ruleId: blockingRule.ruleId,
-                evaluation: blockingRule,
-            });
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
         }
-        return clinicalRuleEvaluationResponseSchema.parse(evaluation);
     });
     app.post("/api/clinical/rules", async (request, reply) => {
-        if (!(await requireClinicalMutationAccess(request, reply, "clinical rule create")))
-            return;
-        const input = parseClinicalPayload(createClinicalRuleSchema, request.body);
-        if (!input) {
-            return reply.code(400).send({
-                error: "ClinicalRuleValidationError",
-                message: clinicalRuleMutationValidationMessage,
-            });
+        try {
+            if (!(await requireClinicalMutationAccess(request, reply, "clinical rule create")))
+                return;
+            const input = parseClinicalPayload(createClinicalRuleSchema, request.body);
+            if (!input) {
+                return reply.code(400).send({
+                    error: "ClinicalRuleValidationError",
+                    message: clinicalRuleMutationValidationMessage,
+                });
+            }
+            // См. выше: правило создавалось в чужой организации.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            return clinicalRuleSchema.parse(await createClinicalRuleInDb(orgId, input));
         }
-        // См. выше: правило создавалось в чужой организации.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        return clinicalRuleSchema.parse(await createClinicalRuleInDb(orgId, input));
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     app.patch("/api/clinical/rules/:ruleId", async (request, reply) => {
-        if (!(await requireClinicalMutationAccess(request, reply, "clinical rule update")))
-            return;
-        const params = request.params;
-        const body = request.body && typeof request.body === "object" ? request.body : {};
-        const input = parseClinicalPayload(updateClinicalRuleSchema, {
-            ...body,
-            id: params.ruleId,
-        });
-        if (!input) {
-            return reply.code(400).send({
-                error: "ClinicalRuleValidationError",
-                message: clinicalRuleMutationValidationMessage,
+        try {
+            if (!(await requireClinicalMutationAccess(request, reply, "clinical rule update")))
+                return;
+            const params = request.params;
+            const body = request.body && typeof request.body === "object" ? request.body : {};
+            const input = parseClinicalPayload(updateClinicalRuleSchema, {
+                ...body,
+                id: params.ruleId,
             });
+            if (!input) {
+                return reply.code(400).send({
+                    error: "ClinicalRuleValidationError",
+                    message: clinicalRuleMutationValidationMessage,
+                });
+            }
+            // См. выше: правило редактировалось в чужой организации.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
         }
-        // См. выше: правило редактировалось в чужой организации.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /**
      * Удаление клинического правила.
@@ -123,28 +141,34 @@ export async function registerClinicalRoutes(app) {
      * PostgreSQL пятисоткой «invalid input syntax for type uuid».
      */
     app.delete("/api/clinical/rules/:ruleId", async (request, reply) => {
-        if (!(await requireClinicalMutationAccess(request, reply, "clinical rule delete")))
-            return;
-        const { ruleId } = request.params;
-        if (!ruleId || !UUID_PATTERN.test(ruleId)) {
-            return reply.code(400).send({
-                error: "ClinicalRuleValidationError",
-                message: clinicalRuleMutationValidationMessage,
-            });
+        try {
+            if (!(await requireClinicalMutationAccess(request, reply, "clinical rule delete")))
+                return;
+            const { ruleId } = request.params;
+            if (!ruleId || !UUID_PATTERN.test(ruleId)) {
+                return reply.code(400).send({
+                    error: "ClinicalRuleValidationError",
+                    message: clinicalRuleMutationValidationMessage,
+                });
+            }
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const deleted = await deleteClinicalRuleInDb(orgId, ruleId);
+            if (!deleted) {
+                // Чужое правило и несуществующее правило отвечают одинаково: разный ответ
+                // сообщал бы посторонней клинике, что такое правило у соседей есть.
+                return reply.code(404).send({
+                    error: "ClinicalRuleNotFound",
+                    message: "Правило не найдено.",
+                });
+            }
+            return reply.code(200).send({ id: ruleId, deleted: true });
         }
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const deleted = await deleteClinicalRuleInDb(orgId, ruleId);
-        if (!deleted) {
-            // Чужое правило и несуществующее правило отвечают одинаково: разный ответ
-            // сообщал бы посторонней клинике, что такое правило у соседей есть.
-            return reply.code(404).send({
-                error: "ClinicalRuleNotFound",
-                message: "Правило не найдено.",
-            });
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
         }
-        return reply.code(200).send({ id: ruleId, deleted: true });
     });
     /**
      * Завершение клинического этапа и передача пациента следующему врачу.
@@ -214,21 +238,27 @@ export async function registerClinicalRoutes(app) {
     });
     /** Задачи, созданные передачей между этапами. Это то, что видит следующий врач, открывая карту. */
     app.get("/api/clinical/tasks", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "clinical tasks read")))
-            return;
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { patientId } = request.query;
-        if (patientId !== undefined && !UUID_PATTERN.test(patientId)) {
-            return reply.code(400).send({
-                error: "ClinicalTaskValidationError",
-                message: "Ошибка валидации: patientId должен быть UUID.",
-            });
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "clinical tasks read")))
+                return;
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { patientId } = request.query;
+            if (patientId !== undefined && !UUID_PATTERN.test(patientId)) {
+                return reply.code(400).send({
+                    error: "ClinicalTaskValidationError",
+                    message: "Ошибка валидации: patientId должен быть UUID.",
+                });
+            }
+            return reply
+                .code(200)
+                .send(await new ClinicalRouter().listTasks(orgId, patientId));
         }
-        return reply
-            .code(200)
-            .send(await new ClinicalRouter().listTasks(orgId, patientId));
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /*
      * Маршруты «пользовательские справочники бланков» и «формы осмотра без выбора
@@ -335,29 +365,41 @@ export async function registerClinicalRoutes(app) {
      */
     // COMPETITOR FEATURE #57: кадры::блокировка_параллельного_входа_под_одной_учетной_записью
     app.get("/api/system/single-session-enforcements", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getSingleSessionEnforcementsFromDb } = await import("../db/singleSessionEnforcementsQuery.js");
-        return reply
-            .status(200)
-            .send(await getSingleSessionEnforcementsFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getSingleSessionEnforcementsFromDb } = await import("../db/singleSessionEnforcementsQuery.js");
+            return reply
+                .status(200)
+                .send(await getSingleSessionEnforcementsFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     // COMPETITOR FEATURE #60: интеграции::геокодирование_адресов_через_dadata
     app.get("/api/integrations/dadata-addresses", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getDadataGeocodedAddressesFromDb } = await import("../db/dadataGeocodedAddressesQuery.js");
-        return reply
-            .status(200)
-            .send(await getDadataGeocodedAddressesFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getDadataGeocodedAddressesFromDb } = await import("../db/dadataGeocodedAddressesQuery.js");
+            return reply
+                .status(200)
+                .send(await getDadataGeocodedAddressesFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /*
      * Маршрут «начисления врачам по прайсу» удалён вместе со своим экраном.
@@ -381,13 +423,19 @@ export async function registerClinicalRoutes(app) {
      * не только идентификатор клиники, но и подписанный вход сотрудника.
      */
     app.get("/api/hr/recent-patients", async (request, reply) => {
-        const identity = requireStaffIdentity(request, reply);
-        if (!identity)
-            return;
-        const { getRecentPatientHistoryFromDb } = await import("../db/recentPatientHistoryQuery.js");
-        return reply
-            .status(200)
-            .send(await getRecentPatientHistoryFromDb(identity.organizationId, identity.userId));
+        try {
+            const identity = await requireStaffIdentity(request, reply);
+            if (!identity)
+                return;
+            const { getRecentPatientHistoryFromDb } = await import("../db/recentPatientHistoryQuery.js");
+            return reply
+                .status(200)
+                .send(await getRecentPatientHistoryFromDb(identity.organizationId, identity.userId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /*
      * Отметка об открытии карточки — недостающая половина той же функции.
@@ -398,45 +446,57 @@ export async function registerClinicalRoutes(app) {
      * записи о карточках, которых нет.
      */
     app.post("/api/hr/recent-patients", async (request, reply) => {
-        const identity = requireStaffIdentity(request, reply);
-        if (!identity)
-            return;
-        const parsedBody = recentPatientViewBodySchema.safeParse(request.body ?? {});
-        if (!parsedBody.success) {
-            return reply.status(400).send({
-                error: "PatientIdRequired",
-                message: "Не указан пациент, карточку которого открыли.",
-            });
+        try {
+            const identity = await requireStaffIdentity(request, reply);
+            if (!identity)
+                return;
+            const parsedBody = recentPatientViewBodySchema.safeParse(request.body ?? {});
+            if (!parsedBody.success) {
+                return reply.status(400).send({
+                    error: "PatientIdRequired",
+                    message: "Не указан пациент, карточку которого открыли.",
+                });
+            }
+            const patientId = typeof parsedBody.data.patientId === "string"
+                ? parsedBody.data.patientId
+                : "";
+            if (!patientId) {
+                return reply.status(400).send({
+                    error: "PatientIdRequired",
+                    message: "Не указан пациент, карточку которого открыли.",
+                });
+            }
+            const { recordPatientViewInDb } = await import("../db/recentPatientHistoryQuery.js");
+            const result = await recordPatientViewInDb(identity.organizationId, identity.userId, patientId);
+            if (!result.recorded) {
+                return reply.status(404).send({
+                    error: "PatientNotFound",
+                    message: "Пациент не найден в этой клинике.",
+                });
+            }
+            return reply.status(200).send({ recorded: true });
         }
-        const patientId = typeof parsedBody.data.patientId === "string"
-            ? parsedBody.data.patientId
-            : "";
-        if (!patientId) {
-            return reply.status(400).send({
-                error: "PatientIdRequired",
-                message: "Не указан пациент, карточку которого открыли.",
-            });
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
         }
-        const { recordPatientViewInDb } = await import("../db/recentPatientHistoryQuery.js");
-        const result = await recordPatientViewInDb(identity.organizationId, identity.userId, patientId);
-        if (!result.recorded) {
-            return reply.status(404).send({
-                error: "PatientNotFound",
-                message: "Пациент не найден в этой клинике.",
-            });
-        }
-        return reply.status(200).send({ recorded: true });
     });
     // COMPETITOR FEATURE #47: crm::конструктор_типов_задач_без_привязки_к_визиту
     app.get("/api/crm/custom-task-types", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
-        return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
+            return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /*
      * Маршрут «закрепление авансов» удалён вместе со своим экраном: таблица
@@ -458,38 +518,56 @@ export async function registerClinicalRoutes(app) {
      */
     // COMPETITOR FEATURE #54: маркетинг::маппинг_полей_лендингов_и_лид_форм
     app.get("/api/integrations/landing-field-mappings", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getLandingFieldMappingsFromDb } = await import("../db/landingFieldMappingsQuery.js");
-        return reply.status(200).send(await getLandingFieldMappingsFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getLandingFieldMappingsFromDb } = await import("../db/landingFieldMappingsQuery.js");
+            return reply.status(200).send(await getLandingFieldMappingsFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     // COMPETITOR FEATURE #47: crm::пользовательские_типы_задач_для_администраторов
     app.get("/api/crm/custom-crm-task-types", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
-        return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
+            return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     // COMPETITOR FEATURE #58: пациенты::геокодинг_адресов_через_dadata
     app.get("/api/integrations/dadata-geocoded-addresses", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getDadataGeocodedAddressesFromDb } = await import("../db/dadataGeocodedAddressesQuery.js");
-        return reply
-            .status(200)
-            .send(await getDadataGeocodedAddressesFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getDadataGeocodedAddressesFromDb } = await import("../db/dadataGeocodedAddressesQuery.js");
+            return reply
+                .status(200)
+                .send(await getDadataGeocodedAddressesFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     // COMPETITOR FEATURE #63: финансы::автоматическое_указание_меры_количества_в_kkm
     /*
@@ -499,14 +577,20 @@ export async function registerClinicalRoutes(app) {
     // Второй адрес того же удалённого экрана начислений убран вместе с первым.
     // COMPETITOR FEATURE #6: маркетинг::фильтр_потерянных_пациентов_в_отчете
     app.get("/api/analytics/lost-patients-filters", async (request, reply) => {
-        // Организация берётся из подписанного токена, а не из заголовка клиента.
-        // Раньше здесь принимался x-organization-id без всякой аутентификации:
-        // любой мог подставить UUID чужой клиники и читать её медицинские данные.
-        const orgId = requireOrganizationId(request, reply);
-        if (!orgId)
-            return;
-        const { getLostPatientsFiltersFromDb } = await import("../db/lostPatientsFiltersQuery.js");
-        return reply.status(200).send(await getLostPatientsFiltersFromDb(orgId));
+        try {
+            // Организация берётся из подписанного токена, а не из заголовка клиента.
+            // Раньше здесь принимался x-organization-id без всякой аутентификации:
+            // любой мог подставить UUID чужой клиники и читать её медицинские данные.
+            const orgId = requireOrganizationId(request, reply);
+            if (!orgId)
+                return;
+            const { getLostPatientsFiltersFromDb } = await import("../db/lostPatientsFiltersQuery.js");
+            return reply.status(200).send(await getLostPatientsFiltersFromDb(orgId));
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+        }
     });
     /*
      * /api/schedule/urgent-schedule-requests удалён вместе с модулем и блоками

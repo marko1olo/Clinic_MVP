@@ -263,6 +263,7 @@ export function Omnibar() {
 										}}
 									/>
 									<button
+										type="button"
 										onClick={() => setOmnibarOpen(false)}
 										className="p-1.5 hover:bg-neutral-100 dark:hover:bg-slate-800 rounded-md transition-colors text-neutral-400 hover:text-neutral-600 dark:hover:text-slate-200"
 									>
@@ -293,8 +294,9 @@ export function Omnibar() {
 																{cmd.category}
 															</div>
 														)}
-														<div
-															className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
+														<button
+															type="button"
+															className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
 																idx === selectedIndex
 																	? "bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300"
 																	: "text-neutral-700 dark:text-slate-200 hover:bg-neutral-50 dark:hover:bg-slate-800/60"
@@ -320,7 +322,7 @@ export function Omnibar() {
 																	↵ Выбрать
 																</span>
 															)}
-														</div>
+														</button>
 													</React.Fragment>
 												);
 											})}

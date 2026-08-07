@@ -68,7 +68,7 @@ const EXTRACT_DIAGNOSIS_CHIPS = [
 	"Гингивит",
 	"Норма",
 ];
-const EXTRACT_TREATMENT_CHIPS = [
+const _EXTRACT_TREATMENT_CHIPS = [
 	"Препарирование",
 	"Пломбирование",
 	"Экстирпация пульпы",
@@ -76,14 +76,14 @@ const EXTRACT_TREATMENT_CHIPS = [
 	"Профессиональная гигиена",
 	"Консультация",
 ];
-const EXTRACT_REC_CHIPS = [
+const _EXTRACT_REC_CHIPS = [
 	"Осмотр через 6 месяцев",
 	"Рентген-контроль",
 	"Санация полости рта",
 	"Консультация ортопеда",
 	"Прием НПВС при болях",
 ];
-const REFUND_REASON_CHIPS = [
+const _REFUND_REASON_CHIPS = [
 	"Ошибка при оплате",
 	"Отказ от продолжения лечения",
 	"Оплата авансом",
@@ -1114,7 +1114,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 			documentSourceStatusLabels[
 				documentKindMetadata[document.kind].sourceStatus
 			];
-		const hasIssuedArchive = Boolean(
+		const _hasIssuedArchive = Boolean(
 			document.issuedSnapshotSha256 && document.issuedSnapshotCreatedAt,
 		);
 		if (document.status === "draft") {
@@ -1164,7 +1164,10 @@ export function DocumentsView(props: DocumentsViewProps) {
 					для пациента.
 				</p>
 			) : null}
-			<div className="document-factory" aria-label="Быстро создать документ">
+			<section
+				className="document-factory"
+				aria-label="Быстро создать документ"
+			>
 				<label className="document-factory-tax-year">
 					Налоговый год
 					<input
@@ -1350,7 +1353,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 						{isoDateLabel(typedSelectedDocumentMetadata.sourceCheckedAt)}
 					</small>
 					{typedSelectedDocumentMetadata.sourceUrls.length ? (
-						<div
+						<section
 							className="document-source-links"
 							aria-label="Официальные источники формы"
 						>
@@ -1369,7 +1372,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 									</a>
 								),
 							)}
-						</div>
+						</section>
 					) : null}
 				</article>
 				<section
@@ -5417,7 +5420,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 													className="quick-chip quick-chip--sm"
 													onClick={() =>
 														setRecordExtractDiagnosis((prev) =>
-															prev ? prev + ", " + chip : chip,
+															prev ? `${prev}, ${chip}` : chip,
 														)
 													}
 												>
@@ -6378,7 +6381,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 						))}
 					</div>
 				</details>
-			</div>
+			</section>
 			{documentIssueConfirmation ? (
 				<section
 					className="document-issue-confirmation"
@@ -6942,7 +6945,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 								источником {isoDateLabel(documentAuditFacts.sourceCheckedAt)}
 							</small>
 							{documentAuditFacts.sourceUrls.length ? (
-								<div
+								<section
 									className="document-source-links"
 									aria-label="Официальные источники паспорта документа"
 								>
@@ -6961,7 +6964,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 											</a>
 										),
 									)}
-								</div>
+								</section>
 							) : null}
 						</div>
 						<div>
@@ -7258,10 +7261,12 @@ export function DocumentsView(props: DocumentsViewProps) {
 									{documentLifecycleGuidance}
 								</small>
 							</div>
-							<div
+							<fieldset
 								className="document-actions"
 								aria-label={`Действия с документом: ${documentActionContext}`}
+								style={{ border: "none", padding: 0, margin: 0 }}
 							>
+								<legend className="sr-only">{`Действия с документом: ${documentActionContext}`}</legend>
 								<button
 									className="doc-link"
 									type="button"
@@ -7349,7 +7354,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 										Аннулировать
 									</button>
 								) : null}
-							</div>
+							</fieldset>
 						</article>
 					);
 				})}

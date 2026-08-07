@@ -9,7 +9,6 @@ import {
 	FileText,
 	History,
 	MessageSquare,
-	Mic,
 	Send,
 } from "lucide-react";
 import { useState } from "react";
@@ -349,7 +348,7 @@ function CommunicationTaskCard({
 	);
 }
 
-function CommunicationTemplateRow({
+function _CommunicationTemplateRow({
 	communicationChannelLabels,
 	staffRoleLabels,
 	template,
@@ -511,7 +510,10 @@ export function CommunicationsView({
         пустому списку ниже. Показываем сводку, когда есть о чём сводить.
       */}
 			{communicationSummaryHasNumbers ? (
-				<div className="communications-summary-grid" aria-label="Сводка связи">
+				<section
+					className="communications-summary-grid"
+					aria-label="Сводка связи"
+				>
 					<article
 						className={
 							dashboard?.communicationSummary?.urgentTasks
@@ -556,7 +558,7 @@ export function CommunicationsView({
 						</strong>
 						<p>инструкции пациентам</p>
 					</article>
-				</div>
+				</section>
 			) : null}
 
 			{/*

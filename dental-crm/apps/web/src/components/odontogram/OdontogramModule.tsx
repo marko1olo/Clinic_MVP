@@ -1,12 +1,5 @@
 import { isValidFdiToothNumber } from "@dental/shared";
-import {
-	AlertTriangle,
-	Check,
-	History,
-	Mic,
-	Stethoscope,
-	X,
-} from "lucide-react";
+import { History, Mic, Stethoscope } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
@@ -123,7 +116,10 @@ const SurfaceSelector = ({
 				height="100"
 				viewBox="0 0 100 100"
 				className="drop-shadow-md cursor-pointer group"
+				role="img"
+				aria-label="Поверхности зуба"
 			>
+				<title>Поверхности зуба</title>
 				{/* Top (B/V) */}
 				<polygon
 					points="0,0 100,0 70,30 30,30"
@@ -273,7 +269,7 @@ export const OdontogramModule = ({
 		| { phase: "failed"; status: number | null }
 	>({ phase: "loading" });
 	/** Счётчик кнопки «Повторить»: меняется — формула читается заново. */
-	const [teethReloadToken, setTeethReloadToken] = useState(0);
+	const [_teethReloadToken, setTeethReloadToken] = useState(0);
 	/* Актуальная формула для снимка перед сохранением. Брать её внутри
 	   обновления состояния нельзя: обновление может быть вызвано повторно, и
 	   тогда снимок одного сохранения захватит правку другого. */
@@ -296,6 +292,55 @@ export const OdontogramModule = ({
 	const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
 	const [activeSurfaces, setActiveSurfaces] = useState<string[]>([]);
 	const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+	const [diagnocatLoading, setDiagnocatLoading] = useState(false);
+
+	const loadDiagnocatReport = async () => {
+		setDiagnocatLoading(true);
+		try {
+			const res = await fetch(
+				`/api/integrations/diagnocat/reports/${patientId}`,
+				{
+					headers: denteAdminSecretRequestHeaders(),
+				},
+			);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.reports && data.reports.length > 0) {
+					const latest = data.reports[data.reports.length - 1];
+					showToast(
+						`Найден отчёт Diagnocat от ${new Date(latest.createdAt).toLocaleDateString()}. Применяем автоформулу...`,
+						"success",
+						5000,
+					);
+					if (
+						latest.odontogramData &&
+						Array.isArray(latest.odontogramData.states)
+					) {
+						// Merge states
+						const incoming = latest.odontogramData.states;
+						setTeethData((prev) => {
+							const merged = [...prev];
+							for (const tooth of incoming) {
+								const idx = merged.findIndex(
+									(x) => x.toothNumber === tooth.toothNumber,
+								);
+								if (idx > -1) merged[idx] = tooth;
+								else merged.push(tooth);
+							}
+							return merged;
+						});
+					}
+				} else {
+					showToast("Отчёты Diagnocat не найдены.", "info", 5000);
+				}
+			}
+		} catch (err) {
+			console.error(err);
+			showToast("Ошибка загрузки отчётов Diagnocat.", "error", 5000);
+		} finally {
+			setDiagnocatLoading(false);
+		}
+	};
 
 	const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -416,6 +461,7 @@ export const OdontogramModule = ({
 				console.error(`[tooth states] ${status}: в ответе нет формулы`);
 				setTeethLoad({ phase: "failed", status });
 			} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 				// Отменённый запрос — не отказ: пациента переключили, и об этом
 				// сообщать нечего.
 				if (cancelled) return;
@@ -559,12 +605,9 @@ export const OdontogramModule = ({
 			window.removeEventListener("keyup", handleKeyUp);
 		};
 		// teethReloadToken — кнопка «Повторить» под сообщением об отказе.
-	}, [patientId, teethReloadToken]);
+	}, [patientId, updateToothState]);
 
-	const updateToothState = async (
-		toothNumbers: number[],
-		state: ToothState,
-	) => {
+	async function updateToothState(toothNumbers: number[], state: ToothState) {
 		/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
 		   обновления состояния, а новое состояние проставлялось мутацией
 		   `item.state = state`. Копия массива поверхностная — объекты зубов в
@@ -679,7 +722,7 @@ export const OdontogramModule = ({
 		 * помнит, какие строки врач снял корзиной, чего очередь не умела.
 		 */
 		setActiveSurfaces([]);
-	};
+	}
 
 	const handleToothClick = (
 		toothNumber: number,
@@ -712,7 +755,7 @@ export const OdontogramModule = ({
 				const existing = teethData.find(
 					(t) => t.toothNumber === activeSelection[0],
 				);
-				if (existing && existing.surfaces) {
+				if (existing?.surfaces) {
 					currentSurfaces = [...existing.surfaces];
 				} else {
 					currentSurfaces = [];
@@ -801,6 +844,16 @@ export const OdontogramModule = ({
 						/>
 						<span className="text-sm font-medium">Групповой выбор (Shift)</span>
 					</label>
+
+					<button
+						type="button"
+						onClick={loadDiagnocatReport}
+						disabled={diagnocatLoading}
+						className="ml-auto flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 rounded-md transition-colors"
+					>
+						<Stethoscope className="w-4 h-4" />
+						{diagnocatLoading ? "Загрузка..." : "Diagnocat Анализ"}
+					</button>
 				</div>
 				{/* Состояние формулы проговаривается словами. Пустая формула
 				    выглядит как «все зубы здоровы», а это утверждение о пациенте,
@@ -857,6 +910,7 @@ export const OdontogramModule = ({
 						<>
 							{/* Backdrop */}
 							<div
+								role="presentation"
 								style={{
 									position: "fixed",
 									top: 0,
@@ -866,8 +920,10 @@ export const OdontogramModule = ({
 									zIndex: 9998,
 								}}
 								onClick={() => setMenuConfig(null)}
+								onKeyDown={(e) => { if (e.key === 'Escape') setMenuConfig(null); }}
 							/>
 							<div
+								role="menu"
 								className={`absolute grid grid-cols-2 gap-2 p-3 w-[254px] bg-zinc-950/40 backdrop-blur-md border border-zinc-800/50 shadow-2xl rounded-2xl`}
 								style={
 									{
@@ -877,10 +933,12 @@ export const OdontogramModule = ({
 									} as React.CSSProperties
 								}
 								onClick={(e) => e.stopPropagation()}
+								onKeyDown={(e) => e.stopPropagation()}
 							>
 								{/* SVG Caret (Tail) */}
 								{menuConfig.position === "bottom" ? (
 									<svg
+										aria-hidden="true"
 										className="absolute -top-3 text-zinc-800/50 drop-shadow-md"
 										style={{
 											left: `${menuConfig.caretOffset}%`,
@@ -900,6 +958,7 @@ export const OdontogramModule = ({
 									</svg>
 								) : (
 									<svg
+										aria-hidden="true"
 										className="absolute -bottom-3 text-zinc-800/50 drop-shadow-md"
 										style={{
 											left: `${menuConfig.caretOffset}%`,
@@ -953,6 +1012,7 @@ export const OdontogramModule = ({
 									</button>
 								))}
 								<button
+									type="button"
 									onClick={() => {
 										setHistoryTooth(menuConfig.toothNumber);
 										setMenuConfig(null);

@@ -11,12 +11,13 @@
  * на месте: буфер копирует, а не вырезает.
  */
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 
 type ClipboardItem = {
 	id: string;
@@ -70,7 +71,7 @@ function defaultPasteLocalValue(): string {
 
 /** Convert datetime-local string to ISO with timezone offset. */
 function localValueToIso(localValue: string): string | null {
-	if (!localValue || !localValue.trim()) return null;
+	if (!localValue?.trim()) return null;
 	const parsed = new Date(localValue);
 	if (Number.isNaN(parsed.getTime())) return null;
 	return parsed.toISOString();
@@ -90,7 +91,11 @@ async function writeFailureText(
 	response: Response,
 	action: string,
 ): Promise<string> {
-	const body = await response.json().catch(() => null);
+	const body = await response.json().catch((err) => {
+		console.error('[Dente]', err);
+		showToast(actionFailureToast('Ответ сервера не прочитан', (err as { status?: number })?.status ?? null), 'error');
+		return null;
+	});
 	const serverMessage =
 		body && typeof body.message === "string" ? body.message.trim() : "";
 	if (serverMessage && /[а-яё]/i.test(serverMessage)) return serverMessage;
@@ -136,7 +141,11 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 				);
 				return;
 			}
-			const payload = (await response.json().catch(() => null)) as
+			const payload = (await response.json().catch((err) => {
+				console.error('[Dente]', err);
+				showToast(actionFailureToast('Ответ с буфером расписания не прочитан', (err as { status?: number })?.status ?? null), 'error');
+				return null;
+			})) as
 				| ClipboardItem[]
 				| { message?: string }
 				| null;
@@ -164,9 +173,10 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 
 	useEffect(() => {
 		void load();
-	}, [load, reloadToken]);
+	}, [load]);
 
 	const clearItem = async (item: ClipboardItem) => {
+		if (busyId) return;
 		setBusyId(item.id);
 		try {
 			let response: Response;
@@ -202,6 +212,7 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 			showToast("Укажите дату и время начала приёма для вставки.", "error");
 			return;
 		}
+		if (busyId) return;
 		setBusyId(item.id);
 		try {
 			let response: Response;
@@ -228,7 +239,11 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 				);
 				return;
 			}
-			const dashboard = await response.json().catch(() => null);
+			const dashboard = await response.json().catch((err) => {
+				console.error('[Dente]', err);
+				showToast(actionFailureToast('Ответ после вставки приёма не прочитан', (err as { status?: number })?.status ?? null), 'error');
+				return null;
+			});
 			setItems((prev) => prev.filter((row) => row.id !== item.id));
 			showToast(
 				`Приём «${item.patientName}» вставлен на выбранное время`,
@@ -259,10 +274,28 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 				borderRadius: "12px",
 			}}
 		>
-			<div
+			<button
+				type="button"
 				className="panel-heading"
-				style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+				style={{
+					cursor: "pointer",
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+					width: "100%",
+					background: "transparent",
+					border: "none",
+					padding: 0,
+					textAlign: "inherit",
+					font: "inherit",
+				}}
 				onClick={() => setIsCollapsed(!isCollapsed)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						setIsCollapsed(!isCollapsed);
+					}
+				}}
 			>
 				<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 					<h2 style={{ margin: 0 }}>Буфер расписания</h2>
@@ -271,7 +304,7 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 					) : null}
 				</div>
 				{isCollapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-			</div>
+			</button>
 
 			{error ? (
 				<div className="ops-notice ops-notice--error" role="alert">

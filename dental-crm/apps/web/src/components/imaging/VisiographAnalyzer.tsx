@@ -1,33 +1,9 @@
-/**
- * VisiographAnalyzer.tsx — полнофункциональный UI для AI-анализа 2D прицельных снимков.
- *
- * Возможности:
- * - Drag-n-drop + клик для загрузки снимка
- * - Canvas-сжатие до 1000px
- * - Синхронный анализ через /api/imaging/visiograph-ai
- * - Сохранение снимка+результата в БД через /api/xray/scans
- * - История сканов пациента с загрузкой при открытии
- * - Удаление снимка из архива (DELETE /api/xray/scans/:id)
- * - Рендеринг markdown-отчёта с подсветкой разделов
- * - Before/After image slider с CSS-enhanced режимом
- * - Запись находок в ЖИВУЮ зубную формулу пациента (POST
- *   /api/patients/:id/tooth-states/batch — тот же адрес, что у формулы на
- *   карточке пациента). Прежде находки уходили в store/patientStore, который
- *   читал только несмонтированный components/Odontogram.tsx, — то есть в никуда.
- * - Голосовое озвучивание отчёта
- * - Печать отчёта
- */
-
-// Общее правило FDI, а не свой список: «зуб 99» и «зуб 0» — это мусор, и
-// проверять его надо тем же кодом, что смета и одонтограмма.
-import { isValidFdiToothNumber } from "@dental/shared";
+import { showToast } from "../GlobalToast";
 import {
 	AlertTriangle,
 	Bot,
 	CheckCircle2,
 	ChevronDown,
-	Clock,
-	FileX,
 	History,
 	Loader2,
 	Printer,
@@ -392,23 +368,6 @@ export function VisiographAnalyzer() {
 		};
 	}, []);
 
-	// ── Load scan history when patient changes ──────────────────────────────
-	useEffect(() => {
-		if (!selectedPatientId) {
-			setScanHistory([]);
-			setHistoryFailure(null);
-			setDeleteFailure(null);
-			setOpenFailure(null);
-			setDeletingScanId(null);
-			// Индикатор гасим и здесь: запрос по прежнему пациенту вернётся уже
-			// «просроченным» и свой finally пропустит, иначе счётчик в сводке остался
-			// бы с «…» навсегда.
-			setIsLoadingHistory(false);
-			return;
-		}
-		loadHistory(selectedPatientId);
-	}, [selectedPatientId]);
-
 	/**
 	 * Чтение архива снимков пациента.
 	 *
@@ -430,7 +389,7 @@ export function VisiographAnalyzer() {
 	 * По той же причине isLoadingHistory гасит только актуальный запрос — иначе
 	 * поздний ответ по A убирал бы индикатор загрузки у идущего запроса по B.
 	 */
-	const loadHistory = async (patientId: string) => {
+	async function loadHistory(patientId: string) {
 		setIsLoadingHistory(true);
 		setHistoryFailure(null);
 		setDeleteFailure(null);
@@ -465,6 +424,7 @@ export function VisiographAnalyzer() {
 			}
 			setScanHistory((data as XrayScan[]).filter((s) => s.status === "done"));
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			// Код ответа человеку не показываем — он уходит в консоль разработчику.
 			console.error("[VisiographAnalyzer] Архив снимков не прочитан:", err);
 			if (isStale()) return;
@@ -472,7 +432,24 @@ export function VisiographAnalyzer() {
 		} finally {
 			if (!isStale()) setIsLoadingHistory(false);
 		}
-	};
+	}
+
+	// ── Load scan history when patient changes ──────────────────────────────
+	useEffect(() => {
+		if (!selectedPatientId) {
+			setScanHistory([]);
+			setHistoryFailure(null);
+			setDeleteFailure(null);
+			setOpenFailure(null);
+			setDeletingScanId(null);
+			// Индикатор гасим и здесь: запрос по прежнему пациенту вернётся уже
+			// «просроченным» и свой finally пропустит, иначе счётчик в сводке остался
+			// бы с «…» навсегда.
+			setIsLoadingHistory(false);
+			return;
+		}
+		loadHistory(selectedPatientId);
+	}, [selectedPatientId, loadHistory]);
 
 	/**
 	 * Запись одной группы зубов в живую формулу пациента.
@@ -515,6 +492,7 @@ export function VisiographAnalyzer() {
 			}
 			return null;
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			console.error(
 				"[VisiographAnalyzer] запрос обновления формулы не выполнен",
 				err,
@@ -783,6 +761,7 @@ export function VisiographAnalyzer() {
 							setScanHistory((prev) => [saved, ...prev]);
 						}
 					} catch (saveErr) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (saveErr as { status?: number })?.status ?? null), "error");
 						console.error(
 							"[VisiographAnalyzer] запись снимка в карту не выполнена",
 							saveErr,
@@ -810,7 +789,12 @@ export function VisiographAnalyzer() {
 			// теле компонента и пересоздаётся на каждом отрисовывании, а свежие данные
 			// берёт из authRef — по той же причине, что описана у authRef выше.
 		},
-		[selectedPatientId],
+		[
+			selectedPatientId,
+			writeToothStatesToChart,
+			denteClinicalReadHeaders,
+			denteClinicalMutationHeaders,
+		],
 	);
 
 	// ── Drag & Drop ─────────────────────────────────────────────────────────
@@ -888,6 +872,7 @@ export function VisiographAnalyzer() {
 				);
 			}
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			console.error(
 				"[VisiographAnalyzer] запрос полного снимка не выполнен",
 				err,
@@ -963,6 +948,7 @@ export function VisiographAnalyzer() {
 				setIsSpeaking(false);
 			}
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			console.error("[VisiographAnalyzer] scan delete failed", err);
 			setDeleteFailure(
 				"Снимок не удалён: нет связи с сервером. Проверьте сеть и повторите.",
@@ -1189,6 +1175,7 @@ export function VisiographAnalyzer() {
 						{currentScan?.aiReport && (
 							<>
 								<button
+									type="button"
 									onClick={handleSpeak}
 									disabled={!voicesReady && !isSpeaking}
 									title={isSpeaking ? "Стоп" : "Озвучить"}
@@ -1213,6 +1200,7 @@ export function VisiographAnalyzer() {
 									{isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
 								</button>
 								<button
+									type="button"
 									onClick={handlePrint}
 									title="Печать"
 									style={{
@@ -1231,6 +1219,7 @@ export function VisiographAnalyzer() {
 									<Printer size={14} />
 								</button>
 								<button
+									type="button"
 									onClick={handleClear}
 									title="Закрыть результат"
 									style={{
@@ -1255,13 +1244,21 @@ export function VisiographAnalyzer() {
 				<div style={{ padding: "16px" }}>
 					{/* Drop Zone */}
 					{!currentScan && (
-						<div
-							ref={dropRef}
+						<button
+							type="button"
+							ref={dropRef as any}
 							onDrop={handleDrop}
 							onDragOver={handleDragOver}
 							onDragLeave={handleDragLeave}
 							onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+							onKeyDown={(e) => {
+								if ((e.key === "Enter" || e.key === " ") && !isAnalyzing) {
+									e.preventDefault();
+									fileInputRef.current?.click();
+								}
+							}}
 							style={{
+								width: "100%",
 								border: `2px dashed ${isDragOver ? "var(--teal)" : "var(--line-strong)"}`,
 								borderRadius: "12px",
 								padding: "28px 20px",
@@ -1347,21 +1344,22 @@ export function VisiographAnalyzer() {
 										Прицельный снимок (JPG, PNG, BMP). ИИ найдёт кариес,
 										периодонтит, обновит формулу зубов.
 									</p>
-									<button
+									<span
 										className="btn-primary"
 										style={{
+											display: "inline-block",
 											marginTop: "8px",
 											padding: "8px 20px",
 											borderRadius: "8px",
 											fontSize: "0.88rem",
+											opacity: isAnalyzing ? 0.5 : 1,
 										}}
-										disabled={isAnalyzing}
 									>
 										Выбрать файл
-									</button>
+									</span>
 								</div>
 							)}
-						</div>
+						</button>
 					)}
 
 					{/* Error state */}
@@ -1393,6 +1391,7 @@ export function VisiographAnalyzer() {
 								<div style={{ marginTop: "4px" }}>{error}</div>
 							</div>
 							<button
+								type="button"
 								onClick={() => setError(null)}
 								style={{
 									marginLeft: "auto",
@@ -1684,26 +1683,32 @@ export function VisiographAnalyzer() {
 											)}
 										</span>
 									</div>
-									{reportSections.map((section, idx) => (
+									{reportSections.map((section, sIndex) => (
 										<div
-											key={idx}
+											key={
+												section.title ||
+												`section-${section.content.slice(0, 10)}`
+											}
 											style={{
 												borderBottom:
-													idx < reportSections.length - 1
+													sIndex < reportSections.length - 1
 														? "1px solid var(--line)"
 														: "none",
 											}}
 										>
 											<button
+												type="button"
 												onClick={() =>
-													setActiveSection(activeSection === idx ? null : idx)
+													setActiveSection(
+														activeSection === sIndex ? null : sIndex,
+													)
 												}
 												style={{
 													width: "100%",
 													textAlign: "left",
 													padding: "10px 14px",
 													background:
-														activeSection === idx
+														activeSection === sIndex
 															? "var(--paper-soft)"
 															: "transparent",
 													border: "none",
@@ -1728,13 +1733,15 @@ export function VisiographAnalyzer() {
 													size={14}
 													style={{
 														transform:
-															activeSection === idx ? "rotate(180deg)" : "none",
+															activeSection === sIndex
+																? "rotate(180deg)"
+																: "none",
 														transition: "transform 0.2s",
 														color: "var(--muted)",
 													}}
 												/>
 											</button>
-											{activeSection === idx && (
+											{activeSection === sIndex && (
 												<div
 													style={{
 														padding: "8px 14px 14px 34px",
@@ -1742,7 +1749,8 @@ export function VisiographAnalyzer() {
 														lineHeight: 1.65,
 														color: "var(--ink)",
 													}}
-													dangerouslySetInnerHTML={{
+													// biome-ignore lint/security/noDangerouslySetInnerHtml: content sanitized via escapeHtml() before renderMarkdown()
+												dangerouslySetInnerHTML={{
 														__html: renderMarkdown(section.content),
 													}}
 												/>
@@ -1879,6 +1887,7 @@ export function VisiographAnalyzer() {
 					{!currentScan && historyPhase === "ready" && (
 						<div style={{ marginTop: "16px" }}>
 							<button
+								type="button"
 								onClick={() => setHistoryExpanded(!historyExpanded)}
 								style={{
 									display: "flex",

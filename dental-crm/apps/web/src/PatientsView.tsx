@@ -74,8 +74,10 @@ export type PatientsViewProps = {
 	patientInsightById: Map<string, PatientInsight>;
 	patientInsightRiskLabels: Record<PatientInsight["riskLevel"], string>;
 	query: string;
-	savePatientAdministrativeProfile: () => void | Promise<void | boolean>;
-	savePatientCore: () => void | Promise<void | boolean>;
+	savePatientAdministrativeProfile: () =>
+		| undefined
+		| Promise<undefined | boolean>;
+	savePatientCore: () => undefined | Promise<undefined | boolean>;
 	selectedPatient: Patient | null | undefined;
 	setQuery: (value: string) => void;
 	updatePatientAdministrativeProfileDraft: (
@@ -607,8 +609,6 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 							<article
 								className={`patient-row ${insight && riskDistinguishes ? `risk-${insight.riskLevel}` : ""} ${patientIsSelected ? "selected" : ""}`}
 								key={patient.id}
-								role="button"
-								tabIndex={0}
 								aria-label={`Карточка пациента: ${patient.fullName}`}
 								onClick={() => setSelectedPatientId(patient.id)}
 								onKeyDown={(e) => {
@@ -635,7 +635,14 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
                     */
 										<div className="patient-row-meta">
 											{patient.status === "archived" ? (
-												<span className="patient-risk-label" style={{ backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' }}>
+												<span
+													className="patient-risk-label"
+													style={{
+														backgroundColor: "#fee2e2",
+														color: "#991b1b",
+														borderColor: "#fca5a5",
+													}}
+												>
 													Черный список / Архив
 												</span>
 											) : null}
@@ -655,15 +662,20 @@ export function PatientsView(rawProps?: Partial<PatientsViewProps>) {
 												</span>
 											) : null}
 										</div>
-									) : (
-										patient.status === "archived" ? (
-											<div className="patient-row-meta">
-												<span className="patient-risk-label" style={{ backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' }}>
-													Черный список / Архив
-												</span>
-											</div>
-										) : null
-									)}
+									) : patient.status === "archived" ? (
+										<div className="patient-row-meta">
+											<span
+												className="patient-risk-label"
+												style={{
+													backgroundColor: "#fee2e2",
+													color: "#991b1b",
+													borderColor: "#fca5a5",
+												}}
+											>
+												Черный список / Архив
+											</span>
+										</div>
+									) : null}
 								</div>
 								<button
 									aria-label={`Открыть карточку пациента: ${patient.fullName}`}

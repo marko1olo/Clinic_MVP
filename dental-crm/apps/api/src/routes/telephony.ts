@@ -1,4 +1,4 @@
-import { and, eq, ilike } from "drizzle-orm";
+import { type SQL, and, eq, ilike, or } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { db } from "../db/client.js";
@@ -17,11 +17,17 @@ const telephonyCallBodySchema = z.object({
 	from: z.string().optional(),
 	to: z.string().optional(),
 	call_id: z.string().optional(),
+	recording_url: z.string().optional(),
+	timestamp: z.union([z.number(), z.string()]).optional(),
 });
 
 const telephonySmsBodySchema = z.object({
 	from: z.string().optional(),
 	message: z.string().optional(),
+	sms_id: z.string().optional(),
+	call_id: z.string().optional(),
+	id: z.string().optional(),
+	timestamp: z.union([z.number(), z.string()]).optional(),
 });
 
 export const telephonyRoutes: FastifyPluginAsync = async (
@@ -35,6 +41,7 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 			from: string;
 			to: string;
 			call_id?: string;
+			recording_url?: string;
 		};
 	}>("/:organizationId/webhook", async (request, reply) => {
 		// БЫЛО: вебхук АТС принимал любой POST — посторонний мог показывать
@@ -58,6 +65,23 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 
 			if (!from) {
 				return reply.status(400).send({ error: "Missing 'from' phone number" });
+			}
+
+			const rawCallTs = parsedCall.data.timestamp;
+			if (rawCallTs != null) {
+				const numTs =
+					typeof rawCallTs === "number"
+						? rawCallTs
+						: Number.parseInt(String(rawCallTs), 10);
+				if (!Number.isNaN(numTs) && numTs > 0) {
+					const msgTsSec = numTs > 1e11 ? Math.floor(numTs / 1000) : numTs;
+					const nowSec = Math.floor(Date.now() / 1000);
+					if (Math.abs(nowSec - msgTsSec) > 300) {
+						return reply
+							.status(400)
+							.send({ error: "Timestamp drift window exceeded (>300s)" });
+					}
+				}
 			}
 
 			if (event === "ringing") {
@@ -130,6 +154,69 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 						timestamp: new Date().toISOString(),
 					},
 				});
+			} else if (event === "ended") {
+				const callId = parsedCall.data.call_id?.trim();
+				const recUrl = parsedCall.data.recording_url?.trim();
+
+				if (callId || recUrl) {
+					const conditions: SQL[] = [];
+					if (callId) {
+						conditions.push(ilike(communicationEvents.message, `%${callId}%`));
+					}
+					if (recUrl) {
+						conditions.push(eq(communicationEvents.recordingUrl, recUrl));
+					}
+					const existingCall = await db
+						.select({ id: communicationEvents.id })
+						.from(communicationEvents)
+						.where(
+							and(
+								eq(communicationEvents.organizationId, organizationId),
+								or(...conditions),
+							),
+						)
+						.limit(1);
+
+					if (existingCall.length > 0) {
+						request.log.info(
+							{ callId, recUrl, organizationId },
+							"Call ended event already ingested (replay skipped)",
+						);
+						return { success: true, duplicate: true };
+					}
+				}
+
+				if (recUrl || callId) {
+					const rawPhone = from.replace(/\D/g, "");
+					const phoneSuffix =
+						rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
+					if (phoneSuffix.length >= 7) {
+						const searchResult = await db
+							.select()
+							.from(patients)
+							.where(
+								and(
+									eq(patients.organizationId, organizationId),
+									ilike(patients.phone, `%${phoneSuffix}%`),
+								),
+							)
+							.limit(1);
+						const patient = searchResult[0] || null;
+						if (patient) {
+							await db.insert(communicationEvents).values({
+								organizationId,
+								patientId: patient.id,
+								channel: "phone",
+								direction: "inbound",
+								status: "completed",
+								message: callId
+									? `Звонок завершён (call_id: ${callId})`
+									: "Звонок завершён (запись приложена)",
+								recordingUrl: recUrl || null,
+							});
+						}
+					}
+				}
 			}
 
 			// Возвращаем 200 OK чтобы АТС поняла, что хук принят
@@ -166,6 +253,48 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 
 			if (!from || !message) {
 				return reply.status(400).send({ error: "Missing 'from' or 'message'" });
+			}
+
+			const rawSmsTs = parsedSms.data.timestamp;
+			if (rawSmsTs != null) {
+				const numTs =
+					typeof rawSmsTs === "number"
+						? rawSmsTs
+						: Number.parseInt(String(rawSmsTs), 10);
+				if (!Number.isNaN(numTs) && numTs > 0) {
+					const msgTsSec = numTs > 1e11 ? Math.floor(numTs / 1000) : numTs;
+					const nowSec = Math.floor(Date.now() / 1000);
+					if (Math.abs(nowSec - msgTsSec) > 300) {
+						return reply
+							.status(400)
+							.send({ error: "Timestamp drift window exceeded (>300s)" });
+					}
+				}
+			}
+
+			const smsId =
+				parsedSms.data.sms_id?.trim() ??
+				parsedSms.data.call_id?.trim() ??
+				parsedSms.data.id?.trim();
+			if (smsId) {
+				const existingSms = await db
+					.select({ id: communicationEvents.id })
+					.from(communicationEvents)
+					.where(
+						and(
+							eq(communicationEvents.organizationId, organizationId),
+							ilike(communicationEvents.message, `%${smsId}%`),
+						),
+					)
+					.limit(1);
+
+				if (existingSms.length > 0) {
+					request.log.info(
+						{ smsId, organizationId },
+						"SMS webhook event already ingested (replay skipped)",
+					);
+					return { success: true, duplicate: true };
+				}
 			}
 
 			const rawPhone = from.replace(/\D/g, "");
@@ -210,7 +339,7 @@ export const telephonyRoutes: FastifyPluginAsync = async (
 				channel: "sms",
 				direction: "inbound",
 				status: "delivered",
-				message,
+				message: smsId ? `${message} [sms_id: ${smsId}]` : message,
 			});
 
 			// Броадкастим в Omnichannel Inbox

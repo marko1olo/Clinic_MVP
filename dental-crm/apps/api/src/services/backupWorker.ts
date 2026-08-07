@@ -208,6 +208,45 @@ function backupsDirectory(): string {
 }
 
 /**
+ * URL подключения для снятия резервной копии.
+ *
+ * Чтобы копия была ПОЛНОЙ (включала строки всех арендаторов), pg_dump должен
+ * выполняться ролью с атрибутом `BYPASSRLS` — либо суперпользователем, либо
+ * выделенной ролью только для резервного копирования (рекомендуется).
+ *
+ * Почему `dental` не может:
+ * - `dental` владеет таблицами с `FORCE ROW LEVEL SECURITY`.
+ * - Без `BYPASSRLS` владелец всё равно подчиняется политикам RLS.
+ * - pg_dump по умолчанию выполняет `SET row_security = off`, что ОТКАЗЫВАЕТ
+ *   явно на каждой покрытой таблице: "query would be affected by row-level
+ *   security policy". Копия обрывается на первой же таблице с данными.
+ * - Измерено на живой базе 2026-08-07: 147 из 148 таблиц обрываются.
+ *
+ * Вариант через `app.superuser_bypass` здесь НЕ применяется: чтобы он работал,
+ * нужно `--enable-row-security` (иначе pg_dump ставит `row_security=off` сам и
+ * упадёт). Это превратило бы громкий отказ при отсутствии прав в ТИХУЮ ПУСТУЮ
+ * копию при неправильной настройке — именно то, что `rejectHollowBackup`
+ * призван ловить. При BYPASSRLS pg_dump работает БЕЗ `--enable-row-security`,
+ * и при отсутствии прав отказ остаётся ГРОМКИМ по умолчанию.
+ *
+ * Provisioning (выполняется владельцем базы один раз):
+ *   CREATE ROLE dente_backup LOGIN BYPASSRLS PASSWORD 'надёжный_пароль';
+ *   GRANT pg_read_all_data TO dente_backup;
+ *
+ * В .env:
+ *   BACKUP_DATABASE_URL=postgres://dente_backup:пароль@127.0.0.1:5432/dental_crm
+ *
+ * Если переменная не задана, воркер использует обычный `DATABASE_URL` и
+ * копия откажется громко (если роль не BYPASSRLS) или пройдёт (если
+ * суперпользователь). Подойдёт для разработки/CI, где изоляция не нужна.
+ */
+function backupDatabaseUrl(): string {
+	return (
+		process.env.BACKUP_DATABASE_URL?.trim() || process.env.DATABASE_URL || ""
+	);
+}
+
+/**
  * Ключ шифрования копии. Возвращает ошибку, если ключ не настроен или небезопасен —
  * лучше явно отказаться, чем создать копию медицинских данных, зашифрованную
  * известным всем ключом.
@@ -262,23 +301,52 @@ function pgDumpMajorVersion(binary: string): number | null {
  * ("aborting because of server version mismatch", код 1, ноль байт на выходе),
  * то есть копии не создавались вообще, и до прав под RLS дело не доходило.
  * Версия бинаря не проверялась ни разу.
+ *
+ * @param minMajor — минимальная мажорная версия, которая нужна. Когда null —
+ *   порог не применяется: вернём первый запускаемый бинарь без проверки версии.
+ *   Так поступаем, если сервер недоступен: честнее дать pg_dump упасть самому,
+ *   чем угадывать порог из литерала кода.
  */
-function resolvePgDump():
-	| { binary: string; major: number }
-	| { error: string } {
+function resolvePgDump(
+	minMajor: number | null,
+): { binary: string; major: number } | { error: string } {
 	const configured = process.env.PG_DUMP_PATH?.trim();
 	if (configured && !fs.existsSync(configured)) {
 		return {
 			error: `PG_DUMP_PATH указывает на несуществующий файл (${configured}). Раньше это значение молча игнорировалось и подставлялся другой бинарь.`,
 		};
 	}
-	const portable = path.resolve(
+	const toolsPortable = path.resolve(
+		process.cwd(),
+		"../../.tools/pgsql/bin/pg_dump.exe",
+	);
+	const oldPortable = path.resolve(
 		process.cwd(),
 		"../../.postgres/bin/pg_dump.exe",
 	);
+	// Явно заданный PG_DUMP_PATH — приказ, а не подсказка. Если администратор
+	// назвал бинарь, а тот не годится, надо отказать С УКАЗАНИЕМ ЭТОГО бинаря,
+	// а не подставить втихую другой: подмена ровно тем и опасна, что в журнале
+	// стоит один путь, а копию снимает другой инструмент. Автопоиск ниже — для
+	// случая, когда не задано ничего.
+	if (configured) {
+		const major = pgDumpMajorVersion(configured);
+		if (major === null) {
+			return {
+				error: `pg_dump из PG_DUMP_PATH не запускается (${configured}).`,
+			};
+		}
+		if (minMajor !== null && major < minMajor) {
+			return {
+				error: `pg_dump из PG_DUMP_PATH версии ${major} МЛАДШЕ сервера ${minMajor} (${configured}). pg_dump отказывается выгружать сервер новее себя, поэтому копии не создаются вообще. Укажите бинарь версии ${minMajor} или новее.`,
+			};
+		}
+		return { binary: configured, major };
+	}
+
 	const candidates = [
-		configured,
-		fs.existsSync(portable) ? portable : null,
+		fs.existsSync(toolsPortable) ? toolsPortable : null,
+		fs.existsSync(oldPortable) ? oldPortable : null,
 		"pg_dump",
 	].filter((value): value is string => Boolean(value));
 
@@ -289,33 +357,61 @@ function resolvePgDump():
 			rejected.push(`${candidate}: не запускается`);
 			continue;
 		}
+		if (minMajor !== null && major < minMajor) {
+			rejected.push(`${candidate}: версия ${major}, требуется ${minMajor}+`);
+			continue;
+		}
 		return { binary: candidate, major };
 	}
+	const versionClause =
+		minMajor !== null ? ` версии ${minMajor}+` : " (работоспособный)";
 	return {
-		error: `Не найден работоспособный pg_dump. Проверено: ${rejected.join("; ")}. Укажите путь в PG_DUMP_PATH.`,
+		error: `Не найден pg_dump${versionClause}. Проверено: ${rejected.join("; ")}. Укажите путь в PG_DUMP_PATH.`,
 	};
 }
 
 /**
- * Возвращает путь к бинарю pg_dump, пригодному для работы с текущим сервером.
- * Бросает Error, если работоспособный бинарь не найден — ошибка перехватывается
- * в createEncryptedBackup и превращается в BackupResult { success: false }.
+ * Мажорная версия СЕРВЕРА. Нужна, чтобы отказать до запуска дампа: pg_dump
+ * старше сервера не работает в принципе.
+ *
+ * Спрашиваем тем же пулом, что и остальные воркеры (db/client.js), новых
+ * зависимостей не добавляем. Недоступность сервера — не повод бросать:
+ * возвращаем null, и тогда проверка версии просто не применяется, а дальше
+ * отработают штатные проверки содержимого дампа.
  */
-function pgDumpExecutable(): string {
-	const result = resolvePgDump();
-	if ("error" in result) {
-		throw new Error(result.error);
+async function serverMajorVersion(): Promise<number | null> {
+	try {
+		// Берём pool напрямую, а не обёртку db: версия сервера не связана с
+		// тенантом, и прогонять её через RLS-контекст незачем.
+		const { pool } = await import("../db/client.js");
+		const result = await pool.query<{ v: string }>(
+			"SELECT current_setting('server_version_num') AS v",
+		);
+		const numeric = Number(result.rows[0]?.v);
+		// server_version_num — это 180004 для 18.4: major = целые десятки тысяч.
+		return Number.isFinite(numeric) && numeric > 0
+			? Math.floor(numeric / 10000)
+			: null;
+	} catch (error) {
+		console.warn(
+			"[BackupWorker] Не удалось узнать версию сервера, проверка версии pg_dump пропущена:",
+			error instanceof Error ? error.message : String(error),
+		);
+		return null;
 	}
-	return result.binary;
 }
 
 /**
- * Параметры подключения берём из DATABASE_URL, а не из зашитых значений:
- * иначе копия снимается не с той базы, с которой работает приложение.
+ * Параметры подключения берём из BACKUP_DATABASE_URL (роль с BYPASSRLS) или,
+ * если он не задан, из DATABASE_URL — а не из зашитых значений: иначе копия
+ * снимается не с той базы, с которой работает приложение.
  */
 function pgDumpArguments(): string[] {
 	const baseArgs = ["--clean", "--if-exists", "--no-owner", "--no-acl"];
-	const databaseUrl = process.env.DATABASE_URL?.trim();
+	// НЕ добавлять --enable-row-security: под ролью без BYPASSRLS этот флаг
+	// превращает громкий отказ в ТИХУЮ ПУСТУЮ копию — администратор видит
+	// успех и файл, а клинических данных внутри нет.
+	const databaseUrl = backupDatabaseUrl().trim();
 	if (databaseUrl) return ["--dbname", databaseUrl, ...baseArgs];
 	return [
 		"-U",
@@ -324,6 +420,25 @@ function pgDumpArguments(): string[] {
 		process.env.POSTGRES_DB || "dental_crm",
 		...baseArgs,
 	];
+}
+
+/**
+ * Распознаёт отказ pg_dump, вызванный политиками RLS, и объясняет причину.
+ *
+ * Без этого администратор видит в журнале английское сообщение сервера и не
+ * понимает, что дело в правах роли, а не в поломке pg_dump или диска.
+ */
+function diagnoseRlsFailure(stderrText: string): string | null {
+	if (!/row-level security policy/i.test(stderrText)) return null;
+	const table = /policy for table "([^"]+)"/i.exec(stderrText)?.[1];
+	const where = table ? ` (оборвалось на таблице "${table}")` : "";
+	return (
+		`pg_dump остановлен политиками RLS${where}. ` +
+		`Роль подключения не имеет атрибута BYPASSRLS, а таблицы защищены ` +
+		`FORCE ROW LEVEL SECURITY, поэтому владелец таблиц тоже подчиняется политикам. ` +
+		`Копия НЕПОЛНАЯ и удалена. Заведите отдельную роль только для копий и укажите её в BACKUP_DATABASE_URL: ` +
+		`CREATE ROLE dente_backup LOGIN BYPASSRLS PASSWORD '...'; GRANT pg_read_all_data TO dente_backup;`
+	);
 }
 
 function removePartialFile(filePath: string): void {
@@ -393,7 +508,36 @@ export async function createEncryptedBackup(): Promise<BackupResult> {
 		// IV пишется в начало файла — он нужен для расшифровки.
 		writeStream.write(iv);
 
-		const pgDump = spawn(pgDumpExecutable(), pgDumpArguments(), {
+		// Порог версии приходит ОТ СЕРВЕРА, а не из литерала: зашитая константа
+		// стала бы ложью на любом другом сервере и требовала правки кода при
+		// обновлении СУБД. Если сервер недоступен (null) — порог не применяем и
+		// даём pg_dump упасть самому, это честнее выдуманного числа.
+		const serverMajor = await serverMajorVersion();
+
+		const dumpTool = resolvePgDump(serverMajor);
+		if ("error" in dumpTool) {
+			removePartialFile(filePath);
+			console.error(`[BackupWorker] Копия НЕ создана: ${dumpTool.error}`);
+			return { success: false, error: dumpTool.error };
+		}
+
+		// Проверка стоит ДО spawn. pg_dump младше сервера отказывается работать
+		// сам, но делает это, отдав ноль байт в уже созданный файл копии: отказ
+		// выглядел как сбой копирования, а не как неверный бинарь.
+		// Измерено 2026-08-07: pg_dump 14.13 против сервера 18.4 —
+		// "aborting because of server version mismatch", код 1, ноль байт.
+		if (serverMajor !== null && dumpTool.major < serverMajor) {
+			removePartialFile(filePath);
+			const error =
+				`pg_dump версии ${dumpTool.major} МЛАДШЕ сервера ${serverMajor} (${dumpTool.binary}). ` +
+				`pg_dump отказывается выгружать сервер новее себя, поэтому копии не создаются вообще. ` +
+				`Задайте PG_DUMP_PATH на бинарь версии ${serverMajor} или новее. ` +
+				`На этой машине готовый вариант: C:\\Clinic_MVP\\dental-crm\\.tools\\pgsql\\bin\\pg_dump.exe.`;
+			console.error(`[BackupWorker] ${error}`);
+			return { success: false, error };
+		}
+
+		const pgDump = spawn(dumpTool.binary, pgDumpArguments(), {
 			env: { ...process.env },
 		});
 
@@ -464,10 +608,16 @@ export async function createEncryptedBackup(): Promise<BackupResult> {
 				dumpExitCode = code;
 				if (code !== 0) {
 					writeStream.destroy();
+					const stderrText = stderrChunks.join(" ").trim();
+					// Отказ из-за RLS объясняем по-русски и с готовым рецептом:
+					// иначе в журнале остаётся только английское сообщение
+					// сервера, из которого не видно, что причина — права роли.
+					const rlsDiagnosis = diagnoseRlsFailure(stderrText);
 					settle({
 						success: false,
-						error:
-							`pg_dump завершился с кодом ${code}. ${stderrChunks.join(" ").trim()}`.trim(),
+						error: rlsDiagnosis
+							? `${rlsDiagnosis} Код возврата pg_dump: ${code}.`
+							: `pg_dump завершился с кодом ${code}. ${stderrText}`.trim(),
 					});
 					return;
 				}

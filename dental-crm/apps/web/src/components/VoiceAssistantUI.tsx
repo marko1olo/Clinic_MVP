@@ -228,15 +228,18 @@ export function VoiceAssistantUI({
 
 								{/* Полоски — детерминированная функция измеренного уровня, не Math.random(). */}
 								<div className="dnt-actions__meter" aria-hidden="true">
-									{voiceMeterHeights(volume, VOICE_METER_BARS).map(
-										(height, index) => (
+									{voiceMeterHeights(volume, VOICE_METER_BARS)
+										.map((height, barPos) => ({
+											barId: `bar-meter-${barPos}`,
+											height,
+										}))
+										.map(({ barId, height }) => (
 											<div
-												key={index}
+												key={barId}
 												className="dnt-actions__meter-bar"
 												style={{ height: `${height}%` }}
 											></div>
-										),
-									)}
+										))}
 								</div>
 							</div>
 						</div>

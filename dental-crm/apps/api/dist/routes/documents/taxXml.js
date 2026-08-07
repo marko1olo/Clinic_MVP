@@ -5,7 +5,7 @@ import { taxFiscalDocumentBlockReason } from "../../documents/renderDocument.js"
 import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot, } from "../../documents/taxPaymentSnapshot.js";
 import { buildKnd1151156Xml } from "../../documents/taxXml.js";
 import { requireOrganizationId } from "../../security/identity.js";
-import { apiError, configuredTaxOfficeCode, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, frozenTaxXmlClinicProfile, frozenTaxXmlPatient, frozenTaxXmlPayments, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotSha256, } from "../documents.js";
+import { apiError, configuredTaxOfficeCode, documentIssueBlockReason, documentIssueChainBlockReason, findIssuedDuplicateTaxCertificate, frozenTaxXmlClinicProfile, frozenTaxXmlPatient, frozenTaxXmlPayments, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotSha256, } from "./shared.js";
 export async function register(app) {
     app.get("/api/documents/:id/tax-xml", handleGetTaxXml);
 }

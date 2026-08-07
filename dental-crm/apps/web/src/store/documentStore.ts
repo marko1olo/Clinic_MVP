@@ -31,19 +31,16 @@ import type {
 	XrayCbctReferralPriority,
 	XrayCbctReferralStudyType,
 } from "@dental/shared";
+import { postVisitCarePresets } from "../postVisitCareData";
 /*
  * dateInputValuePlusDays отсюда убран вместе со сроком оплаты счёта и графиком
  * рассрочки: в значении поля он считался при загрузке модуля и подсовывал в
  * документ дату, которую никто не вводил. Отметки времени подставляет
  * withDocumentCreationTimestamps в момент создания документа.
  */
-import {
-	currentLocalDateTimeInputValue,
-	defaultClinicalToothRowsText,
-	loadUiPreferences,
-	toDateTimeLocalValue,
-} from "../AppHelpers";
-import { postVisitCarePresets } from "../postVisitCareData";
+import { currentLocalDateTimeInputValue } from "../utils/dateUtils";
+import { defaultClinicalToothRowsText } from "../utils/draftDefaults";
+import { loadUiPreferences } from "../utils/preferencesUtils";
 
 const initialUiPreferences = loadUiPreferences();
 

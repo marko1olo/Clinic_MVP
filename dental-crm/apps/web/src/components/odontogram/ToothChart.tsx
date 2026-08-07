@@ -157,6 +157,7 @@ const ToothSVG = ({
 					: ""
 			}
 		>
+			<title>Имплант зуба</title>
 			<g>
 				<path
 					d={geom.root}
@@ -213,6 +214,7 @@ const ToothSVG = ({
 					: ""
 			}
 		>
+			<title>Схема зуба</title>
 			<g>
 				<path
 					d={geom.root}
@@ -259,6 +261,7 @@ const ToothSVG = ({
 							points="8,8 16,8 16,16 8,16"
 							fill={surfaces?.includes("O") ? "#ef4444" : "transparent"}
 							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+							tabIndex={0}
 							onMouseEnter={(e) => {
 								if (!surfaces?.includes("O"))
 									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
@@ -271,6 +274,13 @@ const ToothSVG = ({
 								e.stopPropagation();
 								onClick(e, number, "O");
 							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onClick(e as unknown as React.MouseEvent, number, "O");
+								}
+							}}
 						/>
 						<polygon
 							points="0,0 24,0 16,8 8,8"
@@ -280,6 +290,7 @@ const ToothSVG = ({
 									: "transparent"
 							}
 							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+							tabIndex={0}
 							onMouseEnter={(e) => {
 								if (!(surfaces?.includes("V") || surfaces?.includes("B")))
 									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
@@ -292,6 +303,17 @@ const ToothSVG = ({
 								e.stopPropagation();
 								onClick(e, number, isTop ? "V" : "V");
 							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onClick(
+										e as unknown as React.MouseEvent,
+										number,
+										isTop ? "V" : "V",
+									);
+								}
+							}}
 						/>
 						<polygon
 							points="8,16 16,16 24,24 0,24"
@@ -301,6 +323,7 @@ const ToothSVG = ({
 									: "transparent"
 							}
 							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+							tabIndex={0}
 							onMouseEnter={(e) => {
 								if (!(surfaces?.includes("L") || surfaces?.includes("P")))
 									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
@@ -313,11 +336,23 @@ const ToothSVG = ({
 								e.stopPropagation();
 								onClick(e, number, isTop ? "P" : "L");
 							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onClick(
+										e as unknown as React.MouseEvent,
+										number,
+										isTop ? "P" : "L",
+									);
+								}
+							}}
 						/>
 						<polygon
 							points="0,0 8,8 8,16 0,24"
 							fill={surfaces?.includes("M") ? "#ef4444" : "transparent"}
 							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+							tabIndex={0}
 							onMouseEnter={(e) => {
 								if (!surfaces?.includes("M"))
 									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
@@ -330,11 +365,19 @@ const ToothSVG = ({
 								e.stopPropagation();
 								onClick(e, number, "M");
 							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onClick(e as unknown as React.MouseEvent, number, "M");
+								}
+							}}
 						/>
 						<polygon
 							points="24,0 24,24 16,16 16,8"
 							fill={surfaces?.includes("D") ? "#ef4444" : "transparent"}
 							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+							tabIndex={0}
 							onMouseEnter={(e) => {
 								if (!surfaces?.includes("D"))
 									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
@@ -346,6 +389,13 @@ const ToothSVG = ({
 							onClick={(e) => {
 								e.stopPropagation();
 								onClick(e, number, "D");
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onClick(e as unknown as React.MouseEvent, number, "D");
+								}
 							}}
 						/>
 					</g>
@@ -361,11 +411,10 @@ const ToothSVG = ({
 		   добраться. Теперь это кнопка по роли: Tab доводит до зуба,
 		   Enter и Пробел открывают то же меню состояний, а доступное имя
 		   содержит номер зуба и текущее состояние по-русски. */
-		<div
+		<button
+			type="button"
 			className={`tooth-svg-wrapper ${isTop ? "top" : "bottom"} ${isSelected ? "selected" : ""}`}
 			data-tooth-id={number}
-			role="button"
-			tabIndex={0}
 			aria-label={`Зуб ${number}, ${TOOTH_STATE_LABELS[state]}`}
 			aria-pressed={isSelected ? true : undefined}
 			onClick={(e) => onClick(e, number)}
@@ -405,7 +454,7 @@ const ToothSVG = ({
 					{number}
 				</span>
 			)}
-		</div>
+		</button>
 	);
 };
 
@@ -471,7 +520,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
 		const observer = new ResizeObserver(recalculate);
 		observer.observe(element);
 		return () => observer.disconnect();
-	}, [topTeethList, bottomTeethList]);
+	}, []);
 
 	const handleToothClick = (
 		e: React.MouseEvent,
@@ -482,7 +531,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
 		onToothClick(num, rect, surface);
 	};
 
-	const getToothState = (num: number) =>
+	const _getToothState = (num: number) =>
 		teethData.find((t) => t.toothNumber === num)?.state || "Healthy";
 
 	const topTeeth = topTeethList;

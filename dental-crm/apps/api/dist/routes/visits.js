@@ -199,7 +199,7 @@ export function sendVisitDraftMutationError(error, reply, operation) {
         message: visitDraftMutationRejectedMessage,
     });
 }
-import { acceptVisitDraftInDb, getVisitDraftAutosaveFromDb, openVisitForAppointmentInDb, upsertVisitDraftAutosaveInDb, VisitSignedResponseIncompleteError, } from "../db/visitsQuery.js";
+import { acceptVisitDraftInDb, getVisitDraftAutosaveFromDb, openVisitForAppointmentInDb, upsertVisitDraftAutosaveInDb, VisitSignedResponseIncompleteError, getVisitsForQualityControlInDb, updateVisitQualityControlStatusInDb, } from "../db/visitsQuery.js";
 import { wsBroker } from "../services/websocketBroker.js";
 const visitOpenAppointmentNotFoundMessage = "Прием не открыт: запись не найдена в этой клинике. Обновите расписание и выберите актуальную строку.";
 const visitOpenPatientMissingMessage = "Прием не открыт: в записи не указан пациент. Откройте запись в расписании, выберите пациента и повторите.";
@@ -431,5 +431,31 @@ export async function registerVisitRoutes(app) {
             };
         }
         return response.data;
+    });
+    app.get("/api/visits/quality-control", async (request, reply) => {
+        const context = await requireClinicalReadContext(request, reply, "visit quality control read");
+        if (!context)
+            return;
+        const visits = await getVisitsForQualityControlInDb(context.organizationId);
+        return { visits };
+    });
+    app.put("/api/visits/:visitId/quality-control", async (request, reply) => {
+        const context = await requireClinicalMutationContext(request, reply, "visit quality control mutate");
+        if (!context)
+            return;
+        const { visitId } = request.params;
+        const body = request.body;
+        if (!body || !body.status) {
+            reply.code(400);
+            return { error: "ValidationError", message: "Missing status" };
+        }
+        try {
+            const updated = await updateVisitQualityControlStatusInDb(context.organizationId, visitId, body.status);
+            return { visit: updated };
+        }
+        catch (error) {
+            reply.code(404);
+            return { error: "NotFound", message: "Visit not found" };
+        }
     });
 }

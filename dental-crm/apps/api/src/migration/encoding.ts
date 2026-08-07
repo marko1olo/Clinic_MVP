@@ -469,10 +469,10 @@ function cp1251EncodeMap(): Map<number, number> {
 export function normalizeDecodedText(value: string): string {
 	return (
 		value
-			.replace(/^﻿/, "")
-			.replace(/\u0000/g, "")
+			.replace(/^\uFEFF/, "")
+			.replace(new RegExp("\\u0000", "g"), "")
 			// Мягкий перенос и неразрывный пробел нулевой ширины из копипаста Word.
-			.replace(/[­​‌‍⁠]/g, "")
+			.replace(/\u00AD|\u200B|\u200C|\u200D|\u2060/g, "")
 			.replace(/\r\n/g, "\n")
 			.replace(/\r/g, "\n")
 	);

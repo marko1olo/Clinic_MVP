@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 /**
  * Утренний обзвон: кому звонить, а кому не нужно.
  *
@@ -21,6 +23,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAppLogicContext } from "../../contexts/AppLogicContext";
 
 type ReminderState =
 	| "not_queued"
@@ -164,6 +167,11 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export function DayConfirmationsPanel() {
+	const appLogic = useAppLogicContext();
+	const auth = appLogic?.auth;
+	const authRef = useRef(auth);
+	authRef.current = auth;
+
 	// Пусто — день ещё не выбирали, его назовёт сервер в поясе клиники.
 	const [requestedDate, setRequestedDate] = useState("");
 	const [data, setData] = useState<DayConfirmations | null>(null);
@@ -177,12 +185,18 @@ export function DayConfirmationsPanel() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await fetch(dayConfirmationsRequestPath(requestedDate));
+			const headers = authRef.current
+				? authRef.current.denteClinicalReadHeaders()
+				: {};
+			const response = await fetch(dayConfirmationsRequestPath(requestedDate), {
+				headers,
+			});
 			setData(await readJson<DayConfirmations>(response));
 			// Отметки «обзвонил» относятся к загруженному дню и при смене даты
 			// сбрасываются: иначе они переносятся на другой список.
 			setHandled(new Set());
 		} catch (loadError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (loadError as { status?: number })?.status ?? null), "error");
 			setData(null);
 			setError(
 				loadError instanceof Error ? loadError.message : String(loadError),
@@ -321,11 +335,12 @@ export function DayConfirmationsPanel() {
 							) : null}
 						</ul>
 
-						<div
+						<fieldset
 							className="quick-chips-row"
-							role="group"
 							aria-label="Что показывать в списке"
+							style={{ border: "none", padding: 0, margin: 0 }}
 						>
+							<legend className="sr-only">Что показывать в списке</legend>
 							<button
 								type="button"
 								className={`quick-chip ${showAll ? "" : "selected"}`}
@@ -342,7 +357,7 @@ export function DayConfirmationsPanel() {
 							>
 								Все приёмы дня
 							</button>
-						</div>
+						</fieldset>
 
 						{visibleRows.length === 0 ? (
 							<p className="ops-empty ops-empty--good">

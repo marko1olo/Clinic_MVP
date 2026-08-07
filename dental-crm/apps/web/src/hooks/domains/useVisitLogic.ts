@@ -1,8 +1,9 @@
+import { showToast } from "../../components/GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import {
 	type AcceptVisitDraftResponse,
 	buildRuleBasedVisitDraftFromTranscript,
 	type DentalSpecialty,
-	LocalBridgeReadinessResponse,
 	normalizeDentalSpeechTranscript,
 	type SpeechChunkUploadInput,
 	type SpeechGatewayHealthReport,
@@ -17,7 +18,7 @@ import {
 	type VisitFlowResult,
 	type VisitNoteDraft,
 } from "@dental/shared";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
 	acceptedVisitSaveFailureIsRetryable,
 	appendSpeechTextWithoutDuplicateTail,
@@ -261,6 +262,7 @@ export function useVisitLogic({
 			setSpeechGatewayStatus(status);
 			return status;
 		} catch (speechError) {
+			showToast(actionFailureToast("Шлюз распознавания речи недоступен", (speechError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -292,6 +294,7 @@ export function useVisitLogic({
 				(await response.json()) as SpeechGatewayHealthReport,
 			);
 		} catch (speechHealthError) {
+			showToast(actionFailureToast("Проверка распознавания недоступна", (speechHealthError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -322,6 +325,7 @@ export function useVisitLogic({
 				(await response.json()) as SpeechProviderRuntimeStatus[],
 			);
 		} catch (speechRuntimeError) {
+			showToast(actionFailureToast("Провайдер распознавания недоступен", (speechRuntimeError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -361,6 +365,7 @@ export function useVisitLogic({
 				(await response.json()) as SpeechRecordingStrategy,
 			);
 		} catch (speechStrategyError) {
+			showToast(actionFailureToast("Стратегия распознавания недоступна", (speechStrategyError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -401,6 +406,7 @@ export function useVisitLogic({
 				(await response.json()) as SpeechRecordingRecoveryList,
 			);
 		} catch (speechRecoveryError) {
+			showToast(actionFailureToast("Восстановление диктовки недоступно", (speechRecoveryError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -566,6 +572,7 @@ export function useVisitLogic({
 			);
 			setServerDraftSyncState("saved");
 		} catch (syncError) {
+			showToast(actionFailureToast("Серверный черновик не сохранен", (syncError as { status?: number })?.status ?? null), "error");
 			setServerDraftSyncState("error");
 			if (!options.silent) {
 				setError(
@@ -636,6 +643,7 @@ export function useVisitLogic({
 
 			await refreshPendingVisitSaveState();
 		} catch (syncError) {
+			showToast(actionFailureToast("Сервер пока не принял очередь", (syncError as { status?: number })?.status ?? null), "error");
 			await refreshPendingVisitSaveState();
 			if (!options.silent) {
 				setError(
@@ -790,8 +798,7 @@ export function useVisitLogic({
 						.trim();
 					if (
 						!normalizedAssembled ||
-						(normalizedCurrent &&
-							normalizedCurrent.includes(normalizedAssembled))
+						normalizedCurrent?.includes(normalizedAssembled)
 					)
 						return safeCurrent;
 					return [safeCurrent.trim(), assembledTranscript]
@@ -814,6 +821,7 @@ export function useVisitLogic({
 			void loadSpeechRecordingRecovery({ silent: true });
 			return assembly;
 		} catch (assemblyError) {
+			showToast(actionFailureToast("Не удалось собрать запись распознавания", (assemblyError as { status?: number })?.status ?? null), "error");
 			if (!options.silent) {
 				setError(
 					operatorWorkflowFailureMessage(
@@ -892,6 +900,7 @@ export function useVisitLogic({
 				await assembleSpeechRecording(recordingId, { silent: true });
 			}
 		} catch (syncError) {
+			showToast(actionFailureToast("Очередь распознавания пока не отправлена", (syncError as { status?: number })?.status ?? null), "error");
 			await refreshPendingSpeechChunkState();
 			if (!options.silent) {
 				setError(
@@ -1014,6 +1023,7 @@ export function useVisitLogic({
 					: `Текст проверен (${polishLabel}): факты не добавлялись.`,
 			);
 		} catch (polishError) {
+			showToast(actionFailureToast("Серверная очистка недоступна", (polishError as { status?: number })?.status ?? null), "error");
 			const local = normalizeDentalSpeechTranscript(
 				transcript,
 				selectedSpecialty,
@@ -1115,6 +1125,7 @@ export function useVisitLogic({
 			}
 			scrollToVisitArea(".visit-note-panel");
 		} catch (draftError) {
+			showToast(actionFailureToast("Серверный черновик недоступен", (draftError as { status?: number })?.status ?? null), "error");
 			const fallbackDraft = buildOfflineVisitDraftFromTranscript(
 				transcript,
 				selectedSpecialty,
@@ -1165,6 +1176,7 @@ export function useVisitLogic({
 			applyAcceptedVisitResponse(result);
 			scrollToVisitArea(".visit-fields");
 		} catch (acceptError) {
+			showToast(actionFailureToast("Прием не принят", (acceptError as { status?: number })?.status ?? null), "error");
 			if (!acceptedVisitSaveFailureIsRetryable(acceptError)) {
 				setError(
 					operatorWorkflowFailureMessage("Прием не принят", acceptError),
@@ -1287,6 +1299,7 @@ export function useVisitLogic({
 		try {
 			recognition.start();
 		} catch {
+        showToast(actionFailureToast("Операция завершилась ошибкой", null), "error");
 			setIsVisitDictating(false);
 			setError(
 				"Браузер не смог запустить микрофон. Текст можно продолжить вручную.",
@@ -1377,6 +1390,7 @@ export function useVisitLogic({
 				await refreshPendingSpeechChunkState();
 			}
 		} catch (speechError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (speechError as { status?: number })?.status ?? null), "error");
 			const queued =
 				queuedBeforeUpload ??
 				(await queuePendingSpeechChunk(chunk, activeOrganizationId));
@@ -1404,7 +1418,7 @@ export function useVisitLogic({
 
 	function requestSpeechChunk(reason: "silence" | "max_time" | "manual") {
 		const recorder = mediaRecorderRef.current;
-		if (!recorder || recorder.state !== "recording") return;
+		if (recorder?.state !== "recording") return;
 		try {
 			const now = Date.now();
 			const durationMs = Math.max(
@@ -1560,6 +1574,7 @@ export function useVisitLogic({
 		try {
 			recognition.start();
 		} catch {
+        showToast(actionFailureToast("Операция завершилась ошибкой", null), "error");
 			setIsImportDictating(false);
 			setError(
 				"Браузер не смог запустить микрофон для импорта. Вставьте список пациентов вручную или загрузите файл.",

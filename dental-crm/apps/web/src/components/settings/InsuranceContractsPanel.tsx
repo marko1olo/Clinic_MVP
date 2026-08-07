@@ -52,9 +52,8 @@ const clampPct = (v: string) => Math.min(100, Math.max(0, parseFloat(v) || 0));
 export const InsuranceContractsPanel: React.FC = () => {
 	const appLogic = useAppLogicContext();
 	const derivations = useSettingsDerivations();
-	const mergedProps = Object.assign({}, appLogic, derivations) as any;
+	const mergedProps = Object.assign({}, appLogic, derivations);
 	const { auth } = mergedProps;
-	const {} = derivations;
 	/* Признак модуля нужен и разметке (ниже), и загрузке: при выключенном ДМС
 	   запрос за договорами уходил бы в никуда при каждом открытии адреса. */
 	const flags = useWorkspaceProfile();
@@ -99,6 +98,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 			setContracts(outcome.contracts);
 			setLoadState({ phase: "ready" });
 		} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 			// До сервера не дошли вовсе: status = null, текст об этом так и скажет.
 			console.error("[договоры ДМС] запрос не дошёл до сервера", err);
 			setLoadState({ phase: "failed", status: null });
@@ -273,7 +273,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 						Сравнительном конструкторе смет.
 					</p>
 				</div>
-				<button className="primary-button" onClick={openAddModal}>
+				<button type="button" className="primary-button" onClick={openAddModal}>
 					<Plus size={16} /> Добавить договор
 				</button>
 			</div>
@@ -345,6 +345,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 								</div>
 								<div style={{ display: "flex", gap: 8 }}>
 									<button
+										type="button"
 										onClick={() => openEditModal(contract)}
 										style={{
 											background: "rgba(245,158,11,0.15)",
@@ -363,6 +364,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 										<Edit2 size={14} />
 									</button>
 									<button
+										type="button"
 										onClick={() => handleDeactivate(contract)}
 										style={{
 											background: "rgba(239,68,68,0.15)",
@@ -420,7 +422,8 @@ export const InsuranceContractsPanel: React.FC = () => {
 
 			{/* Add/Edit Modal */}
 			{showModal && (
-				<div
+				<button
+					type="button"
 					style={{
 						position: "fixed",
 						inset: 0,
@@ -430,8 +433,22 @@ export const InsuranceContractsPanel: React.FC = () => {
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
+						width: "100%",
+						border: "none",
+						padding: 0,
+						margin: 0,
+						textAlign: "inherit",
+						font: "inherit",
 					}}
 					onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
+					onKeyDown={(e) => {
+						if (
+							e.target === e.currentTarget &&
+							(e.key === "Enter" || e.key === " ")
+						) {
+							setShowModal(false);
+						}
+					}}
 				>
 					<div
 						style={{
@@ -457,7 +474,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 							<h2
 								style={{
 									margin: 0,
-									fontSize: 18,
+									fontSize: 20,
 									fontWeight: 700,
 									color: "var(--ink)",
 								}}
@@ -467,12 +484,15 @@ export const InsuranceContractsPanel: React.FC = () => {
 									: "Добавить договор ДМС"}
 							</h2>
 							<button
+								type="button"
 								onClick={() => setShowModal(false)}
 								style={{
 									background: "none",
 									border: "none",
-									color: "var(--muted)",
+									fontSize: 20,
 									cursor: "pointer",
+									color: "var(--muted)",
+									padding: 4,
 								}}
 							>
 								<X size={20} />
@@ -486,6 +506,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 							{/* Company name */}
 							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 								<label
+									htmlFor="insurance-company-name"
 									style={{
 										fontSize: 13,
 										color: "var(--muted)",
@@ -495,6 +516,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 									Страховая компания *
 								</label>
 								<input
+									id="insurance-company-name"
 									type="text"
 									required
 									value={formData.companyName}
@@ -516,6 +538,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 							{/* Policy mask */}
 							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 								<label
+									htmlFor="insurance-policy-mask"
 									style={{
 										fontSize: 13,
 										color: "var(--muted)",
@@ -525,6 +548,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 									Маска номера полиса (опционально)
 								</label>
 								<input
+									id="insurance-policy-mask"
 									type="text"
 									value={formData.policyNumberMask}
 									onChange={(e) =>
@@ -574,6 +598,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 											}}
 										>
 											<label
+												htmlFor={`insurance-coverage-${key}`}
 												style={{
 													fontSize: 12,
 													color: "var(--muted)",
@@ -590,6 +615,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 												}}
 											>
 												<input
+													id={`insurance-coverage-${key}`}
 													type="number"
 													min="0"
 													max="100"
@@ -620,6 +646,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 							{/* Annual limit */}
 							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 								<label
+									htmlFor="insurance-annual-limit"
 									style={{
 										fontSize: 13,
 										color: "var(--muted)",
@@ -629,6 +656,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 									Годовой лимит (₽, опционально)
 								</label>
 								<input
+									id="insurance-annual-limit"
 									type="number"
 									min="0"
 									value={formData.annualLimitRub}
@@ -667,7 +695,7 @@ export const InsuranceContractsPanel: React.FC = () => {
 							</button>
 						</form>
 					</div>
-				</div>
+				</button>
 			)}
 		</div>
 	);

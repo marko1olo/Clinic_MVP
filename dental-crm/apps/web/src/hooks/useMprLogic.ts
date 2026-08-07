@@ -1,6 +1,5 @@
 import type {
 	ImagingViewerAnnotation,
-	ImagingViewerSessionState,
 	MprProjection,
 	MprWindowPreset,
 } from "@dental/shared";
@@ -9,7 +8,6 @@ import {
 	browserGeneratedId,
 	type CbctWorkbenchPlane,
 	ctImplantPlanFromLibraryItem,
-	dicomWorkbenchManifestHasRedactedSource,
 	loadLocalMprWorkbenchDraft,
 	type MprAxisVisualizerStyle,
 	type MprWorkbenchState,
@@ -506,13 +504,13 @@ export function useMprLogic({
 				resolveMprWorkbenchProjection(mprProjection, cbctWorkbenchProjections),
 			);
 		}
-	}, [cbctWorkbenchProjections, mprProjection]);
+	}, [cbctWorkbenchProjections, mprProjection, setMprProjection]);
 
 	useEffect(() => {
 		setMprSliceIndex((value: any) =>
 			clampMprSliceIndex(value, mprSliceMaxIndex),
 		);
-	}, [mprSliceMaxIndex]);
+	}, [mprSliceMaxIndex, setMprSliceIndex]);
 
 	useEffect(() => {
 		if (!cbctWorkbenchSeriesKey || !mprControlsReady) {
@@ -543,9 +541,12 @@ export function useMprLogic({
 		};
 	}, [
 		activeOrganizationId,
-		cbctWorkbenchProjections,
 		cbctWorkbenchSeriesKey,
 		mprControlsReady,
+		setMprWorkbenchDraftRestored,
+		setMprWorkbenchLocalSavedAt,
+		applyMprWorkbenchState,
+		applyDefaultMprWorkbenchState,
 	]);
 
 	useEffect(() => {
@@ -572,6 +573,7 @@ export function useMprLogic({
 		cbctWorkbenchSeriesKey,
 		currentMprWorkbenchState,
 		mprControlsReady,
+		setMprWorkbenchLocalSavedAt,
 	]);
 
 	return {

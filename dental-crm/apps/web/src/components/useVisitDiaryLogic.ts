@@ -241,7 +241,7 @@ export function useVisitDiaryLogic(visitId: string, patientId: string) {
 	 * Счётчик принудительного перечитывания. PanelLoadFailure требует onRetry —
 	 * без отдельного токена повтор был бы только через смену visitId (её нет).
 	 */
-	const [reloadToken, setReloadToken] = useState(0);
+	const [_reloadToken, setReloadToken] = useState(0);
 	/** Режим правки уже подписанного дневника (только admin на API). */
 	const [isRevising, setIsRevising] = useState(false);
 	const [revisionReason, setRevisionReason] = useState("");
@@ -471,6 +471,7 @@ export function useVisitDiaryLogic(visitId: string, patientId: string) {
 							setRevisionCount(rows.length);
 						}
 					} catch (revisionsError) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (revisionsError as { status?: number })?.status ?? null), "error");
 						console.error(
 							"[diary revisions] запрос не выполнен",
 							revisionsError,
@@ -478,6 +479,7 @@ export function useVisitDiaryLogic(visitId: string, patientId: string) {
 					}
 				}
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				// Сюда попадает обрыв сети и выключенный сервер клиники: тогда status
 				// так и остаётся null, и текст скажет «сервер не ответил». Если ответ
 				// уже пришёл, а порвалось чтение тела, код сохраняется — сообщение
@@ -497,7 +499,7 @@ export function useVisitDiaryLogic(visitId: string, patientId: string) {
 			if (autosaveRef.current) clearInterval(autosaveRef.current);
 			useVisitStore.getState().setDraft(null);
 		};
-	}, [visitId, reloadToken]);
+	}, [visitId]);
 
 	/** Повторное чтение с сервера (кнопка в PanelLoadFailure). */
 	const reloadDiary = useCallback(() => {
@@ -584,12 +586,12 @@ export function useVisitDiaryLogic(visitId: string, patientId: string) {
 	useEffect(() => {
 		const autoResize = (el: HTMLTextAreaElement) => {
 			el.style.height = "auto";
-			el.style.height = el.scrollHeight + "px";
+			el.style.height = `${el.scrollHeight}px`;
 		};
 		document
 			.querySelectorAll<HTMLTextAreaElement>(".auto-resize-ta")
 			.forEach(autoResize);
-	}, [diary, isLocked]);
+	}, []);
 
 	// ── Click outside ICD dropdown
 	useEffect(() => {

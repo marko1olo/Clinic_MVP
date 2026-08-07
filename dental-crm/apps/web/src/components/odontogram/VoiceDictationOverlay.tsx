@@ -1,5 +1,7 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import { Check, Mic, X } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	VOICE_DICTATION_UNSUPPORTED_TEXT,
 	voiceDictationErrorText,
@@ -42,6 +44,7 @@ export function VoiceDictationOverlay({
 			try {
 				recognition.stop();
 			} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 				// Остановка уже остановленного распознавания бросает исключение в
 				// части браузеров. Человеку это не ошибка: запись и так не идёт.
 				console.error("[диктовка] остановка распознавания", err);
@@ -137,6 +140,7 @@ export function VoiceDictationOverlay({
 			}}
 		>
 			<button
+				type="button"
 				onClick={onClose}
 				style={{
 					position: "absolute",
@@ -167,18 +171,20 @@ export function VoiceDictationOverlay({
 				}}
 			>
 				{isListening ? (
-					waves.map((h, i) => (
-						<div
-							key={i}
-							style={{
-								width: 8,
-								height: h,
-								background: "var(--primary-color, #a082ff)",
-								borderRadius: 4,
-								transition: "height 0.15s ease",
-							}}
-						/>
-					))
+					waves
+						.map((h, barIndex) => ({ barId: `wave-bar-${barIndex}`, h }))
+						.map(({ barId, h }) => (
+							<div
+								key={barId}
+								style={{
+									width: 8,
+									height: h,
+									background: "var(--primary-color, #a082ff)",
+									borderRadius: 4,
+									transition: "height 0.15s ease",
+								}}
+							/>
+						))
 				) : (
 					<div
 						style={{
@@ -258,6 +264,7 @@ export function VoiceDictationOverlay({
 			<div style={{ display: "flex", gap: 16, marginTop: 40 }}>
 				{isListening && (
 					<button
+						type="button"
 						/* БЫЛО: только setIsListening(false) — полоски гасли, а микрофон
 						   продолжал слушать кабинет и дописывать текст. */
 						onClick={stopListening}
@@ -277,6 +284,7 @@ export function VoiceDictationOverlay({
 				)}
 				{!isListening && transcript && (
 					<button
+						type="button"
 						onClick={() => onDictationSubmit(transcript)}
 						style={{
 							padding: "16px 32px",

@@ -1,3 +1,5 @@
+import { showToast } from "./components/GlobalToast";
+import { actionFailureToast } from "./lib/panelStateText";
 import "./styles/marketing.css";
 import {
 	CheckCircle2,
@@ -7,7 +9,6 @@ import {
 	MessageSquare,
 	MinusCircle,
 	Search,
-	Star,
 	ThumbsDown,
 	ThumbsUp,
 	TrendingUp,
@@ -71,6 +72,7 @@ export function MarketingView({
 			if (Array.isArray(parsed) && parsed.every((k) => typeof k === "string"))
 				return parsed as string[];
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			console.warn(
 				"[Marketing] Failed to parse saved SEO keys from localStorage:",
 				e,
@@ -135,6 +137,7 @@ export function MarketingView({
 				};
 			}
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			console.warn(
 				"[Marketing] Failed to parse saved stats from localStorage:",
 				e,
@@ -294,7 +297,7 @@ export function MarketingView({
 			</div>
 
 			{/* STATS STRIP */}
-			<div className="marketing-stats-strip" aria-label="Рейтинги клиники">
+			<section className="marketing-stats-strip" aria-label="Рейтинги клиники">
 				<article className="marketing-stat-card">
 					<MapPin aria-hidden="true" className="text-[var(--danger,#e63946)]" />
 					<div>
@@ -408,7 +411,7 @@ export function MarketingView({
 						</p>
 					</div>
 				</article>
-			</div>
+			</section>
 
 			{/* TAB NAV */}
 			<div className="marketing-tab-nav" role="tablist">
@@ -463,10 +466,9 @@ export function MarketingView({
 						</div>
 
 						<div>
-							<label className="field-label">Тональность отзыва</label>
-							<div
+							<span className="field-label">Тональность отзыва</span>
+							<fieldset
 								className="marketing-tone-group"
-								role="group"
 								aria-label="Тональность"
 							>
 								<button
@@ -493,7 +495,7 @@ export function MarketingView({
 								>
 									<ThumbsDown aria-hidden="true" /> Негатив
 								</button>
-							</div>
+							</fieldset>
 						</div>
 					</div>
 

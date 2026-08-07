@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import type {
 	PanoramicWorkerRequest,
@@ -176,6 +176,7 @@ export function PanoramicRendererWindow({
 			<div className="bg-neutral-800 p-2 flex justify-between items-center cursor-move handle">
 				<h3 className="text-white font-medium text-sm">Panorex (Curved MPR)</h3>
 				<button
+					type="button"
 					onClick={onClose}
 					className="text-neutral-400 hover:text-white px-2"
 				>

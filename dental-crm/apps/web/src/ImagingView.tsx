@@ -14,6 +14,7 @@ import {
 	ZoomIn,
 	ZoomOut,
 } from "lucide-react";
+import { useAppLogicContext } from "./contexts/AppLogicContext";
 
 const IMAGING_QUICK_CHIPS = [
 	"Без видимых патологий",
@@ -106,7 +107,7 @@ function imagingDescriptionTemplate(
 	return body.join("\n");
 }
 
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 // Русское склонение счётного слова: «1 находка», «2 находки», «5 находок».
 import { countLabel } from "./AppHelpers";
 import { BoneQualityPanel } from "./components/dicom/BoneQualityPanel";
@@ -116,7 +117,6 @@ import { EmptyState } from "./components/EmptyState";
 import { showToast } from "./components/GlobalToast";
 import { ShadowAnalystImageSlider } from "./components/imaging/ShadowAnalystImageSlider";
 import { ShadowAnalystReport } from "./components/imaging/ShadowAnalystReport";
-import { PatientAvatar } from "./components/PatientAvatar";
 import { CtPlanningToolsPanel } from "./ctPlanningTools";
 import type { MprWindowPreset } from "./imagingUiLabels";
 
@@ -150,6 +150,8 @@ function imagingStudyHasFile(study: any): boolean {
 type ImagingViewProps = Record<string, any>;
 
 export function ImagingView(props: ImagingViewProps) {
+	const appLogic = useAppLogicContext();
+	const auth = appLogic?.auth;
 	const {
 		activeAppointment,
 		activeImagingStudies,
@@ -372,8 +374,14 @@ export function ImagingView(props: ImagingViewProps) {
 		const studyId = selectedImagingStudy.id;
 		setIsAnalyzingAI(true);
 		try {
+			const headers = auth
+				? auth.denteClinicalMutationHeaders({
+						"Content-Type": "application/json",
+					})
+				: { "Content-Type": "application/json" };
 			const res = await fetch(`/api/imaging/studies/${studyId}/analyze`, {
 				method: "POST",
+				headers,
 			});
 			/*
 			 * Тело читается строкой и разбирается после проверки ответа.
@@ -673,7 +681,7 @@ export function ImagingView(props: ImagingViewProps) {
 				</div>
 			</div>
 
-			<div className="imaging-patient-strip" aria-label="Контекст снимков">
+			<section className="imaging-patient-strip" aria-label="Контекст снимков">
 				<article>
 					<span>Пациент</span>
 					<strong>{activePatient?.fullName ?? "Пациент не выбран"}</strong>
@@ -692,7 +700,7 @@ export function ImagingView(props: ImagingViewProps) {
 							"ИИ только помогает, решение остается за врачом"}
 					</small>
 				</article>
-			</div>
+			</section>
 
 			{browserImagingScanProgress || browserPickedImagingFolder ? (
 				<div
@@ -946,7 +954,7 @@ export function ImagingView(props: ImagingViewProps) {
 							) : null}
 
 							{imagingComparisonCandidates.length ? (
-								<div
+								<section
 									className="imaging-compare-strip"
 									data-testid="imaging-compare-strip"
 									aria-label="Быстрое сравнение снимков пациента"
@@ -986,7 +994,7 @@ export function ImagingView(props: ImagingViewProps) {
 											),
 										)}
 									</div>
-								</div>
+								</section>
 							) : null}
 
 							{!(
@@ -996,6 +1004,7 @@ export function ImagingView(props: ImagingViewProps) {
 								<div style={{ display: "contents" }}>
 									<div
 										className="imaging-viewer-toolbar"
+										role="toolbar"
 										aria-label="Настройки рентген-снимка"
 									>
 										<div className="imaging-viewer-tools">
@@ -1150,7 +1159,7 @@ export function ImagingView(props: ImagingViewProps) {
 												/>
 											</label>
 										</div>
-										<div
+										<section
 											className={`viewer-session-strip viewer-save-state-${imagingViewerSaveState}`}
 											aria-label="Автосохранение сеанса просмотра снимка"
 										>
@@ -1310,9 +1319,9 @@ export function ImagingView(props: ImagingViewProps) {
 													подключения к сети.
 												</p>
 											) : null}
-										</div>
+										</section>
 										{imagingViewerAnnotations.length ? (
-											<div
+											<section
 												className="viewer-annotation-list"
 												aria-label="Сохраненные разметки к снимкам"
 											>
@@ -1329,7 +1338,7 @@ export function ImagingView(props: ImagingViewProps) {
 															</span>
 														</article>
 													))}
-											</div>
+											</section>
 										) : null}
 									</div>
 								</div>
@@ -1516,7 +1525,7 @@ export function ImagingView(props: ImagingViewProps) {
 							<ExternalLink aria-hidden="true" /> КТ-просмотрщик
 						</a>
 					</div>
-					<div
+					<section
 						className="clinical-mpr-summary-grid"
 						aria-label="Краткий статус КЛКТ"
 					>
@@ -1555,8 +1564,8 @@ export function ImagingView(props: ImagingViewProps) {
 								остаются в просмотрщике или исходной папке.
 							</span>
 						</article>
-					</div>
-					<div
+					</section>
+					<section
 						className="mpr-clinical-roadmap"
 						data-testid="ct-mpr-clinical-roadmap"
 						aria-label="Клиническая готовность КТ-срезов"
@@ -1576,8 +1585,8 @@ export function ImagingView(props: ImagingViewProps) {
 								</article>
 							))}
 						</div>
-					</div>
-					<div
+					</section>
+					<section
 						className="mpr-operator-summary"
 						data-testid="ct-mpr-operator-summary"
 						aria-label="Быстрая сводка настройки КТ-срезов"
@@ -1589,7 +1598,7 @@ export function ImagingView(props: ImagingViewProps) {
 								<p>{card.detail}</p>
 							</article>
 						))}
-					</div>
+					</section>
 					<CtPlanningToolsPanel
 						canPlan={mprControlsReady}
 						activeTool={imagingViewerActiveTool}
@@ -1768,7 +1777,7 @@ export function ImagingView(props: ImagingViewProps) {
 										}
 									/>
 								</label>
-								<div
+								<fieldset
 									className="mpr-stepper-row"
 									data-testid="ct-mpr-axis-nudge"
 									aria-label="Точная правка угла КТ-срезов"
@@ -1786,8 +1795,8 @@ export function ImagingView(props: ImagingViewProps) {
 											{formatSignedMprStep(delta, "°")}
 										</button>
 									))}
-								</div>
-								<div
+								</fieldset>
+								<fieldset
 									className="mpr-preset-row"
 									aria-label="Быстрые углы КТ-срезов"
 								>
@@ -1804,7 +1813,7 @@ export function ImagingView(props: ImagingViewProps) {
 											{angle > 0 ? `+${angle}°` : `${angle}°`}
 										</button>
 									))}
-								</div>
+								</fieldset>
 								<label>
 									Толщина слоя: {mprSlabMm} мм
 									<input
@@ -1820,7 +1829,7 @@ export function ImagingView(props: ImagingViewProps) {
 										}
 									/>
 								</label>
-								<div
+								<fieldset
 									className="mpr-stepper-row"
 									data-testid="ct-mpr-slab-nudge"
 									aria-label="Точная правка толщины слоя КТ-срезов"
@@ -1838,8 +1847,8 @@ export function ImagingView(props: ImagingViewProps) {
 											{formatSignedMprStep(delta, " мм")}
 										</button>
 									))}
-								</div>
-								<div
+								</fieldset>
+								<fieldset
 									className="mpr-preset-row"
 									aria-label="Быстрая толщина слоя КТ-срезов"
 								>
@@ -1865,7 +1874,7 @@ export function ImagingView(props: ImagingViewProps) {
 									>
 										<RotateCcw aria-hidden="true" /> ось 0°
 									</button>
-								</div>
+								</fieldset>
 								<label>
 									Положение среза: {mprSliceLabel}
 									<input
@@ -1886,7 +1895,7 @@ export function ImagingView(props: ImagingViewProps) {
 										}
 									/>
 								</label>
-								<div
+								<fieldset
 									className="mpr-manual-grid"
 									data-testid="ct-mpr-manual-inputs"
 									aria-label="Точные числовые настройки КТ-срезов"
@@ -1943,8 +1952,8 @@ export function ImagingView(props: ImagingViewProps) {
 											}
 										/>
 									</label>
-								</div>
-								<div
+								</fieldset>
+								<fieldset
 									className="mpr-stepper-row"
 									data-testid="ct-mpr-slice-nudge"
 									aria-label="Точная навигация по КТ-срезам"
@@ -1967,8 +1976,11 @@ export function ImagingView(props: ImagingViewProps) {
 											{formatSignedMprStep(delta, " срез")}
 										</button>
 									))}
-								</div>
-								<div className="mpr-preset-row" aria-label="Опорные КТ-срезы">
+								</fieldset>
+								<fieldset
+									className="mpr-preset-row"
+									aria-label="Опорные КТ-срезы"
+								>
 									{mprSlicePresetFractions.map((preset: any) => {
 										const targetIndex = mprSliceIndexFromFraction(
 											preset.fraction,
@@ -1990,7 +2002,7 @@ export function ImagingView(props: ImagingViewProps) {
 											</button>
 										);
 									})}
-								</div>
+								</fieldset>
 								<button
 									className="mpr-reset-button"
 									type="button"
@@ -2023,7 +2035,7 @@ export function ImagingView(props: ImagingViewProps) {
 										<History aria-hidden="true" /> Вернуть вид
 									</button>
 								</div>
-								<div
+								<fieldset
 									className="mpr-clinical-preset-grid"
 									data-testid="ct-mpr-clinical-presets"
 									aria-label="Клинические протоколы КТ-срезов"
@@ -2058,7 +2070,7 @@ export function ImagingView(props: ImagingViewProps) {
 											</button>
 										);
 									})}
-								</div>
+								</fieldset>
 								<div className="mpr-toggle-row">
 									{(
 										Object.keys(mprWindowPresetLabels) as MprWindowPreset[]

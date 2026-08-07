@@ -118,7 +118,7 @@ export function CommandPalette({
 
 	useEffect(() => {
 		setSelectedIndex(0);
-	}, [query]);
+	}, []);
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === "ArrowDown") {
@@ -137,8 +137,22 @@ export function CommandPalette({
 	if (!isOpen) return null;
 
 	return (
-		<div className="cmd-palette-overlay" onClick={() => setIsOpen(false)}>
-			<div className="cmd-palette-modal" onClick={(e) => e.stopPropagation()}>
+		<button
+			type="button"
+			className="cmd-palette-overlay"
+			onClick={(e) => {
+				if (e.target === e.currentTarget) setIsOpen(false);
+			}}
+			onKeyDown={(e) => {
+				if (
+					e.target === e.currentTarget &&
+					(e.key === "Enter" || e.key === " ")
+				) {
+					setIsOpen(false);
+				}
+			}}
+		>
+			<div className="cmd-palette-modal">
 				<div className="cmd-palette-header">
 					<Search size={20} className="cmd-palette-icon" />
 					<input
@@ -150,6 +164,7 @@ export function CommandPalette({
 						onKeyDown={handleKeyDown}
 					/>
 					<button
+						type="button"
 						className="cmd-palette-close"
 						onClick={() => setIsOpen(false)}
 					>
@@ -162,31 +177,38 @@ export function CommandPalette({
 					) : (
 						<ul className="cmd-palette-list">
 							{items.map((item, index) => (
-								<li
-									key={item.id}
-									className={`cmd-palette-item ${index === selectedIndex ? "selected" : ""}`}
-									onMouseEnter={() => setSelectedIndex(index)}
-									onClick={() => {
-										item.action();
-										setIsOpen(false);
-									}}
-								>
-									<div className="cmd-palette-item-icon">{item.icon}</div>
-									<div className="cmd-palette-item-text">
-										<span className="cmd-palette-item-label">{item.label}</span>
-										{item.subLabel && (
-											<span className="cmd-palette-item-sublabel">
-												{item.subLabel}
+								<li key={item.id}>
+									<button
+										type="button"
+										className={`cmd-palette-item ${index === selectedIndex ? "selected" : ""}`}
+										onMouseEnter={() => setSelectedIndex(index)}
+										onClick={() => {
+											item.action();
+											setIsOpen(false);
+										}}
+									>
+										<span className="cmd-palette-item-icon">{item.icon}</span>
+										<div className="cmd-palette-item-text">
+											<span className="cmd-palette-item-label">
+												{item.label}
 											</span>
-										)}
-									</div>
-									<ChevronRight size={16} className="cmd-palette-item-arrow" />
+											{item.subLabel && (
+												<span className="cmd-palette-item-sublabel">
+													{item.subLabel}
+												</span>
+											)}
+										</div>
+										<ChevronRight
+											size={16}
+											className="cmd-palette-item-arrow"
+										/>
+									</button>
 								</li>
 							))}
 						</ul>
 					)}
 				</div>
 			</div>
-		</div>
+		</button>
 	);
 }

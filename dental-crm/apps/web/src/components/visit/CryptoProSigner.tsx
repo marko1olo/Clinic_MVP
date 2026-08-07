@@ -1,3 +1,5 @@
+import { showToast } from "../GlobalToast";
+import { actionFailureToast } from "../../lib/panelStateText";
 import { CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -146,6 +148,14 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 	 */
 	const lockInProgress = isSigning || awaitingLockConfirmation;
 
+	function closeDialog() {
+		setShowPinDialog(false);
+		setFailureText(null);
+		setAwaitingLockConfirmation(false);
+		// ПИН не держим в памяти дольше самого подписания.
+		setPinCode("");
+	}
+
 	// Окно перекрывает весь экран, поэтому обязано закрываться Escape — но не
 	// посреди подписания, когда закрытие выглядит как подтверждение подписи.
 	useEffect(() => {
@@ -155,7 +165,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [showPinDialog, lockInProgress]);
+	}, [showPinDialog, lockInProgress, closeDialog]);
 
 	// Ожидание подтверждения подписи: истекло, а признак isLocked не пришёл —
 	// значит, подписание отказало без исключения (см. пояснение выше).
@@ -170,14 +180,6 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 		return () => clearTimeout(timer);
 	}, [awaitingLockConfirmation]);
 
-	const closeDialog = () => {
-		setShowPinDialog(false);
-		setFailureText(null);
-		setAwaitingLockConfirmation(false);
-		// ПИН не держим в памяти дольше самого подписания.
-		setPinCode("");
-	};
-
 	const loadCertificates = async () => {
 		setIsLoadingCerts(true);
 		setFailureText(null);
@@ -187,6 +189,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 			setCertificatesLoaded(true);
 			if (certs.length > 0) setSelectedCert(certs[0]?.thumbprint ?? "");
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			console.error("[ЭЦП] список сертификатов не прочитан:", error);
 			setCertificates([]);
 			setCertificatesLoaded(true);
@@ -257,6 +260,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 				setPinCode("");
 				setAwaitingLockConfirmation(true);
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				console.error("[ЭЦП] подписание не выполнено:", error);
 				setFailureText(readableSigningFailure(error));
 			} finally {
@@ -275,6 +279,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 			setPinCode("");
 			setAwaitingLockConfirmation(true);
 		} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 			console.error("[ЭЦП] простое подписание не выполнено:", error);
 			setFailureText(readableSigningFailure(error));
 		} finally {
@@ -369,10 +374,14 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 
 						{signatureType === "pin" ? (
 							<div className="mb-6">
-								<label className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider">
+								<label
+									htmlFor="cryptopro-pincode"
+									className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider"
+								>
 									Ваш ПИН-код сотрудника
 								</label>
 								<input
+									id="cryptopro-pincode"
 									type="password"
 									inputMode="numeric"
 									autoComplete="off"
@@ -407,10 +416,14 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 									</p>
 								) : null}
 								<div>
-									<label className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider">
+									<label
+										htmlFor="cryptopro-cert-select"
+										className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider"
+									>
 										Выберите сертификат
 									</label>
 									<select
+										id="cryptopro-cert-select"
 										className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:ring-2 focus:ring-rose-500 focus:outline-none"
 										value={selectedCert}
 										onChange={(e) => {
@@ -463,10 +476,14 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 								*/}
 								{needsTokenPin ? (
 									<div>
-										<label className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider">
+										<label
+											htmlFor="cryptopro-token-pin"
+											className="block text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider"
+										>
 											ПИН-код носителя Рутокен
 										</label>
 										<input
+											id="cryptopro-token-pin"
 											type="password"
 											autoComplete="off"
 											disabled={lockInProgress}

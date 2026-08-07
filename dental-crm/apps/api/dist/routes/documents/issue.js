@@ -8,7 +8,7 @@ import { renderDocumentHtml, } from "../../documents/renderDocument.js";
 import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot, } from "../../documents/taxPaymentSnapshot.js";
 import { getRequestIdentity, requireOrganizationId, } from "../../security/identity.js";
 import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
-import { apiError, buildMedicalDocumentReleaseJournalEntry, documentIssueBlockReason, documentIssueChainBlockReason, documentIssueValidationMessage, findIssuedDuplicateTaxCertificate, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotForIssue, } from "../documents.js";
+import { apiError, buildMedicalDocumentReleaseJournalEntry, documentIssueBlockReason, documentIssueChainBlockReason, documentIssueValidationMessage, findIssuedDuplicateTaxCertificate, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotForIssue, } from "./shared.js";
 export async function register(app) {
     app.post("/api/documents/:id/issue", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document issue")))

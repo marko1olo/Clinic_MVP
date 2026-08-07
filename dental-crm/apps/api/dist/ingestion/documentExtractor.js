@@ -13,7 +13,7 @@ function decodeBase64(value) {
 }
 function normalizeText(value) {
     return value
-        .replace(/\u0000/g, "")
+        .replace(/\0/g, "")
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
         .replace(/[ \t]+\n/g, "\n")
@@ -380,7 +380,7 @@ function extractPdf(buffer) {
     ]));
     const plainText = utf8Source
         .replace(/<[0-9A-Fa-f\s]{8,}>/g, " ")
-        .replace(/[^\x09\x0A\x0D\x20-\x7E\p{L}\p{N}\p{Sc}]+/gu, " ")
+        .replace(/[^\t\n\r\x20-\x7E\p{L}\p{N}\p{Sc}]+/gu, " ")
         .match(/[\p{L}\p{N}][\p{L}\p{N}\s.,;:+\-()/%\p{Sc}]{8,}/gu);
     const fallbackText = literalText.length ? [] : (plainText ?? []);
     const text = normalizeText([...literalText, ...fallbackText].join("\n"));

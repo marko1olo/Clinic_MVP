@@ -1,9 +1,4 @@
-import {
-	AlertTriangle,
-	Archive,
-	CheckCircle2,
-	ShieldAlert,
-} from "lucide-react";
+import { AlertTriangle, ShieldAlert } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
@@ -51,7 +46,7 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 	patientId: string;
 }> = ({ patientId }) => {
 	const { auth, dashboard } = useAppLogicContext();
-	const [selectedReason, setSelectedReason] = useState<string>("");
+	const [_selectedReason, _setSelectedReason] = useState<string>("");
 	const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
 	const [isApplying, setIsApplying] = useState<boolean>(false);
 	const [archiveReason, setArchiveReason] = useState<string>("");
@@ -89,7 +84,7 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 		setArchiveReason("");
 		setBlacklistReason("");
 		setModalIsBlacklisted(false);
-	}, [patientId]);
+	}, []);
 
 	const patientIdRef = useRef(patientId);
 	patientIdRef.current = patientId;
@@ -125,9 +120,9 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 		const targetPatientId = patientId;
 		const newStatus = !isBlacklisted;
 		setIsApplying(true);
-		
-		const endpoint = newStatus 
-			? `/api/patients/${targetPatientId}/archive` 
+
+		const endpoint = newStatus
+			? `/api/patients/${targetPatientId}/archive`
 			: `/api/patients/${targetPatientId}/archive-status`;
 
 		const bodyPayload = newStatus
@@ -293,21 +288,27 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 				<div className="mt-3 p-3 rounded-lg border bg-rose-50 border-rose-200 dark:bg-slate-800 dark:border-rose-800 space-y-2">
 					<div className="flex items-center space-x-2 text-rose-800 dark:text-rose-300 font-bold text-xs">
 						<AlertTriangle className="w-4 h-4" />
-						<span>{!isBlacklisted ? "Архивация пациента" : "Подтверждение действия"}</span>
+						<span>
+							{!isBlacklisted ? "Архивация пациента" : "Подтверждение действия"}
+						</span>
 					</div>
 					<p className="text-xs text-rose-700 dark:text-rose-300">
 						{!isBlacklisted
 							? `Вы собираетесь отправить в архив: ${patientName ?? "выбранного пациента"}.`
 							: `Снять блокировку записи с пациента: ${patientName ?? "выбранный пациент"}?`}
 					</p>
-					
+
 					{!isBlacklisted && (
 						<div className="space-y-3 mt-2">
 							<div>
-								<label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+								<label
+									htmlFor="patient-archive-reason"
+									className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
+								>
 									Причина архивации *
 								</label>
 								<input
+									id="patient-archive-reason"
 									type="text"
 									className="w-full text-xs p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
 									value={archiveReason}
@@ -322,14 +323,20 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 									checked={modalIsBlacklisted}
 									onChange={(e) => setModalIsBlacklisted(e.target.checked)}
 								/>
-								<span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Добавить в Черный Список (запрет записи)</span>
+								<span className="text-xs font-semibold text-rose-700 dark:text-rose-300">
+									Добавить в Черный Список (запрет записи)
+								</span>
 							</label>
 							{modalIsBlacklisted && (
 								<div>
-									<label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+									<label
+										htmlFor="patient-blacklist-reason"
+										className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
+									>
 										Причина занесения в ЧС
 									</label>
 									<textarea
+										id="patient-blacklist-reason"
 										className="w-full text-xs p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
 										value={blacklistReason}
 										onChange={(e) => setBlacklistReason(e.target.value)}

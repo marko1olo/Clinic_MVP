@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { useWorkspaceProfile } from "../../hooks/useWorkspaceProfile";
 import { usePatientStore } from "../../store/patientStore";
@@ -34,12 +33,7 @@ import { imagingWriteTarget, realVisitFieldId } from "./visitIdentity";
   в эту территорию не входит.
 */
 export function VisitDiagnosticsTab(props?: { activePatient?: any }) {
-	let ctx: any = null;
-	try {
-		ctx = useAppLogicContext();
-	} catch {
-		/* rendered outside AppLogic provider: fall back to props */
-	}
+	const ctx = useAppLogicContext();
 	const activePatient = props?.activePatient ?? ctx?.activePatient;
 	const workspaceFlags = useWorkspaceProfile();
 

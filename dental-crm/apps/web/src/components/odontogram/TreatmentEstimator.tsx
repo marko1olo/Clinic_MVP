@@ -155,7 +155,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 		status: number | null;
 	} | null>(null);
 	/** Счётчик кнопки «Повторить»: меняется — оба запроса идут заново. */
-	const [reloadToken, setReloadToken] = useState(0);
+	const [_reloadToken, setReloadToken] = useState(0);
 	/**
 	 * Что врач снял корзиной. Без этого списка автоподбор возвращал снятую
 	 * строку в смету при следующей же отметке любого зуба: подбор идёт от зубной
@@ -220,6 +220,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 				}
 				setActiveContract(contract);
 			} catch (err) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
 				console.error("[insurance contract] запрос не выполнен", err);
 				if (!active) return;
 				setActiveContract(null);
@@ -232,7 +233,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 		return () => {
 			active = false;
 		};
-	}, [insuranceContractId, reloadToken]);
+	}, [insuranceContractId]);
 
 	/*
 	 * Договор ДМС читается в четыре проверенных процента.
@@ -311,6 +312,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 				);
 				setSignatureUrl(latestPlan.patientSignature ?? null);
 			} catch (error) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
 				console.error("[treatment plan load] запрос не выполнен", error);
 				if (active) setPlanLoad({ phase: "failed", status });
 			}
@@ -321,7 +323,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 		return () => {
 			active = false;
 		};
-	}, [patientId, reloadToken]);
+	}, [patientId]);
 
 	/*
 	 * Автоподбор услуг по зубной формуле.
@@ -547,6 +549,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 					    потраченной впустую. Подсказка в title объясняет, почему кнопка
 					    выключена — выключенная кнопка без причины выглядит как поломка. */}
 					<button
+						type="button"
 						onClick={() => setShowSignModal(true)}
 						disabled={blockedReason !== null}
 						title={blockedReason ?? "Подписать план у пациента"}
@@ -556,6 +559,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 						Подписать
 					</button>
 					<button
+						type="button"
 						onClick={savePlan}
 						disabled={isSaving || blockedReason !== null}
 						title={blockedReason ?? "Сохранить план лечения"}
@@ -689,7 +693,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 							</h3>
 
 							<div className="phase-items-list">
-								{phaseItems.map((item, idx) => {
+								{phaseItems.map((item, _idx) => {
 									const globalIdx = items.indexOf(item);
 									return (
 										<div key={globalIdx} className="plan-item-card">
@@ -793,6 +797,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 													</div>
 												</div>
 												<button
+													type="button"
 													onClick={() => removeItem(globalIdx)}
 													className="btn-remove-item"
 													title="Удалить"
@@ -804,7 +809,7 @@ export const TreatmentEstimator: React.FC<EstimatorProps> = ({
 												<select
 													value={item.phase}
 													onChange={(e) =>
-														setPhase(globalIdx, parseInt(e.target.value))
+														setPhase(globalIdx, parseInt(e.target.value, 10))
 													}
 													className="select-phase"
 												>

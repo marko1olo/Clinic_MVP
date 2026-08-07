@@ -3,8 +3,10 @@ import type {
 	TaxDeductionApplicationForm as TaxDeductionApplicationFormKind,
 	TaxDeductionApplicationRelationship,
 } from "@dental/shared";
+import { useState } from "react";
 import { useDocumentStore } from "../../../store/documentStore";
 import { DocumentPayloadCard } from "../DocumentPayloadCard";
+import { NdflCalculatorModal } from "../NdflCalculatorModal";
 import { taxApplicationBlockersReview } from "../taxApplicationBlockers";
 import type { DocumentSelectOption } from "./documentFormTypes";
 
@@ -68,6 +70,8 @@ export function TaxDeductionApplicationForm({
 		setTaxApplicationTaxpayerIdentityDocument,
 		setTaxApplicationTaxpayerInn,
 	} = useDocumentStore();
+
+	const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
 	const review = taxApplicationBlockersReview({
 		taxpayerFullName: taxApplicationTaxpayerFullName,
@@ -265,6 +269,18 @@ export function TaxDeductionApplicationForm({
 				/>
 				Перед выдачей будет проверен дубль по тем же расходам
 			</label>
+			<div style={{ marginTop: "16px" }}>
+				<button
+					type="button"
+					className="primary-button"
+					onClick={() => setIsCalculatorOpen(true)}
+				>
+					Рассчитать сумму вычета (НДФЛ)
+				</button>
+			</div>
+			{isCalculatorOpen && (
+				<NdflCalculatorModal onClose={() => setIsCalculatorOpen(false)} />
+			)}
 		</DocumentPayloadCard>
 	);
 }

@@ -3,9 +3,8 @@ import { create } from "zustand";
 import {
 	defaultUiPreferences,
 	loadUiPreferences,
-	settingsTabFromHash,
-	viewFromHash,
-} from "../AppHelpers";
+} from "../utils/preferencesUtils";
+import { settingsTabFromHash, viewFromHash } from "../utils/routeUtils";
 
 interface AppStore {
 	isOmnibarOpen: boolean;

@@ -3,7 +3,6 @@ import {
 	Bot,
 	CheckCircle2,
 	ChevronDown,
-	ChevronUp,
 	Database,
 	Edit3,
 	FileJson,
@@ -142,6 +141,9 @@ export function SettingsPricesTab() {
 	const [priceRubInput, setPriceRubInput] = useState("");
 	const [priceProblem, setPriceProblem] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
+	const [deletingServiceId, setDeletingServiceId] = useState<string | null>(
+		null,
+	);
 
 	const [isImporting, setIsImporting] = useState(false);
 	const [importResult, setImportResult] = useState<{
@@ -339,6 +341,7 @@ export function SettingsPricesTab() {
 	};
 
 	const handleDeleteService = async (id: string) => {
+		if (deletingServiceId === id) return;
 		if (
 			!window.confirm(
 				"Удалить услугу из каталога? (Связанные счета сохранятся, но услуга уйдет в архив)",
@@ -346,10 +349,13 @@ export function SettingsPricesTab() {
 		)
 			return;
 		if (!deleteServiceCatalogItem) return;
+		setDeletingServiceId(id);
 		try {
 			await deleteServiceCatalogItem(id);
 		} catch (error: any) {
 			mergedProps.setError?.(error.message || "Ошибка удаления");
+		} finally {
+			setDeletingServiceId(null);
 		}
 	};
 
@@ -357,6 +363,7 @@ export function SettingsPricesTab() {
 		<div className="pricelist-studio-container animate-fade-in">
 			<div className="pricelist-tabs-header">
 				<button
+					type="button"
 					className={`pricelist-tab-btn ${activeTab === "catalog" ? "active" : ""}`}
 					onClick={() => setActiveTab("catalog")}
 				>
@@ -364,6 +371,7 @@ export function SettingsPricesTab() {
 					<span>Каталог клиники</span>
 				</button>
 				<button
+					type="button"
 					className={`pricelist-tab-btn ${activeTab === "ai_import" ? "active" : ""}`}
 					onClick={() => setActiveTab("ai_import")}
 				>
@@ -399,6 +407,7 @@ export function SettingsPricesTab() {
 								/>
 							</div>
 							<button
+								type="button"
 								className="primary-button"
 								onClick={() => {
 									setEditServiceForm(NEW_SERVICE_TEMPLATE);
@@ -449,11 +458,27 @@ export function SettingsPricesTab() {
 													{money(item.basePriceRub ?? item.priceRub ?? 0)}
 													<small>{item.durationMinutes} мин.</small>
 												</div>
-												<div style={{ fontSize: "11px", color: "var(--muted)", textAlign: "right", marginTop: "4px", lineHeight: 1.2 }}>
-													ЗП (25%): {money((item.basePriceRub ?? item.priceRub ?? 0) * 0.25)}<br/>
-													Маржа: {money((item.basePriceRub ?? item.priceRub ?? 0) * 0.75)}
+												<div
+													style={{
+														fontSize: "11px",
+														color: "var(--muted)",
+														textAlign: "right",
+														marginTop: "4px",
+														lineHeight: 1.2,
+													}}
+												>
+													ЗП (25%):{" "}
+													{money(
+														(item.basePriceRub ?? item.priceRub ?? 0) * 0.25,
+													)}
+													<br />
+													Маржа:{" "}
+													{money(
+														(item.basePriceRub ?? item.priceRub ?? 0) * 0.75,
+													)}
 												</div>
 												<button
+													type="button"
 													className="icon-button"
 													onClick={() => {
 														setEditServiceForm({
@@ -489,7 +514,10 @@ export function SettingsPricesTab() {
 													<Edit3 size={16} />
 												</button>
 												<button
+													type="button"
 													className="icon-button danger"
+													disabled={deletingServiceId === item.id}
+													aria-busy={deletingServiceId === item.id}
 													onClick={() => handleDeleteService(item.id)}
 												>
 													<Trash2 size={16} />
@@ -571,7 +599,7 @@ export function SettingsPricesTab() {
 											type="file"
 											accept="image/png, image/jpeg, image/webp"
 											onChange={(e) => {
-												if (e.target.files && e.target.files[0]) {
+												if (e.target.files?.[0]) {
 													attachPricelistImage(e.target.files[0]);
 												}
 											}}
@@ -619,7 +647,7 @@ export function SettingsPricesTab() {
 									<PriceDictationBar
 										onPriceParsed={(srv, pr) =>
 											setPricelistText(
-												(prev: string) => prev + "\n" + srv + " " + pr + " руб",
+												(prev: string) => `${prev}\n${srv} ${pr} руб`,
 											)
 										}
 									/>
@@ -841,9 +869,18 @@ export function SettingsPricesTab() {
 			{/* Modal for Edit/Create */}
 			{editServiceId && (
 				<div
+					role="presentation"
 					className="premium-modal-overlay"
 					onClick={(e) => {
 						if (e.target === e.currentTarget) setEditServiceId(null);
+					}}
+					onKeyDown={(e) => {
+						if (
+							e.target === e.currentTarget &&
+							(e.key === "Enter" || e.key === " ")
+						) {
+							setEditServiceId(null);
+						}
 					}}
 				>
 					<div className="premium-modal-content" style={{ maxWidth: "500px" }}>
@@ -859,6 +896,7 @@ export function SettingsPricesTab() {
 								</h3>
 							</div>
 							<button
+								type="button"
 								className="premium-modal-close"
 								onClick={() => setEditServiceId(null)}
 							>
@@ -868,8 +906,9 @@ export function SettingsPricesTab() {
 
 						<form onSubmit={handleSaveService} className="premium-modal-body">
 							<div className="staff-form-group full-width">
-								<label>Название услуги</label>
+								<label htmlFor="service-title-input">Название услуги</label>
 								<input
+									id="service-title-input"
 									type="text"
 									value={editServiceForm.title}
 									onChange={(e) =>
@@ -885,8 +924,9 @@ export function SettingsPricesTab() {
 
 							<div className="staff-form-grid">
 								<div className="staff-form-group">
-									<label>Код (внутренний)</label>
+									<label htmlFor="service-code-input">Код (внутренний)</label>
 									<input
+										id="service-code-input"
 										type="text"
 										value={editServiceForm.code}
 										onChange={(e) =>
@@ -899,7 +939,7 @@ export function SettingsPricesTab() {
 									/>
 								</div>
 								<div className="staff-form-group">
-									<label>Цена (₽)</label>
+									<label htmlFor="service-price-input">Цена (₽)</label>
 									{/*
 										ЦЕНА УНИЧТОЖАЛАСЬ ЗДЕСЬ ТРЕМЯ СПОСОБАМИ СРАЗУ.
 
@@ -931,6 +971,7 @@ export function SettingsPricesTab() {
 										normalizeRubAmountInput при сохранении.
 									*/}
 									<input
+										id="service-price-input"
 										type="text"
 										inputMode="decimal"
 										value={priceRubInput}
@@ -953,8 +994,9 @@ export function SettingsPricesTab() {
 
 							<div className="staff-form-grid">
 								<div className="staff-form-group">
-									<label>Категория</label>
+									<label htmlFor="service-category-select">Категория</label>
 									<select
+										id="service-category-select"
 										value={editServiceForm.category}
 										onChange={(e) =>
 											setEditServiceForm({
@@ -973,8 +1015,11 @@ export function SettingsPricesTab() {
 									</select>
 								</div>
 								<div className="staff-form-group">
-									<label>Специализация врача</label>
+									<label htmlFor="service-specialty-select">
+										Специализация врача
+									</label>
 									<select
+										id="service-specialty-select"
 										value={editServiceForm.specialty}
 										onChange={(e) =>
 											setEditServiceForm({
@@ -994,13 +1039,16 @@ export function SettingsPricesTab() {
 
 							<div className="staff-form-grid">
 								<div className="staff-form-group">
-									<label>Длительность (мин)</label>
+									<label htmlFor="service-duration-select">
+										Длительность (мин)
+									</label>
 									<select
+										id="service-duration-select"
 										value={editServiceForm.durationMinutes}
 										onChange={(e) =>
 											setEditServiceForm({
 												...editServiceForm,
-												durationMinutes: parseInt(e.target.value),
+												durationMinutes: parseInt(e.target.value, 10),
 											})
 										}
 									>
@@ -1056,6 +1104,7 @@ export function SettingsPricesTab() {
 									type="submit"
 									className="primary-button"
 									disabled={isSaving}
+									aria-busy={isSaving}
 								>
 									{isSaving ? "Сохранение..." : "Сохранить"}
 								</button>

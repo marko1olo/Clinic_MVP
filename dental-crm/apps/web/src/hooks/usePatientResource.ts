@@ -1,3 +1,5 @@
+import { showToast } from "../components/GlobalToast";
+import { actionFailureToast } from "../lib/panelStateText";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { panelFailureCause } from "../lib/panelStateText";
 
@@ -62,7 +64,7 @@ export function usePatientResource<T>(
 	const [isLoading, setIsLoading] = useState<boolean>(Boolean(patientId));
 	const [error, setError] = useState<string | null>(null);
 	const [failureStatus, setFailureStatus] = useState<number | null>(null);
-	const [reloadToken, setReloadToken] = useState(0);
+	const [_reloadToken, setReloadToken] = useState(0);
 
 	// Функции приходят новыми на каждом рендере. Держим их в ref, иначе
 	// эффект перезапускался бы постоянно и бомбил бы API.
@@ -112,6 +114,7 @@ export function usePatientResource<T>(
 				if (cancelled) return;
 				setData(parsed);
 			} catch (requestError) {
+			showToast(actionFailureToast("${panelFailureCause(null)}.", (requestError as { status?: number })?.status ?? null), "error");
 				if (cancelled) return;
 				if ((requestError as Error)?.name === "AbortError") return;
 				console.error(`[usePatientResource ${patientId}]`, requestError);
@@ -128,7 +131,7 @@ export function usePatientResource<T>(
 			cancelled = true;
 			controller.abort();
 		};
-	}, [patientId, reloadToken]);
+	}, [patientId]);
 
 	const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 

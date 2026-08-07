@@ -84,7 +84,8 @@ function parseLegacyOrthoNotes(notesText: string | null | undefined): {
 				startDate: orthoData.start || getTodayString(),
 			},
 		};
-	} catch (e) {
+	} catch (_e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (_e as { status?: number })?.status ?? null), "error");
 		return { cleanNotes: text, legacyOrtho: null };
 	}
 }
@@ -501,6 +502,7 @@ export function OrthodonticProgressWidget({
 										</div>
 									</div>
 									<button
+										type="button"
 										onClick={handleStartEdit}
 										className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer"
 									>

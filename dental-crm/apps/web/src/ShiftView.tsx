@@ -24,8 +24,8 @@ import {
 } from "./AppHelpers";
 import { EmptyState } from "./components/EmptyState";
 import { PatientAvatar } from "./components/PatientAvatar";
-import { countLabel } from "./lib/russianPlural";
 import { EmkControlBoard } from "./components/visit/EmkControlBoard";
+import { countLabel } from "./lib/russianPlural";
 
 /** Calendar date in local clinic time. */
 function localCalendarDateString(date: Date = new Date()): string {
@@ -103,7 +103,7 @@ export function ShiftView({
 	 */
 	const visitPatient = useMemo(() => {
 		const visit = dashboard?.activeVisit;
-		if (!visit || !visit.id || visit.id === NIL_UUID) return null;
+		if (!visit?.id || visit.id === NIL_UUID) return null;
 		if (!visit.patientId || visit.patientId === NIL_UUID) return null;
 		if (visit.status !== "draft") return null;
 		return patientsById.get(visit.patientId) ?? null;
@@ -415,12 +415,12 @@ export function ShiftView({
 								};
 
 								return (
-									<div
+									<button
+										type="button"
 										key={app.id}
-										role="button"
-										tabIndex={0}
 										aria-label={`Прием: ${patient ? patient.fullName : "Неизвестный пациент"}, ${timeStart} – ${timeEnd}`}
 										className={`today-schedule-item focus:ring-2 focus:ring-teal-600 focus:outline-none ${isCurrent ? "current-active" : ""}`}
+										style={{ textAlign: "left", width: "100%" }}
 										onClick={() => {
 											if (patient) {
 												setSelectedPatientId(patient.id);
@@ -453,7 +453,7 @@ export function ShiftView({
 										<span className={`status-pill status-${statusKey}`}>
 											{statusLabels[statusKey] ?? "статус неизвестен"}
 										</span>
-									</div>
+									</button>
 								);
 							})}
 						</div>
@@ -552,7 +552,15 @@ export function ShiftView({
 					)}
 				</section>
 
-				<section className="shift-emk-control" style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "14px", boxShadow: "var(--shadow-1)" }}>
+				<section
+					className="shift-emk-control"
+					style={{
+						background: "var(--paper)",
+						border: "1px solid var(--line)",
+						borderRadius: "14px",
+						boxShadow: "var(--shadow-1)",
+					}}
+				>
 					<EmkControlBoard dashboard={dashboard} />
 				</section>
 
@@ -748,6 +756,10 @@ export function ShiftView({
 											)}
 										</p>
 										<div
+											role="progressbar"
+											aria-valuenow={mostLoadedResource.utilizationPercent}
+											aria-valuemin={0}
+											aria-valuemax={100}
 											className="load-meter"
 											aria-label={`Загрузка ${mostLoadedResource.utilizationPercent}%`}
 											style={{
@@ -1049,319 +1061,315 @@ export function PatientCockpit({
 	}
 
 	return (
-		<>
-			<section
-				className="patient-cockpit dnt-cockpit"
-				aria-label="Карточка пациента"
-			>
-				<div className="patient-summary-card col-gap-16">
-					<p
-						className="eyebrow"
-						style={{
-							margin: 0,
-							fontSize: "11px",
-							fontWeight: 700,
-							letterSpacing: "0.09em",
-							textTransform: "uppercase",
-							color: "var(--muted)",
-						}}
-					>
-						Карточка пациента
-					</p>
-					<div className="patient-hero">
-						<PatientAvatar fullName={activePatient.fullName} size={44} />
-						<div className="hero-info">
-							<h2 style={{ fontSize: "16px" }}>{activePatient.fullName}</h2>
-							{/* Пациенту без id подставлялся номер карты «1042» — выдуманный
+		<section
+			className="patient-cockpit dnt-cockpit"
+			aria-label="Карточка пациента"
+		>
+			<div className="patient-summary-card col-gap-16">
+				<p
+					className="eyebrow"
+					style={{
+						margin: 0,
+						fontSize: "11px",
+						fontWeight: 700,
+						letterSpacing: "0.09em",
+						textTransform: "uppercase",
+						color: "var(--muted)",
+					}}
+				>
+					Карточка пациента
+				</p>
+				<div className="patient-hero">
+					<PatientAvatar fullName={activePatient.fullName} size={44} />
+					<div className="hero-info">
+						<h2 style={{ fontSize: "16px" }}>{activePatient.fullName}</h2>
+						{/* Пациенту без id подставлялся номер карты «1042» — выдуманный
                     номер, которого нет ни в одной картотеке. Придумывать номер
                     нельзя: администратор станет искать по нему бумажную карту. */}
-							<p
+						<p
+							style={{
+								margin: "1px 0 0",
+								fontSize: "12px",
+								color: "var(--muted)",
+							}}
+						>
+							{activePatient.id
+								? `карта № ${activePatient.id.slice(0, 6)}`
+								: "номер карты не присвоен"}
+						</p>
+					</div>
+				</div>
+
+				<div
+					className="patient-info-list"
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						gap: "9px",
+						fontSize: "13px",
+						color: "var(--ink-2)",
+					}}
+				>
+					<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+						<Calendar
+							size={14}
+							style={{ color: "var(--muted)", flexShrink: 0 }}
+						/>
+						<span>
+							Дата рождения:{" "}
+							<strong style={{ color: "var(--ink)", fontWeight: 600 }}>
+								{birthDateLabel(activePatient.birthDate)}
+							</strong>
+						</span>
+					</div>
+					<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+						<Phone size={14} style={{ color: "var(--muted)", flexShrink: 0 }} />
+						<span>
+							Телефон:{" "}
+							<strong
 								style={{
-									margin: "1px 0 0",
-									fontSize: "12px",
+									color: "var(--ink)",
+									fontWeight: 600,
+									fontVariantNumeric: "tabular-nums",
+								}}
+							>
+								{activePatient.phone ?? "не указан"}
+							</strong>
+						</span>
+					</div>
+					{activePatient.notes && (
+						<div
+							style={{
+								display: "flex",
+								alignItems: "flex-start",
+								gap: "8px",
+							}}
+						>
+							<Info
+								size={14}
+								style={{
 									color: "var(--muted)",
+									flexShrink: 0,
+									marginTop: "2px",
 								}}
-							>
-								{activePatient.id
-									? `карта № ${activePatient.id.slice(0, 6)}`
-									: "номер карты не присвоен"}
-							</p>
-						</div>
-					</div>
-
-					<div
-						className="patient-info-list"
-						style={{
-							display: "flex",
-							flexDirection: "column",
-							gap: "9px",
-							fontSize: "13px",
-							color: "var(--ink-2)",
-						}}
-					>
-						<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-							<Calendar
-								size={14}
-								style={{ color: "var(--muted)", flexShrink: 0 }}
 							/>
 							<span>
-								Дата рождения:{" "}
+								Заметки:{" "}
 								<strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-									{birthDateLabel(activePatient.birthDate)}
+									{activePatient.notes}
 								</strong>
 							</span>
 						</div>
-						<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-							<Phone
-								size={14}
-								style={{ color: "var(--muted)", flexShrink: 0 }}
-							/>
-							<span>
-								Телефон:{" "}
-								<strong
-									style={{
-										color: "var(--ink)",
-										fontWeight: 600,
-										fontVariantNumeric: "tabular-nums",
-									}}
-								>
-									{activePatient.phone ?? "не указан"}
-								</strong>
-							</span>
-						</div>
-						{activePatient.notes && (
-							<div
-								style={{
-									display: "flex",
-									alignItems: "flex-start",
-									gap: "8px",
-								}}
-							>
-								<Info
-									size={14}
-									style={{
-										color: "var(--muted)",
-										flexShrink: 0,
-										marginTop: "2px",
-									}}
-								/>
-								<span>
-									Заметки:{" "}
-									<strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-										{activePatient.notes}
-									</strong>
-								</span>
-							</div>
-						)}
-					</div>
+					)}
+				</div>
 
-					{/* Сравнивалось с `"medium"`, которого в контракте нет: сервер
+				{/* Сравнивалось с `"medium"`, которого в контракте нет: сервер
                 отдаёт `watch` (apps/api/src/sampleData.ts, ветка расчёта
                 riskLevel), а схема допускает только low | watch | high. Ветка
                 среднего риска не выполнялась ни разу, и пациент «контроль»
                 рисовался как «спокойно» — цветом бумаги. Подпись при этом
                 стояла верная, поэтому дефект и не бросался в глаза. */}
-					{activePatientInsight ? (
+				{activePatientInsight ? (
+					<div
+						className={`patient-insight-panel risk-${activePatientInsight.riskLevel}`}
+						style={{
+							padding: "12px 14px",
+							borderRadius: "11px",
+							background:
+								activePatientInsight.riskLevel === "high"
+									? "var(--bad-bg)"
+									: activePatientInsight.riskLevel === "watch"
+										? "var(--warn-bg)"
+										: "var(--paper-soft)",
+							border:
+								"1px solid " +
+								(activePatientInsight.riskLevel === "high"
+									? "var(--bad-fg)"
+									: activePatientInsight.riskLevel === "watch"
+										? "var(--warn-fg)"
+										: "var(--line)"),
+						}}
+					>
 						<div
-							className={`patient-insight-panel risk-${activePatientInsight.riskLevel}`}
 							style={{
-								padding: "12px 14px",
-								borderRadius: "11px",
-								background:
-									activePatientInsight.riskLevel === "high"
-										? "var(--bad-bg)"
-										: activePatientInsight.riskLevel === "watch"
-											? "var(--warn-bg)"
-											: "var(--paper-soft)",
-								border:
-									"1px solid " +
-									(activePatientInsight.riskLevel === "high"
-										? "var(--bad-fg)"
-										: activePatientInsight.riskLevel === "watch"
-											? "var(--warn-fg)"
-											: "var(--line)"),
+								display: "flex",
+								alignItems: "center",
+								gap: "8px",
+								marginBottom: "7px",
 							}}
 						>
-							<div
+							<span
 								style={{
-									display: "flex",
-									alignItems: "center",
-									gap: "8px",
-									marginBottom: "7px",
+									fontSize: "10.5px",
+									fontWeight: 800,
+									textTransform: "uppercase",
+									letterSpacing: "0.06em",
+									color:
+										activePatientInsight.riskLevel === "high"
+											? "var(--bad-fg)"
+											: activePatientInsight.riskLevel === "watch"
+												? "var(--warn-fg)"
+												: "var(--muted)",
 								}}
 							>
-								<span
-									style={{
-										fontSize: "10.5px",
-										fontWeight: 800,
-										textTransform: "uppercase",
-										letterSpacing: "0.06em",
-										color:
-											activePatientInsight.riskLevel === "high"
-												? "var(--bad-fg)"
-												: activePatientInsight.riskLevel === "watch"
-													? "var(--warn-fg)"
-													: "var(--muted)",
-									}}
-								>
-									{/* Приведение `as keyof typeof` тоже убрано: с типизированными
+								{/* Приведение `as keyof typeof` тоже убрано: с типизированными
                         пропсами ключ и так из того же перечисления, а приведение
                         как раз и прятало бы новое расхождение. */}
-									{patientInsightRiskLabels[activePatientInsight.riskLevel]}
+								{patientInsightRiskLabels[activePatientInsight.riskLevel]}
+							</span>
+							<strong style={{ fontSize: "12.5px", color: "var(--ink)" }}>
+								{activePatientInsight.nextBestAction}
+							</strong>
+						</div>
+						<div
+							style={{
+								display: "flex",
+								flexWrap: "wrap",
+								gap: "6px",
+								fontSize: "11.5px",
+								fontWeight: 600,
+							}}
+						>
+							{activePatientInsight.balanceDueRub ? (
+								<span
+									style={{
+										background: "var(--paper)",
+										padding: "3px 8px",
+										borderRadius: "6px",
+										border: "1px solid var(--line)",
+										color: "var(--ink)",
+									}}
+								>
+									💰 Долг {money(activePatientInsight.balanceDueRub)}
 								</span>
-								<strong style={{ fontSize: "12.5px", color: "var(--ink)" }}>
-									{activePatientInsight.nextBestAction}
-								</strong>
-							</div>
-							<div
-								style={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: "6px",
-									fontSize: "11.5px",
-									fontWeight: 600,
-								}}
-							>
-								{activePatientInsight.balanceDueRub ? (
-									<span
-										style={{
-											background: "var(--paper)",
-											padding: "3px 8px",
-											borderRadius: "6px",
-											border: "1px solid var(--line)",
-											color: "var(--ink)",
-										}}
-									>
-										💰 Долг {money(activePatientInsight.balanceDueRub)}
-									</span>
-								) : null}
-								{activePatientInsight.openTasks > 0 ? (
-									<span
-										style={{
-											background: "var(--paper)",
-											padding: "3px 8px",
-											borderRadius: "6px",
-											border: "1px solid var(--line)",
-											color: "var(--ink)",
-										}}
-									>
-										📞{" "}
-										{countLabel(
-											activePatientInsight.openTasks,
-											"задача",
-											"задачи",
-											"задач",
-										)}{" "}
-										на связь
-									</span>
-								) : null}
-								{/* Было «📄 3 док-тов»: и сокращение, и неясно, есть они или их нет. */}
-								{activePatientInsight.missingDocumentKinds.length > 0 ? (
-									<span
-										style={{
-											background: "var(--paper)",
-											padding: "3px 8px",
-											borderRadius: "6px",
-											border: "1px solid var(--line)",
-											color: "var(--ink)",
-										}}
-									>
-										📄 не хватает{" "}
-										{countLabel(
-											activePatientInsight.missingDocumentKinds.length,
-											"документа",
-											"документов",
-											"документов",
-										)}
-									</span>
-								) : null}
-								{activePatientInsight.recallDueAt ? (
-									<span
-										style={{
-											background: "var(--paper)",
-											padding: "3px 8px",
-											borderRadius: "6px",
-											border: "1px solid var(--line)",
-											color: "var(--ink)",
-										}}
-									>
-										повторный визит{" "}
-										{formatShortDate(activePatientInsight.recallDueAt)}
-									</span>
-								) : null}
-							</div>
+							) : null}
+							{activePatientInsight.openTasks > 0 ? (
+								<span
+									style={{
+										background: "var(--paper)",
+										padding: "3px 8px",
+										borderRadius: "6px",
+										border: "1px solid var(--line)",
+										color: "var(--ink)",
+									}}
+								>
+									📞{" "}
+									{countLabel(
+										activePatientInsight.openTasks,
+										"задача",
+										"задачи",
+										"задач",
+									)}{" "}
+									на связь
+								</span>
+							) : null}
+							{/* Было «📄 3 док-тов»: и сокращение, и неясно, есть они или их нет. */}
+							{activePatientInsight.missingDocumentKinds.length > 0 ? (
+								<span
+									style={{
+										background: "var(--paper)",
+										padding: "3px 8px",
+										borderRadius: "6px",
+										border: "1px solid var(--line)",
+										color: "var(--ink)",
+									}}
+								>
+									📄 не хватает{" "}
+									{countLabel(
+										activePatientInsight.missingDocumentKinds.length,
+										"документа",
+										"документов",
+										"документов",
+									)}
+								</span>
+							) : null}
+							{activePatientInsight.recallDueAt ? (
+								<span
+									style={{
+										background: "var(--paper)",
+										padding: "3px 8px",
+										borderRadius: "6px",
+										border: "1px solid var(--line)",
+										color: "var(--ink)",
+									}}
+								>
+									повторный визит{" "}
+									{formatShortDate(activePatientInsight.recallDueAt)}
+								</span>
+							) : null}
 						</div>
-					) : null}
-				</div>
+					</div>
+				) : null}
+			</div>
 
-				<div className="patient-feature-grid">
-					<article
-						role="button"
-						tabIndex={0}
-						aria-label="Открыть ЭМК и историю"
-						className="clickable-card"
-						onClick={() => {
+			<div className="patient-feature-grid">
+				<button
+					type="button"
+					aria-label="Открыть ЭМК и историю"
+					className="clickable-card"
+					style={{ textAlign: "left" }}
+					onClick={() => {
+						window.location.hash = "visit";
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							window.location.hash = "visit";
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								window.location.hash = "visit";
-							}
-						}}
-					>
-						<History aria-hidden="true" size={24} />
-						<div>
-							<h3>ЭМК / История</h3>
-							<p className="tile-meta">Приёмы · диагнозы · зубная карта</p>
-						</div>
-					</article>
-					<article
-						role="button"
-						tabIndex={0}
-						aria-label="Открыть документы"
-						className="clickable-card"
-						onClick={() => {
+						}
+					}}
+				>
+					<History aria-hidden="true" size={24} />
+					<div>
+						<h3>ЭМК / История</h3>
+						<p className="tile-meta">Приёмы · диагнозы · зубная карта</p>
+					</div>
+				</button>
+				<button
+					type="button"
+					aria-label="Открыть документы"
+					className="clickable-card"
+					style={{ textAlign: "left" }}
+					onClick={() => {
+						window.location.hash = "documents";
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							window.location.hash = "documents";
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								window.location.hash = "documents";
-							}
-						}}
-					>
-						<FileText aria-hidden="true" size={24} />
-						<div>
-							<h3>Документы</h3>
-							{/* Было «3 шт. по визиту», а на пустой карточке — «нет по визиту»:
+						}
+					}}
+				>
+					<FileText aria-hidden="true" size={24} />
+					<div>
+						<h3>Документы</h3>
+						{/* Было «3 шт. по визиту», а на пустой карточке — «нет по визиту»:
                     сокращение из накладной и фраза, которая по-русски не строится. */}
-							<p className="tile-meta">
-								{activeUsableDocuments.length > 0
-									? `${countLabel(activeUsableDocuments.length, "документ", "документа", "документов")} по визиту`
-									: "по визиту документов нет"}
-							</p>
-						</div>
-					</article>
-					<article
-						role="button"
-						tabIndex={0}
-						aria-label="Открыть оплаты"
-						className="clickable-card"
-						onClick={() => {
+						<p className="tile-meta">
+							{activeUsableDocuments.length > 0
+								? `${countLabel(activeUsableDocuments.length, "документ", "документа", "документов")} по визиту`
+								: "по визиту документов нет"}
+						</p>
+					</div>
+				</button>
+				<button
+					type="button"
+					aria-label="Открыть оплаты"
+					className="clickable-card"
+					style={{ textAlign: "left" }}
+					onClick={() => {
+						window.location.hash = "finance";
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							window.location.hash = "finance";
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								window.location.hash = "finance";
-							}
-						}}
-					>
-						<CreditCard aria-hidden="true" size={24} />
-						<div>
-							<h3>Оплаты</h3>
-							{/*
+						}
+					}}
+				>
+					<CreditCard aria-hidden="true" size={24} />
+					<div>
+						<h3>Оплаты</h3>
+						{/*
                   Здесь стояло `?? 0`, и подмена случалась ДО money(), поэтому
                   общая правка форматирования этот экран не спасала. Плитка
                   печатала «0 ₽ · долг 0 ₽», пока дашборд не загружен, — а
@@ -1370,74 +1378,73 @@ export function PatientCockpit({
                   как «пациент рассчитался», хотя суммы просто ещё нет.
                   Без `?? 0` money() честно печатает «не определено».
                 */}
-							<p className="tile-meta">
-								{money(dashboard?.billingSummary?.totalPaidRub)} · долг{" "}
-								{money(dashboard?.billingSummary?.totalDueRub)}
-							</p>
-						</div>
-					</article>
-					<article
-						role="button"
-						tabIndex={0}
-						aria-label="Открыть связь и задачи"
-						className="clickable-card"
-						onClick={() => {
+						<p className="tile-meta">
+							{money(dashboard?.billingSummary?.totalPaidRub)} · долг{" "}
+							{money(dashboard?.billingSummary?.totalDueRub)}
+						</p>
+					</div>
+				</button>
+				<button
+					type="button"
+					aria-label="Открыть связь и задачи"
+					className="clickable-card"
+					style={{ textAlign: "left" }}
+					onClick={() => {
+						window.location.hash = "communications";
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							window.location.hash = "communications";
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								window.location.hash = "communications";
-							}
-						}}
-					>
-						<MessageSquare aria-hidden="true" size={24} />
-						<div>
-							<h3>Связь</h3>
-							<p className="tile-meta">
-								{activeCommunicationTasks.length > 0
-									? countLabel(
-											activeCommunicationTasks.length,
-											"задача",
-											"задачи",
-											"задач",
-										)
-									: "задач нет"}
-							</p>
-						</div>
-					</article>
-					<article
-						role="button"
-						tabIndex={0}
-						aria-label="Открыть снимки пациента"
-						className="clickable-card"
-						onClick={() => {
+						}
+					}}
+				>
+					<MessageSquare aria-hidden="true" size={24} />
+					<div>
+						<h3>Связь</h3>
+						<p className="tile-meta">
+							{activeCommunicationTasks.length > 0
+								? countLabel(
+										activeCommunicationTasks.length,
+										"задача",
+										"задачи",
+										"задач",
+									)
+								: "задач нет"}
+						</p>
+					</div>
+				</button>
+				<button
+					type="button"
+					aria-label="Открыть снимки пациента"
+					className="clickable-card"
+					style={{ textAlign: "left" }}
+					onClick={() => {
+						window.location.hash = "imaging";
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							window.location.hash = "imaging";
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								window.location.hash = "imaging";
-							}
-						}}
-					>
-						<ImageIcon aria-hidden="true" size={24} />
-						<div>
-							<h3>Снимки</h3>
-							<p className="tile-meta">
-								{activeImagingStudies.length > 0
-									? countLabel(
-											activeImagingStudies.length,
-											"снимок",
-											"снимка",
-											"снимков",
-										)
-									: "снимков нет"}
-							</p>
-						</div>
-					</article>
-				</div>
-			</section>
-		</>
+						}
+					}}
+				>
+					<ImageIcon aria-hidden="true" size={24} />
+					<div>
+						<h3>Снимки</h3>
+						<p className="tile-meta">
+							{activeImagingStudies.length > 0
+								? countLabel(
+										activeImagingStudies.length,
+										"снимок",
+										"снимка",
+										"снимков",
+									)
+								: "снимков нет"}
+						</p>
+					</div>
+				</button>
+			</div>
+		</section>
 	);
 }

@@ -291,6 +291,7 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 			setFamily(null);
 			setLoadFailure(res.status === 404 ? null : { status: res.status });
 		} catch (e) {
+			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
 			if (isStale()) return;
 			// Текст исключения английский и наружу не идёт: пользователю сообщение
 			// собирает panelStateText по коду, здесь — «сервер не ответил».
@@ -505,7 +506,11 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 			});
 
 			if (!res.ok) {
-				const err = await res.json().catch(() => ({}) as { message?: string });
+				const err = await res.json().catch((err) => {
+					console.error('[Dente]', err);
+					showToast(actionFailureToast('Ответ сервера не прочитан', (err as { status?: number })?.status ?? null), 'error');
+					return {} as { message?: string };
+				});
 				showToast(
 					refusalToast(
 						"Списание с семейного счёта не прошло",
@@ -528,7 +533,11 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 			 * Сервер отвечает `duplicate: true`, когда узнал ключ и денег НЕ тронул, —
 			 * это и говорим словами: деньги ушли раньше, второй раз не ушли.
 			 */
-			const payResult = (await res.json().catch(() => null)) as {
+			const payResult = (await res.json().catch((err) => {
+				console.error('[Dente]', err);
+				showToast(actionFailureToast('Ответ об оплате не прочитан', (err as { status?: number })?.status ?? null), 'error');
+				return null;
+			})) as {
 				duplicate?: boolean;
 			} | null;
 			showToast(
@@ -600,7 +609,11 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 				}),
 			});
 			if (!res.ok) {
-				const err = await res.json().catch(() => ({}) as { message?: string });
+				const err = await res.json().catch((err) => {
+					console.error('[Dente]', err);
+					showToast(actionFailureToast('Ответ сервера не прочитан', (err as { status?: number })?.status ?? null), 'error');
+					return {} as { message?: string };
+				});
 				showToast(
 					refusalToast(
 						"Пополнение семейного счёта не прошло",
@@ -618,7 +631,11 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 			// по одной непрошедшей попытке, увидела бы два подтверждения на один взнос.
 			// Сумма — через общий money(): своё toLocaleString печатало «1 500,5 ₽»
 			// вместо «1 500,50 ₽», а полтинник в такой записи читается как пять копеек.
-			const topupResult = (await res.json().catch(() => null)) as {
+			const topupResult = (await res.json().catch((err) => {
+				console.error('[Dente]', err);
+				showToast(actionFailureToast('Ответ о пополнении не прочитан', (err as { status?: number })?.status ?? null), 'error');
+				return null;
+			})) as {
 				duplicate?: boolean;
 			} | null;
 			showToast(
@@ -805,7 +822,7 @@ export const FamilyWalletPanel: React.FC<FamilyWalletPanelProps> = ({
 					{/* Чем внесли аванс. БЫЛО: способ не спрашивали и не отправляли, а
 					    сервер записывал в журнал наличные. Вечером наличных в ящике
 					    не хватало ровно на сумму пополнения картой. */}
-					<div className="quick-chips-row" aria-label="Чем внесли аванс">
+					<div role="toolbar" className="quick-chips-row" aria-label="Чем внесли аванс">
 						{FAMILY_TOPUP_METHODS.map((methodKey) => (
 							<button
 								key={methodKey}

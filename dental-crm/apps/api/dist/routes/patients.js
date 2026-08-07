@@ -78,6 +78,11 @@ const patientTaskTicketStatusBodySchema = z.object({
 const patientArchiveStatusBodySchema = z.object({
     isBlacklisted: z.unknown().optional(),
 });
+const patientArchiveBodySchema = z.object({
+    archiveReason: z.string().min(1, "Укажите причину архивации"),
+    isBlacklisted: z.boolean().default(false),
+    blacklistReason: z.string().optional(),
+});
 function parsePatientPayload(schema, value) {
     const parsed = schema.safeParse(value);
     if (!parsed.success)
@@ -1006,6 +1011,40 @@ export async function registerPatientRoutes(app) {
             return reply.code(500).send({
                 error: "PatientArchiveStatusNotSaved",
                 message: "Не удалось сохранить запрет записи. Откройте карту заново и проверьте текущий запрет перед повторной попыткой.",
+            });
+        }
+    });
+    app.post("/api/patients/:patientId/archive", async (request, reply) => {
+        const orgId = requireClinicOrganizationId(request, reply);
+        if (!orgId)
+            return reply;
+        const { patientId } = request.params;
+        if (!patientId)
+            return sendPatientRouteValidationError(reply);
+        const parsedBody = patientArchiveBodySchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+            return reply.code(400).send({
+                error: "ValidationError",
+                message: "Проверьте правильность заполнения формы архивации.",
+                issues: parsedBody.error.issues,
+            });
+        }
+        const { archiveReason, isBlacklisted, blacklistReason } = parsedBody.data;
+        const userId = null; // Removed requireUserId
+        try {
+            const { getPatientByIdFromDb } = await import("../db/patientsQuery.js");
+            const patient = await getPatientByIdFromDb(orgId, patientId);
+            if (!patient)
+                return sendPatientNotFound(reply);
+            const { archivePatientInDb } = await import("../db/patientArchiveReasonsAndBlacklistsQuery.js");
+            await archivePatientInDb(orgId, patientId, patient.fullName, archiveReason, isBlacklisted, blacklistReason || "", userId);
+            return reply.status(200).send({ success: true });
+        }
+        catch (e) {
+            request.log.error({ err: e }, "[Patients] Ошибка при архивации пациента");
+            return reply.code(500).send({
+                error: "PatientArchiveError",
+                message: "Не удалось архивировать пациента. Пожалуйста, попробуйте еще раз.",
             });
         }
     });

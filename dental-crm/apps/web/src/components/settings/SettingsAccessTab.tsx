@@ -229,6 +229,7 @@ export function SettingsAccessTab({
 							{inviteLink}
 						</span>
 						<button
+							type="button"
 							onClick={handleCopy}
 							className="ml-3 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-200 text-xs font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shrink-0"
 						>
@@ -277,11 +278,11 @@ export function SettingsAccessTab({
 							<strong>{profile.title}</strong>
 							<p>{profile.description}</p>
 						</div>
-						<div className="workspace-token-row" aria-label="Разделы профиля">
+						<section className="workspace-token-row" aria-label="Разделы профиля">
 							{profile.visibleSections.map((section) => (
 								<span key={section}>{viewLabels[section]}</span>
 							))}
-						</div>
+						</section>
 						<ul>
 							{profile.automations.slice(0, 3).map((automation) => (
 								<li key={automation}>{automation}</li>

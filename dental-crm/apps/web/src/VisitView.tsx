@@ -329,6 +329,24 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 		}
 	};
 
+	const handleSmartParseApply = useCallback((data: any) => {
+		if (!data) {
+			setShowSmartPreview(false);
+			return;
+		}
+		if (data.toothUpdates) {
+			data.toothUpdates.forEach((t: any) => {
+				setToothState(t.code, t.state);
+			});
+		}
+		if (data.emkUpdates) {
+			Object.entries(data.emkUpdates).forEach(([k, v]) => {
+				if (v) appendToEMKField(k, v as string);
+			});
+		}
+		setShowSmartPreview(false);
+	}, [setToothState, appendToEMKField]);
+
 	const closeClinicalModal = useCallback(() => {
 		setSelectedToothForMenu(null);
 		setMaterialCategory(null);
@@ -1093,21 +1111,7 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 							parsedData={smartParsedData}
 							rawText={transcript}
 							type="visit"
-							onApply={(data: any) => {
-								if (data) {
-									if (data.toothUpdates) {
-										data.toothUpdates.forEach((t: any) => {
-											setToothState(t.code, t.state);
-										});
-									}
-									if (data.emkUpdates) {
-										Object.entries(data.emkUpdates).forEach(([k, v]) => {
-											if (v) appendToEMKField(k, v as string);
-										});
-									}
-								}
-								setShowSmartPreview(false);
-							}}
+							onApply={handleSmartParseApply}
 							onManual={() => setShowSmartPreview(false)}
 							onClose={() => setShowSmartPreview(false)}
 						/>

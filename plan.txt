@@ -1,0 +1,42 @@
+We need to refactor the deeply nested `onClick` handler inside `SettingsClinicTab.tsx`.
+
+1. Find the `onClick` handler of the button with text `Отключить` (Disable).
+2. Create a handler function inside the component `SettingsClinicTab`:
+```typescript
+	const handleDisconnectChair = (chair: Chair) => {
+		const message = `Отключить кресло «${chair.name}»? Новые приёмы на него записать будет нельзя, и в уже записанных приёмах оно пропадёт из списка выбора. Сами приёмы и расписание не изменятся.`;
+		if (!window.confirm(message)) {
+			return;
+		}
+		void deleteChair(chair.id);
+	};
+```
+3. Use it in the `onClick` event of the button:
+```typescript
+<<<<<<< SEARCH
+												<button
+													className="secondary-button compact-button"
+													type="button"
+													onClick={() => {
+														if (
+															!window.confirm(
+																`Отключить кресло «${chair.name}»? Новые приёмы на него записать будет нельзя, и в уже записанных приёмах оно пропадёт из списка выбора. Сами приёмы и расписание не изменятся.`,
+															)
+														) {
+															return;
+														}
+														void deleteChair(chair.id);
+													}}
+												>
+													Отключить
+												</button>
+=======
+												<button
+													className="secondary-button compact-button"
+													type="button"
+													onClick={() => handleDisconnectChair(chair)}
+												>
+													Отключить
+												</button>
+>>>>>>> REPLACE
+```

@@ -161,6 +161,43 @@ function _speechGatewayCanUpload(status: SpeechGatewayStatus | null): boolean {
 	);
 }
 
+interface ChoiceRowProps<T extends string> {
+	label: string;
+	options: T[];
+	activeValue: T;
+	onSelect: (value: T) => void;
+	getLabel: (value: T) => string;
+}
+
+function OnboardingSourceChoiceRow<T extends string>({
+	label,
+	options,
+	activeValue,
+	onSelect,
+	getLabel,
+}: ChoiceRowProps<T>) {
+	return (
+		<fieldset
+			className="onboarding-source-choice-row"
+			aria-label={label}
+			style={{ border: "none", padding: 0, margin: 0 }}
+		>
+			<legend className="sr-only">{label}</legend>
+			{options.map((kind) => (
+				<button
+					className={activeValue === kind ? "active" : ""}
+					key={kind}
+					type="button"
+					aria-pressed={activeValue === kind}
+					onClick={() => onSelect(kind)}
+				>
+					{getLabel(kind)}
+				</button>
+			))}
+		</fieldset>
+	);
+}
+
 export function App() {
 	// Topbar dictation shortcut must open the visit dictation area: goToVisitDictation, scrollToVisitArea(".dictation-box")
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -2968,34 +3005,21 @@ export function App() {
 													материалы.
 												</span>
 											</div>
-											<fieldset
-												className="onboarding-source-choice-row"
-												aria-label="Источник прайса"
-												style={{ border: "none", padding: 0, margin: 0 }}
-											>
-												<legend className="sr-only">Источник прайса</legend>
-												{(
+												<OnboardingSourceChoiceRow
+													label="Источник прайса"
+													options={
 													Object.keys(
 														pricelistSourceKindLabels,
 													) as PricelistSourceKind[]
-												).map((kind) => (
-													<button
-														className={
-															pricelistSourceKind === kind ? "active" : ""
-														}
-														key={kind}
-														type="button"
-														aria-pressed={pricelistSourceKind === kind}
-														onClick={() => {
-															setPricelistSourceKind(kind);
-															if (kind !== "photo_ocr") clearPricelistImage();
-															setPricelistAnalysis(null);
-														}}
-													>
-														{pricelistSourceKindLabels[kind]}
-													</button>
-												))}
-											</fieldset>
+													}
+													activeValue={pricelistSourceKind}
+													onSelect={(kind) => {
+														setPricelistSourceKind(kind);
+														if (kind !== "photo_ocr") clearPricelistImage();
+														setPricelistAnalysis(null);
+													}}
+													getLabel={(kind) => pricelistSourceKindLabels[kind]}
+												/>
 										</section>
 
 										<section className="onboarding-source-section">
@@ -3005,34 +3029,17 @@ export function App() {
 													Основной формат старой базы или бумажного журнала.
 												</span>
 											</div>
-											<fieldset
-												className="onboarding-source-choice-row"
-												aria-label="Источник переноса пациентов"
-												style={{ border: "none", padding: 0, margin: 0 }}
-											>
-												<legend className="sr-only">
-													Источник переноса пациентов
-												</legend>
-												{(
-													Object.keys(importSourceLabels) as ImportSourceKind[]
-												).map((kind) => (
-													<button
-														className={
-															importSourceKind === kind ? "active" : ""
-														}
-														key={kind}
-														type="button"
-														aria-pressed={importSourceKind === kind}
-														onClick={() => {
-															setImportSourceKind(kind);
-															setImportPreview(null);
-															setImportCommit(null);
-														}}
-													>
-														{importSourceLabels[kind].title}
-													</button>
-												))}
-											</fieldset>
+												<OnboardingSourceChoiceRow
+													label="Источник переноса пациентов"
+													options={Object.keys(importSourceLabels) as ImportSourceKind[]}
+													activeValue={importSourceKind}
+													onSelect={(kind) => {
+														setImportSourceKind(kind);
+														setImportPreview(null);
+														setImportCommit(null);
+													}}
+													getLabel={(kind) => importSourceLabels[kind].title}
+												/>
 										</section>
 
 										<section className="onboarding-source-section">
@@ -3043,34 +3050,17 @@ export function App() {
 													служебные строки.
 												</span>
 											</div>
-											<fieldset
-												className="onboarding-source-choice-row"
-												aria-label="Режим смешанного импорта"
-												style={{ border: "none", padding: 0, margin: 0 }}
-											>
-												<legend className="sr-only">
-													Режим смешанного импорта
-												</legend>
-												{(
-													Object.keys(
-														smartImportModeLabels,
-													) as SmartImportMode[]
-												).map((mode) => (
-													<button
-														className={smartImportMode === mode ? "active" : ""}
-														key={mode}
-														type="button"
-														aria-pressed={smartImportMode === mode}
-														onClick={() => {
-															setSmartImportMode(mode);
-															setSmartImportPreview(null);
-															setSmartImportCommit(null);
-														}}
-													>
-														{smartImportModeLabels[mode].title}
-													</button>
-												))}
-											</fieldset>
+												<OnboardingSourceChoiceRow
+													label="Режим смешанного импорта"
+													options={Object.keys(smartImportModeLabels) as SmartImportMode[]}
+													activeValue={smartImportMode}
+													onSelect={(mode) => {
+														setSmartImportMode(mode);
+														setSmartImportPreview(null);
+														setSmartImportCommit(null);
+													}}
+													getLabel={(mode) => smartImportModeLabels[mode].title}
+												/>
 										</section>
 
 										<section className="onboarding-source-section">
@@ -3081,32 +3071,13 @@ export function App() {
 													таблицу, архив или фото.
 												</span>
 											</div>
-											<fieldset
-												className="onboarding-source-choice-row"
-												aria-label="Маршрут распознанных документов"
-												style={{ border: "none", padding: 0, margin: 0 }}
-											>
-												<legend className="sr-only">
-													Маршрут распознанных документов
-												</legend>
-												{(
-													Object.keys(
-														ingestionTargetLabels,
-													) as DocumentIngestionTarget[]
-												).map((target) => (
-													<button
-														className={
-															documentIngestionTarget === target ? "active" : ""
-														}
-														key={target}
-														type="button"
-														aria-pressed={documentIngestionTarget === target}
-														onClick={() => setDocumentIngestionTarget(target)}
-													>
-														{ingestionTargetLabels[target]}
-													</button>
-												))}
-											</fieldset>
+												<OnboardingSourceChoiceRow
+													label="Маршрут распознанных документов"
+													options={Object.keys(ingestionTargetLabels) as DocumentIngestionTarget[]}
+													activeValue={documentIngestionTarget}
+													onSelect={(target) => setDocumentIngestionTarget(target)}
+													getLabel={(target) => ingestionTargetLabels[target]}
+												/>
 										</section>
 
 										<section className="onboarding-source-section onboarding-source-section-wide">
@@ -3117,31 +3088,18 @@ export function App() {
 													локальных папок.
 												</span>
 											</div>
-											<fieldset
-												className="onboarding-source-choice-row"
-												aria-label="Источник снимков"
-												style={{ border: "none", padding: 0, margin: 0 }}
-											>
-												<legend className="sr-only">Источник снимков</legend>
-												{imagingSourceChoices.map((kind) => (
-													<button
-														className={
-															imagingImportSourceKind === kind ? "active" : ""
-														}
-														key={kind}
-														type="button"
-														aria-pressed={imagingImportSourceKind === kind}
-														onClick={() => {
-															setImagingImportSourceKind(kind);
-															setImagingImportPreview(null);
-															setImagingImportCommit(null);
-															setDicomSeriesPreview(null);
-														}}
-													>
-														{imagingSourceLabels[kind]}
-													</button>
-												))}
-											</fieldset>
+												<OnboardingSourceChoiceRow
+													label="Источник снимков"
+													options={imagingSourceChoices}
+													activeValue={imagingImportSourceKind}
+													onSelect={(kind) => {
+														setImagingImportSourceKind(kind);
+														setImagingImportPreview(null);
+														setImagingImportCommit(null);
+														setDicomSeriesPreview(null);
+													}}
+													getLabel={(kind) => imagingSourceLabels[kind]}
+												/>
 										</section>
 
 										<section className="onboarding-source-section onboarding-source-section-wide">

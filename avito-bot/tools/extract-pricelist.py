@@ -75,20 +75,19 @@ def main():
 
             # Pass 2: bind every price token to the entry whose band contains it.
             orphans = []
-            for r in rows:
-                for w in r["words"]:
-                    if w["x0"] < xsplit:
-                        continue
-                    txt = w["text"].strip()
-                    if not PRICE.match(txt):
-                        continue
-                    ymid = (w["top"] + w["bottom"]) / 2
-                    hit = next((e for e in entries
-                                if e["top"] - Y_TOL <= ymid <= e["bottom"] + Y_TOL), None)
-                    if hit:
-                        hit["prices"].append(txt)
-                    else:
-                        orphans.append((round(ymid, 1), txt))
+            for w in (word for r in rows for word in r["words"]):
+                if w["x0"] < xsplit:
+                    continue
+                txt = w["text"].strip()
+                if not PRICE.match(txt):
+                    continue
+                ymid = (w["top"] + w["bottom"]) / 2
+                hit = next((e for e in entries
+                            if e["top"] - Y_TOL <= ymid <= e["bottom"] + Y_TOL), None)
+                if hit:
+                    hit["prices"].append(txt)
+                else:
+                    orphans.append((round(ymid, 1), txt))
 
             for e in entries:
                 name = re.sub(r"\s+", " ", e["name"]).strip()

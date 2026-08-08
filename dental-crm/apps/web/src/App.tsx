@@ -5,6 +5,7 @@
 import type {
 	ClinicMode,
 	DentalSpecialty,
+	DenteTelegramFeature,
 	DocumentIngestionTarget,
 	ImportSourceKind,
 	PricelistSourceKind,
@@ -160,6 +161,22 @@ function _speechGatewayCanUpload(status: SpeechGatewayStatus | null): boolean {
 			status?.serverTranscriptionEnabled,
 	);
 }
+
+const DISPLAYABLE_TELEGRAM_FEATURES: DenteTelegramFeature[] = [
+	"patient_linking",
+	"appointment_reminders",
+	"appointment_confirmation",
+	"document_ready_notice",
+	"tax_document_request",
+	"payment_reminders",
+	"post_visit_instructions",
+	"recalls",
+	"review_requests",
+	"callback_requests",
+	"secure_portal_links",
+	"staff_task_alerts",
+	"staff_daily_digest",
+];
 
 export function App() {
 	// Topbar dictation shortcut must open the visit dictation area: goToVisitDictation, scrollToVisitArea(".dictation-box")
@@ -3497,21 +3514,7 @@ export function App() {
 										</div>
 										{telegramFeatureOptions
 											.filter((feature) =>
-												[
-													"patient_linking",
-													"appointment_reminders",
-													"appointment_confirmation",
-													"document_ready_notice",
-													"tax_document_request",
-													"payment_reminders",
-													"post_visit_instructions",
-													"recalls",
-													"review_requests",
-													"callback_requests",
-													"secure_portal_links",
-													"staff_task_alerts",
-													"staff_daily_digest",
-												].includes(feature),
+													DISPLAYABLE_TELEGRAM_FEATURES.includes(feature),
 											)
 											.map((feature) => (
 												<label

@@ -1129,6 +1129,35 @@ export function DocumentsView(props: DocumentsViewProps) {
 		return `Аннулировано. Источник: ${sourceLabel}.`;
 	}
 
+	const renderDocumentFactoryKindButton = (kind: DocumentKind) => {
+		const metadata = documentKindMetadata[kind];
+		return (
+			<button
+				className="secondary-button document-factory-kind-button"
+				type="button"
+				key={kind}
+				disabled={Boolean(documentCreateSavingKind)}
+				aria-busy={documentCreateSavingKind === kind || undefined}
+				onClick={() => {
+					setSelectedDocumentKind(kind);
+					if (!structuredPayloadDocumentKinds.has(kind)) {
+						void createDocument(kind);
+					}
+				}}
+			>
+				<FileText aria-hidden="true" />
+				<span className="document-factory-kind-button-text">
+					<span>{documentLabels[kind]}</span>
+					<small className={documentSourceStatusClassNames[metadata.sourceStatus]}>
+						{documentCreateSavingKind === kind
+							? "Создаю"
+							: documentSourceStatusLabels[metadata.sourceStatus]}
+					</small>
+				</span>
+			</button>
+		);
+	};
+
 	return (
 		<div className="panel documents-panel" id="documents">
 			<div className="panel-heading">
@@ -6338,44 +6367,7 @@ export function DocumentsView(props: DocumentsViewProps) {
 							<section className="document-factory-group" key={group.title}>
 								<h3>{group.title}</h3>
 								<div>
-									{group.kinds.map((kind) => {
-										const metadata = documentKindMetadata[kind];
-										return (
-											<button
-												className="secondary-button document-factory-kind-button"
-												type="button"
-												key={kind}
-												disabled={Boolean(documentCreateSavingKind)}
-												aria-busy={
-													documentCreateSavingKind === kind || undefined
-												}
-												onClick={() => {
-													setSelectedDocumentKind(kind);
-													if (!structuredPayloadDocumentKinds.has(kind)) {
-														void createDocument(kind);
-													}
-												}}
-											>
-												<FileText aria-hidden="true" />
-												<span className="document-factory-kind-button-text">
-													<span>{documentLabels[kind]}</span>
-													<small
-														className={
-															documentSourceStatusClassNames[
-																metadata.sourceStatus
-															]
-														}
-													>
-														{documentCreateSavingKind === kind
-															? "Создаю"
-															: documentSourceStatusLabels[
-																	metadata.sourceStatus
-																]}
-													</small>
-												</span>
-											</button>
-										);
-									})}
+									{group.kinds.map(renderDocumentFactoryKindButton)}
 								</div>
 							</section>
 						))}

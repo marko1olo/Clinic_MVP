@@ -15,6 +15,7 @@ import {
 	ZoomOut,
 } from "lucide-react";
 import { useAppLogicContext } from "./contexts/AppLogicContext";
+import { logger } from "./utils/logger";
 
 const IMAGING_QUICK_CHIPS = [
 	"Без видимых патологий",
@@ -413,7 +414,7 @@ export function ImagingView(props: ImagingViewProps) {
 				return;
 			}
 			if (!payload?.analysisResult) {
-				console.error(
+				logger.error(
 					`[imaging analyze] ответ не разобран: ${rawBody.slice(0, 300)}`,
 				);
 				showToast(
@@ -435,7 +436,7 @@ export function ImagingView(props: ImagingViewProps) {
 				[studyId]: { summary, toothUpdates },
 			}));
 
-			if (toothUpdates.length > 0) {
+			if (toothUpdates?.length > 0) {
 				const detectedCodes: string[] = [];
 				const detectedToothStates: Record<string, ToothState> = {};
 				const aiDiagnoses: Record<string, string> = {};
@@ -452,7 +453,7 @@ export function ImagingView(props: ImagingViewProps) {
 							: "находка без описания";
 					detectedToothStates[code] = toothStateFromAi(update.state);
 				}
-				if (detectedCodes.length > 0) {
+				if (detectedCodes?.length > 0) {
 					useVisitStore
 						.getState()
 						.applyAiToothCodes(
@@ -482,7 +483,7 @@ export function ImagingView(props: ImagingViewProps) {
 				"success",
 			);
 		} catch (error) {
-			console.error("[imaging analyze] запрос не выполнен", error);
+			logger.error("[imaging analyze] запрос не выполнен", error);
 			showToast(
 				"Сервер не ответил на разбор снимка. Проверьте связь и повторите.",
 				"error",
@@ -689,7 +690,7 @@ export function ImagingView(props: ImagingViewProps) {
 				</article>
 				<article>
 					<span>В ленте</span>
-					<strong>{activeImagingStudies.length}</strong>
+					<strong>{activeImagingStudies?.length}</strong>
 					<small>локально и на сервере, без удаления сырья</small>
 				</article>
 				<article>
@@ -804,14 +805,14 @@ export function ImagingView(props: ImagingViewProps) {
 			<div className="imaging-layout">
 				<article className="imaging-viewer">
 					{selectedImagingStudy ||
-					localImageIds.length > 0 ||
+					localImageIds?.length > 0 ||
 					browserPickedImagingFolder ? (
 						<>
 							<div
 								className="imaging-viewer-stage"
 								style={{ position: "relative" }}
 							>
-								{localImageIds.length > 0 ? (
+								{localImageIds?.length > 0 ? (
 									/*
                             Пациент передаётся в просмотрщик, потому что разметка
                             планирования имплантации хранится в его карточке — в паре
@@ -953,7 +954,7 @@ export function ImagingView(props: ImagingViewProps) {
 								</div>
 							) : null}
 
-							{imagingComparisonCandidates.length ? (
+							{imagingComparisonCandidates?.length ? (
 								<section
 									className="imaging-compare-strip"
 									data-testid="imaging-compare-strip"
@@ -998,7 +999,7 @@ export function ImagingView(props: ImagingViewProps) {
 							) : null}
 
 							{!(
-								localImageIds.length > 0 ||
+								localImageIds?.length > 0 ||
 								selectedImagingStudy?.kind === "cbct"
 							) && (
 								<div style={{ display: "contents" }}>
@@ -1320,7 +1321,7 @@ export function ImagingView(props: ImagingViewProps) {
 												</p>
 											) : null}
 										</section>
-										{imagingViewerAnnotations.length ? (
+										{imagingViewerAnnotations?.length ? (
 											<section
 												className="viewer-annotation-list"
 												aria-label="Сохраненные разметки к снимкам"
@@ -1391,19 +1392,19 @@ export function ImagingView(props: ImagingViewProps) {
                     только то, что известно наверняка, и не утверждает «снимков нет»
                     там, где правильнее «ничего не пришло».
                   */}
-					{visibleImagingStudies.length === 0 ? (
+					{visibleImagingStudies?.length === 0 ? (
 						!activePatient ? (
 							<EmptyState
 								icon={<ImageIcon size={28} />}
 								title="Пациент не выбран"
 								description="Лента показывает снимки того пациента, который назван в шапке экрана. Выберите пациента в картотеке или откройте приём — снимки подтянутся сами."
 							/>
-						) : activeImagingStudies.length > 0 &&
+						) : activeImagingStudies?.length > 0 &&
 							imagingKindFilter !== "all" ? (
 							<EmptyState
 								icon={<ImageIcon size={28} />}
 								title={`Снимков типа «${imagingKindLabels[imagingKindFilter] ?? imagingKindFilter}» у пациента нет`}
-								description={`Их скрыл фильтр типа: у пациента ${countLabel(activeImagingStudies.length, "снимок", "снимка", "снимков")} других типов.`}
+								description={`Их скрыл фильтр типа: у пациента ${countLabel(activeImagingStudies?.length, "снимок", "снимка", "снимков")} других типов.`}
 								action={
 									<button
 										className="secondary-button"
@@ -1560,7 +1561,7 @@ export function ImagingView(props: ImagingViewProps) {
 						<article>
 							<strong>{imagingViewerSaveTitle[imagingViewerSaveState]}</strong>
 							<span>
-								{imagingViewerAnnotations.length} разметок; исходные снимки
+								{imagingViewerAnnotations?.length} разметок; исходные снимки
 								остаются в просмотрщике или исходной папке.
 							</span>
 						</article>
@@ -1736,7 +1737,7 @@ export function ImagingView(props: ImagingViewProps) {
 											onClick={applyNearestMprClinicalPreset}
 											disabled={
 												!mprControlsReady ||
-												!mprNearestClinicalPreset.deltas.length ||
+												!mprNearestClinicalPreset.deltas?.length ||
 												!mprNearestClinicalPreset.title
 											}
 											aria-label={`Подогнать КТ-срезы под ближайший клинический протокол: ${mprNearestClinicalPreset.label}`}

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { denteAdminSecretRequestHeaders } from "../lib/denteRequestHeaders";
 import { showToast } from "./GlobalToast";
 import "./LabOrdersPanel.css";
@@ -292,7 +292,7 @@ export function LabOrdersPanel({ patientId }: LabOrdersPanelProps) {
 				<div className="lab-orders-empty">Нет заказов</div>
 			) : (
 				<div className="lab-orders-list">
-					{orders.map((order) => (
+					{orders?.map((order) => (
 						<div key={order.id} className="lab-order-card">
 							<div className="lab-order-main">
 								{order.toothFdi && (

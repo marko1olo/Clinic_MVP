@@ -16,6 +16,7 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 export type WaitlistMatchRow = {
@@ -112,7 +113,7 @@ export const WaitlistMatchesBlock: React.FC<WaitlistMatchesBlockProps> = ({
 				return;
 			}
 			const payload = (await response.json().catch((err: any) => {
-				console.error(err);
+				logger.error(err);
 				showToast(
 					actionFailureToast(
 						"Ошибка чтения ответа",

@@ -50,7 +50,18 @@ export function IncomingCallToast() {
 
 	// Resolve patient details for smart indicators
 	const patient = incomingCall.patientId
-		? dashboard?.patients?.find((p: any) => p.id === incomingCall.patientId)
+		? (dashboard?.patients?.find(
+				(p: { id: string; [key: string]: unknown }) =>
+					p.id === incomingCall.patientId,
+			) as
+				| {
+						id: string;
+						notes?: string;
+						insuranceContractId?: string;
+						noShowRisk?: boolean;
+						administrativeProfile?: { insuranceContractId?: string };
+				  }
+				| undefined)
 		: null;
 
 	const hasDms = Boolean(
@@ -147,7 +158,7 @@ export function IncomingCallToast() {
 							<span className="font-semibold text-[var(--muted,#94a3b8)] not-italic">
 								Заметка:
 							</span>
-							<span>"{patient.notes}"</span>
+							<span>"{patient?.notes}"</span>
 						</li>
 					)}
 				</ul>

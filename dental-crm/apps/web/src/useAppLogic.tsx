@@ -138,6 +138,7 @@ import {
 	uiLanguageOptions,
 	uiPreferencesStorageKey,
 	uiPreferencesSyncErrorMessage,
+	type VisitNoteForm,
 	viewFromHash,
 	visitDraftMissingFieldLabel,
 	visitDraftQualityLabels,
@@ -161,13 +162,19 @@ import { communicationDocumentTaskActionLabels } from "./communicationTaskData";
 import { showToast } from "./components/GlobalToast";
 import { useAuthLogic } from "./hooks/domains/useAuthLogic";
 import { useClinicalVisitLogic } from "./hooks/domains/useClinicalVisitLogic";
+import { useCommunicationsQueries } from "./hooks/domains/useCommunicationsQueries";
 import { useDicomWorkbenchModule } from "./hooks/domains/useDicomWorkbenchModule";
 import { useDocumentWorkflowModule } from "./hooks/domains/useDocumentWorkflowModule";
 import { useFinanceLogic } from "./hooks/domains/useFinanceLogic";
+import { useImagingQueries } from "./hooks/domains/useImagingQueries";
+import { useMigrationQueries } from "./hooks/domains/useMigrationQueries";
+import { usePatientIntakeLogic } from "./hooks/domains/usePatientIntakeLogic";
 import { usePatientLogic } from "./hooks/domains/usePatientLogic";
 import { useScheduleLogic } from "./hooks/domains/useScheduleLogic";
+import { useStaffSettingsLogic } from "./hooks/domains/useStaffSettingsLogic";
 import { useTelegramModule } from "./hooks/domains/useTelegramModule";
 import { useVisitLogic } from "./hooks/domains/useVisitLogic";
+
 import { loadWorkspaceProfile } from "./hooks/useWorkspaceProfile";
 import {
 	imagingCaptureDistanceMs,
@@ -227,6 +234,7 @@ import {
 import { useAppStore } from "./store/appStore";
 import { useImagingStore } from "./store/imagingStore";
 import { useSettingsStore } from "./store/settingsStore";
+import { logger } from "./utils/logger";
 import {
 	clampMprAxisDeg,
 	clampMprSlabMm,
@@ -240,17 +248,13 @@ import {
 	mprSliceNudgeSteps,
 	mprSlicePresetFractions,
 } from "./utils/math/mprMath";
-import { inferDashboardVisitSpecialty } from "./visitSpecialtyData";
-import {
-	preloadWorkspaceView,
-	scheduleIdleWorkspacePreload,
-} from "./workspacePreload";
 import {
 	type AppView,
 	getFallbackAppView,
 	getFilteredAppViews,
 	viewLabels,
-} from "./workspaceShell";
+} from "./utils/routeUtils";
+import { inferDashboardVisitSpecialty } from "./visitSpecialtyData";
 import {
 	postVisitCareTopicOptions,
 	telegramFeatureHelp,
@@ -297,7 +301,7 @@ import {
 	warningSeverityLabels,
 } from "./workspaceUiLabels";
 
-export function useAppLogic() {
+export function useAppLogic(): any {
 	const {
 		imagingImportText,
 		setImagingImportText,
@@ -657,6 +661,43 @@ export function useAppLogic() {
 	const { odontogramUseSurfaces, setOdontogramUseSurfaces } =
 		clinicalVisitLogic;
 
+	/**
+	 * ОХРАННИК МАРШРУТА ПО РОЛИ. Считается ПРИ РЕНДЕРЕ, а не в useEffect.
+	 *
+	 * ЧТО БЫЛО СЛОМАНО. Проверка прав целиком жила в useEffect (он остался ниже,
+	 * но занят теперь только адресом). Эффекты выполняются ПОСЛЕ коммита, значит
+	 * запрещённый роли раздел успевал СМОНТИРОВАТЬСЯ полностью: отрабатывали его
+	 * собственные эффекты, уходили сетевые запросы за клиническими данными, и лишь
+	 * следующим проходом раздел сменялся «Сменой». Редирект убирал раздел с экрана,
+	 * но не отменял того, что тот уже успел сделать: администратор, открывший
+	 * ссылку #visit, отправлял запросы данных приёма — раздела, которого нет в его
+	 * getFilteredAppViews. Ровно тот случай, про который документация React
+	 * («You Might Not Need an Effect») говорит прямо: значение, выводимое из уже
+	 * имеющегося состояния, считают при рендере, а не досылают эффектом, иначе
+	 * первый проход уходит на экран со старым значением.
+	 *
+	 * ЧТО ИМЕННО ПОМЕНЯЛОСЬ. `currentView` ниже по файлу и во всём возвращаемом
+	 * объекте — уже ПРОВЕРЕННОЕ значение, поэтому запрещённый раздел не попадает
+	 * даже в первый коммит и монтировать нечего. Запрошенное значение осталось
+	 * доступным как `requestedWorkspaceView` и нужно только для правки адреса.
+	 *
+	 * ПРО ЗАПАСНОЙ РАЗДЕЛ. Здесь стояла КОНСТАНТА «shift», и она была дефектом,
+	 * а не настройкой. У ролей «Администратор» и «Управляющий» getFilteredAppViews
+	 * «shift» НЕ содержит — ни разу за всю историю функции (заведена коммитом
+	 * 4867a6afc уже без него, пять последующих правок его этим ролям не
+	 * добавляли). То есть охранник, поставленный СОБЛЮДАТЬ список, сам отправлял
+	 * две роли в раздел вне списка: «Смена» им показывалась, при том что её пункта
+	 * нет в боковом меню (getVisibleRailViews считается от того же списка) — уйдя
+	 * с неё, вернуться было уже нечем.
+	 *
+	 * Теперь запасной раздел берётся из списка САМОЙ роли (getFallbackAppView,
+	 * рядом со списком, чтобы они не разъехались). Прав это не прибавляет никому:
+	 * для врача, ассистента и владельца «shift» и так стоит в их списке первым,
+	 * поэтому у них ничего не меняется; администратор и управляющий вместо чужой
+	 * «Смены» получают первый СВОЙ раздел — «Записи». Обратный вариант (выдать
+	 * двум ролям «shift») — продуктовое решение, а не починка, и здесь не
+	 * принимается.
+	 */
 	const allowedWorkspaceViews = useMemo(
 		() => getFilteredAppViews(selectedWorkspaceRole),
 		[selectedWorkspaceRole],
@@ -772,7 +813,9 @@ export function useAppLogic() {
 	} = useSettingsStore();
 	const activeSettingsTabButtonRef = useRef<HTMLButtonElement | null>(null);
 	const initialUiPreferencesRef = useRef<UiPreferences | null>(null);
+	// Порядковый номер запроса данных клиники: применяем только последний ответ.
 	const dashboardRequestSeqRef = useRef(0);
+	// Защита от двойного создания сотрудников и кресел (двойной клик по кнопке).
 	const _staffCreateInFlightRef = useRef(false);
 	const _chairCreateInFlightRef = useRef(false);
 	const [isStaffCreating, _setIsStaffCreating] = useState(false);
@@ -793,8 +836,27 @@ export function useAppLogic() {
 	const localImagingRecoveryHydratedOrganizationIdRef = useRef<string | null>(
 		null,
 	);
+	/*
+	 * Последняя карточка, о которой уже отправлена отметка просмотра.
+	 *
+	 * Без неё запрос уходил бы на каждый перерисовке рабочего места с тем же
+	 * пациентом: карточка открыта весь приём, а строка в истории переписывалась
+	 * бы десятки раз подряд.
+	 */
 	const recordedPatientViewRef = useRef<string | null>(null);
+	/** Набор модулей уже запрашивали с сервера в этом сеансе. */
 	const workspaceProfileLoadedRef = useRef(false);
+	/*
+	 * Счётчик состоявшихся отметок просмотра.
+	 *
+	 * Виджет «Недавние» читает историю при своём появлении, а отметка уходит
+	 * отсюда — и почти всегда позже. Пациент восстанавливается из настроек ещё
+	 * до того, как виджет смонтируется, поэтому «перечитать при смене пациента»
+	 * не спасает: смены не происходит. Проверено живьём — счётчик оставался
+	 * нулём, хотя строка в базе уже была. Номер меняется только после успешного
+	 * ответа сервера, и виджет перечитывает список именно тогда, когда там
+	 * появилось что-то новое.
+	 */
 	const [recentPatientViewsVersion, setRecentPatientViewsVersion] = useState(0);
 	if (initialUiPreferencesRef.current === null) {
 		initialUiPreferencesRef.current = loadUiPreferences();
@@ -840,6 +902,11 @@ export function useAppLogic() {
 			telegramSettingsModule.loadTelegramControlPlane(options),
 	});
 
+	/*
+	 * Россыпь сеттеров формы оплаты сюда больше не передаётся: сброс при смене
+	 * пациента берёт их из documentStore целиком, поэтому забыть поле нельзя.
+	 * Раньше передавались шесть из четырнадцати — ровно те шесть и очищались.
+	 */
 	const patient = usePatientLogic({
 		dashboard,
 		query,
@@ -848,6 +915,28 @@ export function useAppLogic() {
 		setDashboard,
 		setQuery,
 	});
+	const staffSettingsLogic = useStaffSettingsLogic({
+		auth,
+		setError,
+		loadDashboard,
+		saveClinicProfileIfDirty,
+	});
+	const patientIntakeLogic = usePatientIntakeLogic({
+		dashboard,
+		setError,
+		documentPatient: patient.documentPatient,
+		documentPatientMatchesActiveVisit: false,
+		documentLocalPersistenceOrganizationId: activeOrganizationId ?? "",
+		clinicProfileDraft,
+		activeDoctor: null,
+		activeAppointment: null,
+		visitNoteForm: {} as VisitNoteForm,
+		clinicalToothRowsValue: () => [],
+	});
+	const migrationQueries = useMigrationQueries({ auth });
+	const imagingQueries = useImagingQueries({ auth });
+	const communicationsQueries = useCommunicationsQueries({ auth });
+
 	const {
 		patientCoreDraftRef,
 		patientAdministrativeProfileDraftRef,
@@ -895,6 +984,15 @@ export function useAppLogic() {
 		createPatient,
 	} = patient;
 
+	/**
+	 * Идентификатор ОТКРЫТОГО приёма — или null, если приёма нет.
+	 *
+	 * Гидратация базы кладёт в `activeVisit` заготовку с нулевым UUID, когда
+	 * черновиков нет вовсе. Этот нулевой UUID уходил на сервер как visitId, и
+	 * касса получала «Прием для оплаты не найден»: сервер честно не находит
+	 * приём с таким идентификатором. Кнопка «Принять оплату» при этом была
+	 * доступна — кассир нажимал и не понимал, почему деньги не проходят.
+	 */
 	const realActiveVisitId =
 		dashboard?.activeVisit?.id &&
 		dashboard.activeVisit.id !== "00000000-0000-0000-0000-000000000000"
@@ -1160,6 +1258,13 @@ export function useAppLogic() {
 	} = schedule;
 
 	async function loadDashboard(options: { adminSecret?: string } = {}) {
+		// БЫЛО: защиты от гонки не было, а loadDashboard вызывается из 34 мест.
+		// Сценарий: загрузка при открытии экрана ещё идёт, врач сохраняет запись
+		// приёма — сохранение тоже вызывает loadDashboard и получает свежие данные,
+		// но МЕДЛЕННЫЙ первый ответ приходит последним и перезаписывает состояние
+		// данными ДО сохранения. Только что записанный приём исчезал с экрана
+		// до ручного обновления страницы.
+		// Применяем только ответ последнего по времени запроса.
 		const requestId = ++dashboardRequestSeqRef.current;
 		const isStaleResponse = () => requestId !== dashboardRequestSeqRef.current;
 		try {
@@ -1175,6 +1280,8 @@ export function useAppLogic() {
 				throw new WorkflowResponseError(message, response.status);
 			}
 			const payload = (await response.json()) as Dashboard;
+			// Пока ждали ответ, стартовал более свежий запрос — его результат
+			// актуальнее, этот молча игнорируем.
 			if (isStaleResponse()) return;
 			setDashboard(payload);
 			setAccessUnlockRequired(false);
@@ -1188,7 +1295,14 @@ export function useAppLogic() {
 				"error",
 			);
 			if (isStaleResponse()) return;
-			console.error("[Dente] Не удалось загрузить данные клиники:", err);
+			// БЫЛО: любая ошибка загрузки (обрыв сети, 401, 500) подменяла реальные
+			// данные клиники ВЫМЫШЛЕННЫМИ: «Демо Клиника DENTE» и пациент
+			// «Смирнов Алексей Петрович» с id "pat-1", который тут же выбирался
+			// активным. Врач мог диктовать приём в карту несуществующего человека.
+			// Кроме того, catch никогда не пробрасывал ошибку дальше, поэтому
+			// все .catch() у вызывающих (в том числе принудительный релогин при 401)
+			// были мёртвым кодом, и истёкшая сессия не приводила к повторному входу.
+			logger.error("[Dente] Не удалось загрузить данные клиники:", err);
 			const isAuthError =
 				err instanceof Error &&
 				/401|403|Требуется авторизация|Сессия истекла/i.test(err.message);
@@ -1202,6 +1316,14 @@ export function useAppLogic() {
 					"Не удалось загрузить данные клиники. Проверьте связь с сервером и повторите — введённые данные не потеряны.",
 				);
 			}
+			// Прежнее состояние НЕ затираем: пусть на экране останутся последние
+			// корректные данные, а не подделка.
+			//
+			// Ошибку намеренно НЕ пробрасываем: loadDashboard вызывается из 34 мест,
+			// часть — через `void loadDashboard()`, и бросок превратился бы в
+			// необработанные отклонения промисов. Вместо этого истёкшая сессия
+			// обрабатывается прямо здесь (setAccessUnlockRequired выше) — именно
+			// этого добивались внешние .catch(), которые раньше не срабатывали.
 		}
 		void loadPersistenceHealth({
 			silent: true,
@@ -1388,127 +1510,156 @@ export function useAppLogic() {
 		});
 	}
 
-	const reconcileDashboardScopedUiSelections = useCallback(() => {
-		if (!dashboard) return;
-		const doctorIds = new Set(
-			(dashboard?.clinicSettings?.staff || [])
-				.filter(
-					(member) =>
-						member.active &&
-						(member.role === "doctor" || member.role === "owner"),
-				)
-				.map((member) => member.id),
-		);
-		const assistantIds = new Set(
-			(dashboard?.clinicSettings?.staff || [])
-				.filter((member) => member.active && member.role === "assistant")
-				.map((member) => member.id),
-		);
-		const staffIds = new Set(
-			(dashboard?.clinicSettings?.staff || [])
-				.filter((member) => member.active)
-				.map((member) => member.id),
-		);
-		const chairIds = new Set(
-			(dashboard?.clinicSettings?.chairs || [])
-				.filter((chair) => chair.active)
-				.map((chair) => chair.id),
-		);
-		const protocolIds = new Set(
-			dashboard?.protocolTemplates?.map((template) => template.id),
-		);
-
-		if (selectedProtocolId && !protocolIds.has(selectedProtocolId))
-			setSelectedProtocolId(null);
-		if (scheduleDoctorFilterId && !doctorIds.has(scheduleDoctorFilterId))
-			setScheduleDoctorFilterId(null);
-		if (
-			scheduleAssistantFilterId &&
-			!assistantIds.has(scheduleAssistantFilterId)
-		)
-			setScheduleAssistantFilterId(null);
-		if (scheduleChairFilterId && !chairIds.has(scheduleChairFilterId))
-			setScheduleChairFilterId(null);
-		if (
-			scheduleDefaultDoctorUserId &&
-			!doctorIds.has(scheduleDefaultDoctorUserId)
-		)
-			setScheduleDefaultDoctorUserId(null);
-		if (
-			scheduleDefaultAssistantUserId &&
-			!assistantIds.has(scheduleDefaultAssistantUserId)
-		)
-			setScheduleDefaultAssistantUserId(null);
-		if (
-			scheduleDefaultChairId &&
-			!chairIds.has(scheduleDefaultChairId)
-		)
-			setScheduleDefaultChairId(null);
-		if (telegramLinkStaffId && !staffIds.has(telegramLinkStaffId))
-			setTelegramLinkStaffId("");
-	}, [dashboard, selectedProtocolId, setSelectedProtocolId, scheduleDoctorFilterId, setScheduleDoctorFilterId, scheduleAssistantFilterId, setScheduleAssistantFilterId, scheduleChairFilterId, setScheduleChairFilterId, scheduleDefaultDoctorUserId, setScheduleDefaultDoctorUserId, scheduleDefaultAssistantUserId, setScheduleDefaultAssistantUserId, scheduleDefaultChairId, setScheduleDefaultChairId, telegramLinkStaffId, setTelegramLinkStaffId]);
-
-	const saveClinicProfileFromDraft = useCallback(async (): Promise<boolean> => {
-		const payload = buildClinicProfileUpdatePayload(clinicProfileDraft);
-		const expectedSignature = clinicProfileDraftSignature(clinicProfileDraft);
-		if (!payload.clinicName?.trim()) {
-			setError("Укажите рабочее название клиники.");
-			setClinicProfileSaveState("error");
-			return false;
-		}
-		setClinicProfileSaveState("saving");
-		try {
-			const response = await fetch(clinicProfileEndpoint, {
-				method: "PUT",
-				headers: auth.settingsAccessHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(payload),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(response, "Профиль клиники не сохранен"),
-				);
-			const clinicSettings =
-				(await response.json()) as Dashboard["clinicSettings"];
-			setDashboard((current) =>
-				current
-					? {
-							...current,
-							clinicName: clinicSettings?.profile?.clinicName ?? "",
-							clinicSettings,
-						}
-					: current,
+	const reconcileDashboardScopedUiSelections = useCallback(
+		function reconcileDashboardScopedUiSelections() {
+			if (!dashboard) return;
+			const doctorIds = new Set(
+				(dashboard?.clinicSettings?.staff || [])
+					.filter(
+						(member) =>
+							member.active &&
+							(member.role === "doctor" || member.role === "owner"),
+					)
+					.map((member) => member.id),
 			);
-			const latestMatchesSaved =
-				clinicProfileDraftSignature(clinicProfileDraftRef.current) ===
-				expectedSignature;
-			if (latestMatchesSaved) {
-				setClinicProfileDraft(
-					clinicProfileDraftFromProfile(clinicSettings?.profile),
-				);
-				setClinicProfileDirty(false);
+			const assistantIds = new Set(
+				(dashboard?.clinicSettings?.staff || [])
+					.filter((member) => member.active && member.role === "assistant")
+					.map((member) => member.id),
+			);
+			const staffIds = new Set(
+				(dashboard?.clinicSettings?.staff || [])
+					.filter((member) => member.active)
+					.map((member) => member.id),
+			);
+			const chairIds = new Set(
+				(dashboard?.clinicSettings?.chairs || [])
+					.filter((chair) => chair.active)
+					.map((chair) => chair.id),
+			);
+			const protocolIds = new Set(
+				dashboard?.protocolTemplates?.map((template) => template.id),
+			);
+
+			if (selectedProtocolId && !protocolIds.has(selectedProtocolId))
+				setSelectedProtocolId(null);
+			if (scheduleDoctorFilterId && !doctorIds.has(scheduleDoctorFilterId))
+				setScheduleDoctorFilterId(null);
+			if (
+				scheduleAssistantFilterId &&
+				!assistantIds.has(scheduleAssistantFilterId)
+			)
+				setScheduleAssistantFilterId(null);
+			if (scheduleChairFilterId && !chairIds.has(scheduleChairFilterId))
+				setScheduleChairFilterId(null);
+			if (
+				scheduleDefaultDoctorUserId &&
+				!doctorIds.has(scheduleDefaultDoctorUserId)
+			)
+				setScheduleDefaultDoctorUserId(null);
+			if (
+				scheduleDefaultAssistantUserId &&
+				!assistantIds.has(scheduleDefaultAssistantUserId)
+			)
+				setScheduleDefaultAssistantUserId(null);
+			if (scheduleDefaultChairId && !chairIds.has(scheduleDefaultChairId))
+				setScheduleDefaultChairId(null);
+			if (telegramLinkStaffId && !staffIds.has(telegramLinkStaffId))
+				setTelegramLinkStaffId("");
+		},
+		[
+			dashboard,
+			setScheduleChairFilterId,
+			setScheduleDefaultDoctorUserId,
+			setScheduleDefaultAssistantUserId,
+			setScheduleDefaultChairId,
+			setTelegramLinkStaffId,
+			scheduleChairFilterId,
+			scheduleDefaultDoctorUserId,
+			scheduleDefaultAssistantUserId,
+			scheduleDefaultChairId,
+			telegramLinkStaffId,
+			setScheduleDoctorFilterId,
+			scheduleDoctorFilterId,
+			setSelectedProtocolId,
+			selectedProtocolId,
+			scheduleAssistantFilterId,
+			setScheduleAssistantFilterId,
+		],
+	);
+
+	const saveClinicProfileFromDraft = useCallback(
+		async function saveClinicProfileFromDraft(): Promise<boolean> {
+			const payload = buildClinicProfileUpdatePayload(clinicProfileDraft);
+			const expectedSignature = clinicProfileDraftSignature(clinicProfileDraft);
+			if (!payload.clinicName?.trim()) {
+				setError("Укажите рабочее название клиники.");
+				setClinicProfileSaveState("error");
+				return false;
 			}
-			setClinicProfileSaveState(latestMatchesSaved ? "saved" : "idle");
-			setError(null);
-			return true;
-		} catch (saveError) {
-			showToast(
-				actionFailureToast(
+			setClinicProfileSaveState("saving");
+			try {
+				const response = await fetch(clinicProfileEndpoint, {
+					method: "PUT",
+					headers: auth.settingsAccessHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify(payload),
+				});
+				if (!response.ok)
+					throw new Error(
+						await responseErrorMessage(response, "Профиль клиники не сохранен"),
+					);
+				const clinicSettings =
+					(await response.json()) as Dashboard["clinicSettings"];
+				setDashboard((current) =>
+					current
+						? {
+								...current,
+								clinicName: clinicSettings?.profile?.clinicName ?? "",
+								clinicSettings,
+							}
+						: current,
+				);
+				const latestMatchesSaved =
+					clinicProfileDraftSignature(clinicProfileDraftRef.current) ===
+					expectedSignature;
+				if (latestMatchesSaved) {
+					setClinicProfileDraft(
+						clinicProfileDraftFromProfile(clinicSettings?.profile),
+					);
+					setClinicProfileDirty(false);
+				}
+				setClinicProfileSaveState(latestMatchesSaved ? "saved" : "idle");
+				setError(null);
+				return true;
+			} catch (saveError) {
+				showToast(
+					actionFailureToast(
+						"Профиль клиники не сохранен",
+						(saveError as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
+				const message = operatorWorkflowFailureMessage(
 					"Профиль клиники не сохранен",
-					(saveError as { status?: number })?.status ?? null,
-				),
-				"error",
-			);
-			const message = operatorWorkflowFailureMessage(
-				"Профиль клиники не сохранен",
-				saveError,
-			);
-			setClinicProfileSaveState("error");
-			setError(message);
-			return false;
-		}
-	}, [clinicProfileDraft, auth, setClinicProfileSaveState, setDashboard, setClinicProfileDraft, setClinicProfileDirty, setError]);
+					saveError,
+				);
+				setClinicProfileSaveState("error");
+				setError(message);
+				return false;
+			}
+		},
+		[
+			clinicProfileDraft,
+			auth,
+			setClinicProfileDraft,
+			setError,
+			setClinicProfileSaveState,
+			setDashboard,
+			setClinicProfileDirty,
+		],
+	);
 
 	async function saveClinicProfileIfDirty(): Promise<boolean> {
 		if (!clinicProfileDirty) return true;
@@ -1664,7 +1815,7 @@ export function useAppLogic() {
 		return false;
 	}
 
-	const currentUiPreferencesInput = useCallback((): UiPreferencesInput => {
+	function currentUiPreferencesInput(): UiPreferencesInput {
 		return {
 			uiLanguage,
 			selectedWorkspaceRole,
@@ -1712,9 +1863,9 @@ export function useAppLogic() {
 			onboardingStep,
 			onboardingDraftMode,
 		};
-	}, [uiLanguage, selectedWorkspaceRole, selectedSpecialty, selectedProtocolId, selectedPatientId, scheduleDoctorFilterId, scheduleAssistantFilterId, scheduleChairFilterId, scheduleDefaultDoctorUserId, scheduleDefaultAssistantUserId, scheduleDefaultChairId, scheduleStatusFilter, scheduleDateFilter, paymentMethod, taxDocumentYear, selectedDocumentKind, taxApplicationForm, taxApplicationDeliveryChannel, paymentReceiptTaxSupportRequested, documentIssueSignatureMode, documentIssueStaffFullName, documentIssueStaffRole, procedureConsentProcedureType, postVisitCareTopic, pricelistSourceKind, usePricelistAi, odontogramUseSurfaces, recognitionKind, recognitionTarget, importSourceKind, documentIngestionTarget, imagingImportSourceKind, smartImportMode, imagingKindFilter, dicomWebEndpointUrl, ohifBaseUrl, telegramBotConfigId, telegramLinkSubjectType, telegramLinkStaffId, telegramOutboxStatusFilter, telegramOutboxTemplateFilter, onboardingDismissed, onboardingDismissedAt, onboardingStep, onboardingDraftMode]);
+	}
 
-	const clearUiPreferencesRetryTimer = useCallback((): void => {
+	function clearUiPreferencesRetryTimer(): void {
 		if (
 			typeof window === "undefined" ||
 			uiPreferencesRetryTimerRef.current === null
@@ -1722,82 +1873,64 @@ export function useAppLogic() {
 			return;
 		window.clearTimeout(uiPreferencesRetryTimerRef.current);
 		uiPreferencesRetryTimerRef.current = null;
-	}, []);
+	}
 
-	const flushPendingUiPreferencesServerSync = useCallback(
-		async function flushSync(): Promise<void> {
-			if (
-				!settingsAdminSecretSession.trim() ||
-				!uiPreferencesServerReadyRef.current ||
-				uiPreferencesSyncInFlightRef.current
-			)
-				return;
-			const preferences = pendingUiPreferencesSyncRef.current;
-			if (!preferences) return;
-			pendingUiPreferencesSyncRef.current = null;
-			uiPreferencesSyncInFlightRef.current = true;
-			try {
-				await saveServerUiPreferences(preferences, settingsAdminSecretSession);
-				if (!pendingUiPreferencesSyncRef.current)
-					setUiPreferencesSyncError(null);
-			} catch (preferencesError) {
-				showToast(
-					actionFailureToast(
-						"Ошибка выполнения операции",
-						(preferencesError as { status?: number })?.status ?? null,
-					),
-					"error",
-				);
-				if (!pendingUiPreferencesSyncRef.current)
-					pendingUiPreferencesSyncRef.current = preferences;
-				setUiPreferencesSyncError(
-					uiPreferencesSyncErrorMessage(preferencesError),
-				);
-			} finally {
-				uiPreferencesSyncInFlightRef.current = false;
-				const pending = pendingUiPreferencesSyncRef.current;
-				if (pending) {
-					clearUiPreferencesRetryTimer();
-					uiPreferencesRetryTimerRef.current = window.setTimeout(
-						() => {
-							uiPreferencesRetryTimerRef.current = null;
-							void flushSync();
-						},
-						pending.savedAt === preferences.savedAt ? 5000 : 0,
-					);
-				}
-			}
-		},
-		[
-			settingsAdminSecretSession,
-			clearUiPreferencesRetryTimer,
-			setUiPreferencesSyncError,
-		],
-	);
+	function queueUiPreferencesServerSync(
+		preferences: UiPreferences,
+		options: { delayMs?: number } = {},
+	): void {
+		pendingUiPreferencesSyncRef.current = preferences;
+		if (
+			!settingsAdminSecretSession.trim() ||
+			!uiPreferencesServerReadyRef.current ||
+			uiPreferencesSyncInFlightRef.current ||
+			typeof window === "undefined"
+		) {
+			return;
+		}
+		clearUiPreferencesRetryTimer();
+		uiPreferencesRetryTimerRef.current = window.setTimeout(() => {
+			uiPreferencesRetryTimerRef.current = null;
+			void flushPendingUiPreferencesServerSync();
+		}, options.delayMs ?? 600);
+	}
 
-	const queueUiPreferencesServerSync = useCallback(
-		(preferences: UiPreferences, options: { delayMs?: number } = {}): void => {
-			pendingUiPreferencesSyncRef.current = preferences;
-			if (
-				!settingsAdminSecretSession.trim() ||
-				!uiPreferencesServerReadyRef.current ||
-				uiPreferencesSyncInFlightRef.current ||
-				typeof window === "undefined"
-			) {
-				return;
-			}
-			clearUiPreferencesRetryTimer();
-			uiPreferencesRetryTimerRef.current = window.setTimeout(() => {
-				uiPreferencesRetryTimerRef.current = null;
-				void flushPendingUiPreferencesServerSync();
-			}, options.delayMs ?? 600);
-		},
-		[
-			clearUiPreferencesRetryTimer,
-			settingsAdminSecretSession,
-			flushPendingUiPreferencesServerSync,
-		],
-	);
+	async function flushPendingUiPreferencesServerSync(): Promise<void> {
+		if (
+			!settingsAdminSecretSession.trim() ||
+			!uiPreferencesServerReadyRef.current ||
+			uiPreferencesSyncInFlightRef.current
+		)
+			return;
+		const preferences = pendingUiPreferencesSyncRef.current;
+		if (!preferences) return;
+		pendingUiPreferencesSyncRef.current = null;
+		uiPreferencesSyncInFlightRef.current = true;
+		try {
+			await saveServerUiPreferences(preferences, settingsAdminSecretSession);
+			if (!pendingUiPreferencesSyncRef.current) setUiPreferencesSyncError(null);
+		} catch (preferencesError) {
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(preferencesError as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
+			if (!pendingUiPreferencesSyncRef.current)
+				pendingUiPreferencesSyncRef.current = preferences;
+			setUiPreferencesSyncError(
+				uiPreferencesSyncErrorMessage(preferencesError),
+			);
+		} finally {
+			uiPreferencesSyncInFlightRef.current = false;
+			const pending = pendingUiPreferencesSyncRef.current;
+			if (pending)
+				queueUiPreferencesServerSync(pending, {
+					delayMs: pending.savedAt === preferences.savedAt ? 5000 : 0,
+				});
+		}
+	}
 
 	async function dismissOnboarding() {
 		if (!assertOnboardingReadyForFinish()) return;
@@ -1953,41 +2086,48 @@ export function useAppLogic() {
 		window.location.hash = "settings/clinic";
 	}
 
-	const loadPersistenceHealth = useCallback(async (
-		options: { silent?: boolean; adminSecret?: string | undefined } = {},
-	) => {
-		try {
-			const response = await fetch("/api/system/persistence/verify", {
-				cache: "no-store",
-				headers: auth.denteClinicalReadHeaders({}, options.adminSecret),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(response, "Проверка сервера не выполнена"),
-				);
-			const report = (await response.json()) as PersistenceIntegrityReport & {
-				meta?: PersistenceHealth;
-			};
-			setPersistenceIntegrity(report);
-			setPersistenceHealth(normalizePersistenceHealth(report));
-		} catch (healthError) {
-			showToast(
-				actionFailureToast(
-					"Статус сохранности недоступен",
-					(healthError as { status?: number })?.status ?? null,
-				),
-				"error",
-			);
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
+	const loadPersistenceHealth = useCallback(
+		async function loadPersistenceHealth(
+			options: { silent?: boolean; adminSecret?: string | undefined } = {},
+		) {
+			try {
+				const response = await fetch("/api/system/persistence/verify", {
+					cache: "no-store",
+					headers: auth.denteClinicalReadHeaders({}, options.adminSecret),
+				});
+				if (!response.ok)
+					throw new Error(
+						await responseErrorMessage(
+							response,
+							"Проверка сервера не выполнена",
+						),
+					);
+				const report = (await response.json()) as PersistenceIntegrityReport & {
+					meta?: PersistenceHealth;
+				};
+				setPersistenceIntegrity(report);
+				setPersistenceHealth(normalizePersistenceHealth(report));
+			} catch (healthError) {
+				showToast(
+					actionFailureToast(
 						"Статус сохранности недоступен",
-						healthError,
+						(healthError as { status?: number })?.status ?? null,
 					),
+					"error",
 				);
+				if (!options.silent) {
+					setError(
+						operatorWorkflowFailureMessage(
+							"Статус сохранности недоступен",
+							healthError,
+						),
+					);
+				}
 			}
-		}
-	}, [auth, setError, setPersistenceHealth, setPersistenceIntegrity]);
+			// biome-ignore lint/correctness/useExhaustiveDependencies: Zustand setters are stable; auth is stable object
+		},
+		[auth, setError, setPersistenceIntegrity, setPersistenceHealth],
+	);
 
 	async function loadPersistenceIntegrity(options: { silent?: boolean } = {}) {
 		try {
@@ -2076,27 +2216,32 @@ export function useAppLogic() {
 		}
 	}
 
-	const refreshBrowserContinuity = useCallback(async (options: { silent?: boolean } = {}) => {
-		try {
-			setBrowserContinuity(await inspectBrowserContinuity());
-		} catch (continuityError) {
-			showToast(
-				actionFailureToast(
-					"Ошибка выполнения операции",
-					(continuityError as { status?: number })?.status ?? null,
-				),
-				"error",
-			);
-			if (!options.silent) {
-				setError(
-					browserCapabilityFailureMessage(
-						"Проверка сохранности браузера не выполнена",
-						continuityError,
+	const refreshBrowserContinuity = useCallback(
+		async function refreshBrowserContinuity(
+			options: { silent?: boolean } = {},
+		) {
+			try {
+				setBrowserContinuity(await inspectBrowserContinuity());
+			} catch (continuityError) {
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(continuityError as { status?: number })?.status ?? null,
 					),
+					"error",
 				);
+				if (!options.silent) {
+					setError(
+						browserCapabilityFailureMessage(
+							"Проверка сохранности браузера не выполнена",
+							continuityError,
+						),
+					);
+				}
 			}
-		}
-	}, [setBrowserContinuity, setError]);
+		},
+		[setError, setBrowserContinuity],
+	);
 
 	async function _loadLocalBridgeReadiness(options: { silent?: boolean } = {}) {
 		try {
@@ -2133,40 +2278,43 @@ export function useAppLogic() {
 		}
 	}
 
-	const loadLocalBridgeUsePlans = useCallback(async (options: { silent?: boolean } = {}) => {
-		try {
-			const response = await fetch("/api/system/local-bridges/use-plans", {
-				cache: "no-store",
-				headers: auth.denteClinicalReadHeaders(),
-			});
-			if (!response.ok)
-				throw new Error(
-					await responseErrorMessage(
-						response,
+	const loadLocalBridgeUsePlans = useCallback(
+		async function loadLocalBridgeUsePlans(options: { silent?: boolean } = {}) {
+			try {
+				const response = await fetch("/api/system/local-bridges/use-plans", {
+					cache: "no-store",
+					headers: auth.denteClinicalReadHeaders(),
+				});
+				if (!response.ok)
+					throw new Error(
+						await responseErrorMessage(
+							response,
+							"План локального модуля недоступен",
+						),
+					);
+				const payload = (await response.json()) as LocalBridgeUsePlansResponse;
+				setLocalBridgeUsePlans(payload);
+				setLocalBridgeReadiness(payload.readiness);
+			} catch (planError) {
+				showToast(
+					actionFailureToast(
 						"План локального модуля недоступен",
+						(planError as { status?: number })?.status ?? null,
 					),
+					"error",
 				);
-			const payload = (await response.json()) as LocalBridgeUsePlansResponse;
-			setLocalBridgeUsePlans(payload);
-			setLocalBridgeReadiness(payload.readiness);
-		} catch (planError) {
-			showToast(
-				actionFailureToast(
-					"План локального модуля недоступен",
-					(planError as { status?: number })?.status ?? null,
-				),
-				"error",
-			);
-			if (!options.silent) {
-				setError(
-					operatorWorkflowFailureMessage(
-						"План локального модуля недоступен",
-						planError,
-					),
-				);
+				if (!options.silent) {
+					setError(
+						operatorWorkflowFailureMessage(
+							"План локального модуля недоступен",
+							planError,
+						),
+					);
+				}
 			}
-		}
-	}, [auth, setError, setLocalBridgeReadiness, setLocalBridgeUsePlans]);
+		},
+		[auth, setLocalBridgeUsePlans, setLocalBridgeReadiness, setError],
+	);
 
 	async function requestBrowserStoragePersistence() {
 		if (
@@ -2202,6 +2350,7 @@ export function useAppLogic() {
 		}
 	}
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: safe
 	const applyUiPreferences = useCallback((preferences: UiPreferences) => {
 		setUiLanguage(preferences.uiLanguage);
 		setSelectedWorkspaceRole(preferences.selectedWorkspaceRole);
@@ -2252,8 +2401,9 @@ export function useAppLogic() {
 		setTelegramLinkStaffId(preferences.telegramLinkStaffId ?? "");
 		setTelegramOutboxStatusFilter(preferences.telegramOutboxStatusFilter);
 		setTelegramOutboxTemplateFilter(preferences.telegramOutboxTemplateFilter);
-	}, [setUiLanguage, setSelectedWorkspaceRole, setSelectedSpecialty, setSelectedProtocolId, setSelectedPatientId, setScheduleDoctorFilterId, setScheduleAssistantFilterId, setScheduleChairFilterId, setScheduleDefaultDoctorUserId, setScheduleDefaultAssistantUserId, setScheduleDefaultChairId, setScheduleStatusFilter, setScheduleDateFilter, setOnboardingDismissed, setOnboardingDismissedAt, setOnboardingStep, setOnboardingDraftMode, setPaymentMethod, setTaxDocumentYear, setSelectedDocumentKind, setTaxApplicationForm, setTaxApplicationDeliveryChannel, setPaymentReceiptTaxSupportRequested, setDocumentIssueSignatureMode, setDocumentIssueStaffFullName, setDocumentIssueStaffRole, setProcedureConsentProcedureType, setPostVisitCareTopic, setPricelistSourceKind, setUsePricelistAi, setOdontogramUseSurfaces, setRecognitionKind, setRecognitionTarget, setImportSourceKind, setDocumentIngestionTarget, setImagingImportSourceKind, setSmartImportMode, setImagingKindFilter, setDicomWebEndpointUrl, setOhifBaseUrl, setTelegramBotConfigId, setTelegramLinkSubjectType, setTelegramLinkStaffId, setTelegramOutboxStatusFilter, setTelegramOutboxTemplateFilter]);
+	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: applyUiPreferences/queueUiPreferencesServerSync are plain functions recreated each render; listing them causes infinite re-run
 	useEffect(() => {
 		let cancelled = false;
 		const preferencesAccessSecret = settingsAdminSecretSession.trim();
@@ -2312,11 +2462,39 @@ export function useAppLogic() {
 	}, [
 		settingsAdminSecretSession,
 		setUiPreferencesHydrated,
-		queueUiPreferencesServerSync,
 		setUiPreferencesSyncError,
-		applyUiPreferences,
 	]);
 
+	/*
+	 * Отметка об открытии карточки пациента.
+	 *
+	 * Виджет «Недавние» в шапке рабочего места читал таблицу
+	 * recent_patient_history, в которую не писал никто и никогда: ни одной
+	 * вставки во всём сервере, ноль строк в живой базе. Каждому пользователю
+	 * каждый день показывалось «История просмотров пуста», и выглядело это как
+	 * «функция есть, просто ещё не накопилось».
+	 *
+	 * Отметка ставится здесь, а не в обработчиках нажатий: карточка выбирается
+	 * из списка, из поиска, из задачи, из расписания и из самого виджета —
+	 * пришлось бы дописывать пять мест и забыть шестое. Смена selectedPatientId
+	 * — единственное общее событие.
+	 *
+	 * Ошибка запроса намеренно проглатывается: история просмотров не стоит
+	 * того, чтобы мешать врачу работать сообщением о сбое.
+	 */
+	/*
+	 * Набор включённых модулей читается с сервера при запуске.
+	 *
+	 * loadWorkspaceProfile() в собственном комментарии заявлена «used in App
+	 * startup» — и её не звал НИКТО. Из-за этого набор модулей жил только в
+	 * localStorage браузера: на втором устройстве, в другом браузере и у второго
+	 * сотрудника клиника получала все модули включёнными, а выбор владельца никуда
+	 * не доходил. Вместе с тем, что сервер до миграции 0139 отдавал константу и не
+	 * сохранял ничего, вся модульность держалась на одном лишь localStorage.
+	 *
+	 * Запрос уходит один раз за сеанс, после загрузки рабочей смены: до неё нет ни
+	 * токена сотрудника, ни организации.
+	 */
 	useEffect(() => {
 		if (!dashboard || workspaceProfileLoadedRef.current) return;
 		workspaceProfileLoadedRef.current = true;
@@ -2346,7 +2524,7 @@ export function useAppLogic() {
 					"error",
 				);
 			});
-	}, [selectedPatientId, dashboard, auth]);
+	}, [selectedPatientId, dashboard, auth.denteClinicalMutationHeaders]);
 
 	useEffect(() => {
 		const organizationId =
@@ -2383,6 +2561,7 @@ export function useAppLogic() {
 		setOnboardingDismissed,
 	]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: currentUiPreferencesInput/queueUiPreferencesServerSync are plain closures over component state; they are intentionally excluded to prevent infinite re-render loops
 	useEffect(() => {
 		if (!uiPreferencesHydrated) return undefined;
 		const savedPreferences = saveUiPreferences(currentUiPreferencesInput());
@@ -2394,13 +2573,9 @@ export function useAppLogic() {
 		}
 		queueUiPreferencesServerSync(savedPreferences, { delayMs: 600 });
 		return undefined;
-	}, [
-		uiPreferencesHydrated,
-		setUiPreferencesSyncError,
-		queueUiPreferencesServerSync,
-		currentUiPreferencesInput,
-	]);
+	}, [uiPreferencesHydrated, setUiPreferencesSyncError]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: clearUiPreferencesRetryTimer is a plain function (uses only refs); including it causes infinite re-render
 	useEffect(() => {
 		if (typeof window === "undefined") return undefined;
 		const retryPendingUiPreferences = () => {
@@ -2414,7 +2589,7 @@ export function useAppLogic() {
 			window.removeEventListener("online", retryPendingUiPreferences);
 			clearUiPreferencesRetryTimer();
 		};
-	}, [clearUiPreferencesRetryTimer, queueUiPreferencesServerSync]);
+	}, []);
 
 	const imagingPreviewWorkset = useMemo(() => {
 		if (currentView !== "imaging" || !dashboard?.imagingStudies?.length)
@@ -2538,7 +2713,9 @@ export function useAppLogic() {
 		};
 	}, [
 		imagingPreviewWorkset,
-		auth,
+		auth.revokeObjectUrlIfNeeded,
+		auth.denteClinicalReadHeaders,
+		auth.revokeObjectUrlMap,
 	]);
 
 	useEffect(() => {
@@ -2595,9 +2772,16 @@ export function useAppLogic() {
 		});
 	}, [dashboard, setAppointmentScheduleDrafts]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: global action without stale state
 	useEffect(() => {
 		reconcileDashboardScopedUiSelections();
-	}, [reconcileDashboardScopedUiSelections]);
+	}, []);
+
+	const newAppointmentPreferenceDefaultsRef = useRef(
+		newAppointmentPreferenceDefaults,
+	);
+	newAppointmentPreferenceDefaultsRef.current =
+		newAppointmentPreferenceDefaults;
 
 	useEffect(() => {
 		if (!dashboard) return;
@@ -2605,10 +2789,10 @@ export function useAppLogic() {
 		setNewAppointmentDraft(
 			newAppointmentDraftFromDashboard(
 				dashboard,
-				newAppointmentPreferenceDefaults(),
+				newAppointmentPreferenceDefaultsRef.current(),
 			),
 		);
-	}, [dashboard, newAppointmentPreferenceDefaults, setNewAppointmentDraft]);
+	}, [dashboard, setNewAppointmentDraft]);
 
 	useEffect(() => {
 		staffScheduleDraftsRef.current = staffScheduleDrafts;
@@ -2733,6 +2917,7 @@ export function useAppLogic() {
 		saveStaffSchedule,
 	]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: global action without stale state
 	useEffect(() => {
 		if (
 			!dashboard ||
@@ -2751,7 +2936,6 @@ export function useAppLogic() {
 		clinicProfileDirty,
 		clinicProfileSaveState,
 		dashboard,
-		saveClinicProfileFromDraft,
 	]);
 
 	useEffect(() => {
@@ -2795,11 +2979,12 @@ export function useAppLogic() {
 		return () => {
 			cancelled = true;
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		activeOrganizationId,
-		applyDicomWorkbenchManifest,
-		loadDicomWorkbenchBundles,
 		setDicomWorkbenchLocalSavedAt,
+		loadDicomWorkbenchBundles,
+		applyDicomWorkbenchManifest,
 	]);
 
 	useEffect(() => {
@@ -2823,19 +3008,14 @@ export function useAppLogic() {
 		setBrowserPickedImagingFolder,
 	]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: global action without stale state
 	useEffect(() => {
 		if (currentView === "settings" && settingsTab === "audit") {
 			void loadPersistenceHealth({ silent: true });
 			void refreshBrowserContinuity({ silent: true });
 			void loadLocalBridgeUsePlans({ silent: true });
 		}
-	}, [
-		currentView,
-		settingsTab,
-		refreshBrowserContinuity,
-		loadPersistenceHealth,
-		loadLocalBridgeUsePlans,
-	]);
+	}, [currentView, settingsTab]);
 
 	useEffect(() => {
 		if (currentView === "settings") {
@@ -2864,12 +3044,18 @@ export function useAppLogic() {
 	}, [setSettingsTab, setCurrentView]);
 
 	useEffect(() => {
+		/*
+		 * Здесь БОЛЬШЕ НЕ ОХРАННИК — решение о том, что рисовать, принято выше при
+		 * рендере, и запрещённый раздел уже не смонтирован. Остаётся привести к
+		 * этому решению хранилище и адрес: иначе в строке браузера висел бы #visit
+		 * при открытой «Смене», и следующая перезагрузка снова целилась бы в
+		 * закрытый роли раздел. Проверка на равенство обязательна: без неё
+		 * setCurrentView() на каждом проходе перезапускал бы этот же эффект.
+		 */
 		if (requestedWorkspaceView === currentView) return;
 		setCurrentView(currentView);
 		window.location.hash = currentView;
 	}, [requestedWorkspaceView, currentView, setCurrentView]);
-
-	useEffect(() => scheduleIdleWorkspacePreload(currentView), [currentView]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -2949,7 +3135,24 @@ export function useAppLogic() {
 		let cancelled = false;
 		visitDraftUserEditedRef.current = false;
 		setLocalAutosaveReady(false);
+		// Отметки зубов и ИИ-диагнозы относятся к КОНКРЕТНОМУ приёму. Без сброса
+		// они переносились на следующего пациента (см. resetVisitToothState).
 		resetVisitToothState();
+		/*
+		 * ЧЕРНОВИК В ПАМЯТИ БРАУЗЕРА ПРИНАДЛЕЖИТ КОНКРЕТНОМУ ПРИЁМУ, А НЕ «ЛЮБОМУ».
+		 *
+		 * Сводка теперь честно отвечает `activeVisit: null`, когда в клинике не
+		 * открыт ни один приём (`dashboardSchema.activeVisit` — `visitSchema.nullable()`).
+		 * До этого сервер подставлял заготовку с нулевым идентификатором, и черновик
+		 * врача сохранялся в памяти браузера под ключом этого несуществующего приёма,
+		 * а затем восстанавливался в СЛЕДУЮЩИЙ открытый приём: ключ у всех «приёмов,
+		 * которых нет», один и тот же. Продиктованное про одного человека всплывало в
+		 * записи другого.
+		 *
+		 * Раннего выхода здесь НЕТ намеренно: ветка `else` ниже очищает поля ЭМК от
+		 * предыдущего приёма (`visitNoteFormFromVisit` на `null` даёт пустую форму).
+		 * Выйти сразу значило бы оставить на экране текст закрытого приёма.
+		 */
 		const openVisitId = dashboard.activeVisit?.id ?? null;
 		const savedDraft = openVisitId
 			? loadVisitLocalDraft(openVisitId, activeOrganizationId)
@@ -3028,18 +3231,21 @@ export function useAppLogic() {
 		setLastServerDraftSavedAt,
 		setSelectedSpecialty,
 		setLocalDraftWasRestored,
-		visitDraftUserEditedRef,
 		visitDraftSignature,
-		setLastLocalSavedAt,
+		setLastLocalSavedAt, // Отметки зубов и ИИ-диагнозы относятся к КОНКРЕТНОМУ приёму. Без сброса
+		// они переносились на следующего пациента (см. resetVisitToothState).
 		resetVisitToothState,
 		loadServerVisitDraft,
 		dashboard?.activeVisit,
 		setServerDraftSyncState,
+		visitDraftUserEditedRef,
 		dashboard,
 		setLocalAutosaveReady,
 	]);
 
 	useEffect(() => {
+		// Приёма нет — сохранять черновик некуда. Раньше он уходил под ключ
+		// несуществующего приёма и всплывал у следующего пациента.
 		const openVisitId = dashboard?.activeVisit?.id;
 		if (!dashboard || !localAutosaveReady || !openVisitId) return;
 		const savedAt = new Date().toISOString();
@@ -3301,7 +3507,7 @@ export function useAppLogic() {
 		}
 		setIsClinicalRuleSaving(true);
 		try {
-			const response = await fetch("/api/settings/clinical-rules", {
+			const response = await fetch("/api/clinical/rules", {
 				method: "POST",
 				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",
@@ -3313,11 +3519,20 @@ export function useAppLogic() {
 					ownerRole: newRuleOwnerRole || undefined,
 					specialty: newRuleSpecialty || undefined,
 					category: newRuleCategory || undefined,
-					triggerServiceId: newRuleTriggerServiceId || undefined,
-					requiredServiceId: newRuleRequiredServiceId || undefined,
-					completedServiceId: newRuleCompletedServiceId || undefined,
-					blockedServiceId: newRuleBlockedServiceId || undefined,
+					triggerServiceIds: newRuleTriggerServiceId
+						? [newRuleTriggerServiceId]
+						: [],
+					requiredServiceIds: newRuleRequiredServiceId
+						? [newRuleRequiredServiceId]
+						: [],
+					requiresCompletedServiceIds: newRuleCompletedServiceId
+						? [newRuleCompletedServiceId]
+						: [],
+					blockedServiceIds: newRuleBlockedServiceId
+						? [newRuleBlockedServiceId]
+						: [],
 					warningText: newRuleWarningText.trim() || undefined,
+					patientText: newRulePatientText?.trim() || "",
 				}),
 			});
 			if (!response.ok) {
@@ -3397,6 +3612,23 @@ export function useAppLogic() {
 						kind === "cbct" || kind === "opg" || kind === "ceph"
 							? "Импорт КТ/снимков"
 							: "Локальный RVG-датчик",
+					/*
+					 * ЗДЕСЬ ЗАПИСЫВАЛОСЬ ПОДЛОЖНОЕ ЗАКЛЮЧЕНИЕ ИИ.
+					 * В aiSummary клали строку «Черновик: снимок добавлен в карту.
+					 * Описание требует проверки врача». Весь экран «Снимки» считает
+					 * непустой aiSummary признаком состоявшегося разбора: загорается
+					 * бейдж «AI» с подсказкой «Есть AI-заключение ShadowAnalyst»,
+					 * раскрывается панель «ShadowAnalyst · AI Expert», и в разделе
+					 * «Заключение» стоит эта служебная фраза. Кнопка разбора при этом
+					 * меняется с «AI-Диагностика» на «Обновить анализ».
+					 *
+					 * То есть снимок, которого никто не смотрел, помечался как
+					 * имеющий заключение искусственного интеллекта. Настоящий разбор в
+					 * проекте есть — apps/api/src/ai/visionAnalyzer.ts, две модели с
+					 * перекрёстной проверкой, — тем важнее не путать его с заглушкой.
+					 *
+					 * Поле не заполняется: заключение появляется только после разбора.
+					 */
 				}),
 			});
 			if (!response.ok) {
@@ -3478,6 +3710,12 @@ export function useAppLogic() {
 		) ?? dashboard?.shiftIntelligence?.roleQueues?.[0];
 	const activeRoleWritableSections = activeRolePolicy?.canWrite ?? [];
 	const activeRoleRestrictedSections = activeRolePolicy?.restricted ?? [];
+	/**
+	 * Роли, которые в клинике никто не занимает. Владелец соло-практики сам себе
+	 * и врач, и администратор: если такие дела спрятать «не по его роли», он их
+	 * не увидит вообще — сделать их некому. Поэтому владелец получает дела всех
+	 * незанятых ролей вдобавок к своим.
+	 */
 	const uncoveredStaffRoles = useMemo(() => {
 		const covered = new Set(
 			(dashboard?.clinicSettings?.staff ?? [])
@@ -3529,9 +3767,11 @@ export function useAppLogic() {
 	const onboardingReadyToFinish = onboardingFirstAppointmentIssues.length === 0;
 	const onboardingDocumentsReady =
 		onboardingDocumentReadinessIssues.length === 0;
-	const newStaffReadyToCreate =
+	// Флаг «готово к созданию» дополнительно учитывает выполняющийся запрос,
+	// поэтому кнопки гаснут сразу после первого нажатия, а не после ответа сервера.
+	const _newStaffReadyToCreate =
 		newStaffName.trim().length > 0 && !isStaffCreating;
-	const newChairReadyToCreate =
+	const _newChairReadyToCreate =
 		newChairName.trim().length > 0 && !isChairCreating;
 	const onboardingStaffCreateGuidanceId = "onboarding-staff-create-guidance";
 	const onboardingChairCreateGuidanceId = "onboarding-chair-create-guidance";
@@ -3597,6 +3837,7 @@ export function useAppLogic() {
 				patientId: string;
 				appointmentId: string;
 			};
+			// Select the patient and navigate to visit
 			setSelectedPatientId(patientId);
 			await loadDashboard();
 			window.location.hash = "visit";
@@ -3626,6 +3867,24 @@ export function useAppLogic() {
 		...telegram,
 		telegram,
 		...auth,
+		/*
+		 * auth отдаётся ещё и целиком, отдельным полем.
+		 *
+		 * Выше он разложен через `...auth`, поэтому denteClinicalReadHeaders и
+		 * соседние функции лежали в контексте по верхнему уровню — а поля `auth`
+		 * не было вовсе. При этом 31 файл достаёт из контекста именно его:
+		 * `const { auth } = useAppLogicContext()`. Большинство прикрывалось
+		 * проверкой `auth ? auth.denteClinicalReadHeaders() : {}` и молча уходило
+		 * на сервер БЕЗ заголовков клиники, полагаясь на общую обёртку fetch.
+		 * Те, кто проверку не поставил, падали: ScannerView.tsx:102 и
+		 * LandingFieldMappingsWidget.tsx:20 звали auth.denteClinicalReadHeaders()
+		 * напрямую.
+		 *
+		 * Поймано обходом разделов после того, как «Стерилизация» появилась в
+		 * списке проверяемых: экран открывался, но дважды писал в консоль
+		 * «Cannot read properties of undefined (reading
+		 * 'denteClinicalReadHeaders')», и журнал автоклава не загружался.
+		 */
 		auth,
 		acceptDraftToVisit,
 		activeAppointment,
@@ -3809,6 +4068,7 @@ export function useAppLogic() {
 		isDicomRenderCachePlanning,
 		isDicomSeriesPreviewLoading,
 		isDicomToolStateBuilding,
+		isDicomWebChecking,
 		isDicomWorkbenchBuilding,
 		isDicomWorkbenchReconnecting,
 		isDicomWorkbenchServerSaving,
@@ -3907,8 +4167,6 @@ export function useAppLogic() {
 		newChairHasSurgeryKit,
 		newChairHasXraySensor,
 		newChairName,
-		newChairReadyToCreate,
-		isChairCreating,
 		newRuleAction,
 		newRuleBlockedServiceId,
 		newRuleCategory,
@@ -3921,8 +4179,6 @@ export function useAppLogic() {
 		newRuleTriggerServiceId,
 		newRuleWarningText,
 		newStaffName,
-		newStaffReadyToCreate,
-		isStaffCreating,
 		newStaffRole,
 		newStaffSpecialty,
 		nextOnboardingStep,
@@ -4009,7 +4265,7 @@ export function useAppLogic() {
 		policyAuditEventLabels,
 		polishTranscript,
 		postVisitCareTopicOptions,
-		preloadWorkspaceView,
+
 		previousOnboardingStep,
 		pricelistAnalysis,
 		pricelistImageBase64,
@@ -4330,5 +4586,117 @@ export function useAppLogic() {
 		loadDashboard,
 		operatorWorkflowFailureMessage,
 		...clinicalVisitLogic,
+		...staffSettingsLogic,
+		...patientIntakeLogic,
+		...migrationQueries,
+		...imagingQueries,
+		...communicationsQueries,
+		activeCommunicationTasks: null,
+		activeImagingStudies: null,
+		activePayments,
+		activeTreatmentPlanItems,
+		addImagingViewerNoteAnnotation: null,
+		address: documentPatient?.administrativeProfile?.registrationAddress ?? "",
+		analyzePricelist: null,
+		applyCtPlanningQuickAction: null,
+		applyMprClinicalPreset: null,
+		applyNearestMprClinicalPreset: null,
+		applyProtocolTemplate: null,
+		applyProtocolTemplateDirectly: null,
+		assembleSpeechRecording: async () => {},
+		attachPricelistImage: null,
+		browserCanRequestPersistentStorage: null,
+		browserContinuityChecks: null,
+		browserContinuityCritical: null,
+		browserContinuityState: "",
+		browserContinuityValue: null,
+		browserImagingFileInputAccept: ".dcm,.dicom,.zip,.png,.jpg,.jpeg,.stl,.obj",
+		browserImagingFilesInputRef: { current: null },
+		cancelBrowserImagingFolderScan: false,
+		cancelBrowserMigrationScan: false,
+		cbctWorkbenchPlanes: null,
+		cbctWorkbenchProjections: null,
+		cbctWorkbenchTools: null,
+		chooseRecognitionPreset: null,
+		clearBrowserPickedImagingFolderPreview: null,
+		clearLocalImagingFolderRecovery: null,
+		clearPricelistImage: null,
+		clinic: dashboard?.clinicSettings?.profile ?? null,
+		clinicalMutationHeaders: auth.denteClinicalMutationHeaders,
+		clinicalReadHeaders: auth.denteClinicalReadHeaders,
+		clinicName: dashboard?.clinicSettings?.profile?.clinicName ?? "",
+		createCtPlanningArtifact: null,
+		ctPlanningAnnotationRefs: { current: null },
+		dictationQuickPhrases: null,
+		emptyDictationVoiceActionLabel: null,
+		firstName: documentPatient?.fullName?.split(" ")[1] ?? "",
+		handleMprKeyboardNavigation: async (..._args: any[]) => {},
+		imagingComparisonCandidates: [],
+		imagingKindOptions: [],
+		imagingViewerImageStyle: null,
+		inn: documentPatient?.administrativeProfile?.inn ?? "",
+		lastName: documentPatient?.fullName?.split(" ")[0] ?? "",
+		loadSpeechRecordingRecovery: async () => {},
+		localBridgeStatusState: "",
+		loyaltyTier: "standard",
+		middleName: documentPatient?.fullName?.split(" ")[2] ?? "",
+		mostLoadedResource: null,
+		mprActiveProjectionLabel: null,
+		mprActiveProjectionOrientation: null,
+		mprAxisAngleBadge: null,
+		mprAxisDirectionLabel: null,
+		mprAxisGuidance: null,
+		mprAxisRangeValue: null,
+		mprAxisVisualizerLabel: null,
+		mprAxisVisualizerStyle: null,
+		mprClinicalChecklist: null,
+		mprClinicalNextStep: null,
+		mprClinicalPresetButtonClass: null,
+		mprControlsAutoOpen: null,
+		mprControlsReady: null,
+		mprNearestClinicalPreset: null,
+		mprOperatorSummaryCards: [],
+		mprProjectionCompass: null,
+		mprSlabBadge: null,
+		mprSlabRangeValue: null,
+		mprSliceBadge: null,
+		mprSliceLabel: null,
+		mprSliceRangeValue: null,
+		mprWorkbenchSummaryText: null,
+		name: documentPatient?.fullName ?? "",
+		newRulePatientText: newRulePatientText,
+		noShowRisk: "low",
+		patientId: documentPatient?.id ?? "",
+		pendingSpeechFlushActionLabel: null,
+		pendingSpeechFlushActionTitle: "",
+		polishingField: null,
+		polishSingleField: async () => {},
+		prices: dashboard?.serviceCatalog ?? [],
+		renderClinicalToothRowsEditor: null,
+		resetMprControls: null,
+		retryImagingViewerSessionSave: null,
+		scheduleDateFilter: "",
+		selectedPaymentReceiptTotalRub: 0,
+		selectedProtocolTemplate: null,
+		selectedTaxPaymentTotalRub: 0,
+		setNewRulePatientText: setNewRulePatientText,
+		setScheduleDateFilter: (_date?: any) => {},
+		setSelectedPatientId: setSelectedPatientId,
+		shiftWarnings: null,
+		sortedCommunicationTasks: null,
+		specialtiesWithTemplates: [],
+		specialtyProtocolTemplates: [],
+		speechGatewayActiveProviderIsLocal: null,
+		speechLiveRms: 0,
+		speechRecognitionReady: null,
+		speechTranscriptionBusy: false,
+		startServerVoiceRecording: null,
+		stopServerVoiceRecording: null,
+		treatmentAcceptancePlannedTotalRub: 0,
+		visibleImagingStudies: null,
+		visibleVisitSpecialtyFocusOptions: [],
+		visitPrimaryAction: null,
+		visitSafetyCards: [],
+		visitWorkflowSteps: [],
 	};
 }

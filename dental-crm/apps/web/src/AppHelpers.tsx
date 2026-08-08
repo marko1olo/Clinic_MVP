@@ -5,7 +5,6 @@ import {
 	type Appointment,
 	buildRuleBasedVisitDraftFromTranscript,
 	type ClinicalToothRow,
-	type ClinicProfile,
 	type CreateAppointmentInput,
 	type Dashboard,
 	type DentalSpecialty,
@@ -20,7 +19,6 @@ import {
 	type DicomSeriesPreviewGroup,
 	type DicomViewerToolStateBundleResponse,
 	type DicomViewerWorkbenchManifestResponse,
-	type DicomWorkstationClientFacts,
 	type DocumentIngestionResponse,
 	type DocumentIngestionTarget,
 	type DocumentIssueSignatureMode,
@@ -35,9 +33,7 @@ import {
 	type ImagingViewerWindowPreset,
 	type ImportSourceKind,
 	type InstallmentPaymentStatus,
-	type MigrationLocalSourceDiscoveryResponse,
 	type Patient,
-	type PatientAdministrativeProfile,
 	type PatientIntakePregnancyStatus,
 	type PaymentMethod,
 	type PhotoVideoConsentMaterial,
@@ -49,23 +45,19 @@ import {
 	type SpeechGatewayStatus,
 	type SpeechProviderConnector,
 	type SpeechTranscriptionResponse,
-	type StaffRole,
-	type StaffWorkingHours,
 	type TaxDeductionApplicationDeliveryChannel,
 	type TaxDeductionApplicationForm,
 	type TaxDeductionApplicationRelationship,
 	type TreatmentPlanAcceptanceVariant,
 	type UiLanguage,
 	type UpdateAppointmentInput,
-	type UpdateClinicProfileInput,
-	type UpdatePatientAdministrativeProfileInput,
 	type UpdatePatientInput,
 	type VisitNoteDraft,
 	type XrayCbctReferralPregnancyStatus,
 	type XrayCbctReferralPriority,
 	type XrayCbctReferralStudyType,
 } from "@dental/shared";
-import { type CSSProperties, lazy } from "react";
+import type { CSSProperties } from "react";
 import { showToast } from "./components/GlobalToast";
 import type { CtImplantLibraryItem } from "./ctPlanningTools";
 import {
@@ -88,7 +80,73 @@ import {
 	clampMprSliceIndex,
 } from "./mprControlMath";
 import { pricelistSourceKindLabels } from "./pricelistUiMeta";
-import type { AppView } from "./workspaceShell";
+import {
+	collectDicomWorkstationClientFacts,
+	isBrowserImagingScanAbortError,
+	isBrowserMigrationScanAbortError,
+	localImagingFolderFingerprint,
+} from "./utils/browserScanUtils";
+import {
+	buildClinicProfileUpdatePayload,
+	buildPatientAdministrativeProfilePayload,
+	type ClinicProfileDraft,
+	clinicLegalMissingFields,
+	clinicLegalReadinessPercent,
+	clinicProfileDraftFromProfile,
+	clinicProfileDraftSignature,
+	clinicProfileEndpoint,
+	defaultAppointmentStartLocal,
+	defaultStaffScheduleDraft,
+	defaultWorkingDays,
+	emptyClinicProfileDraft,
+	isDentalSpecialty,
+	isStaffRole,
+	normalizedDentalSpecialty,
+	normalizedStaffRole,
+	normalizeOptionalWorkingDaysDraft,
+	normalizeWorkingDaysDraft,
+	nullableClinicDraftValue,
+	nullablePatientDraftValue,
+	type PatientAdministrativeProfileDraft,
+	patientAdministrativeProfileDraftFromPatient,
+	patientAdministrativeProfileDraftIssue,
+	patientAdministrativeProfileDraftSignature,
+	roleFocusOrder,
+	type StaffScheduleDraft,
+	staffScheduleDraftFromWorkingHours,
+	staffScheduleDraftSignature,
+	staffWorkingHoursFromDraft,
+	staffWorkingHoursFromSimpleDraft,
+} from "./utils/clinicProfileUtils";
+import {
+	addMinutesToClinicDateTimeLocal,
+	calendarDayInTimeZone,
+	dateInputValuePlusDays,
+	formatDateTime,
+	formatShortDate,
+	formatTime,
+	fromDateTimeLocalValue,
+	isDateInputValue,
+	isDateTimeLocalInputValue,
+	isoDateLabel,
+	isValidDateParts,
+	minutesLabel,
+	normalizeClockTime,
+	shiftCalendarDay,
+	timeZoneDateParts,
+	timeZoneOffsetMinutes,
+	timeZoneOffsetSuffix,
+	toDateInputValue,
+	todayDateInputValue,
+	validClockTime,
+	weekdayFromDateInput,
+} from "./utils/dateTimeUtils";
+import {
+	localConvenienceRetentionMs,
+	localSavedAtFresh,
+	organizationScopedLocalStorageKey,
+} from "./utils/localStorageHelpers";
+import type { AppView } from "./utils/routeUtils";
 import {
 	postVisitCareTopicOptions,
 	telegramVisualCardFields,
@@ -125,7 +183,6 @@ export {
 	viewFromHash,
 } from "./utils/routeUtils";
 
-import { toDateTimeLocalValue } from "./utils/dateUtils";
 import {
 	defaultUiPreferences,
 	type UiPreferences,
@@ -140,40 +197,7 @@ import {
 	paymentMethodLabels,
 	recognitionTargetLabels,
 	serviceCategoryLabels,
-	specialtyLabels,
-	staffRoleLabels,
 } from "./workspaceUiLabels";
-
-const _ImagingView = lazy(() =>
-	import("./ImagingView").then((module) => ({ default: module.ImagingView })),
-);
-const _VisitView = lazy(() =>
-	import("./VisitView").then((module) => ({ default: module.VisitView })),
-);
-const _CommunicationsView = lazy(() =>
-	import("./CommunicationsView").then((module) => ({
-		default: module.CommunicationsView,
-	})),
-);
-const _DocumentsView = lazy(() =>
-	import("./DocumentsView").then((module) => ({
-		default: module.DocumentsView,
-	})),
-);
-const _SettingsView = lazy(() =>
-	import("./SettingsView").then((module) => ({ default: module.SettingsView })),
-);
-const _ScheduleView = lazy(() =>
-	import("./ScheduleView").then((module) => ({ default: module.ScheduleView })),
-);
-const _PatientsView = lazy(() =>
-	import("./PatientsView").then((module) => ({ default: module.PatientsView })),
-);
-const _MarketingView = lazy(() =>
-	import("./MarketingView").then((module) => ({
-		default: module.MarketingView,
-	})),
-);
 
 export function speechGatewayCanUpload(
 	status: SpeechGatewayStatus | null,
@@ -299,198 +323,11 @@ export type DicomFirstFramePreviewOptions = {
 	preferredFileIndex?: number;
 	resetViewer?: boolean;
 };
-
-export type BrowserFileSystemFileHandle = {
-	kind: "file";
-	name: string;
-	getFile: () => Promise<File>;
-};
-
-export type BrowserFileSystemDirectoryHandle = {
-	kind: "directory";
-	name: string;
-	entries: () => AsyncIterable<[string, BrowserFileSystemHandle]>;
-};
-
-export type BrowserFileSystemHandle =
-	| BrowserFileSystemFileHandle
-	| BrowserFileSystemDirectoryHandle;
-
-export type BrowserDirectoryPickerWindow = Window & {
-	showDirectoryPicker?: (options?: {
-		id?: string;
-		mode?: "read" | "readwrite";
-		startIn?: string;
-	}) => Promise<BrowserFileSystemDirectoryHandle>;
-};
-
-export type DentalDesktopRuntimeWindow = BrowserDirectoryPickerWindow & {
-	dentalCrmDesktop?: { dicomBridge?: unknown; localFileBridge?: unknown };
-	__DENTAL_CRM_DESKTOP__?: unknown;
-	__TAURI__?: unknown;
-	electronAPI?: unknown;
-};
-
-export type BrowserPickedImagingFolderPreview = {
-	version: 1;
-	safeDisplayName: string;
-	sourceLabel: string;
-	sourceKind: "browser_directory_picker" | "browser_file_input";
-	folderFingerprint: string;
-	rootName: string;
-	scannedFiles: number;
-	scannedFolders: number;
-	dicomLikeFiles: number;
-	archiveFiles: number;
-	modelFiles: number;
-	imageFiles: number;
-	totalBytes: number;
-	createdAt: string;
-	nextAction: string;
-	warnings: string[];
-};
-
-export type BrowserPickedImagingScanStats = {
-	rootName: string;
-	sourceKind: BrowserPickedImagingFolderPreview["sourceKind"];
-	scannedFiles: number;
-	scannedFolders: number;
-	dicomLikeFiles: number;
-	archiveFiles: number;
-	modelFiles: number;
-	imageFiles: number;
-	totalBytes: number;
-	warnings: string[];
-};
-
-export type BrowserImagingScanPhase = "scanning" | "done" | "cancelled";
-
-export type BrowserImagingScanProgress = BrowserPickedImagingScanStats & {
-	phase: BrowserImagingScanPhase;
-	currentItem: string | null;
-	startedAt: string;
-	updatedAt: string;
-	elapsedMs: number;
-	processedUnits: number;
-	fileLimit: number;
-	folderLimit: number;
-	magicReadLimit: number;
-};
-
-export type BrowserImagingScanOptions = {
-	signal?: AbortSignal;
-	startedAt: string;
-	onProgress?: (progress: BrowserImagingScanProgress) => void;
-};
-
-export type LocalDicomOperationOptions = {
-	signal?: AbortSignal;
-};
-
-export type BrowserImagingScanRuntime = {
-	startedAt: string;
-	startedAtMs: number;
-	processedUnits: number;
-	lastYieldAtMs: number;
-	lastProgressAtMs: number;
-};
-
-export type BrowserMigrationSourceKind =
-	MigrationLocalSourceDiscoveryResponse["candidates"][number]["sourceKind"];
-
-export type BrowserMigrationFileKind =
-	| "database"
-	| "dump"
-	| "table"
-	| "archive"
-	| "dicom"
-	| "image"
-	| "model"
-	| "other";
-
-export type BrowserMigrationFolderStats = {
-	folderKey: string;
-	folderHint: string;
-	depth: number;
-	databaseFiles: number;
-	dumpFiles: number;
-	tableFiles: number;
-	archiveFiles: number;
-	dicomLikeFiles: number;
-	imageFiles: number;
-	modelFiles: number;
-	hasDicomDir: boolean;
-	latestModifiedAt: string | null;
-	totalBytes: number;
-};
-
-export type BrowserMigrationScanStats = {
-	rootName: string;
-	sourceKind: "browser_directory_picker" | "browser_file_input";
-	scannedFiles: number;
-	scannedFolders: number;
-	databaseFiles: number;
-	dumpFiles: number;
-	tableFiles: number;
-	archiveFiles: number;
-	dicomLikeFiles: number;
-	imageFiles: number;
-	modelFiles: number;
-	totalBytes: number;
-	warnings: string[];
-};
-
-export type BrowserMigrationScanPhase = "scanning" | "done" | "cancelled";
-
-export type BrowserMigrationScanProgress = BrowserMigrationScanStats & {
-	phase: BrowserMigrationScanPhase;
-	currentItem: string | null;
-	startedAt: string;
-	updatedAt: string;
-	elapsedMs: number;
-	processedUnits: number;
-	fileLimit: number;
-	folderLimit: number;
-	magicReadLimit: number;
-};
-
-export type BrowserMigrationScanOptions = {
-	signal?: AbortSignal;
-	startedAt: string;
-	onProgress?: (progress: BrowserMigrationScanProgress) => void;
-};
-
-export type BrowserMigrationScanRuntime = {
-	startedAt: string;
-	startedAtMs: number;
-	processedUnits: number;
-	lastYieldAtMs: number;
-	lastProgressAtMs: number;
-};
-
 export const imagingViewerLocalStoragePrefix = "dental-crm:imaging-viewer:";
 export const dicomWorkbenchLocalStorageKey = "dental-crm:dicom-workbench:last";
 export const mprWorkbenchLocalStoragePrefix = "dental-crm:ct-mpr-workbench:";
 export const localImagingFolderStorageKey =
 	"dental-crm:local-imaging-folder:last";
-export const browserPickedImagingFolderStorageKey =
-	"dental-crm:browser-picked-imaging-folder:last";
-export const browserMigrationScanFileLimit = 1200;
-export const browserMigrationScanFolderLimit = 320;
-export const browserMigrationScanDirectoryEntryLimit = 1600;
-export const browserMigrationScanMagicReadLimit = 220;
-export const browserMigrationScanYieldEveryUnits = 24;
-export const browserMigrationScanYieldEveryMs = 20;
-export const browserMigrationScanProgressEveryUnits = 12;
-export const browserMigrationScanProgressEveryMs = 96;
-export const browserImagingScanFileLimit = 900;
-export const browserImagingScanFolderLimit = 260;
-export const browserImagingScanDirectoryEntryLimit = 1600;
-export const browserImagingScanMagicReadLimit = 180;
-export const browserImagingScanYieldEveryUnits = 24;
-export const browserImagingScanYieldEveryMs = 20;
-export const browserImagingScanProgressEveryUnits = 12;
-export const browserImagingScanProgressEveryMs = 96;
 export const documentPaymentSelectionStorageKey =
 	"dental-crm:document-payment-selection:v1";
 export const documentPayloadDraftStorageKey =
@@ -499,9 +336,7 @@ export const documentIssueSignatureStorageKey =
 	"dental-crm:document-issue-signature:v1";
 export const uiPreferencesServerPath = "/api/settings/preferences";
 export const onboardingStorageKey = "dental-crm:onboarding:v1";
-export const clinicProfileEndpoint = "/api/settings/clinic/profile";
 export const denteAdminSecretHeaderName = "x-dente-admin-secret";
-export const localConvenienceRetentionMs = 30 * 24 * 60 * 60 * 1000;
 export const sensitiveLocalDraftRetentionMs = 7 * 24 * 60 * 60 * 1000;
 export const speechAudioQueueRetentionMs = 48 * 60 * 60 * 1000;
 
@@ -625,32 +460,11 @@ export function normalizedDocumentIssueSignatureMode(
 		: "paper_signed";
 }
 
-export function organizationScopedLocalStorageKey(
-	baseKey: string,
-	organizationId: string | null | undefined,
-): string {
-	const normalizedOrganizationId = organizationId?.trim();
-	return normalizedOrganizationId
-		? `${baseKey}:${normalizedOrganizationId}`
-		: baseKey;
-}
-
 export function normalizedLocalOrganizationId(
 	organizationId: string | null | undefined,
 ): string | null {
 	const normalized = organizationId?.trim();
 	return normalized || null;
-}
-
-export function localSavedAtFresh(
-	savedAt: string | null | undefined,
-	retentionMs: number,
-	nowMs = Date.now(),
-): boolean {
-	if (!savedAt) return false;
-	const timestamp = Date.parse(savedAt);
-	if (!Number.isFinite(timestamp)) return false;
-	return timestamp <= nowMs + 5 * 60 * 1000 && nowMs - timestamp <= retentionMs;
 }
 
 export function documentIssueSignatureLocalKey(
@@ -738,7 +552,7 @@ export function loadDocumentIssueSignatureDraft(
 			),
 			"error",
 		);
-		console.warn(error);
+		logger.warn(error);
 		return fallback;
 	}
 }
@@ -769,7 +583,7 @@ export function saveDocumentIssueSignatureDraft(
 			),
 			"error",
 		);
-		console.warn(error);
+		logger.warn(error);
 		// Signature defaults are convenience only; the server still requires explicit attestation on issue.
 	}
 }
@@ -870,7 +684,7 @@ export function loadDocumentPaymentSelectionStore(
 			),
 			"error",
 		);
-		console.error("Failed to load signature draft", error);
+		logger.error("Failed to load signature draft", error);
 		// Document payment selection is local operator convenience; read failures are safe to ignore.
 		return emptyDocumentPaymentSelectionStore();
 	}
@@ -918,101 +732,9 @@ export function saveDocumentPaymentSelection(
 			),
 			"error",
 		);
-		console.error("Failed to save payment selection", error);
+		logger.error("Failed to save payment selection", error);
 		// Document payment selection is local operator convenience; failed storage must not block document issue.
 	}
-}
-
-/**
- * Календарный день в виде «ГГГГ-ММ-ДД»: в поясе клиники, если он известен, иначе
- * в местном поясе машины. День по UTC не возвращается никогда — см. разбор у
- * todayDateInputValue.
- */
-export function calendarDayInTimeZone(
-	moment: Date,
-	timeZone?: string | null,
-): string {
-	if (timeZone) {
-		try {
-			// en-CA даёт ISO-подобный вид ГГГГ-ММ-ДД. Тот же приём, что на сервере в
-			// routes/dayConfirmations.ts: готовой функции «мгновение → местная дата» в
-			// стандартной библиотеке нет.
-			return new Intl.DateTimeFormat("en-CA", {
-				timeZone,
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-			}).format(moment);
-		} catch {
-			// Пояс не разобран — считаем по местному. Пустая дата в поле медицинского
-			// документа хуже даты, посчитанной по поясу рабочей машины.
-		}
-	}
-	const pad = (value: number) => String(value).padStart(2, "0");
-	return `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`;
-}
-
-/**
- * Сдвиг календарного дня на целое число суток.
- *
- * Считается КАЛЕНДАРНО, а не прибавлением 24 часов: в поясе с переходом на
- * зимнее время сутки длятся 25 часов, и 24 прибавленных часа не доводят до
- * следующей даты. Перенос через конец месяца и года делает сам `Date.UTC`: день
- * 32 в июле он превращает в 1 августа.
- *
- * `toISOString` здесь законен и трогать его не надо: и запись, и чтение идут в
- * UTC, где сутки ровно 24 часа всегда. Ошибкой он становится там, где в UTC
- * ЧИТАЮТ момент, собранный по местному времени.
- */
-export function shiftCalendarDay(day: string, days: number): string {
-	const [year, month, date] = day
-		.split("-")
-		.map((value) => Number.parseInt(value, 10));
-	if (!year || !month || !date) return day;
-	return new Date(Date.UTC(year, month - 1, date + days))
-		.toISOString()
-		.slice(0, 10);
-}
-
-/**
- * Сегодняшнее число для поля ввода типа `date`.
- *
- * ЧТО БЫЛО СЛОМАНО. Стояло `new Date().toISOString().slice(0, 10)` — это день по
- * UTC. У ВСЕХ российских поясов смещение положительное (Москва +3, Самара +4 —
- * пояс по умолчанию в схеме, Камчатка +12), поэтому день по UTC отстаёт от
- * местного каждую ночь: в Москве с 00:00 до 03:00, в Самаре до 04:00, на
- * Камчатке — половину суток. Это не про переход на летнее время, который Россия
- * отменила в 2014 году; это срабатывает у каждой клиники, каждый день.
- *
- * ЧЕМ ВРЕДНО. Отсюда заполняются даты медицинских документов: дата открытия
- * карты 025/у и период выписки из медкарты (emptyOutpatient025uDocumentDraftFields,
- * emptyMedicalRecordExtractDocumentDraftFields — оба черновика становятся
- * начальным состоянием документа). Карта 025/у — форма государственного учёта,
- * выписка — основание для страховой и для суда. Документ с датой на день раньше
- * факта расходится с картой, и заметить это можно только вручную.
- *
- * И правильный расчёт того же дня в проекте УЖЕ БЫЛ — documentLogic.ts,
- * withDocumentCreationTimestamps собирает день из местных полей `Date`. Но он
- * заполняет только ПУСТЫЕ поля, а предзаполненное неверное число пустым не
- * является: верный расчёт молча уступал неверному. Сторож
- * tests/documentCreationTimestamps.test.ts это не ловил, потому что вызывает
- * функцию с явно пустым полем и рабочего пути не проходит.
- *
- * Пояс клиники передаётся, когда вызывающий его знает
- * (`dashboard.clinicSettings.profile.timezone`). Параметр необязательный
- * намеренно: подпись расширена, а не изменена, поэтому ни один существующий
- * вызов не пришлось трогать.
- */
-export function todayDateInputValue(timeZone?: string | null): string {
-	return calendarDayInTimeZone(new Date(), timeZone);
-}
-
-/** То же число, сдвинутое на `days` календарных суток: сроки оплаты и графики платежей. */
-export function dateInputValuePlusDays(
-	days: number,
-	timeZone?: string | null,
-): string {
-	return shiftCalendarDay(calendarDayInTimeZone(new Date(), timeZone), days);
 }
 
 export function emptyOutpatient025uDocumentDraftFields(): Outpatient025uDocumentDraftFields {
@@ -1415,7 +1137,7 @@ export function saveOutpatient025uDocumentDraft(
 			),
 			"error",
 		);
-		console.error("Failed to save outpatient 025u document draft", error);
+		logger.error("Failed to save outpatient 025u document draft", error);
 		// Payload drafts are recovery data only; document issue still validates all facts server-side.
 	}
 }
@@ -1470,10 +1192,7 @@ export function saveMedicalRecordExtractDocumentDraft(
 			),
 			"error",
 		);
-		console.error(
-			"Failed to save medical record extract document draft",
-			error,
-		);
+		logger.error("Failed to save medical record extract document draft", error);
 		// Payload drafts are recovery data only; document issue still validates all facts server-side.
 	}
 }
@@ -1517,7 +1236,7 @@ export function loadLocalImagingViewerDraft(
 			),
 			"error",
 		);
-		console.warn("Failed to load local imaging viewer draft", error);
+		logger.warn("Failed to load local imaging viewer draft", error);
 		return null;
 	}
 }
@@ -1615,7 +1334,7 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(
 			),
 			"error",
 		);
-		console.warn(
+		logger.warn(
 			"Failed to load local DICOM workbench draft from local storage:",
 			error,
 		);
@@ -1755,7 +1474,7 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
 			),
 			"error",
 		);
-		console.warn(error);
+		logger.warn(error);
 		return null;
 	}
 }
@@ -1781,15 +1500,6 @@ export function saveLocalMprWorkbenchDraftToLocalStorage(
 	} catch {
 		return false;
 	}
-}
-
-export function localImagingFolderFingerprint(folderPath: string): string {
-	let hash = 2166136261;
-	for (let index = 0; index < folderPath.length; index += 1) {
-		hash ^= folderPath.charCodeAt(index);
-		hash = Math.imul(hash, 16777619);
-	}
-	return (hash >>> 0).toString(16).padStart(8, "0").toUpperCase();
 }
 
 export const dicomDownloadRedactionWarning =
@@ -1914,699 +1624,6 @@ export function redactedDicomWorkbenchManifestForDownload(
 		clone.launchManifest.warnings,
 	);
 	return clone;
-}
-
-export function classifyBrowserImagingFileName(
-	fileName: string,
-): "dicom" | "archive" | "model" | "image" | "other" {
-	const lowerName = fileName.toLowerCase();
-	const extension = lowerName.includes(".")
-		? lowerName.slice(lowerName.lastIndexOf(".") + 1)
-		: "";
-	if (["dcm", "dicom", "ima"].includes(extension) || lowerName === "dicomdir")
-		return "dicom";
-	if (["zip", "7z", "rar"].includes(extension)) return "archive";
-	if (["stl", "obj", "ply", "glb", "gltf", "3mf"].includes(extension))
-		return "model";
-	if (["jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"].includes(extension))
-		return "image";
-	return "other";
-}
-
-export const browserMigrationSourceTitles: Record<
-	BrowserMigrationSourceKind,
-	string
-> = {
-	mis_database: "Старая МИС или CRM",
-	firebird_database: "Старая серверная база программы",
-	access_database: "Старая настольная база",
-	sqlite_database: "Локальная база программы",
-	sql_dump: "Резервная копия старой базы",
-	spreadsheet_export: "Табличная выгрузка",
-	csv_export: "табличная выгрузка",
-	archive_export: "Архив выгрузки",
-	pacs_dicom: "архив снимков",
-	dicom_folder: "папка КЛКТ/КТ",
-	xray_image_archive: "Архив RVG/ОПТГ/фото",
-	vendor_imaging_system: "Программа снимков",
-	network_share: "Сетевая папка обмена",
-	unknown_legacy_source: "Неопознанный источник старой системы",
-};
-
-export const browserLegacyMisTextPattern =
-	/1c|1с|\.1cd\b|мис|инфоклиника|infoclinica|infodent|инфодент|дента\s*офис|denta\s*office|clinic\s*cards|cliniccards|dental\s*4\s*windows|d4w|dental4windows|dental\s*pro|dentpro|dental\s*soft|dentasoft|dental\s*cloud|clinic\s*365|clinic365|medangel|медангел|medialog|медиалог|arnica|арника|sycret\s*dent|secret\s*dent|адента|adenta|dent\s*crm\s*24|dentcrm24|dent\.crm24|клиентикс|clientix|klientix|2v.*(?:стоматолог|dental)|future\s*it\s*dent|futureitdent|32\s*top|32top|medods|медодс|dental\s*tap|dentaltap|(?:^|[\\/])ident(?:[\\/]|$)|\bident\b|stomx|stom\s*x|стомx|стомикс|i[-\s]?stom|ай\s*стом|q[-\s]?stoma|кью\s*стома|бит\.?\s*стоматолог|bit\.?\s*stomatolog|1c.*стоматолог|1с.*стоматолог|mac\s*dent|macdent|stom\s*box|stombox|open\s*dent(?:al)?|opendental|opendent|open\s*dent\s*images|atoz|dentrix|eaglesoft|patterson|softdent|practice\s*works|curve\s*dental|denticon|tab32|dolphin\s*(?:imaging|management)|legacy|старая\s+баз/i;
-
-export function classifyBrowserMigrationFileName(
-	fileName: string,
-): BrowserMigrationFileKind {
-	const lowerName = fileName.toLowerCase();
-	const extension = lowerName.includes(".")
-		? lowerName.slice(lowerName.lastIndexOf(".") + 1)
-		: "";
-	if (
-		lowerName === "dicomdir" ||
-		["dcm", "dicom", "ima", "dc3", "acr"].includes(extension)
-	)
-		return "dicom";
-	if (
-		[
-			"fdb",
-			"gdb",
-			"ib",
-			"mdb",
-			"accdb",
-			"sqlite",
-			"sqlite3",
-			"db",
-			"dbf",
-			"dbt",
-			"fpt",
-			"cdx",
-			"idx",
-			"ntx",
-			"ndx",
-			"mdx",
-			"1cd",
-			"mdf",
-			"ldf",
-			"sdf",
-			"myd",
-			"myi",
-			"frm",
-			"ibd",
-		].includes(extension)
-	)
-		return "database";
-	if (
-		[
-			"fbk",
-			"ibk",
-			"gbk",
-			"bak",
-			"backup",
-			"dump",
-			"sql",
-			"psql",
-			"pgsql",
-			"dt",
-		].includes(extension)
-	)
-		return "dump";
-	if (
-		[
-			"csv",
-			"tsv",
-			"xls",
-			"xlsx",
-			"xlsm",
-			"xlsb",
-			"ods",
-			"xml",
-			"json",
-		].includes(extension)
-	)
-		return "table";
-	if (["zip", "7z", "rar", "tar", "gz"].includes(extension)) return "archive";
-	if (["stl", "obj", "ply", "glb", "gltf", "3mf"].includes(extension))
-		return "model";
-	if (["jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"].includes(extension))
-		return "image";
-	return "other";
-}
-
-export function browserMigrationFolderHintScore(value: string): number {
-	const normalized = value.toLowerCase();
-	let score = 0;
-	if (
-		/dental|denta|clinic|stom|стом|mis|crm|legacy|migration|миграц|перенос|backup|dump|export|выгруз|стар/.test(
-			normalized,
-		)
-	)
-		score += 0.14;
-	if (
-		browserLegacyMisTextPattern.test(normalized) ||
-		/sql|firebird|interbase|access|sqlite/.test(normalized)
-	)
-		score += 0.2;
-	if (
-		/sidexis|romexis|planmeca|vatech|carestream|ondemand|invivo|digora|soredex|trophy|visiodent|dbswin|vistasoft|durr|dürr|morita|i[-\s]?dixel|newtom|\bnnt\b|myray|owandy|quick\s*vision|quickvision|dexis|kavo|gendex|acteon|sopro|sopix|pspix|x[-\s]?mind|dolphin|3shape|medit|exocad/.test(
-			normalized,
-		)
-	)
-		score += 0.18;
-	if (
-		/dicom|dicomdir|cbct|кт|ккт|rvg|opg|оптг|xray|x-ray|рентген|сним|pacs|orthanc|dcm4chee/.test(
-			normalized,
-		)
-	)
-		score += 0.18;
-	return score;
-}
-
-export function browserMigrationSourceKindFromStats(
-	stats: BrowserMigrationFolderStats,
-): BrowserMigrationSourceKind {
-	const text = stats.folderHint.toLowerCase();
-	if (
-		/sidexis|romexis|planmeca|vatech|carestream|ondemand|invivo|digora|soredex|trophy|visiodent|dbswin|vistasoft|morita|i[-\s]?dixel|newtom|\bnnt\b|myray|owandy|quick\s*vision|quickvision|dexis|kavo|gendex|acteon|sopro|sopix|pspix|x[-\s]?mind|dolphin|3shape|medit|exocad/.test(
-			text,
-		)
-	)
-		return "vendor_imaging_system";
-	if (
-		stats.hasDicomDir ||
-		stats.dicomLikeFiles > 0 ||
-		/dicom|cbct|кт|ккт/.test(text)
-	)
-		return "dicom_folder";
-	if (
-		stats.imageFiles >= 6 ||
-		stats.modelFiles > 0 ||
-		/rvg|opg|оптг|xray|рентген|сним/.test(text)
-	)
-		return "xray_image_archive";
-	if (/\.fdb|\.gdb|\.fbk|\.ib\b|\.ibk|\.gbk|firebird|interbase/.test(text))
-		return "firebird_database";
-	if (/\.mdb|\.accdb|access/.test(text)) return "access_database";
-	if (
-		/\.dbf|\.dbt|\.fpt|\.cdx|\.idx|\.ntx|\.ndx|\.mdx|dbase|foxpro|clipper|paradox/.test(
-			text,
-		)
-	)
-		return "mis_database";
-	if (/\.sqlite|\.sqlite3|sqlite|\.db\b/.test(text)) return "sqlite_database";
-	if (
-		/mysql|mariadb|postgres|postgresql|pgsql|psql|\.myd|\.myi|\.frm|\.ibd/.test(
-			text,
-		)
-	)
-		return "mis_database";
-	if (
-		stats.dumpFiles > 0 ||
-		/\.sql|\.dump|\.bak|\.dt|\.mdf|\.ldf|\.sdf|sql server|mssql/.test(text)
-	)
-		return "sql_dump";
-	if (stats.tableFiles > 0)
-		return /\.csv|\.tsv/.test(text) ? "csv_export" : "spreadsheet_export";
-	if (stats.archiveFiles > 0) return "archive_export";
-	if (browserLegacyMisTextPattern.test(text)) return "mis_database";
-	if (stats.databaseFiles > 0) return "mis_database";
-	return "unknown_legacy_source";
-}
-
-export function buildBrowserMigrationDiscovery(input: {
-	rootName: string;
-	sourceLabel: string;
-	scannedFolders: number;
-	scannedFiles: number;
-	folderStats: BrowserMigrationFolderStats[];
-	warnings: string[];
-}): MigrationLocalSourceDiscoveryResponse {
-	const candidates = input.folderStats
-		.map((stats) => {
-			const matchedFiles =
-				stats.databaseFiles +
-				stats.dumpFiles +
-				stats.tableFiles +
-				stats.archiveFiles +
-				stats.dicomLikeFiles +
-				stats.imageFiles +
-				stats.modelFiles;
-			const hintScore = browserMigrationFolderHintScore(stats.folderHint);
-			const confidence = Math.min(
-				1,
-				hintScore +
-					(stats.databaseFiles ? 0.5 : 0) +
-					(stats.dumpFiles ? 0.42 : 0) +
-					(stats.tableFiles ? 0.28 : 0) +
-					(stats.archiveFiles ? 0.2 : 0) +
-					(stats.dicomLikeFiles ? 0.46 : 0) +
-					(stats.hasDicomDir ? 0.24 : 0) +
-					(stats.imageFiles >= 8 ? 0.22 : stats.imageFiles > 0 ? 0.08 : 0) +
-					(stats.modelFiles ? 0.1 : 0),
-			);
-			if (matchedFiles === 0 && hintScore < 0.28) return null;
-			const sourceKind = browserMigrationSourceKindFromStats(stats);
-			const fingerprint = browserPickedFolderFingerprint(
-				`${input.rootName}:${stats.folderKey}:${matchedFiles}:${stats.totalBytes}`,
-			);
-			const reasons: string[] = [];
-			// Счёт со склонением: «1 файлов старой базы» читается как ошибка программы.
-			if (stats.databaseFiles)
-				reasons.push(
-					`${countLabel(stats.databaseFiles, "файл", "файла", "файлов")} старой базы`,
-				);
-			if (stats.dumpFiles)
-				reasons.push(
-					`${countLabel(stats.dumpFiles, "файл", "файла", "файлов")} резервной копии`,
-				);
-			if (stats.tableFiles)
-				reasons.push(
-					`${countLabel(stats.tableFiles, "табличная выгрузка", "табличные выгрузки", "табличных выгрузок")}`,
-				);
-			if (stats.archiveFiles)
-				reasons.push(
-					`${countLabel(stats.archiveFiles, "архив", "архива", "архивов")}`,
-				);
-			if (stats.dicomLikeFiles)
-				reasons.push(`${stats.dicomLikeFiles} признаков снимков или серий КТ`);
-			if (stats.imageFiles) reasons.push(`${stats.imageFiles} изображений`);
-			if (stats.modelFiles)
-				reasons.push(`${stats.modelFiles} 3D-моделей зубов`);
-			if (hintScore > 0)
-				reasons.push("название папки похоже на старую CRM/снимки/миграцию");
-			return {
-				sourceRef: `browser-local:${fingerprint}`,
-				safeDisplayName: `${browserMigrationSourceTitles[sourceKind]} #${fingerprint}`,
-				sourceKind,
-				sourceLabel: input.sourceLabel,
-				sourceFingerprint: fingerprint,
-				depth: stats.depth,
-				confidence: Number(confidence.toFixed(2)),
-				matchedFiles,
-				databaseFiles: stats.databaseFiles,
-				dumpFiles: stats.dumpFiles,
-				tableFiles: stats.tableFiles,
-				archiveFiles: stats.archiveFiles,
-				dicomLikeFiles: stats.dicomLikeFiles,
-				imageFiles: stats.imageFiles + stats.modelFiles,
-				hasDicomDir: stats.hasDicomDir,
-				latestModifiedAt: stats.latestModifiedAt,
-				reasons,
-				warnings: [
-					"Выбранная через браузер папка не дает полного пути; для автоматического переноса нужен локальный модуль или ручной путь администратора.",
-				],
-				smartImportLine: `Источник старой системы: ${browserMigrationSourceTitles[sourceKind]}; код источника browser-local:${fingerprint}; файлов=${matchedFiles}; старых баз=${stats.databaseFiles}; копий=${stats.dumpFiles}; таблиц=${stats.tableFiles}; КТ/снимков=${stats.dicomLikeFiles}; изображений=${stats.imageFiles}; моделей=${stats.modelFiles}`,
-			};
-		})
-		.filter(
-			(
-				candidate,
-			): candidate is MigrationLocalSourceDiscoveryResponse["candidates"][number] =>
-				Boolean(candidate),
-		)
-		.sort(
-			(left, right) =>
-				right.confidence - left.confidence ||
-				right.matchedFiles - left.matchedFiles ||
-				(right.latestModifiedAt ?? "").localeCompare(
-					left.latestModifiedAt ?? "",
-				),
-		)
-		.slice(0, 18);
-
-	return {
-		version: "dental-crm-migration-local-discovery-v1",
-		generatedAt: new Date().toISOString(),
-		roots: [
-			`browser-local:${browserPickedFolderFingerprint(`${input.rootName}:${input.scannedFiles}:${input.scannedFolders}`)}`,
-		],
-		scannedFolders: input.scannedFolders,
-		candidates,
-		warnings: [
-			...input.warnings,
-			"Браузерный список читает только выбранную папку/файлы и не раскрывает серверу полный локальный путь.",
-			...(candidates.length
-				? []
-				: [
-						"В выбранной папке не найдено старых баз, снимков, архивов или выгрузок в пределах лимитов.",
-					]),
-		],
-		nextAction: candidates.length
-			? "Откройте план по найденному кандидату из браузера или отправьте его в умный разбор как список найденных файлов."
-			: "Выберите корень старой МИС/снимков выше уровнем или запустите локальный модуль миграции для полного автопоиска по ПК.",
-	};
-}
-
-export async function browserFileHasDicomMagic(file: File): Promise<boolean> {
-	if (file.size < 132) return false;
-	try {
-		const bytes = new Uint8Array(await file.slice(128, 132).arrayBuffer());
-		return (
-			bytes[0] === 0x44 &&
-			bytes[1] === 0x49 &&
-			bytes[2] === 0x43 &&
-			bytes[3] === 0x4d
-		);
-	} catch {
-		return false;
-	}
-}
-
-export function browserImagingScanNowMs(): number {
-	return typeof performance !== "undefined" &&
-		typeof performance.now === "function"
-		? performance.now()
-		: Date.now();
-}
-
-export function createBrowserImagingScanRuntime(
-	startedAt: string,
-): BrowserImagingScanRuntime {
-	const now = browserImagingScanNowMs();
-	return {
-		startedAt,
-		startedAtMs: now,
-		processedUnits: 0,
-		lastYieldAtMs: now,
-		lastProgressAtMs: now,
-	};
-}
-
-export function browserImagingScanElapsedFromIso(
-	startedAt: string,
-	updatedAt: string,
-): number {
-	const start = Date.parse(startedAt);
-	const end = Date.parse(updatedAt);
-	if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
-	return end - start;
-}
-
-export function throwIfBrowserImagingScanAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	const error = new Error("Browser imaging scan cancelled");
-	error.name = "AbortError";
-	throw error;
-}
-
-export function isBrowserImagingScanAbortError(error: unknown): boolean {
-	return (
-		typeof error === "object" &&
-		error !== null &&
-		"name" in error &&
-		String((error as { name?: unknown }).name) === "AbortError"
-	);
-}
-
-export async function browserImagingScanYield(): Promise<void> {
-	const scheduler = (
-		globalThis as typeof globalThis & {
-			scheduler?: { yield?: () => Promise<void> };
-		}
-	).scheduler;
-	if (typeof scheduler?.yield === "function") {
-		await scheduler.yield();
-		return;
-	}
-	await new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
-
-export function browserImagingScanProgressFromStats(
-	stats: BrowserPickedImagingScanStats,
-	runtime: BrowserImagingScanRuntime,
-	phase: BrowserImagingScanPhase,
-	currentItem: string | null,
-): BrowserImagingScanProgress {
-	const now = browserImagingScanNowMs();
-	return {
-		...stats,
-		warnings: [...stats.warnings],
-		phase,
-		currentItem,
-		startedAt: runtime.startedAt,
-		updatedAt: new Date().toISOString(),
-		elapsedMs: Math.max(0, Math.round(now - runtime.startedAtMs)),
-		processedUnits: runtime.processedUnits,
-		fileLimit: browserImagingScanFileLimit,
-		folderLimit: browserImagingScanFolderLimit,
-		magicReadLimit: browserImagingScanMagicReadLimit,
-	};
-}
-
-export function publishBrowserImagingScanProgress(
-	stats: BrowserPickedImagingScanStats,
-	options: BrowserImagingScanOptions,
-	runtime: BrowserImagingScanRuntime,
-	currentItem: string | null,
-	phase: BrowserImagingScanPhase = "scanning",
-	force = false,
-): void {
-	if (!options.onProgress) return;
-	const now = browserImagingScanNowMs();
-	const shouldPublish =
-		force ||
-		runtime.processedUnits % browserImagingScanProgressEveryUnits === 0 ||
-		now - runtime.lastProgressAtMs >= browserImagingScanProgressEveryMs;
-	if (!shouldPublish) return;
-	runtime.lastProgressAtMs = now;
-	options.onProgress(
-		browserImagingScanProgressFromStats(stats, runtime, phase, currentItem),
-	);
-}
-
-export async function maybeYieldBrowserImagingScan(
-	runtime: BrowserImagingScanRuntime,
-	signal?: AbortSignal,
-): Promise<void> {
-	throwIfBrowserImagingScanAborted(signal);
-	const now = browserImagingScanNowMs();
-	const shouldYield =
-		runtime.processedUnits % browserImagingScanYieldEveryUnits === 0 ||
-		now - runtime.lastYieldAtMs >= browserImagingScanYieldEveryMs;
-	if (!shouldYield) return;
-	runtime.lastYieldAtMs = now;
-	await browserImagingScanYield();
-	throwIfBrowserImagingScanAborted(signal);
-}
-
-export function createBrowserMigrationScanRuntime(
-	startedAt: string,
-): BrowserMigrationScanRuntime {
-	const now = browserImagingScanNowMs();
-	return {
-		startedAt,
-		startedAtMs: now,
-		processedUnits: 0,
-		lastYieldAtMs: now,
-		lastProgressAtMs: now,
-	};
-}
-
-export function throwIfBrowserMigrationScanAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	const error = new Error("Browser migration scan cancelled");
-	error.name = "AbortError";
-	throw error;
-}
-
-export function isBrowserMigrationScanAbortError(error: unknown): boolean {
-	return (
-		typeof error === "object" &&
-		error !== null &&
-		"name" in error &&
-		String((error as { name?: unknown }).name) === "AbortError"
-	);
-}
-
-export function browserMigrationScanProgressFromStats(
-	stats: BrowserMigrationScanStats,
-	runtime: BrowserMigrationScanRuntime,
-	phase: BrowserMigrationScanPhase,
-	currentItem: string | null,
-): BrowserMigrationScanProgress {
-	const now = browserImagingScanNowMs();
-	return {
-		...stats,
-		warnings: [...stats.warnings],
-		phase,
-		currentItem,
-		startedAt: runtime.startedAt,
-		updatedAt: new Date().toISOString(),
-		elapsedMs: Math.max(0, Math.round(now - runtime.startedAtMs)),
-		processedUnits: runtime.processedUnits,
-		fileLimit: browserMigrationScanFileLimit,
-		folderLimit: browserMigrationScanFolderLimit,
-		magicReadLimit: browserMigrationScanMagicReadLimit,
-	};
-}
-
-export function publishBrowserMigrationScanProgress(
-	stats: BrowserMigrationScanStats,
-	options: BrowserMigrationScanOptions,
-	runtime: BrowserMigrationScanRuntime,
-	currentItem: string | null,
-	phase: BrowserMigrationScanPhase = "scanning",
-	force = false,
-): void {
-	if (!options.onProgress) return;
-	const now = browserImagingScanNowMs();
-	const shouldPublish =
-		force ||
-		runtime.processedUnits % browserMigrationScanProgressEveryUnits === 0 ||
-		now - runtime.lastProgressAtMs >= browserMigrationScanProgressEveryMs;
-	if (!shouldPublish) return;
-	runtime.lastProgressAtMs = now;
-	options.onProgress(
-		browserMigrationScanProgressFromStats(stats, runtime, phase, currentItem),
-	);
-}
-
-export async function maybeYieldBrowserMigrationScan(
-	runtime: BrowserMigrationScanRuntime,
-	signal?: AbortSignal,
-): Promise<void> {
-	throwIfBrowserMigrationScanAborted(signal);
-	const now = browserImagingScanNowMs();
-	const shouldYield =
-		runtime.processedUnits % browserMigrationScanYieldEveryUnits === 0 ||
-		now - runtime.lastYieldAtMs >= browserMigrationScanYieldEveryMs;
-	if (!shouldYield) return;
-	runtime.lastYieldAtMs = now;
-	await browserImagingScanYield();
-	throwIfBrowserMigrationScanAborted(signal);
-}
-
-export function addBrowserMigrationKindToScanStats(
-	stats: BrowserMigrationScanStats,
-	kind: BrowserMigrationFileKind,
-	fileSize: number,
-): void {
-	stats.totalBytes += fileSize;
-	if (kind === "database") stats.databaseFiles += 1;
-	else if (kind === "dump") stats.dumpFiles += 1;
-	else if (kind === "table") stats.tableFiles += 1;
-	else if (kind === "archive") stats.archiveFiles += 1;
-	else if (kind === "dicom") stats.dicomLikeFiles += 1;
-	else if (kind === "image") stats.imageFiles += 1;
-	else if (kind === "model") stats.modelFiles += 1;
-}
-
-export function browserPickedFolderFingerprint(input: string): string {
-	return localImagingFolderFingerprint(input || "browser-local-imaging-folder");
-}
-
-export function saveBrowserPickedImagingFolderPreview(
-	preview: BrowserPickedImagingFolderPreview,
-	organizationId: string | null | undefined = null,
-): void {
-	if (typeof window === "undefined") return;
-	try {
-		safeLocalStorageSetItem(
-			organizationScopedLocalStorageKey(
-				browserPickedImagingFolderStorageKey,
-				organizationId,
-			),
-			JSON.stringify(preview),
-		);
-	} catch (error) {
-		showToast(
-			actionFailureToast(
-				"Ошибка выполнения операции",
-				(error as { status?: number })?.status ?? null,
-			),
-			"error",
-		);
-		console.error(
-			"Failed to save browser picked imaging folder preview",
-			error,
-		);
-		// Browser-picked folder summaries are best-effort and contain no raw local path.
-	}
-}
-
-export function loadBrowserPickedImagingFolderPreview(
-	organizationId: string | null | undefined = null,
-): BrowserPickedImagingFolderPreview | null {
-	if (typeof window === "undefined") return null;
-	try {
-		const localKey = organizationScopedLocalStorageKey(
-			browserPickedImagingFolderStorageKey,
-			organizationId,
-		);
-		const raw =
-			safeLocalStorageGetItem(localKey) ??
-			(organizationId
-				? safeLocalStorageGetItem(browserPickedImagingFolderStorageKey)
-				: null);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as BrowserPickedImagingFolderPreview;
-		if (parsed?.version !== 1 || !parsed.folderFingerprint || !parsed.createdAt)
-			return null;
-		if (!localSavedAtFresh(parsed.createdAt, localConvenienceRetentionMs)) {
-			safeLocalStorageRemoveItem(localKey);
-			if (organizationId)
-				safeLocalStorageRemoveItem(browserPickedImagingFolderStorageKey);
-			return null;
-		}
-		return parsed;
-	} catch (error) {
-		showToast(
-			actionFailureToast(
-				"Ошибка выполнения операции",
-				(error as { status?: number })?.status ?? null,
-			),
-			"error",
-		);
-		console.error(
-			"Failed to remove browser picked imaging folder preview",
-			error,
-		);
-		return null;
-	}
-}
-
-export function removeBrowserPickedImagingFolderPreview(
-	organizationId: string | null | undefined = null,
-): void {
-	if (typeof window === "undefined") return;
-	try {
-		safeLocalStorageRemoveItem(
-			organizationScopedLocalStorageKey(
-				browserPickedImagingFolderStorageKey,
-				organizationId,
-			),
-		);
-		if (organizationId)
-			safeLocalStorageRemoveItem(browserPickedImagingFolderStorageKey);
-	} catch {
-		// ignore unavailable storage
-	}
-}
-
-export function buildBrowserPickedImagingFolderPreview(
-	stats: BrowserPickedImagingScanStats,
-): BrowserPickedImagingFolderPreview {
-	const fingerprint = browserPickedFolderFingerprint(
-		[
-			stats.rootName,
-			stats.scannedFiles,
-			stats.scannedFolders,
-			stats.dicomLikeFiles,
-			stats.archiveFiles,
-			stats.modelFiles,
-			stats.imageFiles,
-			stats.totalBytes,
-		].join(":"),
-	);
-	const hasDicom = stats.dicomLikeFiles > 0;
-	const hasModels = stats.modelFiles > 0;
-	const nextAction = hasDicom
-		? "Найдены файлы КТ/снимков. Для тяжелой КТ откройте эту же папку в локальном модуле клиники или в полноценном просмотрщике КТ."
-		: hasModels
-			? "Найдены стоматологические 3D-модели. До подключения просмотрщика 3D-моделей держим это как метаданные органайзера."
-			: "В ограниченном браузерном сканировании файлы снимков не найдены.";
-	return {
-		version: 1,
-		safeDisplayName: `${hasDicom ? "Браузерная КТ-папка" : "Браузерная папка снимков"} #${fingerprint}`,
-		sourceLabel:
-			stats.sourceKind === "browser_directory_picker"
-				? "Выбор папки браузером"
-				: "Выбор файлов браузером",
-		sourceKind: stats.sourceKind,
-		folderFingerprint: fingerprint,
-		rootName: stats.rootName || "Выбранная папка",
-		scannedFiles: stats.scannedFiles,
-		scannedFolders: stats.scannedFolders,
-		dicomLikeFiles: stats.dicomLikeFiles,
-		archiveFiles: stats.archiveFiles,
-		modelFiles: stats.modelFiles,
-		imageFiles: stats.imageFiles,
-		totalBytes: stats.totalBytes,
-		createdAt: new Date().toISOString(),
-		nextAction,
-		warnings: stats.warnings,
-	};
 }
 
 export function loadLocalImagingFolderDraft(
@@ -2747,117 +1764,6 @@ export function removeLocalDicomWorkbenchDraftFromLocalStorage(
 	} catch {
 		// ignore unavailable storage
 	}
-}
-
-export function hasDentalDesktopShellBridge(): boolean {
-	if (typeof window === "undefined") return false;
-	const runtimeWindow = window as DentalDesktopRuntimeWindow;
-	return Boolean(
-		runtimeWindow.dentalCrmDesktop?.dicomBridge ||
-			runtimeWindow.dentalCrmDesktop?.localFileBridge ||
-			runtimeWindow.__DENTAL_CRM_DESKTOP__ ||
-			runtimeWindow.__TAURI__ ||
-			runtimeWindow.electronAPI,
-	);
-}
-
-export function detectDicomRuntimeSurfaceHint(): DicomWorkstationClientFacts["runtimeSurfaceHint"] {
-	if (typeof navigator === "undefined") return "unknown";
-	if (hasDentalDesktopShellBridge()) return "desktop_app";
-	const text =
-		`${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
-	if (/ipad|tablet/.test(text)) return "tablet_web";
-	if (/android|iphone|ipod|mobile|phone/.test(text)) return "mobile_web";
-	if (/win|mac|linux|x11|desktop/.test(text)) return "desktop_web";
-	return "unknown";
-}
-
-export async function collectDicomWorkstationClientFacts(): Promise<DicomWorkstationClientFacts> {
-	let webgl2Supported = false;
-	let webglVendor: string | null = null;
-	let webglRenderer: string | null = null;
-	let maxTextureSize: number | null = null;
-	let max3dTextureSize: number | null = null;
-	let maxRenderbufferSize: number | null = null;
-	try {
-		const canvas = document.createElement("canvas");
-		const gl = canvas.getContext("webgl2");
-		webgl2Supported = Boolean(gl);
-		if (gl) {
-			maxTextureSize = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || null;
-			max3dTextureSize =
-				Number(gl.getParameter(gl.MAX_3D_TEXTURE_SIZE)) || null;
-			maxRenderbufferSize =
-				Number(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)) || null;
-			const debugInfo = gl.getExtension("WEBGL_debug_renderer_info") as {
-				UNMASKED_VENDOR_WEBGL: number;
-				UNMASKED_RENDERER_WEBGL: number;
-			} | null;
-			if (debugInfo) {
-				webglVendor =
-					String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? "").slice(
-						0,
-						180,
-					) || null;
-				webglRenderer =
-					String(
-						gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? "",
-					).slice(0, 240) || null;
-			}
-		}
-	} catch {
-		webgl2Supported = false;
-	}
-
-	const navigatorWithMemory = navigator as Navigator & {
-		deviceMemory?: number;
-	};
-	let storageQuotaMb: number | null = null;
-	let storageUsageMb: number | null = null;
-	try {
-		const estimate = await navigator.storage?.estimate?.();
-		storageQuotaMb = estimate?.quota
-			? Math.floor(estimate.quota / 1024 / 1024)
-			: null;
-		storageUsageMb = estimate?.usage
-			? Math.floor(estimate.usage / 1024 / 1024)
-			: null;
-	} catch {
-		storageQuotaMb = null;
-		storageUsageMb = null;
-	}
-
-	const directoryPickerSupported =
-		typeof window !== "undefined" &&
-		typeof (window as BrowserDirectoryPickerWindow).showDirectoryPicker ===
-			"function";
-	const desktopShellBridgeSupported = hasDentalDesktopShellBridge();
-
-	return {
-		deviceMemoryGb: navigatorWithMemory.deviceMemory ?? null,
-		hardwareConcurrency: navigator.hardwareConcurrency || null,
-		webgl2Supported,
-		webglVendor,
-		webglRenderer,
-		maxTextureSize,
-		max3dTextureSize,
-		maxRenderbufferSize,
-		devicePixelRatio: window.devicePixelRatio || null,
-		offscreenCanvasSupported: typeof OffscreenCanvas !== "undefined",
-		webWorkerSupported: typeof Worker !== "undefined",
-		indexedDbSupported: typeof indexedDB !== "undefined",
-		storageQuotaMb,
-		storageUsageMb,
-		online: navigator.onLine,
-		runtimeSurfaceHint: detectDicomRuntimeSurfaceHint(),
-		desktopShellBridgeSupported,
-		directoryPickerSupported,
-		directoryHandlePersistence: directoryPickerSupported
-			? "session_only"
-			: "unsupported",
-		userAgent: navigator.userAgent.slice(0, 300),
-		platform: navigator.platform || null,
-	};
 }
 
 export function saveLocalImagingViewerDraft(
@@ -3194,14 +2100,6 @@ export const toothStateByCode: Record<
 	"48": "missing",
 };
 
-export function formatTime(value: string) {
-	return new Intl.DateTimeFormat("ru-RU", {
-		hour: "2-digit",
-		minute: "2-digit",
-		timeZone: "Europe/Samara",
-	}).format(new Date(value));
-}
-
 export function patientName(patients: Patient[], patientId: string | null) {
 	if (!patientId) return "Новый пациент";
 	return (
@@ -3221,69 +2119,9 @@ export function findPatient(patients: Patient[], patientId: string | null) {
  * ОТЛИЧИТЬ неизвестное от суммы, не разбирая текст на части, — например чтобы
  * не подсвечивать красным долг, которого никто не считал.
  */
-export const moneyUnknownLabel = "не определено";
+import { money, moneyUnknownLabel } from "./utils/financeUtils";
 
-/**
- * Сумма для показа человеку.
- *
- * Копейки печатаются, только если они есть, и всегда двумя знаками. Раньше
- * стоял голый toLocaleString без указания знаков: 1500,5 выводилось как
- * «1 500,5 ₽» — для денег это неверная запись, полтинник читается как пять
- * копеек. Круглые суммы при этом не обрастают «,00»: на экране, где почти все
- * цены круглые, это лишний шум.
- *
- * Строку на входе тоже переживаем: колонки numeric приходили из драйвера базы
- * строками, и такое значение могло долететь до форматирования.
- *
- * НЕИЗВЕСТНАЯ СУММА БОЛЬШЕ НЕ ПЕЧАТАЕТСЯ НУЛЁМ. Здесь стояло
- * `Number.isFinite(amount) ? amount : 0`, и любое значение, которого программа
- * не знает — null, undefined, нечитаемая строка, — выходило на экран как
- * «0 ₽», не отличимое от настоящего нуля. «Пациент не должен ничего» и
- * «сколько должен, не посчитано» — разные утверждения о деньгах, а показывались
- * одной строкой. Прежний автор `planItemFromServer` уже описал эту ловушку с
- * другой стороны (components/odontogram/treatmentEstimatorPricing.ts): он
- * подставлял ноль ИМЕННО ЧТОБЫ не показать «0 ₽», а получал гарантированный
- * «0 ₽», потому что подмена происходила до этой функции.
- *
- * Живой пример на момент правки: в списке документов
- * (`DocumentsView.tsx:4238`, `money(document.totalAmountRub)`) поле нулевое по
- * схеме — `nonNegativeMoneyRubSchema.nullable()`, и `useAppLogic.tsx:12362`
- * ставит null всем видам документов без денег. Таких видов 18 из 32 — согласия,
- * рецепты, выписки, направления, отказы, анкеты, — и каждый печатался в строке
- * как «· 0 ₽».
- *
- * ПОЧЕМУ «не определено», А НЕ ПРОЧЕРК. В русской финансовой записи прочерк в
- * денежной графе означает как раз НОЛЬ («операции не было»), поэтому «—»
- * поменяло бы одну двусмысленность на другую — ту же самую, которую здесь
- * убирают. «н/д» — сокращение для бухгалтера, а этот текст читают
- * администратор, врач и пациент. Слово «не определено» уже живёт в продукте в
- * этом же файле (`documentDetectedKindLabels.unknown`), так что словарь не
- * расширяется. Знак «₽» намеренно НЕ добавлен: «не определено ₽» читалось бы
- * снова как сумма.
- *
- * НАСТОЯЩИЙ НОЛЬ ОСТАЛСЯ НУЛЁМ. `money(0)` — это «0 ₽»: ноль рублей законная
- * сумма, и прятать её нельзя.
- *
- * Пустая строка отнесена к неизвестному, а не к нулю: `Number("")` в
- * JavaScript равно 0, и незаполненное поле или отсутствующая колонка проезжали
- * через `Number.isFinite` как честный ноль — тот же дефект другой дверью.
- */
-export function money(value: number | string | null | undefined) {
-	const amount =
-		typeof value === "string"
-			? value.trim() === ""
-				? Number.NaN
-				: Number(value)
-			: value;
-	if (typeof amount !== "number" || !Number.isFinite(amount))
-		return moneyUnknownLabel;
-	const kopecks = Math.round(amount * 100) % 100;
-	const fractionDigits = kopecks === 0 ? 0 : 2;
-	return `${amount.toLocaleString("ru-RU", {
-		minimumFractionDigits: fractionDigits,
-		maximumFractionDigits: fractionDigits,
-	})} ₽`;
-}
+export { money, moneyUnknownLabel };
 
 /**
  * Русское склонение счётного слова: 1 приём, 2 приёма, 5 приёмов.
@@ -3306,48 +2144,9 @@ export function money(value: number | string | null | undefined) {
  * реэкспорта ломала четыре собственных вызова — поймано веб-гейтом.
  */
 import { countLabel } from "./lib/russianPlural.js";
+import { logger } from "./utils/logger";
 
 export { countLabel };
-
-/**
- * Дата вида «2026-05-24» человеческим видом: «24.05.2026».
- *
- * Нужна там, где в интерфейс попадает строка даты из данных, а не отметка
- * времени: на экране «Документы» стояло «проверено 2026-05-24».
- */
-export function isoDateLabel(value: unknown): string {
-	if (typeof value !== "string" || !value) return "";
-	const [year, month, day] = value.slice(0, 10).split("-");
-	if (!year || !month || !day || year.length !== 4) return value;
-	return `${day}.${month}.${year}`;
-}
-
-export function minutesLabel(value: number) {
-	if (value < 60) return `${value} мин`;
-	const hours = Math.floor(value / 60);
-	const minutes = value % 60;
-	return minutes ? `${hours} ч ${minutes} мин` : `${hours} ч`;
-}
-
-export function formatDateTime(value: string) {
-	return new Intl.DateTimeFormat("ru-RU", {
-		day: "2-digit",
-		month: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-		timeZone: "Europe/Samara",
-	}).format(new Date(value));
-}
-
-export function formatShortDate(value: string) {
-	return new Intl.DateTimeFormat("ru-RU", {
-		day: "2-digit",
-		month: "2-digit",
-		year: "2-digit",
-		timeZone: "Europe/Samara",
-	}).format(new Date(value));
-}
-
 export type BrowserSpeechRecognition = {
 	continuous: boolean;
 	interimResults: boolean;
@@ -3639,10 +2438,6 @@ export function appendSpeechTextWithoutDuplicateTail(
 	}
 
 	return `${cleanCurrent}\n${cleanNext}`;
-}
-
-export function isDentalSpecialty(value: unknown): value is DentalSpecialty {
-	return typeof value === "string" && value in specialtyLabels;
 }
 
 export function telegramQrSvgToDataUrl(svg: string): string {
@@ -4106,32 +2901,6 @@ export const onboardingStepValues: readonly OnboardingStep[] = [
 	"telegram",
 	"done",
 ];
-
-export type ClinicProfileDraft = {
-	clinicName: string;
-	legalName: string;
-	inn: string;
-	kpp: string;
-	ogrn: string;
-	address: string;
-	phone: string;
-	email: string;
-	website: string;
-	medicalLicenseNumber: string;
-	medicalLicenseIssuedAt: string;
-	medicalLicenseIssuer: string;
-	bankDetails: string;
-	signatoryName: string;
-	signatoryTitle: string;
-	timezone: string;
-	defaultVisitMinutes: string;
-	workdayStart: string;
-	workdayEnd: string;
-	workingDays: number[];
-	appointmentBufferMinutes: string;
-	egiszEnabled: boolean;
-};
-
 export type ClinicProfileSaveState = "idle" | "saving" | "saved" | "error";
 
 export type PatientCoreDraft = {
@@ -4142,27 +2911,11 @@ export type PatientCoreDraft = {
 	notes: string;
 };
 export type PatientCoreSaveState = "idle" | "saving" | "saved" | "error";
-
-export type PatientAdministrativeProfileDraft = {
-	[K in Exclude<
-		keyof PatientAdministrativeProfile,
-		"preferredAppointmentWeekdays"
-	>]: string;
-} & {
-	preferredAppointmentWeekdays: number[];
-};
 export type PatientAdministrativeProfileSaveState =
 	| "idle"
 	| "saving"
 	| "saved"
 	| "error";
-
-export type StaffScheduleDraft = {
-	start: string;
-	end: string;
-	workingDays: number[];
-	perDay: StaffWorkingHours;
-};
 export type StaffScheduleSaveState = "idle" | "saving" | "saved" | "error";
 
 export type AppointmentScheduleDraft = {
@@ -4551,10 +3304,6 @@ export function normalizeUiLanguageInput(value: unknown): UiLanguage {
 	return isUiLanguage(value) ? value : "ru";
 }
 
-export function isStaffRole(value: unknown): value is StaffRole {
-	return isRecordKey(value, staffRoleLabels);
-}
-
 export function isPaymentMethod(value: unknown): value is PaymentMethod {
 	return isRecordKey(value, paymentMethodLabels);
 }
@@ -4854,14 +3603,6 @@ export function normalizedClinicalRuleSeverity(
 	value: unknown,
 ): Dashboard["clinicalRules"][number]["severity"] {
 	return isRecordKey(value, clinicalRuleSeverityLabels) ? value : "warning";
-}
-
-export function normalizedStaffRole(value: unknown): StaffRole {
-	return isStaffRole(value) ? value : "doctor";
-}
-
-export function normalizedDentalSpecialty(value: unknown): DentalSpecialty {
-	return isDentalSpecialty(value) ? value : "therapist";
 }
 
 export function normalizedServiceCategory(
@@ -5497,92 +4238,6 @@ export const weekdayOptions = [
 	{ value: 0, label: "Вс" },
 ];
 
-export const defaultWorkingDays = [1, 2, 3, 4, 5];
-
-export function validClockTime(value: string): boolean {
-	return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-export function normalizeClockTime(value: string, fallback: string): string {
-	return validClockTime(value) ? value : fallback;
-}
-
-export function normalizeWorkingDaysDraft(
-	value: readonly number[] | undefined,
-): number[] {
-	// БЫЛО: пустой массив приравнивался к "не задано" и подменялся на Пн–Пт.
-	// Администратор снимал все галочки, чтобы отправить врача в отпуск или вывести
-	// кресло из строя, — галочки возвращались на Пн–Пт и сохранялись в базу.
-	// Отсутствующий врач оставался доступным для записи.
-	// Теперь Пн–Пт подставляются только когда значение вообще не задано.
-	if (value === undefined || value === null) return [...defaultWorkingDays];
-	return Array.from(
-		new Set(
-			value.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
-		),
-	).sort((left, right) => left - right);
-}
-
-export function normalizeOptionalWorkingDaysDraft(
-	value: readonly number[] | undefined,
-): number[] {
-	return Array.from(
-		new Set(
-			(value ?? []).filter(
-				(day) => Number.isInteger(day) && day >= 0 && day <= 6,
-			),
-		),
-	).sort((left, right) => left - right);
-}
-
-export function staffWorkingHoursFromSimpleDraft(
-	startValue: string,
-	endValue: string,
-	workingDayValue: readonly number[] | undefined,
-): StaffWorkingHours {
-	const start = normalizeClockTime(startValue, "09:00");
-	const end = normalizeClockTime(endValue, "18:00");
-	const workingDays = normalizeWorkingDaysDraft(workingDayValue);
-	return Array.from({ length: 7 }, (_, weekday) => ({
-		weekday,
-		enabled: workingDays.includes(weekday),
-		start,
-		end,
-	}));
-}
-
-export function staffScheduleDraftFromWorkingHours(
-	workingHours: StaffWorkingHours | null | undefined,
-): StaffScheduleDraft {
-	const enabledDays = (workingHours ?? []).filter((day) => day.enabled);
-	const firstEnabledDay = enabledDays[0] ?? workingHours?.[0];
-	const fallbackPerDay = staffWorkingHoursFromSimpleDraft(
-		firstEnabledDay?.start ?? "09:00",
-		firstEnabledDay?.end ?? "18:00",
-		enabledDays.map((day) => day.weekday),
-	);
-	const perDay = Array.from({ length: 7 }, (_, weekday) => {
-		const configured = workingHours?.find((day) => day.weekday === weekday);
-		return (
-			configured ??
-			fallbackPerDay[weekday] ?? {
-				weekday,
-				enabled: defaultWorkingDays.includes(weekday),
-				start: "09:00",
-				end: "18:00",
-			}
-		);
-	});
-	return {
-		start: firstEnabledDay?.start ?? "09:00",
-		end: firstEnabledDay?.end ?? "18:00",
-		workingDays: normalizeWorkingDaysDraft(
-			enabledDays.map((day) => day.weekday),
-		),
-		perDay,
-	};
-}
-
 export function appointmentScheduleDraftFromAppointment(
 	appointment: Appointment,
 ): AppointmentScheduleDraft {
@@ -5597,154 +4252,6 @@ export function appointmentScheduleDraftFromAppointment(
 		reason: appointment.reason ?? "",
 		comment: appointment.comment ?? "",
 	};
-}
-
-export function timeZoneOffsetMinutes(
-	timeZone: string | null | undefined,
-	at: Date,
-): number {
-	if (!timeZone) return -at.getTimezoneOffset();
-	try {
-		const parts = new Intl.DateTimeFormat("en-US", {
-			timeZone,
-			timeZoneName: "shortOffset",
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		}).formatToParts(at);
-		const value =
-			parts.find((part) => part.type === "timeZoneName")?.value ?? "";
-		if (value === "GMT" || value === "UTC") return 0;
-		const match = /(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?/.exec(value);
-		if (!match) return -at.getTimezoneOffset();
-		const sign = match[1] === "-" ? -1 : 1;
-		return sign * (Number(match[2]) * 60 + Number(match[3] ?? "0"));
-	} catch {
-		return -at.getTimezoneOffset();
-	}
-}
-
-export function timeZoneOffsetSuffix(offsetMinutes: number): string {
-	const sign = offsetMinutes < 0 ? "-" : "+";
-	const absolute = Math.abs(offsetMinutes);
-	const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
-	const minutes = String(absolute % 60).padStart(2, "0");
-	return `${sign}${hours}:${minutes}`;
-}
-
-export function timeZoneDateParts(
-	value: string,
-	timeZone: string | null | undefined,
-): string | null {
-	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) return null;
-	if (!timeZone) return null;
-	try {
-		const parts = new Intl.DateTimeFormat("en-CA", {
-			timeZone,
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		}).formatToParts(parsed);
-		const valueByType = new Map(parts.map((part) => [part.type, part.value]));
-		const hour =
-			valueByType.get("hour") === "24" ? "00" : valueByType.get("hour");
-		const year = valueByType.get("year");
-		const month = valueByType.get("month");
-		const day = valueByType.get("day");
-		const minute = valueByType.get("minute");
-		return year && month && day && hour && minute
-			? `${year}-${month}-${day}T${hour}:${minute}`
-			: null;
-	} catch {
-		return null;
-	}
-}
-
-export function fromDateTimeLocalValue(
-	value: string,
-	timeZone?: string | null,
-): string {
-	const trimmed = value.trim();
-	if (!trimmed) return "";
-	const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(trimmed);
-	if (match && timeZone) {
-		const [, year, month, day, hour, minute] = match;
-		const utcGuess = new Date(
-			Date.UTC(
-				Number(year),
-				Number(month) - 1,
-				Number(day),
-				Number(hour),
-				Number(minute),
-			),
-		);
-		let offsetMinutes = timeZoneOffsetMinutes(timeZone, utcGuess);
-		const correctedInstant = new Date(
-			utcGuess.getTime() - offsetMinutes * 60_000,
-		);
-		const correctedOffsetMinutes = timeZoneOffsetMinutes(
-			timeZone,
-			correctedInstant,
-		);
-		if (correctedOffsetMinutes !== offsetMinutes)
-			offsetMinutes = correctedOffsetMinutes;
-		return `${year}-${month}-${day}T${hour}:${minute}:00${timeZoneOffsetSuffix(offsetMinutes)}`;
-	}
-	const parsed = new Date(trimmed);
-	return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString();
-}
-
-export function addMinutesToClinicDateTimeLocal(
-	value: string,
-	minutes: number,
-	timeZone: string,
-): string {
-	const iso = fromDateTimeLocalValue(value, timeZone);
-	const parsed = new Date(iso);
-	if (Number.isNaN(parsed.getTime())) return value;
-	return toDateTimeLocalValue(
-		new Date(parsed.getTime() + minutes * 60_000).toISOString(),
-		timeZone,
-	);
-}
-
-export function weekdayFromDateInput(value: string): number {
-	const parsed = Date.parse(`${value}T12:00:00Z`);
-	return Number.isNaN(parsed) ? 1 : new Date(parsed).getUTCDay();
-}
-
-export function defaultAppointmentStartLocal(profile: ClinicProfile): string {
-	const schedule = profile.scheduleDefaults ?? {
-		workdayStart: "09:00",
-		workdayEnd: "18:00",
-		workingDays: [1, 2, 3, 4, 5],
-		appointmentBufferMinutes: 10,
-	};
-	const timezone = profile.timezone || "Europe/Samara";
-	const now = new Date();
-	for (let offset = 0; offset < 21; offset += 1) {
-		const candidateDate = new Date(now.getTime() + offset * 86_400_000);
-		const datePart = toDateTimeLocalValue(
-			candidateDate.toISOString(),
-			timezone,
-		).slice(0, 10);
-		if (!schedule.workingDays.includes(weekdayFromDateInput(datePart)))
-			continue;
-		const candidate = `${datePart}T${schedule.workdayStart}`;
-		if (
-			Date.parse(fromDateTimeLocalValue(candidate, timezone)) >
-			now.getTime() + 30 * 60_000
-		)
-			return candidate;
-	}
-	return `${toDateTimeLocalValue(new Date(now.getTime() + 86_400_000).toISOString(), timezone).slice(0, 10)}T${schedule.workdayStart}`;
 }
 
 export function newAppointmentDraftFromDashboard(
@@ -5846,56 +4353,6 @@ export function newAppointmentDraftFromDashboard(
 		reason: "Первичная консультация",
 		comment: "",
 	};
-}
-
-export function isValidDateParts(
-	year: number,
-	month: number,
-	day: number,
-): boolean {
-	const parsed = new Date(Date.UTC(year, month - 1, day));
-	return (
-		parsed.getUTCFullYear() === year &&
-		parsed.getUTCMonth() === month - 1 &&
-		parsed.getUTCDate() === day
-	);
-}
-
-export function toDateInputValue(value: string | null | undefined): string {
-	const trimmed = value?.trim() ?? "";
-	if (!trimmed) return "";
-	const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
-	if (iso && isValidDateParts(Number(iso[1]), Number(iso[2]), Number(iso[3])))
-		return `${iso[1]}-${iso[2]}-${iso[3]}`;
-	const ru = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(trimmed);
-	if (ru && isValidDateParts(Number(ru[3]), Number(ru[2]), Number(ru[1])))
-		return `${ru[3]}-${ru[2]}-${ru[1]}`;
-	const parsed = new Date(trimmed);
-	if (Number.isNaN(parsed.getTime())) return trimmed;
-	const local = new Date(
-		parsed.getTime() - parsed.getTimezoneOffset() * 60_000,
-	);
-	return local.toISOString().slice(0, 10);
-}
-
-export function isDateInputValue(value: string): boolean {
-	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-	return (
-		!!match &&
-		isValidDateParts(Number(match[1]), Number(match[2]), Number(match[3]))
-	);
-}
-
-export function isDateTimeLocalInputValue(value: string): boolean {
-	const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
-	if (
-		!match ||
-		!isValidDateParts(Number(match[1]), Number(match[2]), Number(match[3]))
-	)
-		return false;
-	const hours = Number(match[4]);
-	const minutes = Number(match[5]);
-	return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
 }
 
 export function nullableAppointmentDraftValue(value: string): string | null {
@@ -6025,97 +4482,6 @@ export function appointmentScheduleMissingFields(
 	return missing;
 }
 
-export function staffWorkingHoursFromDraft(
-	draft: StaffScheduleDraft,
-): StaffWorkingHours {
-	const start = normalizeClockTime(draft.start, "09:00");
-	const end = normalizeClockTime(draft.end, "18:00");
-	const workingDays = normalizeWorkingDaysDraft(draft.workingDays);
-	const perDay =
-		draft.perDay ?? staffWorkingHoursFromSimpleDraft(start, end, workingDays);
-	return Array.from({ length: 7 }, (_, weekday) => ({
-		weekday,
-		enabled: workingDays.includes(weekday),
-		start: normalizeClockTime(perDay[weekday]?.start ?? start, start),
-		end: normalizeClockTime(perDay[weekday]?.end ?? end, end),
-	}));
-}
-
-export function staffScheduleDraftSignature(draft: StaffScheduleDraft): string {
-	return JSON.stringify(staffWorkingHoursFromDraft(draft));
-}
-
-export function defaultStaffScheduleDraft(): StaffScheduleDraft {
-	return staffScheduleDraftFromWorkingHours(null);
-}
-
-export function emptyClinicProfileDraft(): ClinicProfileDraft {
-	return {
-		clinicName: "",
-		legalName: "",
-		inn: "",
-		kpp: "",
-		ogrn: "",
-		address: "",
-		phone: "",
-		email: "",
-		website: "",
-		medicalLicenseNumber: "",
-		medicalLicenseIssuedAt: "",
-		medicalLicenseIssuer: "",
-		bankDetails: "",
-		signatoryName: "",
-		signatoryTitle: "",
-		timezone: "Europe/Samara",
-		defaultVisitMinutes: "45",
-		workdayStart: "09:00",
-		workdayEnd: "18:00",
-		workingDays: defaultWorkingDays,
-		appointmentBufferMinutes: "10",
-		egiszEnabled: false,
-	};
-}
-
-export function clinicProfileDraftFromProfile(
-	profile: ClinicProfile,
-): ClinicProfileDraft {
-	const schedule = profile.scheduleDefaults ?? {
-		workdayStart: "09:00",
-		workdayEnd: "18:00",
-		workingDays: defaultWorkingDays,
-		appointmentBufferMinutes: 10,
-	};
-	return {
-		clinicName: profile.clinicName ?? "",
-		legalName: profile.legalName ?? "",
-		inn: profile.inn ?? "",
-		kpp: profile.kpp ?? "",
-		ogrn: profile.ogrn ?? "",
-		address: profile.address ?? "",
-		phone: profile.phone ?? "",
-		email: profile.email ?? "",
-		website: profile.website ?? "",
-		medicalLicenseNumber: profile.medicalLicenseNumber ?? "",
-		medicalLicenseIssuedAt: profile.medicalLicenseIssuedAt ?? "",
-		medicalLicenseIssuer: profile.medicalLicenseIssuer ?? "",
-		bankDetails: profile.bankDetails ?? "",
-		signatoryName: profile.signatoryName ?? "",
-		signatoryTitle: profile.signatoryTitle ?? "",
-		timezone: profile.timezone ?? "Europe/Samara",
-		defaultVisitMinutes: String(profile.defaultVisitMinutes ?? 45),
-		workdayStart: schedule.workdayStart ?? "09:00",
-		workdayEnd: schedule.workdayEnd ?? "18:00",
-		workingDays: normalizeWorkingDaysDraft(schedule.workingDays),
-		appointmentBufferMinutes: String(schedule.appointmentBufferMinutes ?? 10),
-		egiszEnabled: profile.egiszEnabled ?? false,
-	};
-}
-
-export function nullableClinicDraftValue(value: string): string | null {
-	const trimmed = value.trim();
-	return trimmed ? trimmed : null;
-}
-
 export function patientCoreDraftFromPatient(
 	patient: Patient | null,
 ): PatientCoreDraft {
@@ -6126,47 +4492,6 @@ export function patientCoreDraftFromPatient(
 		email: patient?.email ?? "",
 		notes: patient?.notes ?? "",
 	};
-}
-
-export function patientAdministrativeProfileDraftFromPatient(
-	patient: Patient | null,
-): PatientAdministrativeProfileDraft {
-	const profile = patient?.administrativeProfile;
-	return {
-		identityDocument: profile?.identityDocument ?? "",
-		taxpayerInn: profile?.taxpayerInn ?? "",
-		registrationAddress: profile?.registrationAddress ?? "",
-		residentialAddress: profile?.residentialAddress ?? "",
-		insurancePolicyNumber: profile?.insurancePolicyNumber ?? "",
-		snils: profile?.snils ?? "",
-		legalRepresentativeFullName: profile?.legalRepresentativeFullName ?? "",
-		legalRepresentativeRelationship:
-			profile?.legalRepresentativeRelationship ?? "",
-		legalRepresentativeIdentityDocument:
-			profile?.legalRepresentativeIdentityDocument ?? "",
-		legalRepresentativePhone: profile?.legalRepresentativePhone ?? "",
-		preferredDocumentRecipient: profile?.preferredDocumentRecipient ?? "",
-		preferredAppointmentWeekdays: normalizeOptionalWorkingDaysDraft(
-			profile?.preferredAppointmentWeekdays ?? [],
-		),
-		preferredAppointmentStart: profile?.preferredAppointmentStart ?? "",
-		preferredAppointmentEnd: profile?.preferredAppointmentEnd ?? "",
-		preferredAppointmentNote: profile?.preferredAppointmentNote ?? "",
-		dataProcessingBasisNote: profile?.dataProcessingBasisNote ?? "",
-		orthodonticProgress: profile?.orthodonticProgress ?? "",
-		loyaltyTier:
-			profile?.loyaltyTier === "silver" ||
-			profile?.loyaltyTier === "gold" ||
-			profile?.loyaltyTier === "platinum" ||
-			profile?.loyaltyTier === "standard"
-				? profile.loyaltyTier
-				: "standard",
-	};
-}
-
-export function nullablePatientDraftValue(value: string): string | null {
-	const trimmed = value.trim();
-	return trimmed ? trimmed : null;
 }
 
 export function buildPatientCorePayload(
@@ -6183,150 +4508,6 @@ export function buildPatientCorePayload(
 
 export function patientCoreDraftSignature(draft: PatientCoreDraft): string {
 	return JSON.stringify(buildPatientCorePayload(draft));
-}
-
-export function buildPatientAdministrativeProfilePayload(
-	draft: PatientAdministrativeProfileDraft,
-): UpdatePatientAdministrativeProfileInput {
-	return {
-		identityDocument: nullablePatientDraftValue(draft.identityDocument),
-		taxpayerInn: nullablePatientDraftValue(draft.taxpayerInn),
-		registrationAddress: nullablePatientDraftValue(draft.registrationAddress),
-		residentialAddress: nullablePatientDraftValue(draft.residentialAddress),
-		insurancePolicyNumber: nullablePatientDraftValue(
-			draft.insurancePolicyNumber,
-		),
-		snils: nullablePatientDraftValue(draft.snils),
-		legalRepresentativeFullName: nullablePatientDraftValue(
-			draft.legalRepresentativeFullName,
-		),
-		legalRepresentativeRelationship: nullablePatientDraftValue(
-			draft.legalRepresentativeRelationship,
-		),
-		legalRepresentativeIdentityDocument: nullablePatientDraftValue(
-			draft.legalRepresentativeIdentityDocument,
-		),
-		legalRepresentativePhone: nullablePatientDraftValue(
-			draft.legalRepresentativePhone,
-		),
-		preferredDocumentRecipient: nullablePatientDraftValue(
-			draft.preferredDocumentRecipient,
-		),
-		preferredAppointmentWeekdays: draft.preferredAppointmentWeekdays,
-		preferredAppointmentStart: nullablePatientDraftValue(
-			draft.preferredAppointmentStart,
-		),
-		preferredAppointmentEnd: nullablePatientDraftValue(
-			draft.preferredAppointmentEnd,
-		),
-		preferredAppointmentNote: nullablePatientDraftValue(
-			draft.preferredAppointmentNote,
-		),
-		dataProcessingBasisNote: nullablePatientDraftValue(
-			draft.dataProcessingBasisNote,
-		),
-		orthodonticProgress: nullablePatientDraftValue(draft.orthodonticProgress),
-		loyaltyTier:
-			draft.loyaltyTier === "silver" ||
-			draft.loyaltyTier === "gold" ||
-			draft.loyaltyTier === "platinum" ||
-			draft.loyaltyTier === "standard"
-				? draft.loyaltyTier
-				: "standard",
-	};
-}
-
-export function patientAdministrativeProfileDraftSignature(
-	draft: PatientAdministrativeProfileDraft,
-): string {
-	return JSON.stringify(buildPatientAdministrativeProfilePayload(draft));
-}
-
-export function patientAdministrativeProfileDraftIssue(
-	draft: PatientAdministrativeProfileDraft,
-): string | null {
-	const inn = draft.taxpayerInn.trim();
-	if (inn && !/^\d{10}$|^\d{12}$/.test(inn)) {
-		return "ИНН можно сохранить только в формате 10 или 12 цифр. Пока это локальный черновик.";
-	}
-	if (draft.preferredAppointmentStart && !draft.preferredAppointmentEnd) {
-		return "Укажите конец удобного времени приема или очистите начало.";
-	}
-	if (!draft.preferredAppointmentStart && draft.preferredAppointmentEnd) {
-		return "Укажите начало удобного времени приема или очистите конец.";
-	}
-	if (
-		draft.preferredAppointmentStart &&
-		draft.preferredAppointmentEnd &&
-		draft.preferredAppointmentEnd <= draft.preferredAppointmentStart
-	) {
-		return "Конец удобного времени приема должен быть позже начала.";
-	}
-	return null;
-}
-
-export function buildClinicProfileUpdatePayload(
-	draft: ClinicProfileDraft,
-): UpdateClinicProfileInput {
-	const defaultVisitMinutes = Number.parseInt(draft.defaultVisitMinutes, 10);
-	const appointmentBufferMinutes = Number.parseInt(
-		draft.appointmentBufferMinutes,
-		10,
-	);
-	return {
-		clinicName: draft.clinicName.trim(),
-		legalName: nullableClinicDraftValue(draft.legalName),
-		inn: nullableClinicDraftValue(draft.inn),
-		kpp: nullableClinicDraftValue(draft.kpp),
-		ogrn: nullableClinicDraftValue(draft.ogrn),
-		address: nullableClinicDraftValue(draft.address),
-		phone: nullableClinicDraftValue(draft.phone),
-		email: nullableClinicDraftValue(draft.email),
-		website: nullableClinicDraftValue(draft.website),
-		medicalLicenseNumber: nullableClinicDraftValue(draft.medicalLicenseNumber),
-		medicalLicenseIssuedAt: nullableClinicDraftValue(
-			draft.medicalLicenseIssuedAt,
-		),
-		medicalLicenseIssuer: nullableClinicDraftValue(draft.medicalLicenseIssuer),
-		bankDetails: nullableClinicDraftValue(draft.bankDetails),
-		signatoryName: nullableClinicDraftValue(draft.signatoryName),
-		signatoryTitle: nullableClinicDraftValue(draft.signatoryTitle),
-		timezone: draft.timezone.trim() || "Europe/Samara",
-		defaultVisitMinutes: Number.isFinite(defaultVisitMinutes)
-			? Math.max(5, Math.min(defaultVisitMinutes, 480))
-			: 45,
-		scheduleDefaults: {
-			workdayStart: normalizeClockTime(draft.workdayStart, "09:00"),
-			workdayEnd: normalizeClockTime(draft.workdayEnd, "18:00"),
-			workingDays: normalizeWorkingDaysDraft(draft.workingDays),
-			appointmentBufferMinutes: Number.isFinite(appointmentBufferMinutes)
-				? Math.max(0, Math.min(appointmentBufferMinutes, 180))
-				: 10,
-		},
-		egiszEnabled: draft.egiszEnabled,
-	};
-}
-
-export function clinicProfileDraftSignature(draft: ClinicProfileDraft): string {
-	return JSON.stringify(buildClinicProfileUpdatePayload(draft));
-}
-
-export function clinicLegalMissingFields(profile: ClinicProfile): string[] {
-	const required: Array<[string, string | null | undefined]> = [
-		["Юр. лицо", profile.legalName],
-		["ИНН", profile.inn],
-		["Адрес", profile.address],
-		["Телефон", profile.phone],
-		["Номер лицензии", profile.medicalLicenseNumber],
-		["Дата лицензии", profile.medicalLicenseIssuedAt],
-		["Кем выдана лицензия", profile.medicalLicenseIssuer],
-	];
-	return required.filter(([, value]) => !value?.trim()).map(([label]) => label);
-}
-
-export function clinicLegalReadinessPercent(profile: ClinicProfile): number {
-	const missing = clinicLegalMissingFields(profile).length;
-	return Math.round(((7 - missing) / 7) * 100);
 }
 
 export function isVisitNoteForm(value: unknown): value is VisitNoteForm {
@@ -6882,7 +5063,7 @@ export async function migrateLocalDicomWorkbenchDraftFromLocalStorage(
 	const existing = await readLocalDicomWorkbenchDraftFromIndexedDb(
 		organizationId,
 	).catch((err) => {
-		console.error("[Dente] read draft error:", err);
+		logger.error("[Dente] read draft error:", err);
 		showToast(
 			actionFailureToast(
 				"Ошибка чтения черновика DICOM",
@@ -6988,7 +5169,7 @@ export async function readLocalMprWorkbenchDraftFromIndexedDb(
 			seriesKey,
 			organizationId,
 		).catch((err) => {
-			console.error("[Dente] delete draft error:", err);
+			logger.error("[Dente] delete draft error:", err);
 			showToast(
 				actionFailureToast(
 					"Не удалось удалить черновик MPR",
@@ -7073,7 +5254,7 @@ export async function migrateLocalMprWorkbenchDraftFromLocalStorage(
 		seriesKey,
 		organizationId,
 	).catch((err) => {
-		console.error("[Dente] read draft error:", err);
+		logger.error("[Dente] read draft error:", err);
 		showToast(
 			actionFailureToast(
 				"Ошибка чтения черновика MPR",
@@ -7315,7 +5496,7 @@ export async function migratePendingVisitSavesFromLocalStorage(
 	const existing = await readPendingVisitSavesFromIndexedDb(
 		normalizedOrganizationId,
 	).catch((err) => {
-		console.error("[Dente] read visit saves error:", err);
+		logger.error("[Dente] read visit saves error:", err);
 		showToast(
 			actionFailureToast(
 				"Ошибка чтения очереди приёмов",
@@ -7519,7 +5700,7 @@ export async function migrateSpeechChunksFromLocalStorage(
 	const existing = await readPendingSpeechChunksFromIndexedDb(
 		normalizedOrganizationId,
 	).catch((err) => {
-		console.error("[Dente] read speech chunks error:", err);
+		logger.error("[Dente] read speech chunks error:", err);
 		showToast(
 			actionFailureToast(
 				"Ошибка чтения очереди аудиофрагментов",
@@ -8027,15 +6208,6 @@ export const onboardingSteps: Array<{
 	{ id: "telegram", title: "ТГ-бот", detail: "бот, QR и отзывы" },
 	{ id: "done", title: "Готово", detail: "проверка и старт" },
 ];
-
-export const roleFocusOrder: StaffRole[] = [
-	"doctor",
-	"administrator",
-	"assistant",
-	"manager",
-	"owner",
-];
-
 export const speechProviderConnectorLabels: Record<
 	SpeechProviderConnector,
 	string
@@ -8099,3 +6271,91 @@ export function compactDocumentText(
 		.filter(Boolean)
 		.join("\n");
 }
+
+export * from "./utils/browserScanUtils";
+export type {
+	ClinicProfileDraft,
+	PatientAdministrativeProfileDraft,
+	StaffScheduleDraft,
+};
+/*
+ * РЕ-ЭКСПОРТ ДЛЯ РАБОЧЕГО СТОЛА DICOM. Без этих трёх строк приложение НЕ
+ * ЗАГРУЖАЛОСЬ ВООБЩЕ — белый экран, подменённый экраном BootErrorBoundary
+ * «Не удалось открыть рабочее место клиники».
+ *
+ * Замер в живом браузере 2026-08-08 (Playwright, http://127.0.0.1:5173):
+ *   SyntaxError: The requested module '/src/AppHelpers.tsx' does not provide
+ *   an export named 'collectDicomWorkstationClientFacts'
+ *
+ * Причина — разорванная цепочка ре-экспорта. `useDicomWorkbenchModule.ts:36-50`
+ * берёт эти символы ИЗ ЭТОГО ФАЙЛА, а файл их только импортировал у
+ * `./utils/browserScanUtils` (строки 21-27) и наружу не отдавал. Два из трёх
+ * (`collectDicomWorkstationClientFacts`, `isBrowserImagingScanAbortError`)
+ * вообще не использовались здесь ни разу — импортированы и забыты.
+ *
+ * ESM сообщает только о ПЕРВОМ недостающем экспорте, поэтому в консоли
+ * назывался один символ, а сломано было три. Чинить по тексту ошибки — значит
+ * получить тот же отказ на следующем имени.
+ *
+ * ПОЧЕМУ ЭТОГО НЕ ВИДЕЛ КОМПИЛЯТОР. `tsc -b apps/web --noEmit` даёт НОЛЬ
+ * ошибок на этом дефекте: TypeScript разрешает цепочку по типам, а
+ * Vite/браузер в рантайме требуют фактического `export` из запрошенного
+ * модуля. Зелёный typecheck доказал согласованность типов и ничего не сказал о
+ * достижимости — приложение при этом не стартовало ни разу.
+ */
+export {
+	addMinutesToClinicDateTimeLocal,
+	buildClinicProfileUpdatePayload,
+	buildPatientAdministrativeProfilePayload,
+	calendarDayInTimeZone,
+	clinicLegalMissingFields,
+	clinicLegalReadinessPercent,
+	clinicProfileDraftFromProfile,
+	clinicProfileDraftSignature,
+	clinicProfileEndpoint,
+	collectDicomWorkstationClientFacts,
+	dateInputValuePlusDays,
+	defaultAppointmentStartLocal,
+	defaultStaffScheduleDraft,
+	defaultWorkingDays,
+	emptyClinicProfileDraft,
+	formatDateTime,
+	formatShortDate,
+	formatTime,
+	fromDateTimeLocalValue,
+	isBrowserImagingScanAbortError,
+	isDateInputValue,
+	isDateTimeLocalInputValue,
+	isDentalSpecialty,
+	isoDateLabel,
+	isStaffRole,
+	isValidDateParts,
+	localConvenienceRetentionMs,
+	localImagingFolderFingerprint,
+	localSavedAtFresh,
+	minutesLabel,
+	normalizeClockTime,
+	normalizedDentalSpecialty,
+	normalizedStaffRole,
+	normalizeOptionalWorkingDaysDraft,
+	normalizeWorkingDaysDraft,
+	nullableClinicDraftValue,
+	nullablePatientDraftValue,
+	organizationScopedLocalStorageKey,
+	patientAdministrativeProfileDraftFromPatient,
+	patientAdministrativeProfileDraftIssue,
+	patientAdministrativeProfileDraftSignature,
+	roleFocusOrder,
+	shiftCalendarDay,
+	staffScheduleDraftFromWorkingHours,
+	staffScheduleDraftSignature,
+	staffWorkingHoursFromDraft,
+	staffWorkingHoursFromSimpleDraft,
+	timeZoneDateParts,
+	timeZoneOffsetMinutes,
+	timeZoneOffsetSuffix,
+	toDateInputValue,
+	todayDateInputValue,
+	validClockTime,
+	weekdayFromDateInput,
+};

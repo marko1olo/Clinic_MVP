@@ -1,10 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
 import type { Dashboard, Patient } from "@dental/shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
 	PatientAdministrativeProfileDraft,
 	PatientCoreDraft,
-} from "../../AppHelpers";
+} from "../../AppConstants";
 import {
 	buildPatientAdministrativeProfilePayload,
 	buildPatientCorePayload,
@@ -30,6 +29,7 @@ import { shouldResetPatientDraftState } from "../../components/patients/patientD
 import { actionFailureToast } from "../../lib/panelStateText";
 import { useDocumentStore } from "../../store/documentStore";
 import { usePatientStore } from "../../store/patientStore";
+import { fetchWithHandling } from "../../utils/networkUtils";
 
 /** Заготовка приёма из гидратации базы: приёмов нет, объект есть. */
 const NIL_VISIT_UUID = "00000000-0000-0000-0000-000000000000";
@@ -292,7 +292,7 @@ export function usePatientLogic({
 		);
 		setPatientAdministrativeProfileSaveState("saving");
 		try {
-			const response = await fetch(
+			const response = await fetchWithHandling(
 				`/api/patients/${selectedPatient.id}/administrative-profile`,
 				{
 					method: "PUT",
@@ -355,10 +355,17 @@ export function usePatientLogic({
 			return false;
 		}
 	}, [
-		patientAdministrativeProfileSaveState, setError, selectedPatient, patientAdministrativeProfileDirty,
-		patientAdministrativeProfileValidationMessage, patientAdministrativeProfileDraft, auth,
-		setPatientAdministrativeProfileSaveState, setDashboard, setPatientAdministrativeProfileDraft,
-		setPatientAdministrativeProfileDirty, setPatientAdministrativeProfileSaveState,
+		patientAdministrativeProfileSaveState,
+		setError,
+		selectedPatient,
+		patientAdministrativeProfileDirty,
+		patientAdministrativeProfileValidationMessage,
+		patientAdministrativeProfileDraft,
+		auth,
+		setPatientAdministrativeProfileSaveState,
+		setDashboard,
+		setPatientAdministrativeProfileDraft,
+		setPatientAdministrativeProfileDirty,
 	]);
 
 	useEffect(() => {
@@ -540,13 +547,16 @@ export function usePatientLogic({
 		}
 		setPatientCoreSaveState("saving");
 		try {
-			const response = await fetch(`/api/patients/${selectedPatient.id}`, {
-				method: "PUT",
-				headers: auth.denteClinicalMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify(payload),
-			});
+			const response = await fetchWithHandling(
+				`/api/patients/${selectedPatient.id}`,
+				{
+					method: "PUT",
+					headers: auth.denteClinicalMutationHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify(payload),
+				},
+			);
 			if (!response.ok)
 				throw new Error(
 					await responseErrorMessage(
@@ -596,7 +606,6 @@ export function usePatientLogic({
 		}
 	}
 
-	
 	async function createPatient() {
 		if (isPatientCreating) {
 			setError("Дождитесь завершения создания карточки пациента.");
@@ -614,7 +623,7 @@ export function usePatientLogic({
 		};
 		setIsPatientCreating(true);
 		try {
-			const response = await fetch("/api/patients", {
+			const response = await fetchWithHandling("/api/patients", {
 				method: "POST",
 				headers: auth.denteClinicalMutationHeaders({
 					"Content-Type": "application/json",

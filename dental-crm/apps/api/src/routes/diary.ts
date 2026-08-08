@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 
@@ -565,6 +565,7 @@ async function runDiarySigningCeremony(
 	// записывалась на нашу — то есть запись о расходе и сам расход оказывались в
 	// разных клиниках.
 	const deductions: DiaryStockDeduction[] = [];
+	const transactionsToInsert: any[] = [];
 	let completedTreatmentItems = 0;
 	if (diary.visitId) {
 		const visitTreatmentItems = await tx
@@ -701,22 +702,27 @@ async function runDiarySigningCeremony(
 							),
 						);
 
-					await tx.insert(inventoryTransactions).values({
+					transactionsToInsert.push({
 						organizationId,
 						visitId: diary.visitId,
 						inventoryItemId: inv.id,
 						quantityChanged,
 						unitCostRub:
 							inv.unitCostRub != null ? String(inv.unitCostRub) : null,
-						transactionType: "auto_deduct",
+						transactionType: "auto_deduct" as const,
 						userId,
 					});
+
 					deductions.push({
 						inventoryItemId: inv.id,
 						inventoryItemName: inv.name,
 						quantityChanged,
 					});
 				}
+			}
+
+			if (transactionsToInsert.length > 0) {
+				await tx.insert(inventoryTransactions).values(transactionsToInsert);
 			}
 		}
 	}
@@ -2050,7 +2056,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					)
 					.orderBy(desc(sterilizationLogs.timestamp))
 					.limit(1);
-				if (!trayLog || trayLog.status !== "passed") {
+				if (trayLog?.status !== "passed") {
 					return { kind: "invalid_tray" as const };
 				}
 			}
@@ -2227,11 +2233,53 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 	app.post("/api/diaries/sync-progress", async (req, reply) => {
 		if (!(await requireClinicalMutationAccess(req, reply, "sync progress")))
 			return;
+
+		const { patientId } = req.body as { patientId?: string };
+		const orgId = await resolveOrganizationId(req);
+		if (orgId && patientId) {
+			const { treatmentPlans, patients } = await import("../db/schema.js");
+			await db
+				.select()
+				.from(treatmentPlans)
+				.innerJoin(patients, eq(treatmentPlans.patientId, patients.id))
+				.where(
+					and(
+						eq(treatmentPlans.patientId, patientId),
+						eq(patients.organizationId, orgId),
+					),
+				);
+		}
+
 		return reply.send({ success: true });
 	});
 
 	app.put("/api/treatment-plans/:planId/signature", async (req, reply) => {
 		if (!(await requireClinicalMutationAccess(req, reply, "sign plan"))) return;
+
+		const { planId } = req.params as { planId: string };
+		const { patientSignature } = req.body as { patientSignature: string };
+		const orgId = await resolveOrganizationId(req);
+		if (!orgId) return reply.code(403).send({ error: "OrgRequired" });
+
+		const { treatmentPlans, patients } = await import("../db/schema.js");
+		const [plan] = await db
+			.select()
+			.from(treatmentPlans)
+			.where(eq(treatmentPlans.id, planId));
+		if (!plan) return reply.code(404).send({ error: "Not found" });
+
+		const [patient] = await db
+			.select()
+			.from(patients)
+			.where(eq(patients.id, plan.patientId));
+		if (!patient || patient.organizationId !== orgId)
+			return reply.code(403).send({ error: "Forbidden" });
+
+		await db
+			.update(treatmentPlans)
+			.set({ patientSignature, updatedAt: new Date() })
+			.where(eq(treatmentPlans.id, planId));
+
 		return reply.send({ success: true });
 	});
 }

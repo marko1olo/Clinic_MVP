@@ -11,6 +11,7 @@ import {
 import { EmptyState } from "./EmptyState";
 import { showToast } from "./GlobalToast";
 import "./PatientPortal.css";
+import { logger } from "../utils/logger";
 
 interface TreatmentStage {
 	id: string;
@@ -159,7 +160,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete, disabled }) => {
 	return (
 		<div className="otp-wrap">
 			{digits
-				.map((digit, index) => ({ id: `otp-slot-${index}`, index, digit }))
+				?.map((digit, index) => ({ id: `otp-slot-${index}`, index, digit }))
 				.map((slot) => (
 					<input
 						key={slot.id}
@@ -239,7 +240,7 @@ export const PatientPortal: React.FC = () => {
 				"error",
 			);
 			// Текст исключения английский, наружу не идёт.
-			console.error("[portal] не удалось прочитать кабинет пациента:", e);
+			logger.error("[portal] не удалось прочитать кабинет пациента:", e);
 			setIsAuthenticated(false);
 			setSessionError(actionFailureToast("Кабинет не открылся", null));
 		} finally {
@@ -271,7 +272,7 @@ export const PatientPortal: React.FC = () => {
 		: [];
 	// Планы без цены считаем отдельно и говорим о них вслух: иначе итог
 	// молча оказывается меньше настоящего, а пациент читает его как полный.
-	const planTotals = plans.map((plan) => planTotalRub(plan));
+	const planTotals = plans?.map((plan) => planTotalRub(plan));
 	const pricedPlanTotals = planTotals.filter(
 		(value): value is number => value !== null,
 	);
@@ -317,7 +318,7 @@ export const PatientPortal: React.FC = () => {
 				})
 				.then((html) => setViewingDocHtml(html))
 				.catch((err) => {
-					console.error(err);
+					logger.error(err);
 					setViewingDocHtml(
 						"<div style='padding:20px;color:red;font-family:sans-serif;'>Ошибка загрузки документа.</div>",
 					);
@@ -501,7 +502,7 @@ export const PatientPortal: React.FC = () => {
 							style={{ padding: "20px 16px" }}
 						/>
 					)}
-					{(patientData?.visits || []).map((v: any) => (
+					{(patientData?.visits || [])?.map((v: any) => (
 						<div
 							key={v.id}
 							className={`visit-item ${v.status === "completed" ? "past" : "upcoming"}`}
@@ -566,7 +567,7 @@ export const PatientPortal: React.FC = () => {
 						/>
 					)}
 					<div className="stages-list">
-						{plans.map((stage: any, index: number) => {
+						{plans?.map((stage: any, index: number) => {
 							const stageTotal = planTotals[index] ?? null;
 							return (
 								<div key={stage.id} className={`stage-item ${stage.status}`}>
@@ -599,7 +600,7 @@ export const PatientPortal: React.FC = () => {
 							style={{ padding: "20px 16px" }}
 						/>
 					)}
-					{(patientData?.documents || []).map((doc: any) => (
+					{(patientData?.documents || [])?.map((doc: any) => (
 						<div key={doc.id} className="doc-item">
 							<span>📄 {doc.title}</span>
 							<button

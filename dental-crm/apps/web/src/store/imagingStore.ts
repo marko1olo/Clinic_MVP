@@ -31,7 +31,7 @@ import type {
 	BrowserPickedImagingFolderPreview,
 	ImagingViewerSaveState,
 	LocalImagingFolderDraft,
-} from "../AppHelpers";
+} from "../AppConstants";
 import {
 	defaultDicomFirstFrameViewerState,
 	defaultImagingViewerState,

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { countLabel } from "../../lib/russianPlural";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 interface OrthoData {
@@ -139,9 +140,9 @@ export function OrthodonticProgressWidget({
 	 * Сброс в фазе рендера: `ortho` здесь уже относится к новому пациенту, потому
 	 * что поиск идёт по актуальному patientId.
 	 */
-	const [formPatientId, setFormPatientId] = useState(patientId);
-	if (formPatientId !== patientId) {
-		setFormPatientId(patientId);
+	const [prevPatientId, setPrevPatientId] = useState(patientId);
+	if (patientId !== prevPatientId) {
+		setPrevPatientId(patientId);
 		setIsEditing(false);
 		setFormCurrent(ortho?.currentAligner ?? 1);
 		setFormTotal(ortho?.totalAligners ?? 40);
@@ -240,7 +241,7 @@ export function OrthodonticProgressWidget({
 			await loadDashboard();
 		} catch (err) {
 			// Сюда попадают только обрывы связи: отказы сервера разобраны выше.
-			console.error("[OrthodonticProgressWidget save]", err);
+			logger.error("[OrthodonticProgressWidget save]", err);
 			showToast(
 				`${actionFailureToast("Отсчёт капп не сохранён", null)} Пока запишите этап лечения в заметку к пациенту.`,
 				"error",
@@ -312,7 +313,7 @@ export function OrthodonticProgressWidget({
 			setIsEditing(false);
 			await loadDashboard();
 		} catch (err) {
-			console.error("[OrthodonticProgressWidget reset]", err);
+			logger.error("[OrthodonticProgressWidget reset]", err);
 			showToast(
 				`${actionFailureToast("Отсчёт капп не убран", null)} Каппы остались в карточке.`,
 				"error",

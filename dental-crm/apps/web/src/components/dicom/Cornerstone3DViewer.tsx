@@ -10,6 +10,7 @@ import {
 	type Point2D,
 	toTransferableScalarData,
 } from "../../mprMath";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 import {
 	archControlPointsOf,
@@ -411,7 +412,7 @@ export function Cornerstone3DViewer({
 			})
 			.catch((error) => {
 				if (cancelled) return;
-				console.error(
+				logger.error(
 					"[Cornerstone3DViewer] Не удалось построить реконструкцию:",
 					error,
 				);

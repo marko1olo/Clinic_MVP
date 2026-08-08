@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 type ClipboardItem = {
@@ -92,7 +93,7 @@ async function writeFailureText(
 	action: string,
 ): Promise<string> {
 	const body = await response.json().catch((err) => {
-		console.error("[Dente]", err);
+		logger.error("[Dente]", err);
 		showToast(
 			actionFailureToast(
 				"Ответ сервера не прочитан",
@@ -148,7 +149,7 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 				return;
 			}
 			const payload = (await response.json().catch((err) => {
-				console.error("[Dente]", err);
+				logger.error("[Dente]", err);
 				showToast(
 					actionFailureToast(
 						"Ответ с буфером расписания не прочитан",
@@ -249,7 +250,7 @@ export const ScheduleClipboardPanel: React.FC<Props> = ({
 				return;
 			}
 			const dashboard = await response.json().catch((err) => {
-				console.error("[Dente]", err);
+				logger.error("[Dente]", err);
 				showToast(
 					actionFailureToast(
 						"Ответ после вставки приёма не прочитан",

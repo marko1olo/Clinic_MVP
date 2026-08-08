@@ -6,7 +6,7 @@ import type {
 	VisitNoteDraft,
 } from "@dental/shared";
 import { create } from "zustand";
-import type { VisitNoteForm } from "../AppHelpers";
+import type { VisitNoteForm } from "../AppConstants";
 import { emptyVisitNoteForm } from "../utils/draftDefaults";
 import {
 	defaultUiPreferences,

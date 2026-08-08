@@ -3,7 +3,7 @@ import {
 	type ClinicalToothSurface,
 	clinicalToothStatusAliases,
 	clinicalToothSurfaceAliases,
-} from "../AppHelpers";
+} from "../AppConstants";
 
 export function confirmedDocumentLiteral(value: boolean, label: string): true {
 	if (!value) {

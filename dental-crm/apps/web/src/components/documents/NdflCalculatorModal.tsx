@@ -2,6 +2,7 @@ import { AlertTriangle, Calculator } from "lucide-react";
 import { useState } from "react";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { useAppLogic } from "../../useAppLogic";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 export function NdflCalculatorModal({ onClose }: { onClose: () => void }) {
@@ -74,7 +75,7 @@ export function NdflCalculatorModal({ onClose }: { onClose: () => void }) {
 				),
 				"error",
 			);
-			console.error(error);
+			logger.error(error);
 		} finally {
 			setLoading(false);
 		}

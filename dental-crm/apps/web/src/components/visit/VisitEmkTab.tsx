@@ -1,8 +1,8 @@
 import { Check, Download, FileCode, ScanLine, ShieldCheck } from "lucide-react";
 import React from "react";
+import { visitDraftQualityLabels } from "../../AppConstants";
 import {
 	visitDraftMissingFieldLabel,
-	visitDraftQualityLabels,
 	visitDraftSignalLabel,
 	visitNoteFormFromVisit,
 	visitSaveReceiptText,
@@ -11,6 +11,7 @@ import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { countLabel } from "../../lib/russianPlural";
 import { useVisitStore } from "../../store/visitStore";
+import { logger } from "../../utils/logger";
 import { specialtyLabels } from "../../workspaceUiLabels";
 import { showToast } from "../GlobalToast";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
@@ -175,7 +176,7 @@ export function VisitEmkTab() {
 			const res = await fetch(`/api/egisz/visits/${visitId}/cda`, { headers });
 			if (!res.ok) {
 				const errJson = await res.json().catch((err: any) => {
-					console.error(err);
+					logger.error(err);
 					showToast(
 						actionFailureToast(
 							"Ошибка чтения ответа",
@@ -245,7 +246,7 @@ export function VisitEmkTab() {
 			});
 			if (!res.ok) {
 				const errData = await res.json().catch((err: any) => {
-					console.error(err);
+					logger.error(err);
 					showToast(
 						actionFailureToast(
 							"Ошибка чтения ответа",

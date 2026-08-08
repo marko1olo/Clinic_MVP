@@ -1,34 +1,34 @@
-import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { fetchWithHandling } from "../../utils/networkUtils";
 
-export function useCommunicationsQueries() {
-	const { auth } = useAppLogicContext();
+export function useCommunicationsQueries(options?: { auth?: any }) {
+	const auth = options?.auth;
 
 	const getGatewayStatus = async () =>
-		fetch("/api/communications/gateway-status", {
+		fetchWithHandling("/api/communications/gateway-status", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const getTemplates = async () =>
-		fetch("/api/communications/templates", {
+		fetchWithHandling("/api/communications/templates", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const getOutbox = async (query = "") =>
-		fetch(`/api/communications/outbox${query}`, {
+		fetchWithHandling(`/api/communications/outbox${query}`, {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const getSettings = async () =>
-		fetch("/api/communications/settings", {
+		fetchWithHandling("/api/communications/settings", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const getVariables = async () =>
-		fetch("/api/communications/variables", {
+		fetchWithHandling("/api/communications/variables", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const getChatQuota = async () =>
-		fetch("/api/chat/quota", {
+		fetchWithHandling("/api/chat/quota", {
 			headers: auth?.denteClinicalReadHeaders(),
 		});
 	const sendChatSms = async (payload: any) =>
-		fetch("/api/chat/sms/send", {
+		fetchWithHandling("/api/chat/sms/send", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -37,7 +37,7 @@ export function useCommunicationsQueries() {
 		});
 
 	const previewTemplate = async (_templateId: string | null, payload: any) =>
-		fetch("/api/communications/templates/preview", {
+		fetchWithHandling("/api/communications/templates/preview", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -46,7 +46,7 @@ export function useCommunicationsQueries() {
 		});
 
 	const updateTemplate = async (editingId: string, payload: any) =>
-		fetch(`/api/communications/templates/${editingId}`, {
+		fetchWithHandling(`/api/communications/templates/${editingId}`, {
 			method: "PATCH", // Fixed: server expects PATCH (communicationsOutbox.ts:276), not PUT
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -55,7 +55,7 @@ export function useCommunicationsQueries() {
 		});
 
 	const createTemplate = async (payload: any) =>
-		fetch("/api/communications/templates", {
+		fetchWithHandling("/api/communications/templates", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -64,13 +64,13 @@ export function useCommunicationsQueries() {
 		});
 
 	const outboxAction = async (outboxId: string, action: string) =>
-		fetch(`/api/communications/outbox/${outboxId}/${action}`, {
+		fetchWithHandling(`/api/communications/outbox/${outboxId}/${action}`, {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders(),
 		});
 
 	const dispatchOutbox = async () =>
-		fetch("/api/communications/outbox/dispatch", {
+		fetchWithHandling("/api/communications/outbox/dispatch", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -79,13 +79,13 @@ export function useCommunicationsQueries() {
 		});
 
 	const runReminders = async () =>
-		fetch("/api/communications/reminders/run", {
+		fetchWithHandling("/api/communications/reminders/run", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders(),
 		});
 
 	const saveSettings = async (payload: any) =>
-		fetch("/api/communications/settings", {
+		fetchWithHandling("/api/communications/settings", {
 			method: "PUT",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -94,7 +94,7 @@ export function useCommunicationsQueries() {
 		});
 
 	const addOutboxMessage = async (payload: any) =>
-		fetch("/api/communications/outbox", {
+		fetchWithHandling("/api/communications/outbox", {
 			method: "POST",
 			headers: auth?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -103,20 +103,20 @@ export function useCommunicationsQueries() {
 		});
 
 	const getCampaigns = async (authObj?: any) =>
-		fetch("/api/communications/campaigns", {
+		fetchWithHandling("/api/communications/campaigns", {
 			headers: (authObj || auth)?.denteClinicalReadHeaders(),
 		});
 	const getCampaignsTemplates = async (authObj?: any) =>
-		fetch("/api/communications/templates", {
+		fetchWithHandling("/api/communications/templates", {
 			headers: (authObj || auth)?.denteClinicalReadHeaders(),
 		});
 	const getCampaignsVariables = async (authObj?: any) =>
-		fetch("/api/communications/variables", {
+		fetchWithHandling("/api/communications/variables", {
 			headers: (authObj || auth)?.denteClinicalReadHeaders(),
 		});
 
 	const createCampaign = async (payload: any, authObj?: any) =>
-		fetch("/api/communications/campaigns", {
+		fetchWithHandling("/api/communications/campaigns", {
 			method: "POST",
 			headers: (authObj || auth)?.denteClinicalMutationHeaders({
 				"content-type": "application/json",
@@ -125,11 +125,11 @@ export function useCommunicationsQueries() {
 		});
 
 	const previewCampaign = async (campaignId: string, authObj?: any) =>
-		fetch(`/api/communications/campaigns/${campaignId}/preview`, {
+		fetchWithHandling(`/api/communications/campaigns/${campaignId}/preview`, {
 			headers: (authObj || auth)?.denteClinicalReadHeaders(),
 		});
 	const getCampaignProgress = async (campaignId: string, authObj?: any) =>
-		fetch(`/api/communications/campaigns/${campaignId}/progress`, {
+		fetchWithHandling(`/api/communications/campaigns/${campaignId}/progress`, {
 			headers: (authObj || auth)?.denteClinicalReadHeaders(),
 		});
 
@@ -138,7 +138,7 @@ export function useCommunicationsQueries() {
 		action: string,
 		authObj?: any,
 	) =>
-		fetch(`/api/communications/campaigns/${campaignId}/${action}`, {
+		fetchWithHandling(`/api/communications/campaigns/${campaignId}/${action}`, {
 			method: "POST",
 			headers: (authObj || auth)?.denteClinicalMutationHeaders(),
 		});

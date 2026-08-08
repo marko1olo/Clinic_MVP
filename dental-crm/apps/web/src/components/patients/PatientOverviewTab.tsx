@@ -21,6 +21,7 @@ type TextFieldChangeEvent = React.ChangeEvent<
 >;
 
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 export function PatientOverviewTab() {
@@ -93,7 +94,7 @@ export function PatientOverviewTab() {
 				if (selectedPatientIdRef.current !== requestedPatientId) return;
 				if (res.ok) {
 					const data = await res.json().catch((err: any) => {
-						console.error(err);
+						logger.error(err);
 						showToast(
 							actionFailureToast(
 								"Ошибка чтения ответа",
@@ -114,7 +115,7 @@ export function PatientOverviewTab() {
 				);
 			})
 			.catch((err: any) => {
-				console.error(err);
+				logger.error(err);
 				showToast(
 					actionFailureToast(
 						"Ошибка загрузки семьи",

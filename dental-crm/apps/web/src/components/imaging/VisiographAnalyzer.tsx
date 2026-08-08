@@ -39,6 +39,7 @@ import {
 	resolvePanelPhase,
 } from "../../lib/panelStateText";
 import { usePatientStore } from "../../store/patientStore";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 // Состояния ЖИВОЙ зубной формулы и их русские названия. Берутся из того же
 // файла, что рисует формулу врачу (components/odontogram/ToothChart.tsx), а
@@ -91,7 +92,7 @@ interface AiToothState {
  * увёл бы токен сотрудника. Экранируем ДО markdown-замен, чтобы теги,
  * которые генерируем мы сами, остались рабочими.
  */
-export function escapeHtml(value: string): string {
+function escapeHtml(value: string): string {
 	return String(value)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
@@ -435,7 +436,7 @@ export function VisiographAnalyzer() {
 					"error",
 				);
 				// Код ответа человеку не показываем — он уходит в консоль разработчику.
-				console.error("[VisiographAnalyzer] Архив снимков не прочитан:", err);
+				logger.error("[VisiographAnalyzer] Архив снимков не прочитан:", err);
 				if (isStale()) return;
 				setHistoryFailure({ status });
 			} finally {
@@ -500,7 +501,7 @@ export function VisiographAnalyzer() {
 				);
 				if (!res.ok) {
 					const rawBody = await res.text();
-					console.error(
+					logger.error(
 						`[VisiographAnalyzer] формула не обновлена, ${res.status} ${rawBody.slice(0, 300)}`,
 					);
 					return `${actionFailureToast(action, res.status)} Поставьте отметку на схеме зубов руками.`;
@@ -514,7 +515,7 @@ export function VisiographAnalyzer() {
 					),
 					"error",
 				);
-				console.error(
+				logger.error(
 					"[VisiographAnalyzer] запрос обновления формулы не выполнен",
 					err,
 				);
@@ -647,7 +648,7 @@ export function VisiographAnalyzer() {
 					...plan.unreadableCodes,
 					...plan.noFormulaStateCodes,
 				]) {
-					console.warn(
+					logger.warn(
 						`[VisiographAnalyzer] находка не применена: зуб «${code}»`,
 					);
 				}
@@ -765,7 +766,7 @@ export function VisiographAnalyzer() {
 							}),
 						});
 						if (!saveRes.ok) {
-							console.error(
+							logger.error(
 								`[VisiographAnalyzer] снимок не сохранён, ответ ${saveRes.status}`,
 							);
 							setSaveFailure(
@@ -791,7 +792,7 @@ export function VisiographAnalyzer() {
 							),
 							"error",
 						);
-						console.error(
+						logger.error(
 							"[VisiographAnalyzer] запись снимка в карту не выполнена",
 							saveErr,
 						);
@@ -803,7 +804,7 @@ export function VisiographAnalyzer() {
 					}
 				}
 			} catch (err: any) {
-				console.error("[VisiographAnalyzer] Error:", err);
+				logger.error("[VisiographAnalyzer] Error:", err);
 				setError(
 					err.message ||
 						"Не удалось проанализировать снимок. Проверьте подключение.",
@@ -879,7 +880,7 @@ export function VisiographAnalyzer() {
 				},
 			);
 			if (!res.ok) {
-				console.error(
+				logger.error(
 					`[VisiographAnalyzer] полный снимок не открыт, ${res.status}`,
 				);
 				setOpenFailure(
@@ -908,7 +909,7 @@ export function VisiographAnalyzer() {
 				),
 				"error",
 			);
-			console.error(
+			logger.error(
 				"[VisiographAnalyzer] запрос полного снимка не выполнен",
 				err,
 			);
@@ -990,7 +991,7 @@ export function VisiographAnalyzer() {
 				),
 				"error",
 			);
-			console.error("[VisiographAnalyzer] scan delete failed", err);
+			logger.error("[VisiographAnalyzer] scan delete failed", err);
 			setDeleteFailure(
 				"Снимок не удалён: нет связи с сервером. Проверьте сеть и повторите.",
 			);

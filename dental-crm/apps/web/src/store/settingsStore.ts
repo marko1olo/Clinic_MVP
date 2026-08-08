@@ -20,7 +20,7 @@ import type {
 	TelegramLinkSubjectType,
 	TelegramOutboxStatusFilter,
 	TelegramOutboxTemplateFilter,
-} from "../AppHelpers";
+} from "../AppConstants";
 import { emptyTelegramVisualCardUrlDrafts } from "../utils/draftDefaults";
 import {
 	defaultUiPreferences,

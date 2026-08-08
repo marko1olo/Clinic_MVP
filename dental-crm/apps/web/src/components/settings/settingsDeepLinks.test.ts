@@ -25,8 +25,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-
-import { settingsTabs } from "../../AppHelpers";
+import { settingsTabs } from "../../AppConstants";
 import { appViews, viewLabels } from "../../workspaceShell";
 import {
 	MESSENGERS_SETTINGS_TAB,

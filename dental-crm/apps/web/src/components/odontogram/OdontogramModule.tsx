@@ -27,6 +27,7 @@ import { ToothHistoryChronicle } from "./ToothHistoryChronicle";
 import { TreatmentEstimator } from "./TreatmentEstimator";
 import { VoiceDictationOverlay } from "./VoiceDictationOverlay";
 import "./odontogram.css";
+import { logger } from "../../utils/logger";
 
 /**
  * Состояния зуба, доступные врачу в контекстном меню.
@@ -375,7 +376,7 @@ export const OdontogramModule = ({
 				}
 			}
 		} catch (err) {
-			console.error(err);
+			logger.error(err);
 			showToast("Ошибка загрузки отчётов Diagnocat.", "error", 5000);
 		} finally {
 			setDiagnocatLoading(false);
@@ -422,8 +423,9 @@ export const OdontogramModule = ({
 	}, [pediatricMode]);
 
 	// Load states from API
-const updateToothState = useCallback(async (toothNumbers: number[], state: ToothState) => {
-		/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
+	const updateToothState = useCallback(
+		async (toothNumbers: number[], state: ToothState) => {
+			/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
 		   обновления состояния, а новое состояние проставлялось мутацией
 		   `item.state = state`. Копия массива поверхностная — объекты зубов в
 		   ней те же самые, поэтому снимок менялся вместе с состоянием. Откат
@@ -438,106 +440,111 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 		   Снимок берётся до отправки, из ref с актуальным состоянием, и
 		   глубоко копируется. Новое состояние собирается новыми объектами,
 		   без мутации прежних. */
-		const previousTeethData: ToothData[] = teethDataRef.current.map(
-			(tooth) => ({
-				...tooth,
-				...(tooth.surfaces ? { surfaces: [...tooth.surfaces] } : {}),
-			}),
-		);
-
-		setTeethData((prev) => {
-			const next = prev.map((tooth) => {
-				if (!toothNumbers.includes(tooth.toothNumber)) return tooth;
-				const updated: ToothData = { ...tooth, state };
-				if (activeSurfaces.length > 0) updated.surfaces = [...activeSurfaces];
-				else delete updated.surfaces;
-				return updated;
-			});
-			for (const t of toothNumbers) {
-				if (next.some((tooth) => tooth.toothNumber === t)) continue;
-				const newItem: ToothData = { toothNumber: t, state };
-				if (activeSurfaces.length > 0) newItem.surfaces = [...activeSurfaces];
-				next.push(newItem);
-			}
-			return next;
-		});
-
-		setMenuConfig(null);
-		setSelectedTeeth([]);
-
-		try {
-			// Save to API
-			const res = await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
-				method: "POST",
-				headers: denteAdminSecretRequestHeaders({
-					"Content-Type": "application/json",
+			const previousTeethData: ToothData[] = teethDataRef.current.map(
+				(tooth) => ({
+					...tooth,
+					...(tooth.surfaces ? { surfaces: [...tooth.surfaces] } : {}),
 				}),
-				body: JSON.stringify({
-					toothNumbers,
-					state,
-					surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
-				}),
+			);
+
+			setTeethData((prev) => {
+				const next = prev.map((tooth) => {
+					if (!toothNumbers.includes(tooth.toothNumber)) return tooth;
+					const updated: ToothData = { ...tooth, state };
+					if (activeSurfaces.length > 0) updated.surfaces = [...activeSurfaces];
+					else delete updated.surfaces;
+					return updated;
+				});
+				for (const t of toothNumbers) {
+					if (next.some((tooth) => tooth.toothNumber === t)) continue;
+					const newItem: ToothData = { toothNumber: t, state };
+					if (activeSurfaces.length > 0) newItem.surfaces = [...activeSurfaces];
+					next.push(newItem);
+				}
+				return next;
 			});
 
-			if (!res.ok) {
-				/*
-				 * БЫЛО: «Ошибка сохранения одонтограммы. Изменения отменены.» —
-				 * жаргон вместо русского названия, ни причины, ни следующего шага, а
-				 * код ответа выбрасывался. Медсестре с истёкшим доступом (403) и врачу
-				 * при сбое сервера (500) нужны разные действия, и главное — человек
-				 * должен понять, ЧТО именно не сохранилось: отметка на схеме
-				 * откатилась, и он вправе думать, что просто промахнулся по зубу.
-				 */
-				const rawBody = await res.text();
-				console.error(
-					`[tooth states batch] ${res.status} ${rawBody.slice(0, 300)}`,
+			setMenuConfig(null);
+			setSelectedTeeth([]);
+
+			try {
+				// Save to API
+				const res = await fetch(
+					`/api/patients/${patientId}/tooth-states/batch`,
+					{
+						method: "POST",
+						headers: denteAdminSecretRequestHeaders({
+							"Content-Type": "application/json",
+						}),
+						body: JSON.stringify({
+							toothNumbers,
+							state,
+							surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
+						}),
+					},
 				);
+
+				if (!res.ok) {
+					/*
+					 * БЫЛО: «Ошибка сохранения одонтограммы. Изменения отменены.» —
+					 * жаргон вместо русского названия, ни причины, ни следующего шага, а
+					 * код ответа выбрасывался. Медсестре с истёкшим доступом (403) и врачу
+					 * при сбое сервера (500) нужны разные действия, и главное — человек
+					 * должен понять, ЧТО именно не сохранилось: отметка на схеме
+					 * откатилась, и он вправе думать, что просто промахнулся по зубу.
+					 */
+					const rawBody = await res.text();
+					logger.error(
+						`[tooth states batch] ${res.status} ${rawBody.slice(0, 300)}`,
+					);
+					setTeethData(previousTeethData);
+					showToast(
+						`${actionFailureToast(
+							`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
+							res.status,
+						)} На схеме вернулось прежнее состояние.`,
+						"error",
+						15000,
+					);
+					return;
+				}
+			} catch (err) {
+				logger.error("[tooth states batch] запрос не выполнен", err);
 				setTeethData(previousTeethData);
 				showToast(
 					`${actionFailureToast(
 						`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
-						res.status,
+						// До сервера не дошли: кода ответа нет, придумывать его нельзя.
+						null,
 					)} На схеме вернулось прежнее состояние.`,
 					"error",
 					15000,
 				);
 				return;
 			}
-		} catch (err) {
-			console.error("[tooth states batch] запрос не выполнен", err);
-			setTeethData(previousTeethData);
-			showToast(
-				`${actionFailureToast(
-					`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
-					// До сервера не дошли: кода ответа нет, придумывать его нельзя.
-					null,
-				)} На схеме вернулось прежнее состояние.`,
-				"error",
-				15000,
-			);
-			return;
-		}
 
-		/*
-		 * ЗДЕСЬ БЫЛА ЗАПИСЬ В ОЧЕРЕДЬ pendingPlanSuggestions — «Push suggestion to
-		 * global state for ComparativePlannerDashboard». Читателя у неё не было ни
-		 * одной минуты: единственный, ComparativePlannerDashboard, не рендерился ни
-		 * из одного достижимого модуля и удалён этим же коммитом.
-		 *
-		 * То есть каждая отметка патологии дописывала объект в массив глобального
-		 * стора, который никто не читает и никто не чистит (чистил его тот же
-		 * недостижимый экран), — он рос до перезагрузки страницы.
-		 *
-		 * Мост «диагноз → смета» от этого не пострадал, он идёт другой дорогой и
-		 * работает: смонтированный TreatmentEstimator (:945) получает currentTeeth
-		 * прямо из этого состояния и подбирает позиции по зубной формуле сам —
-		 * reconcileAutoSuggestions/estimatorRulesForTooth в
-		 * ./treatmentEstimatorPricing.ts (Caries, Pulpitis, Crown,
-		 * Planned_Implant; Missing не обрабатывается сознательно, :133). Он же
-		 * помнит, какие строки врач снял корзиной, чего очередь не умела.
-		 */
-		setActiveSurfaces([]);
-	}, [activeSurfaces, patientId]);
+			/*
+			 * ЗДЕСЬ БЫЛА ЗАПИСЬ В ОЧЕРЕДЬ pendingPlanSuggestions — «Push suggestion to
+			 * global state for ComparativePlannerDashboard». Читателя у неё не было ни
+			 * одной минуты: единственный, ComparativePlannerDashboard, не рендерился ни
+			 * из одного достижимого модуля и удалён этим же коммитом.
+			 *
+			 * То есть каждая отметка патологии дописывала объект в массив глобального
+			 * стора, который никто не читает и никто не чистит (чистил его тот же
+			 * недостижимый экран), — он рос до перезагрузки страницы.
+			 *
+			 * Мост «диагноз → смета» от этого не пострадал, он идёт другой дорогой и
+			 * работает: смонтированный TreatmentEstimator (:945) получает currentTeeth
+			 * прямо из этого состояния и подбирает позиции по зубной формуле сам —
+			 * reconcileAutoSuggestions/estimatorRulesForTooth в
+			 * ./treatmentEstimatorPricing.ts (Caries, Pulpitis, Crown,
+			 * Planned_Implant; Missing не обрабатывается сознательно, :133). Он же
+			 * помнит, какие строки врач снял корзиной, чего очередь не умела.
+			 */
+			setActiveSurfaces([]);
+		},
+		[activeSurfaces, patientId],
+	);
 
 	useEffect(() => {
 		/* БЫЛО: запрос уходил, а старая формула оставалась на экране до
@@ -595,7 +602,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 				const rawBody = await res.text();
 				if (cancelled) return;
 				if (!res.ok) {
-					console.error(`[tooth states] ${status} ${rawBody.slice(0, 300)}`);
+					logger.error(`[tooth states] ${status} ${rawBody.slice(0, 300)}`);
 					setTeethLoad({ phase: "failed", status });
 					return;
 				}
@@ -615,7 +622,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 					setTeethLoad({ phase: "ready" });
 					return;
 				}
-				console.error(`[tooth states] ${status}: в ответе нет формулы`);
+				logger.error(`[tooth states] ${status}: в ответе нет формулы`);
 				setTeethLoad({ phase: "failed", status });
 			} catch (err) {
 				showToast(
@@ -628,7 +635,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 				// Отменённый запрос — не отказ: пациента переключили, и об этом
 				// сообщать нечего.
 				if (cancelled) return;
-				console.error("[tooth states] запрос не выполнен", err);
+				logger.error("[tooth states] запрос не выполнен", err);
 				// До сервера не дошли: кода ответа нет, придумывать его нельзя.
 				setTeethLoad({ phase: "failed", status });
 			}
@@ -654,7 +661,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 				| undefined;
 			const toothNumber = Number(detail?.toothNumber);
 			if (!isValidFdiToothNumber(toothNumber)) {
-				console.error(
+				logger.error(
 					"[имплантат из 3D] номер зуба не читается",
 					detail?.toothNumber,
 				);
@@ -714,7 +721,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 			const toothNumber = Number(detail?.toothNumber);
 			const finding = detail?.finding;
 			if (!isValidFdiToothNumber(toothNumber)) {
-				console.error(
+				logger.error(
 					"[находка со снимка] номер зуба не читается",
 					detail?.toothNumber,
 				);
@@ -724,7 +731,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 				typeof finding !== "string" ||
 				!Object.hasOwn(TOOTH_STATE_LABELS, finding)
 			) {
-				console.error(
+				logger.error(
 					"[находка со снимка] состояние не из списка схемы",
 					finding,
 				);
@@ -770,7 +777,6 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 		// teethReloadToken — кнопка «Повторить» под сообщением об отказе.
 	}, [patientId, updateToothState]);
 
-	
 	const handleToothClick = (
 		toothNumber: number,
 		rect: DOMRect,
@@ -969,7 +975,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 									border: "none",
 									padding: 0,
 									margin: 0,
-									cursor: "default"
+									cursor: "default",
 								}}
 								onClick={() => setMenuConfig(null)}
 								onKeyDown={(e) => {
@@ -1153,7 +1159,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 						// исключение, и отказ превращался в «Не удалось обработать».
 						const rawBody = await res.text();
 						if (!res.ok) {
-							console.error(
+							logger.error(
 								`[dictation parse] ${res.status} ${rawBody.slice(0, 300)}`,
 							);
 							showToast(
@@ -1172,7 +1178,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 						 */
 						const plan = dictationApplyPlanFromResponseBody(rawBody);
 						if (plan === null) {
-							console.error(
+							logger.error(
 								`[dictation parse] ${res.status}: ответ не по контракту`,
 							);
 							showToast(
@@ -1197,7 +1203,7 @@ const updateToothState = useCallback(async (toothNumbers: number[], state: Tooth
 							message.tone === "success" ? 6000 : 15000,
 						);
 					} catch (e) {
-						console.error("[dictation parse] запрос не выполнен", e);
+						logger.error("[dictation parse] запрос не выполнен", e);
 						showToast(
 							`${actionFailureToast("Надиктованное не разобрано", null)} Схема не изменена — отметьте зубы вручную.`,
 							"error",

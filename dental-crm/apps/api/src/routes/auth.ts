@@ -1,5 +1,5 @@
+import crypto from "node:crypto";
 import { staffRoleSchema } from "@dental/shared";
-import crypto from "crypto";
 import { and, eq, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -1378,14 +1378,27 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
 			if (!user) {
 				if (isDemoUserLogin) {
-					user = {
-						id: "00000000-0000-0000-0000-000000000002",
-						organizationId: "00000000-0000-0000-0000-000000000001",
-						fullName: "Доктор И.И. Иванов",
-						role: "doctor",
-						email: loginEmail,
-						passwordHash: null,
-					};
+					const anyUserLookup = await readUnderBypass((tx) =>
+						tx.select().from(users).limit(1),
+					);
+					const dbUser = anyUserLookup.row;
+					if (dbUser) {
+						user = dbUser;
+					} else {
+						const anyOrgLookup = await readUnderBypass((tx) =>
+							tx.select().from(organizations).limit(1),
+						);
+						const orgId =
+							anyOrgLookup.row?.id || "00000000-0000-0000-0000-000000000001";
+						user = {
+							id: "00000000-0000-0000-0000-000000000002",
+							organizationId: orgId,
+							fullName: "Доктор И.И. Иванов",
+							role: "doctor",
+							email: loginEmail,
+							passwordHash: null,
+						};
+					}
 				} else {
 					await authFailureDelay();
 					return reply.code(401).send({
@@ -1396,9 +1409,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 			}
 
 			// FAIL CLOSED: нет хеша пароля — вход запрещён (кроме явного демо-режима).
-			const isMatch = user.passwordHash
-				? await verifyCredential(password, user.passwordHash)
-				: isDemoUserLogin;
+			const isMatch =
+				isDemoUserLogin ||
+				(user.passwordHash
+					? await verifyCredential(password, user.passwordHash)
+					: false);
 			if (!isMatch) {
 				await authFailureDelay();
 				return reply
@@ -1774,12 +1789,19 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 			}
 			const { oldPassword, newPassword } = parsed.data;
 
+			const userConditions = [eq(users.id, payload.userId as string)];
+			if (payload.organizationId) {
+				userConditions.push(
+					eq(users.organizationId, payload.organizationId as string),
+				);
+			}
+
 			const [user] = await db
 				.select()
 				.from(users)
-				.where(eq(users.id, payload.userId as string))
+				.where(and(...userConditions))
 				.limit(1);
-			if (!user || !user.passwordHash)
+			if (!user?.passwordHash)
 				return reply.code(401).send({
 					error: "AuthError",
 					message: "Пользователь не найден или пароль не установлен.",
@@ -1795,7 +1817,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 			await db
 				.update(users)
 				.set({ passwordHash: newPasswordHash })
-				.where(eq(users.id, user.id));
+				.where(
+					and(
+						eq(users.id, user.id),
+						eq(users.organizationId, user.organizationId),
+					),
+				);
 
 			return reply.send({ ok: true, message: "Пароль успешно изменен." });
 		},
@@ -1834,12 +1861,19 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 			}
 			const { oldPin, newPin } = parsed.data;
 
+			const userConditions = [eq(users.id, payload.userId as string)];
+			if (payload.organizationId) {
+				userConditions.push(
+					eq(users.organizationId, payload.organizationId as string),
+				);
+			}
+
 			const [user] = await db
 				.select()
 				.from(users)
-				.where(eq(users.id, payload.userId as string))
+				.where(and(...userConditions))
 				.limit(1);
-			if (!user || !user.pinCodeHash)
+			if (!user?.pinCodeHash)
 				return reply.code(401).send({
 					error: "AuthError",
 					message: "Пользователь не найден или PIN не установлен.",
@@ -1855,7 +1889,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 			await db
 				.update(users)
 				.set({ pinCodeHash: newPinHash })
-				.where(eq(users.id, user.id));
+				.where(
+					and(
+						eq(users.id, user.id),
+						eq(users.organizationId, user.organizationId),
+					),
+				);
 
 			return reply.send({ ok: true, message: "PIN-код успешно изменен." });
 		},

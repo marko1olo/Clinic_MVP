@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 const DYNAMIC_TAGS = [
@@ -42,7 +43,7 @@ export function MessageTemplatesPanel() {
 				),
 				"error",
 			);
-			console.error(e);
+			logger.error(e);
 		}
 	}, [auth]);
 

@@ -1,5 +1,6 @@
 import { showToast } from "../../components/GlobalToast";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { fetchWithHandling } from "../../utils/networkUtils";
 /**
  * useDicomWorkbenchModule — DICOM / CT / CBCT viewer workbench logic.
  *
@@ -28,13 +29,15 @@ import type {
 } from "@dental/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-	collectDicomWorkstationClientFacts,
 	type DicomFirstFramePreviewMetadata,
 	type DicomFirstFramePreviewOptions,
-	dicomWorkbenchSeriesKey,
 	imagingViewerPlans,
-	isBrowserImagingScanAbortError,
 	type LocalImagingFolderDraft,
+} from "../../AppConstants";
+import {
+	collectDicomWorkstationClientFacts,
+	dicomWorkbenchSeriesKey,
+	isBrowserImagingScanAbortError,
 	localImagingFolderFingerprint,
 	operatorWorkflowFailureMessage,
 	redactedDicomViewerToolStateBundleForDownload,
@@ -396,23 +399,26 @@ export function useDicomWorkbenchModule({
 			setDicomFirstFrameViewerState(defaultDicomFirstFrameViewerState);
 		}
 		try {
-			const response = await fetch("/api/imaging/dicom/first-frame-preview", {
-				method: "POST",
-				signal: controller.signal,
-				headers: auth.denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					folderPath: cleanFolderPath,
-					recursive: true,
-					maxFiles: 160,
-					maxFileBytes: 64 * 1024 * 1024,
-					maxPreviewEdge: 512,
-					...(typeof options.preferredFileIndex === "number"
-						? { preferredFileIndex: options.preferredFileIndex }
-						: {}),
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/first-frame-preview",
+				{
+					method: "POST",
+					signal: controller.signal,
+					headers: auth.denteClinicalReadHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						folderPath: cleanFolderPath,
+						recursive: true,
+						maxFiles: 160,
+						maxFileBytes: 64 * 1024 * 1024,
+						maxPreviewEdge: 512,
+						...(typeof options.preferredFileIndex === "number"
+							? { preferredFileIndex: options.preferredFileIndex }
+							: {}),
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(
@@ -474,20 +480,23 @@ export function useDicomWorkbenchModule({
 		result: DicomFolderWorkupPlanResponse;
 	}> {
 		const client = await collectDicomWorkstationClientFacts();
-		const response = await fetch("/api/imaging/dicom/folder-workup-plan", {
-			method: "POST",
-			signal: options.signal ?? null,
-			headers: auth.denteClinicalReadHeaders({
-				"Content-Type": "application/json",
-			}),
-			body: JSON.stringify({
-				folderPath,
-				recursive: true,
-				sourceName,
-				client,
-				viewerState: currentImagingViewerSessionState,
-			}),
-		});
+		const response = await fetchWithHandling(
+			"/api/imaging/dicom/folder-workup-plan",
+			{
+				method: "POST",
+				signal: options.signal ?? null,
+				headers: auth.denteClinicalReadHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					folderPath,
+					recursive: true,
+					sourceName,
+					client,
+					viewerState: currentImagingViewerSessionState,
+				}),
+			},
+		);
 		if (!response.ok) {
 			throw new Error(
 				await responseErrorMessage(
@@ -605,7 +614,7 @@ export function useDicomWorkbenchModule({
 				throw new Error("В этой папке не найдена пригодная серия КЛКТ/КТ.");
 			}
 
-			const manifestResponse = await fetch(
+			const manifestResponse = await fetchWithHandling(
 				"/api/imaging/dicom/viewer-workbench-manifest",
 				{
 					method: "POST",
@@ -688,21 +697,24 @@ export function useDicomWorkbenchModule({
 		const controller = startLocalDicomOperation();
 		setIsDicomSeriesPreviewLoading(true);
 		try {
-			const response = await fetch("/api/imaging/dicom/series-preview", {
-				method: "POST",
-				signal: controller.signal,
-				headers: auth.denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					sourceName: imagingImportSourceKind,
-					sourceKind:
-						imagingImportSourceKind === "folder_watch"
-							? "dicom_file"
-							: imagingImportSourceKind,
-					rawText: imagingImportText,
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/series-preview",
+				{
+					method: "POST",
+					signal: controller.signal,
+					headers: auth.denteClinicalReadHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						sourceName: imagingImportSourceKind,
+						sourceKind:
+							imagingImportSourceKind === "folder_watch"
+								? "dicom_file"
+								: imagingImportSourceKind,
+						rawText: imagingImportText,
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(response, "Серии снимков не разобраны"),
@@ -747,7 +759,7 @@ export function useDicomWorkbenchModule({
 		const controller = startLocalDicomOperation();
 		setIsDicomWebChecking(true);
 		try {
-			const response = await fetch("/api/imaging/dicomweb/check", {
+			const response = await fetchWithHandling("/api/imaging/dicomweb/check", {
 				method: "POST",
 				signal: controller.signal,
 				headers: auth.settingsAccessHeaders({
@@ -807,7 +819,7 @@ export function useDicomWorkbenchModule({
 		setIsDicomWorkbenchBuilding(true);
 		try {
 			const client = await collectDicomWorkstationClientFacts();
-			const response = await fetch(
+			const response = await fetchWithHandling(
 				"/api/imaging/dicom/viewer-workbench-manifest",
 				{
 					method: "POST",
@@ -883,7 +895,7 @@ export function useDicomWorkbenchModule({
 		const controller = startLocalDicomOperation();
 		setIsDicomManifestBuilding(true);
 		try {
-			const response = await fetch(
+			const response = await fetchWithHandling(
 				"/api/imaging/dicom/viewer-launch-manifest",
 				{
 					method: "POST",
@@ -946,21 +958,24 @@ export function useDicomWorkbenchModule({
 		const controller = startLocalDicomOperation();
 		setIsDicomToolStateBuilding(true);
 		try {
-			const response = await fetch("/api/imaging/dicom/viewer-tool-state", {
-				method: "POST",
-				signal: controller.signal,
-				headers: auth.denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					target: "cornerstone3d",
-					viewerKind: "cornerstone3d",
-					series: cbctWorkbenchSeries,
-					viewerState: currentImagingViewerSessionState,
-					annotations: imagingViewerAnnotations,
-					renderPlan: dicomWorkstationReadiness?.renderPlan ?? null,
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/viewer-tool-state",
+				{
+					method: "POST",
+					signal: controller.signal,
+					headers: auth.denteClinicalReadHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						target: "cornerstone3d",
+						viewerKind: "cornerstone3d",
+						series: cbctWorkbenchSeries,
+						viewerState: currentImagingViewerSessionState,
+						annotations: imagingViewerAnnotations,
+						renderPlan: dicomWorkstationReadiness?.renderPlan ?? null,
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(
@@ -1079,7 +1094,7 @@ export function useDicomWorkbenchModule({
 		options: { silent?: boolean; restoreLatest?: boolean } = {},
 	) {
 		try {
-			const response = await fetch(
+			const response = await fetchWithHandling(
 				"/api/imaging/dicom/workbench-bundles?limit=6",
 				{ headers: auth.denteClinicalReadHeaders() },
 			);
@@ -1125,17 +1140,20 @@ export function useDicomWorkbenchModule({
 		if (!manifest) return null;
 		setIsDicomWorkbenchServerSaving(true);
 		try {
-			const response = await fetch("/api/imaging/dicom/workbench-bundles", {
-				method: "POST",
-				signal: options.signal ?? null,
-				headers: auth.denteClinicalMutationHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					manifest,
-					clientSavedAt,
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/workbench-bundles",
+				{
+					method: "POST",
+					signal: options.signal ?? null,
+					headers: auth.denteClinicalMutationHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						manifest,
+						clientSavedAt,
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(
@@ -1203,7 +1221,7 @@ export function useDicomWorkbenchModule({
 		setIsDicomWorkbenchReconnecting(true);
 		try {
 			const client = await collectDicomWorkstationClientFacts();
-			const workupResponse = await fetch(
+			const workupResponse = await fetchWithHandling(
 				"/api/imaging/dicom/folder-workup-plan",
 				{
 					method: "POST",
@@ -1249,7 +1267,7 @@ export function useDicomWorkbenchModule({
 				);
 			}
 
-			const manifestResponse = await fetch(
+			const manifestResponse = await fetchWithHandling(
 				"/api/imaging/dicom/viewer-workbench-manifest",
 				{
 					method: "POST",
@@ -1329,18 +1347,21 @@ export function useDicomWorkbenchModule({
 		setIsDicomWorkstationChecking(true);
 		try {
 			const client = await collectDicomWorkstationClientFacts();
-			const response = await fetch("/api/imaging/dicom/workstation-readiness", {
-				method: "POST",
-				signal: controller.signal,
-				headers: auth.denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					series: cbctWorkbenchSeries,
-					client,
-					connector: dicomWebCheck,
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/workstation-readiness",
+				{
+					method: "POST",
+					signal: controller.signal,
+					headers: auth.denteClinicalReadHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						series: cbctWorkbenchSeries,
+						client,
+						connector: dicomWebCheck,
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(
@@ -1390,18 +1411,21 @@ export function useDicomWorkbenchModule({
 		const controller = startLocalDicomOperation();
 		setIsDicomRenderCachePlanning(true);
 		try {
-			const response = await fetch("/api/imaging/dicom/render-cache-plan", {
-				method: "POST",
-				signal: controller.signal,
-				headers: auth.denteClinicalReadHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					series: cbctWorkbenchSeries,
-					renderPlan: dicomWorkstationReadiness.renderPlan,
-					viewerState: currentImagingViewerSessionState,
-				}),
-			});
+			const response = await fetchWithHandling(
+				"/api/imaging/dicom/render-cache-plan",
+				{
+					method: "POST",
+					signal: controller.signal,
+					headers: auth.denteClinicalReadHeaders({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify({
+						series: cbctWorkbenchSeries,
+						renderPlan: dicomWorkstationReadiness.renderPlan,
+						viewerState: currentImagingViewerSessionState,
+					}),
+				},
+			);
 			if (!response.ok) {
 				throw new Error(
 					await responseErrorMessage(
@@ -1443,11 +1467,17 @@ export function useDicomWorkbenchModule({
 	// ===== Effects =====
 
 	// Blob-URL preview lifecycle for imaging studies
+	const authRef = useRef(auth);
+	useEffect(() => {
+		authRef.current = auth;
+	}, [auth]);
+
 	useEffect(() => {
 		if (typeof window === "undefined") return undefined;
 		if (!imagingPreviewWorkset.length) {
 			setImagingPreviewObjectUrls((current) => {
-				auth.revokeObjectUrlMap(current);
+				if (Object.keys(current).length === 0) return current;
+				authRef.current.revokeObjectUrlMap(current);
 				return {};
 			});
 			return undefined;
@@ -1461,15 +1491,15 @@ export function useDicomWorkbenchModule({
 				async (study): Promise<[string, string] | null> => {
 					if (!study.previewUrl.startsWith("/api/"))
 						return [study.id, study.previewUrl];
-					const response = await fetch(study.previewUrl, {
+					const response = await fetchWithHandling(study.previewUrl, {
 						cache: "no-store",
-						headers: auth.denteClinicalReadHeaders(),
+						headers: authRef.current.denteClinicalReadHeaders(),
 						signal: abortController.signal,
 					});
 					if (!response.ok) return null;
 					const blobUrl = URL.createObjectURL(await response.blob());
 					if (cancelled) {
-						auth.revokeObjectUrlIfNeeded(blobUrl);
+						authRef.current.revokeObjectUrlIfNeeded(blobUrl);
 						return null;
 					}
 					createdUrls.push(blobUrl);
@@ -1479,7 +1509,7 @@ export function useDicomWorkbenchModule({
 		)
 			.then((entries) => {
 				if (cancelled) {
-					createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
+					createdUrls.forEach(authRef.current.revokeObjectUrlIfNeeded);
 					return;
 				}
 				const next = Object.fromEntries(
@@ -1488,13 +1518,14 @@ export function useDicomWorkbenchModule({
 				const nextUrls = new Set(Object.values(next));
 				setImagingPreviewObjectUrls((current) => {
 					Object.values(current).forEach((url) => {
-						if (!nextUrls.has(url)) auth.revokeObjectUrlIfNeeded(url);
+						if (!nextUrls.has(url))
+							authRef.current.revokeObjectUrlIfNeeded(url);
 					});
 					return next;
 				});
 			})
 			.catch((err) => {
-				createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
+				createdUrls.forEach(authRef.current.revokeObjectUrlIfNeeded);
 				if (!cancelled) {
 					showToast(
 						actionFailureToast(
@@ -1504,7 +1535,7 @@ export function useDicomWorkbenchModule({
 						"error",
 					);
 					setImagingPreviewObjectUrls((current) => {
-						auth.revokeObjectUrlMap(current);
+						authRef.current.revokeObjectUrlMap(current);
 						return {};
 					});
 				}
@@ -1513,14 +1544,9 @@ export function useDicomWorkbenchModule({
 		return () => {
 			cancelled = true;
 			abortController.abort();
-			createdUrls.forEach(auth.revokeObjectUrlIfNeeded);
+			createdUrls.forEach(authRef.current.revokeObjectUrlIfNeeded);
 		};
-	}, [
-		imagingPreviewWorkset,
-		auth.revokeObjectUrlMap,
-		auth.revokeObjectUrlIfNeeded,
-		auth.denteClinicalReadHeaders,
-	]);
+	}, [imagingPreviewWorkset]);
 
 	// ===== Return =====
 	return {

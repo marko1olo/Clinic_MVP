@@ -6,15 +6,17 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-	normalizedProcedureSpecificConsentProcedure,
-	normalizedTaxApplicationDeliveryChannel,
-	normalizedTaxApplicationForm,
-	normalizedTaxApplicationRelationshipSelect,
 	photoVideoMaterialOptions,
 	procedureSpecificConsentProcedureOptions,
 	taxApplicationDeliveryChannelOptions,
 	taxApplicationFormOptions,
 	taxApplicationRelationshipOptions,
+} from "../AppConstants";
+import {
+	normalizedProcedureSpecificConsentProcedure,
+	normalizedTaxApplicationDeliveryChannel,
+	normalizedTaxApplicationForm,
+	normalizedTaxApplicationRelationshipSelect,
 } from "../AppHelpers";
 import { appendChipToText } from "../components/documents/documentChipText";
 import { AnesthesiaConsentLogForm } from "../components/documents/forms/AnesthesiaConsentLogForm";

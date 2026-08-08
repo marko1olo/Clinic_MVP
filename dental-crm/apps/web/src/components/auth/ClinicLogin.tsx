@@ -12,6 +12,7 @@ import {
 	DENTE_CLINIC_TOKEN_KEY,
 	safeLocalStorageSetItem,
 } from "../../lib/safeLocalStorage";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 interface ClinicLoginProps {
@@ -48,7 +49,7 @@ export function ClinicLogin({ onLoginSuccess }: ClinicLoginProps) {
 			showToast("Вход в рабочее пространство выполнен", "success");
 			onLoginSuccess(data.clinicProfile);
 		} catch (err: any) {
-			console.error(err);
+			logger.error(err);
 			showToast(err.message || "Неверный логин или пароль клиники", "error");
 		} finally {
 			setLoading(false);

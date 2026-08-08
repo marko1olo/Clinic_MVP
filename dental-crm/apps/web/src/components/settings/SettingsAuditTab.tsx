@@ -81,7 +81,7 @@ import {
 	UserCheck,
 } from "lucide-react";
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from "react";
-import { importSourceLabels, ingestionTargetLabels } from "../../AppHelpers";
+import { importSourceLabels, ingestionTargetLabels } from "../../AppConstants";
 import type {
 	CtImplantLibraryItem,
 	CtPlanningQuickAction,

@@ -6,6 +6,7 @@ import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { normalizeRubAmountInput } from "../../rubAmountInput";
 import { useAppStore } from "../../store/appStore";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 interface LabOrder {
@@ -48,10 +49,13 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 	 * без секрета клинической зоны: токены клиники и сотрудника он берёт сам.
 	 * Когда контекст есть, работает прежний путь с секретом.
 	 */
-	const readHeaders = useCallback((extra: Record<string, string> = {}) =>
-		auth?.denteClinicalReadHeaders
-			? auth.denteClinicalReadHeaders(extra)
-			: denteAdminSecretRequestHeaders(extra), [auth]);
+	const readHeaders = useCallback(
+		(extra: Record<string, string> = {}) =>
+			auth?.denteClinicalReadHeaders
+				? auth.denteClinicalReadHeaders(extra)
+				: denteAdminSecretRequestHeaders(extra),
+		[auth],
+	);
 	const liveStatus = useAppStore(
 		(state) => (state as any).labOrderStatuses?.[patientId],
 	);
@@ -66,7 +70,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 		ЧТО БЫЛО СЛОМАНО. Загрузка списка проверяла `if (res.ok)` и на любом другом
 		ответе не делала НИЧЕГО: ни сообщения, ни следа. Ошибка сети попадала в
-		catch и уходила в console.error — туда врач не смотрит. Список при этом
+		catch и уходила в logger.error — туда врач не смотрит. Список при этом
 		оставался пустым, и экран говорил «Нет активных заказов ЗТЛ».
 
 		ЧТО ВИДЕЛ ВРАЧ. Коронка заказана и делается в лаборатории, но сервер
@@ -99,7 +103,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 
 	useEffect(() => {
 		if (doctors.length > 0 && !doctorId) {
-			setDoctorId(doctors[0].id);
+			setDoctorId(doctors[0]?.id || "");
 		}
 	}, [doctors, doctorId]);
 
@@ -147,7 +151,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				),
 				"error",
 			);
-			console.error("Failed to load lab orders", e);
+			logger.error("Failed to load lab orders", e);
 			if (shownPatientIdRef.current !== requestedPatientId) return;
 			setLoadError(
 				"Программа не смогла связаться с сервером клиники, чтобы получить список заказов.",

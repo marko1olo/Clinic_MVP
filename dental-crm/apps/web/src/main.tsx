@@ -13,6 +13,7 @@ import {
 } from "./lib/safeLocalStorage";
 import { applyThemeToRoot, resolveTheme } from "./lib/themeClasses";
 import { PublicBookingWidget } from "./pages/PublicBookingWidget";
+import { logger } from "./utils/logger";
 // Первым: утилиты живут в каскадном слое и по правилам CSS уступают
 // любому объявлению вне слоёв, поэтому порядок импорта на них не влияет —
 // но так виднее, что это фундамент, а не переопределение.
@@ -154,7 +155,7 @@ function watchDenteServiceWorkerUpdates(
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "visible") {
 			void registration.update().catch((err) => {
-				console.warn("Обновление приложения недоступно", err);
+				logger.warn("Обновление приложения недоступно", err);
 			});
 		}
 	});
@@ -162,10 +163,7 @@ function watchDenteServiceWorkerUpdates(
 	window.setInterval(
 		() => {
 			void registration.update().catch((err) => {
-				console.warn(
-					"Обновление приложения недоступно (фоновая проверка)",
-					err,
-				);
+				logger.warn("Обновление приложения недоступно (фоновая проверка)", err);
 			});
 		},
 		30 * 60 * 1000,
@@ -195,11 +193,11 @@ if (
 			.then((registration) => {
 				watchDenteServiceWorkerUpdates(registration);
 				void registration.update().catch((err) => {
-					console.warn("Обновление приложения недоступно при старте", err);
+					logger.warn("Обновление приложения недоступно при старте", err);
 				});
 			})
 			.catch((err) => {
-				console.warn("Service Worker недоступен", err);
+				logger.warn("Service Worker недоступен", err);
 			});
 	});
 }

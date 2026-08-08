@@ -6,6 +6,7 @@ import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import type { PanelSubject } from "../../lib/panelStateText";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { EmptyState } from "../EmptyState";
 import { showToast } from "../GlobalToast";
 import { PanelLoadFailure } from "../PanelLoadFailure";
@@ -43,7 +44,7 @@ async function writeFailureText(
 	action: string,
 ): Promise<string> {
 	const body = await response.json().catch((err: any) => {
-		console.error(err);
+		logger.error(err);
 		showToast(
 			actionFailureToast(
 				"Ошибка чтения ответа",
@@ -177,7 +178,7 @@ export function WaitlistDrawer(props: Props) {
 				),
 				"error",
 			);
-			console.error("Failed to load waitlist", e);
+			logger.error("Failed to load waitlist", e);
 			// До сервера не дошли вовсе — это отдельный случай от «ответил отказом».
 			setLoadFailureStatus(null);
 		} finally {

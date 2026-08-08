@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import type { PanelSubject } from "../../lib/panelStateText";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 import { PanelLoadFailure } from "../PanelLoadFailure";
 
@@ -42,7 +43,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 	const [_reloadToken, setReloadToken] = useState(0);
 	/*
 	 * БЫЛО: отказ сервера не сохранялся нигде. Ветка `if (res.ok)` без `else` и
-	 * `catch` с одним console.error оставляли riskData равным null, а на null
+	 * `catch` с одним logger.error оставляли riskData равным null, а на null
 	 * виджет рисует приглашение «Рассчитать риск» с кнопкой. Администратор жал
 	 * кнопку, видел «Считаем…», через секунду возвращался тот же экран — и так
 	 * сколько угодно раз: кнопка не делала ничего и не объясняла, почему. Ни
@@ -85,7 +86,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 				if (cancelled) return;
 				if (res.ok) {
 					const data = await res.json().catch((err: any) => {
-						console.error(err);
+						logger.error(err);
 						showToast(
 							actionFailureToast(
 								"Ошибка чтения ответа",
@@ -111,7 +112,7 @@ export const PatientNoShowRisk: React.FC<PatientNoShowRiskProps> = ({
 					"error",
 				);
 				if (cancelled || (e as Error)?.name === "AbortError") return;
-				console.error("Failed to fetch AI no-show risk", e);
+				logger.error("Failed to fetch AI no-show risk", e);
 				setFailure({ status: null });
 			} finally {
 				if (!cancelled) setLoading(false);

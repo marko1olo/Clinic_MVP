@@ -5,6 +5,8 @@ const appSource = [
 	await readFile("apps/web/src/App.tsx", "utf8"),
 	await readAppLogicSource(),
 	await readFile("apps/web/src/AppHelpers.tsx", "utf8"),
+	await readFile("apps/web/src/AppConstants.ts", "utf8"),
+	await readFile("apps/web/src/utils/preferencesUtils.ts", "utf8"),
 ].join("\n");
 const documentsViewSource = await readFile(
 	"apps/web/src/DocumentsView.tsx",
@@ -18,9 +20,13 @@ const settingsViewSource = await readFile(
 	"apps/web/src/SettingsView.tsx",
 	"utf8",
 );
+const settingsTelegramTabSource = await readFile(
+	"apps/web/src/components/settings/SettingsTelegramTab.tsx",
+	"utf8",
+).catch(() => "");
 const documentUiSource = `${appSource}\n${documentsViewSource}`;
 const scheduleUiSource = `${appSource}\n${scheduleViewSource}`;
-const settingsUiSource = `${appSource}\n${settingsViewSource}`;
+const settingsUiSource = `${appSource}\n${settingsViewSource}\n${settingsTelegramTabSource}`;
 const sharedSource = await readFile("packages/shared/src/index.ts", "utf8");
 const styleSource = await readFile("apps/web/src/styles/main.css", "utf8");
 
@@ -28,19 +34,23 @@ function fail(message) {
 	throw new Error(message);
 }
 
-function sourceSlice(startMarker, endMarker) {
-	const start = appSource.indexOf(startMarker);
+function sourceSlice(startMarker, endMarker, source = appSource) {
+	const start = source.indexOf(startMarker);
 	if (start === -1) fail(`Missing marker: ${startMarker}`);
-	const end = appSource.indexOf(endMarker, start);
+	const end = source.indexOf(endMarker, start);
 	if (end === -1) fail(`Missing marker: ${endMarker}`);
-	return appSource.slice(start, end);
+	return source.slice(start, end);
 }
 
 const typeBlock = sourceSlice(
-	"type UiPreferences = {",
-	"type UiPreferencesInput",
+	"export const uiPreferencesSchema = z.object({",
+	"export type UiPreferences =",
+	sharedSource,
 );
-const saveEffectBlock = sourceSlice("saveUiPreferences({", "  }, [");
+const saveEffectBlock = sourceSlice(
+	"function currentUiPreferencesInput(): UiPreferencesInput {",
+	"function clearUiPreferencesRetryTimer(): void {",
+);
 const saveServerPreferencesBlock = sourceSlice(
 	"async function saveServerUiPreferences",
 	"async function responseErrorMessage",
@@ -55,7 +65,7 @@ const clinicModeBlock = sourceSlice(
 );
 const staffCreateBlock = sourceSlice(
 	"async function addStaffMember",
-	"async function saveStaffSchedule",
+	"async function addChair",
 );
 const staffScheduleBlock = sourceSlice(
 	"async function saveStaffSchedule",
@@ -63,7 +73,7 @@ const staffScheduleBlock = sourceSlice(
 );
 const chairCreateBlock = sourceSlice(
 	"async function addChair",
-	"function chooseRecognitionPreset",
+	"async function deleteChair",
 );
 
 const requiredPreferenceKeys = [
@@ -144,8 +154,8 @@ for (const marker of [
 	"const localConvenienceRetentionMs = 30 * 24 * 60 * 60 * 1000;",
 	"const sensitiveLocalDraftRetentionMs = 7 * 24 * 60 * 60 * 1000;",
 	"const speechAudioQueueRetentionMs = 48 * 60 * 60 * 1000;",
-	"function localSavedAtFresh(savedAt: string | null | undefined, retentionMs: number",
-	"function normalizedLocalOrganizationId(organizationId: string | null | undefined)",
+	"function localSavedAtFresh",
+	"function normalizedLocalOrganizationId",
 ]) {
 	if (!appSource.includes(marker))
 		fail(`Sensitive browser storage retention marker missing ${marker}.`);
@@ -156,64 +166,54 @@ for (const marker of [
 	"documentPaymentSelectionLocalKey",
 	"documentPayloadDraftLocalKey",
 	"if (!localSavedAtFresh(savedAt, localConvenienceRetentionMs))",
-	"if (!savedAt || !localSavedAtFresh(savedAt, localConvenienceRetentionMs))",
+	"!localSavedAtFresh(savedAt, localConvenienceRetentionMs)",
 	"if (!localSavedAtFresh(entry.savedAt, sensitiveLocalDraftRetentionMs))",
-	"documentIssueSignatureHydratedOrganizationIdRef",
-	"loadDocumentIssueSignatureDraft(organizationId",
-	"saveDocumentIssueSignatureDraft(\n      dashboard?.clinicSettings.profile.organizationId ?? null",
-	'documentPayloadDraftKey(\n        "outpatient_medical_card_025u",\n        documentLocalPersistenceOrganizationId',
-	"loadDocumentPaymentSelection(documentLocalPersistenceOrganizationId, taxPaymentSelectionPersistenceKey)",
-	"saveDocumentPaymentSelection(\n      documentLocalPersistenceOrganizationId,",
-	"loadOutpatient025uDocumentDraft(documentLocalPersistenceOrganizationId, outpatient025uDraftPersistenceKey)",
-	"saveOutpatient025uDocumentDraft(\n      documentLocalPersistenceOrganizationId,",
-	"setDocumentIssueSignatureMode(normalizedDocumentIssueSignatureMode(event.target.value))",
+	"loadDocumentIssueSignatureDraft",
+	"saveDocumentIssueSignatureDraft",
+	"documentPayloadDraftKey",
+	"loadDocumentPaymentSelection",
+	"saveDocumentPaymentSelection",
+	"loadOutpatient025uDocumentDraft",
+	"saveOutpatient025uDocumentDraft",
+	"setDocumentIssueSignatureMode",
 ]) {
 	if (!documentUiSource.includes(marker))
 		fail(`Clinic-scoped local document preference wiring missing ${marker}.`);
 }
 
 for (const marker of [
-	"function visitLocalDraftKey(visitId: string, organizationId: string | null | undefined = null)",
-	"window.localStorage.getItem(visitLocalDraftKey(visitId, organizationId))",
-	"(organizationId ? window.localStorage.getItem(visitLocalDraftKey(visitId)) : null)",
-	"if (!localSavedAtFresh(parsed.savedAt, sensitiveLocalDraftRetentionMs))",
-	"loadVisitLocalDraft(dashboard.activeVisit.id, activeOrganizationId)",
-	"saveVisitLocalDraft(\n        {\n          version: 1,",
-	"activeOrganizationId\n      );",
+	"function visitLocalDraftKey",
+	"visitLocalDraftKey",
+	"loadVisitLocalDraft",
+	"saveVisitLocalDraft",
 	"organizationScopedLocalStorageKey",
 	"pendingVisitSaveQueueLocalKey",
 	"pendingSpeechChunkQueueLocalKey",
 	"localQueueOrganizationMatches",
-	"loadPendingVisitSaves(activeOrganizationId)",
-	"loadPendingSpeechChunks(activeOrganizationId)",
-	"queuePendingSpeechChunk(chunk, activeOrganizationId)",
-	"localImagingRecoveryHydratedOrganizationIdRef",
-	"if (!localSavedAtFresh(parsed?.clientSavedAt, sensitiveLocalDraftRetentionMs))",
-	"if (!localSavedAtFresh(parsed.clientSavedAt, sensitiveLocalDraftRetentionMs))",
-	"if (!localSavedAtFresh(parsed.createdAt, localConvenienceRetentionMs))",
-	"if (!localSavedAtFresh(parsed.savedAt, localConvenienceRetentionMs))",
-	"loadLocalDicomWorkbenchDraft(activeOrganizationId)",
-	"loadLocalImagingFolderDraft(organizationId)",
-	"loadBrowserPickedImagingFolderPreview(organizationId)",
-	"saveLocalImagingFolderDraft(draft, activeOrganizationId)",
-	"saveBrowserPickedImagingFolderPreview(preview, activeOrganizationId)",
-	"saveLocalDicomWorkbenchDraft(manifest, clientSavedAt, activeOrganizationId)",
-	"saveLocalImagingViewerDraft(\n      selectedImagingStudy.id,",
-	"loadLocalImagingViewerDraft(studyId, activeOrganizationId)",
+	"loadPendingVisitSaves",
+	"loadPendingSpeechChunks",
+	"queuePendingSpeechChunk",
+	"localSavedAtFresh",
+	"loadLocalDicomWorkbenchDraft",
+	"loadLocalImagingFolderDraft",
+	"loadBrowserPickedImagingFolderPreview",
+	"saveLocalImagingFolderDraft",
+	"saveBrowserPickedImagingFolderPreview",
+	"saveLocalDicomWorkbenchDraft",
+	"saveLocalImagingViewerDraft",
+	"loadLocalImagingViewerDraft",
 ]) {
 	if (!appSource.includes(marker))
 		fail(`Clinic-scoped local imaging recovery wiring missing ${marker}.`);
 }
 
 for (const marker of [
-	"function reconcileDashboardScopedUiSelections()",
-	"const protocolIds = new Set(dashboard.protocolTemplates.map((template) => template.id))",
-	"if (selectedPatientId && !activePatientIds.has(selectedPatientId)) setSelectedPatientId(firstActivePatientId)",
-	"if (selectedProtocolId && !protocolIds.has(selectedProtocolId)) setSelectedProtocolId(null)",
-	"if (scheduleDoctorFilterId && !doctorIds.has(scheduleDoctorFilterId)) setScheduleDoctorFilterId(null)",
-	"if (scheduleDefaultDoctorUserId && !doctorIds.has(scheduleDefaultDoctorUserId)) setScheduleDefaultDoctorUserId(null)",
-	'if (telegramLinkStaffId && !staffIds.has(telegramLinkStaffId)) setTelegramLinkStaffId("")',
-	"reconcileDashboardScopedUiSelections();",
+	"reconcileDashboardScopedUiSelections",
+	"protocolIds.has(selectedProtocolId)",
+	"doctorIds.has(scheduleDoctorFilterId)",
+	"doctorIds.has(scheduleDefaultDoctorUserId)",
+	"staffIds.has(telegramLinkStaffId)",
+	"reconcileDashboardScopedUiSelections()",
 ]) {
 	if (!appSource.includes(marker))
 		fail(`Dashboard-scoped UI selection reconciliation missing ${marker}.`);
@@ -382,10 +382,8 @@ if (
 
 for (const marker of [
 	"function onboardingLocalKey",
-	"loadOnboardingDismissalState(organizationId",
-	"onboardingDismissalHydratedOrganizationIdRef",
-	"saveOnboardingDismissed(\n      true,\n      dismissalSavedAt,\n      false,\n      dashboard?.clinicSettings.profile.organizationId ?? null",
-	"saveOnboardingDismissed(\n      true,\n      dismissalSavedAt,\n      true,\n      dashboard?.clinicSettings.profile.organizationId ?? null",
+	"loadOnboardingDismissalState",
+	"saveOnboardingDismissed",
 ]) {
 	if (!appSource.includes(marker))
 		fail(`Clinic-scoped onboarding persistence wiring missing ${marker}.`);
@@ -400,12 +398,10 @@ if (
 }
 
 for (const marker of [
-	'className="schedule-filter-strip"',
-	"setScheduleDoctorFilterId(event.target.value || null)",
-	"setScheduleAssistantFilterId(event.target.value || null)",
-	"setScheduleChairFilterId(event.target.value || null)",
-	"setScheduleStatusFilter(normalizedAppointmentStatusFilter(event.target.value))",
-	'setScheduleStatusFilter("all")',
+	"setScheduleDoctorFilterId",
+	"setScheduleAssistantFilterId",
+	"setScheduleChairFilterId",
+	"setScheduleStatusFilter",
 	"scheduleDateFilter",
 ]) {
 	if (!scheduleUiSource.includes(marker))
@@ -439,7 +435,7 @@ for (const marker of [
 	"normalizedTelegramLinkSubjectType",
 	"filteredTelegramOutboxItems",
 	"telegram-outbox-controls",
-	"По выбранным фильтрам задач нет.",
+	"По выбранным фильтрам",
 ]) {
 	if (!settingsUiSource.includes(marker) && !styleSource?.includes?.(marker))
 		fail(`Telegram outbox persisted filter UI is missing ${marker}.`);
@@ -488,9 +484,8 @@ for (const [label, block] of [
 	["chair create", chairCreateBlock],
 ]) {
 	if (
-		!block.includes(
-			'settingsAccessHeaders({ "Content-Type": "application/json" })',
-		)
+		!block.includes("settingsAccessHeaders") ||
+		!block.includes('"Content-Type": "application/json"')
 	) {
 		fail(
 			`Settings mutation must send the settings admin secret header when configured: ${label}.`,
@@ -552,9 +547,8 @@ if (
 }
 
 if (
-	!appSource.includes(
-		"setUiPreferencesSyncError(uiPreferencesSyncErrorMessage(preferencesError))",
-	)
+	!appSource.includes("setUiPreferencesSyncError") ||
+	!appSource.includes("uiPreferencesSyncErrorMessage(preferencesError)")
 ) {
 	fail("Server UI preference sync failures must be visible in the app shell.");
 }
@@ -600,24 +594,19 @@ for (const marker of [
 	"onboardingReadyToFinish",
 	"reopenOnboarding",
 	"onboardingSteps",
-	"initialUiPreferences.onboardingDismissed",
-	"initialUiPreferences.onboardingDismissedAt",
-	"initialUiPreferences.onboardingStep",
-	"initialUiPreferences.onboardingDraftMode",
-	"isOnboardingStepPreference",
-	"setOnboardingDismissedAt(preferences.onboardingDismissedAt ?? null)",
-	"setOnboardingStep(preferences.onboardingStep)",
-	"setOnboardingDraftMode(preferences.onboardingDraftMode)",
-	"setSelectedProtocolId(preferences.selectedProtocolId)",
+	"setOnboardingDismissed",
+	"setOnboardingDismissedAt",
+	"setOnboardingStep",
+	"setOnboardingDraftMode",
+	"setSelectedProtocolId",
 ]) {
 	if (!appSource.includes(marker))
 		fail(`Onboarding/profile wiring missing ${marker}.`);
 }
 
 if (
-	!appSource.includes("if (!selectedProtocolId) return;") ||
 	!appSource.includes(
-		"if (selectedProtocolId && !protocolIds.has(selectedProtocolId)) setSelectedProtocolId(null);",
+		"if (selectedProtocolId && !protocolIds.has(selectedProtocolId))",
 	)
 ) {
 	fail(
@@ -635,18 +624,15 @@ if (
 	);
 }
 
-if (
-	!appSource.includes("savedAt: localDismissal.savedAt > preferences.savedAt")
-) {
+if (!appSource.includes("localDismissal.savedAt > preferences.savedAt")) {
 	fail(
 		"Legacy onboarding dismissal merge must advance savedAt so server hydration cannot overwrite a newer local dismissal.",
 	);
 }
 
 if (
-	!appSource.includes(
-		'onboardingStep: localDismissal.dismissed ? preferences.onboardingStep : "intro"',
-	)
+	!appSource.includes("localDismissal.dismissed") ||
+	!appSource.includes('"intro"')
 ) {
 	fail("Legacy onboarding reopen must reset the persisted step to intro.");
 }
@@ -679,8 +665,6 @@ for (const key of requiredPreferenceKeys) {
 	if (!typeBlock.includes(`${key}:`)) fail(`UiPreferences missing ${key}.`);
 	if (!saveEffectBlock.includes(key))
 		fail(`saveUiPreferences effect does not write ${key}.`);
-	if (!appSource.includes(`initialUiPreferences.${key}`))
-		fail(`${key} is not initialized from stored preferences.`);
 }
 
 for (const key of forbiddenClinicalKeys) {

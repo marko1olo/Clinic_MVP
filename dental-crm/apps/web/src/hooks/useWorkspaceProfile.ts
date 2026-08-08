@@ -7,11 +7,7 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { showToast } from "../components/GlobalToast";
-import { useAppLogicContext } from "../contexts/AppLogicContext";
-import {
-	applyClinicModeToFlags,
-	resolveClinicMode,
-} from "../lib/clinicCapabilities";
+import { applyClinicModeToFlags } from "../lib/clinicCapabilities";
 /*
  * Заголовки авторизации. Все три запроса ниже уходили БЕЗ них, и это отменяло
  * модульность целиком: GET /api/workspace/profile отвечает 401, если не может
@@ -28,6 +24,8 @@ import {
 // madge never printed. Nothing else here reaches AppHelpers.
 import { denteAdminSecretRequestHeaders } from "../lib/denteRequestHeaders";
 import { actionFailureToast } from "../lib/panelStateText";
+import { useSettingsStore } from "../store/settingsStore";
+import { logger } from "../utils/logger";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -197,16 +195,12 @@ export const useWorkspaceProfileStore = create<WorkspaceProfileStore>()(
  */
 export function useWorkspaceProfile() {
 	const store = useWorkspaceProfileStore();
-	// `?.` после вызова хука убран: useAppLogicContext() либо отдаёт контекст, либо
-	// бросает исключение (contexts/AppLogicContext.tsx). Пустого объекта он больше
-	// не выдумывает, `null` не возвращает, значит эта ветка была недостижима — а
-	// `?.` обещал возможность, которой нет. Внутренние `?.` по dashboard остаются:
-	// сводки клиники может не быть, и тогда режим не известен.
-	const clinicMode = resolveClinicMode(
-		useAppLogicContext().dashboard?.clinicSettings?.profile?.mode,
-	);
+	// clinicMode comes from settingsStore (set by useAppLogic after dashboard load).
+	// Reading it here avoids the AppLogicContext → useAppLogic → useScheduleLogic
+	// → useWorkspaceProfile → AppLogicContext circular dependency.
+	const clinicMode = useSettingsStore((s) => s.clinicMode);
 	return useMemo(
-		() => applyClinicModeToFlags(store, clinicMode),
+		() => applyClinicModeToFlags(store, clinicMode ?? null),
 		[store, clinicMode],
 	);
 }
@@ -257,7 +251,7 @@ export async function applyWorkspacePreset(
 			),
 			"error",
 		);
-		console.warn(
+		logger.warn(
 			"Пресет с сервера не получен, используем локальный набор:",
 			error instanceof Error ? error.message : error,
 		);
@@ -319,7 +313,7 @@ export async function applyWorkspacePreset(
  * Результат сохранения набора модулей.
  *
  * ЗАЧЕМ ВОЗВРАЩАТЬ, А НЕ МОЛЧАТЬ. Прежняя версия ловила любую ошибку, писала
- * console.warn «updating locally only» и всё равно правила локальный набор. На
+ * logger.warn «updating locally only» и всё равно правила локальный набор. На
  * экране это выглядело как «Сохранено»: владелец выключал модуль, видел галочку
  * и уходил. А на сервер запрос не доходил вовсе, потому что уходил без
  * заголовков авторизации (см. ниже), и выбор жил до первой чистки браузера — на
@@ -439,7 +433,7 @@ export async function loadWorkspaceProfile(): Promise<void> {
 			 * мешает пропавший), но молчать нельзя: именно молчание скрывало, что
 			 * запрос уходил без заголовков и всегда получал 401.
 			 */
-			console.warn(
+			logger.warn(
 				`Набор модулей не прочитан с сервера (код ${res.status}); показаны все модули. Настройка модулей на этом устройстве не действует.`,
 			);
 			return;

@@ -2,15 +2,17 @@ import type { Appointment, Dashboard } from "@dental/shared";
 import { Bot, Plus } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import {
-	type AppointmentScheduleDraft,
-	appointmentScheduleMissingFields,
-} from "../../AppHelpers";
+import type { AppointmentScheduleDraft } from "../../AppConstants";
+import { appointmentScheduleMissingFields } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { DictationHints } from "../../DictationHints";
 import { actionFailureToast } from "../../lib/panelStateText";
 import { smartBookingParser } from "../../lib/smartBookingParser";
-import { SmartParsePreview } from "../../SmartParsePreview";
+import {
+	type SmartParsedPayload,
+	SmartParsePreview,
+} from "../../SmartParsePreview";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 import { SmartMicrophoneButton } from "../SmartMicrophoneButton";
 
@@ -65,7 +67,8 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 
 	const [smartInputText, setSmartInputText] = useState("");
 	const [showSmartPreview, setShowSmartPreview] = useState(false);
-	const [smartParsedData, setSmartParsedData] = useState<unknown>(null);
+	const [smartParsedData, setSmartParsedData] =
+		useState<SmartParsedPayload | null>(null);
 	const [showHints, setShowHints] = useState(false);
 	/*
     Чего надиктованная фраза требует, а форма создания записи сделать не может.
@@ -139,7 +142,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 				}
 			})
 			.catch((err) => {
-				console.error("[Dente]", err);
+				logger.error("[Dente]", err);
 				showToast(
 					actionFailureToast(
 						"Статус блокировки записи не прочитан",
@@ -290,7 +293,7 @@ export function NewAppointmentForm(props: NewAppointmentFormProps) {
 						parsedData={smartParsedData}
 						rawText={smartInputText}
 						type="schedule"
-						onApply={(data: Record<string, string> | null) => {
+						onApply={(data: SmartParsedPayload) => {
 							/*
                 ОТМЕНА И ПЕРЕНОС — ЭТО НЕ СОЗДАНИЕ ЗАПИСИ.
 

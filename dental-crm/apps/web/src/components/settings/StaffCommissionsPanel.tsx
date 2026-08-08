@@ -154,11 +154,17 @@ export const StaffCommissionsPanel: React.FC = () => {
 				method: "GET",
 				headers: denteAdminSecretRequestHeaders(
 					undefined,
-					authRef.current?.settingsAdminSecretSession,
+					(authRef.current as any)?.settingsAdminSecretSession,
 				),
 			});
 			const payload = (await response.json().catch((err) => {
-				showToast(actionFailureToast("Ошибка ответа сервера", (err as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка ответа сервера",
+						(err as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				return null;
 			})) as unknown;
 			if (!response.ok) {
@@ -248,7 +254,13 @@ export const StaffCommissionsPanel: React.FC = () => {
 				body: JSON.stringify({ commissionPct: pct }),
 			});
 			const payload = (await response.json().catch((err) => {
-				showToast(actionFailureToast("Ошибка ответа сервера", (err as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка ответа сервера",
+						(err as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				return null;
 			})) as unknown;
 			if (!response.ok) {

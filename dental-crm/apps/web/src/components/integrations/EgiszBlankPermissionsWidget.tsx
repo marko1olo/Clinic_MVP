@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { auth } from "../../AppHelpers";
+import { auth } from "../../AppConstants";
 import {
 	classifyFailedHttpStatus,
 	type EgiszEndpointOutcome,

@@ -10,6 +10,7 @@ import {
 	resolvePanelPhase,
 	unconfirmedActionToast,
 } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 import { PanelLoadFailure } from "../PanelLoadFailure";
 
@@ -162,12 +163,16 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 				);
 				return;
 			}
-			const data = await res
-				.json()
-				.catch((err) => {
-					showToast(actionFailureToast("Ошибка ответа сервера", (err as { status?: number })?.status ?? null), "error");
-					return {} as Record<string, unknown>;
-				});
+			const data = await res.json().catch((err) => {
+				showToast(
+					actionFailureToast(
+						"Ошибка ответа сервера",
+						(err as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
+				return {} as Record<string, unknown>;
+			});
 			if (!(data.success || data.isBlacklisted !== undefined)) {
 				showToast(
 					unconfirmedActionToast(
@@ -192,7 +197,7 @@ export const PatientArchiveAndBlacklistWidget: React.FC<{
 				newStatus ? "warning" : "success",
 			);
 		} catch (error) {
-			console.error("[PatientArchiveAndBlacklistWidget apply error]:", error);
+			logger.error("[PatientArchiveAndBlacklistWidget apply error]:", error);
 			showToast(
 				actionFailureToast(
 					newStatus

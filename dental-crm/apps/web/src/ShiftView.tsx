@@ -16,12 +16,8 @@ import {
 	UserCheck,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-	formatShortDate,
-	minutesLabel,
-	money,
-	patientInsightRiskLabels,
-} from "./AppHelpers";
+import { patientInsightRiskLabels } from "./AppConstants";
+import { formatShortDate, minutesLabel, money } from "./AppHelpers";
 import { EmptyState } from "./components/EmptyState";
 import { PatientAvatar } from "./components/PatientAvatar";
 import { EmkControlBoard } from "./components/visit/EmkControlBoard";

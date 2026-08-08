@@ -1,8 +1,4 @@
 import { create } from "zustand";
-import type {
-	PaymentRefundCorrectionAction,
-	PaymentRefundCorrectionMethod,
-} from "../AppHelpers";
 export type MedicalDocumentReleaseChannel =
 	| "paper"
 	| "pdf"
@@ -31,6 +27,10 @@ import type {
 	XrayCbctReferralPriority,
 	XrayCbctReferralStudyType,
 } from "@dental/shared";
+import type {
+	PaymentRefundCorrectionAction,
+	PaymentRefundCorrectionMethod,
+} from "../AppConstants";
 import { postVisitCarePresets } from "../postVisitCareData";
 /*
  * dateInputValuePlusDays отсюда убран вместе со сроком оплаты счёта и графиком

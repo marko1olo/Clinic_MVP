@@ -1,4 +1,4 @@
-import type { ClinicProfileDraft } from "../../../AppHelpers";
+import type { ClinicProfileDraft } from "../../../AppConstants";
 import { useDocumentStore } from "../../../store/documentStore";
 import { DocumentPayloadCard } from "../DocumentPayloadCard";
 import {

@@ -3,6 +3,7 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { type CertificateInfo, signatureService } from "../../lib/cryptopro";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 interface CryptoProSignerProps {
@@ -196,7 +197,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 				),
 				"error",
 			);
-			console.error("[ЭЦП] список сертификатов не прочитан:", error);
+			logger.error("[ЭЦП] список сертификатов не прочитан:", error);
 			setCertificates([]);
 			setCertificatesLoaded(true);
 			setFailureText(readableSigningFailure(error));
@@ -273,7 +274,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 					),
 					"error",
 				);
-				console.error("[ЭЦП] подписание не выполнено:", error);
+				logger.error("[ЭЦП] подписание не выполнено:", error);
 				setFailureText(readableSigningFailure(error));
 			} finally {
 				setIsSigning(false);
@@ -298,7 +299,7 @@ export const CryptoProSigner: React.FC<CryptoProSignerProps> = ({
 				),
 				"error",
 			);
-			console.error("[ЭЦП] простое подписание не выполнено:", error);
+			logger.error("[ЭЦП] простое подписание не выполнено:", error);
 			setFailureText(readableSigningFailure(error));
 		} finally {
 			setIsSigning(false);

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { logger } from "./utils/logger";
 
 /**
  * ГРАНИЦА ОШИБОК ТОЧКИ ВХОДА. Одна на оба контура, которые монтирует main.tsx.
@@ -111,6 +112,9 @@ export class BootErrorBoundary extends Component<
 		// то есть от props, до которых у статического метода доступа нет, и потому
 		// считается в render(). Подстановка текста через setState() в
 		// componentDidCatch() объявлена в документации React устаревшей.
+		(
+			window as Window & typeof globalThis & { LAST_BOOT_ERROR?: string }
+		).LAST_BOOT_ERROR = String((error as { stack?: string })?.stack || error);
 		return { failed: true, error };
 	}
 
@@ -128,7 +132,7 @@ export class BootErrorBoundary extends Component<
 		 * безусловно с той же мотивировкой; консоль сотруднику клиники не видна и
 		 * ничего ему не показывает.
 		 */
-		console.error(
+		logger.error(
 			`DENTE boot failed (${this.props.audience})`,
 			error,
 			errorInfo.componentStack,

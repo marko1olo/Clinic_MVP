@@ -5,7 +5,7 @@ import type {
 	AppointmentScheduleSaveState,
 	StaffScheduleDraft,
 	StaffScheduleSaveState,
-} from "../AppHelpers";
+} from "../AppConstants";
 import { emptyAppointmentScheduleDraft } from "../utils/draftDefaults";
 import {
 	defaultUiPreferences,

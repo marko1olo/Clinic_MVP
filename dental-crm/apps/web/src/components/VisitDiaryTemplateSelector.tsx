@@ -2,6 +2,7 @@ import { Clipboard, Download, Loader2, Plus, Trash2, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppLogicContext } from "../contexts/AppLogicContext";
 import { actionFailureToast } from "../lib/panelStateText";
+import { logger } from "../utils/logger";
 import { showToast } from "./GlobalToast";
 
 interface Template {
@@ -127,7 +128,7 @@ export function VisitDiaryTemplateSelector({
 				),
 				"error",
 			);
-			console.error("Failed to load templates", error);
+			logger.error("Failed to load templates", error);
 			setTemplates([]);
 			setLoadFailed(true);
 			setLoadStatus(null);
@@ -190,7 +191,7 @@ export function VisitDiaryTemplateSelector({
 			);
 			await loadTemplates();
 		} catch (error) {
-			console.error("Failed to seed templates", error);
+			logger.error("Failed to seed templates", error);
 			const toastText = actionFailureToast(
 				"Встроенные протоколы не установлены",
 				null,
@@ -260,7 +261,7 @@ export function VisitDiaryTemplateSelector({
 			setSelectedTemplate("");
 			await loadTemplates();
 		} catch (error) {
-			console.error("Failed to delete template", error);
+			logger.error("Failed to delete template", error);
 			showToast(actionFailureToast("Протокол приёма не удалён", null), "error");
 		} finally {
 			setIsDeleting(false);
@@ -357,7 +358,7 @@ export function VisitDiaryTemplateSelector({
 				setSelectedTemplate(createdId);
 			}
 		} catch (error) {
-			console.error("Failed to create template", error);
+			logger.error("Failed to create template", error);
 			showToast(
 				actionFailureToast("Протокол приёма не сохранён", null),
 				"error",

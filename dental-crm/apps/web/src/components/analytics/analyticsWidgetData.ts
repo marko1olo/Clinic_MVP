@@ -1,5 +1,6 @@
 import { actionFailureToast } from "../../lib/panelStateText";
 import { showToast } from "../GlobalToast";
+
 /**
  * Общая загрузка данных для виджетов раздела «Аналитика» и безопасный разбор
  * полей ответа.
@@ -25,6 +26,7 @@ import { showToast } from "../GlobalToast";
  * друга.
  */
 
+import { logger } from "../../utils/logger";
 import { staffRoleLabels } from "../../workspaceUiLabels";
 
 /**
@@ -124,7 +126,7 @@ export async function fetchWidgetList<T>(
 			"error",
 		);
 		// Текст исключения наружу не идёт ни при каких условиях: он английский.
-		console.error(`[analytics widget fetch error] ${url}:`, error);
+		logger.error(`[analytics widget fetch error] ${url}:`, error);
 		return { ok: false, message: WIDGET_LOAD_ERROR_MESSAGE };
 	}
 }

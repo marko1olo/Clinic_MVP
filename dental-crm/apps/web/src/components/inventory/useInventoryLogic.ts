@@ -2,6 +2,7 @@ import { multiplyKopecks, parseKopecks, sumKopecks } from "@dental/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { normalizeRubAmountInput } from "../../rubAmountInput";
+import { logger } from "../../utils/logger";
 import { showToast } from "../GlobalToast";
 
 export interface InventoryItem {
@@ -98,16 +99,19 @@ export function useInventoryLogic(organizationId: string) {
 	const auth = appLogic?.auth;
 	const dashboard = appLogic?.dashboard;
 
-	const getHeaders = useCallback((extra?: Record<string, string>) => {
-		const headers =
-			auth && typeof auth.denteClinicalReadHeaders === "function"
-				? auth.denteClinicalReadHeaders(extra)
-				: (extra || {});
-		// Обязательно добавляем id организации к запросу, бэкенд не пустит без него.
-		// Если id пусто, значит пользователь не прошел проверку в settingsTab — вернет
-		// 401, а не подставить чужую организацию.
-		return headers;
-	}, [auth]);
+	const getHeaders = useCallback(
+		(extra?: Record<string, string>) => {
+			const headers =
+				auth && typeof auth.denteClinicalReadHeaders === "function"
+					? auth.denteClinicalReadHeaders(extra)
+					: extra || {};
+			// Обязательно добавляем id организации к запросу, бэкенд не пустит без него.
+			// Если id пусто, значит пользователь не прошел проверку в settingsTab — вернет
+			// 401, а не подставить чужую организацию.
+			return headers;
+		},
+		[auth],
+	);
 
 	// Barcode Scanner State
 	const [scannedBarcode, setScannedBarcode] = useState<string>("");
@@ -186,7 +190,7 @@ export function useInventoryLogic(organizationId: string) {
 					showToast("Ошибка загрузки правил", "error");
 				}
 			} catch (e) {
-				console.error(e);
+				logger.error(e);
 				setRulesList([]);
 				setRulesError(
 					"Нет связи с сервером: правила списания не загрузились. Неизвестно, списываются материалы по этой услуге или нет — проверьте интернет и нажмите «Повторить».",
@@ -252,7 +256,7 @@ export function useInventoryLogic(organizationId: string) {
 				showToast("Ошибка сохранения правила", "error");
 			}
 		} catch (e) {
-			console.error(e);
+			logger.error(e);
 			showToast("Системная ошибка", "error");
 		} finally {
 			// Снимаем в любом исходе: после отказа правило должно быть можно завести снова.
@@ -284,7 +288,7 @@ export function useInventoryLogic(organizationId: string) {
 						showToast("Ошибка удаления правила", "error");
 					}
 				} catch (e) {
-					console.error(e);
+					logger.error(e);
 					showToast("Системная ошибка", "error");
 				}
 			},
@@ -651,7 +655,7 @@ export function useInventoryLogic(organizationId: string) {
 				}
 			}
 		} catch (e) {
-			console.error(e);
+			logger.error(e);
 			showToast("Системная ошибка", "error");
 		} finally {
 			// Снимаем в любом исходе: после отказа сохранение должно быть можно повторить.
@@ -682,7 +686,7 @@ export function useInventoryLogic(organizationId: string) {
 						showToast("Ошибка удаления", "error");
 					}
 				} catch (e) {
-					console.error(e);
+					logger.error(e);
 					showToast("Системная ошибка", "error");
 				}
 			},
@@ -744,7 +748,7 @@ export function useInventoryLogic(organizationId: string) {
 				showToast("Ошибка изменения остатка", "error");
 			}
 		} catch (e) {
-			console.error(e);
+			logger.error(e);
 			showToast("Системная ошибка", "error");
 		} finally {
 			/*
@@ -839,6 +843,6 @@ export function useInventoryLogic(organizationId: string) {
 		setQuantityToDeduct,
 		handleAddRule,
 		handleDeleteRule,
-		servicesList: dashboard?.prices || [],
+		servicesList: (dashboard as any)?.prices || dashboard?.serviceCatalog || [],
 	};
 }

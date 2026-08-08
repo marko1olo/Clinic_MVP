@@ -1,35 +1,29 @@
-# Operational Plan — DENTE CRM Hardening
+# DENTE CRM Dead Code Reassessment Plan
 
 ## Overview
-Comprehensive functional audit and architectural hardening of DENTE CRM (`C:\Clinic_MVP\dental-crm`).
+Perform a paranoid, objective reassessment of all "dead code" removals and flagged variables in `apps/web/src`. Identify false positives, restore valid code, verify zero typecheck errors (`npm run typecheck -w @dental/web`), and generate a comprehensive incident report.
 
-## Phases & Strategy
+## Stages & Milestones
 
-### Phase 0: Parallel Reconnaissance & Survey
-Dispatch 3 Explorer agents in parallel to perform structural analysis across `apps/web/src`:
-- **Explorer 1 (R1 Audit)**: Map all instances of `try/catch` and `catch()` blocks in `apps/web/src`. Identify silent error swallows (`console.error`, empty catch blocks) and list candidates for `showToast` / `actionFailureToast` error routing.
-- **Explorer 2 (R2 Audit)**: Map all form submit handlers (`onSubmit`), action buttons, async handlers, and network mutation triggers in `apps/web/src`. Identify missing `isSubmitting`/`isLoading` loading guards, un-disabled buttons, and missing `aria-busy={true}`.
-- **Explorer 3 (R3 Audit)**: Survey structural search targets (`rg "await fetch|catch"`, `rg "onSubmit"`), execute Biome linter check (`npx biome lint apps/web/src`), typecheck (`npm run typecheck`), and analyze circular dependencies using `npx madge --circular --extensions ts,tsx apps/api/src apps/web/src`.
+### Stage 1: Survey & Root Cause Analysis
+- **Goal**: Investigate `useDocumentWorkflowModule.ts` and recent git commits / AST scans across `apps/web/src`.
+- **Subagents**: 3 Parallel Explorers (`teamwork_preview_explorer`).
+  - Explorer 1 (`survey_explorer_1`): Deep dive into `useDocumentWorkflowModule.ts`. Analyze why `_selectedTaxDocumentPayerInn`, `_eligibleTaxPaymentIdsKey`, and `_eligiblePaymentReceiptIdsKey` were falsely flagged as dead code. Trace their exact usages (state keys, react query keys, callbacks, returns, or effects). Document the exact logical fallacy or tool failure.
+  - Explorer 2 (`survey_explorer_2`): Audit recent git history (`git diff`, `git log`, recent commits) across `apps/web/src` for any deleted or flagged "dead" code. Identify all functions/variables removed or marked as unused in recent sessions.
+  - Explorer 3 (`survey_explorer_3`): Conduct a codebase-wide AST / reference audit across `apps/web/src` using `ast-grep`, `ripgrep`, or `tsc` to find any other false positive dead code flags or broken reference chains.
+- **Output**: Detailed analysis reports in `.agents/explorer_1/analysis.md`, `.agents/explorer_2/analysis.md`, `.agents/explorer_3/analysis.md`.
 
-### Phase 1: Milestone 1 — Eradicate Silent Async Error Swallows (R1)
-- Dispatch Worker to route all unhandled/swallowed async errors across `apps/web/src` to user-facing toasts (`showToast`, `actionFailureToast`).
-- Dispatch 2 Reviewers to inspect error handling completeness.
-- Dispatch 2 Challengers to verify error state UI feedback.
-- Dispatch Forensic Auditor for integrity gate check.
+### Stage 2: Restoration & Fix
+- **Goal**: Restore falsely identified/deleted code and fix any broken call stacks.
+- **Subagent**: Worker (`teamwork_preview_worker`).
+  - Task: Implement restorations in `useDocumentWorkflowModule.ts` and any other affected files based on Explorer findings. Ensure mathematical proof (AST references > 0). Run `npm run typecheck -w @dental/web` to verify 0 errors.
 
-### Phase 2: Milestone 2 — Harden Race Conditions & Double Submits (R2)
-- Dispatch Worker to implement `isSubmitting`/`isLoading` state guards, `disabled={isSubmitting}`, and `aria-busy={true}` across form submits and action buttons in `apps/web/src`.
-- Dispatch 2 Reviewers to review race-condition protection.
-- Dispatch 2 Challengers to test rapid double-clicking and state locking.
-- Dispatch Forensic Auditor for integrity gate check.
+### Stage 3: Verification & Gate Audit
+- **Goal**: Multi-agent review and forensic audit.
+- **Subagents**: 2 Reviewers (`teamwork_preview_reviewer`), 2 Challengers (`teamwork_preview_challenger`), 1 Forensic Auditor (`teamwork_preview_auditor`).
+  - Reviewers: Verify code correctness, AST reference validity, type safety.
+  - Challengers: Execute typecheck and verify runtime reference chains / dynamic key generation.
+  - Forensic Auditor: Perform integrity check (verify genuine fix, no facade/hardcode/cheating).
 
-### Phase 3: Milestone 3 — Code Quality, Biome & Typecheck Compliance (R3)
-- Dispatch Worker to resolve any remaining Biome linter errors (`npx biome lint apps/web/src`) and TypeScript compiler errors (`npm run typecheck -w @dental/web`, `npm run typecheck -w @dental/api`).
-- Dispatch 2 Reviewers for code quality verification.
-- Dispatch 2 Challengers for regression testing.
-- Dispatch Forensic Auditor for integrity gate check.
-
-### Phase 4: Project Verification & Completion Synthesis
-- Synthesize all milestone handoff reports and terminal execution logs.
-- Confirm zero TypeScript errors, zero Biome lint errors, zero silent error swallows, and 100% fortified state guards.
-- Notify Sentinel / Parent of task completion.
+### Stage 4: Incident Report & Handoff
+- **Goal**: Generate detailed incident report, update progress.md, and send final completion report to Sentinel / Parent.

@@ -7,6 +7,7 @@ import {
 	dictationFailureText,
 	serverParsesDictation,
 } from "./lib/panelStateText";
+import { logger } from "./utils/logger";
 
 /**
  * ЧТО ЗДЕСЬ БЫЛО СЛОМАНО В ТЕКСТАХ (правится вместе с packet W4).
@@ -45,9 +46,35 @@ import {
  *    «ДОБАВИТЬ В ПРАЙС» — слово, которое повторяет соседнюю подпись и при этом
  *    не по-русски.
  */
+export type SmartParsedPayload = {
+	isAiTask?: boolean;
+	prompt?: string;
+	serviceName?: string;
+	price?: number | null;
+	category?: string;
+	patientId?: string;
+	patientName?: string;
+	doctorUserId?: string;
+	startsAt?: string;
+	timeStr?: string;
+	dateStr?: string;
+	reason?: string;
+	service?: string;
+	comment?: string;
+	note?: string;
+	fullName?: string;
+	phone?: string;
+	birthDate?: string;
+	notes?: string;
+	action?: string;
+	toothUpdates?: Array<{ code?: string; state?: string }>;
+	emkUpdates?: Record<string, unknown>;
+	[key: string]: unknown;
+};
+
 export interface SmartParsePreviewProps {
 	isVisible: boolean;
-	parsedData: any; // e.g. from smartBookingParser
+	parsedData: SmartParsedPayload | null; // e.g. from smartBookingParser
 	rawText: string;
 	/**
 	 * Контекст диктовки. Союз не переписан вручную, а взят из словаря состояний:
@@ -55,7 +82,7 @@ export interface SmartParsePreviewProps {
 	 * расходиться только в одну сторону.
 	 */
 	type: DictationContext;
-	onApply: (data: any) => void;
+	onApply: (data: SmartParsedPayload) => void;
 	onManual: () => void;
 	onClose: () => void;
 }
@@ -76,7 +103,9 @@ export function SmartParsePreview({
 	 * клинике разбор диктовки остался бы с ответом 403.
 	 */
 	const { auth } = useAppLogicContext();
-	const [internalData, setInternalData] = useState<any>(null);
+	const [internalData, setInternalData] = useState<SmartParsedPayload | null>(
+		null,
+	);
 	const [isAiLoading, setIsAiLoading] = useState(false);
 	const [aiError, setAiError] = useState<string | null>(null);
 
@@ -124,7 +153,7 @@ export function SmartParsePreview({
 			if (!response.ok) {
 				// Код состояния нужен поддержке и остаётся в консоли; человеку идёт
 				// причина словами. Причину не выдумываем: она берётся из ответа.
-				console.error(
+				logger.error(
 					`[SmartParsePreview] /api/ai/parse-dictation ответил ${response.status}`,
 				);
 				setAiError(dictationFailureText(response.status));
@@ -132,8 +161,8 @@ export function SmartParsePreview({
 			}
 			const data = await response.json();
 			setInternalData(data);
-		} catch (err: any) {
-			console.error("[SmartParsePreview] /api/ai/parse-dictation", err);
+		} catch (err: unknown) {
+			logger.error("[SmartParsePreview] /api/ai/parse-dictation", err);
 			setAiError(dictationFailureText(null));
 		} finally {
 			setIsAiLoading(false);
@@ -164,7 +193,7 @@ export function SmartParsePreview({
 	};
 
 	// Render logic depending on type
-	const renderSchedulePreview = (data: any) => {
+	const renderSchedulePreview = (data: SmartParsedPayload | null) => {
 		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
@@ -264,7 +293,7 @@ export function SmartParsePreview({
 		);
 	};
 
-	const renderPricesPreview = (data: any) => {
+	const renderPricesPreview = (data: SmartParsedPayload | null) => {
 		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
@@ -320,7 +349,7 @@ export function SmartParsePreview({
 		);
 	};
 
-	const renderPatientPreview = (data: any) => {
+	const renderPatientPreview = (data: SmartParsedPayload | null) => {
 		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
@@ -378,7 +407,7 @@ export function SmartParsePreview({
 		);
 	};
 
-	const renderVisitPreview = (data: any) => {
+	const renderVisitPreview = (data: SmartParsedPayload | null) => {
 		if (data?.isAiTask)
 			return (
 				<div className="space-y-2 text-sm">
@@ -414,22 +443,24 @@ export function SmartParsePreview({
 					<div className="mb-2">
 						<span className="text-slate-500 block mb-1">Зубы:</span>
 						<div className="flex flex-wrap gap-1">
-							{data.toothUpdates.map((t: any, toothIndex: number) => (
-								<span
-									key={
-										t.code
-											? `tooth-${t.code}`
-											: `tooth-${t.state || "update"}-${toothIndex}`
-									}
-									className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs border border-blue-100"
-								>
-									{t.code}: {t.state}
-								</span>
-							))}
+							{data.toothUpdates.map(
+								(t: { code?: string; state?: string }, toothIndex: number) => (
+									<span
+										key={
+											t.code
+												? `tooth-${t.code}`
+												: `tooth-${t.state || "update"}-${toothIndex}`
+										}
+										className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs border border-blue-100"
+									>
+										{t.code}: {t.state}
+									</span>
+								),
+							)}
 						</div>
 					</div>
 				)}
-				{data.emkUpdates &&
+				{!!data.emkUpdates &&
 					Object.entries(data.emkUpdates).map(([k, v]) => {
 						if (!v) return null;
 						let label = k;
@@ -479,7 +510,7 @@ export function SmartParsePreview({
 			// Внутреннее имя контекста наружу не показываем: оператору оно ничего не
 			// говорит. Оно уходит в консоль, а на экран — что делать дальше.
 			default:
-				console.error(
+				logger.error(
 					`[SmartParsePreview] неизвестный контекст диктовки: ${type}`,
 				);
 				return (
@@ -552,7 +583,9 @@ export function SmartParsePreview({
 					<div className="bg-slate-50 dark:bg-slate-800/80 p-3 border-t border-slate-100 dark:border-slate-700/60 flex gap-2">
 						<button
 							type="button"
-							onClick={() => onApply(internalData)}
+							onClick={() =>
+								internalData && onApply(internalData as SmartParsedPayload)
+							}
 							disabled={isAiLoading}
 							className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-medium text-sm py-2 px-3 rounded-lg transition-colors flex justify-center items-center gap-1"
 						>

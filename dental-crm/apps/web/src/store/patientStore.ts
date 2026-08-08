@@ -4,7 +4,7 @@ import type {
 	PatientAdministrativeProfileSaveState,
 	PatientCoreDraft,
 	PatientCoreSaveState,
-} from "../AppHelpers";
+} from "../AppConstants";
 import {
 	emptyPatientAdministrativeProfileDraft,
 	emptyPatientCoreDraft,

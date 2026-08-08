@@ -1,9 +1,9 @@
-import { actionFailureToast } from "../../lib/panelStateText";
 import { Calendar, FlaskConical, Link, Trash2 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { denteAdminSecretRequestHeaders, money } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { actionFailureToast } from "../../lib/panelStateText";
 import { normalizeRubAmountInput } from "../../rubAmountInput";
 import { useAppStore } from "../../store/appStore";
 import { showToast } from "../GlobalToast";
@@ -48,10 +48,10 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 	 * без секрета клинической зоны: токены клиники и сотрудника он берёт сам.
 	 * Когда контекст есть, работает прежний путь с секретом.
 	 */
-	const readHeaders = (extra: Record<string, string> = {}) =>
+	const readHeaders = useCallback((extra: Record<string, string> = {}) =>
 		auth?.denteClinicalReadHeaders
 			? auth.denteClinicalReadHeaders(extra)
-			: denteAdminSecretRequestHeaders(extra);
+			: denteAdminSecretRequestHeaders(extra), [auth]);
 	const liveStatus = useAppStore(
 		(state) => (state as any).labOrderStatuses?.[patientId],
 	);
@@ -111,16 +111,16 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 	const shownPatientIdRef = useRef(patientId);
 
 	/** Отказ сервера словами, которые понятны без обучения. Кода состояния мало. */
-	const loadFailureText = (status: number): string => {
+	const loadFailureText = useCallback((status: number): string => {
 		if (status === 401 || status === 403)
 			return "Нет прав смотреть заказы в лабораторию: доступ к карте закрыт или истёк вход.";
 		if (status === 404) return "Раздел заказов в лабораторию не отвечает.";
 		if (status >= 500)
 			return "Программа не смогла получить список заказов: сбой на сервере клиники.";
 		return `Программа не смогла получить список заказов (ответ ${status}).`;
-	};
+	}, []);
 
-	const fetchOrders = async () => {
+	const fetchOrders = useCallback(async () => {
 		const requestedPatientId = patientId;
 		try {
 			setIsLoading(true);
@@ -140,7 +140,13 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				setLoadError(loadFailureText(res.status));
 			}
 		} catch (e) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(e as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			console.error("Failed to load lab orders", e);
 			if (shownPatientIdRef.current !== requestedPatientId) return;
 			setLoadError(
@@ -151,7 +157,7 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				setIsLoading(false);
 			}
 		}
-	};
+	}, [patientId, readHeaders, loadFailureText]);
 
 	/*
 		ПАНЕЛЬ НЕ ПЕРЕСОЗДАЁТСЯ ПРИ СМЕНЕ ПАЦИЕНТА, И ЭТО СТОИЛО БЫ ЧУЖОГО НАРЯДА.
@@ -257,11 +263,17 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				setPriceRub("");
 				fetchOrders();
 			} else {
-				const err = await res.json().catch(() => ({}));
+				const err = await res.json();
 				showToast(err.message || "Ошибка создания заказа ЗТЛ", "error");
 			}
-		} catch (_e) {
-			showToast("Системная ошибка", "error");
+		} catch (err) {
+			showToast(
+				actionFailureToast(
+					"Ошибка создания заказа ЗТЛ",
+					(err as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 		} finally {
 			setIsCreating(false);
 		}
@@ -282,8 +294,14 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 			} else {
 				showToast("Ошибка удаления", "error");
 			}
-		} catch (_e) {
-			showToast("Системная ошибка", "error");
+		} catch (err) {
+			showToast(
+				actionFailureToast(
+					"Ошибка удаления заказа",
+					(err as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 		} finally {
 			setDeletingId(null);
 		}
@@ -308,12 +326,18 @@ export function LabOrdersPanel({ patientId }: { patientId: string }) {
 				fetchOrders();
 			} else {
 				setOrders(previous);
-				const err = await res.json().catch(() => ({}));
+				const err = await res.json();
 				showToast(err.message || "Ошибка обновления статуса", "error");
 			}
-		} catch (_e) {
+		} catch (err) {
 			setOrders(previous);
-			showToast("Системная ошибка", "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка обновления статуса",
+					(err as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 		}
 	};
 

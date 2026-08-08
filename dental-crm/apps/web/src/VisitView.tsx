@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { countLabel } from "./AppHelpers";
 import { EmptyState } from "./components/EmptyState";
@@ -329,10 +329,10 @@ export function VisitView(rawProps?: Partial<VisitViewProps>) {
 		}
 	};
 
-	const closeClinicalModal = () => {
+	const closeClinicalModal = useCallback(() => {
 		setSelectedToothForMenu(null);
 		setMaterialCategory(null);
-	};
+	}, []);
 
 	// Карточка зуба перекрывает весь экран, а закрывалась только кнопкой и щелчком
 	// по фону. Escape — привычный выход, и он же самый быстрый, когда руки в

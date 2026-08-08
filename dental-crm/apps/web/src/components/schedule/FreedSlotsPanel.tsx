@@ -18,6 +18,8 @@
  */
 
 import type React from "react";
+import { actionFailureToast } from "../../lib/panelStateText";
+import { showToast } from "../GlobalToast";
 import { useCallback, useEffect, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { WaitlistMatchesBlock } from "./WaitlistMatchesBlock";
@@ -121,18 +123,19 @@ export const FreedSlotsPanel: React.FC = () => {
 		по-русски: тогда оно точнее любого нашего. И на экране появилась кнопка
 		повторить, потому что «не построен» без действия — тупик.
 	*/
-	const loadFailureText = (
-		status: number,
-		serverMessage: string | null,
-	): string => {
-		// Кириллица в сообщении сервера — признак, что оно написано для человека.
-		if (serverMessage && /[а-яё]/i.test(serverMessage)) return serverMessage;
-		if (status === 401 || status === 403)
-			return "Нет прав смотреть освободившиеся окна: доступ закрыт или истёк вход в программу.";
-		if (status === 404) return "Раздел освободившихся окон не отвечает.";
-		if (status >= 500) return "Сбой на сервере клиники: список окон не собран.";
-		return `Программа не смогла получить список окон (ответ ${status}).`;
-	};
+	const loadFailureText = useCallback(
+		(status: number, serverMessage: string | null): string => {
+			// Кириллица в сообщении сервера — признак, что оно написано для человека.
+			if (serverMessage && /[а-яё]/i.test(serverMessage)) return serverMessage;
+			if (status === 401 || status === 403)
+				return "Нет прав смотреть освободившиеся окна: доступ закрыт или истёк вход в программу.";
+			if (status === 404) return "Раздел освободившихся окон не отвечает.";
+			if (status >= 500)
+				return "Сбой на сервере клиники: список окон не собран.";
+			return `Программа не смогла получить список окон (ответ ${status}).`;
+		},
+		[],
+	);
 
 	const load = useCallback(async () => {
 		setError(null);
@@ -151,7 +154,10 @@ export const FreedSlotsPanel: React.FC = () => {
 				return;
 			}
 			// Тело читаем мягко: у страницы ошибки от прокси разбор JSON падает.
-			const payload = (await response.json().catch(() => null)) as
+			const payload = (await response.json().catch((err) => {
+				showToast(actionFailureToast("Ошибка ответа сервера", (err as { status?: number })?.status ?? null), "error");
+				return null;
+			})) as
 				| (FreedSlotsReport & { message?: string })
 				| null;
 			if (!response.ok) {

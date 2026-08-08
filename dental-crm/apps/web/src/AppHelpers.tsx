@@ -1,5 +1,3 @@
-import { showToast } from "./components/GlobalToast";
-import { actionFailureToast } from "./lib/panelStateText";
 import {
 	type AcceptVisitDraftResponse,
 	type AiJobKind,
@@ -68,6 +66,7 @@ import {
 	type XrayCbctReferralStudyType,
 } from "@dental/shared";
 import { type CSSProperties, lazy } from "react";
+import { showToast } from "./components/GlobalToast";
 import type { CtImplantLibraryItem } from "./ctPlanningTools";
 import {
 	imagingKindLabels,
@@ -76,6 +75,7 @@ import {
 	type MprWindowPreset,
 } from "./imagingUiLabels";
 import { denteAdminSecretRequestHeaders } from "./lib/denteRequestHeaders";
+import { actionFailureToast } from "./lib/panelStateText";
 import {
 	readDenteClinicToken,
 	safeLocalStorageGetItem,
@@ -731,7 +731,13 @@ export function loadDocumentIssueSignatureDraft(
 			savedAt,
 		};
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.warn(error);
 		return fallback;
 	}
@@ -756,7 +762,13 @@ export function saveDocumentIssueSignatureDraft(
 			} satisfies DocumentIssueSignatureDraft),
 		);
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.warn(error);
 		// Signature defaults are convenience only; the server still requires explicit attestation on issue.
 	}
@@ -851,7 +863,13 @@ export function loadDocumentPaymentSelectionStore(
 		}
 		return { version: 1, selections };
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error("Failed to load signature draft", error);
 		// Document payment selection is local operator convenience; read failures are safe to ignore.
 		return emptyDocumentPaymentSelectionStore();
@@ -893,7 +911,13 @@ export function saveDocumentPaymentSelection(
 			} satisfies DocumentPaymentSelectionStore),
 		);
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error("Failed to save payment selection", error);
 		// Document payment selection is local operator convenience; failed storage must not block document issue.
 	}
@@ -1384,7 +1408,13 @@ export function saveOutpatient025uDocumentDraft(
 			} satisfies DocumentPayloadDraftStore),
 		);
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error("Failed to save outpatient 025u document draft", error);
 		// Payload drafts are recovery data only; document issue still validates all facts server-side.
 	}
@@ -1433,7 +1463,13 @@ export function saveMedicalRecordExtractDocumentDraft(
 			} satisfies DocumentPayloadDraftStore),
 		);
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error(
 			"Failed to save medical record extract document draft",
 			error,
@@ -1474,7 +1510,13 @@ export function loadLocalImagingViewerDraft(
 		}
 		return parsed?.state && Array.isArray(parsed.annotations) ? parsed : null;
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.warn("Failed to load local imaging viewer draft", error);
 		return null;
 	}
@@ -1566,7 +1608,13 @@ export function loadLocalDicomWorkbenchDraftFromLocalStorage(
 		}
 		return parsed;
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.warn(
 			"Failed to load local DICOM workbench draft from local storage:",
 			error,
@@ -1700,7 +1748,13 @@ export function loadLocalMprWorkbenchDraftFromLocalStorage(
 		const state = normalizeMprWorkbenchState(parsed.state);
 		return state ? { ...parsed, state } : null;
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.warn(error);
 		return null;
 	}
@@ -2436,7 +2490,13 @@ export function saveBrowserPickedImagingFolderPreview(
 			JSON.stringify(preview),
 		);
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error(
 			"Failed to save browser picked imaging folder preview",
 			error,
@@ -2471,7 +2531,13 @@ export function loadBrowserPickedImagingFolderPreview(
 		}
 		return parsed;
 	} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+		showToast(
+			actionFailureToast(
+				"Ошибка выполнения операции",
+				(error as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
 		console.error(
 			"Failed to remove browser picked imaging folder preview",
 			error,
@@ -3699,7 +3765,13 @@ export function normalizeTelegramPublicHttpsUrlDraft(
 			try {
 				return decodeURIComponent(segment).trim().toLowerCase();
 			} catch (scanError) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (scanError as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(scanError as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				if (isBrowserMigrationScanAbortError(scanError)) throw scanError;
 				throw new Error(`${fieldLabel}: исправьте кодировку пути в ссылке.`);
 			}
@@ -6681,7 +6753,13 @@ export function openSpeechChunkDb(): Promise<IDBDatabase> {
 				assertSpeechChunkDbStores(db);
 				resolve(db);
 			} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(error as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				db.close();
 				speechChunkDbPromise = null;
 				reject(
@@ -6803,7 +6881,17 @@ export async function migrateLocalDicomWorkbenchDraftFromLocalStorage(
 	if (!legacyDraft) return;
 	const existing = await readLocalDicomWorkbenchDraftFromIndexedDb(
 		organizationId,
-	).catch(() => null);
+	).catch((err) => {
+		console.error("[Dente] read draft error:", err);
+		showToast(
+			actionFailureToast(
+				"Ошибка чтения черновика DICOM",
+				(err as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
+		return null;
+	});
 	const draft = newerDicomWorkbenchDraft(existing, legacyDraft);
 	if (!draft) return;
 	await saveLocalDicomWorkbenchDraftToIndexedDb(draft, organizationId);
@@ -6899,7 +6987,17 @@ export async function readLocalMprWorkbenchDraftFromIndexedDb(
 		await deleteLocalMprWorkbenchDraftFromIndexedDb(
 			seriesKey,
 			organizationId,
-		).catch(() => undefined);
+		).catch((err) => {
+			console.error("[Dente] delete draft error:", err);
+			showToast(
+				actionFailureToast(
+					"Не удалось удалить черновик MPR",
+					(err as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
+			return undefined;
+		});
 	}
 	return normalized;
 }
@@ -6974,7 +7072,17 @@ export async function migrateLocalMprWorkbenchDraftFromLocalStorage(
 	const existing = await readLocalMprWorkbenchDraftFromIndexedDb(
 		seriesKey,
 		organizationId,
-	).catch(() => null);
+	).catch((err) => {
+		console.error("[Dente] read draft error:", err);
+		showToast(
+			actionFailureToast(
+				"Ошибка чтения черновика MPR",
+				(err as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
+		return null;
+	});
 	const draft =
 		existing &&
 		Date.parse(existing.clientSavedAt) >= Date.parse(legacyDraft.clientSavedAt)
@@ -7206,7 +7314,17 @@ export async function migratePendingVisitSavesFromLocalStorage(
 	if (!legacyQueue.length || !pendingVisitSaveIndexedDbAvailable()) return;
 	const existing = await readPendingVisitSavesFromIndexedDb(
 		normalizedOrganizationId,
-	).catch(() => []);
+	).catch((err) => {
+		console.error("[Dente] read visit saves error:", err);
+		showToast(
+			actionFailureToast(
+				"Ошибка чтения очереди приёмов",
+				(err as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
+		return [];
+	});
 	const byId = new Map<string, PendingVisitSave>();
 	for (const item of [...existing, ...legacyQueue]) {
 		byId.set(item.id, item);
@@ -7400,7 +7518,17 @@ export async function migrateSpeechChunksFromLocalStorage(
 	if (!legacyQueue.length || !speechChunkIndexedDbAvailable()) return;
 	const existing = await readPendingSpeechChunksFromIndexedDb(
 		normalizedOrganizationId,
-	).catch(() => []);
+	).catch((err) => {
+		console.error("[Dente] read speech chunks error:", err);
+		showToast(
+			actionFailureToast(
+				"Ошибка чтения очереди аудиофрагментов",
+				(err as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
+		return [];
+	});
 	const byId = new Map<string, PendingSpeechChunk>();
 	for (const chunk of [...existing, ...legacyQueue]) {
 		byId.set(chunk.id, chunk);

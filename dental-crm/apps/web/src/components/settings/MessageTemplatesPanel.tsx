@@ -1,13 +1,12 @@
-import { showToast } from "../GlobalToast";
-import { actionFailureToast } from "../../lib/panelStateText";
 import type {
 	CreateMessageTemplateCatalogInput,
 	MessageTemplateCatalog,
 } from "@dental/shared";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-
+import { useCallback, useEffect, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
+import { actionFailureToast } from "../../lib/panelStateText";
+import { showToast } from "../GlobalToast";
 
 const DYNAMIC_TAGS = [
 	{ tag: "{{patient_name}}", label: "Имя пациента" },
@@ -27,7 +26,7 @@ export function MessageTemplatesPanel() {
 	const [draftText, setDraftText] = useState("");
 	const [draftChannel, setDraftChannel] = useState("telegram");
 
-	const loadTemplates = async () => {
+	const loadTemplates = useCallback(async () => {
 		try {
 			const headers = auth ? auth.denteClinicalReadHeaders() : {};
 			const res = await fetch("/api/settings/message-templates", { headers });
@@ -36,10 +35,16 @@ export function MessageTemplatesPanel() {
 				setTemplates(data);
 			}
 		} catch (e) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(e as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			console.error(e);
 		}
-	};
+	}, [auth]);
 
 	useEffect(() => {
 		loadTemplates();

@@ -324,7 +324,7 @@ export function DoctorPayoutDashboard() {
 					? auth.denteClinicalReadHeaders()
 					: {};
 			const response = await requestDoctorPayouts(bounds, readHeaders);
-			const payload = (await response.json().catch(() => null)) as unknown;
+			const payload = (await response.json()) as unknown;
 
 			if (response.status === 403) {
 				// Роль не видит зарплату. Блок исчезает целиком: сообщение
@@ -371,7 +371,13 @@ export function DoctorPayoutDashboard() {
 			}
 			setState({ kind: "ready", report });
 		} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(error as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			setState({
 				kind: "failed",
 				message:
@@ -425,7 +431,7 @@ export function DoctorPayoutDashboard() {
 					},
 				);
 
-				const payload = (await response.json().catch(() => null)) as unknown;
+				const payload = (await response.json()) as unknown;
 				if (!response.ok) {
 					// Сообщение сервера идёт наружу дословно: он один знает причину
 					// отказа — не тот сотрудник, нет секрета администратора клиники,
@@ -444,7 +450,13 @@ export function DoctorPayoutDashboard() {
 				// Деньги пересчитывает сервер, поэтому отчёт перечитывается целиком.
 				await load(month);
 			} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(error as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				setRateSave({
 					kind: "failed",
 					message:

@@ -1,5 +1,5 @@
-import { showToast } from "../GlobalToast";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { showToast } from "../GlobalToast";
 /**
  * Рассылки: составление, предпросмотр, запуск.
  *
@@ -116,7 +116,16 @@ const channelLabels: Record<string, string> = {
 };
 
 async function readJson<T>(response: Response): Promise<T> {
-	const payload = (await response.json().catch(() => null)) as unknown;
+	const payload = (await response.json().catch((err) => {
+		showToast(
+			actionFailureToast(
+				"Ошибка ответа сервера",
+				(err as { status?: number })?.status ?? null,
+			),
+			"error",
+		);
+		return null;
+	})) as unknown;
 	if (!response.ok) {
 		const message =
 			payload &&
@@ -245,7 +254,13 @@ export function CampaignPanel() {
 			);
 			setVariables(variablesData.variables ?? []);
 		} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(error as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			setLoadError(error instanceof Error ? error.message : String(error));
 		}
 		// `auth` в зависимостях: секрет живёт в сеансе и появляется после разблокировки
@@ -295,7 +310,13 @@ export function CampaignPanel() {
 			// Сразу открыть предпросмотр: запускать вслепую не нужно.
 			await openPreview(data.campaign.id);
 		} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(error as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			// Название специально НЕ очищается: оно очищается только при удаче, иначе
 			// человек теряет набранное и заполняет форму заново.
 			setNotice(
@@ -325,7 +346,13 @@ export function CampaignPanel() {
 			const response = await commQueries.previewCampaign(campaignId);
 			setPreview(await readJson<CampaignPreview>(response));
 		} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(error as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			setPreviewError(error instanceof Error ? error.message : String(error));
 		}
 		// Параллельно подтянуть ход: для draft total=0 — это нормально и честно.
@@ -353,7 +380,13 @@ export function CampaignPanel() {
 					total: typeof data.total === "number" ? data.total : 0,
 				});
 			} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(error as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				setProgress(null);
 				setProgressError(
 					error instanceof Error ? error.message : String(error),
@@ -412,7 +445,13 @@ export function CampaignPanel() {
 			if (previewFor === campaignId) await openPreview(campaignId);
 			else void loadProgress(campaignId);
 		} catch (error) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (error as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(error as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			setNotice(
 				failNotice(
 					error,

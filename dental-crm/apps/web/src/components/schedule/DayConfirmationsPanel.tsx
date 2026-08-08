@@ -1,5 +1,5 @@
-import { showToast } from "../GlobalToast";
 import { actionFailureToast } from "../../lib/panelStateText";
+import { showToast } from "../GlobalToast";
 /**
  * Утренний обзвон: кому звонить, а кому не нужно.
  *
@@ -152,7 +152,10 @@ function formatTime(value: string, timeZone: string): string {
 }
 
 async function readJson<T>(response: Response): Promise<T> {
-	const payload = (await response.json().catch(() => null)) as unknown;
+	const payload = (await response.json().catch((err) => {
+		showToast(actionFailureToast("Ошибка ответа сервера", (err as { status?: number })?.status ?? null), "error");
+		return null;
+	})) as unknown;
 	if (!response.ok) {
 		const message =
 			payload &&
@@ -196,7 +199,13 @@ export function DayConfirmationsPanel() {
 			// сбрасываются: иначе они переносятся на другой список.
 			setHandled(new Set());
 		} catch (loadError) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (loadError as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(loadError as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			setData(null);
 			setError(
 				loadError instanceof Error ? loadError.message : String(loadError),

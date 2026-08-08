@@ -2,13 +2,15 @@ import * as cornerstone from "@cornerstonejs/core";
 import cornerstoneDICOMImageLoader from "@cornerstonejs/dicom-image-loader";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { vec3 } from "gl-matrix";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { actionFailureToast } from "../../lib/panelStateText";
 import {
 	distancePointToSpline,
 	mat3ToMat4Direction,
 	type Point2D,
 	toTransferableScalarData,
 } from "../../mprMath";
+import { showToast } from "../GlobalToast";
 import {
 	archControlPointsOf,
 	archFromStoredControlPoints,
@@ -455,8 +457,15 @@ export function Cornerstone3DViewer({
 				const label = ctPlanningRestoredLabel(outcome.markup);
 				setMarkupStatus(label ? { tone: "saved", text: label } : null);
 			})
-			.catch(() => {
+			.catch((err) => {
 				if (!cancelled) {
+					showToast(
+						actionFailureToast(
+							"Чтение сохраненной разметки",
+							(err as { status?: number })?.status ?? null,
+						),
+						"error",
+					);
 					setMarkupStatus({
 						tone: "issue",
 						text:
@@ -479,7 +488,7 @@ export function Cornerstone3DViewer({
 	 * снимок и ещё ничего не трогал), берутся восстановленные из базы точки —
 	 * иначе сохранение по любому поводу затёрло бы прочитанную разметку пустотой.
 	 */
-	const currentMarkup = (): CtPlanningMarkup => {
+	const currentMarkup = useCallback((): CtPlanningMarkup => {
 		const element = axialRef.current;
 		let splinePoints: WorldPoint3[] = [];
 		if (element) {
@@ -506,55 +515,58 @@ export function Cornerstone3DViewer({
 			nervePoints: restored?.nervePoints ?? emptyCtPlanningMarkup().nervePoints,
 			implants: storedImplantsOf(implantsRef.current),
 		};
-	};
+	}, []);
 
 	/**
 	 * Записать разметку сейчас. `silent` — для сохранения при уходе с экрана: там
 	 * показывать что-либо уже некому, экран разбирается.
 	 */
-	const saveMarkupNow = async (silent = false): Promise<void> => {
-		const patient = patientIdRef.current;
-		const study = studyUidRef.current;
-		const markup = currentMarkup();
-		if (ctPlanningMarkupIsEmpty(markup)) return;
+	const saveMarkupNow = useCallback(
+		async (silent = false): Promise<void> => {
+			const patient = patientIdRef.current;
+			const study = studyUidRef.current;
+			const markup = currentMarkup();
+			if (ctPlanningMarkupIsEmpty(markup)) return;
 
-		if (!patient) {
-			if (!silent) {
-				setMarkupStatus({
-					tone: "issue",
-					text:
-						"Разметку сохранить нельзя — пациент не выбран, а разметка хранится в его карточке. " +
-						"Откройте снимок из карточки пациента, обведённая дуга остаётся на экране.",
-				});
+			if (!patient) {
+				if (!silent) {
+					setMarkupStatus({
+						tone: "issue",
+						text:
+							"Разметку сохранить нельзя — пациент не выбран, а разметка хранится в его карточке. " +
+							"Откройте снимок из карточки пациента, обведённая дуга остаётся на экране.",
+					});
+				}
+				return;
 			}
-			return;
-		}
-		if (!study) {
-			if (!silent) {
-				setMarkupStatus({
-					tone: "issue",
-					text:
-						"Разметку сохранить нельзя — в файлах снимка нет кода исследования, а без него разметку " +
-						"не отличить от разметки другого снимка. Загрузите архив КЛКТ целиком, обведённая дуга " +
-						"остаётся на экране.",
-				});
+			if (!study) {
+				if (!silent) {
+					setMarkupStatus({
+						tone: "issue",
+						text:
+							"Разметку сохранить нельзя — в файлах снимка нет кода исследования, а без него разметку " +
+							"не отличить от разметки другого снимка. Загрузите архив КЛКТ целиком, обведённая дуга " +
+							"остаётся на экране.",
+					});
+				}
+				return;
 			}
-			return;
-		}
 
-		if (!silent)
-			setMarkupStatus({ tone: "saving", text: "Сохраняем разметку…" });
-		const outcome = await saveCtPlanningMarkup(patient, study, markup);
-		// Прочитанное принимаем за новую основу: иначе следующее сохранение снова
-		// сравнивалось бы с состоянием до правки.
-		if (outcome.status === "saved") setRestoredMarkup(markup);
-		if (silent) return;
-		setMarkupStatus(
-			outcome.status === "saved"
-				? { tone: "saved", text: "Разметка сохранена в карточке пациента." }
-				: { tone: "issue", text: outcome.message },
-		);
-	};
+			if (!silent)
+				setMarkupStatus({ tone: "saving", text: "Сохраняем разметку…" });
+			const outcome = await saveCtPlanningMarkup(patient, study, markup);
+			// Прочитанное принимаем за новую основу: иначе следующее сохранение снова
+			// сравнивалось бы с состоянием до правки.
+			if (outcome.status === "saved") setRestoredMarkup(markup);
+			if (silent) return;
+			setMarkupStatus(
+				outcome.status === "saved"
+					? { tone: "saved", text: "Разметка сохранена в карточке пациента." }
+					: { tone: "issue", text: outcome.message },
+			);
+		},
+		[currentMarkup],
+	);
 
 	/**
 	 * ВЫБРАННЫЙ МОМЕНТ СОХРАНЕНИЯ, И ПОЧЕМУ ИМЕННО ОН.
@@ -575,13 +587,13 @@ export function Cornerstone3DViewer({
 	 * Кнопка «Сохранить разметку» рядом тоже есть: на неё ссылаются тексты отказов,
 	 * и она даёт врачу способ убедиться, что работа записана, не угадывая.
 	 */
-	const scheduleMarkupSave = () => {
+	const scheduleMarkupSave = useCallback(() => {
 		if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
 		saveTimerRef.current = setTimeout(() => {
 			saveTimerRef.current = null;
 			void saveMarkupNow();
 		}, MARKUP_SAVE_DEBOUNCE_MS);
-	};
+	}, [saveMarkupNow]);
 
 	useEffect(() => {
 		if (!isInitialized) return;

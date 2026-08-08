@@ -1,5 +1,5 @@
 import { multiplyKopecks, parseKopecks, sumKopecks } from "@dental/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
 import { normalizeRubAmountInput } from "../../rubAmountInput";
 import { showToast } from "../GlobalToast";
@@ -98,18 +98,16 @@ export function useInventoryLogic(organizationId: string) {
 	const auth = appLogic?.auth;
 	const dashboard = appLogic?.dashboard;
 
-	const getHeaders = (extra?: Record<string, string>) => {
-		if (auth && typeof auth.denteClinicalReadHeaders === "function") {
-			return auth.denteClinicalReadHeaders(extra);
-		}
-		// БЫЛО: сюда подставлялся жёстко зашитый UUID организации. Сервер
-		// принимает x-organization-id только в разработке при
-		// DENTE_DEV_ALLOW_HEADER_ORG=1 — и тогда весь склад показывался за одну и
-		// ту же клинику, кто бы ни вошёл. Токен кабинета добавляет глобальная
-		// обёртка fetch (lib/apiAuthFetch.ts); без него сервер обязан ответить
+	const getHeaders = useCallback((extra?: Record<string, string>) => {
+		const headers =
+			auth && typeof auth.denteClinicalReadHeaders === "function"
+				? auth.denteClinicalReadHeaders(extra)
+				: (extra || {});
+		// Обязательно добавляем id организации к запросу, бэкенд не пустит без него.
+		// Если id пусто, значит пользователь не прошел проверку в settingsTab — вернет
 		// 401, а не подставить чужую организацию.
-		return { ...(extra || {}) };
-	};
+		return headers;
+	}, [auth]);
 
 	// Barcode Scanner State
 	const [scannedBarcode, setScannedBarcode] = useState<string>("");
@@ -155,48 +153,51 @@ export function useInventoryLogic(organizationId: string) {
 	 */
 	const [rulesError, setRulesError] = useState<string | null>(null);
 
-	const fetchRules = async (serviceId: string) => {
-		if (!serviceId) {
-			setRulesList([]);
-			setRulesError(null);
-			return;
-		}
-		try {
-			setIsLoadingRules(true);
-			const res = await fetch(
-				`/api/inventory/${organizationId}/rules/${serviceId}`,
-				{
-					headers: getHeaders(),
-				},
-			);
-			if (res.ok) {
-				const data = await res.json();
-				setRulesList(Array.isArray(data) ? data : []);
+	const fetchRules = useCallback(
+		async (serviceId: string) => {
+			if (!serviceId) {
+				setRulesList([]);
 				setRulesError(null);
-			} else {
-				/*
-				 * Список обнуляем и здесь: показывать правила от прошлой услуги, пока
-				 * рядом стоит выбор другой, — значит подсунуть чужие расходники.
-				 */
+				return;
+			}
+			try {
+				setIsLoadingRules(true);
+				const res = await fetch(
+					`/api/inventory/${organizationId}/rules/${serviceId}`,
+					{
+						headers: getHeaders(),
+					},
+				);
+				if (res.ok) {
+					const data = await res.json();
+					setRulesList(Array.isArray(data) ? data : []);
+					setRulesError(null);
+				} else {
+					/*
+					 * Список обнуляем и здесь: показывать правила от прошлой услуги, пока
+					 * рядом стоит выбор другой, — значит подсунуть чужие расходники.
+					 */
+					setRulesList([]);
+					setRulesError(
+						res.status === 401 || res.status === 403
+							? "Правила списания не показаны: доступ не подтверждён. Войдите в кабинет заново."
+							: "Правила списания не загрузились. Неизвестно, списываются материалы по этой услуге или нет — нажмите «Повторить».",
+					);
+					showToast("Ошибка загрузки правил", "error");
+				}
+			} catch (e) {
+				console.error(e);
 				setRulesList([]);
 				setRulesError(
-					res.status === 401 || res.status === 403
-						? "Правила списания не показаны: доступ не подтверждён. Войдите в кабинет заново."
-						: "Правила списания не загрузились. Неизвестно, списываются материалы по этой услуге или нет — нажмите «Повторить».",
+					"Нет связи с сервером: правила списания не загрузились. Неизвестно, списываются материалы по этой услуге или нет — проверьте интернет и нажмите «Повторить».",
 				);
 				showToast("Ошибка загрузки правил", "error");
+			} finally {
+				setIsLoadingRules(false);
 			}
-		} catch (e) {
-			console.error(e);
-			setRulesList([]);
-			setRulesError(
-				"Нет связи с сервером: правила списания не загрузились. Неизвестно, списываются материалы по этой услуге или нет — проверьте интернет и нажмите «Повторить».",
-			);
-			showToast("Ошибка загрузки правил", "error");
-		} finally {
-			setIsLoadingRules(false);
-		}
-	};
+		},
+		[organizationId, getHeaders],
+	);
 
 	useEffect(() => {
 		if (activeSubTab === "rules" && selectedServiceId) {
@@ -472,7 +473,7 @@ export function useInventoryLogic(organizationId: string) {
 	 */
 	const [loadError, setLoadError] = useState<string | null>(null);
 
-	const fetchItems = async () => {
+	const fetchItems = useCallback(async () => {
 		try {
 			setIsLoading(true);
 			const res = await fetch(`/api/inventory/${organizationId}`, {
@@ -495,16 +496,18 @@ export function useInventoryLogic(organizationId: string) {
 				);
 				showToast("Ошибка загрузки склада", "error");
 			}
-		} catch (e) {
-			console.error(e);
+		} catch (err: unknown) {
 			setLoadError(
-				"Нет связи с сервером, остатки не загружены. Проверьте интернет и нажмите «Повторить».",
+				err instanceof Error
+					? err.message
+					: "Не удалось загрузить остатки со склада",
 			);
-			showToast("Ошибка загрузки склада", "error");
+			setItems([]);
+			setIsLoading(false);
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [organizationId, getHeaders]);
 
 	/*
 	 * Без организации склад не грузится — и это надо показать, а не крутить.

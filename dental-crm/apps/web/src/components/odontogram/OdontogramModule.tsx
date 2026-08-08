@@ -1,6 +1,6 @@
 import { isValidFdiToothNumber } from "@dental/shared";
 import { History, Mic, Stethoscope } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { denteAdminSecretRequestHeaders } from "../../AppHelpers";
 import { useAppLogicContext } from "../../contexts/AppLogicContext";
@@ -122,11 +122,19 @@ const SurfaceSelector = ({
 				<title>Поверхности зуба</title>
 				{/* Top (B/V) */}
 				<polygon
+					role="tab"
+					tabIndex={0}
 					points="0,0 100,0 70,30 30,30"
 					fill={selected.includes("B") ? "#3b82f6" : "#27272a"}
 					stroke="#3f3f46"
 					strokeWidth="2"
 					onClick={() => toggle("B")}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggle("B");
+						}
+					}}
 					className="hover:fill-blue-400 transition-colors duration-200"
 				/>
 				<text
@@ -143,11 +151,19 @@ const SurfaceSelector = ({
 
 				{/* Bottom (L/P) */}
 				<polygon
+					role="tab"
+					tabIndex={0}
 					points="30,70 70,70 100,100 0,100"
 					fill={selected.includes("L") ? "#3b82f6" : "#27272a"}
 					stroke="#3f3f46"
 					strokeWidth="2"
 					onClick={() => toggle("L")}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggle("L");
+						}
+					}}
 					className="hover:fill-blue-400 transition-colors duration-200"
 				/>
 				<text
@@ -164,11 +180,19 @@ const SurfaceSelector = ({
 
 				{/* Left (M) */}
 				<polygon
+					role="tab"
+					tabIndex={0}
 					points="0,0 30,30 30,70 0,100"
 					fill={selected.includes("M") ? "#3b82f6" : "#27272a"}
 					stroke="#3f3f46"
 					strokeWidth="2"
 					onClick={() => toggle("M")}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggle("M");
+						}
+					}}
 					className="hover:fill-blue-400 transition-colors duration-200"
 				/>
 				<text
@@ -185,11 +209,19 @@ const SurfaceSelector = ({
 
 				{/* Right (D) */}
 				<polygon
+					role="tab"
+					tabIndex={0}
 					points="100,0 70,30 70,70 100,100"
 					fill={selected.includes("D") ? "#3b82f6" : "#27272a"}
 					stroke="#3f3f46"
 					strokeWidth="2"
 					onClick={() => toggle("D")}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggle("D");
+						}
+					}}
 					className="hover:fill-blue-400 transition-colors duration-200"
 				/>
 				<text
@@ -206,11 +238,19 @@ const SurfaceSelector = ({
 
 				{/* Center (O) */}
 				<polygon
+					role="tab"
+					tabIndex={0}
 					points="30,30 70,30 70,70 30,70"
 					fill={selected.includes("O") ? "#3b82f6" : "#27272a"}
 					stroke="#3f3f46"
 					strokeWidth="2"
 					onClick={() => toggle("O")}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggle("O");
+						}
+					}}
 					className="hover:fill-blue-400 transition-colors duration-200"
 				/>
 				<text
@@ -382,6 +422,123 @@ export const OdontogramModule = ({
 	}, [pediatricMode]);
 
 	// Load states from API
+const updateToothState = useCallback(async (toothNumbers: number[], state: ToothState) => {
+		/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
+		   обновления состояния, а новое состояние проставлялось мутацией
+		   `item.state = state`. Копия массива поверхностная — объекты зубов в
+		   ней те же самые, поэтому снимок менялся вместе с состоянием. Откат
+		   `setTeethData(previousTeethData)` возвращал уже НОВОЕ значение.
+
+		   Проверено в браузере, scratch/verify-odontogram-rollback.mjs: при
+		   ответе 500 на сохранение в базе оставался «Caries», всплывало
+		   «Изменения отменены», а на схеме стояло «отсутствует». Формула
+		   расходилась с базой, и интерфейс об этом врал. Врач мог закрыть
+		   приём или распечатать схему с состоянием, которого в карте нет.
+
+		   Снимок берётся до отправки, из ref с актуальным состоянием, и
+		   глубоко копируется. Новое состояние собирается новыми объектами,
+		   без мутации прежних. */
+		const previousTeethData: ToothData[] = teethDataRef.current.map(
+			(tooth) => ({
+				...tooth,
+				...(tooth.surfaces ? { surfaces: [...tooth.surfaces] } : {}),
+			}),
+		);
+
+		setTeethData((prev) => {
+			const next = prev.map((tooth) => {
+				if (!toothNumbers.includes(tooth.toothNumber)) return tooth;
+				const updated: ToothData = { ...tooth, state };
+				if (activeSurfaces.length > 0) updated.surfaces = [...activeSurfaces];
+				else delete updated.surfaces;
+				return updated;
+			});
+			for (const t of toothNumbers) {
+				if (next.some((tooth) => tooth.toothNumber === t)) continue;
+				const newItem: ToothData = { toothNumber: t, state };
+				if (activeSurfaces.length > 0) newItem.surfaces = [...activeSurfaces];
+				next.push(newItem);
+			}
+			return next;
+		});
+
+		setMenuConfig(null);
+		setSelectedTeeth([]);
+
+		try {
+			// Save to API
+			const res = await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
+				method: "POST",
+				headers: denteAdminSecretRequestHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					toothNumbers,
+					state,
+					surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
+				}),
+			});
+
+			if (!res.ok) {
+				/*
+				 * БЫЛО: «Ошибка сохранения одонтограммы. Изменения отменены.» —
+				 * жаргон вместо русского названия, ни причины, ни следующего шага, а
+				 * код ответа выбрасывался. Медсестре с истёкшим доступом (403) и врачу
+				 * при сбое сервера (500) нужны разные действия, и главное — человек
+				 * должен понять, ЧТО именно не сохранилось: отметка на схеме
+				 * откатилась, и он вправе думать, что просто промахнулся по зубу.
+				 */
+				const rawBody = await res.text();
+				console.error(
+					`[tooth states batch] ${res.status} ${rawBody.slice(0, 300)}`,
+				);
+				setTeethData(previousTeethData);
+				showToast(
+					`${actionFailureToast(
+						`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
+						res.status,
+					)} На схеме вернулось прежнее состояние.`,
+					"error",
+					15000,
+				);
+				return;
+			}
+		} catch (err) {
+			console.error("[tooth states batch] запрос не выполнен", err);
+			setTeethData(previousTeethData);
+			showToast(
+				`${actionFailureToast(
+					`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
+					// До сервера не дошли: кода ответа нет, придумывать его нельзя.
+					null,
+				)} На схеме вернулось прежнее состояние.`,
+				"error",
+				15000,
+			);
+			return;
+		}
+
+		/*
+		 * ЗДЕСЬ БЫЛА ЗАПИСЬ В ОЧЕРЕДЬ pendingPlanSuggestions — «Push suggestion to
+		 * global state for ComparativePlannerDashboard». Читателя у неё не было ни
+		 * одной минуты: единственный, ComparativePlannerDashboard, не рендерился ни
+		 * из одного достижимого модуля и удалён этим же коммитом.
+		 *
+		 * То есть каждая отметка патологии дописывала объект в массив глобального
+		 * стора, который никто не читает и никто не чистит (чистил его тот же
+		 * недостижимый экран), — он рос до перезагрузки страницы.
+		 *
+		 * Мост «диагноз → смета» от этого не пострадал, он идёт другой дорогой и
+		 * работает: смонтированный TreatmentEstimator (:945) получает currentTeeth
+		 * прямо из этого состояния и подбирает позиции по зубной формуле сам —
+		 * reconcileAutoSuggestions/estimatorRulesForTooth в
+		 * ./treatmentEstimatorPricing.ts (Caries, Pulpitis, Crown,
+		 * Planned_Implant; Missing не обрабатывается сознательно, :133). Он же
+		 * помнит, какие строки врач снял корзиной, чего очередь не умела.
+		 */
+		setActiveSurfaces([]);
+	}, [activeSurfaces, patientId]);
+
 	useEffect(() => {
 		/* БЫЛО: запрос уходил, а старая формула оставалась на экране до
 		   ответа. Замерено в браузере: при переключении пациента на карточке
@@ -461,7 +618,13 @@ export const OdontogramModule = ({
 				console.error(`[tooth states] ${status}: в ответе нет формулы`);
 				setTeethLoad({ phase: "failed", status });
 			} catch (err) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (err as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(err as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				// Отменённый запрос — не отказ: пациента переключили, и об этом
 				// сообщать нечего.
 				if (cancelled) return;
@@ -607,123 +770,7 @@ export const OdontogramModule = ({
 		// teethReloadToken — кнопка «Повторить» под сообщением об отказе.
 	}, [patientId, updateToothState]);
 
-	async function updateToothState(toothNumbers: number[], state: ToothState) {
-		/* БЫЛО: снимок «до» делался как `previousTeethData = [...prev]` внутри
-		   обновления состояния, а новое состояние проставлялось мутацией
-		   `item.state = state`. Копия массива поверхностная — объекты зубов в
-		   ней те же самые, поэтому снимок менялся вместе с состоянием. Откат
-		   `setTeethData(previousTeethData)` возвращал уже НОВОЕ значение.
-
-		   Проверено в браузере, scratch/verify-odontogram-rollback.mjs: при
-		   ответе 500 на сохранение в базе оставался «Caries», всплывало
-		   «Изменения отменены», а на схеме стояло «отсутствует». Формула
-		   расходилась с базой, и интерфейс об этом врал. Врач мог закрыть
-		   приём или распечатать схему с состоянием, которого в карте нет.
-
-		   Снимок берётся до отправки, из ref с актуальным состоянием, и
-		   глубоко копируется. Новое состояние собирается новыми объектами,
-		   без мутации прежних. */
-		const previousTeethData: ToothData[] = teethDataRef.current.map(
-			(tooth) => ({
-				...tooth,
-				...(tooth.surfaces ? { surfaces: [...tooth.surfaces] } : {}),
-			}),
-		);
-
-		setTeethData((prev) => {
-			const next = prev.map((tooth) => {
-				if (!toothNumbers.includes(tooth.toothNumber)) return tooth;
-				const updated: ToothData = { ...tooth, state };
-				if (activeSurfaces.length > 0) updated.surfaces = [...activeSurfaces];
-				else delete updated.surfaces;
-				return updated;
-			});
-			for (const t of toothNumbers) {
-				if (next.some((tooth) => tooth.toothNumber === t)) continue;
-				const newItem: ToothData = { toothNumber: t, state };
-				if (activeSurfaces.length > 0) newItem.surfaces = [...activeSurfaces];
-				next.push(newItem);
-			}
-			return next;
-		});
-
-		setMenuConfig(null);
-		setSelectedTeeth([]);
-
-		try {
-			// Save to API
-			const res = await fetch(`/api/patients/${patientId}/tooth-states/batch`, {
-				method: "POST",
-				headers: denteAdminSecretRequestHeaders({
-					"Content-Type": "application/json",
-				}),
-				body: JSON.stringify({
-					toothNumbers,
-					state,
-					surfaces: activeSurfaces.length > 0 ? activeSurfaces : undefined,
-				}),
-			});
-
-			if (!res.ok) {
-				/*
-				 * БЫЛО: «Ошибка сохранения одонтограммы. Изменения отменены.» —
-				 * жаргон вместо русского названия, ни причины, ни следующего шага, а
-				 * код ответа выбрасывался. Медсестре с истёкшим доступом (403) и врачу
-				 * при сбое сервера (500) нужны разные действия, и главное — человек
-				 * должен понять, ЧТО именно не сохранилось: отметка на схеме
-				 * откатилась, и он вправе думать, что просто промахнулся по зубу.
-				 */
-				const rawBody = await res.text();
-				console.error(
-					`[tooth states batch] ${res.status} ${rawBody.slice(0, 300)}`,
-				);
-				setTeethData(previousTeethData);
-				showToast(
-					`${actionFailureToast(
-						`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
-						res.status,
-					)} На схеме вернулось прежнее состояние.`,
-					"error",
-					15000,
-				);
-				return;
-			}
-		} catch (err) {
-			console.error("[tooth states batch] запрос не выполнен", err);
-			setTeethData(previousTeethData);
-			showToast(
-				`${actionFailureToast(
-					`Отметка «${TOOTH_STATE_LABELS[state]}» на ${countLabel(toothNumbers.length, "зубе", "зубах", "зубах")} ${toothNumbers.join(", ")} не сохранена`,
-					// До сервера не дошли: кода ответа нет, придумывать его нельзя.
-					null,
-				)} На схеме вернулось прежнее состояние.`,
-				"error",
-				15000,
-			);
-			return;
-		}
-
-		/*
-		 * ЗДЕСЬ БЫЛА ЗАПИСЬ В ОЧЕРЕДЬ pendingPlanSuggestions — «Push suggestion to
-		 * global state for ComparativePlannerDashboard». Читателя у неё не было ни
-		 * одной минуты: единственный, ComparativePlannerDashboard, не рендерился ни
-		 * из одного достижимого модуля и удалён этим же коммитом.
-		 *
-		 * То есть каждая отметка патологии дописывала объект в массив глобального
-		 * стора, который никто не читает и никто не чистит (чистил его тот же
-		 * недостижимый экран), — он рос до перезагрузки страницы.
-		 *
-		 * Мост «диагноз → смета» от этого не пострадал, он идёт другой дорогой и
-		 * работает: смонтированный TreatmentEstimator (:945) получает currentTeeth
-		 * прямо из этого состояния и подбирает позиции по зубной формуле сам —
-		 * reconcileAutoSuggestions/estimatorRulesForTooth в
-		 * ./treatmentEstimatorPricing.ts (Caries, Pulpitis, Crown,
-		 * Planned_Implant; Missing не обрабатывается сознательно, :133). Он же
-		 * помнит, какие строки врач снял корзиной, чего очередь не умела.
-		 */
-		setActiveSurfaces([]);
-	}
-
+	
 	const handleToothClick = (
 		toothNumber: number,
 		rect: DOMRect,
@@ -909,8 +956,8 @@ export const OdontogramModule = ({
 					createPortal(
 						<>
 							{/* Backdrop */}
-							<div
-								role="presentation"
+							<button
+								type="button"
 								style={{
 									position: "fixed",
 									top: 0,
@@ -918,9 +965,20 @@ export const OdontogramModule = ({
 									right: 0,
 									bottom: 0,
 									zIndex: 9998,
+									background: "transparent",
+									border: "none",
+									padding: 0,
+									margin: 0,
+									cursor: "default"
 								}}
 								onClick={() => setMenuConfig(null)}
-								onKeyDown={(e) => { if (e.key === 'Escape') setMenuConfig(null); }}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										setMenuConfig(null);
+									}
+									if (e.key === "Escape") setMenuConfig(null);
+								}}
 							/>
 							<div
 								role="menu"

@@ -1,4 +1,3 @@
-import { showToast } from "./GlobalToast";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { countLabel, money } from "../AppHelpers";
@@ -10,6 +9,7 @@ import {
 	safeLocalStorageSetItem,
 } from "../lib/safeLocalStorage";
 import { EmptyState } from "./EmptyState";
+import { showToast } from "./GlobalToast";
 import "./PatientPortal.css";
 
 interface TreatmentStage {
@@ -66,9 +66,9 @@ const OTPInput: React.FC<OTPInputProps> = ({ onComplete, disabled }) => {
 	const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
 	const refs = useRef<(HTMLInputElement | null)[]>([]);
 
-	const focus = (idx: number) => {
+	const focus = useCallback((idx: number) => {
 		refs.current[idx]?.focus();
-	};
+	}, []);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
@@ -203,7 +203,7 @@ export const PatientPortal: React.FC = () => {
 	// Отказ сервера при чтении кабинета — отдельно от «код неверный».
 	const [sessionError, setSessionError] = useState<string | null>(null);
 
-	const fetchPatientData = async (token: string) => {
+	const fetchPatientData = useCallback(async (token: string) => {
 		try {
 			setIsLoading(true);
 			setSessionError(null);
@@ -231,7 +231,13 @@ export const PatientPortal: React.FC = () => {
 			setIsAuthenticated(false);
 			setSessionError(actionFailureToast("Кабинет не открылся", res.status));
 		} catch (e) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (e as { status?: number })?.status ?? null), "error");
+			showToast(
+				actionFailureToast(
+					"Ошибка выполнения операции",
+					(e as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
 			// Текст исключения английский, наружу не идёт.
 			console.error("[portal] не удалось прочитать кабинет пациента:", e);
 			setIsAuthenticated(false);
@@ -239,7 +245,7 @@ export const PatientPortal: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
 
 	// Повтор без нового СМС: пропуск сохранён, спрашивать код заново не за что.
 	const retrySession = useCallback(() => {
@@ -377,7 +383,13 @@ export const PatientPortal: React.FC = () => {
 					setOtpError(data.error || "Неверный код. Попробуйте ещё раз.");
 				}
 			} catch (_e) {
-			showToast(actionFailureToast("Ошибка выполнения операции", (_e as { status?: number })?.status ?? null), "error");
+				showToast(
+					actionFailureToast(
+						"Ошибка выполнения операции",
+						(_e as { status?: number })?.status ?? null,
+					),
+					"error",
+				);
 				setOtpError("Ошибка соединения.");
 			} finally {
 				setIsVerifying(false);

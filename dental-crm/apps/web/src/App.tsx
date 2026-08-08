@@ -40,12 +40,14 @@ import { ClinicalRulePanel } from "./ClinicalRulePanel";
 import { AuthHub } from "./components/auth/AuthHub";
 import { StaffPinPad } from "./components/auth/StaffPinPad";
 import { CommandPalette } from "./components/CommandPalette";
+import { showToast } from "./components/GlobalToast";
 import { IncomingCallToast } from "./components/IncomingCallToast";
 import { Omnibar } from "./components/Omnibar";
 import { VoiceAssistantUI } from "./components/VoiceAssistantUI";
 import { AppLogicProvider } from "./contexts/AppLogicContext";
 import { CtPlanningToolsPanel } from "./ctPlanningTools";
 import { resolveClinicMode, staffRoleChoices } from "./lib/clinicCapabilities";
+import { actionFailureToast } from "./lib/panelStateText";
 import {
 	DENTE_CLINIC_TOKEN_KEY,
 	DENTE_STAFF_TOKEN_KEY,
@@ -1189,8 +1191,15 @@ export function App() {
 				.then((data) => {
 					if (data?.user) setActiveStaffUser(data.user);
 				})
-				.catch(() => {
-					/* silent - user will be prompted to re-login */
+				.catch((err) => {
+					console.error("[Dente] auth check error:", err);
+					showToast(
+						actionFailureToast(
+							"Не удалось загрузить профиль пользователя",
+							(err as { status?: number })?.status ?? null,
+						),
+						"error",
+					);
 				});
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2186,7 +2195,9 @@ export function App() {
 											aria-label="Роль нового сотрудника"
 											style={{ border: "none", padding: 0, margin: 0 }}
 										>
-											<legend className="sr-only">Роль нового сотрудника</legend>
+											<legend className="sr-only">
+												Роль нового сотрудника
+											</legend>
 											{onboardingRoleChoices.map((role) => (
 												<button
 													className={
@@ -2548,7 +2559,9 @@ export function App() {
 											aria-label="Роль нового сотрудника"
 											style={{ border: "none", padding: 0, margin: 0 }}
 										>
-											<legend className="sr-only">Роль нового сотрудника</legend>
+											<legend className="sr-only">
+												Роль нового сотрудника
+											</legend>
 											{(
 												[
 													"doctor",
@@ -2575,7 +2588,9 @@ export function App() {
 												aria-label="Специальность нового сотрудника"
 												style={{ border: "none", padding: 0, margin: 0 }}
 											>
-												<legend className="sr-only">Специальность нового сотрудника</legend>
+												<legend className="sr-only">
+													Специальность нового сотрудника
+												</legend>
 												{(
 													Object.keys(specialtyLabels) as DentalSpecialty[]
 												).map((specialty) => (
@@ -2735,7 +2750,11 @@ export function App() {
 																	<fieldset
 																		className="weekday-toggle-row staff-weekday-row"
 																		aria-label={`Рабочие дни сотрудника: ${member.fullName}`}
-																		style={{ border: "none", padding: 0, margin: 0 }}
+																		style={{
+																			border: "none",
+																			padding: 0,
+																			margin: 0,
+																		}}
 																	>
 																		<legend className="sr-only">{`Рабочие дни сотрудника: ${member.fullName}`}</legend>
 																		{weekdayOptions.map((day: any) => (
@@ -2864,7 +2883,11 @@ export function App() {
 																	<fieldset
 																		className="weekday-toggle-row staff-weekday-row"
 																		aria-label={`Рабочие дни кресла: ${chair.name}`}
-																		style={{ border: "none", padding: 0, margin: 0 }}
+																		style={{
+																			border: "none",
+																			padding: 0,
+																			margin: 0,
+																		}}
 																	>
 																		<legend className="sr-only">{`Рабочие дни кресла: ${chair.name}`}</legend>
 																		{weekdayOptions.map((day: any) => (
@@ -2987,7 +3010,9 @@ export function App() {
 												aria-label="Источник переноса пациентов"
 												style={{ border: "none", padding: 0, margin: 0 }}
 											>
-												<legend className="sr-only">Источник переноса пациентов</legend>
+												<legend className="sr-only">
+													Источник переноса пациентов
+												</legend>
 												{(
 													Object.keys(importSourceLabels) as ImportSourceKind[]
 												).map((kind) => (
@@ -3023,7 +3048,9 @@ export function App() {
 												aria-label="Режим смешанного импорта"
 												style={{ border: "none", padding: 0, margin: 0 }}
 											>
-												<legend className="sr-only">Режим смешанного импорта</legend>
+												<legend className="sr-only">
+													Режим смешанного импорта
+												</legend>
 												{(
 													Object.keys(
 														smartImportModeLabels,
@@ -3059,7 +3086,9 @@ export function App() {
 												aria-label="Маршрут распознанных документов"
 												style={{ border: "none", padding: 0, margin: 0 }}
 											>
-												<legend className="sr-only">Маршрут распознанных документов</legend>
+												<legend className="sr-only">
+													Маршрут распознанных документов
+												</legend>
 												{(
 													Object.keys(
 														ingestionTargetLabels,
@@ -3434,7 +3463,9 @@ export function App() {
 										aria-label="Быстрые сценарии Telegram"
 										style={{ border: "none", padding: 0, margin: 0 }}
 									>
-										<legend className="sr-only">Быстрые сценарии Telegram</legend>
+										<legend className="sr-only">
+											Быстрые сценарии Telegram
+										</legend>
 										<div className="onboarding-telegram-visual-cards">
 											{telegramVisualCardFields
 												.filter((field) =>

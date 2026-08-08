@@ -257,22 +257,14 @@ const ToothSVG = ({
 						stroke="rgba(255,255,255,0.7)"
 						strokeWidth="0.5"
 					>
-						<polygon
-							points="8,8 16,8 16,16 8,16"
-							fill={surfaces?.includes("O") ? "#ef4444" : "transparent"}
-							style={{ cursor: "pointer", transition: "fill 0.2s" }}
+						<g
+							role="tab"
 							tabIndex={0}
-							onMouseEnter={(e) => {
-								if (!surfaces?.includes("O"))
-									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
-							}}
-							onMouseLeave={(e) => {
-								if (!surfaces?.includes("O"))
-									e.currentTarget.style.fill = "transparent";
-							}}
+							aria-label={`Поверхность O зуба ${number}`}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => {
 								e.stopPropagation();
-								onClick(e, number, "O");
+								onClick(e as unknown as React.MouseEvent, number, "O");
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
@@ -281,89 +273,111 @@ const ToothSVG = ({
 									onClick(e as unknown as React.MouseEvent, number, "O");
 								}
 							}}
-						/>
-						<polygon
-							points="0,0 24,0 16,8 8,8"
-							fill={
-								surfaces?.includes("V") || surfaces?.includes("B")
-									? "#ef4444"
-									: "transparent"
-							}
-							style={{ cursor: "pointer", transition: "fill 0.2s" }}
-							tabIndex={0}
 							onMouseEnter={(e) => {
-								if (!(surfaces?.includes("V") || surfaces?.includes("B")))
-									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
+								if (!surfaces?.includes("O")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "rgba(239, 68, 68, 0.3)";
+								}
 							}}
 							onMouseLeave={(e) => {
-								if (!(surfaces?.includes("V") || surfaces?.includes("B")))
-									e.currentTarget.style.fill = "transparent";
+								if (!surfaces?.includes("O")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "transparent";
+								}
 							}}
+						>
+							<polygon
+								points="8,8 16,8 16,16 8,16"
+								fill={surfaces?.includes("O") ? "#ef4444" : "transparent"}
+								style={{ transition: "fill 0.2s" }}
+							/>
+						</g>
+						<g
+							role="tab"
+							tabIndex={0}
+							aria-label={`Поверхность ${isTop ? "V" : "V"} зуба ${number}`}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => {
 								e.stopPropagation();
-								onClick(e, number, isTop ? "V" : "V");
+								onClick(e as unknown as React.MouseEvent, number, isTop ? "V" : "V");
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault();
 									e.stopPropagation();
-									onClick(
-										e as unknown as React.MouseEvent,
-										number,
-										isTop ? "V" : "V",
-									);
+									onClick(e as unknown as React.MouseEvent, number, isTop ? "V" : "V");
 								}
 							}}
-						/>
-						<polygon
-							points="8,16 16,16 24,24 0,24"
-							fill={
-								surfaces?.includes("L") || surfaces?.includes("P")
-									? "#ef4444"
-									: "transparent"
-							}
-							style={{ cursor: "pointer", transition: "fill 0.2s" }}
-							tabIndex={0}
 							onMouseEnter={(e) => {
-								if (!(surfaces?.includes("L") || surfaces?.includes("P")))
-									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
+								if (!(surfaces?.includes("V") || surfaces?.includes("B"))) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "rgba(239, 68, 68, 0.3)";
+								}
 							}}
 							onMouseLeave={(e) => {
-								if (!(surfaces?.includes("L") || surfaces?.includes("P")))
-									e.currentTarget.style.fill = "transparent";
+								if (!(surfaces?.includes("V") || surfaces?.includes("B"))) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "transparent";
+								}
 							}}
+						>
+							<polygon
+								points="0,0 24,0 16,8 8,8"
+								fill={
+									surfaces?.includes("V") || surfaces?.includes("B")
+										? "#ef4444"
+										: "transparent"
+								}
+								style={{ transition: "fill 0.2s" }}
+							/>
+						</g>
+						<g
+							role="tab"
+							tabIndex={0}
+							aria-label={`Поверхность ${isTop ? "P" : "L"} зуба ${number}`}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => {
 								e.stopPropagation();
-								onClick(e, number, isTop ? "P" : "L");
+								onClick(e as unknown as React.MouseEvent, number, isTop ? "P" : "L");
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault();
 									e.stopPropagation();
-									onClick(
-										e as unknown as React.MouseEvent,
-										number,
-										isTop ? "P" : "L",
-									);
+									onClick(e as unknown as React.MouseEvent, number, isTop ? "P" : "L");
 								}
 							}}
-						/>
-						<polygon
-							points="0,0 8,8 8,16 0,24"
-							fill={surfaces?.includes("M") ? "#ef4444" : "transparent"}
-							style={{ cursor: "pointer", transition: "fill 0.2s" }}
-							tabIndex={0}
 							onMouseEnter={(e) => {
-								if (!surfaces?.includes("M"))
-									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
+								if (!(surfaces?.includes("L") || surfaces?.includes("P"))) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "rgba(239, 68, 68, 0.3)";
+								}
 							}}
 							onMouseLeave={(e) => {
-								if (!surfaces?.includes("M"))
-									e.currentTarget.style.fill = "transparent";
+								if (!(surfaces?.includes("L") || surfaces?.includes("P"))) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "transparent";
+								}
 							}}
+						>
+							<polygon
+								points="8,16 16,16 24,24 0,24"
+								fill={
+									surfaces?.includes("L") || surfaces?.includes("P")
+										? "#ef4444"
+										: "transparent"
+								}
+								style={{ transition: "fill 0.2s" }}
+							/>
+						</g>
+						<g
+							role="tab"
+							tabIndex={0}
+							aria-label={`Поверхность M зуба ${number}`}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => {
 								e.stopPropagation();
-								onClick(e, number, "M");
+								onClick(e as unknown as React.MouseEvent, number, "M");
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
@@ -372,23 +386,33 @@ const ToothSVG = ({
 									onClick(e as unknown as React.MouseEvent, number, "M");
 								}
 							}}
-						/>
-						<polygon
-							points="24,0 24,24 16,16 16,8"
-							fill={surfaces?.includes("D") ? "#ef4444" : "transparent"}
-							style={{ cursor: "pointer", transition: "fill 0.2s" }}
-							tabIndex={0}
 							onMouseEnter={(e) => {
-								if (!surfaces?.includes("D"))
-									e.currentTarget.style.fill = "rgba(239, 68, 68, 0.3)";
+								if (!surfaces?.includes("M")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "rgba(239, 68, 68, 0.3)";
+								}
 							}}
 							onMouseLeave={(e) => {
-								if (!surfaces?.includes("D"))
-									e.currentTarget.style.fill = "transparent";
+								if (!surfaces?.includes("M")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "transparent";
+								}
 							}}
+						>
+							<polygon
+								points="0,0 8,8 8,16 0,24"
+								fill={surfaces?.includes("M") ? "#ef4444" : "transparent"}
+								style={{ transition: "fill 0.2s" }}
+							/>
+						</g>
+						<g
+							role="tab"
+							tabIndex={0}
+							aria-label={`Поверхность D зуба ${number}`}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => {
 								e.stopPropagation();
-								onClick(e, number, "D");
+								onClick(e as unknown as React.MouseEvent, number, "D");
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
@@ -397,7 +421,25 @@ const ToothSVG = ({
 									onClick(e as unknown as React.MouseEvent, number, "D");
 								}
 							}}
-						/>
+							onMouseEnter={(e) => {
+								if (!surfaces?.includes("D")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "rgba(239, 68, 68, 0.3)";
+								}
+							}}
+							onMouseLeave={(e) => {
+								if (!surfaces?.includes("D")) {
+									const polygon = e.currentTarget.querySelector("polygon");
+									if (polygon) polygon.style.fill = "transparent";
+								}
+							}}
+						>
+							<polygon
+								points="24,0 24,24 16,16 16,8"
+								fill={surfaces?.includes("D") ? "#ef4444" : "transparent"}
+								style={{ transition: "fill 0.2s" }}
+							/>
+						</g>
 					</g>
 				)}
 			</g>

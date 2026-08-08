@@ -913,7 +913,10 @@ export function SettingsTelegramTab({
 								самочувствии через выбранное число часов после памятки.
 							</small>
 							{typedTelegramPostVisitCheckupDelayFields.map((field) => (
-								<label htmlFor={`telegram-checkup-delay-${field.key}`} key={field.key}>
+								<label
+									htmlFor={`telegram-checkup-delay-${field.key}`}
+									key={field.key}
+								>
 									{field.label}
 									<input
 										id={`telegram-checkup-delay-${field.key}`}
@@ -1025,7 +1028,11 @@ export function SettingsTelegramTab({
 							</small>
 						</div>
 					</div>
-					<div className="telegram-feature-grid" role="group" aria-label="Функции Telegram">
+					<fieldset
+						className="telegram-feature-grid"
+						
+						aria-label="Функции Telegram"
+					 style={{ border: 'none', padding: 0, margin: 0 }}>
 						{typedTelegramFeatureOptions.map((feature) => (
 							<label
 								htmlFor={`telegram-feature-${feature}`}
@@ -1049,8 +1056,11 @@ export function SettingsTelegramTab({
 								</span>
 							</label>
 						))}
-					</div>
-					<label htmlFor="telegram-allow-voice-intake-draft" className="telegram-voice-toggle">
+					</fieldset>
+					<label
+						htmlFor="telegram-allow-voice-intake-draft"
+						className="telegram-voice-toggle"
+					>
 						<input
 							id="telegram-allow-voice-intake-draft"
 							type="checkbox"
@@ -1085,7 +1095,10 @@ export function SettingsTelegramTab({
 					</label>
 					<div className="telegram-visual-card-fields">
 						{typedTelegramVisualCardFields.map((field) => (
-							<label htmlFor={`telegram-visual-card-${field.key}`} key={field.key}>
+							<label
+								htmlFor={`telegram-visual-card-${field.key}`}
+								key={field.key}
+							>
 								{field.label}
 								<input
 									id={`telegram-visual-card-${field.key}`}
@@ -1356,11 +1369,11 @@ export function SettingsTelegramTab({
 							{getTypedTelegramInlineButtonRows(
 								typedTelegramPreview.replyMarkup,
 							).length ? (
-								<div
+								<fieldset
 									className="telegram-preview-buttons"
-									role="group"
+									
 									aria-label="Кнопки Telegram-сообщения"
-								>
+								 style={{ border: 'none', padding: 0, margin: 0 }}>
 									{getTypedTelegramInlineButtonRows(
 										typedTelegramPreview.replyMarkup,
 									).map((row) => (
@@ -1381,7 +1394,7 @@ export function SettingsTelegramTab({
 											))}
 										</div>
 									))}
-								</div>
+								</fieldset>
 							) : null}
 							{typedTelegramPreview.warnings.map((warning) => (
 								<small key={warning}>{telegramHumanMessage(warning)}</small>
@@ -1442,11 +1455,11 @@ export function SettingsTelegramTab({
 						) : null}
 					</div>
 				</div>
-				<div
+				<fieldset
 					className="telegram-outbox-controls"
-					role="group"
+					
 					aria-label="Фильтры очереди Telegram"
-				>
+				 style={{ border: 'none', padding: 0, margin: 0 }}>
 					<div>
 						Статус
 						<div className="quick-chips-row">
@@ -1487,7 +1500,7 @@ export function SettingsTelegramTab({
 							? ` / всего ${typedTelegramOutbox.totalCount}`
 							: ""}
 					</span>
-				</div>
+				</fieldset>
 				<div className="telegram-outbox-list">
 					{typedVisibleTelegramOutboxItems.map((item) => {
 						const itemButtonRows = getTypedTelegramInlineButtonRows(
@@ -1525,11 +1538,11 @@ export function SettingsTelegramTab({
 											</div>
 										) : null}
 										{itemButtonRows.length ? (
-											<div
+											<fieldset
 												className="telegram-outbox-buttons"
-												role="group"
+												
 												aria-label="Кнопки Telegram"
-											>
+											 style={{ border: 'none', padding: 0, margin: 0 }}>
 												{itemButtonRows
 													.map((row, rowIndex) => ({
 														row,
@@ -1556,22 +1569,22 @@ export function SettingsTelegramTab({
 															))}
 														</div>
 													))}
-											</div>
+											</fieldset>
 										) : null}
 									</div>
 									{itemBlockingNote || itemWarningNotes.length ? (
-										<div
+										<fieldset
 											className="telegram-outbox-notes"
-											role="group"
+											
 											aria-label="Причины и предупреждения Telegram"
-										>
+										 style={{ border: 'none', padding: 0, margin: 0 }}>
 											{itemBlockingNote ? (
 												<small>{itemBlockingNote}</small>
 											) : null}
 											{itemWarningNotes.map((warning) => (
 												<small key={`${item.id}:${warning}`}>{warning}</small>
 											))}
-										</div>
+										</fieldset>
 									) : null}
 									<small>
 										{telegramTemplateLabels[item.templateKind]} ·{" "}

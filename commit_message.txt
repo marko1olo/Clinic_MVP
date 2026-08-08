@@ -1,0 +1,6 @@
+🧹 Extract nested onKeyDown function in SettingsTelegramTab
+
+* 🎯 **What:** The `onKeyDown` inline function for the admin secret input in `SettingsTelegramTab.tsx` was deeply nested and made the JSX less readable. It has been extracted to a named function `handleAdminSecretKeyDown` within the component.
+* 💡 **Why:** To improve code readability and maintainability by flattening the component's JSX structure.
+* ✅ **Verification:** The changes were run through a linter/formatter (`prettier`) and the tests. Existing unit tests are passing.
+* ✨ **Result:** The code is cleaner, making it easier for future developers to reason about the event handling logic without navigating through a long chain of inline code.

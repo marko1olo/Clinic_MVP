@@ -358,6 +358,16 @@ export function ImagingView(props: ImagingViewProps) {
 	 */
 	const selectedStudyHasFile = imagingStudyHasFile(selectedImagingStudy);
 
+	const handleCompareCandidateClick = (study: any) => {
+		if (
+			imagingKindFilter !== "all" &&
+			imagingKindFilter !== study.kind
+		) {
+			setImagingKindFilter("all");
+		}
+		setSelectedImagingStudyId(study.id);
+	};
+
 	const handleAnalyzeAI = async () => {
 		if (!selectedImagingStudy) return;
 		/*
@@ -969,14 +979,7 @@ export function ImagingView(props: ImagingViewProps) {
 												<button
 													key={study.id}
 													type="button"
-													onClick={() => {
-														if (
-															imagingKindFilter !== "all" &&
-															imagingKindFilter !== study.kind
-														)
-															setImagingKindFilter("all");
-														setSelectedImagingStudyId(study.id);
-													}}
+													onClick={() => handleCompareCandidateClick(study)}
 												>
 													<img
 														src={imagingPreviewSource(study)}

@@ -23,8 +23,8 @@ class TestCheckServerEnv(unittest.TestCase):
 
 
     @patch('check_server.paramiko.SSHClient')
-    @patch('builtins.print')
-    def test_ssh_exception(self, mock_print, mock_ssh_client):
+    @patch('check_server.logger.error')
+    def test_ssh_exception(self, mock_logger_error, mock_ssh_client):
         # Configure the mock to raise SSHException on connect
         mock_instance = mock_ssh_client.return_value
         import paramiko
@@ -35,7 +35,21 @@ class TestCheckServerEnv(unittest.TestCase):
         with patch.dict('os.environ', {'VPS_HOST': '127.0.0.1', 'VPS_PASSWORD': 'test_password'}, clear=True):
             check_server.main()
 
-        mock_print.assert_any_call(f"Failed to connect or execute: {test_exception}")
+        mock_logger_error.assert_called_once_with(f"Failed to connect or execute: {test_exception}")
+
+    @patch('check_server.paramiko.SSHClient')
+    @patch('check_server.logger.error')
+    def test_socket_error(self, mock_logger_error, mock_ssh_client):
+        import socket
+        test_exception = socket.error("Mocked socket error")
+        mock_instance = mock_ssh_client.return_value
+        mock_instance.connect.side_effect = test_exception
+
+        with patch.dict('os.environ', {'VPS_HOST': '127.0.0.1', 'VPS_PASSWORD': 'test'}, clear=True):
+            check_server.main()
+
+        mock_logger_error.assert_called_once_with(f"Failed to connect or execute: {test_exception}")
+
 
 if __name__ == '__main__':
     unittest.main()

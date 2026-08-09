@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import { recordAuditEventInDb } from "./auditQuery.js";
 import { db } from "./client.js";

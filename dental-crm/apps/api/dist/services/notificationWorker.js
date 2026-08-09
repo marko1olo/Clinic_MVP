@@ -3,7 +3,7 @@ import { db } from "../db/client.js";
 import { denteTelegramBotConfigs, denteTelegramChatLinks, outgoingNotifications, } from "../db/schema.js";
 import { sendTelegramTextMessage } from "../telegramTransport.js";
 async function attemptTelegramDelivery(chatLink, botConfig, messageText) {
-    if (!chatLink || !chatLink.chatTransportRef) {
+    if (!chatLink?.chatTransportRef) {
         return {
             deliveryStatus: "failed",
             failureReason: "skipped: no telegram bot token configured or patient not linked",
@@ -35,7 +35,7 @@ async function attemptTelegramDelivery(chatLink, botConfig, messageText) {
         };
     }
 }
-export async function scheduleNotification(input) {
+async function _scheduleNotification(input) {
     await db.insert(outgoingNotifications).values({
         organizationId: input.organizationId,
         patientId: input.patientId,
@@ -52,7 +52,7 @@ const colors = {
     neonBlue: "\x1b[38;2;0;255;255px\x1b[1m",
     gray: "\x1b[90m",
 };
-export async function processNotificationQueue() {
+async function processNotificationQueue() {
     try {
         const pending = await db
             .select()
@@ -89,6 +89,7 @@ export async function processNotificationQueue() {
             await db
                 .update(outgoingNotifications)
                 .set({
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                 status: deliveryStatus,
                 sentAt: deliveryStatus === "sent" ? new Date() : null,
             })
@@ -125,7 +126,7 @@ export function startNotificationWorker() {
     // Через optional call, потому что тесты подменяют setInterval и возвращают число.
     notificationInterval.unref?.();
 }
-export function stopNotificationWorker() {
+function _stopNotificationWorker() {
     if (notificationInterval) {
         clearInterval(notificationInterval);
         notificationInterval = null;

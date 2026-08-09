@@ -80,6 +80,7 @@ export const pool = new pg.Pool({
 let poolEnding;
 export const endPool = () => (poolEnding ??= pool.end());
 export const dbRaw = drizzle(pool, { schema });
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 export const transactionStorage = new AsyncLocalStorage();
 export const db = new Proxy(dbRaw, {
     get(target, prop, receiver) {

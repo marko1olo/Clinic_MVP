@@ -1,4 +1,5 @@
 import "dotenv/config";
+// trigger restart 3
 /*
  * ПРОВЕРКА ОКРУЖЕНИЯ. Стоит здесь, ВТОРОЙ строкой, и это не косметика.
  * Тело ES-модуля выполняется после вычисления его импортов, а импорты
@@ -22,11 +23,10 @@ import { registerAnalyticsRoutes } from "./routes/analytics.js";
 import { registerAuditRoutes } from "./routes/audit.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerBillingRoutes } from "./routes/billing.js";
-import { registerSberbankRoutes } from "./routes/sberbank.js";
-import { registerClinicWorkflowRoutes } from "./routes/clinicWorkflows.js";
-import { registerClinicalRoutes } from "./routes/clinical.js";
-import { registerCommunicationReceiptRoutes } from "./routes/communicationReceipts.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerClinicalRoutes } from "./routes/clinical.js";
+import { registerClinicWorkflowRoutes } from "./routes/clinicWorkflows.js";
+import { registerCommunicationReceiptRoutes } from "./routes/communicationReceipts.js";
 import { registerCommunicationRoutes } from "./routes/communications.js";
 import { registerCommunicationOutboxRoutes } from "./routes/communicationsOutbox.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
@@ -46,6 +46,8 @@ import { registerImagingPlanningRoutes } from "./routes/imaging_planning.js";
 import { registerImportRoutes } from "./routes/imports.js";
 import { registerIngestionRoutes } from "./routes/ingestion.js";
 import { registerInsuranceRoutes } from "./routes/insurance.js";
+import { registerDiagnocatRoutes } from "./routes/integrations/diagnocat.js";
+import { registerFlexbeRoutes } from "./routes/integrations/flexbe.js";
 import { inventoryRoutes } from "./routes/inventory.js";
 import { registerLabRoutes } from "./routes/lab.js";
 import { registerLeadsRoutes } from "./routes/leads.js";
@@ -61,8 +63,8 @@ import { registerPricelistRoutes } from "./routes/pricelist.js";
 import { registerPublicAppointmentActionRoutes } from "./routes/publicAppointmentActions.js";
 import { registerPublicBookingRoutes } from "./routes/publicBooking.js";
 import { registerReportRoutes } from "./routes/reports.js";
+import { registerSberbankRoutes } from "./routes/sberbank.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
-import { registerYandexCalendarRoutes } from "./routes/yandexCalendar.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerSmartImportRoutes } from "./routes/smartImports.js";
 import { registerSpeechRoutes } from "./routes/speech.js";
@@ -80,8 +82,7 @@ import { registerWebsocketRoutes } from "./routes/websocket.js";
 import { registerWhatsappRoutes } from "./routes/whatsapp.js";
 import { workspaceProfileRoutes } from "./routes/workspaceProfile.js";
 import { registerXrayRoutes } from "./routes/xray.js";
-import { registerFlexbeRoutes } from "./routes/integrations/flexbe.js";
-import { registerDiagnocatRoutes } from "./routes/integrations/diagnocat.js";
+import { registerYandexCalendarRoutes } from "./routes/yandexCalendar.js";
 import { authTokenSecret } from "./security/authSecret.js";
 import { getRequestIdentity } from "./security/identity.js";
 import { registerRateLimiting, } from "./security/rateLimit.js";
@@ -168,7 +169,7 @@ async function checkProxyPortDirectly(proxyUrlString) {
         try {
             const cleanUrl = proxyUrlString.replace(/^socks5h?:\/\//i, "socks5://");
             const url = new URL(cleanUrl.includes("://") ? cleanUrl : `socks5://${cleanUrl}`);
-            const port = parseInt(url.port || "1080");
+            const port = parseInt(url.port || "1080", 10);
             const host = url.hostname || "127.0.0.1";
             const socket = net.connect(port, host, () => {
                 socket.end();
@@ -215,6 +216,7 @@ export async function setupProxyAndTunnels() {
         }
     }
     // Register global agent for direct undici fetches
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     globalThis._dentalProxyAgent = getProxyAgent() || undefined;
 }
 const apiTechnicalErrorPattern = /\b(TypeError|SyntaxError|ReferenceError|DOMException|Failed to fetch|NetworkError|ENOENT|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ERR_[A-Z0-9_]+|stack|undefined|null|NaN|DENTAL_[A-Z0-9_]+|DENTE_[A-Z0-9_]+)\b|[A-Za-z]:\\|\\\\[^\\]+\\|\/(Users|home|var|tmp)\//i;
@@ -705,3 +707,4 @@ if (process.argv[1] &&
     await startDenteApiServer();
 }
 // trigger restart
+// restart server

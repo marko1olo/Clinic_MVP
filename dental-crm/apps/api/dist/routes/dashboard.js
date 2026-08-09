@@ -44,7 +44,7 @@ export async function registerDashboardRoutes(app) {
             request.log.error({ err: error }, "[Dashboard] Ошибка получения данных из БД");
             return reply.code(500).send({
                 error: "DatabaseError",
-                message: "Не удалось загрузить сводку. Повторите позже.",
+                message: error instanceof Error ? error.message : String(error),
             });
         }
     });

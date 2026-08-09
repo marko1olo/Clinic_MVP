@@ -23,7 +23,7 @@ import { clinicalAuditLogs } from "./db/schema.js";
  * информации о событиях безопасности) без такой строки не выполняется:
  * потерянное событие обязано оставаться восстановимым.
  */
-export async function writeClinicalAuditLog(input) {
+async function writeClinicalAuditLog(input) {
     try {
         await db.insert(clinicalAuditLogs).values({
             organizationId: input.organizationId,

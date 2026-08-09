@@ -237,7 +237,7 @@ export function numberFromEnv(name, fallback) {
     const value = Number(process.env[name]);
     return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
-export function speechProviderTimeoutMs() {
+function speechProviderTimeoutMs() {
     return numberFromEnv("DENTAL_SPEECH_PROVIDER_TIMEOUT_MS", 45_000);
 }
 function rateLimitCooldownMs() {

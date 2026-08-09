@@ -118,10 +118,10 @@ export function Omnibar() {
 		},
 	];
 
-	const filteredCommands = commands.filter(
+	const filteredCommands = (commands ?? []).filter(
 		(cmd) =>
-			cmd.title.toLowerCase().includes(query.toLowerCase()) ||
-			cmd.category.toLowerCase().includes(query.toLowerCase()),
+			(cmd?.title ?? "").toLowerCase().includes((query ?? "").toLowerCase()) ||
+			(cmd?.category ?? "").toLowerCase().includes((query ?? "").toLowerCase()),
 	);
 
 	useEffect(() => {
@@ -138,14 +138,14 @@ export function Omnibar() {
 			} else if (e.key === "ArrowDown") {
 				e.preventDefault();
 				setSelectedIndex((prev) =>
-					prev < filteredCommands.length - 1 ? prev + 1 : prev,
+					prev < (filteredCommands ?? []).length - 1 ? prev + 1 : prev,
 				);
 			} else if (e.key === "ArrowUp") {
 				e.preventDefault();
 				setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
 			} else if (e.key === "Enter") {
 				e.preventDefault();
-				if (filteredCommands[selectedIndex]) {
+				if (filteredCommands?.[selectedIndex]) {
 					filteredCommands[selectedIndex].action();
 					setOmnibarOpen(false);
 				}
@@ -276,17 +276,17 @@ export function Omnibar() {
 									className="overflow-y-auto p-2"
 									style={{ maxHeight: "calc(60vh - 56px)" }}
 								>
-									{filteredCommands.length === 0 ? (
+									{(filteredCommands ?? []).length === 0 ? (
 										<div className="p-8 text-center text-neutral-500 dark:text-slate-400">
 											Ничего не найдено
 										</div>
 									) : (
 										<div className="flex flex-col gap-1">
-											{filteredCommands?.map((cmd, idx) => {
+											{(filteredCommands ?? []).map((cmd, idx) => {
 												// Quick check if category changed to add a header
 												const showCategory =
 													idx === 0 ||
-													filteredCommands[idx - 1]?.category !== cmd.category;
+													filteredCommands[idx - 1]?.category !== cmd?.category;
 												return (
 													<React.Fragment key={cmd.id}>
 														{showCategory && (
@@ -311,6 +311,7 @@ export function Omnibar() {
 																className={`flex items-center justify-center w-8 h-8 rounded-lg ${idx === selectedIndex ? "bg-teal-100/50 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300" : "bg-neutral-100 dark:bg-slate-800 text-neutral-500 dark:text-slate-400"}`}
 															>
 																{React.cloneElement(
+																	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 																	cmd.icon as React.ReactElement<any>,
 																	{ size: 16 },
 																)}

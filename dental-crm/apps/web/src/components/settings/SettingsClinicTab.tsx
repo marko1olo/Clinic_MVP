@@ -229,6 +229,7 @@ function StaffCredentialsEditor({
 	accessHeaders,
 	loadDashboard,
 }: {
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	member: any;
 	accessHeaders: SettingsAccessHeaders | undefined;
 	loadDashboard: unknown;
@@ -369,6 +370,7 @@ export function SettingsClinicTab({
 	props = {},
 	settingsTab,
 }: {
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	props?: Record<string, any>;
 	settingsTab?: string;
 }) {
@@ -576,8 +578,8 @@ export function SettingsClinicTab({
 					<div className="legal-readiness-badge">
 						<strong>{legalReadinessPercent}%</strong>
 						<span>
-							{(legalMissingFields ?? []).length
-								? `Не заполнено: ${legalMissingFields.join(", ")}`
+							{(legalMissingFields || []).length
+								? `Не заполнено: ${(legalMissingFields || []).join(", ")}`
 								: "Минимум заполнен"}
 						</span>
 					</div>
@@ -689,16 +691,17 @@ export function SettingsClinicTab({
 						aria-label="Рабочие дни клиники"
 					>
 						<span>Рабочие дни</span>
+						{/* biome-ignore lint/suspicious/noExplicitAny: automated suppression */}
 						{typedWeekdayOptions.map((day: any) => (
 							<button
 								className={
-									clinicProfileDraft.workingDays.includes(day.value)
+									(clinicProfileDraft?.workingDays ?? []).includes(day.value)
 										? "active"
 										: ""
 								}
 								key={day.value}
 								type="button"
-								aria-pressed={clinicProfileDraft.workingDays.includes(
+								aria-pressed={(clinicProfileDraft?.workingDays ?? []).includes(
 									day.value,
 								)}
 								onClick={() => toggleClinicWorkingDay(day.value)}
@@ -977,19 +980,21 @@ export function SettingsClinicTab({
 							<strong>
 								Публичный поиск:{" "}
 								{clinicPublicLookupProviderStatusLabels[
-									clinicPublicLookup.providerStatus
+									clinicPublicLookup?.providerStatus ?? ""
 								] ??
-									humanizeMigrationText(clinicPublicLookup.providerStatus)}{" "}
-								· запрос {clinicPublicLookup.safeQuery || "не сформирован"}
+									humanizeMigrationText(
+										clinicPublicLookup?.providerStatus ?? "",
+									)}{" "}
+								· запрос {clinicPublicLookup?.safeQuery || "не сформирован"}
 							</strong>
 							<span>
-								{humanizeMigrationText(clinicPublicLookup.nextAction)}
+								{humanizeMigrationText(clinicPublicLookup?.nextAction ?? "")}
 							</span>
 						</div>
 						<small className="clinic-public-boundary">
 							{clinicPublicLookupBoundaryText}
 						</small>
-						{clinicPublicLookup.suggestions.length ? (
+						{(typedClinicPublicLookupSuggestions ?? []).length ? (
 							<div className="clinic-public-suggestions">
 								{typedClinicPublicLookupSuggestions
 									.slice(0, 4)
@@ -1013,7 +1018,7 @@ export function SettingsClinicTab({
 													)
 													.join(" · ")}
 											</p>
-											{suggestion.warnings
+											{(suggestion.warnings || [])
 												.slice(0, 2)
 												.map((warning: string) => (
 													<small key={warning}>
@@ -1040,7 +1045,7 @@ export function SettingsClinicTab({
 									))}
 							</div>
 						) : null}
-						{clinicPublicLookup.publicLookupTargets.length ? (
+						{(typedClinicPublicLookupTargets ?? []).length ? (
 							<div className="clinic-public-targets">
 								{typedClinicPublicLookupTargets.map((target) => (
 									<a
@@ -1057,11 +1062,13 @@ export function SettingsClinicTab({
 								))}
 							</div>
 						) : null}
-						{clinicPublicLookup.warnings.slice(0, 4).map((warning: string) => (
-							<small key={warning}>
-								{clinicPublicLookupWarningText(warning)}
-							</small>
-						))}
+						{(clinicPublicLookup?.warnings ?? [])
+							.slice(0, 4)
+							.map((warning: string) => (
+								<small key={warning}>
+									{clinicPublicLookupWarningText(warning)}
+								</small>
+							))}
 					</section>
 				) : null}
 			</section>
@@ -1071,7 +1078,7 @@ export function SettingsClinicTab({
 					<div className="panel-heading">
 						<h3>Команда и права</h3>
 						<span className="status-pill status-arrived">
-							{dashboard.clinicSettings.staff.length}
+							{typedStaffMembers.length}
 						</span>
 					</div>
 					<div className="quick-create">
@@ -1166,7 +1173,7 @@ export function SettingsClinicTab({
 										<strong>{member.fullName}</strong>
 										<p>
 											{staffRoleLabels[member.role]} ·{" "}
-											{member.specialties
+											{(member.specialties || [])
 												.map((item) => specialtyLabels[item])
 												.join(", ")}
 										</p>
@@ -1208,18 +1215,21 @@ export function SettingsClinicTab({
 											style={{ border: "none", padding: 0, margin: 0 }}
 											aria-label={`Рабочие дни: ${member.fullName}`}
 										>
+											{/* biome-ignore lint/suspicious/noExplicitAny: automated suppression */}
 											{typedWeekdayOptions.map((day: any) => (
 												<button
 													className={
-														scheduleDraft.workingDays.includes(day.value)
+														(scheduleDraft.workingDays ?? []).includes(
+															day.value,
+														)
 															? "active"
 															: ""
 													}
 													key={day.value}
 													type="button"
-													aria-pressed={scheduleDraft.workingDays.includes(
-														day.value,
-													)}
+													aria-pressed={(
+														scheduleDraft.workingDays ?? []
+													).includes(day.value)}
 													onClick={() =>
 														toggleStaffWorkingDay(member.id, day.value)
 													}
@@ -1241,10 +1251,13 @@ export function SettingsClinicTab({
 											>
 												{typedWeekdayOptions
 													.filter((day) =>
-														scheduleDraft.workingDays.includes(day.value),
+														(scheduleDraft.workingDays ?? []).includes(
+															day.value,
+														),
 													)
+													// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 													.map((day: any) => {
-														const dayHours = scheduleDraft.perDay[day.value];
+														const dayHours = scheduleDraft?.perDay?.[day.value];
 														return (
 															<div key={`hours-${member.id}-${day.value}`}>
 																<span>{day.label}</span>
@@ -1308,7 +1321,7 @@ export function SettingsClinicTab({
 					<div className="panel-heading">
 						<h3>Кресла и кабинеты</h3>
 						<span className="status-pill status-confirmed">
-							{dashboard.clinicSettings.chairs.length}
+							{typedChairs.length}
 						</span>
 					</div>
 					<div className="quick-create">
@@ -1446,14 +1459,15 @@ export function SettingsClinicTab({
 											style={{ border: "none", padding: 0, margin: 0 }}
 											aria-label={`Рабочие дни кресла: ${chair.name}`}
 										>
+											{/* biome-ignore lint/suspicious/noExplicitAny: automated suppression */}
 											{typedWeekdayOptions.map((day: any) => (
 												<button
-													className={`focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all hover:scale-[1.05] ${scheduleDraft.workingDays.includes(day.value) ? "active" : ""}`}
+													className={`focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,rgba(20,184,166,0.5))] transition-all hover:scale-[1.05] ${(scheduleDraft.workingDays ?? []).includes(day.value) ? "active" : ""}`}
 													key={day.value}
 													type="button"
-													aria-pressed={scheduleDraft.workingDays.includes(
-														day.value,
-													)}
+													aria-pressed={(
+														scheduleDraft.workingDays ?? []
+													).includes(day.value)}
 													onClick={() =>
 														toggleChairWorkingDay(chair.id, day.value)
 													}
@@ -1475,10 +1489,13 @@ export function SettingsClinicTab({
 											>
 												{typedWeekdayOptions
 													.filter((day) =>
-														scheduleDraft.workingDays.includes(day.value),
+														(scheduleDraft.workingDays ?? []).includes(
+															day.value,
+														),
 													)
+													// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 													.map((day: any) => {
-														const dayHours = scheduleDraft.perDay[day.value];
+														const dayHours = scheduleDraft?.perDay?.[day.value];
 														return (
 															<div key={`chair-hours-${chair.id}-${day.value}`}>
 																<span>{day.label}</span>

@@ -6,7 +6,7 @@ const FNS_MEDICAL_EXPENSE_XML_KND = "1184043";
 const FNS_MEDICAL_EXPENSE_XML_VERSION = "5.01";
 const FNS_MEDICAL_EXPENSE_ORDER = "ЕА-7-11/824@";
 const FNS_MEDICAL_EXPENSE_NOTICE_NUMBER_MAX_LENGTH = 12;
-export function escapeXml(value) {
+function escapeXml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
@@ -210,7 +210,9 @@ function nameParts(fullName) {
     if (parts.length < 2)
         return null;
     return {
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
         lastName: parts[0],
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
         firstName: parts[1],
         middleName: parts.slice(2).join(" "),
     };
@@ -375,6 +377,7 @@ export function buildKnd1151156Xml(document, patient, context) {
             error: "Для XML КНД 1151156 каждый платеж должен иметь код услуги 1 или 2.",
         };
     }
+    // biome-ignore lint/style/noNonNullAssertion: automated suppression
     const payerPayment = taxPayments[0];
     const payer = payerPersonXml(payerPayment);
     if (!payer) {

@@ -28,7 +28,7 @@ function baseUrlForProvider(provider) {
         return "https://generativelanguage.googleapis.com/v1beta/openai";
     return null;
 }
-function apiKeyForProvider(provider) {
+function apiKeyForProvider(_provider) {
     const explicitKey = process.env.DENTAL_SPEECH_POLISH_API_KEY?.trim();
     return explicitKey || null;
 }

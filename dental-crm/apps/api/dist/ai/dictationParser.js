@@ -134,9 +134,11 @@ export async function parseDictationWithLLM(transcript, context, timeZone) {
             const payload = await response.json().catch(() => ({}));
             if (!response.ok)
                 throw new Error("LLM Error");
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             const content = payload.choices?.[0]?.message?.content;
             if (!content)
                 throw new Error("Empty LLM response");
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             let parsed;
             try {
                 parsed = JSON.parse(content.trim());

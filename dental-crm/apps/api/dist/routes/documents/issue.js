@@ -1,14 +1,14 @@
 import { issueDocumentSchema, publicGeneratedDocumentSchema, } from "@dental/shared";
-import { requireClinicalMutationAccess, } from "../../accessGuard.js";
+import { requireClinicalMutationAccess } from "../../accessGuard.js";
 import { getDocumentById, issueGeneratedDocumentInDb, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
 import { paymentRefundCorrectionSelectionErrorForDocument } from "../../documents/guards.js";
 import { settleRefundedPaymentsForPatient } from "../../documents/refundSettlement.js";
-import { renderDocumentHtml, } from "../../documents/renderDocument.js";
+import { documentIssueBlockReason, renderDocumentHtml, } from "../../documents/renderDocument.js";
 import { buildTaxPaymentSnapshotForIssue, taxDocumentUsesPaymentSnapshot, } from "../../documents/taxPaymentSnapshot.js";
 import { getRequestIdentity, requireOrganizationId, } from "../../security/identity.js";
 import { repairMojibakeDeep, repairMojibakeText, } from "../../text/repairMojibake.js";
-import { apiError, buildMedicalDocumentReleaseJournalEntry, documentIssueBlockReason, documentIssueChainBlockReason, documentIssueValidationMessage, findIssuedDuplicateTaxCertificate, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotForIssue, } from "./shared.js";
+import { apiError, buildMedicalDocumentReleaseJournalEntry, documentIssueChainBlockReason, documentIssueValidationMessage, findIssuedDuplicateTaxCertificate, resolveDocumentRenderContext, taxSnapshotDocument, taxXmlSourceSnapshotForIssue, } from "./shared.js";
 export async function register(app) {
     app.post("/api/documents/:id/issue", async (request, reply) => {
         if (!(await requireClinicalMutationAccess(request, reply, "document issue")))

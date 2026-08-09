@@ -155,7 +155,7 @@ export const getToothPath = (toothId) => {
         return TOOTH_GEOMETRY.LOWER_MOLAR;
     }
 };
-export const getToothConfig = (toothId) => {
+const _getToothConfig = (toothId) => {
     const num = toothId % 10;
     if (num <= 2)
         return { width: 36, height: 56, viewWidth: 100, viewHeight: 150 };

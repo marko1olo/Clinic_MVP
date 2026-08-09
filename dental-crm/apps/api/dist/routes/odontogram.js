@@ -298,14 +298,14 @@ export async function registerOdontogramRoutes(app) {
                 surfaces: toothStates.surfaces,
             })
                 .from(toothStates)
-                .where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
+                .where(and(eq(toothStates.organizationId, organizationId), eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
             const previousByTooth = new Map(previousStates.map((row) => [
                 row.toothNumber,
                 row,
             ]));
             await tx
                 .delete(toothStates)
-                .where(and(eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
+                .where(and(eq(toothStates.organizationId, organizationId), eq(toothStates.patientId, patientId), inArray(toothStates.toothNumber, toothNumbers)));
             // Историю пишем в ТОЙ ЖЕ транзакции: смена состояния и запись
             // о ней либо происходят вместе, либо не происходят вовсе.
             const changedTeeth = toothNumbers.filter((toothNumber) => {
@@ -433,6 +433,7 @@ export async function registerOdontogramRoutes(app) {
                         return null;
                     if (existing.patientSignature) {
                         const err = new Error("Запрещено изменять подписанный план лечения. Создайте новый.");
+                        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                         err.statusCode = 409;
                         throw err;
                     }
@@ -603,6 +604,7 @@ export async function registerOdontogramRoutes(app) {
                     const blockingRule = evaluation.evaluations.find((e) => !e.resolved && e.severity === "blocker");
                     if (blockingRule) {
                         const err = new Error(`Отказ: план содержит противопоказание. ${blockingRule.message}`);
+                        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                         err.statusCode = 400;
                         throw err;
                     }
@@ -674,6 +676,7 @@ export async function registerOdontogramRoutes(app) {
                 }
                 return savedPlanId;
             });
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (err) {
             if (err.statusCode) {

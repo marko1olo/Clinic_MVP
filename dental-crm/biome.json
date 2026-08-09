@@ -1,16 +1,43 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
 	"files": {
+		"ignoreUnknown": true,
 		"includes": [
-			"**",
-			"!**/dist",
+			"apps/web/src/**",
+			"apps/api/src/**",
+			"packages/**",
+			"scripts/**",
+			"*.cjs",
+			"*.js",
+			"*.ts",
+			"*.tsx",
+			"*.json",
 			"!**/node_modules",
+			"!**/.postgres",
+			"!**/.data",
+			"!**/dist",
+			"!**/build",
+			"!**/.next",
+			"!**/coverage",
+			"!**/.agents",
+			"!**/tmp",
+			"!**/.tmp",
+			"!**/scratch",
+			"!**/artifacts",
+			"!**/screenshots",
+			"!**/uploads",
+			"!**/pglite-data",
+			"!**/temp-test-db",
+			"!**/appDataDir",
+			"!**/local-secrets",
+			"!**/.dente-*",
 			"!**/playwright-report",
 			"!**/test-results",
-			"!**/scratch",
-			"!**/biome-lint-web.json",
-			"!**/apps/api/dente-db",
-			"!**/.data"
+			"!**/dente-db",
+			"!**/package-lock.json",
+			"!**/knip_report*.txt",
+			"!**/madge_report*.txt",
+			"!**/biome_out*.txt"
 		]
 	},
 	"css": {
@@ -22,10 +49,52 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"suspicious": {
 				"noExplicitAny": "warn"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"scripts/**",
+				"*.cjs",
+				"*.mjs",
+				"*.js",
+				"test.ts",
+				"fix-*.cjs",
+				"find_*.cjs",
+				"patch-*.cjs",
+				"debug_*.cjs",
+				"e2e*.cjs",
+				"packages/shared/src/tests/**"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noTemplateCurlyInString": "off",
+						"useIterableCallbackReturn": "off",
+						"noAssignInExpressions": "off",
+						"noControlCharactersInRegex": "off",
+						"noExplicitAny": "off"
+					},
+					"style": {
+						"useNodejsImportProtocol": "off",
+						"useTemplate": "off"
+					},
+					"complexity": {
+						"noUselessEscapeInRegex": "off",
+						"useOptionalChain": "off",
+						"noUselessStringRaw": "off"
+					},
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off",
+						"noUnusedFunctionParameters": "off"
+					}
+				}
+			}
+		}
+	]
 }

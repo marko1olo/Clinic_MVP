@@ -1,9 +1,9 @@
-import { requireClinicalReadAccess, } from "../../accessGuard.js";
+import { requireClinicalReadAccess } from "../../accessGuard.js";
 import { getDocumentById, readIssuedDocumentSnapshot, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
-import { renderDocumentHtml, } from "../../documents/renderDocument.js";
+import { documentIssueBlockReason, renderDocumentHtml, } from "../../documents/renderDocument.js";
 import { requireOrganizationId } from "../../security/identity.js";
-import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentIssueBlockReason, documentIssueChainBlockReason, documentRequiresIssuedArchive, issuedArchiveIntegrityError, resolveDocumentRenderContext, } from "./shared.js";
+import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentIssueChainBlockReason, documentRequiresIssuedArchive, issuedArchiveIntegrityError, resolveDocumentRenderContext, } from "./shared.js";
 export async function register(app) {
     app.get("/api/documents/:id/html", async (request, reply) => {
         if (!(await requireClinicalReadAccess(request, reply, "document html")))

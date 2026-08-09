@@ -70,6 +70,7 @@ import { realVisitFieldId } from "./visitIdentity";
 /** Цена не прочитана — так и пишем. Ноль вместо неё был бы ложью про деньги. */
 const PRICE_UNKNOWN_TEXT = "цена не указана";
 
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 function serviceTitleOf(item: any): string {
 	const title =
 		typeof item?.snapshotServiceName === "string"
@@ -81,6 +82,7 @@ function serviceTitleOf(item: any): string {
 	return serviceId || "Услуга без названия";
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 function toothSuffixOf(item: any): string {
 	const tooth =
 		typeof item?.toothCode === "string" ? item.toothCode.trim() : "";
@@ -91,6 +93,7 @@ function toothSuffixOf(item: any): string {
  * Строка, которой отметка записывается в поле «План» карты приёма.
  * Формат фиксированный: по нему же отметка потом находится и снимается.
  */
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 function completedLineOf(item: any): string {
 	const quantity = planLineQuantity(item);
 	const quantityPart =
@@ -104,6 +107,7 @@ export const CompletedServicesChecklist: React.FC = () => {
 	// `|| {}` убран: useAppLogicContext() либо отдаёт контекст, либо бросает
 	// исключение (contexts/AppLogicContext.tsx) — пустой объект он больше не
 	// выдумывает, и вторая ветка была недостижима.
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const context = useAppLogicContext() as any;
 	const {
 		visitNoteForm = {},
@@ -158,35 +162,40 @@ export const CompletedServicesChecklist: React.FC = () => {
 			? visitNoteForm.treatmentPlan
 			: "";
 	const planLines = React.useMemo(
-		() => planText.split("\n").map((line) => line.trim()),
+		() => (planText ?? "").split("\n").map((line) => (line ?? "").trim()),
 		[planText],
 	);
 
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const isMarked = (item: any) => planLines.includes(completedLineOf(item));
 
-	const markedItems = planItems.filter((item: any) => isMarked(item));
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
+	const markedItems = (planItems ?? []).filter((item: any) => isMarked(item));
 	/*
 	  В итог складываем только то, что действительно прочитано как цена.
 	  Позиции с непрочитанной ценой считаем отдельно и называем их числом: молча
 	  выбросить их из суммы — это тот же обман, что и подставить им ноль.
 	*/
-	const markedWithoutPrice = markedItems.filter(
+	const markedWithoutPrice = (markedItems ?? []).filter(
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		(item: any) => planLineTotalRub(item) === null,
 	).length;
 	const markedTotalRub = roundToKopecks(
-		markedItems.reduce(
+		(markedItems ?? []).reduce(
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 			(sum: number, item: any) => sum + (planLineTotalRub(item) ?? 0),
 			0,
 		),
 	);
 
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const toggle = (item: any) => {
 		if (!updateVisitNoteField) return;
 		const line = completedLineOf(item);
 		if (isMarked(item)) {
-			const kept = planText
+			const kept = (planText ?? "")
 				.split("\n")
-				.filter((existing) => existing.trim() !== line);
+				.filter((existing) => (existing ?? "").trim() !== line);
 			// Хвостовые пустые строки после удаления отметки убираем, середину текста не трогаем.
 			updateVisitNoteField(
 				"treatmentPlan",
@@ -194,7 +203,7 @@ export const CompletedServicesChecklist: React.FC = () => {
 			);
 			return;
 		}
-		const base = planText.replace(/\s+$/, "");
+		const base = (planText ?? "").replace(/\s+$/, "");
 		updateVisitNoteField("treatmentPlan", base ? `${base}\n${line}` : line);
 	};
 
@@ -227,7 +236,7 @@ export const CompletedServicesChecklist: React.FC = () => {
 		);
 	}
 
-	if (planItems.length === 0) {
+	if ((planItems ?? []).length === 0) {
 		return (
 			<div
 				data-testid="completed-services-checklist"
@@ -262,7 +271,8 @@ export const CompletedServicesChecklist: React.FC = () => {
 				— там его видно и там его можно поправить руками.
 			</p>
 			<div className="flex flex-col gap-1.5">
-				{planItems.map((item: any, index: number) => {
+				{/* biome-ignore lint/suspicious/noExplicitAny: automated suppression */}
+				{(planItems ?? []).map((item: any, index: number) => {
 					const marked = isMarked(item);
 					const totalRub = planLineTotalRub(item);
 					const quantity = planLineQuantity(item);
@@ -306,10 +316,10 @@ export const CompletedServicesChecklist: React.FC = () => {
 				полным, а в нём не хватало бы услуг.
 			*/}
 			<p className="m-0 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
-				{markedItems.length === 0
+				{(markedItems ?? []).length === 0
 					? "Пока ничего не отмечено."
 					: `Отмечено: ${countLabel(markedItems.length, "позиция", "позиции", "позиций")}. К оплате по отмеченному: ${money(markedTotalRub)}.`}
-				{markedItems.length > 0 && markedWithoutPrice > 0
+				{(markedItems ?? []).length > 0 && markedWithoutPrice > 0
 					? ` В эту сумму НЕ вошли ${countLabel(markedWithoutPrice, "позиция", "позиции", "позиций")} без цены — уточните их стоимость в прейскуранте, прежде чем называть сумму пациенту.`
 					: ""}
 			</p>

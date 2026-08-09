@@ -1,5 +1,5 @@
 import { createDocumentSchema, publicGeneratedDocumentSchema, } from "@dental/shared";
-import { requireClinicalMutationAccess, } from "../../accessGuard.js";
+import { requireClinicalMutationAccess } from "../../accessGuard.js";
 import { getPaymentsByPatientIdInDb } from "../../db/billingQuery.js";
 import { getTreatmentPlanItemsForPatient } from "../../db/clinicalQuery.js";
 import { createGeneratedDocumentInDb, getDocumentsByPatientId, } from "../../db/documentQuery.js";

@@ -306,7 +306,7 @@ function promptTermsForSpecialty(specialty) {
         ...baseTerms.slice(40),
     ]).slice(0, 72);
 }
-function sourceHint(source) {
+function _sourceHint(source) {
     if (source === "visit")
         return "Диктовка приема у кресла.";
     if (source === "import")
@@ -326,9 +326,9 @@ function trimPrompt(value, maxBytes) {
     const clipped = value.slice(0, end);
     const lastComma = clipped.lastIndexOf(",");
     if (lastComma > 0) {
-        return clipped.slice(0, lastComma).trimEnd() + ".";
+        return `${clipped.slice(0, lastComma).trimEnd()}.`;
     }
-    return clipped.trimEnd() + ".";
+    return `${clipped.trimEnd()}.`;
 }
 export function buildDentalSttPrompt(input) {
     if (!promptEnabled() || !promptProviders.includes(input.providerId))

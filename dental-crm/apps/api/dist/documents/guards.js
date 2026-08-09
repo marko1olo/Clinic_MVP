@@ -335,7 +335,7 @@ export function paymentReceiptSelectionErrorForDocument(input, payments) {
  * «остался почти ноль» и НАВСЕГДА остаётся в выручке клиники. В целых копейках
  * равенство точное, и такой чек уходит из выручки, как и должен.
  */
-export function alreadyRefundedKopecksForPayment(paymentId, documents, excludeDocumentId) {
+function alreadyRefundedKopecksForPayment(paymentId, documents, excludeDocumentId) {
     if (!documents?.length)
         return 0;
     const refundedKopecks = [];

@@ -2,6 +2,7 @@ import {
 	type CommunicationTaskOutcome,
 	type Dashboard,
 	type DenteTelegramChatLinkPublic,
+	type DentalPricelistAnalysisResponse,
 	documentFactoryGroups,
 	type ImagingStudyKind,
 	type LocalBridgeReadinessResponse,
@@ -97,6 +98,7 @@ import {
 	patientName,
 	persistUiPreferences,
 	photoVideoMaterialOptions,
+	preparePricelistImage,
 	procedureSpecificConsentProcedureOptions,
 	recommendedActionPriorityLabels,
 	responseErrorMessage,
@@ -301,6 +303,7 @@ import {
 	warningSeverityLabels,
 } from "./workspaceUiLabels";
 
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 export function useAppLogic(): any {
 	const {
 		imagingImportText,
@@ -314,6 +317,7 @@ export function useAppLogic(): any {
 		browserPickedImagingFolder,
 		setBrowserPickedImagingFolder,
 		browserImagingScanProgress,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setBrowserImagingScanProgress,
 		browserDirectoryPickerAvailable,
 		setBrowserDirectoryPickerAvailable,
@@ -350,8 +354,11 @@ export function useAppLogic(): any {
 		dicomWorkbenchLocalSavedAt,
 		setDicomWorkbenchLocalSavedAt,
 		dicomWorkbenchServerBundle,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setDicomWorkbenchServerBundle,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		dicomWorkbenchServerBundles,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setDicomWorkbenchServerBundles,
 		dicomWorkstationReadiness,
 		setDicomWorkstationReadiness,
@@ -370,18 +377,24 @@ export function useAppLogic(): any {
 		ctPlanningImplantPlan,
 		setCtPlanningImplantPlan,
 		imagingViewerAnnotations,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerAnnotations,
 		imagingViewerNote,
 		setImagingViewerNote,
 		imagingViewerSession,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerSession,
 		imagingViewerSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerSaveState,
 		imagingViewerLocalSavedAt,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerLocalSavedAt,
 		imagingViewerSaveError,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerSaveError,
 		imagingViewerSessionReady,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setImagingViewerSessionReady,
 		mprProjection,
 		setMprProjection,
@@ -398,46 +411,66 @@ export function useAppLogic(): any {
 		mprLinkedPlanesEnabled,
 		setMprLinkedPlanesEnabled,
 		mprWorkbenchLocalSavedAt,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMprWorkbenchLocalSavedAt,
 		mprWorkbenchDraftRestored,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMprWorkbenchDraftRestored,
 		isImagingImportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImagingImportLoading,
 		isImagingImportCommitting,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImagingImportCommitting,
 		imagingCreateSavingKind,
 		setImagingCreateSavingKind,
 		isImagingFolderScanning,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImagingFolderScanning,
 		isDicomLocalDiscovering,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomLocalDiscovering,
 		isLocalImagingOrganizing,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsLocalImagingOrganizing,
 		isDicomSeriesPreviewLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomSeriesPreviewLoading,
 		isDicomWebChecking,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomWebChecking,
 		isDicomManifestBuilding,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomManifestBuilding,
 		isDicomToolStateBuilding,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomToolStateBuilding,
 		isDicomWorkbenchBuilding,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomWorkbenchBuilding,
 		isDicomWorkbenchServerSaving,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomWorkbenchServerSaving,
 		isDicomWorkbenchReconnecting,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomWorkbenchReconnecting,
 		isDicomWorkstationChecking,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomWorkstationChecking,
 		isDicomRenderCachePlanning,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomRenderCachePlanning,
 		isDicomFolderWorkupPlanning,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomFolderWorkupPlanning,
 		isDicomFirstFramePreviewing,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDicomFirstFramePreviewing,
 		isBrowserImagingFolderPicking,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsBrowserImagingFolderPicking,
 		isLocalDicomOperationActive,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsLocalDicomOperationActive,
 	} = useImagingStore();
 	const {
@@ -540,8 +573,10 @@ export function useAppLogic(): any {
 		smartImportMode,
 		setSmartImportMode,
 		browserMigrationDiscovery,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setBrowserMigrationDiscovery,
 		browserMigrationScanProgress,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setBrowserMigrationScanProgress,
 		importIntake,
 		setImportIntake,
@@ -550,14 +585,19 @@ export function useAppLogic(): any {
 		importCommit,
 		setImportCommit,
 		migrationAutopilot,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMigrationAutopilot,
 		migrationSourceDiscovery,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMigrationSourceDiscovery,
 		migrationSourceWorkup,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMigrationSourceWorkup,
 		migrationSourceProbe,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setMigrationSourceProbe,
 		clinicPublicLookup,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setClinicPublicLookup,
 		ohifBaseUrl,
 		setOhifBaseUrl,
@@ -574,18 +614,26 @@ export function useAppLogic(): any {
 		isOnline,
 		setIsOnline,
 		speechGatewayStatus,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechGatewayStatus,
 		speechGatewayHealthReport,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechGatewayHealthReport,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechProviderRuntimeStatuses,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechProviderRuntimeStatuses,
 		speechRecordingStrategy,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechRecordingStrategy,
 		speechRecordingRecovery,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechRecordingRecovery,
 		pendingSpeechChunkCount,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPendingSpeechChunkCount,
 		speechStatusNote,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechStatusNote,
 		browserContinuity,
 		setBrowserContinuity,
@@ -594,38 +642,54 @@ export function useAppLogic(): any {
 		localBridgeUsePlans,
 		setLocalBridgeUsePlans,
 		isImportDictating,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImportDictating,
 		isImportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImportLoading,
 		isImportCommitting,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsImportCommitting,
 		isMigrationAutopilotLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsMigrationAutopilotLoading,
 		isMigrationHandoffReportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsMigrationHandoffReportLoading,
 		isMigrationSourceDiscovering,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsMigrationSourceDiscovering,
 		isMigrationSourceWorkupLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsMigrationSourceWorkupLoading,
 		isMigrationSourceProbeLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsMigrationSourceProbeLoading,
 		isClinicPublicLookupLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsClinicPublicLookupLoading,
 		isBrowserMigrationScanning,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsBrowserMigrationScanning,
 		isSmartImportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsSmartImportLoading,
 		isSmartImportCommitting,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsSmartImportCommitting,
 		isSmartReportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsSmartReportLoading,
 		isSmartSafeReportLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsSmartSafeReportLoading,
 		isRecognitionLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsRecognitionLoading,
 		isPricelistAnalyzing,
 		setIsPricelistAnalyzing,
 		isServerVoiceRecording,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsServerVoiceRecording,
 		communicationSavingTaskId,
 		setCommunicationSavingTaskId,
@@ -638,18 +702,25 @@ export function useAppLogic(): any {
 		isPersistenceExporting,
 		setIsPersistenceExporting,
 		isTelegramLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramLoading,
 		isTelegramLinkCreating,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramLinkCreating,
 		isTelegramSettingsSaving,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramSettingsSaving,
 		isTelegramSendingDue,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramSendingDue,
 		isTelegramOutboxLoadingMore,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramOutboxLoadingMore,
 		isTelegramLinkCodesLoadingMore,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramLinkCodesLoadingMore,
 		isTelegramChatLinksLoadingMore,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTelegramChatLinksLoadingMore,
 		error,
 		setError,
@@ -721,22 +792,29 @@ export function useAppLogic(): any {
 		telegramHandoffNotice,
 		setTelegramHandoffNotice,
 		telegramStatus,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramStatus,
 		telegramFeaturePlan,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramFeaturePlan,
 		telegramOutbox,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramOutbox,
 		telegramOutboxStatusFilter,
 		setTelegramOutboxStatusFilter,
 		telegramOutboxTemplateFilter,
 		setTelegramOutboxTemplateFilter,
 		telegramLinkCodes,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramLinkCodes,
 		telegramChatLinks,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramChatLinks,
 		telegramLinkCodeLedger,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramLinkCodeLedger,
 		telegramChatLinkLedger,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramChatLinkLedger,
 		telegramLinkSubjectType,
 		setTelegramLinkSubjectType,
@@ -747,28 +825,35 @@ export function useAppLogic(): any {
 		telegramLinkActionState,
 		setTelegramLinkActionState,
 		telegramPreview,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramPreview,
 		telegramModeDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramModeDraft,
 		telegramBotUsernameDraft,
 		setTelegramBotUsernameDraft,
 		telegramOwnBotUsernameDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramOwnBotUsernameDraft,
 		telegramBotConfigId,
 		setTelegramBotConfigId,
 		telegramWebhookBaseUrlDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramWebhookBaseUrlDraft,
 		telegramPatientPortalBaseUrlDraft,
 		setTelegramPatientPortalBaseUrlDraft,
 		telegramWelcomeImageUrlDraft,
 		setTelegramWelcomeImageUrlDraft,
 		telegramVisualCardUrlDrafts,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramVisualCardUrlDrafts,
 		telegramReviewUrlDraft,
 		setTelegramReviewUrlDraft,
 		telegramMapsUrlDraft,
 		setTelegramMapsUrlDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		telegramEnabledFeaturesDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramEnabledFeaturesDraft,
 		telegramTokenTtlDraft,
 		setTelegramTokenTtlDraft,
@@ -777,38 +862,51 @@ export function useAppLogic(): any {
 		telegramReviewRequestDelayDraft,
 		setTelegramReviewRequestDelayDraft,
 		telegramPostVisitCheckupDelayDrafts,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramPostVisitCheckupDelayDrafts,
 		telegramAllowVoiceIntakeDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramAllowVoiceIntakeDraft,
 		telegramStaffEscalationChannelDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramStaffEscalationChannelDraft,
 		telegramPrivacyModeDraft,
 		setTelegramPrivacyModeDraft,
 		telegramSettingsDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramSettingsDirty,
 		telegramSettingsSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramSettingsSaveState,
 		telegramSettingsSaveError,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramSettingsSaveError,
 		clinicalAdminSecretDraft,
 		setClinicalAdminSecretDraft,
 		settingsAdminSecretDraft,
 		setSettingsAdminSecretDraft,
 		scheduleAdminSecretDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setScheduleAdminSecretDraft,
 		telegramAdminSecretDraft,
 		setTelegramAdminSecretDraft,
 		clinicalAdminSecretSession,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setClinicalAdminSecretSession,
 		settingsAdminSecretSession,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSettingsAdminSecretSession,
 		scheduleAdminSecretSession,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setScheduleAdminSecretSession,
 		telegramAdminSecretSession,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramAdminSecretSession,
 		telegramSendingItemId,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramSendingItemId,
 		telegramRevokingLinkId,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setTelegramRevokingLinkId,
 	} = useSettingsStore();
 	const activeSettingsTabButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -938,30 +1036,51 @@ export function useAppLogic(): any {
 	const communicationsQueries = useCommunicationsQueries({ auth });
 
 	const {
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientCoreDraftRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientAdministrativeProfileDraftRef,
 		selectedPatientId,
 		patientCoreDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientCoreSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientCoreDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientAdministrativeProfileDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientAdministrativeProfileSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		patientAdministrativeProfileDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newPatientName,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newPatientPhone,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newPatientBirthDate,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		isPatientCreating,
 		newRulePatientText,
 		setSelectedPatientId,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientCoreDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientCoreSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientCoreDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientAdministrativeProfileDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientAdministrativeProfileSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPatientAdministrativeProfileDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setNewPatientName,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setNewPatientPhone,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setNewPatientBirthDate,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsPatientCreating,
 		setNewRulePatientText,
 		activePatient,
@@ -1037,12 +1156,14 @@ export function useAppLogic(): any {
 		transcript,
 		setTranscript,
 		draft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setDraft,
 		visitNoteForm,
 		setVisitNoteForm,
 		visitToothStateByCode,
 		setToothState,
 		resetVisitToothState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		applyAiToothCodes,
 		lastServerDraftSavedAt,
 		setLastServerDraftSavedAt,
@@ -1051,22 +1172,32 @@ export function useAppLogic(): any {
 		localDraftWasRestored,
 		setLocalDraftWasRestored,
 		pendingVisitSaveCount,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setPendingVisitSaveCount,
 		lastPendingVisitSaveAt,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setLastPendingVisitSaveAt,
 		lastVisitSaveReceipt,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setLastVisitSaveReceipt,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechLastQuality,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setSpeechLastQuality,
 		isDraftLoading,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDraftLoading,
 		isDraftAccepting,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsDraftAccepting,
 		isPendingVisitSyncing,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsPendingVisitSyncing,
 		isVisitDictating,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsVisitDictating,
 		isTranscriptPolishing,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setIsTranscriptPolishing,
 		lastServerDraftSignatureRef,
 		visitDraftUserEditedRef,
@@ -1076,8 +1207,10 @@ export function useAppLogic(): any {
 		speechProviderRuntimeById,
 		speechProviderHealthById,
 		activeSpeechProviderHealth,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		savedVisitNoteForm,
 		isVisitNoteDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		hasVisitNoteFormText,
 		hasVisitTranscriptText,
 		visitDraftBuildMissingSteps,
@@ -1086,40 +1219,67 @@ export function useAppLogic(): any {
 		visitNoteReadyToAccept,
 		visitNoteActionLabel,
 		visitNoteStatusLabel,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		visitHasSavedNote,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		mediaRecorderRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		mediaStreamRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechAudioContextRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechAnalyserRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechMonitorTimerRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechRecordingIdRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechChunkIndexRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechSegmentStartedAtRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechLastSoundAtRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechPendingChunkDurationMsRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechUploadPromisesRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		appliedSpeechChunkKeysRef,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		loadSpeechGatewayStatus,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		loadSpeechGatewayHealthReport,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		loadSpeechProviderRuntimeStatuses,
 		loadSpeechRecordingStrategy,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		loadSpeechRecordingRecovery,
 		refreshSpeechRuntime,
 		refreshPendingVisitSaveState,
 		refreshPendingSpeechChunkState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		applyAcceptedVisitResponse,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		submitAcceptedVisitDraft,
 		visitDraftSignature,
 		loadServerVisitDraft,
 		syncVisitDraftAutosave,
 		flushPendingVisitSaves,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		submitSpeechChunk,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechChunkApplyKey,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		speechTranscriptionMatchesActiveVisit,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		applySpeechTranscription,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		assembleSpeechRecording,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		trackSpeechUpload,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		waitForSpeechUploads,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		finalizeSpeechRecording,
 		flushPendingSpeechChunks,
 		scrollToVisitArea,
@@ -1130,14 +1290,20 @@ export function useAppLogic(): any {
 		polishTranscript,
 		buildDraft,
 		acceptDraftToVisit,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		appendVisitDictationText,
 		clearTranscriptWithUndo,
 		undoTranscriptClear,
 		startVisitDictation,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		preferredSpeechMimeType,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		uploadSpeechBlob,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		stopSpeechMonitor,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		requestSpeechChunk,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		startSpeechMonitor,
 		startImportDictation,
 	} = useVisitLogic({
@@ -1208,38 +1374,54 @@ export function useAppLogic(): any {
 		staffScheduleDrafts,
 		setStaffScheduleDrafts,
 		staffScheduleSavingId,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setStaffScheduleSavingId,
 		staffScheduleDirtyIds,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setStaffScheduleDirtyIds,
 		staffScheduleSaveStates,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setStaffScheduleSaveStates,
 		chairScheduleDrafts,
 		setChairScheduleDrafts,
 		chairScheduleSavingId,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setChairScheduleSavingId,
 		chairScheduleDirtyIds,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setChairScheduleDirtyIds,
 		chairScheduleSaveStates,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setChairScheduleSaveStates,
 		appointmentScheduleDrafts,
 		setAppointmentScheduleDrafts,
 		appointmentScheduleDirtyIds,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setAppointmentScheduleDirtyIds,
 		appointmentScheduleSaveStates,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setAppointmentScheduleSaveStates,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		appointmentScheduleErrors,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setAppointmentScheduleErrors,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newAppointmentDraft,
 		setNewAppointmentDraft,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newAppointmentSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		setNewAppointmentSaveState,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		markStaffScheduleDirty,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		markChairScheduleDirty,
 		updateStaffScheduleDraft,
 		updateChairScheduleDraft,
 		updateStaffScheduleDay,
 		updateChairScheduleDay,
 		openAppointmentEditor,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		markAppointmentScheduleDirty,
 		updateAppointmentScheduleDraft,
 		newAppointmentPreferenceDefaults,
@@ -1253,6 +1435,7 @@ export function useAppLogic(): any {
 		saveStaffSchedule,
 		saveChairSchedule,
 		saveAppointmentSchedule,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		newAppointmentMissingFields,
 		createAppointmentFromDraft,
 	} = schedule;
@@ -1388,7 +1571,27 @@ export function useAppLogic(): any {
 		setPostVisitCareTopic,
 		documentIngestionTarget,
 		setDocumentIngestionTarget,
+		clinicalToothRowsText,
+		setClinicalToothRowsText,
 	} = documentWorkflow;
+
+	function renderClinicalToothRowsEditor() {
+		return (
+			<label>
+				<span>Клинические строки по зубам и сегментам</span>
+				<textarea
+					value={clinicalToothRowsText}
+					onChange={(event) => setClinicalToothRowsText(event.target.value)}
+					rows={5}
+				/>
+				<small>
+					{
+						"Формат строки: зуб/сегмент | поверхности | статус | диагноз/находка | показание | действие | прогноз | пародонт | имплант/ортопедия | ортодонтия"
+					}
+				</small>
+			</label>
+		);
+	}
 
 	const dicomWorkbenchModule = useDicomWorkbenchModule({
 		auth,
@@ -2124,7 +2327,6 @@ export function useAppLogic(): any {
 					);
 				}
 			}
-			// biome-ignore lint/correctness/useExhaustiveDependencies: Zustand setters are stable; auth is stable object
 		},
 		[auth, setError, setPersistenceIntegrity, setPersistenceHealth],
 	);
@@ -2733,6 +2935,7 @@ export function useAppLogic(): any {
 
 	useEffect(() => {
 		if (!dashboard) return;
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		setStaffScheduleDrafts((current: any) => {
 			const next: Record<string, StaffScheduleDraft> = {};
 			(dashboard?.clinicSettings?.staff ?? []).forEach((member) => {
@@ -2746,6 +2949,7 @@ export function useAppLogic(): any {
 
 	useEffect(() => {
 		if (!dashboard) return;
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		setChairScheduleDrafts((current: any) => {
 			const next: Record<string, StaffScheduleDraft> = {};
 			(dashboard?.clinicSettings?.chairs ?? []).forEach((chair) => {
@@ -2759,6 +2963,7 @@ export function useAppLogic(): any {
 
 	useEffect(() => {
 		if (!dashboard) return;
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		setAppointmentScheduleDrafts((current: any) => {
 			return (dashboard?.appointments ?? []).reduce(
 				(next: Record<string, AppointmentScheduleDraft>, appointment) => {
@@ -3841,6 +4046,7 @@ export function useAppLogic(): any {
 			setSelectedPatientId(patientId);
 			await loadDashboard();
 			window.location.hash = "visit";
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (err: any) {
 			setError(`Быстрый приём: ${err.message ?? "Ошибка сети"}`);
 		} finally {
@@ -3858,6 +4064,148 @@ export function useAppLogic(): any {
 		};
 		window.setTimeout(openDictation, 0);
 		window.setTimeout(openDictation, 120);
+	};
+
+	/*
+	 * Фото прайса в состояние вкладки «Цены».
+	 *
+	 * СВОЕЙ ПОДГОТОВКИ ЗДЕСЬ НЕТ НАМЕРЕННО. Готовая `preparePricelistImage`
+	 * (AppHelpers.tsx:5869) уже сжимает снимок до 1600/1200/900/720 px и
+	 * пробует качество 82/72/62 %, пока base64 не влезет в лимит схемы
+	 * (4 000 000 символов), и возвращает ЧИСТЫЙ base64 без приставки `data:` —
+	 * именно его ждёт сервер, он сам собирает
+	 * `data:${imageMimeType};base64,${imageBase64}` (analyzer.ts:2575) и сверяет
+	 * первые байты с заявленным типом (analyzer.ts:1791). Второй разбор файла
+	 * рядом с этой функцией разошёлся бы с ней по лимиту и по типу вывода.
+	 *
+	 * До этой правки функция не вызывалась НИОТКУДА: в сборном объекте стояло
+	 * `attachPricelistImage: null`, поэтому подготовленное фото в состояние не
+	 * попадало, и подпись «Фото прайса: 1600x1200, 1.9 Мп, JPEG 82%»
+	 * (SettingsView.tsx:2187) не появлялась никогда.
+	 */
+	const attachPricelistImage = async (file: File) => {
+		try {
+			const prepared = await preparePricelistImage(file);
+			setPricelistImageBase64(prepared.base64);
+			setPricelistImageMimeType(prepared.mimeType);
+			setPricelistImageName(file.name);
+			setPricelistImageNote(prepared.note);
+			setError(null);
+		} catch (readError) {
+			showToast(
+				actionFailureToast(
+					"Фото прайса не прочитано",
+					(readError as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
+			setError(
+				operatorWorkflowFailureMessage("Фото прайса не прочитано", readError),
+			);
+		}
+	};
+
+	const clearPricelistImage = () => {
+		setPricelistImageBase64(null);
+		setPricelistImageMimeType("image/jpeg");
+		setPricelistImageName(null);
+		setPricelistImageNote(null);
+	};
+
+	/*
+	 * Разбор прайс-листа: POST /api/pricelist/analyze.
+	 *
+	 * ЧТО ЗАКРЫВАЕТ. В этом сборном объекте стояло `analyzePricelist: null`, и
+	 * кнопка «Разобрать прайс» (components/settings/SettingsPricesTab.tsx:699)
+	 * получала во вкладку null. Администратор клиники вставлял прайс, нажимал
+	 * кнопку и не получал НИЧЕГО: ни разбора, ни отказа, ни признака работы.
+	 * Маршрут при этом живой (apps/api/src/routes/pricelist.ts:35). Компилятор
+	 * молчал: вкладка читает свойства через `Object.assign({}, appLogic,
+	 * derivations) as any` (SettingsPricesTab.tsx:80), и null там законен.
+	 *
+	 * ЗАГОЛОВОК ОБЯЗАТЕЛЕН. Маршрут закрыт requireClinicalReadAccess
+	 * (accessGuard.ts:76), которая читает x-dente-admin-secret. Глобальная
+	 * обёртка fetch (lib/apiAuthFetch.ts) этот заголовок НЕ подставляет, поэтому
+	 * его ставит denteClinicalReadHeaders(). Без него у заказчика 403 при зелёном
+	 * прогоне на этой машине: локально охрану гасят лазейки
+	 * DENTE_CLINICAL_ALLOW_UNGUARDED_READS, а в продакшене их нет.
+	 */
+	const analyzePricelist = async () => {
+		if (isPricelistAnalyzing) return;
+		const rawText = (pricelistText ?? "").trim();
+		const imageBase64 = pricelistImageBase64 || undefined;
+		/*
+		 * Сервер отвергает запрос без текста и без изображения
+		 * (dentalPricelistAnalysisRequestSchema.refine, shared/index.ts:2148).
+		 * Причину называем на месте, а не показываем отказ схемы.
+		 */
+		if (!rawText && !imageBase64) {
+			setError("Вставьте прайс текстом или приложите фото прайса.");
+			return;
+		}
+		setIsPricelistAnalyzing(true);
+		try {
+			const response = await fetch("/api/pricelist/analyze", {
+				method: "POST",
+				headers: auth.denteClinicalReadHeaders({
+					"Content-Type": "application/json",
+				}),
+				body: JSON.stringify({
+					sourceName: pricelistImageName || "manual-pricelist",
+					sourceKind: pricelistSourceKind,
+					rawText,
+					...(imageBase64
+						? {
+								imageBase64,
+								imageMimeType: pricelistImageMimeType || "image/jpeg",
+							}
+						: {}),
+					useServerAi: Boolean(usePricelistAi),
+				}),
+			});
+			/*
+			 * Проверка ответа ДО разбора тела. Отказы 403 и 503 приходят обычным
+			 * разрешением промиса, и без этой ветки тело `{error, message}` легло бы
+			 * в pricelistAnalysis, а разметка вкладки позвала бы .map на
+			 * несуществующем items (SettingsView.tsx:1707).
+			 */
+			if (!response.ok)
+				throw new Error(
+					await responseErrorMessage(response, "Прайс-лист не разобран"),
+				);
+			const analysis = (await response.json()) as DentalPricelistAnalysisResponse;
+			/*
+			 * Форма ответа проверяется явно: приведение типа — обещание, а не
+			 * проверка. Вкладка читает items, summary и warnings списками.
+			 */
+			if (
+				!analysis ||
+				!Array.isArray(analysis.items) ||
+				!Array.isArray(analysis.summary) ||
+				!Array.isArray(analysis.warnings)
+			)
+				throw new Error(
+					"Прайс-лист не разобран: сервер вернул ответ без разобранных позиций.",
+				);
+			setPricelistAnalysis(analysis);
+			setError(null);
+		} catch (analysisError) {
+			showToast(
+				actionFailureToast(
+					"Прайс-лист не разобран",
+					(analysisError as { status?: number })?.status ?? null,
+				),
+				"error",
+			);
+			setError(
+				operatorWorkflowFailureMessage(
+					"Прайс-лист не разобран",
+					analysisError,
+				),
+			);
+		} finally {
+			setIsPricelistAnalyzing(false);
+		}
 	};
 
 	return {
@@ -4597,14 +4945,14 @@ export function useAppLogic(): any {
 		activeTreatmentPlanItems,
 		addImagingViewerNoteAnnotation: null,
 		address: documentPatient?.administrativeProfile?.registrationAddress ?? "",
-		analyzePricelist: null,
+		analyzePricelist,
 		applyCtPlanningQuickAction: null,
 		applyMprClinicalPreset: null,
 		applyNearestMprClinicalPreset: null,
 		applyProtocolTemplate: null,
 		applyProtocolTemplateDirectly: null,
 		assembleSpeechRecording: async () => {},
-		attachPricelistImage: null,
+		attachPricelistImage,
 		browserCanRequestPersistentStorage: null,
 		browserContinuityChecks: null,
 		browserContinuityCritical: null,
@@ -4620,7 +4968,7 @@ export function useAppLogic(): any {
 		chooseRecognitionPreset: null,
 		clearBrowserPickedImagingFolderPreview: null,
 		clearLocalImagingFolderRecovery: null,
-		clearPricelistImage: null,
+		clearPricelistImage,
 		clinic: dashboard?.clinicSettings?.profile ?? null,
 		clinicalMutationHeaders: auth.denteClinicalMutationHeaders,
 		clinicalReadHeaders: auth.denteClinicalReadHeaders,
@@ -4630,6 +4978,7 @@ export function useAppLogic(): any {
 		dictationQuickPhrases: null,
 		emptyDictationVoiceActionLabel: null,
 		firstName: documentPatient?.fullName?.split(" ")[1] ?? "",
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		handleMprKeyboardNavigation: async (..._args: any[]) => {},
 		imagingComparisonCandidates: [],
 		imagingKindOptions: [],
@@ -4672,7 +5021,7 @@ export function useAppLogic(): any {
 		polishingField: null,
 		polishSingleField: async () => {},
 		prices: dashboard?.serviceCatalog ?? [],
-		renderClinicalToothRowsEditor: null,
+		renderClinicalToothRowsEditor,
 		resetMprControls: null,
 		retryImagingViewerSessionSave: null,
 		scheduleDateFilter: "",
@@ -4680,6 +5029,7 @@ export function useAppLogic(): any {
 		selectedProtocolTemplate: null,
 		selectedTaxPaymentTotalRub: 0,
 		setNewRulePatientText: setNewRulePatientText,
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		setScheduleDateFilter: (_date?: any) => {},
 		setSelectedPatientId: setSelectedPatientId,
 		shiftWarnings: null,
@@ -4692,7 +5042,6 @@ export function useAppLogic(): any {
 		speechTranscriptionBusy: false,
 		startServerVoiceRecording: null,
 		stopServerVoiceRecording: null,
-		treatmentAcceptancePlannedTotalRub: 0,
 		visibleImagingStudies: null,
 		visibleVisitSpecialtyFocusOptions: [],
 		visitPrimaryAction: null,

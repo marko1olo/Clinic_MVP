@@ -1350,7 +1350,8 @@ async function fetchDadataClinicSuggestions(input, safeQuery) {
                 : ["Сервис реквизитов не вернул организаций по безопасному запросу."],
         };
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         return {
             status: "error",
             suggestions: [],
@@ -1432,7 +1433,8 @@ function migrationRootExists(root) {
     try {
         return existsSync(root);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         return false;
     }
 }
@@ -2147,7 +2149,8 @@ async function readWindowsMigrationWorkstationSignalValues(warnings) {
         })
             .filter((row) => row.value.length >= 3);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         warnings.add("Системные сигналы рабочей станции не прочитаны: поиск продолжился по доступным папкам и ярлыкам без списка процессов, служб и установленных программ.");
         return [];
     }
@@ -2216,7 +2219,8 @@ function migrationExistingDirectory(value) {
             return path.dirname(resolved);
         return null;
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         return null;
     }
 }
@@ -2565,7 +2569,8 @@ async function readWindowsMigrationMappedRoots(warnings) {
             .filter((root) => migrationRootExists(root))
             .slice(0, 32);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         warnings.add("Сетевые и внешние диски не удалось прочитать автоматически: поиск продолжился по доступным папкам и вручную указанным корням.");
         return [];
     }
@@ -3542,7 +3547,8 @@ function buildMigrationLocalSourceWorkup(input) {
             if (sourceIsDirectory)
                 fileExtension = null;
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             sourceExists = false;
             warnings.push("Источник недоступен с этого компьютера сейчас; план построен по названию/расширению.");
         }
@@ -3806,7 +3812,8 @@ function migrationProbeSafeArtifact(filePath, kind, depth, signals) {
         byteSize = stat.size;
         modifiedAt = stat.mtime.toISOString();
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         // Probe output stays best-effort; unreadable files are reported as warnings by caller.
     }
     const extension = path.extname(filePath).toLowerCase() || null;
@@ -3962,7 +3969,8 @@ async function inspectMigrationProbeFile(input) {
                 input.formatSignals.add(signal);
             });
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             input.warnings.add("Один файл-кандидат не удалось прочитать даже для заголовка; он учтен без сигнатуры.");
         }
     }
@@ -4015,7 +4023,8 @@ async function scanMigrationProbeDirectory(normalizedSourceRef, input, counts, f
         try {
             entries = await readdir(current.folderPath, { withFileTypes: true });
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             warnings.add("Одну подпапку проверки не удалось прочитать; она пропущена.");
             continue;
         }
@@ -4051,7 +4060,8 @@ async function scanMigrationProbeDirectory(normalizedSourceRef, input, counts, f
                 if (!latestModifiedAt || modified > latestModifiedAt)
                     latestModifiedAt = modified;
             }
-            catch {
+            catch (err) {
+                console.error("[Dente] context:", err);
                 // Metadata is best-effort only.
             }
             await inspectMigrationProbeFile({
@@ -4132,7 +4142,8 @@ async function buildMigrationLocalSourceProbe(input) {
             sourceByteSize = stat.isFile() ? stat.size : null;
             latestModifiedAt = stat.mtime.toISOString();
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             sourceExists = false;
             warnings.add("Источник сейчас недоступен; подключите диск/сетевую папку и повторите проверку.");
         }
@@ -5062,7 +5073,7 @@ function buildMigrationOperatorPacket(input) {
             ? "Старую базу читать только с копии или резервной копии; прямая запись из старой системы запрещена."
             : null,
         "Массовую запись делать только после чернового предпросмотра и контрольной выборки врача.",
-    ].filter((item) => Boolean(item && item.trim()))).slice(0, 6);
+    ].filter((item) => Boolean(item?.trim()))).slice(0, 6);
     const operatorScript = buildMigrationOperatorScript({
         sources,
         clinicLookup: input.clinicLookup,
@@ -5209,7 +5220,7 @@ function clinicLookupInputFromSmartImport(suggestion) {
         payload.legalName,
         payload.address,
         payload.medicalLicenseNumber,
-    ].some((item) => item && item.trim())
+    ].some((item) => item?.trim())
         ? payload
         : null;
 }
@@ -5297,7 +5308,8 @@ async function buildMigrationAutopilot(orgId, input) {
                 privacyWarnings.add(warning);
             });
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             warnings.add(`Источник ${candidate.safeDisplayName} найден, но быстрая проверка не завершилась. Откройте план источника или выберите папку вручную.`);
         }
         const score = migrationAutopilotScore(candidate, probe);
@@ -6353,153 +6365,207 @@ function parseSmartImportPayload(schema, value, message) {
     };
 }
 export async function registerSmartImportRoutes(app) {
-    app.post("/api/imports/smart/preview", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "smart import preview")))
-            return;
-        const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Умный импорт не проверен: передайте непустой текст, таблицу или описание источника до 120000 символов.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        return buildSmartImportPreview(orgId, input);
+    app.post("/api/imports/smart/preview", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "smart import preview")))
+                return;
+            const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Умный импорт не проверен: передайте непустой текст, таблицу или описание источника до 120000 символов.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            return await buildSmartImportPreview(orgId, input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/local-source-discovery", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "migration local source discovery")))
-            return;
-        const parsed = parseSmartImportPayload(migrationLocalSourceDiscoveryRequestSchema, request.body ?? {}, "Поиск старых источников не запущен: проверьте корни поиска и лимиты обхода.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        return discoverLocalMigrationSources(input);
+    app.post("/api/imports/smart/local-source-discovery", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "migration local source discovery")))
+                return;
+            const parsed = parseSmartImportPayload(migrationLocalSourceDiscoveryRequestSchema, request.body ?? {}, "Поиск старых источников не запущен: проверьте корни поиска и лимиты обхода.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            return await discoverLocalMigrationSources(input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/local-source-workup", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "migration local source workup")))
-            return;
-        const parsed = parseSmartImportPayload(migrationLocalSourceWorkupRequestSchema, request.body, "План источника не построен: выберите источник из последнего поиска или безопасный код browser-local.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        return buildMigrationLocalSourceWorkup(input);
+    app.post("/api/imports/smart/local-source-workup", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "migration local source workup")))
+                return;
+            const parsed = parseSmartImportPayload(migrationLocalSourceWorkupRequestSchema, request.body, "План источника не построен: выберите источник из последнего поиска или безопасный код browser-local.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            return await buildMigrationLocalSourceWorkup(input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/local-source-probe", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "migration local source probe")))
-            return;
-        const parsed = parseSmartImportPayload(migrationLocalSourceProbeRequestSchema, request.body, "Проверка источника не выполнена: выберите источник из последнего поиска или безопасный код browser-local.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        return buildMigrationLocalSourceProbe(input);
+    app.post("/api/imports/smart/local-source-probe", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "migration local source probe")))
+                return;
+            const parsed = parseSmartImportPayload(migrationLocalSourceProbeRequestSchema, request.body, "Проверка источника не выполнена: выберите источник из последнего поиска или безопасный код browser-local.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            return await buildMigrationLocalSourceProbe(input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/migration-autopilot", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "migration autopilot")))
-            return;
-        const parsed = parseSmartImportPayload(migrationAutopilotRequestSchema, request.body ?? {}, "Автоплан миграции не построен: проверьте входные данные источников, клиники и лимиты поиска.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        return buildMigrationAutopilot(orgId, input);
+    app.post("/api/imports/smart/migration-autopilot", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "migration autopilot")))
+                return;
+            const parsed = parseSmartImportPayload(migrationAutopilotRequestSchema, request.body ?? {}, "Автоплан миграции не построен: проверьте входные данные источников, клиники и лимиты поиска.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            return await buildMigrationAutopilot(orgId, input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/migration-autopilot/report.csv", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "migration autopilot report")))
-            return;
-        const parsed = parseSmartImportPayload(migrationAutopilotRequestSchema, request.body ?? {}, "Отчет миграции не создан: проверьте входные данные источников, клиники и лимиты поиска.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        const plan = await buildMigrationAutopilot(orgId, input);
-        const csv = buildMigrationAutopilotReportCsv(plan);
-        return reply
-            .type("text/csv; charset=utf-8")
-            .header("Content-Disposition", 'attachment; filename="migration_autopilot_handoff.csv"')
-            .send(`\uFEFF${csv}`);
+    app.post("/api/imports/smart/migration-autopilot/report.csv", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "migration autopilot report")))
+                return;
+            const parsed = parseSmartImportPayload(migrationAutopilotRequestSchema, request.body ?? {}, "Отчет миграции не создан: проверьте входные данные источников, клиники и лимиты поиска.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            const plan = await buildMigrationAutopilot(orgId, input);
+            const csv = buildMigrationAutopilotReportCsv(plan);
+            return reply
+                .type("text/csv; charset=utf-8")
+                .header("Content-Disposition", 'attachment; filename="migration_autopilot_handoff.csv"')
+                .send(`\uFEFF${csv}`);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/clinic-public-lookup", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "clinic public lookup")))
-            return;
-        const parsed = parseSmartImportPayload(clinicPublicLookupRequestSchema, request.body, "Поиск реквизитов не выполнен: передайте ИНН, ОГРН, КПП, название, адрес или лицензию клиники.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        return buildClinicPublicLookup(input);
+    app.post("/api/imports/smart/clinic-public-lookup", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "clinic public lookup")))
+                return;
+            const parsed = parseSmartImportPayload(clinicPublicLookupRequestSchema, request.body, "Поиск реквизитов не выполнен: передайте ИНН, ОГРН, КПП, название, адрес или лицензию клиники.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            return await buildClinicPublicLookup(input);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/report.csv", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "smart import report")))
-            return;
-        const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Отчет умного импорта не создан: передайте непустой текст, таблицу или описание источника.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        const preview = await buildSmartImportPreview(orgId, input);
-        const csv = buildSmartImportReportCsv(preview);
-        return reply
-            .type("text/csv; charset=utf-8")
-            .header("Content-Disposition", `attachment; filename="${safeSmartImportReportFilename(input.sourceName)}"`)
-            .send(`\uFEFF${csv}`);
+    app.post("/api/imports/smart/report.csv", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "smart import report")))
+                return;
+            const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Отчет умного импорта не создан: передайте непустой текст, таблицу или описание источника.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            const preview = await buildSmartImportPreview(orgId, input);
+            const csv = buildSmartImportReportCsv(preview);
+            return reply
+                .type("text/csv; charset=utf-8")
+                .header("Content-Disposition", `attachment; filename="${safeSmartImportReportFilename(input.sourceName)}"`)
+                .send(`\uFEFF${csv}`);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/report.safe.csv", async (request, reply) => {
-        if (!(await requireClinicalReadAccess(request, reply, "safe smart import handoff report")))
-            return;
-        const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Безопасный отчет умного импорта не создан: передайте непустой текст, таблицу или описание источника.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        const preview = await buildSmartImportPreview(orgId, input);
-        const csv = buildSmartImportSafeHandoffReportCsv(preview);
-        return reply
-            .type("text/csv; charset=utf-8")
-            .header("Content-Disposition", 'attachment; filename="smart_import_safe_handoff.csv"')
-            .send(`\uFEFF${csv}`);
+    app.post("/api/imports/smart/report.safe.csv", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalReadAccess(request, reply, "safe smart import handoff report")))
+                return;
+            const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Безопасный отчет умного импорта не создан: передайте непустой текст, таблицу или описание источника.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            const preview = await buildSmartImportPreview(orgId, input);
+            const csv = buildSmartImportSafeHandoffReportCsv(preview);
+            return reply
+                .type("text/csv; charset=utf-8")
+                .header("Content-Disposition", 'attachment; filename="smart_import_safe_handoff.csv"')
+                .send(`\uFEFF${csv}`);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
-    app.post("/api/imports/smart/commit", async (request, reply) => {
-        if (!(await requireClinicalMutationAccess(request, reply, "smart import commit")))
-            return;
-        const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Умный импорт не записан: повторно передайте ту же непустую выгрузку перед записью.");
-        if (!parsed.ok)
-            return reply.code(400).send(parsed.response);
-        const input = parsed.data;
-        const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
-        if (!orgId)
-            return;
-        const preview = await buildSmartImportPreview(orgId, input);
-        // БЫЛО: обе функции объявлены async, но вызывались без await. В ответ
-        // попадал Promise, а smartImportCommitResponseSchema ждёт объект — .parse()
-        // падал, и запрос отдавал 500 ВСЕГДА, когда есть что импортировать.
-        // «Успешным» коммит выглядел только на пустой выгрузке, где обе ветки дают
-        // null. Запись в базу при этом всё равно шла — в фоне и без обработки
-        // ошибок, так что упавший импорт оставлял частичные данные.
-        const patientCommit = preview.patientPreview.totalRows > 0
-            ? await commitPatientImport(orgId, {
-                sourceName: `${input.sourceName}:patients`,
-                sourceKind: "mis_export",
-                rawText: preview.patientRawText,
-            })
-            : null;
-        const imagingCommit = preview.imagingPreview.totalRows > 0
-            ? await commitImagingImport(orgId, {
-                sourceName: `${input.sourceName}:imaging`,
-                sourceKind: "folder_watch",
-                rawText: preview.imagingRawText,
-            })
-            : null;
-        return smartImportCommitResponseSchema.parse({
-            preview,
-            patientCommit,
-            imagingCommit,
-        });
+    app.post("/api/imports/smart/commit", {}, async (request, reply) => {
+        try {
+            if (!(await requireClinicalMutationAccess(request, reply, "smart import commit")))
+                return;
+            const parsed = parseSmartImportPayload(smartImportRequestSchema, request.body, "Умный импорт не записан: повторно передайте ту же непустую выгрузку перед записью.");
+            if (!parsed.ok)
+                return reply.code(400).send(parsed.response);
+            const input = parsed.data;
+            const orgId = await requireResolvedOrganizationId(request, reply, "smart import");
+            if (!orgId)
+                return;
+            const preview = await buildSmartImportPreview(orgId, input);
+            const patientCommit = preview.patientPreview.totalRows > 0
+                ? await commitPatientImport(orgId, {
+                    sourceName: `${input.sourceName}:patients`,
+                    sourceKind: "mis_export",
+                    rawText: preview.patientRawText,
+                })
+                : null;
+            const imagingCommit = preview.imagingPreview.totalRows > 0
+                ? await commitImagingImport(orgId, {
+                    sourceName: `${input.sourceName}:imaging`,
+                    sourceKind: "folder_watch",
+                    rawText: preview.imagingRawText,
+                })
+                : null;
+            return smartImportCommitResponseSchema.parse({
+                preview,
+                patientCommit,
+                imagingCommit,
+            });
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
     });
 }
 export { buildSmartImportPreview };
@@ -6508,7 +6574,8 @@ async function inspectMigrationDiscoveryFolder(item, input, queue, candidates, w
     try {
         entries = await readdir(item.folderPath, { withFileTypes: true });
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] context:", err);
         warnings.add("Одну локальную папку миграционного поиска не удалось прочитать; она пропущена.");
         return;
     }
@@ -6592,7 +6659,8 @@ async function inspectMigrationDiscoveryFolder(item, input, queue, candidates, w
             if (!latestModifiedAt || modified > latestModifiedAt)
                 latestModifiedAt = modified;
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] context:", err);
             // Best-effort metadata only.
         }
     }

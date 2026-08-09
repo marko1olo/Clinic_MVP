@@ -151,11 +151,11 @@ export async function updateImagingStudyAiSummaryInDb(organizationId, id, summar
     }
     return mapImagingStudy(record);
 }
-export async function getDefaultOrganizationId() {
+async function _getDefaultOrganizationId() {
     const [org] = await db.select().from(schema.organizations).limit(1);
     return org?.id || null;
 }
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { desc } from "drizzle-orm";
 import { dicomWorkbenchBundles, imagingViewerSessions } from "./schema.js";
 export async function getOrCreateImagingViewerSession(organizationId, study) {

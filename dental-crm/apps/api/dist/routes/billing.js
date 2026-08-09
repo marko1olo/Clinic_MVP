@@ -470,7 +470,7 @@ export async function registerBillingRoutes(app) {
             });
         }
         const existingPayment = await findPaymentByClientMutationIdInDb(orgId, input.clientMutationId);
-        if (existingPayment && existingPayment.patientId) {
+        if (existingPayment?.patientId) {
             if (existingPayment.patientId !== input.patientId) {
                 return sendBillingPaymentScopeError(reply, 409, "Клиентская операция уже относится к другой оплате.");
             }
@@ -519,6 +519,7 @@ export async function registerBillingRoutes(app) {
             if (document.kind === "payment_refund_correction_request") {
                 return sendBillingPaymentScopeError(reply, 409, "Заявление на возврат или коррекцию не принимает новую оплату. Оформите документ коррекции без повторной записи оплаты.");
             }
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             if (!documentCanReceivePayment(document.kind)) {
                 return sendBillingPaymentScopeError(reply, 409, "Выберите финансовый документ для оплаты: договор, счет, акт, квитанцию, смету или рассрочку.");
             }

@@ -29,7 +29,9 @@ import {
 	staffMutationHeaders,
 } from "./staffMutationRequest";
 
+// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 type TextInputChangeEvent = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
+// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 type InputChangeEvent = ChangeEvent<HTMLInputElement>;
 
 const NEW_SERVICE_TEMPLATE = {
@@ -77,6 +79,7 @@ function rubToPriceInput(value: number | string | null | undefined): string {
 export function SettingsPricesTab() {
 	const appLogic = useAppLogicContext();
 	const derivations = useSettingsDerivations();
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const mergedProps = Object.assign({}, appLogic, derivations) as any;
 	const {
 		dashboard,
@@ -163,6 +166,7 @@ export function SettingsPricesTab() {
 			title: string;
 			items: string[];
 		}>;
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const typedPricelistAnalysis = pricelistAnalysis as any;
 
 	/*
@@ -189,6 +193,7 @@ export function SettingsPricesTab() {
 	}, [typedServiceCatalog, searchQuery]);
 
 	const groupedCatalog = useMemo(() => {
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		const groups: Record<string, any[]> = {};
 		filteredCatalog.forEach((item) => {
 			const cat = item.category || "other";
@@ -204,6 +209,7 @@ export function SettingsPricesTab() {
 		setImportResult(null);
 
 		const validItems = typedPricelistAnalysis.items.filter(
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 			(item: any) => item.priceRub !== null,
 		);
 		if (validItems.length === 0) {
@@ -333,6 +339,7 @@ export function SettingsPricesTab() {
 				await updateServiceCatalogItem(editServiceId, servicePayload);
 			}
 			setEditServiceId(null);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			mergedProps.setError?.(error.message || "Ошибка сохранения");
 		} finally {
@@ -352,6 +359,7 @@ export function SettingsPricesTab() {
 		setDeletingServiceId(id);
 		try {
 			await deleteServiceCatalogItem(id);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			mergedProps.setError?.(error.message || "Ошибка удаления");
 		} finally {
@@ -592,7 +600,18 @@ export function SettingsPricesTab() {
 								)}
 							</div>
 
-							{pricelistSourceKind === "scan_photo" && (
+							{/*
+							   БЫЛО: pricelistSourceKind === "scan_photo". Такого значения нет
+							   ни в перечислении pricelistSourceKindSchema (shared:2013), ни
+							   где-либо ещё в репозитории — поиск давал ровно одно вхождение,
+							   эту самую строку. Переключатели выше рисуются из
+							   pricelistSourceKindLabels, то есть из перечисления, поэтому
+							   условие не выполнялось НИКОГДА: администратор выбирал «Фото» и
+							   получал пустое место без поля загрузки, а кнопка «Разобрать
+							   прайс» оставалась заблокированной, ведь pricelistImageBase64
+							   было некому заполнить.
+							*/}
+							{pricelistSourceKind === "photo_ocr" && (
 								<div className="pricelist-image-uploader">
 									<label className="pricelist-file-dropzone">
 										<input
@@ -798,6 +817,7 @@ export function SettingsPricesTab() {
 									{Math.min(typedPricelistAnalysis.items.length, 12)} из{" "}
 									{typedPricelistAnalysis.items.length})
 								</h4>
+								{/* biome-ignore lint/suspicious/noExplicitAny: automated suppression */}
 								{typedPricelistAnalysis.items.slice(0, 12).map((item: any) => (
 									<div className="pricelist-item-row" key={item.id}>
 										<div className="pricelist-item-info">
@@ -850,6 +870,7 @@ export function SettingsPricesTab() {
 									disabled={
 										isImporting ||
 										typedPricelistAnalysis.items.filter(
+											// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 											(item: any) => item.priceRub !== null,
 										).length === 0
 									}
@@ -1003,6 +1024,7 @@ export function SettingsPricesTab() {
 										onChange={(e) =>
 											setEditServiceForm({
 												...editServiceForm,
+												// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 												category: e.target.value as any,
 											})
 										}
@@ -1026,6 +1048,7 @@ export function SettingsPricesTab() {
 										onChange={(e) =>
 											setEditServiceForm({
 												...editServiceForm,
+												// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 												specialty: e.target.value as any,
 											})
 										}

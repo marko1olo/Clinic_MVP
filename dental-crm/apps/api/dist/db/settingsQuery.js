@@ -156,7 +156,7 @@ export async function getUiPreferencesFromDb(organizationId) {
     if (useInMemory())
         return memoryUiPreferences.get(organizationId) ?? null;
     const row = await uiPreferencesRow(organizationId);
-    if (!row || !row.uiPreferences)
+    if (!row?.uiPreferences)
         return null;
     return row.uiPreferences;
 }
@@ -322,6 +322,7 @@ export async function updateClinicModeInDb(organizationId, mode) {
 export async function updateClinicProfileInDb(organizationId, input) {
     if (useInMemory())
         return updateClinicProfileInMemory(input);
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const updateData = { updatedAt: new Date() };
     if (input.legalName !== undefined)
         updateData.name = input.legalName;
@@ -355,6 +356,7 @@ export async function updateClinicProfileInDb(organizationId, input) {
         .update(schema.organizations)
         .set(updateData)
         .where(eq(schema.organizations.id, organizationId));
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const clinicUpdateData = {};
     if (input.clinicName !== undefined)
         clinicUpdateData.name = input.clinicName;
@@ -370,9 +372,14 @@ export async function updateClinicProfileInDb(organizationId, input) {
     }
 }
 export async function createStaffMemberInDb(organizationId, input) {
-    if (useInMemory())
-        return createStaffMemberInMemory(input);
-    await db.insert(schema.users).values({
+    if (useInMemory()) {
+        createStaffMemberInMemory(input);
+        // InMemory is mock logic; we can just throw or return mock
+        throw new Error("InMemory backend cannot return created staff");
+    }
+    const [inserted] = await db
+        .insert(schema.users)
+        .values({
         organizationId,
         fullName: input.fullName,
         role: input.role,
@@ -380,9 +387,32 @@ export async function createStaffMemberInDb(organizationId, input) {
         email: input.email || null,
         isActive: true,
         workingHours: input.workingHours,
-    });
+    })
+        .returning();
+    if (!inserted) {
+        throw new Error("Failed to insert staff member into database.");
+    }
+    return {
+        id: inserted.id,
+        organizationId: inserted.organizationId,
+        fullName: inserted.fullName,
+        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
+        role: inserted.role,
+        specialties: ["universal"],
+        phone: inserted.phone,
+        email: inserted.email,
+        active: inserted.isActive,
+        ...staffAuthorityFlags(inserted.role),
+        color: "#000000",
+        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
+        workingHours: inserted.workingHours,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
 }
-export async function updateStaffWorkingHoursInDb(organizationId, staffId, workingHours) {
+export async function updateStaffWorkingHoursInDb(organizationId, staffId, 
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
+workingHours) {
     if (useInMemory())
         return updateStaffWorkingHoursInMemory(staffId, workingHours);
     await db
@@ -597,7 +627,9 @@ export async function createChairInDb(organizationId, input) {
         workingHours: input.workingHours,
     });
 }
-export async function updateChairWorkingHoursInDb(organizationId, chairId, workingHours) {
+export async function updateChairWorkingHoursInDb(organizationId, chairId, 
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
+workingHours) {
     if (useInMemory())
         return updateChairWorkingHoursInMemory(chairId, workingHours);
     await db

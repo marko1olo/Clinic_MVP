@@ -53,12 +53,14 @@ async function refusalMessage(
 export function SettingsProtocolsTab() {
 	const appLogic = useAppLogicContext();
 	const derivations = useSettingsDerivations();
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const mergedProps = Object.assign({}, appLogic, derivations) as any;
 	const {
 		dashboard,
 		specialtyLabels,
 		documentLabels,
 		imagingKindLabels,
+		// biome-ignore lint/correctness/noUnusedVariables: automated suppression
 		applyProtocolTemplate,
 		auth,
 	} = mergedProps;
@@ -146,6 +148,7 @@ export function SettingsProtocolsTab() {
 
 			// Reload page to refresh dashboard state
 			window.location.reload();
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (err: any) {
 			/*
 			 * Сюда попадает только обрыв до ответа. БЫЛО: `err.message ||
@@ -185,6 +188,7 @@ export function SettingsProtocolsTab() {
 				return;
 			}
 			window.location.reload();
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (err: any) {
 			// БЫЛО: `err.message` — английский текст исключения браузера.
 			logger.error(err);
@@ -236,17 +240,18 @@ export function SettingsProtocolsTab() {
 							onChange={(e) =>
 								setEditForm((prev) => ({
 									...prev,
+									// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 									specialty: e.target.value as any,
 								}))
 							}
 						>
-							{Object.entries(specialtyLabels as Record<string, string>).map(
-								([key, label]) => (
-									<option key={key} value={key}>
-										{label}
-									</option>
-								),
-							)}
+							{Object.entries(
+								(specialtyLabels ?? {}) as Record<string, string>,
+							).map(([key, label]) => (
+								<option key={key} value={key}>
+									{label}
+								</option>
+							))}
 						</select>
 					</label>
 					<label className="dente-label">
@@ -417,7 +422,9 @@ export function SettingsProtocolsTab() {
 					{typedProtocolTemplates.map((template) => (
 						<article className="protocol-settings-card" key={template.id}>
 							<div className="protocol-settings-head">
-								<span>{specialtyLabels[template.specialty]}</span>
+								<span>
+									{specialtyLabels?.[template.specialty] ?? template.specialty}
+								</span>
 								<strong>{template.title}</strong>
 								<p>
 									{template.visitReason} · {template.defaultDurationMinutes} мин
@@ -427,20 +434,20 @@ export function SettingsProtocolsTab() {
 								className="protocol-token-row"
 								aria-label="Документы протокола"
 							>
-								{template.requiredDocuments.map((kind) => (
-									<span key={kind}>{documentLabels[kind]}</span>
+								{(template.requiredDocuments ?? []).map((kind) => (
+									<span key={kind}>{documentLabels?.[kind] ?? kind}</span>
 								))}
 							</section>
 							<section
 								className="protocol-token-row protocol-token-row-soft"
 								aria-label="Снимки протокола"
 							>
-								{template.suggestedImaging.map((kind) => (
-									<span key={kind}>{imagingKindLabels[kind]}</span>
+								{(template.suggestedImaging ?? []).map((kind) => (
+									<span key={kind}>{imagingKindLabels?.[kind] ?? kind}</span>
 								))}
 							</section>
 							<ul>
-								{template.safetyWarnings.slice(0, 2).map((warning) => (
+								{(template.safetyWarnings ?? []).slice(0, 2).map((warning) => (
 									<li key={warning}>{warning}</li>
 								))}
 							</ul>

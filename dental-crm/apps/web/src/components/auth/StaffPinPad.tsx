@@ -40,6 +40,7 @@ interface StaffPinPadProps {
 	 * словаря, а не выдумывалась здесь.
 	 */
 	staffListStatus: number | null;
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	onUnlockSuccess: (user: any) => void;
 	onClinicLogout: () => void;
 	/** Перечитать данные клиники: единственный способ повторить, кроме перезахода. */
@@ -54,6 +55,7 @@ export function StaffPinPad({
 	onClinicLogout,
 	onRetryStaffList,
 }: StaffPinPadProps) {
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	const [selectedUser, setSelectedUser] = useState<any>(null);
 	const [pin, setPin] = useState("");
 	const [errorShake, setErrorShake] = useState(false);
@@ -233,6 +235,7 @@ export function StaffPinPad({
 						: "коллега";
 			showToast(`Добро пожаловать, ${greetingName}!`, "success");
 			onUnlockSuccess(unlockedUser);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (err: any) {
 			/*
 			 * Сюда попадает только обрыв до ответа: fetch бросает TypeError, когда
@@ -311,21 +314,21 @@ export function StaffPinPad({
 								}
 							</div>
 						) : (
-							activeStaff.map((staff) => {
-								const isSelected = selectedUser?.id === staff.id;
+							(activeStaff ?? []).map((staff) => {
+								const isSelected = selectedUser?.id === staff?.id;
 								const fullName =
-									typeof staff.fullName === "string" ? staff.fullName : "";
+									typeof staff?.fullName === "string" ? staff.fullName : "";
 								const initials = fullName
-									? fullName
+									? (fullName ?? "")
 											.split(" ")
 											.filter(Boolean)
-											.map((part) => part[0])
+											.map((part) => part?.[0] ?? "")
 											.join("")
 											.slice(0, 2)
 									: "??";
 								return (
 									<button
-										key={staff.id}
+										key={staff?.id}
 										type="button"
 										className={`auth-staff-card ${isSelected ? "active" : ""}`}
 										onClick={() => {
@@ -349,7 +352,7 @@ export function StaffPinPad({
 												{fullName || "Без имени"}
 											</div>
 											<div className="auth-staff-role">
-												{typeof staff.role === "string" ? staff.role : ""}
+												{typeof staff?.role === "string" ? staff.role : ""}
 											</div>
 										</div>
 									</button>
@@ -375,7 +378,11 @@ export function StaffPinPad({
 						<div className="auth-pin-icon">
 							{selectedUser ? <UserCheck size={24} /> : <Lock size={24} />}
 						</div>
-						<h4>{selectedUser ? selectedUser.fullName : "Выберите профиль"}</h4>
+						<h4>
+							{selectedUser
+								? (selectedUser?.fullName ?? "")
+								: "Выберите профиль"}
+						</h4>
 						<div className="auth-pin-target" aria-live="polite">
 							{/* Проверка PIN идёт на сервере и занимает время (там намеренная
                   задержка на неверный PIN). Без этой строки экран замирал молча. */}

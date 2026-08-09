@@ -762,7 +762,9 @@ export const clinicalRules = pgTable("clinical_rules", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("clinical_rules_organizationId_idx").on(t.organizationId),
+}));
 export const payments = pgTable("payments", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -816,6 +818,8 @@ export const payments = pgTable("payments", {
     return {
         idxPaymentsOrgPaidAt: index("idx_payments_org_paid_at").on(table.organizationId, table.paidAt),
         paymentsOrgClientMutationUnique: unique("payments_org_client_mutation_unique").on(table.organizationId, table.clientMutationId),
+        patientIdIdx: index("payments_patientId_idx").on(table.patientId),
+        visitIdIdx: index("payments_visitId_idx").on(table.visitId),
     };
 });
 export const generatedDocuments = pgTable("generated_documents", {
@@ -1020,6 +1024,8 @@ export const denteTelegramLinkCodes = pgTable("dente_telegram_link_codes", {
 }, (table) => {
     return {
         denteTelegramLinkCodeFingerprintUnique: unique("dente_telegram_link_codes_org_config_fingerprint_unique").on(table.organizationId, table.botConfigId, table.codeFingerprint),
+        clinicIdIdx: index("dente_telegram_link_codes_clinicId_idx").on(table.clinicId),
+        createdByUserIdIdx: index("dente_telegram_link_codes_createdByUserId_idx").on(table.createdByUserId),
     };
 });
 export const denteTelegramChatLinks = pgTable("dente_telegram_chat_links", {
@@ -1045,6 +1051,7 @@ export const denteTelegramChatLinks = pgTable("dente_telegram_chat_links", {
 }, (table) => {
     return {
         denteTelegramChatFingerprintUnique: unique("dente_telegram_chat_links_org_config_chat_unique").on(table.organizationId, table.botConfigId, table.chatFingerprint),
+        clinicIdIdx: index("dente_telegram_chat_links_clinicId_idx").on(table.clinicId),
     };
 });
 export const denteTelegramWebhookEvents = pgTable("dente_telegram_webhook_events", {
@@ -1067,6 +1074,7 @@ export const denteTelegramWebhookEvents = pgTable("dente_telegram_webhook_events
 }, (table) => {
     return {
         denteTelegramWebhookUpdateUnique: unique("dente_telegram_webhook_events_org_config_update_unique").on(table.organizationId, table.botConfigId, table.updateId),
+        clinicIdIdx: index("dente_telegram_webhook_events_clinicId_idx").on(table.clinicId),
     };
 });
 export const denteTelegramOutboxDeliveryReceipts = pgTable("dente_telegram_outbox_delivery_receipts", {
@@ -1091,6 +1099,9 @@ export const denteTelegramOutboxDeliveryReceipts = pgTable("dente_telegram_outbo
 }, (table) => {
     return {
         denteTelegramOutboxMutationUnique: unique("dente_telegram_outbox_receipts_org_item_mutation_unique").on(table.organizationId, table.botConfigId, table.outboxItemId, table.clientMutationId),
+        clinicIdIdx: index("dente_telegram_outbox_delivery_receipts_clinicId_idx").on(table.clinicId),
+        taskIdIdx: index("dente_telegram_outbox_delivery_receipts_taskId_idx").on(table.taskId),
+        eventIdIdx: index("dente_telegram_outbox_delivery_receipts_eventId_idx").on(table.eventId),
     };
 });
 export const attachments = pgTable("attachments", {
@@ -1174,6 +1185,7 @@ export const auditEvents = pgTable("audit_events", {
 }, (table) => {
     return {
         idxAuditOrgCreated: index("idx_audit_org_created").on(table.organizationId, table.createdAt),
+        actorUserIdIdx: index("audit_events_actorUserId_idx").on(table.actorUserId),
     };
 });
 export const aiJobs = pgTable("ai_jobs", {
@@ -1216,6 +1228,9 @@ export const aiJobs = pgTable("ai_jobs", {
         // input_storage_path (так пишет db/aiQuery.ts) уникальности не нарушает:
         // в btree значения NULL различны. Миграция: drizzle/0134_ai_jobs_recording_path_index.sql.
         aiJobsOrganizationStoragePathKey: uniqueIndex("ai_jobs_organization_storage_path_key").on(table.organizationId, table.inputStoragePath),
+        patientIdIdx: index("ai_jobs_patientId_idx").on(table.patientId),
+        visitIdIdx: index("ai_jobs_visitId_idx").on(table.visitId),
+        imagingStudyIdIdx: index("ai_jobs_imagingStudyId_idx").on(table.imagingStudyId),
     };
 });
 export const imagingSeries = pgTable("imaging_series", {
@@ -1238,6 +1253,7 @@ export const imagingSeries = pgTable("imaging_series", {
     return {
         imagingSeriesStudyIdx: index("imaging_series_study_idx").on(table.studyId),
         imagingSeriesUidIdx: index("imaging_series_uid_idx").on(table.dicomSeriesUid),
+        organizationIdIdx: index("imaging_series_organizationId_idx").on(table.organizationId),
     };
 });
 export const imagingInstances = pgTable("imaging_instances", {
@@ -1261,6 +1277,7 @@ export const imagingInstances = pgTable("imaging_instances", {
     return {
         imagingInstancesSeriesIdx: index("imaging_instances_series_idx").on(table.seriesId),
         imagingInstancesUidIdx: index("imaging_instances_uid_idx").on(table.dicomSopInstanceUid),
+        organizationIdIdx: index("imaging_instances_organizationId_idx").on(table.organizationId),
     };
 });
 export const imagingAnnotations = pgTable("imaging_annotations", {
@@ -1288,7 +1305,12 @@ export const imagingAnnotations = pgTable("imaging_annotations", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("imaging_annotations_organizationId_idx").on(t.organizationId),
+    studyIdIdx: index("imaging_annotations_studyId_idx").on(t.studyId),
+    seriesIdIdx: index("imaging_annotations_seriesId_idx").on(t.seriesId),
+    patientIdIdx: index("imaging_annotations_patientId_idx").on(t.patientId),
+}));
 // 2D X-Ray (вisiograph) scans with AI analysis results, patient-scoped
 export const xrayScans = pgTable("xray_scans", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1328,6 +1350,7 @@ export const xrayScans = pgTable("xray_scans", {
 }, (table) => ({
     xrayScansPatientIdx: index("xray_scans_patient_idx").on(table.patientId),
     xrayScansOrgIdx: index("xray_scans_org_idx").on(table.organizationId),
+    visitIdIdx: index("xray_scans_visitId_idx").on(table.visitId),
 }));
 export const imagingViewerSessions = pgTable("imaging_viewer_sessions", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1435,7 +1458,9 @@ export const customCrmTaskTypes = pgTable("custom_crm_task_types", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("custom_crm_task_types_organizationId_idx").on(t.organizationId),
+}));
 // #50 — crm::прямая_отправка_планов_лечения_и_счетов_на_email
 export const crmEmailDispatchLogs = pgTable("crm_email_dispatch_logs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1448,7 +1473,9 @@ export const crmEmailDispatchLogs = pgTable("crm_email_dispatch_logs", {
     documentTitle: text("document_title").notNull(),
     dispatchStatus: text("dispatch_status").default("sent").notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("crm_email_dispatch_logs_organizationId_idx").on(t.organizationId),
+}));
 // #56 — пациенты::целевые_причины_отмены_приемов_клиника_vs_пациент
 export const cancellationReasonsTwoLevel = pgTable("cancellation_reasons_two_level", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1463,7 +1490,9 @@ export const cancellationReasonsTwoLevel = pgTable("cancellation_reasons_two_lev
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("cancellation_reasons_two_level_organizationId_idx").on(t.organizationId),
+}));
 // #58 — финансы::закрепение_денег_за_врачами_или_услугами
 export const advanceDepositTaggings = pgTable("advance_deposit_taggings", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1481,7 +1510,9 @@ export const advanceDepositTaggings = pgTable("advance_deposit_taggings", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("advance_deposit_taggings_organizationId_idx").on(t.organizationId),
+}));
 // #52 — план_лечения::конструктор_планов_лечения_2_0
 export const treatmentPlanLockTokens = pgTable("treatment_plan_lock_tokens", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1496,7 +1527,9 @@ export const treatmentPlanLockTokens = pgTable("treatment_plan_lock_tokens", {
     lockedAt: timestamp("locked_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_plan_lock_tokens_organizationId_idx").on(t.organizationId),
+}));
 // #53 — финансы::отправка_электронных_кассовых_чеков_на_email_или_смс
 export const digitalReceiptDispatches = pgTable("digital_receipt_dispatches", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1516,7 +1549,9 @@ export const digitalReceiptDispatches = pgTable("digital_receipt_dispatches", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("digital_receipt_dispatches_organizationId_idx").on(t.organizationId),
+}));
 // #55 — пациенты::вкладка_приемы_рабочий_стол_администратора
 export const patientServiceLineages = pgTable("patient_service_lineages", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1532,7 +1567,9 @@ export const patientServiceLineages = pgTable("patient_service_lineages", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_service_lineages_organizationId_idx").on(t.organizationId),
+}));
 // #61 — интеграции::конструктор_лендингов_flexbe_и_сопоставление_полей
 export const landingFieldMappings = pgTable("landing_field_mappings", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1547,7 +1584,9 @@ export const landingFieldMappings = pgTable("landing_field_mappings", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("landing_field_mappings_organizationId_idx").on(t.organizationId),
+}));
 // #63 — финансы::автоматическое_указание_меры_количества_в_kkm
 export const kkmItemQuantityUnits = pgTable("kkm_item_quantity_units", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1558,11 +1597,15 @@ export const kkmItemQuantityUnits = pgTable("kkm_item_quantity_units", {
     serviceTitle: text("service_title").notNull(),
     quantityUnitCode: integer("quantity_unit_code").default(0).notNull(),
     quantityUnitLabel: text("quantity_unit_label").default("шт").notNull(),
-    itemPaymentType: text("item_payment_type").default("full_payment").notNull(),
+    itemPaymentType: text("item_payment_type")
+        .default("full_payment")
+        .notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("kkm_item_quantity_units_organizationId_idx").on(t.organizationId),
+}));
 // #59 — коммуникации::мультимессенджер_uis_omni
 export const uisOmniMessengerQueues = pgTable("uis_omni_messenger_queues", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1570,7 +1613,9 @@ export const uisOmniMessengerQueues = pgTable("uis_omni_messenger_queues", {
         .notNull()
         .references(() => organizations.id),
     patientName: text("patient_name").notNull(),
-    channelProvider: text("channel_provider").default("whatsapp_waba").notNull(),
+    channelProvider: text("channel_provider")
+        .default("whatsapp_waba")
+        .notNull(),
     messageBody: text("message_body").notNull(),
     dispatchStatus: text("dispatch_status").default("queued").notNull(),
     scheduledDelaySeconds: integer("scheduled_delay_seconds")
@@ -1579,7 +1624,9 @@ export const uisOmniMessengerQueues = pgTable("uis_omni_messenger_queues", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("uis_omni_messenger_queues_organizationId_idx").on(t.organizationId),
+}));
 // =====================================================
 // WAVE 12 — COMPETITOR PARITY SCHEMA TABLES
 // =====================================================
@@ -1599,7 +1646,9 @@ export const lostPatientsFilters = pgTable("lost_patients_filters", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("lost_patients_filters_organizationId_idx").on(t.organizationId),
+}));
 // #9 — коммуникации::подтверждение_приема_при_обработке_обращения
 export const quickAppointmentConfirmations = pgTable("quick_appointment_confirmations", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1613,7 +1662,9 @@ export const quickAppointmentConfirmations = pgTable("quick_appointment_confirma
     confirmedAt: timestamp("confirmed_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("quick_appointment_confirmations_organizationId_idx").on(t.organizationId),
+}));
 // #21 — расписание::виджет_срочные_обращения_под_календарем
 export const urgentScheduleRequests = pgTable("urgent_schedule_requests", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1629,7 +1680,9 @@ export const urgentScheduleRequests = pgTable("urgent_schedule_requests", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("urgent_schedule_requests_organizationId_idx").on(t.organizationId),
+}));
 // #23 — аналитика::отчет_эффективность_подтверждения_приемов
 export const confirmationPerformanceReports = pgTable("confirmation_performance_reports", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1652,7 +1705,9 @@ export const confirmationPerformanceReports = pgTable("confirmation_performance_
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("confirmation_performance_reports_organizationId_idx").on(t.organizationId),
+}));
 // #43 — план_лечения::альтернативные_планы_лечения
 export const alternativeTreatmentPlans = pgTable("alternative_treatment_plans", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1670,7 +1725,9 @@ export const alternativeTreatmentPlans = pgTable("alternative_treatment_plans", 
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("alternative_treatment_plans_organizationId_idx").on(t.organizationId),
+}));
 // #48 — расписание::буфер_обмена_в_расписании_для_быстрого_переноса
 export const scheduleClipboardItems = pgTable("schedule_clipboard_items", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1686,7 +1743,9 @@ export const scheduleClipboardItems = pgTable("schedule_clipboard_items", {
     copiedAt: timestamp("copied_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("schedule_clipboard_items_organizationId_idx").on(t.organizationId),
+}));
 // #37 — расписание::резервирование_времени_в_сетке
 export const scheduleTimeReservations = pgTable("schedule_time_reservations", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1703,7 +1762,9 @@ export const scheduleTimeReservations = pgTable("schedule_time_reservations", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("schedule_time_reservations_organizationId_idx").on(t.organizationId),
+}));
 // #35 — прием::пользовательские_справочники_бланков_осмотра
 export const customExaminationFormCatalogs = pgTable("custom_examination_form_catalogs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1718,7 +1779,9 @@ export const customExaminationFormCatalogs = pgTable("custom_examination_form_ca
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("custom_examination_form_catalogs_organizationId_idx").on(t.organizationId),
+}));
 // #36 — прием::несколько_диагнозов_егисз
 export const egiszMultipleDiagnoses = pgTable("egisz_multiple_diagnoses", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1735,7 +1798,9 @@ export const egiszMultipleDiagnoses = pgTable("egisz_multiple_diagnoses", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("egisz_multiple_diagnoses_organizationId_idx").on(t.organizationId),
+}));
 // #40 — прием::зубная_формула_пломба_кариес_и_детская_формула
 export const extendedOdontogramStates = pgTable("extended_odontogram_states", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1744,7 +1809,9 @@ export const extendedOdontogramStates = pgTable("extended_odontogram_states", {
         .references(() => organizations.id),
     patientName: text("patient_name").notNull(),
     toothNumber: integer("tooth_number").notNull(),
-    isPrimaryPediatric: boolean("is_primary_pediatric").default(false).notNull(),
+    isPrimaryPediatric: boolean("is_primary_pediatric")
+        .default(false)
+        .notNull(),
     secondaryCariesUnderFilling: boolean("secondary_caries_under_filling")
         .default(false)
         .notNull(),
@@ -1756,7 +1823,9 @@ export const extendedOdontogramStates = pgTable("extended_odontogram_states", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("extended_odontogram_states_organizationId_idx").on(t.organizationId),
+}));
 // #38 — прием::формы_осмотра_без_зубной_формулы
 export const nonDentalExaminationForms = pgTable("non_dental_examination_forms", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1773,7 +1842,9 @@ export const nonDentalExaminationForms = pgTable("non_dental_examination_forms",
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("non_dental_examination_forms_organizationId_idx").on(t.organizationId),
+}));
 // #41 — документы::печать_одонтограммы_в_плане_лечения
 export const treatmentPlanPrintOdontograms = pgTable("treatment_plan_print_odontograms", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1788,7 +1859,9 @@ export const treatmentPlanPrintOdontograms = pgTable("treatment_plan_print_odont
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_plan_print_odontograms_organizationId_idx").on(t.organizationId),
+}));
 // #34 — план_лечения::управление_этапами_и_автоархивация
 export const treatmentPlanStages = pgTable("treatment_plan_stages", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1805,7 +1878,9 @@ export const treatmentPlanStages = pgTable("treatment_plan_stages", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_plan_stages_organizationId_idx").on(t.organizationId),
+}));
 // #62 — финансы::отображение_суммы_начислений_врачам_в_прайс_листе
 export const pricelistDoctorPayrolls = pgTable("pricelist_doctor_payrolls", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1832,7 +1907,9 @@ export const pricelistDoctorPayrolls = pgTable("pricelist_doctor_payrolls", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("pricelist_doctor_payrolls_organizationId_idx").on(t.organizationId),
+}));
 // #61 — кадры::зачисление_повторной_записи_врачу_или_администратору
 export const rebookingConversionRules = pgTable("rebooking_conversion_rules", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1847,7 +1924,9 @@ export const rebookingConversionRules = pgTable("rebooking_conversion_rules", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("rebooking_conversion_rules_organizationId_idx").on(t.organizationId),
+}));
 // #55 — интеграции::продокторов_синхронизация_отзывов
 export const prodoctorovSyncExports = pgTable("prodoctorov_sync_exports", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1857,7 +1936,9 @@ export const prodoctorovSyncExports = pgTable("prodoctorov_sync_exports", {
     priceListSyncStatus: text("price_list_sync_status")
         .default("synced")
         .notNull(),
-    availableSlotsCount: integer("available_slots_count").default(120).notNull(),
+    availableSlotsCount: integer("available_slots_count")
+        .default(120)
+        .notNull(),
     medflexClubBadge: boolean("medflex_club_badge").default(true).notNull(),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true })
         .notNull()
@@ -1865,7 +1946,9 @@ export const prodoctorovSyncExports = pgTable("prodoctorov_sync_exports", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("prodoctorov_sync_exports_organizationId_idx").on(t.organizationId),
+}));
 // #58 — пациенты::геокодинг_адресов_через_dadata
 export const dadataGeocodedAddresses = pgTable("dadata_geocoded_addresses", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1881,7 +1964,9 @@ export const dadataGeocodedAddresses = pgTable("dadata_geocoded_addresses", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("dadata_geocoded_addresses_organizationId_idx").on(t.organizationId),
+}));
 // #56 — система::запрет_одновременной_авторизации_под_одной_учеткой
 export const singleSessionEnforcements = pgTable("single_session_enforcements", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1899,7 +1984,9 @@ export const singleSessionEnforcements = pgTable("single_session_enforcements", 
     lastActiveAt: timestamp("last_active_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("single_session_enforcements_organizationId_idx").on(t.organizationId),
+}));
 // ─────────────────────────────────────────────────────────────
 // Missing table definitions — referenced by query files
 // ─────────────────────────────────────────────────────────────
@@ -1928,7 +2015,10 @@ export const labOrders = pgTable("lab_orders", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("lab_orders_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("lab_orders_patientId_idx").on(t.patientId),
+}));
 // treatment plans (multi-stage treatment planning)
 export const treatmentPlans = pgTable("treatment_plans", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -1994,7 +2084,10 @@ export const treatmentPlans = pgTable("treatment_plans", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_plans_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("treatment_plans_patientId_idx").on(t.patientId),
+}));
 // treatment plan items new (items inside treatment plan)
 export const treatmentPlanItemsNew = pgTable("treatment_plan_items_new", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2063,7 +2156,9 @@ export const treatmentPlanItemsNew = pgTable("treatment_plan_items_new", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("treatment_plan_items_new_organizationId_idx").on(t.organizationId),
+}));
 // visit templates (protocol templates for visits)
 export const visitTemplates = pgTable("visit_templates", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2084,7 +2179,9 @@ export const visitTemplates = pgTable("visit_templates", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("visit_templates_organizationId_idx").on(t.organizationId),
+}));
 // visit diaries (full clinical diary with structured fields)
 export const visitDiaries = pgTable("visit_diaries", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2126,7 +2223,9 @@ export const visitDiaries = pgTable("visit_diaries", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("visit_diaries_organizationId_idx").on(t.organizationId),
+}));
 // visit diary revisions (audit trail for diary edits)
 export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2170,7 +2269,9 @@ export const visitDiaryRevisions = pgTable("visit_diary_revisions", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("visit_diary_revisions_organizationId_idx").on(t.organizationId),
+}));
 // visit examination photo links (links to uploaded exam photos)
 export const visitExaminationPhotoLinks = pgTable("visit_examination_photo_links", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2184,7 +2285,9 @@ export const visitExaminationPhotoLinks = pgTable("visit_examination_photo_links
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("visit_examination_photo_links_organizationId_idx").on(t.organizationId),
+}));
 // tooth states (per-tooth status for odontogram)
 export const toothStates = pgTable("tooth_states", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2205,7 +2308,10 @@ export const toothStates = pgTable("tooth_states", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("tooth_states_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("tooth_states_patientId_idx").on(t.patientId),
+}));
 /**
  * История изменений состояния зуба (только добавление, без перезаписи).
  *
@@ -2242,6 +2348,7 @@ export const toothStateHistory = pgTable("tooth_state_history", {
         .defaultNow(),
 }, (table) => ({
     patientToothIdx: index("idx_tooth_state_history_patient_tooth").on(table.patientId, table.toothNumber, table.changedAt),
+    organizationIdIdx: index("tooth_state_history_organizationId_idx").on(table.organizationId),
 }));
 // insurance contracts (DMS / voluntary health insurance)
 export const insuranceContracts = pgTable("insurance_contracts", {
@@ -2288,7 +2395,9 @@ export const insuranceContracts = pgTable("insurance_contracts", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("insurance_contracts_organizationId_idx").on(t.organizationId),
+}));
 // inventory items (clinic supplies and materials)
 export const inventoryItems = pgTable("inventory_items", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2342,6 +2451,7 @@ export const inventoryItems = pgTable("inventory_items", {
     return {
         stockCheck: check("inventory_items_stock_quantity_check", sql `CAST(${table.stockQuantity} AS NUMERIC) >= 0`),
         currentQtyCheck: check("inventory_items_current_qty_check", sql `CAST(${table.currentQty} AS NUMERIC) >= 0`),
+        organizationIdIdx: index("inventory_items_organizationId_idx").on(table.organizationId),
     };
 });
 // inventory transactions (stock movements)
@@ -2364,7 +2474,9 @@ export const inventoryTransactions = pgTable("inventory_transactions", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("inventory_transactions_organizationId_idx").on(t.organizationId),
+}));
 // patient invoices (billing invoices sent to patients)
 export const patientInvoices = pgTable("patient_invoices", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2413,7 +2525,10 @@ export const patientInvoices = pgTable("patient_invoices", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_invoices_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("patient_invoices_patientId_idx").on(t.patientId),
+}));
 // appointment waitlists (patient waiting queue)
 export const appointmentWaitlists = pgTable("appointment_waitlists", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2434,7 +2549,10 @@ export const appointmentWaitlists = pgTable("appointment_waitlists", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("appointment_waitlists_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("appointment_waitlists_patientId_idx").on(t.patientId),
+}));
 // clinic chairs (treatment chairs / workstations)
 export const clinicChairs = pgTable("clinic_chairs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2448,7 +2566,9 @@ export const clinicChairs = pgTable("clinic_chairs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("clinic_chairs_organizationId_idx").on(t.organizationId),
+}));
 // doctor commissions (payroll commission rates)
 export const doctorCommissions = pgTable("doctor_commissions", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2479,7 +2599,9 @@ export const doctorCommissions = pgTable("doctor_commissions", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("doctor_commissions_organizationId_idx").on(t.organizationId),
+}));
 // family groups (linked family accounts)
 export const familyGroups = pgTable("family_groups", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2516,7 +2638,9 @@ export const familyGroups = pgTable("family_groups", {
         .notNull()
         .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("family_groups_organizationId_idx").on(t.organizationId),
+}));
 // CRM leads (incoming lead tracking)
 export const crmLeads = pgTable("crm_leads", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2551,7 +2675,9 @@ export const crmLeads = pgTable("crm_leads", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("crm_leads_organizationId_idx").on(t.organizationId),
+}));
 // procedure material rules (material requirements per procedure)
 export const procedureMaterialRules = pgTable("procedure_material_rules", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2573,7 +2699,9 @@ export const procedureMaterialRules = pgTable("procedure_material_rules", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("procedure_material_rules_organizationId_idx").on(t.organizationId),
+}));
 // sterilization logs (autoclave / sterilization records)
 export const sterilizationLogs = pgTable("sterilization_logs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2597,7 +2725,9 @@ export const sterilizationLogs = pgTable("sterilization_logs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("sterilization_logs_organizationId_idx").on(t.organizationId),
+}));
 // system RAM watchdogs (server health monitoring)
 export const systemRamWatchdogs = pgTable("system_ram_watchdogs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2612,7 +2742,9 @@ export const systemRamWatchdogs = pgTable("system_ram_watchdogs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("system_ram_watchdogs_organizationId_idx").on(t.organizationId),
+}));
 // clinical audit logs (HIPAA-style access audit trail)
 export const clinicalAuditLogs = pgTable("clinical_audit_logs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2635,7 +2767,9 @@ export const clinicalAuditLogs = pgTable("clinical_audit_logs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("clinical_audit_logs_organizationId_idx").on(t.organizationId),
+}));
 /**
  * РАЗМЕТКА ПЛАНИРОВАНИЯ ИМПЛАНТАЦИИ ПО КЛКТ.
  *
@@ -2701,7 +2835,10 @@ export const patientCtPlannings = pgTable("patient_ct_plannings", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_ct_plannings_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("patient_ct_plannings_patientId_idx").on(t.patientId),
+}));
 // patient duplicate merge queues (deduplication workflow)
 export const patientDuplicateMergeQueues = pgTable("patient_duplicate_merge_queues", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2717,7 +2854,9 @@ export const patientDuplicateMergeQueues = pgTable("patient_duplicate_merge_queu
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_duplicate_merge_queues_organizationId_idx").on(t.organizationId),
+}));
 // appointment channel inheritances (messenger channel routing)
 export const appointmentChannelInheritances = pgTable("appointment_channel_inheritances", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2731,7 +2870,9 @@ export const appointmentChannelInheritances = pgTable("appointment_channel_inher
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("appointment_channel_inheritances_organizationId_idx").on(t.organizationId),
+}));
 // bulk image operation logs (batch DICOM operations)
 export const bulkImageOperationLogs = pgTable("bulk_image_operation_logs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2746,7 +2887,9 @@ export const bulkImageOperationLogs = pgTable("bulk_image_operation_logs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("bulk_image_operation_logs_organizationId_idx").on(t.organizationId),
+}));
 // chat message dispatch statuses (outbound message delivery)
 export const chatMessageDispatchStatuses = pgTable("chat_message_dispatch_statuses", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2762,7 +2905,9 @@ export const chatMessageDispatchStatuses = pgTable("chat_message_dispatch_status
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("chat_message_dispatch_statuses_organizationId_idx").on(t.organizationId),
+}));
 // collaborative chat processing states (concurrent agent sync)
 export const collaborativeChatProcessingStates = pgTable("collaborative_chat_processing_states", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2777,7 +2922,9 @@ export const collaborativeChatProcessingStates = pgTable("collaborative_chat_pro
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("collaborative_chat_processing_states_organizationId_idx").on(t.organizationId),
+}));
 // diagnocat AI findings (AI-based radiograph analysis)
 export const diagnocatAiFindings = pgTable("diagnocat_ai_findings", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2793,7 +2940,9 @@ export const diagnocatAiFindings = pgTable("diagnocat_ai_findings", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("diagnocat_ai_findings_organizationId_idx").on(t.organizationId),
+}));
 export const diagnocatReports = pgTable("diagnocat_reports", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
     organizationId: uuid("organization_id")
@@ -2821,7 +2970,9 @@ export const sberbankTransactions = pgTable("sberbank_transactions", {
         .notNull()
         .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }),
-});
+}, (t) => ({
+    organizationIdIdx: index("sberbank_transactions_organizationId_idx").on(t.organizationId),
+}));
 // egisz blank permissions (EGISZ REMD form access control)
 export const egiszBlankPermissions = pgTable("egisz_blank_permissions", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2851,7 +3002,9 @@ export const egiszBlankPermissions = pgTable("egisz_blank_permissions", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("egisz_blank_permissions_organizationId_idx").on(t.organizationId),
+}));
 /**
  * Статусы журнала обмена с ЕГИСЗ. Тип `egisz_status_enum` существует в базе с
  * миграции 0000 (строка 26) — объявление здесь ничего не создаёт и миграции не
@@ -2899,7 +3052,11 @@ export const egiszLogs = pgTable("egisz_logs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("egisz_logs_organizationId_idx").on(t.organizationId),
+    patientIdIdx: index("egisz_logs_patientId_idx").on(t.patientId),
+    visitIdIdx: index("egisz_logs_visitId_idx").on(t.visitId),
+}));
 // external schedule action logs (Zabota2.0 / LoyalMed AI booking)
 export const externalScheduleActionLogs = pgTable("external_schedule_action_logs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2914,7 +3071,9 @@ export const externalScheduleActionLogs = pgTable("external_schedule_action_logs
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("external_schedule_action_logs_organizationId_idx").on(t.organizationId),
+}));
 // family recommendation sources (family referral attribution)
 export const familyRecommendationSources = pgTable("family_recommendation_sources", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2930,7 +3089,9 @@ export const familyRecommendationSources = pgTable("family_recommendation_source
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("family_recommendation_sources_organizationId_idx").on(t.organizationId),
+}));
 // message template catalogs (reusable SMS/Telegram templates)
 export const messageTemplateCatalogs = pgTable("message_template_catalogs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2946,7 +3107,9 @@ export const messageTemplateCatalogs = pgTable("message_template_catalogs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("message_template_catalogs_organizationId_idx").on(t.organizationId),
+}));
 // messenger file attachments (files sent through chat)
 export const messengerFileAttachments = pgTable("messenger_file_attachments", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -2961,7 +3124,9 @@ export const messengerFileAttachments = pgTable("messenger_file_attachments", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("messenger_file_attachments_organizationId_idx").on(t.organizationId),
+}));
 // messenger inbound events (raw incoming webhook events)
 /**
  * Очередь входящих сообщений из мессенджеров.
@@ -2992,7 +3157,9 @@ export const messengerInboundEvents = pgTable("messenger_inbound_events", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("messenger_inbound_events_organizationId_idx").on(t.organizationId),
+}));
 // MKB-10 auto directories (ICD-10 diagnosis quick-select)
 export const mkb10AutoDirectories = pgTable("mkb10_auto_directories", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3006,7 +3173,9 @@ export const mkb10AutoDirectories = pgTable("mkb10_auto_directories", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("mkb10_auto_directories_organizationId_idx").on(t.organizationId),
+}));
 // NDFL tax calculators (personal income tax deduction calc)
 export const ndflTaxCalculators = pgTable("ndfl_tax_calculators", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3024,11 +3193,15 @@ export const ndflTaxCalculators = pgTable("ndfl_tax_calculators", {
         scale: 2,
     }),
     ndflReturnRub: numeric("ndfl_return_rub", { precision: 12, scale: 2 }),
-    calculatedAt: timestamp("calculated_at", { withTimezone: true }).defaultNow(),
+    calculatedAt: timestamp("calculated_at", {
+        withTimezone: true,
+    }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("ndfl_tax_calculators_organizationId_idx").on(t.organizationId),
+}));
 /**
  * Задачи (поручения) по пациенту: перезвонить, дослать документы, проверить
  * самочувствие.
@@ -3058,7 +3231,9 @@ export const patientTaskTickets = pgTable("patient_task_tickets", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_task_tickets_organizationId_idx").on(t.organizationId),
+}));
 /**
  * Рекламации и осложнения по пациенту — основание для гарантии, возврата и
  * переделки.
@@ -3088,7 +3263,9 @@ export const patientReclamations = pgTable("patient_reclamations", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_reclamations_organizationId_idx").on(t.organizationId),
+}));
 // patient archive reasons and blacklists
 export const patientArchiveReasonsAndBlacklists = pgTable("patient_archive_reasons_and_blacklists", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3109,7 +3286,9 @@ export const patientArchiveReasonsAndBlacklists = pgTable("patient_archive_reaso
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_archive_reasons_and_blacklists_organizationId_idx").on(t.organizationId),
+}));
 // patient communication timelines (full comm history per patient)
 // ВНИМАНИЕ: определение приведено к физической таблице из миграции
 // drizzle/0102_add_patient_communication_timelines.sql. БЫЛО: здесь описывались
@@ -3130,7 +3309,9 @@ export const patientCommunicationTimelines = pgTable("patient_communication_time
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("patient_communication_timelines_organizationId_idx").on(t.organizationId),
+}));
 // previous chat dialog histories (chat context for AI)
 export const previousChatDialogHistories = pgTable("previous_chat_dialog_histories", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3144,7 +3325,9 @@ export const previousChatDialogHistories = pgTable("previous_chat_dialog_histori
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("previous_chat_dialog_histories_organizationId_idx").on(t.organizationId),
+}));
 // UIS call speech transcripts (telephony / callcenter transcripts)
 export const uisCallSpeechTranscripts = pgTable("uis_call_speech_transcripts", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3160,7 +3343,9 @@ export const uisCallSpeechTranscripts = pgTable("uis_call_speech_transcripts", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("uis_call_speech_transcripts_organizationId_idx").on(t.organizationId),
+}));
 // UIS SMS chat quotas (SMS quota management)
 export const uisSmsChatQuotas = pgTable("uis_sms_chat_quotas", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3174,7 +3359,9 @@ export const uisSmsChatQuotas = pgTable("uis_sms_chat_quotas", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("uis_sms_chat_quotas_organizationId_idx").on(t.organizationId),
+}));
 // Yandex calendar syncs (Yandex Calendar integration)
 export const yandexCalendarSyncs = pgTable("yandex_calendar_syncs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3190,7 +3377,9 @@ export const yandexCalendarSyncs = pgTable("yandex_calendar_syncs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("yandex_calendar_syncs_organizationId_idx").on(t.organizationId),
+}));
 // Dente Max bot configs (MAX messenger bot settings)
 export const denteMaxBotConfigs = pgTable("dente_max_bot_configs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3209,7 +3398,9 @@ export const denteMaxBotConfigs = pgTable("dente_max_bot_configs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("dente_max_bot_configs_organizationId_idx").on(t.organizationId),
+}));
 // Dente WhatsApp bot configs (WABA / WhatsApp settings)
 export const denteWhatsappBotConfigs = pgTable("dente_whatsapp_bot_configs", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3232,7 +3423,9 @@ export const denteWhatsappBotConfigs = pgTable("dente_whatsapp_bot_configs", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("dente_whatsapp_bot_configs_organizationId_idx").on(t.organizationId),
+}));
 // services (clinic price list / service catalog)
 export const services = pgTable("services", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3265,7 +3458,9 @@ export const services = pgTable("services", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("services_organizationId_idx").on(t.organizationId),
+}));
 // protocol templates (visit protocol / clinical workflow templates)
 export const protocolTemplates = pgTable("protocol_templates", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3281,7 +3476,9 @@ export const protocolTemplates = pgTable("protocol_templates", {
     complaintPrompt: text("complaint_prompt").notNull().default(""),
     objectiveTemplate: text("objective_template").notNull().default(""),
     diagnosisHints: jsonb("diagnosis_hints"),
-    treatmentPlanTemplate: text("treatment_plan_template").notNull().default(""),
+    treatmentPlanTemplate: text("treatment_plan_template")
+        .notNull()
+        .default(""),
     requiredDocuments: jsonb("required_documents"),
     suggestedImaging: jsonb("suggested_imaging"),
     safetyWarnings: jsonb("safety_warnings"),
@@ -3289,7 +3486,9 @@ export const protocolTemplates = pgTable("protocol_templates", {
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("protocol_templates_organizationId_idx").on(t.organizationId),
+}));
 // UIS mass appointment confirmations (bulk SMS confirmation campaigns)
 export const uisMassAppointmentConfirmations = pgTable("uis_mass_appointment_confirmations", {
     id: uuid("id").primaryKey().default(sql `uuidv7()`),
@@ -3307,7 +3506,9 @@ export const uisMassAppointmentConfirmations = pgTable("uis_mass_appointment_con
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("uis_mass_appointment_confirmations_organizationId_idx").on(t.organizationId),
+}));
 /**
  * Очередь исходящих уведомлений пациентам.
  *
@@ -3470,6 +3671,10 @@ export const communicationOutbox = pgTable("communication_outbox", {
     return {
         outboxOrgDedupeUnique: unique("communication_outbox_org_dedupe_unique").on(table.organizationId, table.dedupeKey),
         outboxOrgCreatedIdx: index("communication_outbox_org_created_idx").on(table.organizationId, table.createdAt),
+        clinicIdIdx: index("communication_outbox_clinicId_idx").on(table.clinicId),
+        patientIdIdx: index("communication_outbox_patientId_idx").on(table.patientId),
+        taskIdIdx: index("communication_outbox_taskId_idx").on(table.taskId),
+        templateIdIdx: index("communication_outbox_templateId_idx").on(table.templateId),
     };
 });
 export const patientCommunicationConsents = pgTable("patient_communication_consents", {
@@ -3499,6 +3704,7 @@ export const patientCommunicationConsents = pgTable("patient_communication_conse
 }, (table) => {
     return {
         consentUnique: unique("patient_communication_consents_unique").on(table.organizationId, table.patientId, table.channel, table.scope),
+        decidedByUserIdIdx: index("patient_communication_consents_decidedByUserId_idx").on(table.decidedByUserId),
     };
 });
 export const communicationSettings = pgTable("communication_settings", {
@@ -3510,7 +3716,9 @@ export const communicationSettings = pgTable("communication_settings", {
     quietHoursStartMinute: integer("quiet_hours_start_minute")
         .notNull()
         .default(1260),
-    quietHoursEndMinute: integer("quiet_hours_end_minute").notNull().default(540),
+    quietHoursEndMinute: integer("quiet_hours_end_minute")
+        .notNull()
+        .default(540),
     /** Сервисное в тихие часы откладывается до утра, а не отменяется. */
     deferServiceInQuietHours: boolean("defer_service_in_quiet_hours")
         .notNull()
@@ -3518,7 +3726,9 @@ export const communicationSettings = pgTable("communication_settings", {
     blockMarketingInQuietHours: boolean("block_marketing_in_quiet_hours")
         .notNull()
         .default(true),
-    dailyLimitPerPatient: integer("daily_limit_per_patient").notNull().default(3),
+    dailyLimitPerPatient: integer("daily_limit_per_patient")
+        .notNull()
+        .default(3),
     maxAttempts: integer("max_attempts").notNull().default(5),
     retryBaseSeconds: integer("retry_base_seconds").notNull().default(60),
     retryMaxSeconds: integer("retry_max_seconds").notNull().default(3600),
@@ -3546,7 +3756,9 @@ export const communicationSettings = pgTable("communication_settings", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-});
+}, (t) => ({
+    organizationIdIdx: index("communication_settings_organizationId_idx").on(t.organizationId),
+}));
 // ============================================================================
 // Движок переноса из чужих систем (миграция 0124).
 //
@@ -3680,6 +3892,7 @@ export const migrationRuns = pgTable("migration_runs", {
 }, (table) => {
     return {
         idxMigrationRunsOrgCreated: index("migration_runs_org_created_idx").on(table.organizationId, table.createdAt),
+        startedByUserIdIdx: index("migration_runs_startedByUserId_idx").on(table.startedByUserId),
     };
 });
 export const migrationStagingRecords = pgTable("migration_staging_records", {
@@ -3713,6 +3926,7 @@ export const migrationStagingRecords = pgTable("migration_staging_records", {
         stagingRowUnique: unique("migration_staging_row_unique").on(table.runId, table.sourceTable, table.sourceRowNumber),
         idxStagingRunStatus: index("migration_staging_run_status_idx").on(table.runId, table.status),
         idxStagingHash: index("migration_staging_hash_idx").on(table.runId, table.rawHash),
+        organizationIdIdx: index("migration_staging_records_organizationId_idx").on(table.organizationId),
     };
 });
 export const migrationQuarantineRecords = pgTable("migration_quarantine_records", {
@@ -3744,6 +3958,9 @@ export const migrationQuarantineRecords = pgTable("migration_quarantine_records"
 }, (table) => {
     return {
         idxQuarantineRun: index("migration_quarantine_run_idx").on(table.runId, table.resolution, table.reason),
+        organizationIdIdx: index("migration_quarantine_records_organizationId_idx").on(table.organizationId),
+        stagingRecordIdIdx: index("migration_quarantine_records_stagingRecordId_idx").on(table.stagingRecordId),
+        resolvedByUserIdIdx: index("migration_quarantine_records_resolvedByUserId_idx").on(table.resolvedByUserId),
     };
 });
 export const migrationEntityLinks = pgTable("migration_entity_links", {
@@ -3820,6 +4037,7 @@ export const migrationReconciliations = pgTable("migration_reconciliations", {
 }, (table) => {
     return {
         idxReconciliationRun: index("migration_reconciliations_run_idx").on(table.runId, table.generatedAt),
+        organizationIdIdx: index("migration_reconciliations_organizationId_idx").on(table.organizationId),
     };
 });
 /**
@@ -3875,9 +4093,7 @@ export const clinicWorkflows = pgTable("clinic_workflows", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .notNull()
         .defaultNow(),
-}, (table) => [
-    index("clinic_workflows_org_idx").on(table.organizationId),
-]);
+}, (table) => [index("clinic_workflows_org_idx").on(table.organizationId)]);
 import { relations } from "drizzle-orm";
 export const organizationsRelations = relations(organizations, ({ many }) => ({
     users: many(users),

@@ -66,7 +66,7 @@ const durableWriteFailureWarningPrefix = "Фрагмент не сохранен
  * медицинский текст. Поэтому запись падает громко, фрагмент остаётся в памяти с
  * предупреждением, а строка в базе не трогается.
  */
-export class SpeechDurableEnvelopeUnreadableError extends Error {
+class SpeechDurableEnvelopeUnreadableError extends Error {
     constructor(recordingId, reason) {
         super(`Конверт записи ${recordingId} не читается (${reason}); перезапись отменена, чтобы не потерять сохранённый текст.`);
         this.name = "SpeechDurableEnvelopeUnreadableError";

@@ -1,5 +1,5 @@
 import { createAppointmentSchema, dashboardSchema, updateAppointmentSchema, } from "@dental/shared";
-import { unguardedBypassAllowed, requireResolvedOrganizationId as requireOrganizationContext, } from "../accessGuard.js";
+import { requireResolvedOrganizationId as requireOrganizationContext, unguardedBypassAllowed, } from "../accessGuard.js";
 import { repairMojibakeText } from "../text/repairMojibake.js";
 import { clinicSessionMissingMessage, clinicSessionRejectedMessage, } from "../utils/clinicSessionRefusal.js";
 import { timingSafeSecretEqual } from "../utils/timingSafeSecretEqual.js";
@@ -278,7 +278,7 @@ function requireClinicOrganizationId(request, reply) {
         return null;
     }
     const payload = verifyToken(clinicToken, TOKEN_SECRET());
-    if (!payload || !payload.organizationId) {
+    if (!payload?.organizationId) {
         reply
             .code(401)
             .send({ error: "AuthExpired", message: clinicSessionRejectedMessage });
@@ -346,11 +346,11 @@ async function requireScheduleMutationContext(request, reply, protectedArea = "s
         return null;
     return { organizationId };
 }
-import { and, desc, eq, asc } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { createAppointmentInDb, updateAppointmentInDb, } from "../db/appointmentsQuery.js";
 import { db } from "../db/client.js";
 import { getDashboardFromDb } from "../db/dashboardQuery.js";
-import { appointments, patients, scheduleClipboardItems, users, urgentScheduleRequests, } from "../db/schema.js";
+import { appointments, patients, scheduleClipboardItems, urgentScheduleRequests, users, } from "../db/schema.js";
 import { invalidateAppointmentReminders } from "../services/communications/appointmentReminders.js";
 import { wsBroker } from "../services/websocketBroker.js";
 const clipboardItemMissingMessage = "Запись в буфере не найдена. Обновите список буфера и выберите актуальную строку.";
@@ -718,6 +718,7 @@ export async function registerScheduleRoutes(app) {
         try {
             const created = await db.transaction(async (tx) => {
                 const newAppt = await createAppointmentInDb(orgId, {
+                    // biome-ignore lint/style/noNonNullAssertion: automated suppression
                     patientId: original.patientId,
                     doctorUserId,
                     assistantUserId: original.assistantUserId ?? null,

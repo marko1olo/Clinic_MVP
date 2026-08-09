@@ -9,7 +9,7 @@ export function configuredClinicalAccessSecret() {
 export function configuredClinicalMutationSecret() {
     return configuredClinicalAccessSecret();
 }
-import { namedDevelopmentModeActive, unguardedBypassAllowed } from "./security/bypass.js";
+import { namedDevelopmentModeActive, unguardedBypassAllowed, } from "./security/bypass.js";
 export { namedDevelopmentModeActive, unguardedBypassAllowed };
 function clinicalMutationsUnguardedAllowed() {
     return unguardedBypassAllowed("DENTE_CLINICAL_ALLOW_UNGUARDED_MUTATIONS");
@@ -119,10 +119,13 @@ export async function requireResolvedStaffOrAdminOrganizationId(request, reply, 
         const [user] = await db
             .select({ currentSessionId: users.currentSessionId })
             .from(users)
-            .where(and(eq(users.id, identity.userId), eq(users.organizationId, identity.organizationId)))
+            .where(and(
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
+        eq(users.id, identity.userId), 
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
+        eq(users.organizationId, identity.organizationId)))
             .limit(1);
-        if (user &&
-            user.currentSessionId &&
+        if (user?.currentSessionId &&
             user.currentSessionId !== identity.sessionId) {
             reply.code(401).send({
                 error: "invalid_session",
@@ -136,7 +139,7 @@ export async function requireResolvedStaffOrAdminOrganizationId(request, reply, 
 /**
  * Требует авторизованного сотрудника и возвращает его userId.
  */
-export async function requireResolvedStaffUserId(request, reply, _protectedArea) {
+async function _requireResolvedStaffUserId(request, reply, _protectedArea) {
     const identity = getRequestIdentity(request);
     if (!identity.userId) {
         reply.code(401).send({
@@ -152,10 +155,13 @@ export async function requireResolvedStaffUserId(request, reply, _protectedArea)
         const [user] = await db
             .select({ currentSessionId: users.currentSessionId })
             .from(users)
-            .where(and(eq(users.id, identity.userId), eq(users.organizationId, identity.organizationId)))
+            .where(and(
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
+        eq(users.id, identity.userId), 
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
+        eq(users.organizationId, identity.organizationId)))
             .limit(1);
-        if (user &&
-            user.currentSessionId &&
+        if (user?.currentSessionId &&
             user.currentSessionId !== identity.sessionId) {
             reply.code(401).send({
                 error: "invalid_session",

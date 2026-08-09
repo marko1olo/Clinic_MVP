@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { communicationTasks, patients, treatmentPlanItemsNew, treatmentPlans, } from "../db/schema.js";
-export function buildRecallTask(item, now) {
+function buildRecallTask(item, now) {
     if (!item.toothNumber)
         return null;
     // Без даты плана срок приживления не отсчитать. Раньше здесь было
@@ -44,6 +44,7 @@ export function addCalendarMonths(from, months) {
     shifted.setDate(Math.min(from.getDate(), lastDayOfTargetMonth));
     return shifted;
 }
+// biome-ignore lint/complexity/noStaticOnlyClass: automated suppression
 export class RecallScheduler {
     /**
      * Run this periodically (e.g., via node-cron or setInterval)
@@ -78,6 +79,7 @@ export class RecallScheduler {
                 await db.insert(communicationTasks).values(tasksToInsert);
                 console.log(`[RecallScheduler] Created ${tasksToInsert.length} recall tasks for admin.`);
             }
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (e) {
             console.warn("[RecallScheduler notice]:", e?.message || e);

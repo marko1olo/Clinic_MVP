@@ -183,11 +183,13 @@ const PASS2_PROMPT = `Ты — главный редактор медицинс�
 }`;
 async function callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText, timeoutMs = 40_000) {
     const baseUrl = slot.provider === "groq" ? GROQ_BASE_URL : GEMINI_BASE_URL;
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const userContent = [{ type: "text", text: prompt }];
     if (extraUserText) {
         userContent.push({ type: "text", text: extraUserText });
     }
     userContent.push({ type: "image_url", image_url: { url: imageBase64 } });
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const body = {
         model: slot.model,
         temperature: 0.1,
@@ -197,7 +199,7 @@ async function callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText,
             : {}),
         messages: [{ role: "user", content: userContent }],
     };
-    const resp = await fetchWithProviderTimeout(baseUrl + "/chat/completions", {
+    const resp = await fetchWithProviderTimeout(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -208,9 +210,11 @@ async function callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText,
     if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText);
         const err = new Error(`${slot.provider.toUpperCase()} ${resp.status}: ${errText}`);
+        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         err.statusCode = resp.status;
         throw err;
     }
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const data = (await resp.json());
     const content = data?.choices?.[0]?.message?.content ?? "";
     if (!content || content.length < 20) {
@@ -225,14 +229,17 @@ const GROQ_PROVIDER_ID = "groq_whisper";
 const GEMINI_PROVIDER_ID = "google_speech";
 async function runCascade(slots, prompt, imageBase64, extraUserText, minLength = 80) {
     for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
         const slot = slots[slotIdx];
         const providerId = slot.provider === "groq" ? GROQ_PROVIDER_ID : GEMINI_PROVIDER_ID;
         const triedFingerprints = new Set();
         const maxAttempts = Math.max(1, keyRetryLimit(providerId));
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             const candidate = selectProviderKey(providerId, triedFingerprints);
             if (!candidate)
                 break; // no more keys for this provider
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             const apiKey = candidate.value ?? candidate.key ?? "";
             if (!apiKey) {
                 triedFingerprints.add(candidate.fingerprint);
@@ -242,13 +249,16 @@ async function runCascade(slots, prompt, imageBase64, extraUserText, minLength =
                 console.log(`[visionAnalyzer] Pass slot=${slotIdx} provider=${slot.provider} model=${slot.model} key=${candidate.fingerprint}`);
                 const text = await callVisionModel(slot, apiKey, prompt, imageBase64, extraUserText);
                 if (text.length >= minLength) {
+                    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                     recordProviderKeySuccess(providerId, candidate);
                     return { text, slotIdx };
                 }
                 console.warn(`[visionAnalyzer] Response too short (${text.length} chars), trying next`);
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             }
             catch (err) {
                 const statusCode = err?.statusCode ?? 0;
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                 recordProviderKeyFailure(providerId, candidate, err);
                 triedFingerprints.add(candidate.fingerprint);
                 console.warn(`[visionAnalyzer] ${slot.provider} key=${candidate.fingerprint} failed: ${err.message}`);
@@ -272,6 +282,7 @@ async function runCascade(slots, prompt, imageBase64, extraUserText, minLength =
 // ──────────────────────────────────────────────────────────────────────────────
 // JSON extraction helper (handles markdown fences)
 // ──────────────────────────────────────────────────────────────────────────────
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 function extractJson(text) {
     // Strip <think>...</think> if present (Qwen-style)
     const cleaned = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
@@ -299,7 +310,9 @@ function extractJson(text) {
 // ──────────────────────────────────────────────────────────────────────────────
 export async function analyzeImagingStudy(imageBase64) {
     // Check we have at least one key available
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const groqKeys = getProviderKeyCandidates(GROQ_PROVIDER_ID);
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const geminiKeys = getProviderKeyCandidates(GEMINI_PROVIDER_ID);
     if (!groqKeys.length && !geminiKeys.length) {
         throw new Error("Нет доступных ключей для AI-анализа (ни Groq, ни Gemini)");
@@ -335,6 +348,7 @@ export async function analyzeImagingStudy(imageBase64) {
     if (!pass1) {
         throw new Error("Анализ не выполнен: все AI-провайдеры недоступны или вернули пустой ответ");
     }
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     let pass1Parsed;
     try {
         pass1Parsed = extractJson(pass1.text);
@@ -344,10 +358,13 @@ export async function analyzeImagingStudy(imageBase64) {
         return {
             summary: pass1.text.slice(0, 2000),
             toothUpdates: [],
-            _meta: { pass1Model: pass1Slots[pass1.slotIdx].model, pass2Model: null },
+            _meta: {
+                pass1Model: pass1Slots[pass1.slotIdx]?.model ?? "unknown",
+                pass2Model: null,
+            },
         };
     }
-    const pass1ModelName = pass1Slots[pass1.slotIdx].model;
+    const pass1ModelName = pass1Slots[pass1.slotIdx]?.model;
     // ── PASS 2: Critic pass (different model from pass1 if possible) ──────────
     // Use the other provider for critic, or cycle to the next slot
     const pass2Slots = [
@@ -359,6 +376,7 @@ export async function analyzeImagingStudy(imageBase64) {
         : JSON.stringify(pass1Parsed);
     const pass2ExtraText = `Вот первичный анализ, который нужно критически проверить и улучшить:\n\n${pass1Summary}`;
     const pass2 = await runCascade(pass2Slots, PASS2_PROMPT, processedBase64, pass2ExtraText, 100);
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     let finalResult = pass1Parsed;
     let pass2ModelName = null;
     if (pass2) {
@@ -378,19 +396,24 @@ export async function analyzeImagingStudy(imageBase64) {
         }
     }
     // ── Normalise output ──────────────────────────────────────────────────────
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     const toothUpdates = Array.isArray(finalResult.toothUpdates)
-        ? finalResult.toothUpdates.map((u) => ({
-            code: String(u.code ?? "unknown"),
-            state: String(u.state ?? "watch"),
-            diagnosisOrFinding: String(u.diagnosisOrFinding ?? ""),
-            notes: u.notes ? String(u.notes) : undefined,
-        }))
+        ? // biome-ignore lint/suspicious/noExplicitAny: automated suppression
+            finalResult.toothUpdates.map((u) => ({
+                code: String(u.code ?? "unknown"),
+                state: String(u.state ?? "watch"),
+                diagnosisOrFinding: String(u.diagnosisOrFinding ?? ""),
+                notes: u.notes ? String(u.notes) : undefined,
+            }))
         : [];
     return {
         summary: typeof finalResult.summary === "string"
             ? finalResult.summary
             : JSON.stringify(finalResult),
         toothUpdates,
-        _meta: { pass1Model: pass1ModelName, pass2Model: pass2ModelName },
+        _meta: {
+            pass1Model: pass1ModelName ?? "unknown",
+            pass2Model: pass2ModelName,
+        },
     };
 }

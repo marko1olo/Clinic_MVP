@@ -95,6 +95,7 @@ export const PatientJourneyTimeline: React.FC<{
 			return staffById.get(doctorUserId)?.fullName ?? "врач не найден в списке";
 		};
 
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		const appointments: any[] = dashboard?.appointments || [];
 		const visitEvents: JourneyEvent[] = appointments
 			.filter((a) => a.patientId === patientId)
@@ -111,6 +112,7 @@ export const PatientJourneyTimeline: React.FC<{
 				};
 			});
 
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		const payments: any[] = dashboard?.payments || [];
 		const paymentEvents: JourneyEvent[] = payments
 			.filter((p) => p.patientId === patientId)
@@ -125,6 +127,7 @@ export const PatientJourneyTimeline: React.FC<{
 				actionUrl: `#finance`,
 			}));
 
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		const insights: any[] = dashboard?.patientInsights || [];
 		const insightEvents: JourneyEvent[] = insights
 			.filter((i) => i.patientId === patientId)
@@ -159,11 +162,15 @@ export const PatientJourneyTimeline: React.FC<{
 	]);
 
 	// Real Zeigarnik Effect Progress Calculation
-	const planItems =
-		dashboard?.treatmentPlanItems?.filter((i) => i.patientId === patientId) ||
-		[];
-	const activeItems = planItems.filter((i) => i.status !== "cancelled");
-	const completedItems = activeItems.filter((i) => i.status === "completed");
+	const planItems = (dashboard?.treatmentPlanItems ?? []).filter(
+		(i) => i?.patientId === patientId,
+	);
+	const activeItems = (planItems ?? []).filter(
+		(i) => i?.status !== "cancelled",
+	);
+	const completedItems = (activeItems ?? []).filter(
+		(i) => i?.status === "completed",
+	);
 
 	const totalItemsCount = activeItems.length;
 	const completedItemsCount = completedItems.length;
@@ -195,7 +202,9 @@ export const PatientJourneyTimeline: React.FC<{
 		<div className="patient-journey-timeline">
 			<div className="timeline-header">
 				<h3>Лента приемов пациента</h3>
-				<span className="patient-id-badge">ID: {patientId.slice(0, 8)}</span>
+				<span className="patient-id-badge">
+					ID: {typeof patientId === "string" ? patientId.slice(0, 8) : ""}
+				</span>
 			</div>
 
 			{/* Эффект Зейгарник: Прогресс-бар лечения */}
@@ -225,7 +234,7 @@ export const PatientJourneyTimeline: React.FC<{
 				оставался чёрный прямоугольник с заголовком и идентификатором —
 				выглядел как незагрузившийся блок.
 			*/}
-			{events.length === 0 ? (
+			{(events ?? []).length === 0 ? (
 				<div className="timeline-empty">
 					<p>Здесь пока ничего не было</p>
 					<span>
@@ -236,10 +245,10 @@ export const PatientJourneyTimeline: React.FC<{
 			) : null}
 
 			<div className="timeline-track">
-				{events?.map((evt, index) => {
+				{(events ?? []).map((evt, index) => {
 					// Эффект Края (Serial Position Effect): выделяем первый и последний элементы
 					const isFirst = index === 0;
-					const isLast = index === events.length - 1;
+					const isLast = index === (events ?? []).length - 1;
 					const isHighlight = isFirst || isLast;
 
 					return (
@@ -253,7 +262,9 @@ export const PatientJourneyTimeline: React.FC<{
 								>
 									{getIcon(evt.type)}
 								</div>
-								{index !== events.length - 1 && <div className="marker-line" />}
+								{index !== (events ?? []).length - 1 && (
+									<div className="marker-line" />
+								)}
 							</div>
 
 							<div className="timeline-content">
@@ -265,17 +276,23 @@ export const PatientJourneyTimeline: React.FC<{
 								    теме, поэтому цвет тоже берём из токенов — иначе на
 								    светлой теме получился бы белый текст на белом. */}
 									<span className="timestamp text-xs font-mono">
-										{new Date(evt.timestamp).toLocaleString("ru-RU", {
-											day: "2-digit",
-											month: "2-digit",
-											year: "numeric",
-											hour: "2-digit",
-											minute: "2-digit",
-										})}
+										{(() => {
+											if (!evt.timestamp) return "";
+											const d = new Date(evt.timestamp);
+											return !Number.isNaN(d.getTime())
+												? d.toLocaleString("ru-RU", {
+														day: "2-digit",
+														month: "2-digit",
+														year: "numeric",
+														hour: "2-digit",
+														minute: "2-digit",
+													})
+												: "";
+										})()}
 									</span>
 									{evt.status && (
 										<span
-											className={`status-badge ${evt.status.toLowerCase().replace(" ", "-")}`}
+											className={`status-badge ${(evt.status ?? "").toLowerCase().replace(" ", "-")}`}
 										>
 											{evt.status}
 										</span>

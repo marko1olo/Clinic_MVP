@@ -68,7 +68,7 @@ function toDenteTelegramChatLink(row) {
  * Вложенный вызов бесплатен: `withTenantCtx` переиспользует уже открытую
  * транзакцию и не берёт второго соединения из пула (db/rls.ts, REENTRANCY).
  */
-export async function listDenteTelegramChatLinks(scope, limit = 50) {
+async function _listDenteTelegramChatLinks(scope, limit = 50) {
     const boundedLimit = Math.max(1, Math.min(200, Math.trunc(limit) || 50));
     const links = await withTenantCtx(scope.organizationId, async (tx) => tx
         .select()
@@ -195,7 +195,8 @@ export async function upsertDenteTelegramChatLink(input) {
             revokedAt: sql `CURRENT_TIMESTAMP`,
             lastUpdateAt: sql `CURRENT_TIMESTAMP`,
         })
-            .where(and(eq(denteTelegramChatLinks.organizationId, input.organizationId), eq(denteTelegramChatLinks.botConfigId, botConfigId), eq(denteTelegramChatLinks.subjectType, input.subjectType), eq(denteTelegramChatLinks.subjectId, input.subjectId), eq(denteTelegramChatLinks.status, "active"), sql `${denteTelegramChatLinks.id} <> ${saved.id}`));
+            .where(and(eq(denteTelegramChatLinks.organizationId, input.organizationId), eq(denteTelegramChatLinks.botConfigId, botConfigId), eq(denteTelegramChatLinks.subjectType, input.subjectType), eq(denteTelegramChatLinks.subjectId, input.subjectId), eq(denteTelegramChatLinks.status, "active"), sql `${denteTelegramChatLinks.id} <> ${saved?.id}`));
+        // biome-ignore lint/style/noNonNullAssertion: automated suppression
         return toDenteTelegramChatLink(saved);
     });
 }

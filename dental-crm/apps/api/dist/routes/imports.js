@@ -360,7 +360,7 @@ export async function commitPatientImport(orgId, input) {
                 entityType: "patient",
                 entityId: inserted.id,
                 action: "patient_imported",
-                reason: `Импорт из ${input.sourceName}, строка ${validRows[idx].rowNumber}.`,
+                reason: `Импорт из ${input.sourceName}, строка ${validRows[idx]?.rowNumber}.`,
             }));
             await tx.insert(auditEvents).values(auditPayloads);
         }
@@ -377,13 +377,15 @@ export async function commitPatientImport(orgId, input) {
             blockedRows: preview.blockedRows,
         })
             .returning();
-        await tx.insert(auditEvents).values({
-            organizationId: orgId,
-            entityType: "import_batch",
-            entityId: batch.id,
-            action: "import_committed",
-            reason: `Импортировано ${importedPatientIds.length}, пропущено ${preview.totalRows - importedPatientIds.length}.`,
-        });
+        if (batch) {
+            await tx.insert(auditEvents).values({
+                organizationId: orgId,
+                entityType: "import_batch",
+                entityId: batch.id,
+                action: "import_committed",
+                reason: `Импортировано ${importedPatientIds.length}, пропущено ${preview.totalRows - importedPatientIds.length}.`,
+            });
+        }
         return { importedPatientIds };
     });
     return importCommitResponseSchema.parse({

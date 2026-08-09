@@ -105,7 +105,7 @@ function hasPersonNameParts(value) {
 }
 function compactParts(parts) {
     return parts
-        .filter((part) => Boolean(part && part.trim()))
+        .filter((part) => Boolean(part?.trim()))
         .join("; ");
 }
 function hasClinicalToothRows(value) {
@@ -3344,7 +3344,7 @@ function structuredMedicalRecordCopyRequest(document, patient) {
     ])}
     ${signatureBlock(signatureParty("Заявитель/получатель", payload.recipientFullName), "Ответственный сотрудник")}`;
 }
-function medicalRecordCopyRequest(patient) {
+function _medicalRecordCopyRequest(patient) {
     return `<h2>Запрос на копии медицинской документации</h2>
     <table>
       ${row("Пациент", patient.fullName)}

@@ -5,8 +5,27 @@ import { createClinicalRuleInDb, deleteClinicalRuleInDb, evaluateClinicalRulesIn
 import { ClinicalTaskOwnershipError } from "../db/clinicalTasksQuery.js";
 import { requireOrganizationId, requireStaffIdentity, } from "../security/identity.js";
 import { CLINICAL_PHASE_CODES, ClinicalRouter, isClinicalPhaseCode, } from "../services/clinical/ClinicalRouter.js";
-const clinicalRuleEvaluationValidationMessage = "Ошибка валидации: запрос не соответствует формату.";
-const clinicalRuleMutationValidationMessage = "Ошибка валидации: данные правила некорректны.";
+/*
+ * ТЕКСТ ОТКАЗА НАЗЫВАЕТ, ЧТО ИСПРАВИТЬ. Это не украшение: врач читает его на
+ * экране и по нему чинит ввод.
+ *
+ * ВОССТАНОВЛЕНО 2026-08-09 после доказанной регрессии. Коммит 31e77afcd
+ * («chore: resolve all remaining TypeScript errors in api after imaging
+ * migration», 2026-07-04) заменил обе формулировки на общие: «Ошибка
+ * валидации: запрос не соответствует формату» и «Ошибка валидации: данные
+ * правила некорректны». По ним нельзя понять, чего не хватает, — врач упирается
+ * в отказ и не может его снять. Коммит заявлен как починка типов, порчу текста
+ * он не упоминал.
+ *
+ * ПОЧЕМУ ПЯТЬ НЕДЕЛЬ НИКТО НЕ ЗАМЕТИЛ. Регрессию ловит гейт
+ * scripts/smoke-core-route-validation.mjs; он входит в smoke:all и в CI
+ * выполнялся — но шаг стоял под четырьмя независимыми глушителями
+ * (continue-on-error, set +e, конвейер, exit 0), поэтому его краснота ни на что
+ * не влияла. Вдобавок гейт умирал на ПЕРВОЙ находке и прятал три остальные из
+ * четырёх. Оба дефекта устранены тем же ходом.
+ */
+const clinicalRuleEvaluationValidationMessage = "Клинические правила не проверены: передайте пациента, визит и факты приема.";
+const clinicalRuleMutationValidationMessage = "Клиническое правило не сохранено: заполните название, условие и действие правила.";
 function parseClinicalPayload(schema, value) {
     const parsed = schema.safeParse(value);
     if (!parsed.success)
@@ -67,10 +86,14 @@ export async function registerClinicalRoutes(app) {
                 });
             }
             return clinicalRuleEvaluationResponseSchema.parse(evaluation);
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     app.post("/api/clinical/rules", async (request, reply) => {
@@ -89,10 +112,14 @@ export async function registerClinicalRoutes(app) {
             if (!orgId)
                 return;
             return clinicalRuleSchema.parse(await createClinicalRuleInDb(orgId, input));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     app.patch("/api/clinical/rules/:ruleId", async (request, reply) => {
@@ -116,10 +143,14 @@ export async function registerClinicalRoutes(app) {
             if (!orgId)
                 return;
             return clinicalRuleSchema.parse(await updateClinicalRuleInDb(orgId, input));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /**
@@ -164,10 +195,14 @@ export async function registerClinicalRoutes(app) {
                 });
             }
             return reply.code(200).send({ id: ruleId, deleted: true });
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /**
@@ -254,10 +289,14 @@ export async function registerClinicalRoutes(app) {
             return reply
                 .code(200)
                 .send(await new ClinicalRouter().listTasks(orgId, patientId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /*
@@ -376,10 +415,14 @@ export async function registerClinicalRoutes(app) {
             return reply
                 .status(200)
                 .send(await getSingleSessionEnforcementsFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     // COMPETITOR FEATURE #60: интеграции::геокодирование_адресов_через_dadata
@@ -395,10 +438,14 @@ export async function registerClinicalRoutes(app) {
             return reply
                 .status(200)
                 .send(await getDadataGeocodedAddressesFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /*
@@ -428,13 +475,19 @@ export async function registerClinicalRoutes(app) {
             if (!identity)
                 return;
             const { getRecentPatientHistoryFromDb } = await import("../db/recentPatientHistoryQuery.js");
-            return reply
-                .status(200)
-                .send(await getRecentPatientHistoryFromDb(identity.organizationId, identity.userId));
+            return reply.status(200).send(await getRecentPatientHistoryFromDb(
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
+            identity.organizationId, 
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
+            identity.userId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /*
@@ -467,7 +520,11 @@ export async function registerClinicalRoutes(app) {
                 });
             }
             const { recordPatientViewInDb } = await import("../db/recentPatientHistoryQuery.js");
-            const result = await recordPatientViewInDb(identity.organizationId, identity.userId, patientId);
+            const result = await recordPatientViewInDb(
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
+            identity.organizationId, 
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
+            identity.userId, patientId);
             if (!result.recorded) {
                 return reply.status(404).send({
                     error: "PatientNotFound",
@@ -475,10 +532,14 @@ export async function registerClinicalRoutes(app) {
                 });
             }
             return reply.status(200).send({ recorded: true });
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     // COMPETITOR FEATURE #47: crm::конструктор_типов_задач_без_привязки_к_визиту
@@ -492,10 +553,14 @@ export async function registerClinicalRoutes(app) {
                 return;
             const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
             return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /*
@@ -526,11 +591,17 @@ export async function registerClinicalRoutes(app) {
             if (!orgId)
                 return;
             const { getLandingFieldMappingsFromDb } = await import("../db/landingFieldMappingsQuery.js");
-            return reply.status(200).send(await getLandingFieldMappingsFromDb(orgId));
+            return reply
+                .status(200)
+                .send(await getLandingFieldMappingsFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     // COMPETITOR FEATURE #47: crm::пользовательские_типы_задач_для_администраторов
@@ -544,10 +615,14 @@ export async function registerClinicalRoutes(app) {
                 return;
             const { getCustomCrmTaskTypesFromDb } = await import("../db/customCrmTaskTypesQuery.js");
             return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     // COMPETITOR FEATURE #58: пациенты::геокодинг_адресов_через_dadata
@@ -563,10 +638,14 @@ export async function registerClinicalRoutes(app) {
             return reply
                 .status(200)
                 .send(await getDadataGeocodedAddressesFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     // COMPETITOR FEATURE #63: финансы::автоматическое_указание_меры_количества_в_kkm
@@ -586,10 +665,14 @@ export async function registerClinicalRoutes(app) {
                 return;
             const { getLostPatientsFiltersFromDb } = await import("../db/lostPatientsFiltersQuery.js");
             return reply.status(200).send(await getLostPatientsFiltersFromDb(orgId));
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (error) {
             request.log.error(error);
-            return reply.status(500).send({ error: "InternalServerError", message: "Internal server error" });
+            return reply.status(500).send({
+                error: "InternalServerError",
+                message: "Internal server error",
+            });
         }
     });
     /*

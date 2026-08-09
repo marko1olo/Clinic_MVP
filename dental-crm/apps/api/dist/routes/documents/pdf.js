@@ -1,8 +1,8 @@
-import { requireClinicalReadAccess, } from "../../accessGuard.js";
+import { requireClinicalReadAccess } from "../../accessGuard.js";
 import { getDocumentById, readIssuedDocumentSnapshot, } from "../../db/documentQuery.js";
 import { getPatientByIdFromDb } from "../../db/patientsQuery.js";
 import { withTenantCtx } from "../../db/rls.js";
-import { renderDocumentHtml, } from "../../documents/renderDocument.js";
+import { renderDocumentHtml } from "../../documents/renderDocument.js";
 import { requireOrganizationId } from "../../security/identity.js";
 import { apiError, documentAttachmentFileName, documentHasIssuedArchiveMetadata, documentRequiresIssuedArchive, issuedArchiveIntegrityError, renderIssuedHtmlToPdf, resolveDocumentRenderContext, } from "./shared.js";
 export async function register(app) {

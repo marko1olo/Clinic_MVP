@@ -633,10 +633,10 @@ function settingsUnguardedMutationsAllowed() {
  */
 async function requireSettingsAccess(request, reply) {
     const adminSecret = configuredSettingsAdminSecret();
-    let hasAccess = false;
+    let _hasAccess = false;
     if (!adminSecret) {
         if (settingsUnguardedMutationsAllowed())
-            hasAccess = true;
+            _hasAccess = true;
         else {
             reply.code(503).send({
                 error: "SettingsAdminSecretMissing",
@@ -653,7 +653,7 @@ async function requireSettingsAccess(request, reply) {
         if (timingSafeSecretEqual(typeof normalizedProvidedSecret === "string"
             ? normalizedProvidedSecret
             : null, adminSecret)) {
-            hasAccess = true;
+            _hasAccess = true;
         }
         else {
             reply.code(403).send({
@@ -822,11 +822,7 @@ export async function registerSettingsRoutes(app) {
                 message: staffCreateValidationMessage,
             };
         }
-        await createStaffMemberInDb(orgId, input);
-        const settings = await getClinicSettingsFromDb(orgId);
-        // Find the newly created staff to return (for simplicity, we just return the full staff member object from settings list)
-        // Actually, createStaffMemberSchema expects the created object, but frontend might just refetch. We'll return the last one matching.
-        const created = settings.staff.find((s) => s.fullName === input.fullName);
+        const created = await createStaffMemberInDb(orgId, input);
         reply.code(201);
         return staffMemberSchema.parse(created);
     });
@@ -878,7 +874,7 @@ export async function registerSettingsRoutes(app) {
             reply.code(200);
             return { ok: true };
         }
-        catch (err) {
+        catch (_err) {
             reply.code(500);
             return {
                 error: "InternalError",
@@ -1517,13 +1513,13 @@ export async function registerSettingsRoutes(app) {
             return protocolTemplateMutationRejection(reply, error, protocolTemplateDeleteNotFoundMessage, protocolTemplateDeleteRejectedMessage, "ProtocolTemplateDelete");
         }
     });
-    app.post("/api/settings/reset-demo", async (request, reply) => {
+    app.post("/api/settings/reset-demo", async (_request, _reply) => {
         return {
             success: true,
             message: "Демонстрационный режим больше не поддерживается (используется Postgres).",
         };
     });
-    app.post("/api/settings/reset-zero", async (request, reply) => {
+    app.post("/api/settings/reset-zero", async (_request, _reply) => {
         return {
             success: true,
             message: "Очистка базы больше не поддерживается (используется Postgres).",

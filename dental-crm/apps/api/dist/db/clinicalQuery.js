@@ -46,7 +46,7 @@ export async function getClinicalRules(organizationId) {
         .where(eq(schema.clinicalRules.organizationId, organizationId));
     return records.map(mapClinicalRule);
 }
-export async function getClinicalRuleById(organizationId, ruleId) {
+async function getClinicalRuleById(organizationId, ruleId) {
     if (useInMemory()) {
         return inMemoryClinicalRules.find((r) => r.id === ruleId) ?? null;
     }

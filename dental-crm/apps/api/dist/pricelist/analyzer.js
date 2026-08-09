@@ -1669,7 +1669,7 @@ function skippedRowsWarnings(skippedRows) {
  * клинике важно число строк, которые надо проверить руками, а не то, на каком
  * шаге они выпали.
  */
-export function selectPricelistServiceRows(parsedRows, droppedBeforeGate = 0) {
+function selectPricelistServiceRows(parsedRows, droppedBeforeGate = 0) {
     const items = parsedRows.filter((item) => isPricelistServiceRow(item));
     return {
         items,
@@ -2164,7 +2164,7 @@ export function itemFromGroq(raw, index, request, catalog, calendar = calendarFr
  * (сколько отброшено, что стало с полями). А то, что боевая ветка их ЗОВЁТ,
  * проверяется только вызовом `analyzePricelist` с `useServerAi: true`.
  */
-export function pricelistItemsFromGroqRows(rows, request, catalog, calendar = calendarFromClock()) {
+function pricelistItemsFromGroqRows(rows, request, catalog, calendar = calendarFromClock()) {
     const items = rows
         .map((row, index) => itemFromGroq(row, index, request, catalog, calendar))
         .filter((item) => Boolean(item));

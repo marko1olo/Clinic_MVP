@@ -33,7 +33,7 @@ export const telegramPhotoSentTextFailedBlockedReason = "telegram_photo_sent_tex
 // Время отправки в позиции не разбирается как дата. Отправлять по такому значению нельзя: «не смогли
 // прочитать время» — это не «пора отправлять». Нужна отдельная причина отказа, иначе позиция молча
 // выпадает из очереди и никто не узнает, что в задаче битое время.
-export const telegramOutboxScheduleUnreadableBlockedReason = "telegram_outbox_schedule_unreadable";
+const telegramOutboxScheduleUnreadableBlockedReason = "telegram_outbox_schedule_unreadable";
 function isRecord(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -54,7 +54,8 @@ function parseTelegramRouteBody(schema, body) {
     try {
         return { ok: true, value: schema.parse(body) };
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] parseTelegramRouteBody failed:", err);
         return {
             ok: false,
             message: "Некорректный запрос Telegram. Проверьте обязательные поля и типы значений.",
@@ -401,7 +402,7 @@ const telegramOutboxNothingDelivered = {
  * Telegram может принять фото и не вернуть message_id, и такая доставка все равно состоялась.
  */
 export function telegramOutboxDeliveredParts(receipt) {
-    if (!receipt || receipt.status !== "failed")
+    if (receipt?.status !== "failed")
         return telegramOutboxNothingDelivered;
     if (receipt.blockedReason !== telegramPhotoSentTextFailedBlockedReason)
         return telegramOutboxNothingDelivered;
@@ -734,7 +735,7 @@ async function executeTelegramOutboxSend(outboxItemId, input, runtime) {
         }),
     };
 }
-export async function executeDenteTelegramOutboxDueBatch(input, runtime) {
+async function executeDenteTelegramOutboxDueBatch(input, runtime) {
     const runtimeResult = runtime
         ? { ok: true, runtime }
         : resolveTelegramOutboxRuntimeScopeFromQuery({});
@@ -1021,7 +1022,8 @@ function clinicBotEnvConfigs() {
     try {
         parsed = JSON.parse(raw);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] clinicBotEnvConfigs JSON parse failed:", err);
         return [];
     }
     const records = Array.isArray(parsed)
@@ -1250,7 +1252,7 @@ function resolveTelegramOutboxRuntimeScopeFromQuery(query) {
  * (domainStateHydration.ts:486), но он даст срез только внутри своего callback —
  * и ты всё равно упрёшься в сигнатуры `buildDenteTelegramOutbox`.
  */
-async function hydrateTelegramDomainState(request, organizationId) {
+async function hydrateTelegramDomainState(_request, _organizationId) {
     // Намеренно пусто — см. докстринг выше.
 }
 /**
@@ -1508,7 +1510,8 @@ function portalButton(settings, section = "home") {
         portal.hash = "";
         return [{ text: "Открыть DENTE", url: portal.toString() }];
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] patientPortalButtons failed to construct URL:", err);
         return [];
     }
 }
@@ -1520,7 +1523,8 @@ function safeHttpsTelegramButton(raw, text) {
         const url = new URL(value);
         return url.protocol === "https:" ? [{ text, url: url.toString() }] : [];
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] safeHttpsTelegramButton failed to construct URL:", err);
         return [];
     }
 }

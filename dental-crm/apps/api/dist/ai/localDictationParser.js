@@ -203,7 +203,7 @@ function extractTime(text) {
     m = text.match(/(?:в|на)\s*(\d{1,2}|[а-яё]+)(?:\s*(?:час|утра|дня|вечера))?(?!\s*\d)/i);
     if (m) {
         let h = parseInt(m[1], 10);
-        if (isNaN(h))
+        if (Number.isNaN(h))
             h = parseWordNumber(m[1]) || 0;
         if (h > 0 && h <= 24) {
             if ((text.includes("дня") || text.includes("вечера")) && h < 12)
@@ -223,7 +223,7 @@ function extractDate(text) {
     const m = text.match(/(\d{1,2}|[а-яё]+)\s*([а-яё]+)/i);
     if (m) {
         let day = parseInt(m[1], 10);
-        if (isNaN(day))
+        if (Number.isNaN(day))
             day = parseWordNumber(m[1]) || 0;
         if (day > 0 && day <= 31) {
             const monthWord = (m[2] ?? "").substring(0, 5);
@@ -269,7 +269,7 @@ function extractCost(text) {
     const m = text.match(/(?:стоимость|цена|оплата|взяли|с пациента|оплатила|оплатил)\s*(\d+(?:[.,]\d+)?)\s*(тысяч|тыс|руб|р|₽)?/i);
     if (m) {
         let val = parseFloat(m[1].replace(",", "."));
-        if (m[2] && m[2].startsWith("тыс"))
+        if (m[2]?.startsWith("тыс"))
             val *= 1000;
         if (val < 100 && !m[2])
             val *= 1000;
@@ -339,7 +339,7 @@ function extractEmkSections(text, updates) {
                 // Save previous section if exists
                 if (currentSection && currentContent.trim()) {
                     updates[currentSection] =
-                        (updates[currentSection] ? updates[currentSection] + " " : "") +
+                        (updates[currentSection] ? `${updates[currentSection]} ` : "") +
                             currentContent
                                 .trim()
                                 .replace(/^[:-]+/, "")
@@ -351,14 +351,14 @@ function extractEmkSections(text, updates) {
         }
         else {
             if (currentSection) {
-                currentContent += " " + token;
+                currentContent += ` ${token}`;
             }
         }
     }
     // Finalize the last section
     if (currentSection && currentContent.trim()) {
         updates[currentSection] =
-            (updates[currentSection] ? updates[currentSection] + " " : "") +
+            (updates[currentSection] ? `${updates[currentSection]} ` : "") +
                 currentContent
                     .trim()
                     .replace(/^[:-]+/, "")
@@ -406,8 +406,8 @@ function expandToothRanges(text) {
         ...text.matchAll(/(?:с|от)\s*([1-4][1-8]|[5-8][1-5])\s*(?:по|до)\s*([1-4][1-8]|[5-8][1-5])/gi),
     ];
     for (const m of rangeMatches) {
-        const start = parseInt(m[1] ?? "");
-        const end = parseInt(m[2] ?? "");
+        const start = parseInt(m[1] ?? "", 10);
+        const end = parseInt(m[2] ?? "", 10);
         if (Math.floor(start / 10) === Math.floor(end / 10)) {
             const min = Math.min(start, end);
             const max = Math.max(start, end);
@@ -464,6 +464,7 @@ export function parseDictationLocally(transcript, context) {
             const timeStr = extractTime(text);
             const doctorMatch = text.match(/(?:к|ко)\s+(терапевту|хирургу|ортопеду|ортодонту|гигиенисту|[а-яё]+ву|[а-яё]+ой)/);
             const phoneMatch = text.match(/(?:\+7|8)[\s-]*\(?\d{3}\)?[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}/);
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
             let action = "schedule";
             if (text.includes("новый пациент"))
                 action = "create_patient";
@@ -518,9 +519,10 @@ export function parseDictationLocally(transcript, context) {
         if (teethCodes.length > 0) {
             for (const clause of clauses) {
                 const localTeeth = expandToothRanges(clause);
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                 let foundState = null;
                 for (const [keyword, state] of Object.entries(STATE_MAPPING)) {
-                    const regex = new RegExp(`(^|[^а-яё])` + keyword + `([^а-яё]|$)`, "i");
+                    const regex = new RegExp(`(^|[^а-яё])${keyword}([^а-яё]|$)`, "i");
                     if (regex.test(clause)) {
                         foundState = state;
                         if (!hasStructuredEmk) {

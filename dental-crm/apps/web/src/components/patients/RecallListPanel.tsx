@@ -83,7 +83,9 @@ function invitationText(
 	candidate: RecallCandidate,
 	clinicName: string,
 ): string {
-	const name = candidate.fullName.split(" ")[1] ?? candidate.fullName;
+	const rawName =
+		typeof candidate?.fullName === "string" ? candidate.fullName.trim() : "";
+	const name = rawName.split(" ")[1] || rawName || "Пациент";
 	return `${name}, здравствуйте! ${clinicName}: прошло больше полугода с последнего осмотра — самое время проверить зубы. Записаться можно по телефону клиники.`;
 }
 
@@ -92,6 +94,7 @@ export const RecallListPanel: React.FC = () => {
 	const auth = appLogic?.auth;
 	const clinicName =
 		appLogic?.clinicName ||
+		// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		(appLogic?.dashboard as any)?.clinic?.name ||
 		"Клиника";
 
@@ -215,7 +218,7 @@ export const RecallListPanel: React.FC = () => {
 			) : null}
 
 			{report ? (
-				report.candidates.length === 0 ? (
+				(report.candidates?.length ?? 0) === 0 ? (
 					<p className="ops-empty ops-empty--good">
 						{/* БЫЛО: «Просмотрено 1 карточек» — число подставлялось к
 						    неизменяемому слову. Согласование берём из общей countLabel. */}
@@ -236,7 +239,7 @@ export const RecallListPanel: React.FC = () => {
 						    бы дублированием одного и того же на экране. */}
 						<ul className="ops-metrics">
 							{(Object.keys(BAND_TITLES) as RecallBand[])
-								.filter((band) => report.byBand[band] > 0)
+								.filter((band) => (report.byBand?.[band] ?? 0) > 0)
 								.map((band) => (
 									<li key={band}>
 										<button
@@ -252,7 +255,7 @@ export const RecallListPanel: React.FC = () => {
 											}
 										>
 											<span className="ops-metric__value">
-												{report.byBand[band]}
+												{report.byBand?.[band] ?? 0}
 											</span>
 											<span className="ops-metric__label">
 												{BAND_TITLES[band]}
@@ -289,7 +292,7 @@ export const RecallListPanel: React.FC = () => {
 									</tr>
 								</thead>
 								<tbody>
-									{report.candidates
+									{(report.candidates ?? [])
 										.filter(
 											(candidate) =>
 												activeBand === null || candidate.band === activeBand,

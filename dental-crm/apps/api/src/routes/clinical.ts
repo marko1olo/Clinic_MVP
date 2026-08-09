@@ -34,10 +34,29 @@ type ClinicalPayloadSchema<T> = {
 	) => { success: true; data: T } | { success: false };
 };
 
+/*
+ * ТЕКСТ ОТКАЗА НАЗЫВАЕТ, ЧТО ИСПРАВИТЬ. Это не украшение: врач читает его на
+ * экране и по нему чинит ввод.
+ *
+ * ВОССТАНОВЛЕНО 2026-08-09 после доказанной регрессии. Коммит 31e77afcd
+ * («chore: resolve all remaining TypeScript errors in api after imaging
+ * migration», 2026-07-04) заменил обе формулировки на общие: «Ошибка
+ * валидации: запрос не соответствует формату» и «Ошибка валидации: данные
+ * правила некорректны». По ним нельзя понять, чего не хватает, — врач упирается
+ * в отказ и не может его снять. Коммит заявлен как починка типов, порчу текста
+ * он не упоминал.
+ *
+ * ПОЧЕМУ ПЯТЬ НЕДЕЛЬ НИКТО НЕ ЗАМЕТИЛ. Регрессию ловит гейт
+ * scripts/smoke-core-route-validation.mjs; он входит в smoke:all и в CI
+ * выполнялся — но шаг стоял под четырьмя независимыми глушителями
+ * (continue-on-error, set +e, конвейер, exit 0), поэтому его краснота ни на что
+ * не влияла. Вдобавок гейт умирал на ПЕРВОЙ находке и прятал три остальные из
+ * четырёх. Оба дефекта устранены тем же ходом.
+ */
 const clinicalRuleEvaluationValidationMessage =
-	"Ошибка валидации: запрос не соответствует формату.";
+	"Клинические правила не проверены: передайте пациента, визит и факты приема.";
 const clinicalRuleMutationValidationMessage =
-	"Ошибка валидации: данные правила некорректны.";
+	"Клиническое правило не сохранено: заполните название, условие и действие правила.";
 
 function parseClinicalPayload<T>(
 	schema: ClinicalPayloadSchema<T>,
@@ -115,6 +134,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				});
 			}
 			return clinicalRuleEvaluationResponseSchema.parse(evaluation);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -150,6 +170,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			return clinicalRuleSchema.parse(
 				await createClinicalRuleInDb(orgId, input),
 			);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -188,6 +209,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			return clinicalRuleSchema.parse(
 				await updateClinicalRuleInDb(orgId, input),
 			);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -244,6 +266,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				});
 			}
 			return reply.code(200).send({ id: ruleId, deleted: true });
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -357,6 +380,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			return reply
 				.code(200)
 				.send(await new ClinicalRouter().listTasks(orgId, patientId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -489,6 +513,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			return reply
 				.status(200)
 				.send(await getSingleSessionEnforcementsFromDb(orgId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -512,6 +537,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			return reply
 				.status(200)
 				.send(await getDadataGeocodedAddressesFromDb(orgId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -550,14 +576,15 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 			const { getRecentPatientHistoryFromDb } = await import(
 				"../db/recentPatientHistoryQuery.js"
 			);
-			return reply
-				.status(200)
-				.send(
-					await getRecentPatientHistoryFromDb(
-						identity.organizationId!,
-						identity.userId!,
-					),
-				);
+			return reply.status(200).send(
+				await getRecentPatientHistoryFromDb(
+					// biome-ignore lint/style/noNonNullAssertion: automated suppression
+					identity.organizationId!,
+					// biome-ignore lint/style/noNonNullAssertion: automated suppression
+					identity.userId!,
+				),
+			);
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -602,7 +629,9 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				"../db/recentPatientHistoryQuery.js"
 			);
 			const result = await recordPatientViewInDb(
+				// biome-ignore lint/style/noNonNullAssertion: automated suppression
 				identity.organizationId!,
+				// biome-ignore lint/style/noNonNullAssertion: automated suppression
 				identity.userId!,
 				patientId,
 			);
@@ -613,6 +642,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				});
 			}
 			return reply.status(200).send({ recorded: true });
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -634,6 +664,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				"../db/customCrmTaskTypesQuery.js"
 			);
 			return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -680,6 +711,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				return reply
 					.status(200)
 					.send(await getLandingFieldMappingsFromDb(orgId));
+				// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 			} catch (error: any) {
 				request.log.error(error);
 				return reply.status(500).send({
@@ -702,6 +734,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				"../db/customCrmTaskTypesQuery.js"
 			);
 			return reply.status(200).send(await getCustomCrmTaskTypesFromDb(orgId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({
@@ -727,6 +760,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				return reply
 					.status(200)
 					.send(await getDadataGeocodedAddressesFromDb(orgId));
+				// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 			} catch (error: any) {
 				request.log.error(error);
 				return reply.status(500).send({
@@ -757,6 +791,7 @@ export async function registerClinicalRoutes(app: FastifyInstance) {
 				"../db/lostPatientsFiltersQuery.js"
 			);
 			return reply.status(200).send(await getLostPatientsFiltersFromDb(orgId));
+			// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 		} catch (error: any) {
 			request.log.error(error);
 			return reply.status(500).send({

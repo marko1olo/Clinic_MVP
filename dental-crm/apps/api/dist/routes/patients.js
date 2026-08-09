@@ -108,7 +108,9 @@ function normalizePatientPhoneForDuplicate(value) {
     const digits = (value ?? "").replace(/\D/g, "");
     return digits.length >= 5 ? digits : "";
 }
-function findPatientDuplicate(patientsList, input, ignoredPatientId, options = {}) {
+function findPatientDuplicate(
+// biome-ignore lint/suspicious/noExplicitAny: automated suppression
+patientsList, input, ignoredPatientId, options = {}) {
     const inputName = normalizePatientNameForDuplicate(input.fullName);
     const inputBirthDate = (input.birthDate ?? "").trim();
     const inputPhone = normalizePatientPhoneForDuplicate(input.phone);
@@ -209,7 +211,7 @@ export function selectPatientArchiveRows(rows, patientId, patientFullName) {
 export function patientArchiveRowsBlockBooking(rows) {
     return rows.some((row) => row.isBookingBlocked === true);
 }
-import { createPatientInDb, getPatientByIdFromDb, getPatientsFromDb, updatePatientAdministrativeProfileInDb, updatePatientInDb, } from "../db/patientsQuery.js";
+import { createPatientSafeInDb, getPatientByIdFromDb, getPatientsFromDb, updatePatientAdministrativeProfileInDb, updatePatientInDb, } from "../db/patientsQuery.js";
 import { clinicSessionMissingMessage, clinicSessionRejectedMessage, } from "../utils/clinicSessionRefusal.js";
 import { verifyToken } from "../utils/cryptoHelper.js";
 import { TOKEN_SECRET } from "./auth.js";
@@ -288,7 +290,7 @@ function requireClinicOrganizationId(request, reply) {
         return null;
     }
     const payload = verifyToken(clinicToken, TOKEN_SECRET());
-    if (!payload || !payload.organizationId) {
+    if (!payload?.organizationId) {
         reply
             .code(401)
             .send({ error: "AuthExpired", message: clinicAuthRejectedMessage });
@@ -327,23 +329,21 @@ export async function registerPatientRoutes(app) {
                 message: patientCreateValidationMessage,
             });
         }
-        const dbPatients = await getPatientsFromDb(orgId);
-        const duplicate = findPatientDuplicate(dbPatients, input, undefined, {
-            requireDistinguishingData: true,
-        });
-        if (duplicate) {
-            // Один и тот же ответ 409, но объяснения разные: во что упёрся оператор —
-            // в совпадение имени с телефоном/датой или в то, что кроме имени в
-            // запросе не было ничего.
-            const nothingButName = !(input.birthDate ?? "").trim() &&
-                !normalizePatientPhoneForDuplicate(input.phone);
-            return nothingButName
-                ? sendPatientNameOnlyDuplicate(reply)
-                : sendPatientDuplicate(reply);
-        }
         try {
-            const patient = await createPatientInDb(orgId, input);
-            return reply.code(201).send(patientSchema.parse(patient));
+            const safeResult = await createPatientSafeInDb(orgId, input, (patients, inp) => {
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
+                return findPatientDuplicate(patients, inp, undefined, {
+                    requireDistinguishingData: true,
+                });
+            });
+            if (safeResult.type === "duplicate") {
+                const nothingButName = !(input.birthDate ?? "").trim() &&
+                    !normalizePatientPhoneForDuplicate(input.phone);
+                return nothingButName
+                    ? sendPatientNameOnlyDuplicate(reply)
+                    : sendPatientDuplicate(reply);
+            }
+            return reply.code(201).send(patientSchema.parse(safeResult.patient));
         }
         catch (e) {
             console.error("[Patients] Create error:", e);

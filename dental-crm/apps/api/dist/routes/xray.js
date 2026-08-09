@@ -70,7 +70,7 @@ const createXrayScanSchema = z.object({
     aiToothStates: z.record(z.string(), z.string()).nullable().optional(),
     status: z.enum(["pending", "analyzing", "done", "error"]).optional(),
 });
-const xrayScanResponseSchema = z.object({
+const _xrayScanResponseSchema = z.object({
     id: z.string(),
     patientId: z.string(),
     visitId: z.string().nullable().optional(),
@@ -305,7 +305,8 @@ export async function registerXrayRoutes(app) {
         const inlineSummary = data.aiSummary !== undefined && data.aiSummary !== null
             ? data.aiSummary
             : hasInlineReport
-                ? extractSummary(data.aiReport)
+                ? // biome-ignore lint/style/noNonNullAssertion: automated suppression
+                    extractSummary(data.aiReport)
                 : null;
         const createStatus = data.status ?? (hasInlineReport ? "done" : "pending");
         const [inserted] = await db

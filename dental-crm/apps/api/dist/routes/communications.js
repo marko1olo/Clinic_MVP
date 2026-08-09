@@ -78,6 +78,7 @@ export async function registerCommunicationRoutes(app) {
                 const [updatedTask] = await tx
                     .update(communicationTasks)
                     .set({
+                    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                     status: parsedInput.data.outcome,
                     lastEventAt: new Date(),
                 })
@@ -91,9 +92,11 @@ export async function registerCommunicationRoutes(app) {
                     clinicId: task.clinicId,
                     taskId: task.id,
                     patientId: task.patientId,
+                    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                     actorUserId: parsedInput.data.actorUserId ?? null,
                     channel: task.channel,
                     direction: "outbound",
+                    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                     status: parsedInput.data.outcome,
                     message: parsedInput.data.note ??
                         `Задача переведена в статус ${parsedInput.data.outcome}`,
@@ -155,7 +158,7 @@ export async function registerCommunicationRoutes(app) {
             const template = await import("../db/messageTemplateCatalogsQuery.js").then((m) => m.updateMessageTemplateCatalog(orgId, id, parsedInput.data));
             return reply.send(template);
         }
-        catch (error) {
+        catch (_error) {
             return reply.code(404).send({ error: "NotFound" });
         }
     });
@@ -170,7 +173,7 @@ export async function registerCommunicationRoutes(app) {
             await import("../db/messageTemplateCatalogsQuery.js").then((m) => m.deleteMessageTemplateCatalog(orgId, id));
             return reply.send({ success: true });
         }
-        catch (error) {
+        catch (_error) {
             return reply.code(404).send({ error: "NotFound" });
         }
     });
@@ -188,9 +191,7 @@ export async function registerCommunicationRoutes(app) {
             return reply.code(404).send({ error: "NotFound" });
         }
         if (!event.recordingUrl) {
-            return reply
-                .code(404)
-                .send({
+            return reply.code(404).send({
                 error: "NoRecording",
                 message: "This event does not have a recording attached.",
             });
@@ -212,7 +213,7 @@ export async function registerCommunicationRoutes(app) {
             .from(communicationEvents)
             .where(and(eq(communicationEvents.id, id), eq(communicationEvents.organizationId, orgId)))
             .limit(1);
-        if (!event || !event.recordingUrl) {
+        if (!event?.recordingUrl) {
             return reply.code(404).send({ error: "NotFound" });
         }
         // Simple redirect proxy for now

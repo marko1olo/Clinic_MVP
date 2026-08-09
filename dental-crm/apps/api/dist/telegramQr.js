@@ -90,7 +90,9 @@ function blankMatrix() {
 function setFunctionModule(modules, reserved, x, y, isDark) {
     if (x < 0 || y < 0 || x >= QR_SIZE || y >= QR_SIZE)
         return;
+    // biome-ignore lint/style/noNonNullAssertion: automated suppression
     modules[y][x] = isDark;
+    // biome-ignore lint/style/noNonNullAssertion: automated suppression
     reserved[y][x] = true;
 }
 function drawFinder(modules, reserved, left, top) {
@@ -196,6 +198,7 @@ function drawData(modules, reserved, codewords) {
                 bitIndex += 1;
                 if ((xx + y) % 2 === 0)
                     bit = bit === 1 ? 0 : 1;
+                // biome-ignore lint/style/noNonNullAssertion: automated suppression
                 modules[y][xx] = bit === 1;
             }
         }

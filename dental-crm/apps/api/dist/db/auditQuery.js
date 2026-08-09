@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { db } from "./client.js";
 import { auditEvents } from "./schema.js";
 /**

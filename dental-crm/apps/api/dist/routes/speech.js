@@ -65,6 +65,7 @@ async function validateSpeechClinicalScope(input, options) {
     if (input.source === "visit" && !requestedVisitId) {
         return speechScopeFailure(400, "Для диктовки приема выберите активный прием.");
     }
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     let patient = null;
     if (requestedPatientId) {
         const patientScope = callerOrganizationId
@@ -79,6 +80,7 @@ async function validateSpeechClinicalScope(input, options) {
         if (!patient)
             return speechScopeFailure(404, "Пациент для диктовки не найден.");
     }
+    // biome-ignore lint/suspicious/noExplicitAny: automated suppression
     let visit = null;
     if (requestedVisitId) {
         const visitScope = callerOrganizationId

@@ -27,6 +27,7 @@ import {
 } from "./settingsProfileLoad";
 
 interface SettingsProfileTabProps {
+	// biome-ignore lint/suspicious/noExplicitAny: automated suppression
 	props: Record<string, any>;
 }
 
@@ -358,9 +359,16 @@ export function SettingsProfileTab({ props }: SettingsProfileTabProps) {
 
 	return (
 		<div className="settings-tab-pane animate-fade-in-up">
-			<div className="settings-header">
-				<h2 id="tabpanel-profile-title">Мой профиль</h2>
-				<p>Личные данные, пароль и PIN-код для входа в систему.</p>
+			<div className="settings-header mb-4">
+				<h2
+					id="tabpanel-profile-title"
+					className="text-lg md:text-xl font-bold"
+				>
+					Мой профиль
+				</h2>
+				<p className="text-xs md:text-sm text-[var(--muted)]">
+					Личные данные, пароль и PIN-код для входа в систему.
+				</p>
 			</div>
 
 			{/*

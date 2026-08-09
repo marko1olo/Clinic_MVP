@@ -21,7 +21,7 @@ export function taxPaymentYear(payment) {
     const parsed = new Date(sourceDate);
     return Number.isNaN(parsed.getTime()) ? null : parsed.getFullYear();
 }
-export function taxPaymentReceiptKey(payment) {
+function taxPaymentReceiptKey(payment) {
     return payment.fiscalReceiptNumber?.trim() || payment.id;
 }
 function clonePayment(payment) {
@@ -49,7 +49,7 @@ function paymentMatchesDocumentTaxScope(document, payment) {
         (!normalizedInn(document.taxPayerInn) ||
             normalizedInn(payment.payerInn) === normalizedInn(document.taxPayerInn)));
 }
-export function baseTaxPaymentsForDocument(document, payments) {
+function baseTaxPaymentsForDocument(document, payments) {
     if (!document.taxYear)
         return [];
     const selectedPaymentIds = selectedPaymentIdsForTaxDocument(document);
@@ -62,7 +62,7 @@ export function baseTaxPaymentsForDocument(document, payments) {
     const linkedPayments = matchingPayments.filter((payment) => payment.documentId === document.id);
     return linkedPayments.length ? linkedPayments : matchingPayments;
 }
-export function snapshotPaymentsForDocument(document) {
+function snapshotPaymentsForDocument(document) {
     const snapshot = document.taxPaymentSnapshot;
     if (!snapshot?.payments?.length)
         return null;
@@ -82,7 +82,7 @@ export function paymentIdsForTaxDocument(document, payments) {
         .map((payment) => payment.id)
         .filter(Boolean));
 }
-export function coveredIdentifiersForIssuedTaxCertificates(document, documents, payments) {
+function coveredIdentifiersForIssuedTaxCertificates(document, documents, payments) {
     const paymentIds = new Set();
     const fiscalReceiptKeys = new Set();
     if (!taxDocumentDuplicateSensitive(document.kind) || !document.taxYear) {

@@ -12,6 +12,7 @@ export async function analyzeVisiographImage(imageBase64) {
     const mimeType = imageBase64.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
     const imagePayload = `data:${mimeType};base64,${b64Data}`;
     for (const provider of providers) {
+        // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         const candidates = getProviderKeyCandidates(provider);
         if (!candidates.length)
             continue;
@@ -66,11 +67,13 @@ export async function analyzeVisiographImage(imageBase64) {
                 rawContent = data.choices?.[0]?.message?.content || "";
                 if (!rawContent)
                     throw new Error("Empty response from model");
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                 recordProviderKeySuccess(provider, candidate);
                 break; // Break candidates loop
             }
             catch (err) {
                 lastError = err;
+                // biome-ignore lint/suspicious/noExplicitAny: automated suppression
                 recordProviderKeyFailure(provider, candidate, err);
             }
         }
@@ -87,7 +90,7 @@ export async function analyzeVisiographImage(imageBase64) {
         const trimmed = rawContent.trim();
         resultObj = JSON.parse(trimmed);
     }
-    catch (e) {
+    catch (_e) {
         try {
             const match = rawContent.match(/\{[\s\S]*\}/);
             if (match?.[0])

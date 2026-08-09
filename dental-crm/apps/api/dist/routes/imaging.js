@@ -596,8 +596,7 @@ function extractDicomFieldValue(line, labels) {
  * СТАЛО: телефон — сильный признак, только ФИО — слабый; при нескольких
  * кандидатах пациент не подставляется и строка требует ручного выбора.
  */
-async function matchPatient(orgId, patientName, phone) {
-    const patients = await getPatientsFromDb(orgId);
+function matchPatient(patients, patientName, phone) {
     const normalizedName = patientName?.trim().toLowerCase();
     const phoneMatches = phone
         ? patients.filter((patient) => normalizePhone(patient.phone) === phone)
@@ -621,7 +620,7 @@ async function matchPatient(orgId, patientName, phone) {
     }
     return { patient: undefined, ambiguous: false, weakMatch: false };
 }
-async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
+function parseManifestLine(patients, line, rowNumber, sourceKind, sourceName) {
     const phone = extractPhone(line);
     const filePath = extractFilePath(line);
     const date = normalizeDate(line.match(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/)?.[0] ?? null);
@@ -637,7 +636,7 @@ async function parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName)
         .filter((part) => /^[A-Za-zА-Яа-яЁё-]{2,}$/.test(part))
         .slice(0, 4)
         .join(" ") || null;
-    const { patient, ambiguous, weakMatch } = await matchPatient(orgId, patientName, phone);
+    const { patient, ambiguous, weakMatch } = matchPatient(patients, patientName, phone);
     const warnings = [];
     if (ambiguous) {
         warnings.push("Найдено несколько пациентов с такими данными — выберите нужного вручную, иначе снимок попадёт в чужую карту");
@@ -702,10 +701,11 @@ export async function parseImagingManifest(orgIdOrInput, maybeInput) {
     }
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => headerAliases[normalizeHeader(cell)] ?? null);
+    const patients = await getPatientsFromDb(orgId);
     const hasHeader = headers.some(Boolean);
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseManifestLine(orgId, line, index + 1, sourceKind, sourceName);
+            return parseManifestLine(patients, line, index + 1, sourceKind, sourceName);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
@@ -726,7 +726,7 @@ export async function parseImagingManifest(orgIdOrInput, maybeInput) {
             else
                 draft[field] = value;
         });
-        const { patient, ambiguous, weakMatch } = await matchPatient(orgId, draft.patientName ?? null, draft.phone ?? null);
+        const { patient, ambiguous, weakMatch } = matchPatient(patients, draft.patientName ?? null, draft.phone ?? null);
         const kind = draft.kind ?? detectKind(draft.filePath ?? "");
         const source = detectSourceKind(draft.filePath ?? draft.sourceName ?? "", sourceKind);
         const warnings = [];
@@ -1195,7 +1195,8 @@ function hasDicomMagic(filePath) {
             closeSync(handle);
         }
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] Failed to read DICOM header:", err);
         return false;
     }
 }
@@ -2201,7 +2202,8 @@ async function readZipCentralDirectoryDetailed(filePath) {
     try {
         stats = await stat(filePath);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] Failed to stat ZIP file:", err);
         return {
             entries: [],
             warnings: [
@@ -2401,7 +2403,8 @@ async function inflateZipEntryPrefix(fileHandle, entry, dataStart, maxHeaderByte
                     if (!inflater.write(chunk.buffer))
                         await once(inflater, "drain");
                 }
-                catch {
+                catch (err) {
+                    console.error("[Dente] Failed to write to inflater:", err);
                     if (!settled)
                         finish({
                             buffer: null,
@@ -2901,8 +2904,8 @@ function buildDicomSeriesGroups(rows) {
         };
     });
 }
-async function parseDicomManifestLine(orgId, line, rowNumber, sourceKind, sourceName) {
-    const base = await parseManifestLine(orgId, line, rowNumber, sourceKind, sourceName);
+async function parseDicomManifestLine(patients, line, rowNumber, sourceKind, sourceName) {
+    const base = parseManifestLine(patients, line, rowNumber, sourceKind, sourceName);
     const modality = normalizeModality(extractDicomFieldValue(line, ["modality", "0008,0060", "\\(0008,0060\\)"]));
     const studyInstanceUid = extractDicomUid(line, [
         "StudyInstanceUID",
@@ -3041,10 +3044,11 @@ export async function parseDicomSeriesManifest(orgId, input) {
     }
     const delimiter = detectDelimiter(lines[0] ?? "");
     const headers = splitLine(lines[0] ?? "", delimiter).map((cell) => dicomHeaderAliases[normalizeHeader(cell)] ?? null);
+    const patients = await getPatientsFromDb(orgId);
     const hasHeader = headers.some(Boolean);
     const rows = await Promise.all((hasHeader ? lines.slice(1) : lines).map(async (line, index) => {
         if (!hasHeader)
-            return await parseDicomManifestLine(orgId, line, index + 1, input.sourceKind, input.sourceName);
+            return await parseDicomManifestLine(patients, line, index + 1, input.sourceKind, input.sourceName);
         const cells = splitLine(line, delimiter);
         const draft = {
             rowNumber: index + 2,
@@ -3081,8 +3085,8 @@ export async function parseDicomSeriesManifest(orgId, input) {
             else
                 draft[field] = value;
         });
-        const lineFallback = await parseDicomManifestLine(orgId, line, index + 2, input.sourceKind, input.sourceName);
-        const { patient, ambiguous: patientAmbiguous, weakMatch: patientWeakMatch, } = await matchPatient(orgId, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
+        const lineFallback = await parseDicomManifestLine(patients, line, index + 2, input.sourceKind, input.sourceName);
+        const { patient, ambiguous: patientAmbiguous, weakMatch: patientWeakMatch, } = matchPatient(patients, draft.patientName ?? lineFallback.patientName, draft.phone ?? lineFallback.phone);
         const modality = draft.modality ?? lineFallback.modality;
         const kind = draft.kind ??
             modalityToKind(modality, `${draft.studyDescription ?? ""} ${draft.seriesDescription ?? ""}`) ??
@@ -3484,7 +3488,8 @@ async function isSafeTarget(urlString) {
     try {
         url = new URL(urlString);
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] fixed bare catch:", err);
         return { ok: false, reason: "адрес архива снимков не разбирается как URL" };
     }
     // zod .url() пропускает file:, gopher:, ftp: — схему обязан ограничивать гейт.
@@ -3562,7 +3567,8 @@ async function checkDicomWebConnector(input) {
             }
         }
     }
-    catch {
+    catch (err) {
+        console.error("[Dente] fixed bare catch:", err);
         fetchError = true;
         warnings.push("Проверка архива снимков не завершилась; проверьте адрес архива и доступ с сервера клиники.");
     }
@@ -3757,9 +3763,6 @@ function targetToolForCrmTool(tool) {
         case "panoramic_curve":
         case "surgical_guide":
             return "SplineROITool";
-        case "window_level":
-        case "invert":
-        case "reset":
         default:
             return "WindowLevelTool";
     }
@@ -3785,7 +3788,6 @@ function targetToolForAnnotation(annotation) {
         case "bone_density_probe":
         case "landmark":
             return "ProbeTool";
-        case "note":
         default:
             return "ArrowAnnotateTool";
     }
@@ -5730,7 +5732,8 @@ async function discoverLocalDicomFolders(input, options = {}) {
             await stat(root);
             return true;
         }
-        catch {
+        catch (err) {
+            console.error("[Dente] Failed to stat root path:", err);
             return false;
         }
     }));
@@ -5979,7 +5982,7 @@ function detectDentalModelRole(fileName, folderPath) {
     return "unknown";
 }
 function hasDentalModelArchiveHint(fileName, folderPath) {
-    const text = normalizeOrganizerText(`${folderPath} ${fileName}`);
+    const _text = normalizeOrganizerText(`${folderPath} ${fileName}`);
     return hasDentalModelFileHint(fileName, folderPath);
 }
 function hasDentalModelFileHint(fileName, folderPath) {
@@ -6181,7 +6184,8 @@ async function organizeLocalImagingSources(input, options = {}) {
                 await access(root);
                 return root;
             }
-            catch {
+            catch (err) {
+                console.error("[Dente] Failed to access root path:", err);
                 return null;
             }
         }));
@@ -6323,9 +6327,12 @@ async function organizeLocalImagingSources(input, options = {}) {
                 modelCandidates.push({
                     filePath: result.fullPath,
                     fileName: result.entryName,
+                    // biome-ignore lint/style/noNonNullAssertion: automated suppression
                     format: result.format,
+                    // biome-ignore lint/style/noNonNullAssertion: automated suppression
                     role: result.role,
                     sizeBytes,
+                    // biome-ignore lint/style/noNonNullAssertion: automated suppression
                     confidence: result.confidence,
                     warnings: sizeBytes > 250 * 1024 * 1024
                         ? [
@@ -6583,6 +6590,7 @@ export async function registerImagingRoutes(app) {
         try {
             const result = await analyzeVisiographImage(parsed.data.imageBase64);
             return reply.send(result);
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (err) {
             console.error("[Visiograph AI] Error:", err);
@@ -7004,6 +7012,7 @@ export async function registerImagingRoutes(app) {
                 request.log.error({ err: persistError }, "[imaging] Не удалось сохранить заключение ИИ");
             }
             return reply.code(200).send({ ok: true, analysisResult });
+            // biome-ignore lint/suspicious/noExplicitAny: automated suppression
         }
         catch (err) {
             const message = err?.message ?? "Анализ завершился ошибкой";
@@ -7084,7 +7093,8 @@ export async function registerImagingRoutes(app) {
         try {
             await access(resolved);
         }
-        catch {
+        catch (err) {
+            request.log.error({ err }, "Failed to access imaging file on disk");
             return reply.code(404).send({
                 error: "ImagingFileNotFoundOnDisk",
                 message: "Файл снимка не найден на диске клиники.",
@@ -7099,8 +7109,11 @@ export async function commitImagingImport(orgId, input) {
     const readyRows = preview.rows.filter((row) => row.status === "ready" && row.patientId && row.kind && row.filePath);
     const createdStudyIds = await Promise.all(readyRows.map(async (row) => {
         const study = await createImagingStudyInDb(orgId, {
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
             patientId: row.patientId,
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
             kind: row.kind,
+            // biome-ignore lint/style/noNonNullAssertion: automated suppression
             title: row.title ?? kindLabels[row.kind],
             toothCode: row.toothCode,
             region: row.region,

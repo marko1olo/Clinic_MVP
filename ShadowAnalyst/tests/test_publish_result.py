@@ -48,6 +48,14 @@ class TestPublishResult(unittest.TestCase):
         mock_print.assert_called_with("-> Опубликовано в MQTT: test.jpg")
 
     @patch('builtins.print')
+    @patch('watcher.MQTT_USER', 'test_user')
+    @patch('watcher.MQTT_PASS', 'test_pass')
+    def test_publish_result_with_auth(self, mock_print):
+        watcher.publish_result('test_auth.jpg', 'findings with auth')
+        self.mock_client_instance.username_pw_set.assert_called_once_with('test_user', 'test_pass')
+        self.mock_client_instance.connect.assert_called_once_with(watcher.MQTT_HOST, watcher.MQTT_PORT, 5)
+
+    @patch('builtins.print')
     def test_publish_result_exception(self, mock_print):
         self.mock_client_instance.connect.side_effect = Exception("Connection failed")
 

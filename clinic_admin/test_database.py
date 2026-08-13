@@ -107,12 +107,11 @@ class TestDatabase(unittest.TestCase):
 
         good_phones = ['+79991234567', '+7 (999) 000-00-00', '123-456-7890', '12345', '(123) 456 7890', None]
 
-        for p in good_phones:
-            try:
-                c.execute("INSERT INTO patients (name, phone) VALUES (?, ?)", ("Test", p))
-                conn.commit()
-            except sqlite3.IntegrityError:
-                self.fail(f"Valid phone number {p} failed validation.")
+        try:
+            c.executemany("INSERT INTO patients (name, phone) VALUES (?, ?)", [("Test", p) for p in good_phones])
+            conn.commit()
+        except sqlite3.IntegrityError as e:
+            self.fail(f"Valid phone numbers failed validation: {e}")
 
         conn.close()
 

@@ -182,18 +182,17 @@ def classify(raw_text: str) -> Decision:
     risks = {name: _hits(text, pats) for name, pats in RISK_PATTERNS.items()}
     risks = {k: v for k, v in risks.items() if v}
 
-    if risks:
-        # Приоритет: медицина важнее цены, цена важнее записи.
-        for name, kind in (("medical", Kind.MEDICAL), ("price", Kind.PRICE),
-                           ("booking", Kind.BOOKING)):
-            if name in risks:
-                topic = None
-                if kind is Kind.PRICE:
-                    topic = next((key for key, needles, _ in _quotable_topics()
-                                  if any(n.search(text) for n in needles)), None)
-                return Decision(Route.DRAFT, kind,
-                                f"рисковый маркер ({name}) — решает человек",
-                                topic=topic, matched=tuple(risks[name]))
+    # Приоритет: медицина важнее цены, цена важнее записи.
+    for name, kind in (("medical", Kind.MEDICAL), ("price", Kind.PRICE),
+                       ("booking", Kind.BOOKING)):
+        if name in risks:
+            topic = None
+            if kind is Kind.PRICE:
+                topic = next((key for key, needles, _ in _quotable_topics()
+                              if any(n.search(text) for n in needles)), None)
+            return Decision(Route.DRAFT, kind,
+                            f"рисковый маркер ({name}) — решает человек",
+                            topic=topic, matched=tuple(risks[name]))
 
     safe_hits: list[str] = []
     safe_topic: str | None = None

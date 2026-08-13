@@ -24,7 +24,7 @@ loadAdditionalServerEnv();
  * позже, на первом же запросе, сообщением про несуществующее отношение. Лучше
  * не стартовать вовсе и сразу сказать, чего не хватает.
  */
-function requireDatabaseUrl(): string {
+export function requireDatabaseUrl(): string {
 	const url = process.env.DATABASE_URL;
 	if (!url || url.trim() === "") {
 		throw new Error(
@@ -68,6 +68,10 @@ export const pool = new pg.Pool({
 	idleTimeoutMillis: 30000,
 	connectionTimeoutMillis: 5000,
 	allowExitOnIdle: isAutomatedRun(),
+});
+
+pool.on("error", (err) => {
+	console.error("[pg.Pool] Unexpected error on idle PostgreSQL client:", err);
 });
 
 /**

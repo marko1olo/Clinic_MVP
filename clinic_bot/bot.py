@@ -92,9 +92,19 @@ async def cmd_test(message: Message):
 
 # ── MQTT -> Telegram bridge ──────────────────────────────────────────────────
 
+_role_cache = {}
+
+async def get_cached_users_by_role(role: str) -> list:
+    """Кешированное получение пользователей по роли с TTL."""
+    now = time.monotonic()
+    if role not in _role_cache or now - _role_cache[role]['timestamp'] > CACHE_TTL:
+        users = await asyncio.to_thread(db.get_users_by_role, role)
+        _role_cache[role] = {'users': users, 'timestamp': now}
+    return _role_cache[role]['users']
+
 async def broadcast(text: str, role: str = 'admin'):
     """Отправить текст всем получателям с заданной ролью."""
-    users = await asyncio.to_thread(db.get_users_by_role, role)
+    users = await get_cached_users_by_role(role)
     if not users:
         log.warning(f"No registered {role}s to send to.")
         return
@@ -109,7 +119,7 @@ async def broadcast(text: str, role: str = 'admin'):
 
 async def broadcast_photo(photo_bytes: bytes, caption: str, report_text: str, role: str = 'doctor'):
     """Отправить фото и текст всем получателям с заданной ролью."""
-    users = await asyncio.to_thread(db.get_users_by_role, role)
+    users = await get_cached_users_by_role(role)
     if not users:
         log.warning(f"No registered {role}s to send photo to.")
         return

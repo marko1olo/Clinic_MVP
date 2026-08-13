@@ -12,6 +12,27 @@ from bot import on_mqtt_message, cmd_start, handle_marketing_send
 from aiogram.types import Message, Chat, User
 import base64
 
+class TestRoleCache(unittest.IsolatedAsyncioTestCase):
+    async def test_get_cached_users_by_role(self):
+        from bot import get_cached_users_by_role, _role_cache
+
+        # Clear cache for isolated testing
+        _role_cache.clear()
+
+        with patch('bot.db.get_users_by_role', return_value=[1, 2, 3]) as mock_db:
+            # First call should hit the database
+            users = await get_cached_users_by_role('admin')
+            self.assertEqual(users, [1, 2, 3])
+            mock_db.assert_called_once_with('admin')
+
+            # Reset mock
+            mock_db.reset_mock()
+
+            # Second call should use cache
+            users_cached = await get_cached_users_by_role('admin')
+            self.assertEqual(users_cached, [1, 2, 3])
+            mock_db.assert_not_called()
+
 class TestHandleAlertAdmin(unittest.TestCase):
     @patch('bot.asyncio.run_coroutine_threadsafe')
     @patch('bot.broadcast', new_callable=MagicMock)

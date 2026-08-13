@@ -37,6 +37,13 @@ class TestGetOpenAIClient(unittest.TestCase):
         # Assert
         self.assertEqual(client.api_key, "dummy_key", "If no api_key is provided, it should default to 'dummy_key'")
 
+    def test_get_openai_client_empty_api_key(self):
+        # Act
+        client = get_openai_client("", "http://test_url")
+
+        # Assert
+        self.assertEqual(client.api_key, "dummy_key", "If an empty string is provided for api_key, it should default to 'dummy_key'")
+
     @patch('ShadowAnalyst.watcher.get_openai_client')
     def test_make_groq_client(self, mock_get_openai_client):
         # Arrange

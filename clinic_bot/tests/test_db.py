@@ -25,7 +25,10 @@ class TestDB(unittest.TestCase):
         db.close_connections()
         # Clean up the temporary database file
         os.close(self.fd)
-        os.unlink(self.temp_db)
+        try:
+            os.unlink(self.temp_db)
+        except OSError:
+            pass
     def test_add_user_insert(self):
         db.add_user(111, 'doctor', 'Doc One')
         conn = db.get_connection()

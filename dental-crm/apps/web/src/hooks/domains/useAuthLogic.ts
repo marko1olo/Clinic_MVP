@@ -9,6 +9,21 @@ import { actionFailureToast } from "../../lib/panelStateText";
 import { useAppStore } from "../../store/appStore";
 import { useSettingsStore } from "../../store/settingsStore";
 
+export function determineAdminSecretUnlockDomain(
+	accessUnlockRequired: boolean,
+	hasDashboard: boolean,
+	currentView: string,
+	settingsTab: string,
+	onboardingStep: string | null,
+): AdminSecretUnlockDomain {
+	if (accessUnlockRequired || !hasDashboard) return "all";
+	if (currentView === "schedule") return "schedule";
+	if (currentView === "settings")
+		return settingsTab === "telegram" ? "telegram" : "settings";
+	if (onboardingStep === "telegram") return "telegram";
+	return "clinical";
+}
+
 export function useAuthLogic({
 	setError,
 	loadDashboard,
@@ -97,12 +112,13 @@ export function useAuthLogic({
 
 	const currentAdminSecretUnlockDomain = useCallback(
 		function currentAdminSecretUnlockDomain(): AdminSecretUnlockDomain {
-			if (accessUnlockRequired || !dashboard) return "all";
-			if (currentView === "schedule") return "schedule";
-			if (currentView === "settings")
-				return settingsTab === "telegram" ? "telegram" : "settings";
-			if (onboardingStep === "telegram") return "telegram";
-			return "clinical";
+			return determineAdminSecretUnlockDomain(
+				accessUnlockRequired,
+				!!dashboard,
+				currentView,
+				settingsTab,
+				onboardingStep,
+			);
 		},
 		[accessUnlockRequired, dashboard, currentView, settingsTab, onboardingStep],
 	);

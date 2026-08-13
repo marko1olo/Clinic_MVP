@@ -121,6 +121,7 @@ import { analyzeVisiographImage } from "../ai/visiograph.js";
 import { analyzeImagingStudy } from "../ai/visionAnalyzer.js";
 import {
 	createImagingStudyInDb,
+	createImagingStudiesInDb,
 	getAllImagingStudies,
 	getImagingStudiesForPatient,
 	getImagingStudyById,

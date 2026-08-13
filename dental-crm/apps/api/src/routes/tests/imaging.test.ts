@@ -86,7 +86,11 @@ describe("commitImagingImport", () => {
 		// массиву в памяти: подменяем и выборку пациентов. Возвращаем строку
 		// таблицы, а не прикладной объект, — иначе rowToPatient не отработает.
 		mock.method(db, "select", () => ({
-			from: () => ({ where: async () => [testPatientRow] }),
+			from: () => ({
+				where: () => Object.assign(Promise.resolve([testPatientRow]), {
+					limit: () => Promise.resolve([testPatientRow])
+				})
+			}),
 		}));
 
 		const insertedValues: Array<Record<string, unknown>> = [];

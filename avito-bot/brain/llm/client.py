@@ -207,6 +207,98 @@ def _no_key_failure(providers: set[str]) -> tuple[str, int]:
     return ("all_keys_on_cooldown" if configured else "no_keys"), wait
 
 
+async def _try_model(
+    model: cascade.Model, pool: list[str], cursor: dict[str, int],
+    attempts: int, last_failure: str, system: str, user: str,
+    temperature: float, max_tokens: int, timeout_s: float,
+    purpose: str, started: float
+) -> tuple[LlmResult | None, int, str]:
+    """Попробовать одну модель с доступными ключами.
+
+    Возвращает (итог или None, обновлённое число попыток, код последней ошибки).
+    """
+    completion_field = False
+    tried_on_model = 0
+
+    while tried_on_model < KEYS_PER_MODEL and attempts < MAX_ATTEMPTS:
+        index = cursor[model.provider]
+        if index >= len(pool):
+            break
+        api_key = pool[index]
+        cursor[model.provider] = index + 1
+        tried_on_model += 1
+        attempts += 1
+        mark = keys.fingerprint(model.provider, api_key)
+
+        payload = _payload(model, system, user, temperature=temperature,
+                           max_tokens=max_tokens, completion_field=completion_field)
+        reply = await transport.post_chat(model.provider, api_key, payload, timeout_s)
+        outcome = _classify(reply)
+
+        if outcome is _TOKEN_FIELD and not completion_field:
+            # Не провал, а другая форма поля бюджета токенов. Повтор идёт
+            # тем же ключом: ключ тут ни при чём, поэтому попытку возвращаем
+            # в бюджет и курсор откатываем.
+            completion_field = True
+            cursor[model.provider] = index
+            tried_on_model -= 1
+            attempts -= 1
+            log.info("llm(%s): %s требует max_completion_tokens, повтор",
+                     purpose, model.key)
+            continue
+
+        if outcome is _OK:
+            text, why = _extract(reply)
+            if text is not None:
+                # Удачный ответ — прямое доказательство здоровья ключа, а
+                # кулдаун лишь предположение о болезни. Снимаем: соседний
+                # процесс мог остудить этот ключ, пока запрос летел.
+                state.clear_key_cooldown(mark)
+                log.info("llm(%s): ответила %s, ключ %s, попытка %s, %s мс",
+                         purpose, model.key, mark, attempts, reply.elapsed_ms)
+                res = _result(text=text, model=model.id, provider=model.provider,
+                              attempts=attempts, started=started, failure=None)
+                return res, attempts, last_failure
+            last_failure = why or "empty_response"
+            log.warning("llm(%s): %s ответила 200, но текста нет (%s), ключ %s",
+                        purpose, model.key, last_failure, mark)
+            break  # молчание модели ключом не лечится — следующая модель
+
+        last_failure = outcome
+
+        if outcome == "rate_limited":
+            # Квота — у ключа. Модель не наказываем: она только что была
+            # доступна, просто с этого ключа спрашивать больше нечего.
+            state.set_key_cooldown(mark)
+            log.warning("llm(%s): 429 на %s, ключ %s остывает %s с, модель не банится",
+                        purpose, model.key, mark, state.KEY_COOLDOWN_SECONDS)
+            continue
+
+        if outcome == "key_denied":
+            # Ключ отозван или не имеет доступа к модели. Кулдаун тут
+            # бессмысленен: через 300 с он не оживёт. Просто следующий ключ.
+            log.warning("llm(%s): %s отказал ключу %s (статус %s), беру следующий",
+                        purpose, model.key, mark, reply.status)
+            continue
+
+        if outcome in ("model_overloaded", "timeout"):
+            # Свойство модели, а не ключа: следующий ключ получит то же
+            # самое. Бан и переход к следующей строке каскада.
+            state.ban_model(model.key)
+            log.warning("llm(%s): %s недоступна (%s, статус %s), бан %s с",
+                        purpose, model.key, outcome, reply.status,
+                        state.MODEL_BAN_SECONDS)
+            break
+
+        # request_failed: сеть, прокси или отказ, который мы не опознали.
+        # Может быть и разовым, и общим, поэтому пробуем следующий ключ, но
+        # модель не баним — оснований нет.
+        log.warning("llm(%s): %s не ответила осмысленно (статус %s), ключ %s",
+                    purpose, model.key, reply.status, mark)
+
+    return None, attempts, last_failure
+
+
 async def complete(system: str, user: str, *, temperature: float = 0.35,
                    max_tokens: int = 400, purpose: str = "reply",
                    timeout_s: float = 25.0) -> LlmResult:
@@ -259,83 +351,15 @@ async def complete(system: str, user: str, *, temperature: float = 0.35,
             continue
 
         last_model, last_provider = model.id, model.provider
-        completion_field = False
-        tried_on_model = 0
 
-        while tried_on_model < KEYS_PER_MODEL and attempts < MAX_ATTEMPTS:
-            index = cursor[model.provider]
-            if index >= len(pool):
-                break
-            api_key = pool[index]
-            cursor[model.provider] = index + 1
-            tried_on_model += 1
-            attempts += 1
-            mark = keys.fingerprint(model.provider, api_key)
-
-            payload = _payload(model, system, user, temperature=temperature,
-                               max_tokens=max_tokens, completion_field=completion_field)
-            reply = await transport.post_chat(model.provider, api_key, payload, timeout_s)
-            outcome = _classify(reply)
-
-            if outcome is _TOKEN_FIELD and not completion_field:
-                # Не провал, а другая форма поля бюджета токенов. Повтор идёт
-                # тем же ключом: ключ тут ни при чём, поэтому попытку возвращаем
-                # в бюджет и курсор откатываем.
-                completion_field = True
-                cursor[model.provider] = index
-                tried_on_model -= 1
-                attempts -= 1
-                log.info("llm(%s): %s требует max_completion_tokens, повтор",
-                         purpose, model.key)
-                continue
-
-            if outcome is _OK:
-                text, why = _extract(reply)
-                if text is not None:
-                    # Удачный ответ — прямое доказательство здоровья ключа, а
-                    # кулдаун лишь предположение о болезни. Снимаем: соседний
-                    # процесс мог остудить этот ключ, пока запрос летел.
-                    state.clear_key_cooldown(mark)
-                    log.info("llm(%s): ответила %s, ключ %s, попытка %s, %s мс",
-                             purpose, model.key, mark, attempts, reply.elapsed_ms)
-                    return _result(text=text, model=model.id, provider=model.provider,
-                                   attempts=attempts, started=started, failure=None)
-                last_failure = why or "empty_response"
-                log.warning("llm(%s): %s ответила 200, но текста нет (%s), ключ %s",
-                            purpose, model.key, last_failure, mark)
-                break  # молчание модели ключом не лечится — следующая модель
-
-            last_failure = outcome
-
-            if outcome == "rate_limited":
-                # Квота — у ключа. Модель не наказываем: она только что была
-                # доступна, просто с этого ключа спрашивать больше нечего.
-                state.set_key_cooldown(mark)
-                log.warning("llm(%s): 429 на %s, ключ %s остывает %s с, модель не банится",
-                            purpose, model.key, mark, state.KEY_COOLDOWN_SECONDS)
-                continue
-
-            if outcome == "key_denied":
-                # Ключ отозван или не имеет доступа к модели. Кулдаун тут
-                # бессмысленен: через 300 с он не оживёт. Просто следующий ключ.
-                log.warning("llm(%s): %s отказал ключу %s (статус %s), беру следующий",
-                            purpose, model.key, mark, reply.status)
-                continue
-
-            if outcome in ("model_overloaded", "timeout"):
-                # Свойство модели, а не ключа: следующий ключ получит то же
-                # самое. Бан и переход к следующей строке каскада.
-                state.ban_model(model.key)
-                log.warning("llm(%s): %s недоступна (%s, статус %s), бан %s с",
-                            purpose, model.key, outcome, reply.status,
-                            state.MODEL_BAN_SECONDS)
-                break
-
-            # request_failed: сеть, прокси или отказ, который мы не опознали.
-            # Может быть и разовым, и общим, поэтому пробуем следующий ключ, но
-            # модель не баним — оснований нет.
-            log.warning("llm(%s): %s не ответила осмысленно (статус %s), ключ %s",
-                        purpose, model.key, reply.status, mark)
+        result, attempts, last_failure = await _try_model(
+            model=model, pool=pool, cursor=cursor, attempts=attempts,
+            last_failure=last_failure, system=system, user=user,
+            temperature=temperature, max_tokens=max_tokens, timeout_s=timeout_s,
+            purpose=purpose, started=started
+        )
+        if result is not None:
+            return result
 
         if attempts >= MAX_ATTEMPTS:
             log.warning("llm(%s): исчерпан бюджет попыток (%s)", purpose, MAX_ATTEMPTS)

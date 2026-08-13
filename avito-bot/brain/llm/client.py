@@ -60,17 +60,6 @@ KEYS_PER_MODEL = 3
 # 25 с каждый, и роутер отвечал бы через пять минут вместо честного провала.
 MAX_ATTEMPTS = 6
 
-# Слова, по которым провайдер сам говорит «перегружен/не успел», когда статус
-# этого не сказал. Проверяются ТОЛЬКО после того, как отвергнуты 429 и 401/403,
-# и только этими словами: подстрочный поиск числа «500» — тот самый дефект,
-# из-за которого квота читалась как перегрузка.
-_OVERLOAD_WORDS = ("deadline", "unavailable", "overloaded", "try again later")
-
-# Слова квоты. Нужны потому, что оба провайдера умеют отдавать исчерпание
-# квоты не только статусом 429.
-_RATE_WORDS = ("rate limit", "rate_limit", "quota", "resource_exhausted",
-               "too many requests")
-
 # Внутренние исходы попытки. Совпадают с кодами провала контракта там, где
 # исход провальный, плюс "ok" и "wrong_token_field" — последний не провал, а
 # указание повторить запрос в другой форме.
@@ -143,11 +132,22 @@ def _classify(reply: transport.HttpReply) -> str:
     low = reply.body.lower()
     server_side = reply.status >= 500
 
-    if reply.status == 429 or (not server_side and any(w in low for w in _RATE_WORDS)):
+    if reply.status == 429 or (not server_side and (
+        "rate limit" in low or
+        "rate_limit" in low or
+        "quota" in low or
+        "resource_exhausted" in low or
+        "too many requests" in low
+    )):
         return "rate_limited"
     if reply.status in (401, 403):
         return "key_denied"
-    if server_side or any(w in low for w in _OVERLOAD_WORDS):
+    if server_side or (
+        "deadline" in low or
+        "unavailable" in low or
+        "overloaded" in low or
+        "try again later" in low
+    ):
         return "model_overloaded"
     if reply.status == 400 and "max_tokens" in low:
         return _TOKEN_FIELD

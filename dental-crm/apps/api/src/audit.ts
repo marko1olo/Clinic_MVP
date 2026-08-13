@@ -1,5 +1,7 @@
 import { db } from "./db/client.js";
 import { auditEvents, organizations } from "./db/schema.js";
+import { randomUUID } from "node:crypto";
+import { auditEvents as inMemoryAuditEvents } from "./sampleData.js";
 
 /**
  * Писатель журнала аудита для пути документов (`db/documentQuery.ts`).
@@ -62,6 +64,20 @@ export async function recordAuditEvent(input: {
 	action: string;
 	reason?: string | null | undefined;
 }) {
+	if (process.env.DENTAL_STATE_PERSISTENCE === "off" && input.organizationId?.trim()) {
+		inMemoryAuditEvents.unshift({
+			id: randomUUID(),
+			organizationId: input.organizationId.trim(),
+			actorUserId: input.actorUserId ?? null,
+			entityType: input.entityType,
+			entityId: input.entityId,
+			action: input.action,
+			reason: input.reason ?? null,
+			createdAt: new Date().toISOString(),
+		});
+		return;
+	}
+
 	let orgId = input.organizationId?.trim();
 	if (!orgId) {
 		const [org] = await db.select().from(organizations).limit(1);

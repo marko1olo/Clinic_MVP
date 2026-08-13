@@ -1,4 +1,5 @@
 import json
+import itertools
 from datetime import datetime, timedelta
 
 from clinic_admin.database import get_connection
@@ -26,9 +27,7 @@ def _insert_patients(c, new_patients_data):
     placeholders = ", ".join(["(?, ?, ?)"] * len(new_patients_data))
     query = f"INSERT INTO patients (name, phone, created_at) VALUES {placeholders} RETURNING id"
 
-    params = []
-    for row in new_patients_data:
-        params.extend(row)
+    params = list(itertools.chain.from_iterable(new_patients_data))
 
     c.execute(query, params)
     return [row[0] for row in c.fetchall()]

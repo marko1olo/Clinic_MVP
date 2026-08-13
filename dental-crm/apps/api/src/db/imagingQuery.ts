@@ -7,9 +7,7 @@ import * as schema from "./schema.js";
 /**
  * Canonical default state for a freshly-created imaging viewer session.
  * Typed as ImagingViewerSessionState so the compiler enforces that every
- * required field is present and correctly typed (previously this was an
- * `as any`-masked `{ version, layout, currentTool }` literal that did not
- * match the schema at all — a persisted-state corruption bug).
+ * required field is present and correctly typed.
  */
 function createDefaultViewerSessionState(): ImagingViewerSessionState {
 	return {

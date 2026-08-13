@@ -521,5 +521,20 @@ class TestStartMqtt(unittest.TestCase):
         self.assertEqual(mock_client.loop_forever.call_count, 2)
 
 
+class TestBotFallbackException(unittest.TestCase):
+    def test_on_mqtt_message_json_decode_error_and_exception(self):
+        client = MagicMock()
+        userdata = {'loop': MagicMock()}
+        msg = MagicMock()
+        msg.topic = 'test/topic'
+        msg.payload = MagicMock()
+        msg.payload.decode.side_effect = [
+            'invalid_json',
+            Exception('Fallback decoding error')
+        ]
+        with self.assertLogs('bot', level='ERROR') as log_capture:
+            on_mqtt_message(client, userdata, msg)
+        self.assertTrue(any("Error processing MQTT message: Fallback decoding error" in log for log in log_capture.output))
+
 if __name__ == '__main__':
     unittest.main()

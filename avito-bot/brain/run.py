@@ -418,6 +418,40 @@ async def step_account(store: Store) -> Counters:
 
 # --- шаг 4: дожим -----------------------------------------------------------
 
+def _plan_followup(store: Store, dialog, now: datetime, first_route: followup_mod.Route) -> followup_mod.Plan | None:
+    state = followup_mod.DialogState(
+        our_last_message_at=dialog.our_last_message_at,
+        patient_last_message_at=dialog.patient_last_message_at,
+        followups_sent=dialog.followups_sent,
+        last_followup_at=dialog.last_followup_at,
+        phone_captured=dialog.phone_captured,
+        human_took_over=not dialog.ai_active(now),
+        patient_texts=store.patient_texts(dialog.chat_id),
+    )
+    return followup_mod.plan(state, now, first_route=first_route)
+
+
+async def _execute_followup(store: Store, dialog, plan: followup_mod.Plan) -> None:
+    if plan.route is followup_mod.Route.AUTO:
+        store.queue_outbox(dialog.chat_id, plan.text, kind="followup",
+                           send_after=plan.send_at,
+                           chat_url=_chat_url(store, dialog.chat_id))
+    else:
+        draft_id = store.queue_draft(dialog.chat_id, plan.text,
+                                     kind="followup", reason=plan.reason)
+        draft = store.draft(draft_id)
+        if draft is not None:
+            try:
+                message_id = await panel.post_draft(
+                    draft, dialog_excerpt=f"(дожим {plan.number}) {plan.reason}")
+                store.link_draft_message(draft_id, message_id)
+            except Exception as exc:  # noqa: BLE001
+                _log(f"дожим-черновик {draft_id} не ушёл: {type(exc).__name__}")
+        # Счётчик дожимов растёт при ФАКТЕ отправки (step_account), а не
+        # при постановке черновика: черновик администратор может и не
+        # отправить, а лимит в два дожима — про то, что увидел пациент.
+
+
 async def step_followup(store: Store, *, dry_run: bool) -> Counters:
     """Дожать замолчавшие диалоги. Все причины промолчать — в followup.plan."""
     counters = Counters()
@@ -435,16 +469,7 @@ async def step_followup(store: Store, *, dry_run: bool) -> Counters:
         if dialog.our_last_message_at is None:  # pragma: no cover - отсечено SQL
             continue
 
-        state = followup_mod.DialogState(
-            our_last_message_at=dialog.our_last_message_at,
-            patient_last_message_at=dialog.patient_last_message_at,
-            followups_sent=dialog.followups_sent,
-            last_followup_at=dialog.last_followup_at,
-            phone_captured=dialog.phone_captured,
-            human_took_over=not dialog.ai_active(now),
-            patient_texts=store.patient_texts(dialog.chat_id),
-        )
-        plan = followup_mod.plan(state, now, first_route=first_route)
+        plan = _plan_followup(store, dialog, now, first_route)
         if plan is None:
             continue
 
@@ -453,24 +478,7 @@ async def step_followup(store: Store, *, dry_run: bool) -> Counters:
             counters.followups += 1
             continue
 
-        if plan.route is followup_mod.Route.AUTO:
-            store.queue_outbox(dialog.chat_id, plan.text, kind="followup",
-                               send_after=plan.send_at,
-                               chat_url=_chat_url(store, dialog.chat_id))
-        else:
-            draft_id = store.queue_draft(dialog.chat_id, plan.text,
-                                         kind="followup", reason=plan.reason)
-            draft = store.draft(draft_id)
-            if draft is not None:
-                try:
-                    message_id = await panel.post_draft(
-                        draft, dialog_excerpt=f"(дожим {plan.number}) {plan.reason}")
-                    store.link_draft_message(draft_id, message_id)
-                except Exception as exc:  # noqa: BLE001
-                    _log(f"дожим-черновик {draft_id} не ушёл: {type(exc).__name__}")
-            # Счётчик дожимов растёт при ФАКТЕ отправки (step_account), а не
-            # при постановке черновика: черновик администратор может и не
-            # отправить, а лимит в два дожима — про то, что увидел пациент.
+        await _execute_followup(store, dialog, plan)
 
         counters.followups += 1
 

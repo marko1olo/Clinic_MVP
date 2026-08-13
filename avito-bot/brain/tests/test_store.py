@@ -322,6 +322,35 @@ def check_audit(c: Checks, store: Store) -> None:
          store.recent_audit(limit=1)[0].payload["failure"], "timeout")
 
 
+# Свои чаты, не chat-A/chat-B из предыдущих разделов: 150 записей в общий с
+# ними диалог сбили бы счётчики, которые проверяет check_reopen.
+def _concurrency_chat_of(tag: str) -> str:
+    return f"chat-conc-{tag}"
+
+
+def _concurrency_worker(
+    tag: str,
+    path: Path,
+    barrier: threading.Barrier,
+    per_thread: int,
+    shared: list[str],
+    wins: dict[str, list[str]],
+    errors: list[str]
+) -> None:
+    try:
+        with Store(path) as store:
+            barrier.wait(timeout=15)
+            for i in range(per_thread):
+                store.mark_seen(f"conc-{tag}-{i}", _concurrency_chat_of(tag), NOW)
+                if i < len(shared):
+                    if store.mark_seen(shared[i], "chat-race", NOW):
+                        wins[tag].append(shared[i])
+                store.touch_dialog(_concurrency_chat_of(tag), patient_message_at=NOW)
+                store.audit("polled", chat_id=_concurrency_chat_of(tag), payload={"i": i})
+    except BaseException as exc:  # noqa: BLE001 - падение и есть предмет проверки
+        errors.append(f"{tag}: {type(exc).__name__}: {exc}")
+
+
 def check_concurrency(c: Checks, path: Path) -> None:
     c.section("два соединения к одному файлу")
     shared = [f"race-{i}" for i in range(25)]
@@ -330,26 +359,13 @@ def check_concurrency(c: Checks, path: Path) -> None:
     wins: dict[str, list[str]] = {"A": [], "B": []}
     barrier = threading.Barrier(2)
 
-    # Свои чаты, не chat-A/chat-B из предыдущих разделов: 150 записей в общий с
-    # ними диалог сбили бы счётчики, которые проверяет check_reopen.
-    def chat_of(tag: str) -> str:
-        return f"chat-conc-{tag}"
-
-    def worker(tag: str) -> None:
-        try:
-            with Store(path) as store:
-                barrier.wait(timeout=15)
-                for i in range(per_thread):
-                    store.mark_seen(f"conc-{tag}-{i}", chat_of(tag), NOW)
-                    if i < len(shared):
-                        if store.mark_seen(shared[i], "chat-race", NOW):
-                            wins[tag].append(shared[i])
-                    store.touch_dialog(chat_of(tag), patient_message_at=NOW)
-                    store.audit("polled", chat_id=chat_of(tag), payload={"i": i})
-        except BaseException as exc:  # noqa: BLE001 - падение и есть предмет проверки
-            errors.append(f"{tag}: {type(exc).__name__}: {exc}")
-
-    threads = [threading.Thread(target=worker, args=(tag,)) for tag in ("A", "B")]
+    threads = [
+        threading.Thread(
+            target=_concurrency_worker,
+            args=(tag, path, barrier, per_thread, shared, wins, errors)
+        )
+        for tag in ("A", "B")
+    ]
     for t in threads:
         t.start()
     for t in threads:
@@ -369,8 +385,8 @@ def check_concurrency(c: Checks, path: Path) -> None:
                  "SELECT COUNT(*) FROM seen WHERE chat_id = 'chat-race'").fetchone()[0],
              len(shared))
         for tag in ("A", "B"):
-            row = store.dialog(chat_of(tag))
-            c.eq(f"счётчик диалога {chat_of(tag)} не потерял ни одной записи",
+            row = store.dialog(_concurrency_chat_of(tag))
+            c.eq(f"счётчик диалога {_concurrency_chat_of(tag)} не потерял ни одной записи",
                  row.patient_messages if row else None, per_thread)
         c.eq("аудит из двух потоков не потерялся", store._conn.execute(
             "SELECT COUNT(*) FROM audit WHERE event = 'polled'").fetchone()[0],

@@ -322,10 +322,10 @@ def watch_loop():
     # Process existing files first
     try:
         with ThreadPoolExecutor(max_workers=10) as executor:
-            for filename in os.listdir(WATCH_DIR):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    file_path = os.path.join(WATCH_DIR, filename)
-                    executor.submit(process_single_file, file_path)
+            with os.scandir(WATCH_DIR) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                        executor.submit(process_single_file, entry.path)
     except Exception as e:
         print(f"Ошибка при проверке существующих файлов: {e}")
 

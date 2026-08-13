@@ -176,10 +176,8 @@ def analyze_image(file_path):
 
 def publish_result(filename, findings):
     """Публикует результат в MQTT для показа врачу и отправки в ТГ."""
-    import paho.mqtt.client as mqtt
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    if MQTT_USER:
-        client.username_pw_set(MQTT_USER, MQTT_PASS)
+    from mqtt_utils import create_mqtt_client
+    client = create_mqtt_client(MQTT_USER, MQTT_PASS)
     try:
         client.connect(MQTT_HOST, MQTT_PORT, 5)
         payload = {

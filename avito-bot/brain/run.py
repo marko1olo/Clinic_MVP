@@ -34,7 +34,6 @@ SQLite (таблицы inbox/outbox, см. schema.sql). Разделение п�
     python brain/run.py --once       # одна итерация, для проверки после правок
     python brain/run.py --dry-run    # решения считаются и логируются, outbox пуст
 """
-
 from __future__ import annotations
 
 import argparse
@@ -84,9 +83,7 @@ STUCK_SENDING_SECONDS = 300.0
 def _log(message: str) -> None:
     """Лог в stdout. Прогон через pii.scrub обязателен: сюда попадают куски
     переписки, а лог демона на ноутбуке никем не защищён."""
-    print(
-        f"{hours.now().isoformat(timespec='seconds')} {pii.scrub(message)}", flush=True
-    )
+    print(f"{hours.now().isoformat(timespec='seconds')} {pii.scrub(message)}", flush=True)
 
 
 @dataclass
@@ -104,17 +101,14 @@ class Counters:
     errors: int = 0
 
     def __bool__(self) -> bool:
-        return any(
-            (self.processed, self.resolved, self.accounted, self.followups, self.errors)
-        )
+        return any((self.processed, self.resolved, self.accounted,
+                    self.followups, self.errors))
 
     def line(self) -> str:
         parts = []
         if self.processed:
-            parts.append(
-                f"разобрано {self.processed} (авто {self.auto}, "
-                f"черновиков {self.drafts})"
-            )
+            parts.append(f"разобрано {self.processed} (авто {self.auto}, "
+                         f"черновиков {self.drafts})")
         if self.resolved:
             parts.append(f"решений администратора {self.resolved}")
         if self.accounted:
@@ -127,7 +121,6 @@ class Counters:
 
 
 # --- шаг 1: входящие --------------------------------------------------------
-
 
 def _history(store: Store, row) -> tuple[Turn, ...]:
     """История диалога для промпта, обрезанная позицией разбираемого сообщения.
@@ -162,11 +155,9 @@ async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
             # Сообщение НЕ помечается разобранным: следующая итерация попробует
             # снова. Единственная альтернатива — потерять обращение молча.
             counters.errors += 1
-            store.audit(
-                "router_error",
-                chat_id=row.chat_id,
-                payload={"external_id": row.external_id, "error": type(exc).__name__},
-            )
+            store.audit("router_error", chat_id=row.chat_id,
+                        payload={"external_id": row.external_id,
+                                 "error": type(exc).__name__})
             _log(f"ОШИБКА роутера на {row.external_id}: {type(exc).__name__}: {exc}")
             continue
 
@@ -188,13 +179,9 @@ async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
             continue
 
         if outcome.route == "auto" and outcome.text:
-            store.queue_outbox(
-                row.chat_id,
-                outcome.text,
-                kind="reply",
-                send_after=outcome.send_at or hours.now(),
-                chat_url=row.chat_url,
-            )
+            store.queue_outbox(row.chat_id, outcome.text, kind="reply",
+                               send_after=outcome.send_at or hours.now(),
+                               chat_url=row.chat_url)
             counters.auto += 1
 
         elif outcome.route == "draft":
@@ -202,11 +189,9 @@ async def step_inbox(store: Store, *, dry_run: bool) -> Counters:
             # администратор отвечает сам, а черновик несёт причину и вопрос.
             body = outcome.text or (
                 f"Модель недоступна ({outcome.llm_failure}). "
-                f"Вопрос пациента: {row.text}"
-            )
-            draft_id = store.queue_draft(
-                row.chat_id, body, kind=outcome.kind, reason=outcome.reason
-            )
+                f"Вопрос пациента: {row.text}")
+            draft_id = store.queue_draft(row.chat_id, body,
+                                         kind=outcome.kind, reason=outcome.reason)
             await _publish_draft(store, draft_id, row)
             counters.drafts += 1
 
@@ -234,11 +219,8 @@ async def _publish_draft(store: Store, draft_id: int, row) -> None:
         message_id = await panel.post_draft(draft, dialog_excerpt=excerpt)
         store.link_draft_message(draft_id, message_id)
     except Exception as exc:  # noqa: BLE001
-        store.audit(
-            "draft_publish_failed",
-            chat_id=row.chat_id,
-            payload={"draft_id": draft_id, "error": type(exc).__name__},
-        )
+        store.audit("draft_publish_failed", chat_id=row.chat_id,
+                    payload={"draft_id": draft_id, "error": type(exc).__name__})
         _log(f"черновик {draft_id} не ушёл в Telegram: {type(exc).__name__}: {exc}")
 
 
@@ -250,21 +232,17 @@ async def publish_unposted(store: Store) -> int:
             continue
         try:
             message_id = await panel.post_draft(
-                draft, dialog_excerpt="(повторная публикация черновика)"
-            )
+                draft, dialog_excerpt="(повторная публикация черновика)")
             store.link_draft_message(draft.id, message_id)
             published += 1
         except Exception as exc:  # noqa: BLE001
-            _log(
-                f"повторная публикация черновика {draft.id} не удалась: "
-                f"{type(exc).__name__}"
-            )
+            _log(f"повторная публикация черновика {draft.id} не удалась: "
+                 f"{type(exc).__name__}")
             break  # Telegram недоступен целиком — остальные тоже не уйдут
     return published
 
 
 # --- шаг 2: решения администратора ------------------------------------------
-
 
 async def step_telegram(store: Store) -> Counters:
     """Забрать нажатия кнопок и правки, применить их к базе.
@@ -279,9 +257,8 @@ async def step_telegram(store: Store) -> Counters:
     offset = int(raw) if raw else None
 
     try:
-        updates = await panel.api.get_updates(
-            offset=offset, timeout_s=0.0, config=panel.config()
-        )
+        updates = await panel.api.get_updates(offset=offset, timeout_s=0.0,
+                                              config=panel.config())
     except Exception as exc:  # noqa: BLE001
         counters.errors += 1
         _log(f"Telegram недоступен: {type(exc).__name__}: {exc}")
@@ -296,10 +273,8 @@ async def step_telegram(store: Store) -> Counters:
                 counters.resolved += 1
         except Exception as exc:  # noqa: BLE001
             counters.errors += 1
-            store.audit(
-                "tg_action_failed",
-                payload={"error": type(exc).__name__, "detail": str(exc)[:200]},
-            )
+            store.audit("tg_action_failed",
+                        payload={"error": type(exc).__name__, "detail": str(exc)[:200]})
             _log(f"решение администратора не применено: {type(exc).__name__}: {exc}")
         finally:
             # Offset двигается ДАЖЕ при ошибке применения. Иначе один битый
@@ -335,21 +310,14 @@ async def _apply(store: Store, action: panel.Action) -> None:
         resolved = store.resolve_draft(
             action.draft_id,
             action="edited" if kind == "edit" else "sent",
-            final_text=final,
-            by=by,
-        )
+            final_text=final, by=by)
 
         # Задержка считается от «сейчас»: администратор мог думать над черновиком
         # полчаса, и отсчитывать человеческую паузу от времени пациента бессмысленно.
         plan = delay_mod.plan_reply(resolved.outgoing_text, is_first_reply=False)
-        store.queue_outbox(
-            resolved.chat_id,
-            resolved.outgoing_text,
-            kind="reply",
-            send_after=plan.send_at,
-            draft_id=resolved.id,
-            chat_url=_chat_url(store, resolved.chat_id),
-        )
+        store.queue_outbox(resolved.chat_id, resolved.outgoing_text, kind="reply",
+                           send_after=plan.send_at, draft_id=resolved.id,
+                           chat_url=_chat_url(store, resolved.chat_id))
         await panel.ack(action, text="Отправляется")
         return
 
@@ -365,11 +333,8 @@ async def _apply(store: Store, action: panel.Action) -> None:
         chat_id = _chat_of(store, action)
         if chat_id:
             store.set_ai_paused(chat_id, action.payload.get("until"))
-            store.audit(
-                "ai_paused",
-                chat_id=chat_id,
-                payload={"by": by, "variant": action.payload.get("variant")},
-            )
+            store.audit("ai_paused", chat_id=chat_id,
+                        payload={"by": by, "variant": action.payload.get("variant")})
             await panel.ack(action, text="ИИ на паузе")
         return
 
@@ -411,7 +376,6 @@ def _chat_url(store: Store, chat_id: str) -> str | None:
 
 # --- шаг 3: учёт отправленного ----------------------------------------------
 
-
 async def step_account(store: Store) -> Counters:
     """Учесть то, что Node уже отправил.
 
@@ -422,9 +386,16 @@ async def step_account(store: Store) -> Counters:
     """
     counters = Counters()
 
-    rows = store.sent_unaccounted(limit=50)
-    if rows:
-        counters.accounted += store.account_outbox_batch(rows)
+    for row in store.sent_unaccounted(limit=50):
+        assert row.sent_at is not None  # гарантировано CHECK-ом в схеме
+        store.touch_dialog(row.chat_id, our_message_at=row.sent_at)
+        if row.kind == "followup":
+            store.mark_followup_sent(row.chat_id, row.sent_at)
+        store.audit("sent", chat_id=row.chat_id,
+                    payload={"outbox_id": row.id, "kind": row.kind,
+                             "draft_id": row.draft_id})
+        store.mark_outbox_accounted(row.id)
+        counters.accounted += 1
 
     # Зависшие отправки: человек, а не повтор. Ушло сообщение или нет —
     # неизвестно, а дубликат в переписке выдаёт бота вернее любой формулировки.
@@ -435,14 +406,12 @@ async def step_account(store: Store) -> Counters:
             f"Отправка зависла: {ids}. Отправщик взял строки и не вернулся — "
             f"неизвестно, увидел ли их пациент. Проверьте переписку в Авито "
             f"руками: автоматически повторять нельзя, это риск дубликата.",
-            level="alarm",
-        )
+            level="alarm")
 
     return counters
 
 
 # --- шаг 4: дожим -----------------------------------------------------------
-
 
 async def step_followup(store: Store, *, dry_run: bool) -> Counters:
     """Дожать замолчавшие диалоги. Все причины промолчать — в followup.plan."""
@@ -480,23 +449,17 @@ async def step_followup(store: Store, *, dry_run: bool) -> Counters:
             continue
 
         if plan.route is followup_mod.Route.AUTO:
-            store.queue_outbox(
-                dialog.chat_id,
-                plan.text,
-                kind="followup",
-                send_after=plan.send_at,
-                chat_url=_chat_url(store, dialog.chat_id),
-            )
+            store.queue_outbox(dialog.chat_id, plan.text, kind="followup",
+                               send_after=plan.send_at,
+                               chat_url=_chat_url(store, dialog.chat_id))
         else:
-            draft_id = store.queue_draft(
-                dialog.chat_id, plan.text, kind="followup", reason=plan.reason
-            )
+            draft_id = store.queue_draft(dialog.chat_id, plan.text,
+                                         kind="followup", reason=plan.reason)
             draft = store.draft(draft_id)
             if draft is not None:
                 try:
                     message_id = await panel.post_draft(
-                        draft, dialog_excerpt=f"(дожим {plan.number}) {plan.reason}"
-                    )
+                        draft, dialog_excerpt=f"(дожим {plan.number}) {plan.reason}")
                     store.link_draft_message(draft_id, message_id)
                 except Exception as exc:  # noqa: BLE001
                     _log(f"дожим-черновик {draft_id} не ушёл: {type(exc).__name__}")
@@ -510,7 +473,6 @@ async def step_followup(store: Store, *, dry_run: bool) -> Counters:
 
 
 # --- цикл -------------------------------------------------------------------
-
 
 class Daemon:
     """Состояние процесса: база, флаг остановки, режим."""
@@ -594,8 +556,7 @@ def db_path() -> Path:
     if not raw:
         raise SystemExit(
             "AVITO_BOT_DB не задана. Заполните .env по образцу .env.example. "
-            "Демон и поллер обязаны открыть один и тот же файл базы."
-        )
+            "Демон и поллер обязаны открыть один и тот же файл базы.")
     return Path(raw)
 
 
@@ -612,19 +573,15 @@ async def _main(args: argparse.Namespace) -> int:
             raise SystemExit(f"панель Telegram не настроена: {exc}") from exc
 
     health = llm.health()
-    _log(
-        f"LLM: ключей {health.get('keys_total', 0)}, "
-        f"в кулдауне {health.get('keys_on_cooldown', 0)}, "
-        f"моделей забанено {health.get('models_banned', 0)}"
-    )
+    _log(f"LLM: ключей {health.get('keys_total', 0)}, "
+         f"в кулдауне {health.get('keys_on_cooldown', 0)}, "
+         f"моделей забанено {health.get('models_banned', 0)}")
     if not health.get("keys_total"):
         # Не отказ в старте: деградированный режим предусмотрен, белый список
         # отвечает и без модели, остальное уходит администратору. Но молча
         # работать без единого ключа демон не должен.
-        _log(
-            "ВНИМАНИЕ: ни одного ключа LLM. Работаем в деградированном режиме: "
-            "белый список отвечает сам, всё остальное уходит администратору."
-        )
+        _log("ВНИМАНИЕ: ни одного ключа LLM. Работаем в деградированном режиме: "
+             "белый список отвечает сам, всё остальное уходит администратору.")
 
     if not args.dry_run:
         published = await publish_unposted(daemon.store)
@@ -652,19 +609,12 @@ async def _main(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Демон решений авито-бота «Денталия-2»"
-    )
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="одна итерация и выход — для проверки после правок",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="считать и логировать решения, ничего не ставить "
-        "в очередь отправки и не трогать Telegram",
-    )
+        description="Демон решений авито-бота «Денталия-2»")
+    parser.add_argument("--once", action="store_true",
+                        help="одна итерация и выход — для проверки после правок")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="считать и логировать решения, ничего не ставить "
+                             "в очередь отправки и не трогать Telegram")
     args = parser.parse_args()
     return asyncio.run(_main(args))
 

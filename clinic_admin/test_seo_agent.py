@@ -31,7 +31,7 @@ class TestSEOAgent(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch('builtins.open', new_callable=mock_open, read_data='invalid json')
-    @patch('builtins.print')
+    @patch('clinic_admin.seo_agent.logging.error')
     def test_get_groq_api_key_json_parsing_failure(self, mock_print, mock_file):
         # Call the function
         result = get_groq_api_key()

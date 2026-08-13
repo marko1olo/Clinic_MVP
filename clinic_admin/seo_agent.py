@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import requests
 import random
 
@@ -25,7 +26,7 @@ def get_groq_api_key():
             if _cached_groq_keys:
                 return random.choice(_cached_groq_keys)
     except Exception as e:
-        print(f"Error loading config: {e}")
+        logging.error(f"Error loading config: {e}")
     return None
 
 def _get_system_prompt(clinic_phone: str) -> str:

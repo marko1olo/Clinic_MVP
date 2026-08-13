@@ -100,13 +100,12 @@ class TestDatabase(unittest.TestCase):
 
         conn.close()
 
-    def test_phone_validation(self):
+    def test_phone_validation_valid(self):
         clinic_admin.database.init_db()
         conn = clinic_admin.database.get_connection()
         c = conn.cursor()
 
         good_phones = ['+79991234567', '+7 (999) 000-00-00', '123-456-7890', '12345', '(123) 456 7890', None]
-        bad_phones = ['+79991234567A', '<script>', '000000000000000000000', '', '1234', 'abcde']
 
         for p in good_phones:
             try:
@@ -114,6 +113,15 @@ class TestDatabase(unittest.TestCase):
                 conn.commit()
             except sqlite3.IntegrityError:
                 self.fail(f"Valid phone number {p} failed validation.")
+
+        conn.close()
+
+    def test_phone_validation_invalid(self):
+        clinic_admin.database.init_db()
+        conn = clinic_admin.database.get_connection()
+        c = conn.cursor()
+
+        bad_phones = ['+79991234567A', '<script>', '000000000000000000000', '', '1234', 'abcde']
 
         for p in bad_phones:
             with self.assertRaises(sqlite3.IntegrityError, msg=f"Invalid phone number {p} should have failed validation."):

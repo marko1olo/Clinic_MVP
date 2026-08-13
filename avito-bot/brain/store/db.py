@@ -471,13 +471,17 @@ class Store:
         в диалоге, который администратор забрал себе, а это стоит пациента.
         Снятие выражается моментом в прошлом: `set_ai_paused(chat, hours.now())`.
         """
-        if column not in ("takeover_until", "ai_paused_until"):
+        if column == "takeover_until":
+            query = "UPDATE dialogs SET takeover_until = ? WHERE chat_id = ?"
+        elif column == "ai_paused_until":
+            query = "UPDATE dialogs SET ai_paused_until = ? WHERE chat_id = ?"
+        else:
             raise ValueError(f"недопустимая колонка срока: {column!r}")
+
         stamp = _iso(until, column) if until is not None else _iso(FOREVER, column)
         with self._write() as conn:
             self._ensure_dialog(conn, chat_id, _iso(hours.now(), "now"))
-            conn.execute(f"UPDATE dialogs SET {column} = ? WHERE chat_id = ?",
-                         (stamp, chat_id))
+            conn.execute(query, (stamp, chat_id))
 
     def set_takeover(self, chat_id: str, until: datetime | None) -> None:
         """Администратор забрал диалог себе. None — до отмены."""

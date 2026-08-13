@@ -181,3 +181,12 @@ class TestBotBroadcastPhoto(unittest.IsolatedAsyncioTestCase):
                         self.assertIn("Failed to send photo to 123: Test send_photo error", mock_logger_error.call_args_list[0].args[0])
 
 
+
+class TestBroadcast(unittest.IsolatedAsyncioTestCase):
+    async def test_broadcast_unknown_role_empty_users(self):
+        with patch('clinic_bot.bot.db.get_users_by_role', return_value=[]):
+            with patch('clinic_bot.bot.log.warning') as mock_logger_warning:
+                with patch('clinic_bot.bot.bot.send_message', new_callable=AsyncMock) as mock_send_message:
+                    await bot.broadcast("Test Message", role='unknown_role')
+                    mock_logger_warning.assert_called_once_with("No registered unknown_roles to send to.")
+                    mock_send_message.assert_not_called()

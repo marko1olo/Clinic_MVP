@@ -623,8 +623,6 @@ describe("a closed contour does not grow a tail on the panorama", () => {
 	});
 
 	test("a loop with no closed flag is still refused the polyline path", () => {
-		// cornerstone only computes `closed` from geometry when the flag is absent;
-		// if it never stamped one we must not walk a loop as an open curve.
 		const result = buildPanoramicArch([
 			archAnnotation(handles, { polyline: closedPolyline }),
 		]);

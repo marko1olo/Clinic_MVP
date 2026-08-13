@@ -23,7 +23,6 @@
 единственный изъян модели, который не лечится промптом, — способность назвать
 цифру, которой ей не давали.
 """
-from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field

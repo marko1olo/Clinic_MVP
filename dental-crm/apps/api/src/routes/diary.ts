@@ -2249,21 +2249,21 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 		const { planId } = req.params as { planId: string };
 		const { patientSignature } = req.body as { patientSignature: string };
 		const orgId = await resolveOrganizationId(req);
-		if (!orgId) return reply.code(403).send({ error: "OrgRequired" });
+		if (!orgId) return reply.code(403).send({ error: "OrgRequired", message: "Не удалось определить клинику. Войдите в кабинет клиники и повторите действие." });
 
 		const { treatmentPlans, patients } = await import("../db/schema.js");
 		const [plan] = await db
 			.select()
 			.from(treatmentPlans)
 			.where(eq(treatmentPlans.id, planId));
-		if (!plan) return reply.code(404).send({ error: "Not found" });
+		if (!plan) return reply.code(404).send({ error: "Not found", message: "План лечения не найден. Обновите страницу и выберите существующий план." });
 
 		const [patient] = await db
 			.select()
 			.from(patients)
 			.where(eq(patients.id, plan.patientId));
 		if (!patient || patient.organizationId !== orgId)
-			return reply.code(403).send({ error: "Forbidden" });
+			return reply.code(403).send({ error: "Forbidden", message: "Нет доступа к плану лечения этого пациента. Выберите план своей клиники." });
 
 		await db
 			.update(treatmentPlans)

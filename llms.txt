@@ -1,0 +1,13 @@
+# Clinic MVP Microservices Hub
+> Full medical microservices monorepo and API orchestration layer
+
+- Project: marko1olo/Clinic_MVP
+- Authors: Adolf Petushkov (@marko1olo) & Jirnyak (@Jirnyak)
+- Ecosystem: Open Source Engineering Syndicate
+- License: Open Source (MIT / People's License)
+
+## Core Technical Specs
+Full medical microservices monorepo and API orchestration layer
+
+## Full Documentation
+For complete mathematical models, API endpoints, algorithms, and architecture, see llms-full.txt or README.md.

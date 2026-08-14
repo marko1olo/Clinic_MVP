@@ -1366,21 +1366,9 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 							draftHash: null as string | null,
 						};
 					}
-					const draftHash = computeDiaryHash(
-						savedRow.visitId,
-						savedRow.patientId ?? "",
-						savedRow.anamnesis,
-						savedRow.statusLocalis,
-						savedRow.treatmentDescription,
-						savedRow.diagnosisIcd10,
-						savedRow.diagnosisTooth,
-						savedRow.complications,
-						savedRow.comorbidities,
-						savedRow.instrumentTrayBarcode,
-					);
 					await tx
 						.update(visitDiaries)
-						.set({ diaryHash: draftHash, updatedAt: new Date() })
+						.set({ diaryHash: null, updatedAt: new Date() })
 						.where(
 							and(
 								eq(visitDiaries.id, diaryId),
@@ -1406,7 +1394,7 @@ export default async function registerDiaryRoutes(app: FastifyInstance) {
 					return {
 						diaryId,
 						signing: null as DiarySigningResult | null,
-						draftHash,
+						draftHash: null as string | null,
 					};
 				}
 
